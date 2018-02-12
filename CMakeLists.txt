@@ -1,0 +1,44 @@
+cmake_minimum_required(VERSION 2.8)
+if (POLICY CMP0042)
+	cmake_policy(SET CMP0042 NEW)
+endif()
+
+project(grale2)
+set(VERSION 0.5.0)
+
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake")
+
+include(CheckIncludeFile)
+include(CheckIncludeFileCXX)
+include(${PROJECT_SOURCE_DIR}/cmake/Macros.cmake)
+include(CheckCXXCompilerFlag)
+include(CheckCXXSourceCompiles)
+CHECK_CXX_COMPILER_FLAG("-std=c++11" COMPILER_SUPPORTS_CXX11)
+if(COMPILER_SUPPORTS_CXX11)
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+else()
+	# Test if the compiler already supports C++11
+	check_cxx_source_compiles("#include <map>\nusing namespace std;\nint main(void) \n {\nmap<int, double> m;\n auto it = m.begin();\n return 0; \n }" C11AVAIL)
+	if (NOT C11AVAIL)
+		message(FATAL_ERROR "The compiler ${CMAKE_CXX_COMPILER} has no C++11 support.")
+	endif()
+endif()
+
+get_install_directory(LIBRARY_INSTALL_DIR)
+
+if (MSVC)
+	set(GRALE_COMPILE_STATIC ON CACHE BOOL "Flag indicating if a static library should be built, or a dynamic one")
+endif (MSVC)
+if (NOT MSVC)
+	option(GRALE_LINK "Flag indicating if the shared library should be automatically linked against the other libraries used" ON)
+else (NOT MSVC)
+	if (GRALE_COMPILE_STATIC)
+		set(GRALE_LINK FALSE)
+	else (GRALE_COMPILE_STATIC)
+		set(GRALE_LINK TRUE)
+	endif (GRALE_COMPILE_STATIC)
+endif (NOT MSVC)
+
+add_subdirectory(core)
+add_subdirectory(inversion)
+

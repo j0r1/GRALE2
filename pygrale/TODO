@@ -1,0 +1,11 @@
+Things that are in graleshell and may be useful to provide:
+ - lens/new/scaledegen: construct generalized mass scale/mass sheet degeneracy
+   as described in 2008 article, based on a lens and images
+ - lens/new/timedelay: modify lens so that timedelay at certain position is
+   modified, without affecting other properties
+ - lens/new/magadjust: adjust magnification at specific point
+ - imgdata/backproj/all: project imgdata to source plane
+ - imgdata/fitness: calculate fitness according to inversion module
+ - imgdata/nds: calculate non-dominated set
+
+Merge grids, use multiple grids for inversion

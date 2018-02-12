@@ -1,0 +1,10 @@
+{% extends "sphinx_rtd_theme/layout.html" %}
+{% set script_files = script_files + [ '_static/js/inspectlinks.js' ] %}
+
+{# This file seems to get lost somehow, this is probably not the best solution #}
+{% if READTHEDOCS %}
+  {% set css_files = css_files + [ 'https://media.readthedocs.org/css/sphinx_rtd_theme.css' ] %}
+{% endif %}
+
+{% set css_files = css_files + [ '_static/css/theme-mod.css' ] %}
+

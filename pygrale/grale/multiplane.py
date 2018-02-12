@@ -1,0 +1,385 @@
+from . import images
+from . import contourfinder
+from . import gridfunction
+from . import privutil
+import copy
+import numpy as np
+
+class MultiImagePlaneException(Exception):
+    """TODO:"""
+    pass
+
+class MultiLensPlane(object):
+    """TODO:"""
+
+    @staticmethod
+    def _createThetaGrid(bottomLeft, topRight, numX, numY):
+        thetas = np.empty([numY,numX,2], dtype=np.double)
+        thetas[:,:,0], thetas[:,:,1] = np.meshgrid(np.linspace(bottomLeft[0], topRight[0], numX), 
+                                                   np.linspace(bottomLeft[1], topRight[1], numY))
+        return thetas
+
+    def __init__(self, lensesAndRedshifts, cosmology, bottomLeft, topRight, numX, numY, renderer = None, feedbackObject = None):
+        """TODO:"""
+
+        if not lensesAndRedshifts:
+            raise MultiImagePlaneException("No lenses and redshifts were specified")
+
+        # check Dd vs z/cosmology. This also checks that the lens is probably a lens
+        # (i.e. that it has the method getLensDistance())
+        count = 0
+        for lens, z in lensesAndRedshifts:
+            Dd = cosmology.getAngularDiameterDistance(z)
+            if abs((Dd - lens.getLensDistance())/Dd) > 1e-6:
+                raise MultiImagePlaneException("The specified redshift {} for lens at index {} is not compatible with the angular diameter distance stored in the lens itself".format(z, count))
+
+            count += 1
+
+        renderer, feedbackObject = privutil.initRendererAndFeedback(renderer, feedbackObject, "LENSPLANE")
+
+        thetas = MultiLensPlane._createThetaGrid(bottomLeft, topRight, numX, numY)
+        self._thetas = thetas
+        self._bottomLeft = bottomLeft[:2]
+        self._topRight = topRight[:2]
+        self._numX = numX
+        self._numY = numY
+        self._cosmology = cosmology
+
+        # Create copy of lensesAndRedshifts, and sort on redshift
+        lz = sorted(lensesAndRedshifts[:], key = lambda xz: xz[1])
+        N = len(lz)
+
+        # Check that no two redshifts are the same
+        for i in range(1, N):
+            if lz[i-1][1] == lz[i][1]:
+                raise MultiImagePlaneException("At least two lenses have the same redshift. Combine them in a CompositeLens instance first.")
+
+        # Calculate mappings of deflection angles and derivatives
+        T, Txx, Txy, Tyx, Tyy = [], [], [], [], []
+        alphas = { }
+        derivs = { }
+        alphasAndDerivs = { }
+
+        def getAlphasAndDerivs(j):
+            if j in alphasAndDerivs:
+                ad = alphasAndDerivs[j]
+            else:
+                if renderer is None:
+                    a = lz[j][0].getAlphaVector(T[j])
+                    d = lz[j][0].getAlphaVectorDerivatives(T[j])
+                else:
+                    result = renderer.renderXYVector(lz[j][0].toBytes(), T[j])
+                    result = np.frombuffer(result, "double").reshape([-1,5]) # for each point: ax, ay, axx, ayy, axy
+                    a = result[:,0:2].reshape([numY, numX, 2])
+                    d = result[:,2:5].reshape([numY, numX, 3])
+
+                ad = (a, d)
+                alphasAndDerivs[j] = ad
+
+            return ad
+
+        def getAlphas(j):
+            if j in alphas:
+                return alphas[j]
+            a,d = getAlphasAndDerivs(j)
+            alphas[j] = a
+            return a
+        
+        def getAlphaDeriv(j):
+            if j in derivs:
+                return derivs[j]
+
+            a, tmp = getAlphasAndDerivs(j)
+            d = [ tmp[:,:,0], tmp[:,:,2], tmp[:,:,2], tmp[:,:,1] ] 
+            derivs[j] = d
+            return d
+        
+        for i in range(0, N):
+            #print("i =", i)
+            feedbackObject.onStatus("Processing lens {} at z = {:.2f}".format(i, lz[i][1]))
+
+            Ti = copy.deepcopy(thetas)
+            Di = cosmology.getAngularDiameterDistance(lz[i][1])
+            
+            Tixx = np.ones((numY, numX), dtype=np.double)
+            Tixy = np.zeros((numY, numX), dtype=np.double)
+            Tiyx = np.zeros((numY, numX), dtype=np.double)
+            Tiyy = np.ones((numY, numX), dtype=np.double)
+            
+            for j in range(0, i):
+                #print("j =", j)
+                Dji = cosmology.getAngularDiameterDistance(lz[j][1], lz[i][1])
+                Ti -= Dji/Di * getAlphas(j)
+                Tixx -= Dji/Di * ( getAlphaDeriv(j)[0] * Txx[j] + getAlphaDeriv(j)[1]*Tyx[j])
+                Tixy -= Dji/Di * ( getAlphaDeriv(j)[0] * Txy[j] + getAlphaDeriv(j)[1]*Tyy[j])
+                Tiyx -= Dji/Di * ( getAlphaDeriv(j)[2] * Txx[j] + getAlphaDeriv(j)[3]*Tyx[j])
+                Tiyy -= Dji/Di * ( getAlphaDeriv(j)[2] * Txy[j] + getAlphaDeriv(j)[3]*Tyy[j])
+        
+            T.append(Ti)
+            Txx.append(Tixx)
+            Txy.append(Tixy)
+            Tyx.append(Tiyx)
+            Tyy.append(Tiyy)
+
+        # Make sure these are cached
+        getAlphas(N-1)
+        getAlphaDeriv(N-1)
+    
+        self._lz = lz
+        self._alphas = alphas
+        self._derivs = derivs
+        self._T = T
+        self._Txx = Txx
+        self._Tyy = Tyy
+        self._Txy = Txy
+        self._Tyx = Tyx
+
+    def getLensesAndRedshifts(self):
+        """TODO:"""
+        return self._lz[:]
+
+    def getRenderInfo(self):
+        """TODO:"""
+        ri = {
+            "bottomleft": self._bottomLeft[:],
+            "topright": self._topRight[:],
+            "xpoints": self._numX,
+            "ypoints": self._numY
+        }
+        return ri
+
+class MultiImagePlane(object):
+    """TODO:"""
+
+    def __init__(self, multiLensPlane, sourceRedshift):
+        """TODO:"""
+
+        # Keep only the part that's relevant to us
+        lz = multiLensPlane._lz[:]
+        while lz and sourceRedshift < lz[-1][1]:
+            del lz[-1]
+
+        self._zs = sourceRedshift
+        self._multiLensPlane = multiLensPlane
+
+        alphas = multiLensPlane._alphas
+        derivs = multiLensPlane._derivs
+        T = multiLensPlane._T
+        Txx = multiLensPlane._Txx
+        Tyy = multiLensPlane._Tyy
+        Txy = multiLensPlane._Txy
+        Tyx = multiLensPlane._Tyx
+    
+        cosmology = multiLensPlane._cosmology
+        Ti = copy.deepcopy(multiLensPlane._thetas)
+        Di = cosmology.getAngularDiameterDistance(sourceRedshift)
+        
+        numX, numY = multiLensPlane._numX, multiLensPlane._numY
+        Tixx = np.ones((numY, numX), dtype=np.double)
+        Tixy = np.zeros((numY, numX), dtype=np.double)
+        Tiyx = np.zeros((numY, numX), dtype=np.double)
+        Tiyy = np.ones((numY, numX), dtype=np.double)
+        
+        N = len(lz)
+        for j in range(0, N):
+            Dji = cosmology.getAngularDiameterDistance(lz[j][1], sourceRedshift)
+            Ti -= Dji/Di * alphas[j]
+            Tixx -= Dji/Di * ( derivs[j][0] * Txx[j] + derivs[j][1]*Tyx[j])
+            Tixy -= Dji/Di * ( derivs[j][0] * Txy[j] + derivs[j][1]*Tyy[j])
+            Tiyx -= Dji/Di * ( derivs[j][2] * Txx[j] + derivs[j][3]*Tyx[j])
+            Tiyy -= Dji/Di * ( derivs[j][2] * Txy[j] + derivs[j][3]*Tyy[j])
+    
+        self._lz = lz
+        self._zs = sourceRedshift
+        self._betas = Ti
+        self._betaderivs = [ Tixx, Tixy, Tiyx, Tiyy ]
+        self._invmag = None
+        self._invmagGrid = None
+        self._critLines = None
+        self._betaGrid = None
+        self._caustics = None
+        self._cosmology = cosmology
+
+    def getSourceRedshift(self):
+        """TODO:"""
+        return self._zs
+
+    def _checkInvMag(self):
+        if self._invmag is None:
+            betaderivs = self._betaderivs
+            self._invmag = betaderivs[0] * betaderivs[3] - betaderivs[1]*betaderivs[2]
+
+    def _calcCrit(self):
+        if self._critLines is None:
+            self._checkInvMag()
+            mlp = self._multiLensPlane
+            ctrFinder = contourfinder.ContourFinder(self._invmag, mlp._bottomLeft, mlp._topRight)
+            self._critLines = ctrFinder.findContour(0)
+
+    def getCriticalLines(self):
+        """TODO:"""
+        self._calcCrit()
+        return copy.deepcopy(self._critLines)
+
+    def _getBetaGrid(self):
+        if not self._betaGrid:
+            betas = self._betas
+            mlp = self._multiLensPlane
+            gx = gridfunction.GridFunction(betas[:,:,0], mlp._bottomLeft, mlp._topRight)
+            gy = gridfunction.GridFunction(betas[:,:,1], mlp._bottomLeft, mlp._topRight)
+            self._betaGrid = [ gx, gy ]
+        else:
+            gx, gy = self._betaGrid
+
+        return gx, gy
+
+    def getCaustics(self, approx = False):
+        """TODO:"""
+        self._calcCrit()
+
+        traceFunction = self.traceThetaApproximately if approx else self.traceTheta
+
+        if self._caustics is None:
+            gx, gy = self._getBetaGrid()
+            contourParts = self._critLines
+
+            self._caustics = [ ]
+            for part in contourParts:
+                caustPart = traceFunction(part)
+                self._caustics.append(np.array(caustPart))
+
+        return copy.deepcopy(self._caustics)
+
+
+    def traceBetaApproximately(self, beta):
+        """TODO:"""
+        mlp = self._multiLensPlane
+        theta = images.ImagePlane.static_traceBetaApproximately(beta, self._betas, mlp._bottomLeft, mlp._topRight)
+        return theta
+
+    def getRenderInfo(self):
+        """TODO:"""
+        ri = copy.deepcopy(self._multiLensPlane.getRenderInfo())
+        ri["xpixels"] = ri["xpoints"]-1
+        ri["ypixels"] = ri["ypoints"]-1
+        return ri
+
+    def _renderSourcesOrImages(self, sourceList, plane, subSamples, thetaMapping):
+        mlp = self._multiLensPlane
+        bl, tr = mlp._bottomLeft, mlp._topRight
+        numX, numY = mlp._numX, mlp._numY
+        
+        dstPlane = np.zeros((numY-1, numX-1), dtype=np.double)
+
+        numSub = round(subSamples**0.5)
+        if numSub < 1:
+            numSub = 1
+
+        dx = np.zeros((numY-1, numX-1, 2), dtype=np.double)
+        dy = np.zeros((numY-1, numX-1, 2), dtype=np.double)
+        dx[:,:,0] = ((tr[0]-bl[0])/(numX-1))/numSub
+        dy[:,:,1] = ((tr[1]-bl[1])/(numY-1))/numSub
+
+        thetas = mlp._thetas[:-1,:-1,:]
+
+        for src in sourceList:
+            srcPlane = np.zeros((numY-1, numX-1), dtype=np.double)
+
+            for iy in range(numSub):
+                yThetas = thetas + dy*(0.5+iy)
+                for ix in range(numSub):
+                    xyThetas = yThetas + dx*(0.5+ix) 
+                    srcPlane += src.getIntensity(thetaMapping(xyThetas))
+
+            srcPlane /= numSub*numSub
+            dstPlane += srcPlane
+
+        if plane is None:
+            plane = dstPlane
+        else:
+            np.copyto(plane, dstPlane)
+        return plane
+
+    def _thetaMappingIdentity(self, thetas):
+        return thetas
+
+    def traceThetaApproximately(self, thetas):
+        """TODO:"""
+
+        betaApprox = np.empty(thetas.shape)
+        gx, gy = self._getBetaGrid()
+
+        thetasReshaped = thetas.reshape([-1,2])
+        betaApproxReshaped = betaApprox.reshape([-1,2])
+        betaApproxReshaped[:,0] = gx.evaluate(thetasReshaped)
+        betaApproxReshaped[:,1] = gy.evaluate(thetasReshaped)
+
+        #with open("/tmp/thetalog.txt", "at") as f:
+        #    for y in range(thetas.shape[0]):
+        #        for x in range(thetas.shape[1]):
+        #            f.write("{:g} {:g}\n".format(thetas[y,x,0], thetas[y,x,1]))
+        return betaApprox
+
+    def traceTheta(self, thetas):
+        """TODO:"""
+
+        lz = self._lz
+        cosmology = self._cosmology
+        sourceRedshift = self._zs
+
+        alphas = { }
+        T = []
+
+        def getAlphas(j):
+            if j in alphas:
+                return alphas[j]
+            a = lz[j][0].getAlphaVector(T[j])
+            alphas[j] = a
+            return a
+
+        N = len(lz)
+        for i in range(0, N):
+
+            Ti = copy.deepcopy(thetas)
+            Di = cosmology.getAngularDiameterDistance(lz[i][1])
+            
+            for j in range(0, i):
+                Dji = cosmology.getAngularDiameterDistance(lz[j][1], lz[i][1])
+                Ti -= Dji/Di * getAlphas(j)
+        
+            T.append(Ti)
+
+        # Make sure these are cached
+        getAlphas(N-1)
+
+        Ti = copy.deepcopy(thetas)
+        Di = cosmology.getAngularDiameterDistance(sourceRedshift)
+        for j in range(0, N):
+            Dji = cosmology.getAngularDiameterDistance(lz[j][1], sourceRedshift)
+            Ti -= Dji/Di * alphas[j]
+
+        return Ti
+
+    def renderSources(self, sourceList, plane = None, subSamples = 9):
+        """TODO:"""
+        return self._renderSourcesOrImages(sourceList, plane, subSamples, self._thetaMappingIdentity)
+
+    def renderImages(self, sourceList, plane = None, subSamples = 9):
+        """TODO:"""
+        return self._renderSourcesOrImages(sourceList, plane, subSamples, self.traceThetaApproximately)
+
+    def segment(self, plane, threshold = 0.0):
+        """TODO:"""
+        mlp = self._multiLensPlane
+        bl, tr = mlp._bottomLeft, mlp._topRight
+        return images.ImagePlane.static_segment(plane, bl, tr, threshold)
+
+    def getInverseMagnificationApproximately(self, thetas):
+        """TODO:"""
+        self._checkInvMag()
+        if self._invmagGrid is None:
+            mlp = self._multiLensPlane
+            self._invmagGrid = gridfunction.GridFunction(self._invmag, mlp._bottomLeft, mlp._topRight)
+
+        return self._invmagGrid.evaluate(thetas)
+
