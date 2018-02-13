@@ -92,7 +92,10 @@ def _prepareDensity(lensInfo, renderer, feedbackObject):
 def plot3DInteractive(X, Y, Z, height=600, xlabel = "X", ylabel = "Y", zlabel = "Z", flipX = False, initialCamera = None, visJSoptions = None,
                       maxPoints = 128,
                       visJS="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.js",
-                      visCSS="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.css"):
+                      visCSS="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.css",
+                      canvas2svgJS="https://cdn.rawgit.com/gliffy/canvas2svg/master/canvas2svg.js",
+                      fileSaverJS="https://cdn.rawgit.com/eligrey/FileSaver.js/b4a918669accb81f184c610d741a4a8e1306aa27/FileSaver.js"
+                      ):
     """Helper function to creates an interative plot in a jupyter notebook, 
     using `vis.js <http://visjs.org/>`_.
 
@@ -128,6 +131,10 @@ def plot3DInteractive(X, Y, Z, height=600, xlabel = "X", ylabel = "Y", zlabel = 
      - `visJS`: URL to the vis.js JavaScript library.
 
      - `visCSS`: URL to the vis.js CSS file.
+
+     - `canvas2svgJS`: URL to the canvas2svg.js file.
+
+     - `fileSaverJS`: URL to FileSaver.js file
     """
 
     if X.shape[0] > maxPoints or X.shape[1] > maxPoints:
@@ -178,11 +185,17 @@ def plot3DInteractive(X, Y, Z, height=600, xlabel = "X", ylabel = "Y", zlabel = 
     dataJson = json.dumps(dataJson)
     options = json.dumps(options)
     visCode = r"""
-       <link href=""" + '"' + visCSS + '"' + r""" type="text/css" rel="stylesheet" />
-       <script src=""" + '"' + visJS + '"' + r"""></script>
-       <div id="pos" style="top:0px;left:0px;position:absolute;"></div>
-       <div id="visualization"></div>
-       <script type="text/javascript">
+<html>
+    <head>
+        <link href=""" + '"' + visCSS + '"' + r""" type="text/css" rel="stylesheet" />
+        <script src=""" + '"' + visJS + '"' + r""" type="text/javascript"></script>
+        <script src=""" + '"' + canvas2svgJS + '"' + r""" type="text/javascript"></script>
+        <script src=""" + '"' + fileSaverJS + '"' + r""" type="text/javascript"></script>
+    </head>
+    <body>
+        <div id="pos" style="top:0px;left:0px;position:absolute;"></div>
+        <div id="visualization"></div>
+        <script type="text/javascript">
         var data = new vis.DataSet();
         data.add(""" + dataJson + r""");
         var options = """ + options + r""";
@@ -190,15 +203,45 @@ def plot3DInteractive(X, Y, Z, height=600, xlabel = "X", ylabel = "Y", zlabel = 
         """ + flipXCode + r"""
 
         var container = document.getElementById("visualization");
-        var graph3d = new vis.Graph3d(container, data, options);
+        graph3d = new vis.Graph3d(container, data, options);
         graph3d.on("cameraPositionChange", function(evt)
         {
             elem = document.getElementById("pos");
             s = "horizontal: " + evt.horizontal.toExponential(4) + "<br>vertical: " + evt.vertical.toExponential(4) + "<br>distance: " + evt.distance.toExponential(4);
             elem.innerHTML = s;
         });
-       </script>
-    """
+        </script>
+        <button onclick="exportSVG()" style="position:fixed;top:0px;right:0px;">Save to SVG</button>
+        <script>
+        function T(x)
+        {
+            var s = "" + x;
+            while (s.length < 2)
+                s = "0" + s;
+            return s;
+        }
+
+        function exportSVG()
+        {
+            var cnvs = graph3d.frame.canvas;
+            var fakeCtx = C2S(cnvs.width, cnvs.height);
+            var realGetContext = cnvs.getContext;
+            cnvs.getContext = function() { return fakeCtx; }
+
+            graph3d.redraw();
+            var svg = fakeCtx.getSerializedSvg();
+
+            cnvs.getContext = realGetContext;
+            graph3d.redraw();
+
+            var b = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
+            var d = new Date();
+            var fileName = "Capture-" + d.getFullYear() + "-" + T(d.getMonth()+1) + "-" + T(d.getDate()) + "_" + T(d.getHours()) + "-" + T(d.getMinutes()) + "-" + T(d.getSeconds()) + ".svg";
+            saveAs(b, fileName);
+        }
+        </script>
+    </body>
+</html>"""
     #print(visCode)
     htmlCode = "<iframe srcdoc='"+visCode+"' width='100%' height='" + str(height) + "px' style='border:0;' scrolling='no'> </iframe>"
 
@@ -209,7 +252,10 @@ def plotDensityInteractive(lensOrLensInfo, numX=75, numY=75, height=600, xlabel=
         angularUnit=1.0, densityUnit=1.0, renderer=None, feedbackObject="default", flipX = False,
         initialCamera = None, visJSoptions = None, maxPoints = 128, 
         visJS="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.js",
-        visCSS="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.css"):
+        visCSS="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.css",
+        canvas2svgJS="https://cdn.rawgit.com/gliffy/canvas2svg/master/canvas2svg.js",
+        fileSaverJS="https://cdn.rawgit.com/eligrey/FileSaver.js/b4a918669accb81f184c610d741a4a8e1306aa27/FileSaver.js"
+        ):
     """Creates an interactive 3D plot of the mass density specified in `lensOrLensInfo`.
 
     Arguments:
@@ -274,6 +320,10 @@ def plotDensityInteractive(lensOrLensInfo, numX=75, numY=75, height=600, xlabel=
      - `visJS`: URL to the vis.js JavaScript library.
 
      - `visCSS`: URL to the vis.js CSS file.
+
+     - `canvas2svgJS`: URL to the canvas2svg.js file.
+
+     - `fileSaverJS`: URL to FileSaver.js file
     """
 
     lensInfo = _toLensInfo(lensOrLensInfo)
@@ -296,7 +346,8 @@ def plotDensityInteractive(lensOrLensInfo, numX=75, numY=75, height=600, xlabel=
     Z = plotArray/densityUnit
 
     plot3DInteractive(X, Y, Z, flipX=flipX, xlabel=xlabel, ylabel=ylabel, zlabel=zlabel, initialCamera=initialCamera, 
-                      visJSoptions=visJSoptions, maxPoints=maxPoints, height=height, visJS=visJS, visCSS=visCSS)
+                      visJSoptions=visJSoptions, maxPoints=maxPoints, height=height, visJS=visJS, visCSS=visCSS,
+                      canvas2svgJS=canvas2svgJS, fileSaverJS=fileSaverJS)
     return lensInfo
 
 def plotDensity(lensOrLensInfo, renderer = None, feedbackObject = "default", angularUnit = 1.0, densityUnit = 1.0, axes = None, **kwargs):
