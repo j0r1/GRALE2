@@ -12,11 +12,9 @@ from . import gridfunction
 from . import multiplane
 from .bytestring import B, S
 from .constants import *
-import matplotlib.pyplot as plt
 import numpy as np
 import subprocess
 import os
-import matplotlib.animation as animation
 import tempfile
 import time
 import json
@@ -407,6 +405,7 @@ Arguments:
         topRight = lensInfo["topright"]
 
         if axes is None:
+            import matplotlib.pyplot as plt
             axes = plt.gca()
 
         # Note: need to swap Y labeling here because of the way the pixels are ordered in this function
@@ -581,6 +580,7 @@ Arguments:
     numY = lensInfo["numy"]
 
     if axes is None:
+        import matplotlib.pyplot as plt
         axes = plt.gca()
 
     # TODO: sourceScale and imageScale
@@ -916,6 +916,8 @@ def _finalizeGnuplotPlot(fileNameBase, gnuplotData, axes, gnuplotExe, convertExe
         try:
             subprocess.check_call([convertExe, "-flatten", "-density", "200x200", epsFileName, "-rotate", str(rotateAngle), "-define", "png:color-type=2", pngFileName])
             subprocess.check_call([convertExe, "-trim", pngFileName,  "-define", "png:color-type=2",pngFileName])
+
+            import matplotlib.pyplot as plt
             if axes is None:
                 axes = plt.gca()
 
@@ -1144,9 +1146,12 @@ Arguments:
         self.startPos = startPos
         self.endPos = endPos
         self.steps = steps
+        
+        import matplotlib.pyplot as plt
         self.fig = plt.gcf()
         self.axes = plt.gca()
 
+        import matplotlib.animation as animation
         anim = animation.FuncAnimation(self.fig, self._animationStep, init_func=self._onInitInternal, frames=self.steps, interval = 1, blit = False)
         plt.close(anim._fig)
 
@@ -1482,6 +1487,7 @@ TODO
 
     if axes is not False:
         if axes is None:
+            import matplotlib.pyplot as plt
             axes = plt.gca()
 
         axes.plot(r/angularUnit, averageValues/densityUnit, **kwargs)
@@ -1528,6 +1534,7 @@ TODO
 
     if axes is not False:
         if axes is None:
+            import matplotlib.pyplot as plt
             axes = plt.gca()
 
         axes.plot(rLimits/angularUnit, iv/massUnit, **kwargs)
@@ -1557,6 +1564,7 @@ TODO
 
     if axes is not False:
         if axes is None:
+            import matplotlib.pyplot as plt
             axes = plt.gca()
 
         axes.plot(xpoints, ypoints, '-', **kwargs)
