@@ -50,7 +50,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'pygrale'
-copyright = '2016, Jori Liesenborgs'
+copyright = '2016-2018, Jori Liesenborgs'
 author = 'Jori Liesenborgs'
 
 # The version info for the project you're documenting, acts as replacement for

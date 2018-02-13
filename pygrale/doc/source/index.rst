@@ -31,8 +31,9 @@ Contents
 --------
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
+   example_notebooks.rst
    grale_constants.rst
    grale_cosmology.rst
    grale_feedback.rst
@@ -40,7 +41,6 @@ Contents
    grale_lenses.rst
    grale_plotutil.rst
    grale_renderers.rst
-
 
 Indices and tables
 ------------------
@@ -57,7 +57,10 @@ tool of the `Anaconda Python <https://www.continuum.io>`_ distribution. Just run
 
     conda install -c jori pygrale grale2modules
 
-This should work on all platforms.
+in your environment. This should work on all platforms.
+
+For instructions on how to compile everything yourself, take a look at the
+`GitHub <https://github.com/j0r1/GRALE2>`_ page.
 
 Overview
 --------
