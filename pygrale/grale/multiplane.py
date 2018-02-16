@@ -19,7 +19,7 @@ class MultiLensPlane(object):
                                                    np.linspace(bottomLeft[1], topRight[1], numY))
         return thetas
 
-    def __init__(self, lensesAndRedshifts, cosmology, bottomLeft, topRight, numX, numY, renderer = None, feedbackObject = None):
+    def __init__(self, lensesAndRedshifts, cosmology, bottomLeft, topRight, numX, numY, renderer = "default", feedbackObject = None):
         """TODO:"""
 
         if not lensesAndRedshifts:

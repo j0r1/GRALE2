@@ -37,6 +37,9 @@ def _matchRendererToFeedbackObject(renderer, feedbackObject):
     return obj
 
 def _getMassRenderer(renderNameOrObject):
+    if renderNameOrObject == "default":
+        renderNameOrObject = renderers.getDefaultMassRenderer()
+
     if renderNameOrObject is None:
         return None
 
@@ -52,6 +55,10 @@ def _getMassRenderer(renderNameOrObject):
     return renderNameOrObject
 
 def _getLensPlaneRenderer(renderNameOrObject):
+
+    if renderNameOrObject == "default":
+        renderNameOrObject = renderers.getDefaultLensPlaneRenderer()
+
     if renderNameOrObject is None:
         return None
 
@@ -87,6 +94,9 @@ def generateRandomIdentifier():
 def initInverterAndFeedback(inverter, feedbackObject):
     from . import inverters
     from . import feedback
+
+    if inverter == "default":
+        inverter = inverters.getDefaultInverter()
     
     if type(inverter) == str:
         if inverter.lower() == "singlecore":

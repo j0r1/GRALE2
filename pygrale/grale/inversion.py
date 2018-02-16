@@ -111,7 +111,7 @@ def getInversionModuleUsage(moduleName):
 def invert(inputImages, grid, zd, Dd, popSize, moduleName = "general", massScale = "auto", rescaleBasisFunctions = False, 
            basisFunctionType = "plummer", gridSizeFactor = "default", allowNegativeValues = False, baseLens = None, 
            sheetSearch = "nosheet", fitnessObjectParameters = None, wideSearch = False, maximumGenerations = 16384,
-           geneticAlgorithmParameters = { }, inverter = "singlecore", feedbackObject = "default"):
+           geneticAlgorithmParameters = { }, inverter = "default", feedbackObject = "default"):
     """TODO:"""
 
     cellSizeFactorDefaults = { "plummer": 1.7, "gaussian": 1.0, "square": 1.0 }
@@ -166,8 +166,8 @@ def invert(inputImages, grid, zd, Dd, popSize, moduleName = "general", massScale
 class InversionWorkSpace(object):
     """TODO
     """
-    def __init__(self, zLens, cosmology, regionSize, regionCenter = [0, 0], inverter = "singlecore", 
-                 renderer = None, feedbackObject = "default"):
+    def __init__(self, zLens, cosmology, regionSize, regionCenter = [0, 0], inverter = "default", 
+                 renderer = "default", feedbackObject = "default"):
         
         if zLens <= 0 or zLens > 10:
             raise Exception("Invalid lens redshift")
@@ -275,4 +275,11 @@ class InversionWorkSpace(object):
 
         lens = invert(self.imgDataList, self.grid, self.zd, self.Dd, populationSize, **newKwargs)
         return lens
+
+
+def getDefaultInverter():
+    return inverters.getDefaultInverter()
+
+def setDefaultInverter(x):
+    inverters.setDefaultInverter(x)
 

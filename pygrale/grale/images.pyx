@@ -646,8 +646,8 @@ cdef class LensPlane:
     def __dealloc__(self):
         del self.m_pLensPlane
 
-    def __init__(self, lens, bottomLeft, topRight, int numX, int numY, renderer = None, feedbackObject = "default"):
-        """__init__(lens, bottomLeft, topRight, numX, numY, renderer = None, feedbackObject = "default")
+    def __init__(self, lens, bottomLeft, topRight, int numX, int numY, renderer = "default", feedbackObject = "default"):
+        """__init__(lens, bottomLeft, topRight, numX, numY, renderer = "default", feedbackObject = "default")
 
         This creates a LensPlane instance that covers the area specified by the ``bottomLeft`` and
         ``topRight`` corners. Such a LensPlane instance calculates and stores the deflection angles

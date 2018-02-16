@@ -289,3 +289,18 @@ class MPIMassDensityRenderer(Renderer):
                                                      "MASSDENS", feedbackObject = feedbackObject,
                                                      rdFileDesc = pp.rdPipeDesc, wrFileDesc = pp.wrPipeDesc)
 
+_defaultMassRenderer = [ None ]
+_defaultLensRenderer = [ None ]
+
+def getDefaultLensPlaneRenderer():
+    return _defaultLensRenderer[0]
+
+def getDefaultMassRenderer():
+    return _defaultMassRenderer[0]
+
+def setDefaultLensPlaneRenderer(x):
+    _defaultLensRenderer[0] = x
+
+def setDefaultMassRenderer(x):
+    _defaultMassRenderer[0] = x
+

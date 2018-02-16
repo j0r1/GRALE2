@@ -331,3 +331,11 @@ class LocalCSProcessInverter(Inverter):
     def __del__(self):
         self.destroy()
 
+_defaultInverter = [ "singlecore" ]
+
+def getDefaultInverter():
+    return _defaultInverter[0]
+
+def setDefaultInverter(x):
+    _defaultInverter[0] = x
+

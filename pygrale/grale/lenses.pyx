@@ -326,8 +326,8 @@ cdef class GravitationalLens:
         thetas = np.array(thetas)
         return self._reshapeAndCall1D(lambda x : self._getSurfaceMassDensity1(x), thetas, 2, 1)
 
-    def getSurfaceMassDensityMap(self, bottomLeft, topRight, int numX, int numY, feedbackObject = "default", renderer = None, reduceToPixels = True):
-        """getSurfaceMassDensityMap(bottomLeft, topRight, numX, numY, feedbackObject = "default", renderer = None, reduceToPixels = True)
+    def getSurfaceMassDensityMap(self, bottomLeft, topRight, int numX, int numY, feedbackObject = "default", renderer = "default", reduceToPixels = True):
+        """getSurfaceMassDensityMap(bottomLeft, topRight, numX, numY, feedbackObject = "default", renderer = "default", reduceToPixels = True)
         
         Returns the surface density map for the area between the bottomLeft and topRight
         coordinates. The surface mass density is sampled at numX and numY points and
