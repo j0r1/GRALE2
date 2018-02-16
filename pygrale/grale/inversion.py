@@ -2,10 +2,12 @@ from . import constants as CT
 from . import inverters
 from . import inversionparams
 from . import privutil
-from .grid import _fractionalGridToRealGrid
+from . import grid as gridModule
+from . import plotutil
 import platform
 import os
 import copy
+import random
 
 class InversionException(Exception):
     """TODO:"""
@@ -113,7 +115,9 @@ def invert(inputImages, grid, zd, Dd, popSize, moduleName = "general", massScale
     """TODO:"""
 
     cellSizeFactorDefaults = { "plummer": 1.7, "gaussian": 1.0, "square": 1.0 }
+    print("FeedbackObject1", feedbackObject)
     inverter, feedbackObject = privutil.initInverterAndFeedback(inverter, feedbackObject)
+    print("FeedbackObject2", feedbackObject)
 
     n = _getModuleName(moduleName)
     _getModuleDirectory(n) # So that GRALE2_MODULEPATH gets set
@@ -128,7 +132,7 @@ def invert(inputImages, grid, zd, Dd, popSize, moduleName = "general", massScale
 
     # Check if we need to convert fractional grid to real grid
     if type(grid) == dict:
-        grid = _fractionalGridToRealGrid(grid)
+        grid = gridModule._fractionalGridToRealGrid(grid)
 
     # Resize the grid cells if necessary
     if gridSizeFactor == "default":
@@ -158,3 +162,117 @@ def invert(inputImages, grid, zd, Dd, popSize, moduleName = "general", massScale
     resultLens = inverter.invert(n, popSize, geneticAlgorithmParameters, params)
 
     return resultLens
+
+class InversionWorkSpace(object):
+    """TODO
+    """
+    def __init__(self, zLens, cosmology, regionSize, regionCenter = [0, 0], inverter = "singlecore", 
+                 renderer = None, feedbackObject = "default"):
+        
+        if zLens <= 0 or zLens > 10:
+            raise Exception("Invalid lens redshift")
+            
+        self.zd = zLens
+        self.Dd = cosmology.getAngularDiameterDistance(zLens)
+        self.imgDataList = []
+        self.cosm = cosmology
+        self.inversionArgs = { } 
+
+        if regionSize <= 0:
+            raise Exception("Invalid region size")
+        
+        # Rough indication of grid position and dimensions, but randomness
+        # may be added unless specified otherwise
+        self.regionSize = regionSize
+        self.regionCenter = copy.deepcopy(regionCenter)
+        self.grid = None
+        
+        self.renderer = renderer
+        self.inverter = inverter
+        self.feedbackObject = feedbackObject
+
+    def getCosmology(self):
+        return self.cosm
+        
+    def clearImageDataList(self):
+        self.imgDataList = []
+
+    def getImageDataList(self):
+        return self.imgDataList
+        
+    def addImageDataToList(self, imgDat, zs, imgType, otherParameters = {}):
+        # check that imgDat exists
+        num = imgDat.getNumberOfImages()
+        
+        if zs < self.zd:
+            raise Exception("Can't add a source with a smaller redshift than the lens")
+        
+        params = copy.deepcopy(otherParameters)
+        if imgType:
+            params["type"] = imgType
+            
+        entry = {
+            "images": imgDat,
+            "Ds": self.cosm.getAngularDiameterDistance(zs),
+            "Dds": self.cosm.getAngularDiameterDistance(self.zd, zs),
+            "params": params
+        }
+        self.imgDataList.append(entry)
+        
+    # Overrides the grid
+    def setGrid(self, grid):
+        self.grid = grid
+
+    def getGrid(self):
+        return self.grid
+
+    def _getGridDimensions(self, randomFraction):
+        # TODO: make it possible to specify your own function for the randomness?
+        w = self.regionSize
+        dx = (random.random()-0.5) * w*randomFraction
+        dy = (random.random()-0.5) * w*randomFraction
+        c = [ self.regionCenter[0], self.regionCenter[1]]
+        return w, c
+    
+    def setUniformGrid(self, subDiv, randomFraction = 0.05):
+        w, c = self._getGridDimensions(randomFraction)
+        self.grid = gridModule.createUniformGrid(w, c, subDiv)
+
+        # TODO: onstatus stuff?
+        # TODO: callback to intercept new grid?
+        
+    def setSubdivisionGrid(self, lensOrLensInfo, minSquares, maxSquares, startSubDiv = 1, randomFraction = 0.05):
+        w, c = self._getGridDimensions(randomFraction)
+        if type(lensOrLensInfo) == dict:
+            lensInfo = lensOrLensInfo
+        else:
+            extraFrac = 1.0001
+            lensInfo = { 
+                "lens": lensOrLensInfo,
+                # Make it slightly wider to avoid going out of bounds
+                "bottomleft": [ c[0] - (w*extraFrac)/2, c[1] - (w*extraFrac)/2 ],
+                "topright": [ c[0] + (w*extraFrac)/2, c[1] + (w*extraFrac)/2 ],
+            }
+            
+        # Make sure we have the density points calculated, abuse one of the plot functions
+        # for this
+        plotutil.plotDensity(lensInfo, axes = False)
+        
+        self.grid = gridModule.createSubdivisionGrid(w, c, lensInfo, minSquares, maxSquares, startSubDiv)
+       
+    def setDefaultInversionArguments(self, **kwargs):
+        self.inversionArgs = kwargs
+
+    def invert(self, populationSize, **kwargs):
+        newKwargs = { }
+        newKwargs["inverter"] = self.inverter
+        newKwargs["feedbackObject"] = self.feedbackObject
+        for a in self.inversionArgs:
+            newKwargs[a] = self.inversionArgs[a]
+
+        for a in kwargs:
+            newKwargs[a] = kwargs[a]
+
+        lens = invert(self.imgDataList, self.grid, self.zd, self.Dd, populationSize, **newKwargs)
+        return lens
+
