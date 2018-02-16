@@ -1571,3 +1571,94 @@ TODO
 
     return [ xpoints, ypoints ]
 
+
+def plotImagesData(imgDat, angularUnit = 1, plotHull = False, skipTriangles = False, axes = None):
+    """Creates a plot of either a single images data set, or a list
+    of them. In the first case, each image will be drawn with a different
+    color, in the second, each complete images data set (typically
+    for a specific source) uses a different color.
+    """
+
+    def processImage(im, idx, x, y, segs):
+        for p in im.getImagePoints(idx):
+            x.append(p["position"][0]/angularUnit)
+            x.append(None)
+            y.append(p["position"][1]/angularUnit)
+            y.append(None)
+
+        if not skipTriangles:
+            if im.hasTriangulation():
+                for corners in im.getTriangles(idx):
+                    corners = list(map(lambda q: tuple(im.getImagePointPosition(idx, q)), corners))
+
+                    seg1 = tuple(sorted([corners[0], corners[1]], key = lambda xy: xy[0]**2 + xy[1]**2))
+                    seg2 = tuple(sorted([corners[1], corners[2]], key = lambda xy: xy[0]**2 + xy[1]**2))
+                    seg3 = tuple(sorted([corners[2], corners[0]], key = lambda xy: xy[0]**2 + xy[1]**2))
+
+                    segs.add(seg1)
+                    segs.add(seg2)
+                    segs.add(seg3)
+            
+    def segsToCoords(segs, xsegs, ysegs):
+
+        for s in segs:
+            xsegs.append(s[0][0]/angularUnit)
+            xsegs.append(s[1][0]/angularUnit)
+            xsegs.append(None)
+            ysegs.append(s[0][1]/angularUnit)
+            ysegs.append(s[1][1]/angularUnit)            
+            ysegs.append(None)
+        
+        return xsegs, ysegs
+    
+    def addHull(im, idx, x, y):
+        
+        if im.getNumberOfImagePoints(idx) < 3:
+            return
+        
+        from scipy.spatial import ConvexHull
+        xy = np.array([ [ p["position"][0], p["position"][1] ] for p in im.getImagePoints(idx) ])/angularUnit
+        hull = ConvexHull(xy)
+
+        for pidx in hull.simplices:
+            pt = im.getImagePointPosition(idx, pidx[0])/angularUnit
+            x.append(pt[0])
+            y.append(pt[1])
+            pt = im.getImagePointPosition(idx, pidx[1])/angularUnit
+            x.append(pt[0])
+            y.append(pt[1])
+            x.append(None)
+            y.append(None)
+    
+    if axes is None:
+        import matplotlib.pyplot as plt
+        axes = plt.gca()
+
+    if type(imgDat) == list: # Each source in different color
+        for im in imgDat:
+            im = im["imgdata"] if type(im) == dict and "imgdata" in im else im
+            x, y = [], []
+            segs = set()
+            num = im.getNumberOfImages()
+            for idx in range(num):
+                processImage(im, idx, x, y, segs)
+                if plotHull:
+                    addHull(im, idx, x, y)
+            
+            segsToCoords(segs, x, y)
+            axes.plot(x, y, ".-")
+            
+    else: # Each image of this one source in different color
+        imgDat = imgDat["imgdata"] if type(imgDat) == dict and "imgdata" in imgDat else imgDat
+        num = imgDat.getNumberOfImages()
+        for idx in range(num):
+            x, y = [], []
+            segs = set()
+            processImage(imgDat, idx, x, y, segs)
+                
+            segsToCoords(segs, x, y)
+            if plotHull:
+                addHull(imgDat, idx, x, y)
+
+            axes.plot(x, y, ".-")
+                    
