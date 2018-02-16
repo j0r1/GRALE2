@@ -20,6 +20,8 @@ Functions to create matplotlib plots
 
 .. autofunction:: plotSubdivisionGrid
 
+.. autofunction:: plotImagesData
+
 Functions to create gnuplot plots
 ---------------------------------
 

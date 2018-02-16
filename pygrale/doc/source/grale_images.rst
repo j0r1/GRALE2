@@ -10,6 +10,12 @@ Functions
 
 .. autofunction:: uncenterOnPosition
 
+.. autofunction:: readInputImagesFile
+
+.. autofunction:: hoursMinutesSecondsToDegrees
+
+.. autofunction:: degreesMinutesSecondsToDegrees
+
 ImagesData
 ----------
 

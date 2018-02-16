@@ -1574,10 +1574,32 @@ TODO
 
 def plotImagesData(imgDat, angularUnit = 1, plotHull = False, skipTriangles = False, axes = None):
     """Creates a plot of either a single images data set, or a list
-    of them. In the first case, each image will be drawn with a different
-    color, in the second, each complete images data set (typically
-    for a specific source) uses a different color.
-    """
+of them. In the first case, each image will be drawn with a different
+color, in the second, each complete images data set (typically
+for a specific source) uses a different color.
+
+Arguments:
+
+ - `imgDat`: either a list, typically to plot several sources at once,
+   or a single entry. The entry itself can be an instance
+   if :py:class:`ImagesData <grale.images.ImagesData>` or can
+   be a dictionary of which the ``imgdata`` key contains such
+   an ``ImagesData`` object.
+
+ - `angularUnit`: the angular unit that should be used in the plot. The 
+   :ref:`pre-defined constants <constants>` can be useful here.
+
+ - `plotHull`: a flag indicating if the convex hull of the points for
+   each image should be plotted as well. Can be useful for visualizing
+   which points belong to the same image, in case no triangulation is
+   stored in the ``ImagesData`` instance.
+
+ - `skipTriangles`: if this flag is set, triangles stored in the
+   ``ImagesData`` instance will not be drawn.
+
+ - `axes`: the default will cause a new plot to be created, but you can specify an existing
+   matplotlib axes object as well. 
+"""
 
     def processImage(im, idx, x, y, segs):
         for p in im.getImagePoints(idx):
