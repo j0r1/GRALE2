@@ -12,6 +12,10 @@ Functions
 
 .. autofunction:: readInputImagesFile
 
+.. autofunction:: getDefaultLineAnalyzer
+
+.. autofunction:: setDefaultLineAnalyzer
+
 .. autofunction:: hoursMinutesSecondsToDegrees
 
 .. autofunction:: degreesMinutesSecondsToDegrees

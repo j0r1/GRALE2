@@ -155,7 +155,7 @@ versionStr = getVersionString()
 
 pyMods = [ "grale.cosmology", "grale.plotutil", "grale.constants", "grale.renderers", "grale.timedio", "grale.untimedio",
            "grale.privutil", "grale.debuglog", "grale.feedback", "grale.bytestring", "grale.inverters",
-           "grale.inversion", "grale.grid", "grale.multiplane" ]
+           "grale.inversion", "grale.grid", "grale.multiplane", "grale.privimages" ]
 setup(name = "grale", version = versionStr, ext_modules = cythonize(extensions), py_modules = pyMods)
 
 
