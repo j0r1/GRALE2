@@ -49,6 +49,8 @@ public:
 	bool isInitialized() const																		{ return m_initialized; }
 	int getImagesGroupSize() const																	{ return 1; }
 
+	std::string getFitnessComponentsDescription() const												{ return "extendedimageoverlap extendedimagenull weaklensing"; }
+
 	bool shortNeedInverseMagnifications() const														{ return false; }
 	bool shortNeedShearComponents() const															{ return false; }
 	bool shortNeedConvergence() const																{ return false; }

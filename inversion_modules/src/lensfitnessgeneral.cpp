@@ -578,6 +578,13 @@ bool LensFitnessGeneral::init(double z_d, std::list<ImagesDataExtended *> &image
 	}
 	cerr << endl;
 
+	stringstream ss;
+	ss << m_totalComponents[0]->getObjectName();
+	for (size_t i = 1 ; i < m_totalComponents.size() ; i++)
+		ss << " " << m_totalComponents[i]->getObjectName();
+
+	m_fitnessComponentDescription = ss.str();
+
 	// We don't want the cache to be deleted, extract it from the smart pointer
 	m_pCache = cacheSmart.release();
 

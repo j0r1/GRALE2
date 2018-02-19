@@ -46,6 +46,7 @@ public:
 	std::string getUsage() const override;
 
 	ConfigurationParameters *getDefaultParametersInstance() const override;
+	std::string getFitnessComponentsDescription() const						{ return m_fitnessComponentDescription; }
 	int getImagesGroupSize() const											{ return 1; }
 
 	bool shortNeedInverseMagnifications() const 							{ return m_shortInverse; }
@@ -96,6 +97,7 @@ private:
 	bool m_deleteShortComponent;
 
 	FitnessComponentCache *m_pCache;
+	std::string m_fitnessComponentDescription;
 };
 
 } // end namespace

@@ -83,15 +83,6 @@ bool_t InversionCommunicator::readLineAndBytesWithPrefix(const string &prefix, v
 	return true;
 }
 
-template<class T>
-bool_t InversionCommunicator::loadFromBytes(T &x, vector<uint8_t> &bytes)
-{
-	MemorySerializer mSer(&bytes[0], bytes.size(), 0, 0);
-	if (!x.read(mSer))
-		return x.getErrorString();
-	return true;
-}
-
 bool_t InversionCommunicator::run()
 {
 	const char envName[] = "GRALE2_MODULEPATH";

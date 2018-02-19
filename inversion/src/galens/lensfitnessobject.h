@@ -97,6 +97,9 @@ public:
 	/** Obtain a usage description for this LensFitnessObject implementation. */
 	virtual std::string getUsage() const = 0;
 
+	/** Get information about the fitness values (e.g. "extendedimages extendednullspace") */
+	virtual std::string getFitnessComponentsDescription() const = 0;
+
 	/** Given the situation described by the ProjectedImagesInterface instance, this
 	 *  function must calculate a single fitness value (lower is better) which will
 	 *  be used to find an appropriate scale of the basis functions in the GA. */

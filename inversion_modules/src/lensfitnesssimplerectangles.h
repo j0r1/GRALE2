@@ -49,6 +49,7 @@ public:
 
 	int getImagesGroupSize() const									{ return 1; }
 	int getNumberOfFitnessComponents() const							{ return 1; }
+	std::string getFitnessComponentsDescription() const				 { return "extendedimageoverlap"; }
 
 	bool shortNeedInverseMagnifications() const 							{ return false; }
 	bool shortNeedShearComponents() const								{ return false; }

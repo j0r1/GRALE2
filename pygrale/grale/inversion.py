@@ -106,6 +106,19 @@ def getInversionModuleUsage(moduleName):
     _getModuleDirectory(n) # So that GRALE2_MODULEPATH gets set
     return inverters.getInversionModuleUsage(n)
 
+def calculateFitness(inputImages, zd, fitnessObjectParameters, lens, moduleName = "general"):
+    """TODO:"""
+    n = _getModuleName(moduleName)
+    _getModuleDirectory(n) # So that GRALE2_MODULEPATH gets set
+
+    # Merge fitnessObjectParameters with defaults
+    fullFitnessObjParams = getDefaultModuleParameters(moduleName)
+    if fitnessObjectParameters:
+        for k in fitnessObjectParameters:
+            fullFitnessObjParams[k] = fitnessObjectParameters[k]
+
+    return inverters.calculateFitness(n, inputImages, zd, fullFitnessObjParams, lens)
+
 # TODO: inverters
 # TODO: feedback
 def invert(inputImages, grid, zd, Dd, popSize, moduleName = "general", massScale = "auto", rescaleBasisFunctions = False, 
@@ -159,9 +172,15 @@ def invert(inputImages, grid, zd, Dd, popSize, moduleName = "general", massScale
                rescaleBasisFunctions, basisFunctionType, allowNegativeValues, baseLens, sheetSearch, fullFitnessObjParams,
                wideSearch)
 
-    resultLens = inverter.invert(n, popSize, geneticAlgorithmParameters, params)
+    # TODO: for now, we're getting the component description in a separate way as it
+    #       is not yet integrated in mogal. Once it is, this should be removed
+    # By setting the last parameter to None, no calculation is performed and only the
+    # fitness components are returned.
+    dummyFitness, fitnessComponentDescription = inverters.calculateFitness(n, inputImages, zd, fullFitnessObjParams, None) 
 
-    return resultLens
+    result = inverter.invert(n, popSize, geneticAlgorithmParameters, params)
+    result = (result[0], result[1], fitnessComponentDescription) # TODO: this should be removed when the TODO above is fixed
+    return result
 
 class InversionWorkSpace(object):
     """TODO
@@ -276,6 +295,15 @@ class InversionWorkSpace(object):
         lens = invert(self.imgDataList, self.grid, self.zd, self.Dd, populationSize, **newKwargs)
         return lens
 
+    def calculateFitness(self, lens):
+        fitnessObjectParameters = None
+        moduleName = "general"
+        if "fitnessObjectParameters" in self.inversionArgs:
+            fitnessObjectParameters = self.inversionArgs["fitnessObjectParameters"]
+        if "moduleName" in self.inversionArgs:
+            moduleName = self.inversionArgs["moduleName"]
+
+        return calculateFitness(self.imgDataList, self.zd, fitnessObjectParameters, lens, moduleName)
 
 def getDefaultInverter():
     return inverters.getDefaultInverter()

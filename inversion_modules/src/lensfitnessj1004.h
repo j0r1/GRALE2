@@ -52,6 +52,7 @@ public:
 	bool isInitialized() const									{ return m_initialized; }
 	int getImagesGroupSize() const									{ return 3; }
 	int getNumberOfFitnessComponents() const							{ return 4; }
+	std::string getFitnessComponentsDescription() const	{ return "extendedimageoverlap causticpenalty extendedimagenull timedelay"; }
 
 	bool shortNeedInverseMagnifications() const 							{ return false; }
 	bool shortNeedShearComponents() const								{ return false; }

@@ -4,6 +4,7 @@
 
 #include "graleconfig.h"
 #include <errut/booltype.h>
+#include <serut/memoryserializer.h>
 #include <vector>
 #include <stdint.h>
 
@@ -42,5 +43,14 @@ protected:
 
 	bool_t onGAFinished(mogal::GeneticAlgorithm &ga);
 };
+
+template<class T>
+inline InversionCommunicator::bool_t InversionCommunicator::loadFromBytes(T &x, std::vector<uint8_t> &bytes)
+{
+	serut::MemorySerializer mSer(&bytes[0], bytes.size(), 0, 0);
+	if (!x.read(mSer))
+		return x.getErrorString();
+	return true;
+}
 
 #endif // INVERSIONCOMMUNICATOR_H

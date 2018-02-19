@@ -210,6 +210,59 @@ def getInversionModuleDefaultConfigurationParameters(moduleName):
 
     return None
 
+def calculateFitness(moduleName, inputImages, zd, fitnessObjectParameters, lens):
+    fitness, description = None, None
+
+    try:
+        proc = subprocess.Popen(["grale_invert_calcfitness"], stdin = subprocess.PIPE, stdout = subprocess.PIPE)
+    except Exception as e:
+        raise InverterException("Unable to start process '{}': {}".format(exeName, e)) 
+
+    inFd = proc.stdin.fileno()
+    outFd = proc.stdout.fileno()
+    io = timed_or_untimed_io.IO(outFd, inFd)
+
+    line = io.readLine(30)
+    invId = "GAINVERTER:"
+    if not line.startswith(invId):
+        raise InverterException("Unexpected idenficiation from process '{}': '{}'".format(exeName, line))
+
+    version = line[len(invId):]
+
+    io.writeLine("MODULE:" + moduleName)
+
+    # Abusing the GridLensInversionParameters for this
+    from . import grid
+    g = grid.createUniformGrid(1, [0,0], 1) # Just a dummy grid
+    g = grid._fractionalGridToRealGrid(g)
+    Dd = 1.0 if not lens else lens.getLensDistance()
+    params = inversionparams.GridLensInversionParameters(1, inputImages, g, Dd, zd, 1.0, baseLens = lens, 
+                                                         fitnessObjectParameters=fitnessObjectParameters)
+
+    factoryParams = params.toBytes()
+    factoryParamsLen = len(factoryParams)
+    io.writeLine("GAFACTORYPARAMS:{}".format(factoryParamsLen))
+    io.writeBytes(factoryParams)
+
+    while True:
+        line = io.readLine(60*60*24*365*1000)
+        if line == "DONE":
+            break
+
+        p = line.split(":")
+        if len(p) != 2:
+            raise InverterException("Expecting two parts for separator ':', but got line '{}'".format(line))
+        if p[0] == "FITDESC":
+            description = p[1]
+        elif p[0] == "FITNESS":
+            fitness = list(map(float, p[1].split(",")))
+        else:
+            raise InverterException("Expecting FITDESC or FITNESS, but got line '{}'".format(line))
+
+    io.writeLine("EXIT")
+
+    return (fitness, description)
+
 class SingleProcessInverter(Inverter):
     """TODO:"""
     def __init__(self, feedbackObject = None):

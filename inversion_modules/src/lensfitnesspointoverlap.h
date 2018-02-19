@@ -49,6 +49,7 @@ public:
 
 	bool isInitialized() const									{ return m_initialized; }
 	int getImagesGroupSize() const									{ return 1; }
+	std::string getFitnessComponentsDescription() const	{ return "pointimageoverlap"; }
 
 	bool shortNeedInverseMagnifications() const 							{ return false; }
 	bool shortNeedShearComponents() const								{ return false; }
@@ -93,6 +94,7 @@ public:
 
 	bool isInitialized() const									{ return m_initialized; }
 	int getImagesGroupSize() const									{ return 2; }
+	std::string getFitnessComponentsDescription() const	{ return "pointimageoverlap pointimagenull"; }
 
 	bool shortNeedInverseMagnifications() const 							{ return false; }
 	bool shortNeedShearComponents() const								{ return false; }

@@ -42,6 +42,7 @@ public:
 	bool init(double z_d, std::list<ImagesDataExtended *> &images, 
 	          std::list<ImagesDataExtended *> &massScaleImages, const ConfigurationParameters *pParams) override;
 	std::string getUsage() const override;
+	std::string getFitnessComponentsDescription() const													{ return "weaklensing"; }
 
 	void getTotalCalcFlags(std::vector<bool> &deflectionFlags, std::vector<bool> &derivativeFlags, 
 	                       std::vector<bool> &potentialFlags) const										{ deflectionFlags = m_zeroVector; derivativeFlags = m_oneVector; potentialFlags = m_zeroVector; }

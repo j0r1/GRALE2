@@ -51,6 +51,7 @@ public:
 
 	// Since we're using both strong and weak lensing data, there's no group size
 	int getImagesGroupSize() const																		{ return 1; }
+	std::string getFitnessComponentsDescription() const	{ return "pointimageoverlap pointimagenull weaklensing"; }
 
 	bool shortNeedInverseMagnifications() const															{ return false; }
 	bool shortNeedShearComponents() const																{ return false; }
