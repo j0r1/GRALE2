@@ -350,7 +350,8 @@ def plotDensityInteractive(lensOrLensInfo, numX=75, numY=75, height=600, xlabel=
                       canvas2svgJS=canvas2svgJS, fileSaverJS=fileSaverJS)
     return lensInfo
 
-def plotDensity(lensOrLensInfo, renderer = "default", feedbackObject = "default", angularUnit = "default", densityUnit = 1.0, axes = None, **kwargs):
+def plotDensity(lensOrLensInfo, renderer = "default", feedbackObject = "default", angularUnit = "default", densityUnit = 1.0,
+                axes = None, axImgCallback = None, **kwargs):
     """Creates a 2D plot of the situation specified in `lensOrLensInfo`.
 
 In case you just want the calculations to be performed (for example because you need
@@ -393,6 +394,9 @@ Arguments:
    matplotlib axes object as well. The value `False` has a special meaning: in that case,
    the calculations will be performed as usual, but an actual plot will not be created.
 
+ - `axImgCallback`: if specified, this callback function will be called with the object
+   returned by ``imshow`` as argument.
+
  - `kwargs`: these parameters will be passed on to the `imshow <https://matplotlib.org/devdocs/api/_as_gen/matplotlib.axes.Axes.imshow.html>`_
    function in matplotlib.
 """
@@ -412,8 +416,9 @@ Arguments:
             axes = plt.gca()
 
         # Note: need to swap Y labeling here because of the way the pixels are ordered in this function
-        axes.imshow(pixels, extent = np.array([ bottomLeft[0], topRight[0], topRight[1], bottomLeft[1]])/angularUnit, **kwargs)
+        axImg = axes.imshow(pixels/densityUnit, extent = np.array([ bottomLeft[0], topRight[0], topRight[1], bottomLeft[1]])/angularUnit, **kwargs)
         axes.invert_yaxis()
+        if axImgCallback: axImgCallback(axImg)
 
     return lensInfo
 
@@ -498,7 +503,7 @@ def _prepareImagePlane(lensInfo, renderer, feedbackObject, evenError, cosmology)
 def plotImagePlane(lensOrLensInfo, sources = [], renderer = "default", feedbackObject = "default", 
                    angularUnit = "default", subSamples = 9, sourceRgb = (0, 1, 0), imageRgb = (1, 1, 1),
                    plotCaustics = True, plotCriticalLines = True, plotSources = True, plotImages = True,
-                   evenError = True, axes = None, cosmology = None, **kwargs):
+                   evenError = True, axes = None, cosmology = None, axImgCallback = None, **kwargs):
     """Create a matplotlib-based plot of image plane and/or source plane for certain
 lens parameters in `lensOrLensInfo`. You can also use this function to create the necessary
 calculated mappings but not the plot, by setting `axes` to `False`. This can be useful
@@ -569,6 +574,9 @@ Arguments:
    matplotlib axes object as well. The value `False` has a special meaning: in that case,
    the calculations will be performed as usual, but an actual plot will not be created.
 
+ - `axImgCallback`: if specified, this callback function will be called with the object
+   returned by ``imshow`` as argument.
+
  - `kwargs`: these parameters will be passed on to the `imshow <https://matplotlib.org/devdocs/api/_as_gen/matplotlib.axes.Axes.imshow.html>`_
    function in matplotlib.
 """
@@ -609,7 +617,8 @@ Arguments:
 
     if axes is not False:
         # Note: need to swap Y labeling here because of the way the pixels are ordered in this function
-        axes.imshow(rgbIplane + rgbSplane, extent = np.array([ bottomLeft[0], topRight[0], topRight[1], bottomLeft[1]])/angularUnit, **kwargs)
+        axImg = axes.imshow(rgbIplane + rgbSplane, extent = np.array([ bottomLeft[0], topRight[0], topRight[1], bottomLeft[1]])/angularUnit, **kwargs)
+        if axImgCallback: axImgCallback(axImg)
         
     criticalLines = imgPlane.getCriticalLines()
 
