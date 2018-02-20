@@ -9,6 +9,12 @@ import tempfile
 import time
 import struct
 import socket
+import sys
+
+real_print = print
+def print(*args): # Do a flush afterwards
+    real_print(*args)
+    sys.stdout.flush()
 
 if "INVERTER_USE_TIMEDIO" in os.environ:
     print("Using timed IO")
@@ -38,7 +44,7 @@ class Inverter(object):
     def getFeedbackObject(self):
         return self.feedback
 
-    def invert(self, moduleName, populationSize, gaParams, gridLensInversionParameters):
+    def invert(self, moduleName, populationSize, gaParams, gridLensInversionParameters, returnNds):
 
         errFile = tempfile.TemporaryFile("w+t")
         proc = None
@@ -88,45 +94,54 @@ class Inverter(object):
             io.writeLine("GAFACTORYPARAMS:{}".format(factoryParamsLen))
             io.writeBytes(factoryParams)
 
-            io.writeLine("RUN")
+            if not returnNds:
+                io.writeLine("RUN")
+            else:
+                io.writeLine("RUN:NDS")
             
             # TODO: currently, status or progress are not used
             statusStr = "STATUS:"
             resultStr = "RESULT:"
+            critId = "CRITERIA:"
+            numSolsStr = "NUMSOLS:"
+            fitId = "FITNESS:"
+
             while True:
                 line = io.readLine(1000000)
                 #print(line)
                 if line.startswith(statusStr):
                     s = line[len(statusStr):]
                     self.onStatus(s)
-                elif line.startswith(resultStr):
-                    numBytes = int(line[len(resultStr):])
+                elif line.startswith(critId):
                     break
                 else:
                     print(line)
                     #raise InverterException("Unexpected line '{}'".format(line))
                 
-            # Read the resulting lens
-            #lensData = b""
-            #while len(lensData) < numBytes:
-            #    lensData += os.read(outFd, numBytes-len(lensData))
-            lensData = io.readBytes(numBytes)
-
-            line = io.readLine(30)
-            fitId = "FITNESS:"
-            if not line.startswith(fitId):
-                raise InverterException("Unexpected identifier from inverter process: '{}'".format(line))
-            fitnessValues = [ float(x) for x in line[len(fitId):].strip().split(" ") ]
-
-            line = io.readLine(30)
-            critId = "CRITERIA:"
-            if not line.startswith(critId):
-                raise InverterException("Unexpected identifier from inverter process: '{}'".format(line))
             fitnessCriteria = line[len(critId):].strip().split(" ")
 
-            #print("len(lensData) =", len(lensData))
-            #open("dbg.dat", "wb").write(lensData)
-            
+            line = io.readLine(30)
+            if not line.startswith(numSolsStr):
+                raise InverterException("Unexpected identifier from inverter process: '{}'".format(line))
+            numSols = int(line[len(numSolsStr):])
+
+            sols = []
+            for i in range(numSols):
+                line = io.readLine(30)
+                if not line.startswith(resultStr):
+                    raise InverterException("Unexpected identifier from inverter process: '{}'".format(line))
+
+                numBytes = int(line[len(resultStr):])
+                # Read the resulting lens
+                lensData = io.readBytes(numBytes)
+
+                line = io.readLine(30)
+                if not line.startswith(fitId):
+                    raise InverterException("Unexpected identifier from inverter process: '{}'".format(line))
+                fitnessValues = [ float(x) for x in line[len(fitId):].strip().split(" ") ]
+
+                sols.append((lenses.GravitationalLens.fromBytes(lensData), fitnessValues))
+
             io.writeLine("EXIT")
             #time.sleep(10)
 
@@ -146,7 +161,13 @@ class Inverter(object):
             except Exception as e:
                 print("Ignoring exception when terminating program: " + str(e))
         
-        return (lenses.GravitationalLens.fromBytes(lensData), fitnessValues, fitnessCriteria)
+        if returnNds:
+            return(sols, fitnessCriteria)
+
+        if len(sols) != 1:
+            raise InverterException("Internal error: expecting just one solution but got {}".format(len(sols)))
+
+        return (sols[0][0], sols[0][1], fitnessCriteria)
 
     def onStatus(self, s):
         try:

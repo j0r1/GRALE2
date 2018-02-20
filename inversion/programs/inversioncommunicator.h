@@ -42,6 +42,7 @@ protected:
 	template<class T> bool_t loadFromBytes(T &x, std::vector<uint8_t> &bytes);
 
 	bool_t onGAFinished(mogal::GeneticAlgorithm &ga);
+	bool m_nds;
 };
 
 template<class T>

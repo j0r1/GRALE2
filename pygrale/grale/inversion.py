@@ -124,7 +124,7 @@ def calculateFitness(inputImages, zd, fitnessObjectParameters, lens, moduleName 
 def invert(inputImages, grid, zd, Dd, popSize, moduleName = "general", massScale = "auto", rescaleBasisFunctions = False, 
            basisFunctionType = "plummer", gridSizeFactor = "default", allowNegativeValues = False, baseLens = None, 
            sheetSearch = "nosheet", fitnessObjectParameters = None, wideSearch = False, maximumGenerations = 16384,
-           geneticAlgorithmParameters = { }, inverter = "default", feedbackObject = "default"):
+           geneticAlgorithmParameters = { }, inverter = "default", feedbackObject = "default", returnNds = False):
     """TODO:"""
 
     cellSizeFactorDefaults = { "plummer": 1.7, "gaussian": 1.0, "square": 1.0 }
@@ -178,8 +178,14 @@ def invert(inputImages, grid, zd, Dd, popSize, moduleName = "general", massScale
     # fitness components are returned.
     dummyFitness, fitnessComponentDescription = inverters.calculateFitness(n, inputImages, zd, fullFitnessObjParams, None) 
 
-    result = inverter.invert(n, popSize, geneticAlgorithmParameters, params)
-    result = (result[0], result[1], fitnessComponentDescription) # TODO: this should be removed when the TODO above is fixed
+    result = inverter.invert(n, popSize, geneticAlgorithmParameters, params, returnNds)
+
+    # TODO: this should be removed when the TODO above is fixed
+    if not returnNds:
+        result = (result[0], result[1], fitnessComponentDescription)
+    else:
+        result = (result[0], fitnessComponentDescription)
+
     return result
 
 class InversionWorkSpace(object):

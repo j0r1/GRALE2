@@ -10,6 +10,7 @@
 #include "lensinversiongenomebase.h"
 #include "gravitationallens.h"
 #include <serut/memoryserializer.h>
+#include <serut/vectorserializer.h>
 #include <serut/dummyserializer.h>
 #include <mogal/geneticalgorithm.h>
 #include <mogal/gamodule.h>
@@ -30,6 +31,7 @@ InversionCommunicator::InversionCommunicator()
 	_setmode(_fileno(stdin), _O_BINARY);
 	_setmode(_fileno(stdout), _O_BINARY);
 #endif // WIN32
+	m_nds = false;
 }
 
 InversionCommunicator::~InversionCommunicator()
@@ -143,8 +145,12 @@ bool_t InversionCommunicator::runModule(const string &moduleDir, const string &m
 	string runStr;
 	if (!(r = ReadLineStdin(10000, runStr)))
 		return "Unable to read 'RUN' command: " + r.getErrorString();
-	if (runStr != "RUN")
-		return "Expected 'RUN', but got: '" + runStr + "'";
+	if (runStr == "RUN")
+		m_nds = false;
+	else if (runStr == "RUN:NDS")
+		m_nds = true;
+	else
+		return "Expected 'RUN' or 'RUN:NDS', but got: '" + runStr + "'";
 
 	GeneticAlgorithmParams params(gaParams.getSelectionPressure(), gaParams.getUseElitism(),
 	                              gaParams.getAlwaysIncludeBest(), gaParams.getCrossOverRate());
@@ -173,37 +179,48 @@ bool_t InversionCommunicator::runGA(int popSize, GAFactory &factory, GeneticAlgo
 
 bool_t InversionCommunicator::onGAFinished(mogal::GeneticAlgorithm &ga)
 {
-	const LensInversionGenomeBase *pGenome = static_cast<const LensInversionGenomeBase *>(ga.selectPreferredGenome());
-	if (!pGenome)
-		return "No best genome was set: " + ga.getErrorString();
-	
+	vector<Genome *> bestGenomes;
+
+	if (!m_nds)
+	{
+		auto *pGenome = ga.selectPreferredGenome();
+		if (!pGenome)
+			return "No best genome was set: " + ga.getErrorString();
+		bestGenomes.push_back(pGenome);
+	}
+	else // will send back entire non-dominated set
+	{
+		ga.getBestGenomes(bestGenomes);
+		if(bestGenomes.size() == 0)
+			return "No non-dominated set wat stored!";
+	}
+
 	string fitnessCriteria = "TODO";
-	string fitnessValues = pGenome->getFitnessDescription();
-	cout << "Selected genome has fitness: "	<< fitnessValues << endl;
-	cout.flush();
 	
-	string errStr;
-	double totalmass; // This isn't really used anymore
-
-	unique_ptr<GravitationalLens> lens(pGenome->createLens(&totalmass, errStr));
-	if (!lens.get())
-		return "Unable to create lens from genome: " + errStr;
-
-	DummySerializer dSer;
-	if (!lens->write(dSer))
-		return "Error serializing resulting lens: " + lens->getErrorString();
-
-	vector<uint8_t> buf(dSer.getBytesWritten());
-
-	MemorySerializer mSer(nullptr, 0, &buf[0], buf.size());
-	if (!lens->write(mSer))
-		return "Error serializing resulting lens: " + lens->getErrorString();
-
-	// Write the result to stdout
-	WriteLineStdout(strprintf("RESULT:%d", (int)buf.size()));
-	WriteBytesStdout(buf);
-	WriteLineStdout("FITNESS:" + fitnessValues);
 	WriteLineStdout("CRITERIA:" + fitnessCriteria);
+	WriteLineStdout(strprintf("NUMSOLS:%d", (int)bestGenomes.size()));
+	for (size_t i = 0 ; i < bestGenomes.size() ; i++)
+	{
+		const LensInversionGenomeBase *pGenome = static_cast<const LensInversionGenomeBase *>(bestGenomes[i]);
+		string fitnessValues = pGenome->getFitnessDescription();
+		cout << "Selected genome has fitness: "	<< fitnessValues << endl;
+
+		string errStr;
+		double totalmass; // This isn't really used anymore
+
+		unique_ptr<GravitationalLens> lens(pGenome->createLens(&totalmass, errStr));
+		if (!lens.get())
+			return "Unable to create lens from genome: " + errStr;
+
+		VectorSerializer bufSer;
+		if (!lens->write(bufSer))
+			return "Error serializing resulting lens: " + lens->getErrorString();
+
+		auto buf = bufSer.getBuffer();
+		WriteLineStdout(strprintf("RESULT:%d", (int)buf.size()));
+		WriteBytesStdout(buf);
+		WriteLineStdout("FITNESS:" + fitnessValues);
+	}
 
 	return true;
 }
