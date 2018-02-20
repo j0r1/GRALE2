@@ -203,7 +203,7 @@ bool_t InversionCommunicator::onGAFinished(mogal::GeneticAlgorithm &ga)
 	{
 		const LensInversionGenomeBase *pGenome = static_cast<const LensInversionGenomeBase *>(bestGenomes[i]);
 		string fitnessValues = pGenome->getFitnessDescription();
-		cout << "Selected genome has fitness: "	<< fitnessValues << endl;
+		cerr << "Selected genome has fitness: "	<< fitnessValues << endl;
 
 		string errStr;
 		double totalmass; // This isn't really used anymore
