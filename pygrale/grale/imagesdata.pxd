@@ -4,9 +4,17 @@ from libcpp.vector cimport vector
 
 cimport grale.vector2d
 cimport grale.triangleindices
+cimport grale.serut as serut
 
 ctypedef grale.vector2d.Vector2Dd Vector2Dd
 ctypedef grale.triangleindices.TriangleIndices TriangleIndices
+
+# Using a dummy helper class to avoid "cython ambiguous overloaded method"
+cdef extern from "imagesdata2.h":
+    cdef cppclass ImagesData2:
+        ImagesData2()
+        bool read2(serut.SerializationInterface &si)
+        bool write2(serut.SerializationInterface &si) const
 
 cdef extern from "grale/imagesdata.h" namespace "grale":
     cdef cppclass ImagesData:

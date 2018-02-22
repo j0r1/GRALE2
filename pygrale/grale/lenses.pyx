@@ -89,6 +89,12 @@ cdef class GravitationalLens:
     cdef gravitationallens.GravitationalLens * _getLens(GravitationalLens l):
         return l.m_pLens
 
+    @staticmethod
+    cdef void _swapLenses(GravitationalLens l1, GravitationalLens l2):
+        cdef gravitationallens.GravitationalLens *pTmp = l1.m_pLens
+        l1.m_pLens = l2.m_pLens
+        l2.m_pLens = pTmp
+
     def __cinit__(self):
         self.m_pLens = NULL
 
@@ -660,6 +666,13 @@ cdef class GravitationalLens:
         lens instance.
         """
         raise LensException("Re-analyzing parameters has not been implemented for this lens type")
+
+    def __getstate__(self):
+        return self.toBytes()
+
+    def __setstate__(self, state):
+        l = GravitationalLens.fromBytes(state)
+        GravitationalLens._swapLenses(self, l)
 
 cdef class GaussLens(GravitationalLens):
     """A gravitational lens with a gaussian profile"""

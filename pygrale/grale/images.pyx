@@ -67,6 +67,12 @@ cdef class ImagesData:
     @staticmethod
     cdef imagesdata.ImagesData * _getImagesData(ImagesData img):
         return img.m_pImgData
+
+    @staticmethod
+    cdef void _swapImagesData(ImagesData i1, ImagesData i2):
+        cdef imagesdata.ImagesData *pTmp = i1.m_pImgData
+        i1.m_pImgData = i2.m_pImgData
+        i2.m_pImgData = pTmp
     
     def __cinit__(self):
         self.m_pImgData = new imagesdata.ImagesData()
@@ -491,6 +497,48 @@ cdef class ImagesData:
         """
         self.m_pImgData.subtractIntensity(v)
 
+    @staticmethod
+    def fromBytes(bytes b):
+        """fromBytes(b)
+
+        This function attempts to interpret the bytes ``b``
+        an images data set, and returns the new instance if successful.
+        """
+        cdef array[char] buf = chararrayfrombytes(b)
+        cdef serut.MemorySerializer *m = new serut.MemorySerializer(buf.data.as_voidptr, len(b), NULL, 0)
+        cdef imagesdata.ImagesData2 *pImgDat
+
+        img = ImagesData(_imagesDataRndId) # Make sure an empty instance is allocated
+
+        # Try to load the data
+        pImgDat2 = <imagesdata.ImagesData2 *>img.m_pImgData
+        if not pImgDat2.read2(deref(m)):
+            del m
+            raise ImagesDataException(S(img.m_pImgData.getErrorString()))
+        
+        del m
+        return img
+
+    def toBytes(self):
+        """toBytes()
+
+        Returns a binary representation of the current images data set."
+        """
+        cdef serut.VectorSerializer vSer
+        cdef imagesdata.ImagesData2 *pImgDat2 = <imagesdata.ImagesData2 *>self.m_pImgData
+
+        if not pImgDat2.write2(vSer):
+            raise ImagesDataException(S(self.m_pImgData.getErrorString()))
+
+        return <bytes>vSer.getBufferPointer()[0:vSer.getBufferSize()]
+
+    def __getstate__(self):
+        return self.toBytes()
+
+    def __setstate__(self, state):
+        img = ImagesData.fromBytes(state)
+        ImagesData._swapImagesData(self, img)
+
 # For internal use
 cdef class ImagesDataExtended:
     cdef imagesdataextended.ImagesDataExtended *m_pImgDataExt
@@ -639,6 +687,16 @@ cdef class LensPlane:
     cdef _check(self):
         if self.m_pLensPlane == NULL:
             raise LensPlaneException("No internal lens plane has been set")
+
+    cdef void _swapLensPlanes(LensPlane l1, LensPlane l2):
+        cdef lensplane.LensPlane *pTmp = l1.m_pLensPlane
+        cdef object tmpFeedback = l1.feedback
+
+        l1.m_pLensPlane = l2.m_pLensPlane
+        l2.m_pLensPlane = pTmp
+
+        l1.feedback = l2.feedback
+        l2.feedback = tmpFeedback
 
     def __cinit__(self):
         self.m_pLensPlane = NULL
@@ -852,12 +910,60 @@ cdef class LensPlane:
         except Exception as e:
             print("Warning: ignoring exception ({}) in onProgress".format(e))
 
+    @staticmethod
+    def fromBytes(bytes b):
+        """fromBytes(b)
+
+        This function attempts to interpret the bytes ``b``
+        a lens plane instance, and returns the new instance if successful.
+        """
+        cdef array[char] buf = chararrayfrombytes(b)
+        cdef serut.MemorySerializer *m = new serut.MemorySerializer(buf.data.as_voidptr, len(b), NULL, 0)
+        cdef string errorString
+        cdef lensplane.LensPlane *pLensPlane = NULL
+
+        if not lensplane.LensPlane.read(deref(m), cython.address(pLensPlane), errorString):
+            del m
+            raise LensPlaneException(S(errorString))
+
+        del m
+
+        lensPlane = LensPlane(None, None, None, 0, 0)
+        lensPlane.m_pLensPlane = pLensPlane
+
+        return lensPlane
+
+    def toBytes(self):
+        """toBytes()
+
+        Returns a binary representation of the current images data set."
+        """
+        cdef serut.VectorSerializer vSer
+
+        self._check()
+
+        if not self.m_pLensPlane.write(vSer):
+            raise ImagesDataException(S(self.m_pLensPlane.getErrorString()))
+
+        return <bytes>vSer.getBufferPointer()[0:vSer.getBufferSize()]
+
+    def __getstate__(self):
+        return self.toBytes()
+
+    def __setstate__(self, state):
+        lp = LensPlane.fromBytes(state)
+        LensPlane._swapLensPlanes(self, lp)
+
 class ImagePlaneException(Exception):
     """This exception is raised if something goes wrong in the :class:`ImagePlane` class."""
     pass
 
 cdef class ImagePlane:
     cdef imageplane.ImagePlane *m_pImgPlane
+    # Store the original lens plane (or better, a copy) and the distances to
+    # be able to pickle
+    cdef object m_lensPlane 
+    cdef double m_Ds, m_Dds
 
     def __cinit__(self):
         self.m_pImgPlane = new imageplane.ImagePlane()
@@ -873,8 +979,17 @@ cdef class ImagePlane:
         plane. This source plane has angular diameter distance ``Ds`` relative to the observer,
         and ``Dds`` relative to the lens itself.
         """
+        self._internalConstructor(lensplane, Ds, Dds)
+
+    def _internalConstructor(self, LensPlane lensplane, double Ds, double Dds):
         if not self.m_pImgPlane.init(<imageplane.LensPlane*>lensplane.m_pLensPlane, Ds, Dds):
             raise ImagePlaneException("Unable to initialize image plane: " + S(self.m_pImgPlane.getErrorString()))
+
+        # Store the constructor values
+        import copy
+        self.m_lensPlane = copy.copy(lensplane)
+        self.m_Ds = Ds
+        self.m_Dds = Dds
 
     def getDs(self):
         """getDs()
@@ -1205,6 +1320,12 @@ cdef class ImagePlane:
             points.append([thetaPoints[i].getX(), thetaPoints[i].getY()])
 
         return points
+
+    def __getstate__(self):
+        return [ self.m_lensPlane.toBytes(), self.m_Ds, self.m_Dds ]
+
+    def __setstate__(self, state):
+        self._internalConstructor(LensPlane.fromBytes(state[0]), state[1], state[2])
 
 cdef public api void cy_call_void_string_function(object self, const char *method, char *s):
     try:

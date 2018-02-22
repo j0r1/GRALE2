@@ -18,7 +18,7 @@ cdef extern from "grale/lensplane.h" namespace "grale":
         bool scaleDeflections(double factor)
         int getNumXPoints() const
         int getNumYPoints() const
-        Vector2Dd getBottomLeft() const	
+        Vector2Dd getBottomLeft() const    
         Vector2Dd getTopRight() const
         double getXStep() const
         double getYStep() const
@@ -31,6 +31,9 @@ cdef extern from "grale/lensplane.h" namespace "grale":
         @staticmethod
         bool load(const string &fname, LensPlane **ip, string &errstr)
         bool save(const string &fname) const
+        @staticmethod
+        bool read(serut.SerializationInterface &si, LensPlane **ip, string &errstr)
+        bool write(serut.SerializationInterface &si) const
 
 cdef extern from "pylensplane.h":
     cdef cppclass PyLensPlane(LensPlane):
