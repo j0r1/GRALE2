@@ -1,6 +1,5 @@
-"""This module defines functions to plot the mass density of a gravitational
-lens, or the lens effect itself. The module also contains classes to help
-you make animations.
+"""This module defines various plotting utilities, as well as 
+classes to help you make animations.
 """
 
 from __future__ import print_function
@@ -98,7 +97,6 @@ def plot3DInteractive(X, Y, Z, height=600, xlabel = "X", ylabel = "Y", zlabel = 
     using `vis.js <http://visjs.org/>`_.
 
     Arguments:
-
      - `X`: a NY x NX numpy array containing the X coordinates of the plot region.
 
      - `Y`: similar `X`, but with Y coordinates of the plot region.
@@ -257,7 +255,6 @@ def plotDensityInteractive(lensOrLensInfo, numX=75, numY=75, height=600, xlabel=
     """Creates an interactive 3D plot of the mass density specified in `lensOrLensInfo`.
 
     Arguments:
-
      - `lensOrLensInfo`: this can either be a gravitational lens instance or dictionary 
        that contains at least the following entries
 
@@ -297,8 +294,7 @@ def plotDensityInteractive(lensOrLensInfo, numX=75, numY=75, height=600, xlabel=
        here.
 
      - `renderer`: this parameter can be used to specify a specific :ref:`renderer <renderers>`
-       to speed up the calculation. If left to ``None``, the default, single core renderer 
-       will be used.
+       to speed up the calculation. 
 
      - `feedbackObject`: can be used to specify a particular :ref:`feedback mechanism <feedback>`.
 
@@ -359,7 +355,6 @@ the calculated density pixels) but you don't want an actual plot, you can set th
 `axes` parameter to `False`.
 
 Arguments:
-
  - `lensOrLensInfo`: this can either be a gravitational lens instance or dictionary 
    that contains at least the following entries
 
@@ -379,8 +374,7 @@ Arguments:
    In case it's only a gravitational lens, an estimate of the corners will be used.
 
  - `renderer`: this parameter can be used to specify a specific :ref:`renderer <renderers>`
-   to speed up the calculation. If left to `None`, the default, single core renderer 
-   will be used.
+   to speed up the calculation. 
 
  - `feedbackObject`: can be used to specify a particular :ref:`feedback mechanism <feedback>`.
 
@@ -511,9 +505,9 @@ to create a :py:class:`LensPlane<grale.images.LensPlane>` and :py:class:`ImagePl
 using a specific renderer to speed up the calculation.
 
 Arguments:
-
- - `lensOrLensInfo`: this can either be a gravitational lens instance or dictionary 
-   that contains at least the following entries
+ - `lensOrLensInfo`: this can either be a gravitational lens instance or dictionary.
+   For a single lensplane lens, this dictionary should contain at least the following 
+   entries
 
     - `lens`: the gravitational lens that used for the plot
     - `bottomleft`: the bottom-left corner of the plot region
@@ -521,7 +515,16 @@ Arguments:
     - `Ds`: the angular diameter distance to the source
     - `Dds`: the angular diameter distance between lens and source
 
-   optionally, the number of pixels that should be plotted can be specified as well:
+   while for a multiple lensplane lens, it should contain:
+
+    - `lens`: a list of (:class:`gravitational lens <grale.lenses.GravitationalLens>`, redshift) tuples
+    - `bottomleft`: the bottom-left corner of the plot region
+    - `topright`: the top-right corner of the plot region
+    - `zs`: the redshift to the source
+
+   Note that for a multi-lensplane scenario, the `cosmology` argument must be set.
+
+   Optionally, the number of pixels that should be plotted can be specified as well:
 
     - `numx`: number of pixels in x-direction, defaults to 511
     - `numy`: number of pixels in y-direction, defaults to 511
@@ -538,8 +541,7 @@ Arguments:
    the images from.
 
  - `renderer`: this parameter can be used to specify a specific :ref:`renderer <renderers>`
-   to speed up the calculation. If left to ``None``, the default, single core renderer 
-   will be used.
+   to speed up the calculation. 
 
  - `feedbackObject`: can be used to specify a particular :ref:`feedback mechanism <feedback>`.
 
@@ -573,6 +575,10 @@ Arguments:
  - `axes`: the default will cause a new plot to be created, but you can specify an existing
    matplotlib axes object as well. The value `False` has a special meaning: in that case,
    the calculations will be performed as usual, but an actual plot will not be created.
+
+ - `cosmology`: in case a multi-lensplane scenario is being rendered, this must be
+   set to a :class:`cosmological model <grale.cosmology.Cosmology>`. Otherwise, it must
+   be ``None``.
 
  - `axImgCallback`: if specified, this callback function will be called with the object
    returned by ``imshow`` as argument.
@@ -667,9 +673,9 @@ situation specified in `lensOrLensInfo`, saving various files with names startin
 immediately, you can set `axes` to `False`.
 
 Arguments:
-
- - `lensOrLensInfo`: this can either be a gravitational lens instance or dictionary 
-   that contains at least the following entries
+ - `lensOrLensInfo`: this can either be a gravitational lens instance or dictionary.
+   For a single lensplane lens, this dictionary should contain at least the following 
+   entries
 
     - `lens`: the gravitational lens that used for the plot
     - `bottomleft`: the bottom-left corner of the plot region
@@ -677,7 +683,16 @@ Arguments:
     - `Ds`: the angular diameter distance to the source
     - `Dds`: the angular diameter distance between lens and source
 
-   optionally, the number of pixels that should be plotted can be specified as well:
+   while for a multiple lensplane lens, it should contain:
+
+    - `lens`: a list of (:class:`gravitational lens <grale.lenses.GravitationalLens>`, redshift) tuples
+    - `bottomleft`: the bottom-left corner of the plot region
+    - `topright`: the top-right corner of the plot region
+    - `zs`: the redshift to the source
+
+   Note that for a multi-lensplane scenario, the `cosmology` argument must be set.
+
+   Optionally, the number of pixels that should be plotted can be specified as well:
 
     - `numx`: number of pixels in x-direction, defaults to 511
     - `numy`: number of pixels in y-direction, defaults to 511
@@ -707,8 +722,7 @@ Arguments:
  - `plotImages`: boolean value that indicates if the images should be drawn on the plot.
 
  - `renderer`: this parameter can be used to specify a specific :ref:`renderer <renderers>`
-   to speed up the calculation. If left to ``None``, the default, single core renderer 
-   will be used.
+   to speed up the calculation. 
 
  - `feedbackObject`: can be used to specify a particular :ref:`feedback mechanism <feedback>`.
 
@@ -743,6 +757,10 @@ Arguments:
  - `convertExe`: the ``convert`` command. This program is used to show the generated plot
    using matplotlib: the eps generated by gnuplot is converted to a PNG file which is then
    shown using matplotlib.
+
+ - `cosmology`: in case a multi-lensplane scenario is being rendered, this must be
+   set to a :class:`cosmological model <grale.cosmology.Cosmology>`. Otherwise, it must
+   be ``None``.
 """
     angularUnit = _getAngularUnit(angularUnit)
 
@@ -965,7 +983,6 @@ generated. If you only want to generate these files, but not visualize them in a
 immediately, you can set `axes` to `False`.
 
 Arguments:
-
  - `lensOrLensInfo`: this can either be a gravitational lens instance or dictionary 
    that contains at least the following entries
 
@@ -995,8 +1012,7 @@ Arguments:
    plot.
 
  - `renderer`: this parameter can be used to specify a specific :ref:`renderer <renderers>`
-   to speed up the calculation. If left to ``None``, the default, single core renderer 
-   will be used.
+   to speed up the calculation. 
 
  - `feedbackObject`: can be used to specify a particular :ref:`feedback mechanism <feedback>`.
 
@@ -1145,7 +1161,6 @@ this is certainly not required. Example:
         """Initializes the object and immediately starts rendering the frames into a movie.
 
 Arguments:
-
  - `fileName`: the name of the file that will contain the animation. By default an mp4
    movie will be created, but if the filename ends with ``.webm``, a webm format will
    be used instead.
@@ -1244,7 +1259,6 @@ show something useful. This function tries to return a relevant scale that
 can be used when specifying the lower-left and upper-right corners for a plot.
 
 Arguments:
-
  - `lens`: the :py:class:`gravitational lens<grale.lenses.GravitationalLens>`
    that you're interested in.
 
@@ -1321,22 +1335,20 @@ results (deflection angles and their derivatives) can be stored in a
 `FITS <https://en.wikipedia.org/wiki/FITS>`_ file.
 
 Arguments:
+ - `lens`: the gravitational lens for which the properties should be calculated.
 
- - ``lens``: the gravitational lens for which the properties should be calculated.
-
- - ``numXY``: an array of length two containing the number of pixels in X and Y dimentsions
+ - `numXY`: an array of length two containing the number of pixels in X and Y dimentsions
    for the resulting FITS file and grids.
 
- - ``angularSize``: an array of length two containing the angular size in X and Y directions
+ - `angularSize`: an array of length two containing the angular size in X and Y directions
    respectively.
 
- - ``lensCenterRARec``: for the World Coordinate System in the FITS file, the lens center
+ - `lensCenterRARec`: for the World Coordinate System in the FITS file, the lens center
    is assumed to be located at these coordinates. This is an array of length two, of which
    the first entry is the right ascension and the second is the declination.
 
  - `renderer`: this parameter can be used to specify a specific :ref:`renderer <renderers>`
-   to speed up the calculation. If left to ``None``, the default, single core renderer 
-   will be used.
+   to speed up the calculation. 
 
  - `feedbackObject`: can be used to specify a particular :ref:`feedback mechanism <feedback>`.
 
@@ -1476,9 +1488,40 @@ def _getLensFunctionAndDistance(lensOrLensInfo):
 def plotAverageDensityProfile(lensOrLensInfo, thetaMax, center = [0.0, 0.0], thetaSteps = 512, phiSteps = 512, 
                               angularUnit = "default", densityUnit = 1.0, axes = None, renderer = "default",
                               feedbackObject = "default", **kwargs):
-    """Creates a plot of the circularly averaged density profile
+    """Creates a plot of the circularly averaged density profile.
 
-TODO
+Arguments:
+ - `lensOrLensInfo`: information about the gravitational lens for which the
+   plot should be made. To obtain the lens density values on a grid, for numerical
+   integration, the :func:`plotDensity` function is called first (without actually
+   plotting the results). There, you can find more information about this
+   parameter.
+
+ - `thetaMax`: the angular radius up to which the plot should be made.
+
+ - `center`: the center of the circular averaging.
+
+ - `thetaSteps`: to do the calculations numerically the maximum radius
+   `thetaMax` will be divided into this many parts.
+
+ - `phiSteps`: to average the mass density at a specific radius, the
+   circular region will be subdivided into this many parts.
+
+ - `angularUnit`: the angular unit that should be used in the plot. The 
+   :ref:`pre-defined constants <constants>` can be useful here.
+
+ - `densityUnit`: by default, the density will be in kg/m^2, but another unit can be specified
+   here.
+
+ - `axes`: the default will cause a new plot to be created, but you can specify an existing
+   matplotlib axes object as well. The value `False` has a special meaning: in that case,
+   the calculations will be performed as usual, but an actual plot will not be created.
+
+ - `renderer`: this parameter can be used to specify a specific :ref:`renderer <renderers>`
+   to speed up the calculation. 
+
+ - `feedbackObject`: can be used to specify a particular :ref:`feedback mechanism <feedback>`.
+
 """
     angularUnit = _getAngularUnit(angularUnit)
 
@@ -1513,10 +1556,9 @@ TODO
 def plotIntegratedMassProfile(lensOrLensInfo, thetaMax, center = [0.0, 0.0], thetaSteps = 512, phiSteps = 512,
                               angularUnit = "default", massUnit = 1.0, axes = None, renderer = "default", feedbackObject = "default",
                               **kwargs):
-    """Creates a plot of the circularly integrated mass profile.
+    """Creates a plot of the circularly integrated mass profile. The arguments are 
+the same as for :func:`plotAverageDensityProfile`."""
 
-TODO
-"""
     angularUnit = _getAngularUnit(angularUnit)
 
     # Obtain the map if not yet available
@@ -1559,9 +1601,21 @@ TODO
     return rLimits, iv
 
 def plotSubdivisionGrid(cells, angularUnit = "default", axes = None, **kwargs):
-    """Creates a plot of the specified subdivision grid
+    """Creates a plot of the specified subdivision grid, obtained by
+a function from the :mod:`grid<grale.grid>` module for example.
 
-TODO
+Arguments:
+ - `cells`: the grid cells.
+ 
+ - `angularUnit`: the angular unit that should be used in the plot. The 
+   :ref:`pre-defined constants <constants>` can be useful here.
+
+ - `axes`: the default will cause a new plot to be created, but you can specify an existing
+   matplotlib axes object as well. The value `False` has a special meaning: in that case,
+   the calculations will be performed as usual, but an actual plot will not be created.
+
+ - `kwargs`: these parameters will be passed on to the `imshow <https://matplotlib.org/devdocs/api/_as_gen/matplotlib.axes.Axes.imshow.html>`_
+   function in matplotlib.
 """
     angularUnit = _getAngularUnit(angularUnit)
 
@@ -1597,7 +1651,6 @@ color, in the second, each complete images data set (typically
 for a specific source) uses a different color.
 
 Arguments:
-
  - `imgDat`: either a list, typically to plot several sources at once,
    or a single entry. The entry itself can be an instance
    if :py:class:`ImagesData <grale.images.ImagesData>` or can
@@ -1711,7 +1764,15 @@ def _getAngularUnit(u):
 _defaultAngularUnit = [ 1.0 ]
 
 def getDefaultAngularUnit():
+    """In various plot functions you can specify which `angularUnit` should be
+    used when visualizing the results. If it is set to ``"default"``, then the
+    value returned by this function will be used. It can be set with
+    :func:`setDefaultAngularUnit`."""
     return _defaultAngularUnit[0]
 
 def setDefaultAngularUnit(x):
+    """In various plot functions you can specify which `angularUnit` should be
+    used when visualizing the results. If it is set to ``"default"``, then the
+    value set by this function will be used."""
     _defaultAngularUnit[0] = x
+

@@ -823,7 +823,15 @@ cdef class LensPlane:
         return obj
 
     def getAlphas(self):
-        """TODO:"""
+        """Returns a dictionary containing entries ``alpha_x`` and
+        ``alpha_y``, containing the deflections stored in the lensplane.
+        Using the names returned by :func:`getRenderInfo`, each of these
+        entries is a NumPy grid of shape ``(ypoints, xpoints)``, containing
+        the X and Y components of the deflections. The [0,0] entry of a
+        grid corresponds to the value at ``bottomleft``, the 
+        ``[ypoints-1, xpoints-1]`` entry corresponds to ``topright``.
+        """
+
         cdef np.ndarray[double,ndim=2] alphax, alphay
         cdef int xpoints, ypoints, x, y;
         cdef Vector2Dd alpha;
@@ -833,8 +841,8 @@ cdef class LensPlane:
         xpoints = self.m_pLensPlane.getNumXPoints()
         ypoints = self.m_pLensPlane.getNumYPoints()
         
-        alphax = np.zeros([ypoints, xpoints], dtype = np.double)
-        alphay = np.zeros([ypoints, xpoints], dtype = np.double)
+        alphax = np.empty([ypoints, xpoints], dtype = np.double)
+        alphay = np.empty([ypoints, xpoints], dtype = np.double)
         for y in range(ypoints):
             for x in range(xpoints):
                 alpha = self.m_pLensPlane.getAlpha(x, y)
@@ -844,7 +852,13 @@ cdef class LensPlane:
         return { "alpha_x": alphax, "alpha_y": alphay }
 
     def getAlphaVectorDerivatives(self):
-        """TODO:"""
+        """Returns a dictionary similar to :func:`getAlphas` but now with
+        names ``alpha_xx``, ``alpha_yy`` and ``alpha_xy``, describing 
+        respectively the derivative of the X-component of the deflection 
+        angle in the X-direction, the derivative of the Y-component of 
+        the deflection angle in the Y direction and the derivative of the
+        X-component of the deflection angle in the Y-direction.
+        """
         cdef np.ndarray[double,ndim=2] alphaxx, alphayy, alphaxy
         cdef int xpoints, ypoints, x, y;
         cdef double axx, ayy, axy

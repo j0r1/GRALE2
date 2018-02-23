@@ -1,3 +1,13 @@
+"""This module contains functions for gravitational lens inversion. The
+most straightforward method is to use the class :class:`InversionWorkSpace`,
+which keeps track of the settings and provides an easier interface to
+the other functions. For absolute control however, the individual functions
+can still be used.
+
+This module will try do determine automatically where the inversion libraries
+to be used in the genetic algorithm are to be found. If the environment
+variable ``GRALE2_MODULEPATH`` is set, then this path will always be used.
+"""
 from . import constants as CT
 from . import inverters
 from . import inversionparams
@@ -10,11 +20,34 @@ import copy
 import random
 
 class InversionException(Exception):
-    """TODO:"""
+    """An exception that's generated if something goes wrong in a function
+    provided by this module."""
     pass
 
 def estimateStrongLensingMass(Dd, images, skipParamCheck = False):
-    """TODO:"""
+    """For a gravitational lens that's located at angular diameter distance
+    `Dd`, estimate the strong lensing mass based on the images data in
+    `images`. Each entry in the `images` list should be a dictionary with
+    at least these keys:
+
+     - ``images``:  the :class:`ImagesData<grale.images.ImagesData>` instance
+       describing the images of a source
+     - ``Ds`` and ``Dds``: angular diameter distances to this source and from
+       lens to source respectively.
+
+    Unless `skipParamCheck` is ``True``, the dictionary should also have a 
+    ``params`` key, for futher parameters of this images data set. These
+    ``params`` should also be a dictionary with at least a ``type`` field;
+    the images data set is skipped unless this type field is either
+    ``extendedimages`` or ``pointimages``. This way, images data sets describing
+    null space information for example, are skipped.
+
+    If there's only one image, it will not be used in the mass estimate. Otherwise,
+    the mass estimate for a single images data set will be estimated as the point
+    mass that would be needed to create an Einstein ring with the same diameter as
+    the images' separaration. The final mass estimate is the average of these
+    separate estimates.
+    """
 
     count = 0
     massEstimate = 0.0
@@ -89,25 +122,41 @@ def _getModuleDirectory(n):
             
     raise InversionException("Path with modules not found (GRALE2_MODULEPATH not set, and not detected in other directory)")
 
-def getDefaultModuleParameters(moduleName):
-    """TODO:"""
+def getDefaultModuleParameters(moduleName = "general"):
+    """For the specified module name, query the default parameters."""
 
     n = _getModuleName(moduleName)
     _getModuleDirectory(n) # So that GRALE2_MODULEPATH gets set
     return inverters.getInversionModuleDefaultConfigurationParameters(n)
 
 def getDefaultGeneticAlgorithmParameters():
-    """TODO:"""
+    """Returns the default parameters for the genetic algorithm that's used in lens inversion."""
     return inversionparams.GAParameters().getSettings()
 
-def getInversionModuleUsage(moduleName):
-    """TODO:"""
+def getInversionModuleUsage(moduleName = "general"):
+    """Returns a usage description that's provided by the specified genetic algorithm 
+    module. The usage information for the ``general`` module can be viewed here: `usage <./usage_general.html>`_
+    """
     n = _getModuleName(moduleName)
     _getModuleDirectory(n) # So that GRALE2_MODULEPATH gets set
     return inverters.getInversionModuleUsage(n)
 
 def calculateFitness(inputImages, zd, fitnessObjectParameters, lens, moduleName = "general"):
-    """TODO:"""
+    """You can pass several parameters in the same way as you would do for a
+    lens inversion, but here you also specify the specific lens for which the
+    relevant fitness measures should be calculated.
+
+    Arguments:
+     - `inputImages`: list of input images data instances that should be used in the
+       inversion. See the :func:`invert` function for more information about the
+       format.
+     - `zd`: the redshift to the lens.
+     - `fitnessObjectParameters`: parameters to be used when initializing the inversion
+       module that's specified
+     - `lens`: the gravitational lens model for which the fitness measures should
+       be calculated.
+     - `moduleName`: name of the inversion module for the genetic algorithm.
+    """
     n = _getModuleName(moduleName)
     _getModuleDirectory(n) # So that GRALE2_MODULEPATH gets set
 
@@ -119,18 +168,127 @@ def calculateFitness(inputImages, zd, fitnessObjectParameters, lens, moduleName 
 
     return inverters.calculateFitness(n, inputImages, zd, fullFitnessObjParams, lens)
 
-# TODO: inverters
-# TODO: feedback
 def invert(inputImages, grid, zd, Dd, popSize, moduleName = "general", massScale = "auto", rescaleBasisFunctions = False, 
            basisFunctionType = "plummer", gridSizeFactor = "default", allowNegativeValues = False, baseLens = None, 
            sheetSearch = "nosheet", fitnessObjectParameters = None, wideSearch = False, maximumGenerations = 16384,
-           geneticAlgorithmParameters = { }, inverter = "default", feedbackObject = "default", returnNds = False):
-    """TODO:"""
+           geneticAlgorithmParameters = { }, returnNds = False, inverter = "default", feedbackObject = "default"):
+    """Start the genetic algorithm to look for a gravitational lens model that's
+    compatible with the specified input images. This is a rather low-level function,
+    it may be easier to use an instance of :class:`InversionWorkSpace` instead.
+
+    Arguments:
+     - `inputImages`: a list of dictionaries with the following entries:
+     
+        - ``images``: an :class:`ImagesData<grale.images.ImagesData` instance that
+          describes the images of a source, the null space etc.
+        - ``Ds`` and ``Dds``: the angular diameter distances to this source.
+        - ``params``: not used for older inversion modules for the genetic
+          algorithm, but for the ``general`` module, this could contain a 
+          dictionary with at least a ``type`` field, which can be e.g. 
+          ``pointimages`` or ``extendednullgrid`` (see the `usage <./usage_general.html>`_ 
+          documentation). Other parameters may be set as well, e.g. you could set
+          ``timedelay`` to ``False`` to ignore the time delay information in
+          a particular images data instance.
+
+     - `grid`: a grid of cells which will be used to base the layout of the
+       basis functions on.
+
+     - `zd`: the redshift to the lens, used when calculating time delays
+       (for other purposes the angular diameter distance will be used).
+
+     - `Dd`: the angular diameter distance to the lens.
+
+     - `popSize`: the size of the population in the genetic algorithm, e.g. 512.
+
+     - `moduleName`: name of the inversion module for the genetic algorithm.
+
+     - `massScale`: a rough estimate of the total mass of the gravitational lens.
+       Set to ``"auto"`` or ``"auto_nocheck"`` to let the :func:`estimateStrongLensingMass`
+       function provide this estimate automatically.
+
+     - `rescaleBasisFunctions`: by default, the weight of a basis function is a
+       measure of its total mass. This implies that smaller grid cells will correspond
+       to larger densities, i.e. if you set all weights of the basis functions to the
+       same value, the regions with smaller grid cells will have a considerably larger
+       density. Since the usual approach will be to subdivide the regions that contain
+       more mass into smaller grid cells, this does make sense and appears to produce
+       very good results in most cases. To make this effect less
+       pronounced, you can set this parameter to ``True``, and the basis functions will
+       be rescaled. The smaller grid cells will still have higher densities, but not
+       as much as before (in case square basis functions were used, equal weights would
+       generate equal densities irrespective of the grid size).
+
+     - `basisFunctionType`: can be ``"plummer"``, ``"gaussian"`` or ``"square"``, and
+       specifies the basis function to use for each grid cell.
+
+     - `gridSizeFactor`: when assigning a basis function to a grid cell, the width will
+       be proportional to the cell size and this factor specifies this. For a ``"plummer"``
+       basis function, the default is 1.7, for the ``"gaussian"`` and ``"square"`` basis
+       functions, the default is 1.0.
+
+     - `allowNegativeValues`: by default, the weight of the basis functions are only
+       allowed to be positive, to make certain that an overall positive mass density
+       is obtained. In case corrections to a certain mass distribution are being sought,
+       negative weights can be allowed by setting this parameter to ``False``.
+
+     - `baseLens`: in case an approximate solution is already known, it can be set as
+       the lens to start from. In this scenario, the `allowNegativeValues` parameter
+       is usually set to ``True``. Note that when the base lens is specified, only the
+       modifications to it are returned by the inversion routine, and if you want the
+       full lens you need to combine this base lens and the modifications by using a
+       :class:`CompositeLens <grale.lenses.CompositeLens>` instance.
+
+     - `sheetSearch`: by default, only the basis functions for the grid cells are used.
+       You can also allow a mass-sheet basis function, which may be useful as this kind
+       of effect is difficult to model by a grid of basis functions. Possible values that
+       include such a basis function are ``"genome"`` and ``"loop"``. In the first case,
+       the weight of the sheet basis function is an extra parameter in each trial lens
+       model. In the second case, for each trial model without mass sheet, the algorithm
+       will search (using a loop) for the mass sheet that produces the best result. Note
+       that is much more computationally demanding and the ``"genome"`` version usually
+       works very well.
+
+     - `fitnessObjectParameters`: parameters for the lens inversion module for the
+       generic algorithm. For the ``"general"`` module, more information can be
+       found in the `usage <./usage_general.html>`_ documentation.
+
+     - `wideSearch`: by default, a relatively narrow mass range around the provided
+       mass estimate will be explored. To make this search wider (which can be useful
+       if you're less certain of the total mass, e.g. when including weak lensing
+       measurements over a larger area), you can set this parameter to ``True``.
+
+     - `maximumGenerations`: if the genetic algorithm didn't stop by itself after
+       this many generations, stop it anyway. To test an inversion script completely,
+       it can be useful to temporarily stop the genetic algorithm after only a small
+       number of generations so that the code doesn't take long to run.
+
+     - `geneticAlgorithmParameters`: a dictionary with general genetic algorithm parameters
+       that should be changed from their defaults. Known names and their defaults are
+
+        - ``selectionpressure`` (default is 2.5)
+        - ``elitism`` (default is ``True``)
+        - ``alwaysincludebest`` (default is ``True``)
+        - ``crossoverrate`` (default is 0.9)
+
+       For more information about their meaning, refer to the `documentation <http://research.edm.uhasselt.be/jori/mogal/documentation/classmogal_1_1GeneticAlgorithmParams.html>`_
+       of the library that's used for the genetic algorithm.
+
+     - `returnNds`: by default, this function will return a single gravitational lens
+       model. If there are several fitness measures however, the end result is actually
+       a non-dominated set of models. The inversion module for the genetic algorithm has
+       some default strategy for choosing one solution from this set. In case you'd like
+       to get the complete non-dominated set instead, you can set this flag to ``True``.
+
+     - `inverter`: specifies the inverter to be used. See the :mod:`inverters<grale.inverters>`
+       module for more information.
+
+     - `feedbackObject`: can be used to specify a particular :ref:`feedback mechanism <feedback>`.
+    """
 
     cellSizeFactorDefaults = { "plummer": 1.7, "gaussian": 1.0, "square": 1.0 }
-    print("FeedbackObject1", feedbackObject)
+    #print("FeedbackObject1", feedbackObject)
     inverter, feedbackObject = privutil.initInverterAndFeedback(inverter, feedbackObject)
-    print("FeedbackObject2", feedbackObject)
+    #print("FeedbackObject2", feedbackObject)
 
     n = _getModuleName(moduleName)
     _getModuleDirectory(n) # So that GRALE2_MODULEPATH gets set
@@ -189,11 +347,50 @@ def invert(inputImages, grid, zd, Dd, popSize, moduleName = "general", massScale
     return result
 
 class InversionWorkSpace(object):
-    """TODO
+    """This class tries to make it more straightforward to perform lens inversions
+    by automatically keeping track of the inversion region, the input images and
+    several other settings.
+
+    Typically, you'd perform the following steps:
+
+     - create an instance of the class, specifying the redshift to the lens, the
+       cosmological model and the region for the inversion.
+
+     - add the images data sets to be used in the inversion using calls to
+       :func:`addImageDataToList`.
+
+     - create a uniform grid for a first inversion with :func:`setUniformGrid` and
+       run the inversion with a call to :func:`invert`.
+
+     - based on the returned lens model, create a grid with smaller cells in
+       regions with more mass using :func:`setSubdivisionGrid`, and again run the
+       inversion with a call to :func:`invert`.
+
+     - repeat as needed/desired.
     """
     def __init__(self, zLens, cosmology, regionSize, regionCenter = [0, 0], inverter = "default", 
                  renderer = "default", feedbackObject = "default"):
         
+        """Constructor for this class.
+
+        Arguments:
+         - `zLens`: the redshift to the gravitational lens
+
+         - `cosmology`: an instance of :class:`Cosmology <grale.cosmology.Cosmology>`, describing
+           the cosmological model that should be used throughout these inversions.
+
+         - `regionSize` and `regionCenter`: the width and height of the region in which the
+           inversion should take plane, as well as its center. This will be used to base the
+           grid dimensions on, but by default some randomness will be added (see e.g. :func:`setUniformGrid`).
+
+         - `inverter`: specifies the inverter to be used. See the :mod:`inverters<grale.inverters>`
+
+         - `renderer`: this parameter can be used to specify a specific :ref:`renderer <renderers>`
+           to speed up the calculation of the mass densities (used for the procedure with the
+           subdivision grid)
+        
+         - `feedbackObject`: can be used to specify a particular :ref:`feedback mechanism <feedback>`.
+        """
         if zLens <= 0 or zLens > 10:
             raise Exception("Invalid lens redshift")
             
@@ -217,15 +414,26 @@ class InversionWorkSpace(object):
         self.feedbackObject = feedbackObject
 
     def getCosmology(self):
+        """Returns the cosmological model that was specified during initialization."""
         return self.cosm
         
     def clearImageDataList(self):
+        """Clears the list of images data information."""
         self.imgDataList = []
 
     def getImageDataList(self):
+        """Returns the list that contains the images data sets, and which is built up
+        by successive calls to :func:`addImageDataToList`."""
         return self.imgDataList
         
     def addImageDataToList(self, imgDat, zs, imgType, otherParameters = {}):
+        """Adds the :class:`ImagesData <grale.images.ImagesData>` instance in `imgDat`
+        to the list of inputs. The corresponding redshift is `zs`, and `imgType`
+        describes the type of input, e.g. ``"extendedimages"``. The
+        `otherParameters` dictionary provides additional settings for this
+        input set. See the `usage <./usage_general.html>`_ documentation for other types
+        and parameters.
+        """
         # check that imgDat exists
         num = imgDat.getNumberOfImages()
         
@@ -246,27 +454,53 @@ class InversionWorkSpace(object):
         
     # Overrides the grid
     def setGrid(self, grid):
+        """Usually, the functions :func:`setUniformGrid` and :func:`setSubdivisionGrid`
+        will be used to control the grid (which in turn controls the layout of the
+        basis functions). If this doesn't suffice, you can provide a specific grid
+        obtained by one of the functions in :mod:`grid <grale.grid>` yourself using 
+        this function."""
         self.grid = grid
 
     def getGrid(self):
+        """Retrieves the currently set grid, e.g. for plotting using 
+        :func:`plotSubdivisionGrid <grale.plotutil.plotSubdivisionGrid>`."""
         return self.grid
 
     def _getGridDimensions(self, randomFraction):
-        # TODO: make it possible to specify your own function for the randomness?
-        w = self.regionSize
-        dx = (random.random()-0.5) * w*randomFraction
-        dy = (random.random()-0.5) * w*randomFraction
-        c = [ self.regionCenter[0], self.regionCenter[1]]
+        if type(randomFraction) == float: # Just a number, use the default method
+            w = self.regionSize
+            dx = (random.random()-0.5) * w*randomFraction
+            dy = (random.random()-0.5) * w*randomFraction
+            c = [ self.regionCenter[0], self.regionCenter[1]]
+        else: # assume it's something we can call to obtain the grid dimensions
+            w, c = randomFraction(self.regionSize, copy.copy(self.regionCenter))
+
         return w, c
     
     def setUniformGrid(self, subDiv, randomFraction = 0.05):
+        """Based on the size and center provided during initialization, create
+        a uniform grid with `subDiv` subdivisions along each axis, resulting
+        in `subDiv`x`subDiv` cells. 
+        
+        The `randomFraction` parameter controls some randomness in the grid
+        positioning: if this is a number, then the center will be offset randomly
+        in X and Y directions by a fraction of the grid size. You can also specify
+        a function instead of a number. In that case, it will receive the region
+        size and center as two arguments, and it should return a tuple
+        containing the width and center of the actual grid to use. This gives
+        you somewhat more freedom in adding randomness to the grid size and center.
+        """
         w, c = self._getGridDimensions(randomFraction)
         self.grid = gridModule.createUniformGrid(w, c, subDiv)
-
-        # TODO: onstatus stuff?
-        # TODO: callback to intercept new grid?
         
     def setSubdivisionGrid(self, lensOrLensInfo, minSquares, maxSquares, startSubDiv = 1, randomFraction = 0.05):
+        """Based on the lens that's provided as input, create a subdivision grid
+        where regions with more mass are subdivided further, such that the number
+        of resulting grid cells lies between `minSquares` and `maxSquares`. For
+        more information about the procedure, see :func:`grid.createSubdivisionGrid <grale.grid.createSubdivisionGrid>`.
+
+        The usage of the `randomFraction` parameter is the same as in :func:`setUniformGrid`.
+        """
         w, c = self._getGridDimensions(randomFraction)
         if type(lensOrLensInfo) == dict:
             lensInfo = lensOrLensInfo
@@ -286,9 +520,23 @@ class InversionWorkSpace(object):
         self.grid = gridModule.createSubdivisionGrid(w, c, lensInfo, minSquares, maxSquares, startSubDiv)
        
     def setDefaultInversionArguments(self, **kwargs):
+        """In case you want to pass the same keyword arguments to the :func:`invert <grale.inversion.InversionWorkSpace.invert>`
+        function multiple times, you can specify them using this function and omit them
+        in the ``invert`` call. The different keyword arguments you can pass are the
+        ones from the core :func:`invert <grale.inversion.invert>` function.
+        """
         self.inversionArgs = kwargs
 
     def invert(self, populationSize, **kwargs):
+        """For the current grid, the current images data sets, run the genetic algorithm
+        for the inversion. This calls the :func:`invert <grale.inversion.invert>` function
+        in this module, which you can consult for other arguments that you can specify
+        using keywords.
+
+        If the same arguments need to be set for each call of this method, you can use
+        :func:`setDefaultInversionArguments` to set them. Note that the options passed
+        in ``kwargs`` will override the settings stored by that function.
+        """
         newKwargs = { }
         newKwargs["inverter"] = self.inverter
         newKwargs["feedbackObject"] = self.feedbackObject
@@ -302,6 +550,12 @@ class InversionWorkSpace(object):
         return lens
 
     def calculateFitness(self, lens):
+        """For the current grid, the current images data sets, calculate the fitness values
+        for the specified lens. When you've received the final result after an inversion,
+        calling this function with that lens as its argument should yield the same fitness 
+        values to a good approximation. Some differences may exist though, as different code 
+        is used in the genetic algorithm.
+        """
         fitnessObjectParameters = None
         moduleName = "general"
         if "fitnessObjectParameters" in self.inversionArgs:
@@ -312,8 +566,12 @@ class InversionWorkSpace(object):
         return calculateFitness(self.imgDataList, self.zd, fitnessObjectParameters, lens, moduleName)
 
 def getDefaultInverter():
+    """Convenience function in this module, just calls 
+    :func:`grale.inverters.getDefaultInverter`"""
     return inverters.getDefaultInverter()
 
 def setDefaultInverter(x):
+    """Convenience function in this module, just calls 
+    :func:`grale.inverters.setDefaultInverter`"""
     inverters.setDefaultInverter(x)
 

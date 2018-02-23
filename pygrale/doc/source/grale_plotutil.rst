@@ -3,6 +3,12 @@ grale.plotutil
 
 .. automodule:: grale.plotutil
 
+Defaults
+--------
+.. autofunction:: setDefaultAngularUnit
+
+.. autofunction:: getDefaultAngularUnit
+
 PlotException
 -------------
 .. autoexception:: PlotException

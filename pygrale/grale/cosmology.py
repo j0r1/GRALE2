@@ -1,5 +1,6 @@
 """With this module you can calculate angular diameter distances for a specific
-cosmology.
+cosmology. Inversely, if you know the angular diameter distance to an object, you
+can try to reconstruct the redshifts that are compatible with it.
 """
 from __future__ import print_function
 from . import constants
@@ -7,7 +8,8 @@ import scipy.integrate as igr
 import math
 
 class CosmologyException(Exception):
-    """An exception that will be raised in case something goes wrong."""
+    """An exception that will be raised in case something goes wrong
+    in the cosmology calculations."""
     pass
 
 class Cosmology(object):

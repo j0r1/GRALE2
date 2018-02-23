@@ -3,8 +3,6 @@ grale.cosmology
 
 .. automodule:: grale.cosmology
 
-Cosmology
----------
 .. autoclass:: Cosmology
    :members:
 

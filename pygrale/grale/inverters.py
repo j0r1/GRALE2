@@ -1,4 +1,19 @@
-"""TODO:"""
+"""This module provides different 'inverters' that can be used to execute
+the genetic algorithm for lens inversion. Depending on the platform you're
+working on, you may be able to use MPI to distribute the needed calculations
+(typically speeding up the process) for example. 
+
+In the :mod:`inversion` module, you can specify the inverter to use as
+a (case insensitive) string, or as an instance of the available inverter
+classes. Available are:
+
+ - "SingleCore" or an instance of :class:`SingleProcessInverter`
+ - "MPI" or an instance of :class:`MPIProcessInverter`
+ - "ClientServer" or an instance of :class:`ClientServerProcessInverter`
+ - "LocalCS" or an instance of :class:`LocalCSProcessInverter`
+ - "MPICS" or an instance of :class:`MPICSProcessInverter`
+
+"""
 
 from . import lenses
 from . import inversionparams
@@ -24,7 +39,7 @@ else:
     from . import untimedio as timed_or_untimed_io
 
 class InverterException(Exception):
-    """TODO:"""
+    """An exception that's generated if something goes wrong in this module."""
     pass
 
 class Inverter(object):
@@ -218,19 +233,20 @@ def _usageAndDefaultParamsHelper(moduleName, exeName, key):
 
     return retVal
 
+# TODO: this uses a more low level moduleName, should this be documented?
 def getInversionModuleUsage(moduleName):
-    """TODO:"""
     usageBytes = _usageAndDefaultParamsHelper(moduleName, "grale_invert_usage", "USAGE")
     return usageBytes.decode()
 
+# TODO: this uses a more low level moduleName, should this be documented?
 def getInversionModuleDefaultConfigurationParameters(moduleName):
-    """TODO:"""
     confBytes = _usageAndDefaultParamsHelper(moduleName, "grale_invert_confparamdefaults", "CONFPARAMDEFAULTS")
     if confBytes:
         return inversionparams.ConfigurationParameters.fromBytes(confBytes).asDict()
 
     return None
 
+# TODO: this uses a more low level moduleName, should this be documented?
 def calculateFitness(moduleName, inputImages, zd, fitnessObjectParameters, lens):
     fitness, description = None, None
 
@@ -285,15 +301,24 @@ def calculateFitness(moduleName, inputImages, zd, fitnessObjectParameters, lens)
     return (fitness, description)
 
 class SingleProcessInverter(Inverter):
-    """TODO:"""
+    """If this inverter is used, a single process, single core method is used. For
+    a very simple inversion problem this may still be the most performant though.
+    It is always available, irrespective of the platform you're working on."""
+
     def __init__(self, feedbackObject = None):
-        """TODO:"""
+        """Initializes an instance of this class; a specific :mod:`feedback <grale.feedback>`
+        object can be specified for status updates."""
+
         super(SingleProcessInverter, self).__init__([ "grale_invert_single" ], "Single process", feedbackObject=feedbackObject)
 
 class MPIProcessInverter(Inverter):
-    """TODO:"""
+    """If MPI is available for your platform, this inverter will use the MPI system
+    to distribute the calculations over the available processes."""
+
     def __init__(self, numProcesses = None, feedbackObject = None):
-        """TODO:"""
+        """Initializes an instance of this class, optionally setting the number of
+        MPI processes to use explicitly to `numProcesses`. A specific :mod:`feedback <grale.feedback>`
+        object can be specified for status updates."""
 
         # Using stdin/stdout does not seem to work well for MPI (at least not openmpi),
         # so we'll use a different set of pipes
@@ -312,17 +337,32 @@ def _getNumHelpers(n):
     return n
 
 class ClientServerProcessInverter(Inverter):
-    """TODO:"""
+    """This inverter will connect to a ``gaserver`` instance from the
+    `MOGAL <http://research.edm.uhasselt.be/jori/mogal/>`_ library, which should already
+    have several ``gahelper`` instances connected to it. The calculations
+    will be divided over the available helpers."""
+
     def __init__(self, ipString, portNumber, feedbackObject = None):
-        """TODO:"""
+        """Initializes an instance of this class, where you must specify the
+        IP address and port number at which the ``gaserver`` process can be
+        reached.  A specific :mod:`feedback <grale.feedback>`
+        object can be specified for status updates."""
+
         super(ClientServerProcessInverter, self).__init__([ "grale_invert_clientserver", ipString, str(portNumber)],
                                                           "Client-server (IP {}, port {})".format(ipString, portNumber),
                                                           feedbackObject=feedbackObject)
 
 class MPICSProcessInverter(Inverter):
-    """TODO:"""
+    """This inverter will start an ``mpigaserver`` instance from
+    the `MOGAL <http://research.edm.uhasselt.be/jori/mogal/>`_ library, and
+    will connect to it. In turn the ``mpigaserver`` program will distribute 
+    the calculations using MPI."""
+
     def __init__(self, numProcesses = None, feedbackObject = None, serverDebugLevel = 0):
-        """TODO:"""
+        """Initializes an instance of this class, optionally setting the number of
+        MPI processes to use explicitly to `numProcesses`. A specific :mod:`feedback <grale.feedback>`
+        object can be specified for status updates. The verbosity of the output of the
+        ``mpigaserver`` process can be controller using `serverDebugLevel`"""
 
         self.proc = None
 
@@ -346,7 +386,7 @@ class MPICSProcessInverter(Inverter):
         time.sleep(2) # wait a short while before allowing client to connect
 
     def destroy(self):
-        """TODO:"""
+        """Stops the ``mpigaserver`` program."""
         if self.proc:
             try:
                 privutil.terminateProcess(self.proc, feedbackObject = self.feedback)
@@ -357,9 +397,19 @@ class MPICSProcessInverter(Inverter):
         self.destroy()
 
 class LocalCSProcessInverter(Inverter):
-    """TODO:"""
+    """This inverter uses a similar approach as :class:`ClientServerProcessInverter`,
+    but also starts the ``gaserver`` process and a number of ``gahelper`` processes
+    itself, on the same host. This can also help to speed up calculations, by dividing
+    them over a number of processes on the same computer. It will not have the same
+    performance as MPI, but may still be better than using the 
+    :class:`single process <SingleProcessInverter>` approach, especially when the
+    calculations become more involved."""
+
     def __init__(self, numProcesses = None, feedbackObject = None, serverHelperDebugLevel = 0):
-        """TODO:"""
+        """Initializes an instance of this class, optionally setting the number of
+        helper processes to use explicitly to `numProcesses`. A specific :mod:`feedback <grale.feedback>`
+        object can be specified for status updates. The verbosity of the output of the
+        ``gaserver`` process can be controller using `serverDebugLevel`"""
 
         self.procs = [ ] # Do this eary, in case __del__ is called sooner than expected
 
@@ -393,7 +443,7 @@ class LocalCSProcessInverter(Inverter):
         time.sleep(0.5) # Wait a short while so that all helpers are completely detected
     
     def destroy(self):
-        """TODO:"""
+        """Stops the ``gaserver`` and ``gahelper`` programs."""
         for proc in self.procs:
             try:
                 privutil.terminateProcess(proc, feedbackObject = self.feedback)
@@ -408,8 +458,11 @@ class LocalCSProcessInverter(Inverter):
 _defaultInverter = [ "singlecore" ]
 
 def getDefaultInverter():
+    """Returns the default inverter to use when running the genetic algorithm
+    for the lens inversion. Can be changed using :func:`setDefaultInverter`."""
     return _defaultInverter[0]
 
 def setDefaultInverter(x):
+    """Sets the default inverter to use when running the genetic algorithm."""
     _defaultInverter[0] = x
 

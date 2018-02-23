@@ -35,10 +35,16 @@ Contents
 
    example_notebooks.rst
    grale_constants.rst
+   grale_contourfinder.rst
    grale_cosmology.rst
    grale_feedback.rst
+   grale_grid.rst
+   grale_gridfunction.rst
    grale_images.rst
+   grale_inversion.rst
+   grale_inverters.rst
    grale_lenses.rst
+   grale_multiplane.rst
    grale_plotutil.rst
    grale_renderers.rst
 

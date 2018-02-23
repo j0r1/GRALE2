@@ -1,3 +1,5 @@
+"""This module defines a :class:`GridFunction` with which you can
+treat a 2D NumPy array as a function"""
 from libcpp.vector cimport vector
 from libcpp cimport bool as cbool
 from libc.math cimport sin, cos
@@ -15,9 +17,21 @@ cimport grale.cppgridfunction as cppgridfunction
 from grale.vector2d cimport Vector2Dd
 
 class GridFunctionException(Exception):
+    """An exception that will be thrown if something goes wrong in
+    the :class:`GridFunction` class."""
     pass
 
 cdef class GridFunction:
+    """An instance of this class can be used to calculate values at specific
+    points using the :func:`evaluate` member function. The calculated values
+    are based on the values of a NumPy grid, which are said to correspond to
+    a specific coordinate region.
+
+    The constructor itself allows this grid to be rotated as well, but the
+    member functions :func:`createFromCorners` and :func:`createFromFITS`
+    may be easier to use if the input values are not aligned with the
+    coordinate axes.
+    """
 
     cdef cppgridfunction.GridFunction *m_pGridFunction
     cdef vector[double] m_values
@@ -29,6 +43,28 @@ cdef class GridFunction:
 
     # Region is rotated counterclockwise over rotationAngleRadians around bottomLeft
     def __init__(self, np.ndarray[double, ndim=2] values, bottomLeft, topRight, cbool asPixels = False, double rotationAngleRadians = 0.0):
+        """__init__(values, bottomLeft, topRight, asPixels = False, rotationAngleRadians = 0.0)
+
+        Constructs an instance to correspond with a specific grid of values.
+
+        Arguments:
+
+         - `values`: a 2D NumPy array describing the values this function should be based on.
+         - `bottomLeft` and `topRight`: describe the area in the coordinate space that the
+           grid values are mapped to.
+         - `asPixels`: if ``False``, the [0,0] and [Ny-1, Nx-1] values of the grid, describe
+           the values precisely at the `bottomLeft` and `topRight` X,Y coordinates and each
+           grid value will correspond to a specific point. If a different coordinate is used
+           int the :func:`evaluate` function, then bi-linear interpolation is used.
+           
+           In case `asPixels` is ``True``, then the area is divided into pixels which have a
+           constant value inside, based on the grid values of course.
+         - `rotationAngleRadians`: if specified, the region that's obtained from the
+           `bottomLeft` and `topRight` X,Y coordinates will be rotated further by this angle.
+           Note however that it may be easier to use the :func:`createFromCorners` static
+           function if you need to specify an area that's not aligned with the coordinate
+           axes.
+        """
 
         cdef int x, y, numY, numX, offset
         cdef Vector2Dd bl = Vector2Dd(bottomLeft[0], bottomLeft[1])
@@ -53,6 +89,14 @@ cdef class GridFunction:
 
     @staticmethod
     def createFromCorners(values, p0, p1, p2, asPixels = False):
+        """createFromCorners(values, p0, p1, p2, asPixels = False)
+        
+        Similar to the contructor, an instance of the grid function is based on
+        `values`, but instead of `bottomLeft` and `topRight` corners, this function
+        requires you to specify the corner `p0` that corresponds with the (0,0) pixel,
+        the corner `p1` that corresponds to the (0, Nx-1) corner and `p2` that
+        corresponds to (Ny-1, 0).
+        """
         
         getDiff = lambda a, b: (b[0]-a[0],b[1]-a[1])
         dotProd = lambda a, b: a[0]*b[0] + a[1]*b[1]
@@ -88,6 +132,20 @@ cdef class GridFunction:
         
     @staticmethod
     def createFromFITS(fitsHDUItem, centerRaDec, asPixels = False):
+        """createFromFITS(fitsHDUItem, centerRaDec, asPixels = False)
+        
+        If you want to use a grid function based on the values in a FITS file,
+        you can use this function.
+
+        Arguments:
+
+         - `fitsHDUItem`: the part of the FITS file that you want to use
+         - `centerRaDec`: re-center the coordinates so that this RA,Dec value
+           becomes the (0,0) coordinate.
+         - `asPixels`: same as in the constructor, will determine whether or
+           not values are interpolated or constant within a pixel.
+        """
+
         from .images import centerOnPosition
         from .constants import ANGLE_DEGREE
         from astropy import wcs
@@ -157,6 +215,13 @@ cdef class GridFunction:
         return values
 
     def evaluate(self, points, checkRegion = True):
+        """evaluate(points, checkRegion = True)
+        
+        For all points in `points`, calculate the value based on the specified
+        grid. If `checkRegion` is ``True``, an exception will be generated if a point
+        lies outside the grid region, otherwise the value will be based on the border
+        values.
+        """
 
         cdef int i, l, totalElements
 

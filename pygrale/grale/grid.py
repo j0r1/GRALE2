@@ -1,3 +1,10 @@
+"""This module contains functions to create a subdivision grid that's used
+in the lens inversion procedure. Apart from a uniformly subdivided grid, it
+is also possible to lay out the grid based on some kind of density map, using 
+a finer subdivision where the integrated density is higher. This density
+could be the projected mass density of a gravitational lens, or even the
+observed light distribution in a FITS file."""
+
 from fractions import Fraction
 from . import gridfunction
 import pprint
@@ -6,6 +13,8 @@ import sys
 import copy
 
 class GridException(Exception):
+    """An exception that's generated when something goes wrong with
+    the grid creation."""
     pass
 
 _defaultExcludeFunction = lambda pos, size: False
@@ -25,10 +34,21 @@ def _fractionalGridToRealGrid(grid):
         g.append({ "center": realPos, "size": realSize })
     return g
 
-def createUniformGrid(size, center, axisSubDivisions, excludeFunction = _defaultExcludeFunction):
+def createUniformGrid(size, center, axisSubDivisions, excludeFunction = None):
+    """Creates a uniform grid, centered on the X,Y coordinates in `center` and
+    with width and height specified by `size`. The generated grid will be have
+    `axisSubDivisions` cells in X and Y directions.
+
+    If `excludeFunction` is specified, for each grid cell it will be called as
+    ``excludeFunction(cellCenter, cellSize)``, and if the function returns ``True``
+    then that particular cell will not be included in the final grid.
+    """
 
     if axisSubDivisions < 1:
         raise GridException("The number of axis subdivisions for a uniform grid must be at least 1")
+
+    if not excludeFunction:
+        excludeFunction = _defaultExcludeFunction
 
     grid = { "size": size, "center": center, "cells": [ ] }
     doubleCellSize = Fraction(2, axisSubDivisions)
@@ -76,7 +96,7 @@ def _integrateGridFunction(f, center, size, minPointDist):
     points[:,:,0] = np.outer(np.ones(ycoords.size), xcoords)
     points[:,:,1] = np.outer(ycoords, np.ones(xcoords.size))
 
-    densities = f.evaluate(points)
+    densities = f(points)
     pixels = 0.25*(densities[0:num-1,0:num-1] + densities[0:num-1,1:num] + 
                    densities[1:num,0:num-1] + densities[1:num,1:num])
     #pprint.pprint(densities)
@@ -85,7 +105,6 @@ def _integrateGridFunction(f, center, size, minPointDist):
     pixels *= dxy[0]*dxy[1]
     return pixels.sum()
 
-# TODO: use excludeFunction?
 def _createSubdivisionGridForThreshold(f, size, center, thresholdMass, startSubDiv, excludeFunction,
         maxIntegrationSubDiv, keepLarger, cache):
     
@@ -142,25 +161,52 @@ def _createSubdivisionGridForThreshold(f, size, center, thresholdMass, startSubD
 
         gridCells = newCells
         if not gotSubDiv:
-            # We're done, clean up the 'marked' flags
+            # We're done, check the excludeFunction
+            grid["cells"] = [ ]
             for cell in gridCells:
                 if "marked" in cell:
                     del cell["marked"]
 
-            grid["cells"] = gridCells
+                realPos, realSize = _realCellCenterAndSize(size, center, cell)
+                if not excludeFunction(realPos, realSize):
+                    grid["cells"].append(cell)
+            
             return grid
 
     raise GridException("Unexpected: couldn't find a subdivision grid within {} iterations".format(maxCount))
 
 def createSubdivisionGridForFITS(fitsHDUEntry, centerRaDec, gridSize, gridCenter, minSquares, maxSquares, startSubDiv = 1,
-        excludeFunction = _defaultExcludeFunction,
+        excludeFunction = None,
         maxIntegrationSubDiv = 256,
         keepLarger = False,
         ignoreOffset = True,
         useAbsoluteValues = True):
-    
+    """Creates a subdivision grid that's based on an entry of a FITS file. It calls
+    :func:`createSubdivisionGridForFunction` internally, where you can find the
+    explanation of the algorithm used.
+
+    Arguments:
+
+     - `fitsHDUEntry`: the FITS entry on which the subdivision grid should be based
+     - `centerRaDec`: use these RA,Dec coordinates to recalculate the coordinates in the
+       FITS file, i.e. that specific point will be associated to the new (0,0) coordinate.
+     - `gridSize`: the width and height of the grid, will be used as the `size` parameter
+       in :func:`createSubdivisionGridForFunction`
+     - `gridCenter`: the center of the grid in the re-centered coordinates. Will be used
+       as the `center` parameter in :func:`createSubdivisionGridForFunction`.
+     - `minSquares`, `maxSquares`, `startSubDiv`, `excludeFunction`, `maxIntegrationSubDiv`,
+       `keepLarger`: see :func:`createSubdivisionGridForFunction`
+     - `ignoreOffset`: adds or subtracts a value from the data so that the minimum value
+       becomes zero.
+     - `useAbsoluteValues`: set to ``False`` to allow negative values (probably not a good
+       idea).
+    """
+
     class tmpClass(object):
         pass
+
+    if not excludeFunction:
+        excludeFunction = _defaultExcludeFunction
 
     hduCopy = tmpClass
     hduCopy.data = fitsHDUEntry.data.copy()
@@ -180,14 +226,50 @@ def createSubdivisionGridForFITS(fitsHDUEntry, centerRaDec, gridSize, gridCenter
         data = data - minValue
 
     f = gridfunction.GridFunction.createFromFITS(hduCopy, centerRaDec, True)
-    return _createSubdivisionGridCommon(f, gridSize, gridCenter, minSquares, maxSquares, startSubDiv, 
+    return createSubdivisionGridForFunction(f.evaluate, gridSize, gridCenter, minSquares, maxSquares, startSubDiv, 
                                         excludeFunction, maxIntegrationSubDiv, keepLarger)
 
-def _createSubdivisionGridCommon(f, size, center, minSquares, maxSquares, startSubDiv = 1, 
+def createSubdivisionGridForFunction(targetDensityFunction, size, center, minSquares, maxSquares, startSubDiv = 1, 
         excludeFunction = _defaultExcludeFunction,
         maxIntegrationSubDiv = 256,
         keepLarger = False):
+    """Creates a grid of which the cell density is based on the values provided by a function `f`,
+    and do the refinement in such a way that the resulting number of grid cells is within the
+    specified bounds. This is the core function that's used by :func:`createSubdivisionGrid`
+    and :func:`createSubdivisionGridForFITS`, which themselves may me more straightforward to 
+    use for specific purposes.
+    
+    Arguments:
 
+     - `targetDensityFunction`: a function which will be called with a (Ny,Nx,2) shaped NumPy array, describing
+       X,Y coordinates on a 2D grid. The function must return an (Ny, Nx) shaped NumPy array
+       containing the densities at the specified coordinates. Note that because the algorithm
+       below will numerically integrate cells in the grid, it is probably not a good idea to
+       let this function return negative values.
+     - `size` and `center`: specifies the center X,Y coordinates of the grid, as well as the
+       grid's width and height.
+     - `minSquares` and `maxSquares`: stop looking for the required grid refinement when the
+       total number of grid cells lies between these values.
+     - `startSubDiv`: by default, a single, large grid cell will be subdivided until the required
+       refinement has been reached. By setting this option to 5 for example, you'd start from
+       a uniform 5x5 grid, of which each cell will be refined further.
+     - `excludeFunction`: if specified, for each grid cell it will be called as 
+       ``excludeFunction(cellCenter, cellSize)``, and if the function returns ``True``
+       then that particular cell will not be included in the final grid.
+     - `maxIntegrationSubDiv`: to determine if a cell needs to be subdivided, the algorithm
+       will integrate the contents numerically. This number specifies the maximum number of
+       parts that are used for the entire `size` range. Smaller cells will be subdivided in
+       fewer parts according to their size.
+     - `keepLarger`: if ``True``, after subdividing a grid cell, the original cell will also
+       be kept in the list of cells.
+
+    Refinement algorithm: in a helper routine, each cell will be split into four smaller cells
+    whenever the integrated value of the cell exceeds some threshold. The main function then
+    iteratively looks for an appropriate threshold, so that the final number of cells lies
+    within the desired bounds.
+    """
+
+    f = targetDensityFunction # To make a name switch easier
     if minSquares >= maxSquares:
         raise GridException("Minimal number of cells must be smaller than maximum")
     if maxSquares < startSubDiv**2:
@@ -247,6 +329,34 @@ def createSubdivisionGrid(size, center, lensInfo, minSquares, maxSquares, startS
         ignoreOffset = True,
         useAbsoluteValues = True):
 
+    """Creates a subdivision grid that's based on the specified gravitational lens information.
+    Internally, the function :func:`createSubdivisionGridForFunction` is called, where you 
+    can find the explanation of the algorithm used.
+
+    Arguments:
+
+     - `size`: the width and height of the grid, will be used as the `size` parameter
+       in :func:`createSubdivisionGridForFunction`
+     - `center`: the center of the grid in the re-centered coordinates. Will be used
+       as the `center` parameter in :func:`createSubdivisionGridForFunction`.
+     - `lensInfo`: information about the gravitational lens. As a first step, the
+       :func:`plotDensity<grale.plotutil.plotDensity>` function is called (without actually
+       plotting anything) so that the density of the lens is already evaluated on a grid.
+       See the documentation of that function for more information about the format of
+       this dictionary.
+     - `minSquares`, `maxSquares`, `startSubDiv`, `excludeFunction`, `maxIntegrationSubDiv`,
+       `keepLarger`: see :func:`createSubdivisionGridForFunction`
+     - `ignoreOffset`: adds or subtracts a value from the data so that the minimum value
+       becomes zero.
+     - `useAbsoluteValues`: set to ``False`` to allow negative values (probably not a good
+       idea).
+    """
+
+    from . import plotutil
+
+    # Will use existing result if already calculated
+    lensInfo = plotutil.plotDensity(lensInfo, axes=False) 
+
     densPoints = lensInfo["densitypoints"]
     if useAbsoluteValues:
         densPoints = np.absolute(densPoints)
@@ -260,10 +370,33 @@ def createSubdivisionGrid(size, center, lensInfo, minSquares, maxSquares, startS
 
     f = gridfunction.GridFunction(densPoints, lensInfo["bottomleft"], lensInfo["topright"])
 
-    return _createSubdivisionGridCommon(f, size, center, minSquares, maxSquares, startSubDiv, 
+    return createSubdivisionGridForFunction(f.evaluate, size, center, minSquares, maxSquares, startSubDiv, 
                                         excludeFunction, maxIntegrationSubDiv, keepLarger)
 
 def fitMultiplePlummerLens(gridCells, Dd, targetDensityFunction, sizeFactor = 1.7):
+    """Fits a mass distribution based on multiple Plummer base functions that are
+    arranged according to specified grid cells, to a specific target function. For
+    each cell, the center of the cell and the centers of each side will be used to
+    evaluate the target function. A least squares approach is then used to find the
+    weigths of the basis functions that minimize the differences at these points.
+    
+    The function returns an instance of the :class:`MultiplePlummerLens<grale.lenses.MultiplePlummerLens>`
+    class.
+
+    Arguments:
+
+     - `gridCells`: the grid to base the layout of the Plummer basis functions on
+     - `Dd`: the angular diameter distance to be used when creating the
+       :class:`MultiplePlummerLens<grale.lenses.MultiplePlummerLens>` instance.
+     - `targetDensityFunction`: a function which will be called with a (Ny,Nx,2) shaped NumPy array, describing
+       X,Y coordinates on a 2D grid. The function must return an (Ny, Nx) shaped NumPy array
+       containing the densities at the specified coordinates. Note that because the algorithm
+       below will numerically integrate cells in the grid, it is probably not a good idea to
+       let this function return negative values.
+     - `sizeFactor`: a factor to be used to convert the size of a grid cell to
+       the width of the Plummer basis function. For a cell with a size of 1 arcsec,
+       a Plummer width of 1.7 arcsec will be used.
+    """
 
     from . import lenses
 

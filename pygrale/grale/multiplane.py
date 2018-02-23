@@ -1,3 +1,4 @@
+"""With the classes in this module you can simulate a multi-lensplane situation."""
 from . import images
 from . import contourfinder
 from . import gridfunction
@@ -5,12 +6,11 @@ from . import privutil
 import copy
 import numpy as np
 
-class MultiImagePlaneException(Exception):
-    """TODO:"""
+class MultiLensPlaneException(Exception):
+    """An exception that's generated when something goes wrong in the classes in this module."""
     pass
 
 class MultiLensPlane(object):
-    """TODO:"""
 
     @staticmethod
     def _createThetaGrid(bottomLeft, topRight, numX, numY):
@@ -20,10 +20,25 @@ class MultiLensPlane(object):
         return thetas
 
     def __init__(self, lensesAndRedshifts, cosmology, bottomLeft, topRight, numX, numY, renderer = "default", feedbackObject = None):
-        """TODO:"""
+        """This creates a MultiLensPlane instance that covers the area specified by the `bottomLeft` and
+        `topRight` corners. It calculates and stores the deflection angles for the lenses
+        in `lensesAndRedshifts`, which should be a list of 
+        (:class:`gravitational lens <grale.lenses.GravitationalLens>`, redshift) tuples.
+        The deflection angles for the first lens plane are arranges on a grid of `numX` points 
+        wide by `numY` points high. The `cosmology` parameter specifies how the redshifts
+        should be mapped to angular diameter distances, using a :class:`Cosmology <grale.cosmology.Cosmology>`
+        instance.
 
+        If `renderer` is ``None``, the mapping is calculated single threaded, within this
+        Python process. Other renderers can be specified as well, for example to calculate the
+        mapping faster using multiple cores with the MPI renderer. See the :mod:`grale.renderers`
+        module for more information. 
+        
+        Feedback while rendering can be provided by specifying a `feedbackObject` parameter. See
+        the :mod:`grale.feedback` module for more information about allowed values.
+        """
         if not lensesAndRedshifts:
-            raise MultiImagePlaneException("No lenses and redshifts were specified")
+            raise MultiLensPlaneException("No lenses and redshifts were specified")
 
         # check Dd vs z/cosmology. This also checks that the lens is probably a lens
         # (i.e. that it has the method getLensDistance())
@@ -31,7 +46,7 @@ class MultiLensPlane(object):
         for lens, z in lensesAndRedshifts:
             Dd = cosmology.getAngularDiameterDistance(z)
             if abs((Dd - lens.getLensDistance())/Dd) > 1e-6:
-                raise MultiImagePlaneException("The specified redshift {} for lens at index {} is not compatible with the angular diameter distance stored in the lens itself".format(z, count))
+                raise MultiLensPlaneException("The specified redshift {} for lens at index {} is not compatible with the angular diameter distance stored in the lens itself".format(z, count))
 
             count += 1
 
@@ -52,7 +67,7 @@ class MultiLensPlane(object):
         # Check that no two redshifts are the same
         for i in range(1, N):
             if lz[i-1][1] == lz[i][1]:
-                raise MultiImagePlaneException("At least two lenses have the same redshift. Combine them in a CompositeLens instance first.")
+                raise MultiLensPlaneException("At least two lenses have the same redshift. Combine them in a CompositeLens instance first.")
 
         # Calculate mappings of deflection angles and derivatives
         T, Txx, Txy, Tyx, Tyy = [], [], [], [], []
@@ -135,11 +150,24 @@ class MultiLensPlane(object):
         self._Tyx = Tyx
 
     def getLensesAndRedshifts(self):
-        """TODO:"""
+        """Returns a copy of the lens and redshift tuples that was specified
+        during initialization."""
         return self._lz[:]
 
     def getRenderInfo(self):
-        """TODO:"""
+        """Returns a dictionary with the following entries:
+
+         - ``bottomleft``: the bottom-left corner that was specified in the constructor
+           of this instance
+         - ``topright``: the top-right corner that was specified in the constructor of
+           this instance
+         - ``xpoints``: the number of points in the x-direction, between the left and right
+           coordinates specified by ``bottomleft`` and ``topright``, at which
+           the deflection field was sampled
+         - ``ypoints``: the number of points in the y-direction, between the bottom and top
+           coordinates specified by ``bottomleft`` and ``topright``, at which
+           the deflection field was sampled
+        """
         ri = {
             "bottomleft": self._bottomLeft[:],
             "topright": self._topRight[:],
@@ -149,10 +177,14 @@ class MultiLensPlane(object):
         return ri
 
 class MultiImagePlane(object):
-    """TODO:"""
 
     def __init__(self, multiLensPlane, sourceRedshift):
-        """TODO:"""
+        """Based on the :class:`MultiLensPlane` instance in `multiLensPlane`, which contains the deflection
+        fields for a number of lenses at different redshifts, a MultiImagePlane instance
+        is created for a certain source plane. This source plane has redshift `sourceRedshift`,
+        which will be converted to angular diameter distances using the cosmological
+        model stored in `multiLensPlane`.
+        """
 
         # Keep only the part that's relevant to us
         lz = multiLensPlane._lz[:]
@@ -201,7 +233,7 @@ class MultiImagePlane(object):
         self._cosmology = cosmology
 
     def getSourceRedshift(self):
-        """TODO:"""
+        """Returns the source redshift that was specified during initialization."""
         return self._zs
 
     def _checkInvMag(self):
@@ -217,7 +249,10 @@ class MultiImagePlane(object):
             self._critLines = ctrFinder.findContour(0)
 
     def getCriticalLines(self):
-        """TODO:"""
+        """This returns a list describing the critical lines associated with this
+        image plane. Each entry in the list is itself a list of 2D points, describing
+        a connected part of a critical line.
+        """
         self._calcCrit()
         return copy.deepcopy(self._critLines)
 
@@ -234,7 +269,10 @@ class MultiImagePlane(object):
         return gx, gy
 
     def getCaustics(self, approx = False):
-        """TODO:"""
+        """This returns a list describing the caustics associated with this
+        image plane. Each entry in the list is itself a list of 2D points, describing
+        a connected part of a caustic.
+        """
         self._calcCrit()
 
         traceFunction = self.traceThetaApproximately if approx else self.traceTheta
@@ -250,15 +288,38 @@ class MultiImagePlane(object):
 
         return copy.deepcopy(self._caustics)
 
-
     def traceBetaApproximately(self, beta):
-        """TODO:"""
+        """Estimates the image plane positions to which the source plane position `beta`
+        corresponds. Returns a list of 2D points.
+        """
         mlp = self._multiLensPlane
         theta = images.ImagePlane.static_traceBetaApproximately(beta, self._betas, mlp._bottomLeft, mlp._topRight)
         return theta
 
     def getRenderInfo(self):
-        """TODO:"""
+        """Returns a dictionary with the following entries:
+
+         - ``bottomleft``: the bottom-left corner that is relevant for this instance. This
+           is taken from the LensPlane instance specified in the constructor.
+         - ``topright``: the top-right corner that is relevant for this instance. This
+           is taken from the LensPlane instance specified in the constructor.
+         - ``xpoints``: the number of points in the x-direction, between the left and right
+           coordinates specified by ``bottomleft`` and ``topright``, at which
+           the deflection field was sampled. This is taken from the LensPlane
+           instance specified in the constructor.
+         - ``ypoints``: the number of points in the y-direction, between the bottom and top
+           coordinates specified by ``bottomleft`` and ``topright``, at which
+           the deflection field was sampled. This is taken from the LensPlane
+           instance specified in the constructor.
+         - ``xpixels``: based on the image plane to source plane mappings that are known at
+           ``xpoints`` * ``ypoints`` grid points, a number of pixels can be defined
+           that can contain light from the source plane, and these pixels will
+           be used when rendering the image plane or the source plane with
+           :func:`renderImages` or :func:`renderSources`. This ``xpixels`` value
+           specifies the number of pixels in the x-direction, and is one less
+           than ``xpoints``.
+         - ``ypixels``: similar to ``xpixels``, but for the y-direction.
+        """
         ri = copy.deepcopy(self._multiLensPlane.getRenderInfo())
         ri["xpixels"] = ri["xpoints"]-1
         ri["ypixels"] = ri["ypoints"]-1
@@ -304,7 +365,9 @@ class MultiImagePlane(object):
         return thetas
 
     def traceThetaApproximately(self, thetas):
-        """TODO:"""
+        """Use the already calculated theta/beta mapping (image plane position to
+        source plane positions), to estimate the mapping for theta vectors that
+        have not been calculated exactly."""
 
         betaApprox = np.empty(thetas.shape)
         gx, gy = self._getBetaGrid()
@@ -321,7 +384,9 @@ class MultiImagePlane(object):
         return betaApprox
 
     def traceTheta(self, thetas):
-        """TODO:"""
+        """For each theta position in `thetas`, calculate the corresponding position
+        in the source plane. Note that this is all calculated using a single processor
+        core, no speedup using e.g. OpenMP will be performed."""
 
         lz = self._lz
         cosmology = self._cosmology
@@ -361,21 +426,63 @@ class MultiImagePlane(object):
         return Ti
 
     def renderSources(self, sourceList, plane = None, subSamples = 9):
-        """TODO:"""
+        """For the list of :class:`SourceImage` derived classes in `sourceList`, this function
+        calculates what the sources look like based on the dimensions and number of pixels for
+        this ImagePlane instance. This is what the image plane would look like if the
+        gravitational lens effect could be turned off.
+
+        The function returns a 2D NumPy array containing ``ypixels`` rows, each of ``xpixels``
+        pixels wide (see also :func:`getRenderInfo`). If `plane` is specified, the results are
+        stored in that 2D NumPy instance, which must have the same dimensions.
+
+        Each pixel is sub-sampled ``sqrt(subSamples)`` times in x- and y- direction, to be able to
+        roughly approximate the integration that's needed over the surface area of a pixel.
+
+        Note that a call to only
+        `imshow <https://matplotlib.org/devdocs/api/_as_gen/matplotlib.axes.Axes.imshow.html>`_.
+        will plot the 0,0 value in `plane` (the bottom-left value) as the top-left corner
+        causing the result to appear mirrored in the y-direction (the y-axis will point down).
+        A subsequent call to `invert_yaxis <https://matplotlib.org/api/_as_gen/matplotlib.axes.Axes.invert_yaxis.html>`_
+        might be useful.
+        """
         return self._renderSourcesOrImages(sourceList, plane, subSamples, self._thetaMappingIdentity)
 
     def renderImages(self, sourceList, plane = None, subSamples = 9):
-        """TODO:"""
+        """For the list of :class:`SourceImage` derived classes in `sourceList`, this function
+        calculates what the images look like based on the dimensions and number of pixels for
+        this ImagePlane instance. 
+
+        The function returns a 2D NumPy array containing ``ypixels`` rows, each of ``xpixels``
+        pixels wide (see also :func:`getRenderInfo`). If `plane` is specified, the results are
+        stored in that 2D NumPy instance, which must have the same dimensions.
+
+        Each pixel is sub-sampled ``sqrt(subSamples)`` times in x- and y- direction, to be able to
+        roughly approximate the integration that's needed over the surface area of a pixel.
+
+        Note that a call to only
+        `imshow <https://matplotlib.org/devdocs/api/_as_gen/matplotlib.axes.Axes.imshow.html>`_.
+        will plot the 0,0 value in `plane` (the bottom-left value) as the top-left corner
+        causing the result to appear mirrored in the y-direction (the y-axis will point down).
+        A subsequent call to `invert_yaxis <https://matplotlib.org/api/_as_gen/matplotlib.axes.Axes.invert_yaxis.html>`_
+        might be useful.
+        """
         return self._renderSourcesOrImages(sourceList, plane, subSamples, self.traceThetaApproximately)
 
     def segment(self, plane, threshold = 0.0):
-        """TODO:"""
+        """For the image plane `plane` that was rendered using :func:`renderImages`,
+        this function looks at all the pixels that have a value larger than `threshold`.
+        These pixels are divided into regions that are coherent, and a list of these
+        regions is returned. Each region is itself a list of 2D coordinates describing
+        the centers of the pixels.
+        """
         mlp = self._multiLensPlane
         bl, tr = mlp._bottomLeft, mlp._topRight
         return images.ImagePlane.static_segment(plane, bl, tr, threshold)
 
     def getInverseMagnificationApproximately(self, thetas):
-        """TODO:"""
+        """Based on the exact inverse magnifications calculated for theta vectors
+        on a grid, calculate the inverse magnifications approximately for arbitrary
+        theta-vectors `thetas`."""
         self._checkInvMag()
         if self._invmagGrid is None:
             mlp = self._multiLensPlane

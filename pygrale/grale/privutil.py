@@ -107,6 +107,8 @@ def initInverterAndFeedback(inverter, feedbackObject):
             inverter = inverters.LocalCSProcessInverter()
         elif inverter.lower() == "mpics":
             inverter = inverters.MPICSProcessInverter()
+        elif inverter.lower() == "clientserver":
+            inverter = inverters.ClientServerProcessInverter()
 
     obj = None
     if feedbackObject is None:

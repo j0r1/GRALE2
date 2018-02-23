@@ -8,13 +8,15 @@ using OpenCL, each of which can lead to a significant speedup.
 
 A specified renderer can either be one of the objects that are present in
 this module, or it can simply be a string that describes the kind of
-renderer to use. For a `lens plane renderer` these strings and objects can be:
+renderer to use. For a `lens plane renderer` these strings (case insensitive)
+and objects can be:
 
  - "OpenMP" or an instance of :py:class:`OpenMPLensPlaneRenderer`
  - "MPI" or an instance of :py:class:`MPILensPlaneRenderer`
  - "OpenCL" or an instance of :py:class:`OpenCLLensPlaneRenderer`
 
-For a `mass density renderer` these strings and objects can be:
+For a `mass density renderer` these strings (case insensitive) and 
+objects can be:
 
  - "OpenMP" or an instance of :py:class:`OpenMPMassDensityRenderer`
  - "MPI" or an instance of :py:class:`MPIMassDensityRenderer`
@@ -293,14 +295,18 @@ _defaultMassRenderer = [ None ]
 _defaultLensRenderer = [ None ]
 
 def getDefaultLensPlaneRenderer():
+    """TODO:"""
     return _defaultLensRenderer[0]
 
 def getDefaultMassRenderer():
+    """TODO:"""
     return _defaultMassRenderer[0]
 
 def setDefaultLensPlaneRenderer(x):
+    """TODO:"""
     _defaultLensRenderer[0] = x
 
 def setDefaultMassRenderer(x):
+    """TODO:"""
     _defaultMassRenderer[0] = x
 

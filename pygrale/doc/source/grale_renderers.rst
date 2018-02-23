@@ -5,6 +5,17 @@ grale.renderers
 
 .. automodule:: grale.renderers
 
+Defaults
+--------
+
+.. autofunction:: setDefaultMassRenderer
+
+.. autofunction:: getDefaultMassRenderer
+
+.. autofunction:: setDefaultLensPlaneRenderer
+
+.. autofunction:: getDefaultLensPlaneRenderer
+
 Lens plane renderers
 --------------------
 
