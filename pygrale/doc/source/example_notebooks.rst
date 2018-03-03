@@ -21,7 +21,13 @@ Example Jupyter notebooks
    lens model to influence only the time delay: `timedelayadjust.ipynb <_static/timedelayadjust.ipynb>`_
 
  * TODO: MSD example: `msdexample.ipynb <_static/msdexample.ipynb>`_
- * TODO: fit test: `fittest.ipynb <_static/fittest.ipynb>`_
+
+ * Illustration of how to approximate a mass distribution by multiple Plummer
+   basis functions: `fittest.ipynb <_static/fittest.ipynb>`_
+
+   * The image that's used in the notebook: `grale.png <_static/grale.png>`_
+   * The movie that's shown in the notebook: `gralesource.mp4 <_static/gralesource.mp4>`_
+
  * TODO: move source degen `massdisk_movesource_smooth.ipynb <_static/massdisk_movesource_smooth.ipynb>`_
  * Multi-lensplane example from 
    `Compound lensing: Einstein Zig-Zags and high multiplicity lensed images <http://adsabs.harvard.edu/abs/2016MNRAS.456.2210C>`_

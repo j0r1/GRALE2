@@ -3,7 +3,12 @@ in the lens inversion procedure. Apart from a uniformly subdivided grid, it
 is also possible to lay out the grid based on some kind of density map, using 
 a finer subdivision where the integrated density is higher. This density
 could be the projected mass density of a gravitational lens, or even the
-observed light distribution in a FITS file."""
+observed light distribution in a FITS file.
+
+Examples for how these functions can be used, can be found in the notebooks
+`gridtests.ipynb <_static/gridtests.ipynb>`_ and
+`fittest.ipynb <_static/fittest.ipynb>`_.
+"""
 
 from fractions import Fraction
 from . import gridfunction
@@ -382,6 +387,8 @@ def fitMultiplePlummerLens(gridCells, Dd, targetDensityFunction, sizeFactor = 1.
     
     The function returns an instance of the :class:`MultiplePlummerLens<grale.lenses.MultiplePlummerLens>`
     class.
+
+    Examples can be found in the notebook `fittest.ipynb <_static/fittest.ipynb>`_.
 
     Arguments:
 
