@@ -1,5 +1,6 @@
 """This module defines a :class:`GridFunction` with which you can
-treat a 2D NumPy array as a function"""
+treat a 2D NumPy array as a function. The notebook
+`gridtests.ipynb <_static/gridtests.ipynb>`_ shows some examples."""
 from libcpp.vector cimport vector
 from libcpp cimport bool as cbool
 from libc.math cimport sin, cos
@@ -31,6 +32,9 @@ cdef class GridFunction:
     member functions :func:`createFromCorners` and :func:`createFromFITS`
     may be easier to use if the input values are not aligned with the
     coordinate axes.
+
+    Take a look at the notebook
+    `gridtests.ipynb <_static/gridtests.ipynb>`_ for some examples.
     """
 
     cdef cppgridfunction.GridFunction *m_pGridFunction

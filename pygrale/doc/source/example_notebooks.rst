@@ -39,5 +39,6 @@ Example Jupyter notebooks
    * TODO: `multisistests2.ipynb <_static/multisistests2.ipynb>`_
    * TODO: `multisistests3.ipynb <_static/multisistests3.ipynb>`_
  
- * TODO: grid tests: `gridtests.ipynb <_static/gridtests.ipynb>`_
+ * Illustrations of using a grid function, as well as of the subdivision grid: 
+   `gridtests.ipynb <_static/gridtests.ipynb>`_
 
