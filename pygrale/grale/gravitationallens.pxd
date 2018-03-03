@@ -267,6 +267,9 @@ cdef extern from "grale/polynomialmassprofilelens.h" namespace "grale":
     cdef cppclass PolynomialZeroMassLensParams(GravitationalLensParams):
         PolynomialZeroMassLensParams(double Dd, double densityScale, double angularRadius, double zeroPoint)
 
+    cdef cppclass PolynomialTimeDelayLensParams(GravitationalLensParams):
+        PolynomialTimeDelayLensParams(double theta1, double theta2, double timeDiff, double zLens)
+
 ctypedef const PolynomialMassProfileLensParams* PolynomialMassProfileLensParamsPtrConst
 
 cdef extern from "grale/multiplewendlandlens.h" namespace "grale":

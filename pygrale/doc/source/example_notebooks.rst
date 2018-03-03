@@ -4,15 +4,21 @@ Example Jupyter notebooks
  * Using a previously calculated deflection angle grid to create a 
    :class:`DeflectionGridLens <grale.lenses.DeflectionGridLens>`: 
    `deflectiongridlens.ipynb <_static/deflectiongridlens.ipynb>`_
+
  * Using :class:`Wendland lenses <grale.lenses.MultipleWendlandLens>`
    to obtain a mass distribution if deflection angles are known
    at various locations: `wendland.ipynb <_static/wendland.ipynb>`_
+
  * Creating a circularly symmetric gravitational lens based on the
    specification of it's profile: `profilelens.ipynb <_static/profilelens.ipynb>`_
+
  * An example with multiple lens planes; also shows the effect as
    the source redshift increases: `multilensplane.ipynb <_static/multilensplane.ipynb>`_
 
    * The movie in the notebook: `multiplelensplanetest.mp4 <_static/multiplelensplanetest.mp4>`_
+
+ * An example that shows explicitly how you can modify an existing
+   lens model to influence only the time delay: `timedelayadjust.ipynb <_static/timedelayadjust.ipynb>`_
 
  * TODO: MSD example: `msdexample.ipynb <_static/msdexample.ipynb>`_
  * TODO: fit test: `fittest.ipynb <_static/fittest.ipynb>`_

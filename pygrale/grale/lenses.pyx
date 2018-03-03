@@ -19,6 +19,7 @@ directly. Instead allocate a class derived from this; currently available are
  * :class:`CompositeLens`
  * :class:`MassDiskLens`
  * :class:`PolynomialMassProfileLens`
+ * :class:`TimeDelayAdjustLens`
  * :class:`ZeroMassLens`
  * :class:`MassDiskLensSmoothed`
  * :class:`MultipleWendlandLens`
@@ -1385,6 +1386,44 @@ cdef class PolynomialMassProfileLens(GravitationalLens):
             })
 
         return params
+
+cdef class TimeDelayAdjustLens(GravitationalLens):
+    """A circularly symmetric lens with which the timedelay in the central
+    part can be changed by a specific amount. An example can be found
+    in the notebook `timedelayadjust.ipynb <_static/timedelayadjust.ipynb>`_"""
+    cdef gravitationallens.GravitationalLens* _allocLens(self) except NULL:
+        return new gravitationallens.PolynomialMassProfileLens()
+
+    cdef gravitationallens.GravitationalLensParams* _allocParams(self, params) except NULL:
+        GravitationalLens._checkParams(params, [ "theta1", "theta2", "z", "dt" ])
+        return new gravitationallens.PolynomialTimeDelayLensParams(params["theta1"], params["theta2"], params["dt"], params["z"])
+
+    def __init__(self, Dd, params):
+        """__init__(Dd, params)
+
+        Parameters:
+         - Dd is the angular diameter distance to the lens.
+         - params is a dictionary that should have the following entries:
+
+           * 'theta1': angular radius withing which the lensing potential has a constant value, thereby
+             adjusting the time delay.
+           * 'theta2': the angular radius beyond which the lensing potential is zero. In between the
+             potential will change smoothly.
+           * 'dt': the amount with which the time delay in the central region should be modified,
+             determining the value of the lensing potential within 'theta1'.
+           * 'z': the redshift of the lens.
+        """
+        super(TimeDelayAdjustLens, self).__init__(_gravLensRndId)
+        self._lensInit(Dd, params)
+
+    def getLensParameters(self):
+        raise LensException("The parameters for a TimeDelayAdjustLens cannot be retrieved, as it is actually a PolynomialMassProfileLens. " +
+              "Use getPolynomialLensParameters() to obtain the parameters for that type of lens.")
+
+    def getPolynomialLensParameters(self):
+        b = self.toBytes()
+        l = GravitationalLens.fromBytes(b)
+        return l.getLensParameters()
 
 cdef class ZeroMassLens(GravitationalLens):
     """This produces a symmetric gravitational lens with zero total mass,

@@ -105,6 +105,12 @@ PolynomialMassProfileLens
 
    .. automethod:: __init__
 
+TimeDelayAdjustLens
+-------------------
+.. autoclass:: grale.lenses.TimeDelayAdjustLens
+
+   .. automethod:: __init__
+
 ZeroMassLens
 ------------
 .. autoclass:: grale.lenses.ZeroMassLens

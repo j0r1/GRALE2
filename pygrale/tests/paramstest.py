@@ -130,6 +130,13 @@ testLenses = [
             "subpolynomial": False
         },
         {
+            "name": "TimeDelayAdjustLens",
+            "type": TimeDelayAdjustLens,
+            "params": { "z": 1.0, "theta1": 1*AS, "theta2": 5*AS, "dt": 60*60*24 },
+            "direct": False,
+            "subpolynomial": True
+        },
+        {
             "name": "ZeroMassLens",
             "type": ZeroMassLens,
             "params": { "density": 1.2, "radius": 3*AS, "zeropoint": 1*AS },
