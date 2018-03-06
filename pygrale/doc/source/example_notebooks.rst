@@ -42,3 +42,4 @@ Example Jupyter notebooks
  * Illustrations of using a grid function, as well as of the subdivision grid: 
    `gridtests.ipynb <_static/gridtests.ipynb>`_
 
+ * TODO: `tdsurfaces.ipynb <_static/tdsurfaces.ipynb>`_
