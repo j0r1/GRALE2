@@ -362,7 +362,7 @@ def createSubdivisionGrid(size, center, lensInfo, minSquares, maxSquares, startS
     # Will use existing result if already calculated
     lensInfo = plotutil.plotDensity(lensInfo, axes=False) 
 
-    densPoints = lensInfo["densitypoints"]
+    densPoints = lensInfo.getDensityPoints()
     if useAbsoluteValues:
         densPoints = np.absolute(densPoints)
 
@@ -373,7 +373,7 @@ def createSubdivisionGrid(size, center, lensInfo, minSquares, maxSquares, startS
     if ignoreOffset:
         densPoints = densPoints - offset
 
-    f = gridfunction.GridFunction(densPoints, lensInfo["bottomleft"], lensInfo["topright"])
+    f = gridfunction.GridFunction(densPoints, lensInfo.getBottomLeft(), lensInfo.getTopRight())
 
     return createSubdivisionGridForFunction(f.evaluate, size, center, minSquares, maxSquares, startSubDiv, 
                                         excludeFunction, maxIntegrationSubDiv, keepLarger)

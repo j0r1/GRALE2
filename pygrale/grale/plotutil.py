@@ -19,71 +19,192 @@ import time
 import json
 import copy
 
+class LensInfoException(Exception):
+    pass
+
+class DensInfo(object):
+    def __init__(self, densitypoints, bottomleft, topright):
+        self.d = { }
+        self.d["densitypoints"] = densitypoints
+        self.d["numy"] = densitypoints.shape[0]-1
+        self.d["numx"] = densitypoints.shape[1]-1
+        self.d["bottomleft"] = copy.copy(bottomleft)
+        self.d["topright"] = copy.copy(topright)
+
+    def getBottomLeft(self):
+        return np.array(self.d["bottomleft"], dtype=np.double)
+
+    def getTopRight(self):
+        return np.array(self.d["topright"], dtype=np.double)
+
+    def getArea(self):
+        return { "topright" : self.getTopRight(), "bottomleft": self.getBottomLeft() }
+
+    def getDensityPoints(self, renderer = "default", feedbackObject = "default"):
+        return self.d["densitypoints"]
+
+    def getDensityPixels(self, renderer = "default", feedbackObject = "default"):
+
+        if "densitypixels" in self.d:
+            return self.d["densitypixels"]
+
+        massMap = self.getDensityPoints(renderer, feedbackObject)
+        numX, numY = self.d["numx"]+1, self.d["numy"]+1
+
+        pixels = 0.25*massMap[0:numY-1,0:numX-1] + 0.25*massMap[0:numY-1,1:numX] + 0.25*massMap[1:numY,0:numX-1] + 0.25*massMap[1:numY,1:numX]
+        self.d["densitypixels"] = pixels
+        return pixels
+
+    def getNumXPixels(self):
+        return self.d["numx"]
+
+    def getNumYPixels(self):
+        return self.d["numy"]
+
+class LensInfo(DensInfo):
+    def __init__(self, lens = None, bottomleft = None, topright = None, center = [0, 0], size = None, numx = None, numy = None, numxy = 511,
+                 Ds = None, Dds = None, zd = None, zs = None, cosmology = None):
+
+        self.d = { }
+        if lens: 
+            self.d["lens"] = copy.copy(lens) # Note: lens can be both an array of (lens,z) tuples, or just a lens
+
+        if bottomleft is not None and topright is not None:
+            if size is not None and center is not None:
+                raise LensInfoException("Both bottomleft/topright and center/size are set, can't determine what area to use")
+
+            self.d["bottomleft"] = copy.copy(bottomleft)
+            self.d["topright"] = copy.copy(topright)
+        elif size is not None and center is not None:
+            self.d["bottomleft"] = [ center[0] - size/2.0, center[1] - size/2.0 ]
+            self.d["topright"] = [ center[0] + size/2.0, center[1] + size/2.0 ]
+        else:
+            raise LensInfoException("Either bottomleft/topright or center/size must be set")
+
+        if numxy:
+            self.d["numx"] = numxy
+            self.d["numy"] = numxy
+
+        if numx is not None: self.d["numx"] = numx
+        if numy is not None: self.d["numy"] = numy
+
+        if Ds is not None: self.d["Ds"] = Ds
+        if Dds is not None: self.d["Dds"] = Dds
+        if zd is not None: self.d["zd"] = zd
+        if zs is not None: self.d["zs"] = zs
+
+        self.cosm = copy.copy(cosmology)
+
+    def setSourceRedshift(self, zs):
+        self.d["zs"] = zs
+        if "imageplane" in self.d:
+            del self.d["imageplane"]
+
+    def setSourceDistances(self, Ds, Dds):
+        self.d["Ds"] = Ds
+        self.d["Dds"] = Dds
+        if "imageplane" in self.d:
+            del self.d["imageplane"]
+
+    def getLens(self):
+        if not "lens" in self.d:
+            raise LensInfoException("No lens has been set")
+        return self.d["lens"]
+
+    def getLensPlane(self, renderer = "default", feedbackObject = "default"):
+
+        renderer, feedbackObject = privutil.initRendererAndFeedback(renderer, feedbackObject, "LENSPLANE")
+
+        if "lensplane" in self.d:
+            feedbackObject.onStatus("Reusing lens plane")
+            return self.d["lensplane"]
+
+        if not "lens" in self.d:
+            raise LensInfoException("No lens available to calculate lens plane mapping from")
+
+        if type(self.d["lens"]) != list:
+            lensPlane = images.LensPlane(self.d["lens"], self.d["bottomleft"], self.d["topright"], self.d["numx"]+1, self.d["numy"]+1, renderer = renderer, feedbackObject = feedbackObject)
+        else: # multiple lens
+            if self.cosm is None:
+                raise LensInfoException("For a multiple lensplane scenario, the cosmology parameter must be set")
+
+            lensPlane = multiplane.MultiLensPlane(self.d["lens"], self.cosm, self.d["bottomleft"], self.d["topright"], self.d["numx"]+1, self.d["numy"]+1, renderer = renderer, feedbackObject = feedbackObject)
+
+        self.d["lensplane"] = lensPlane
+        return lensPlane
+
+    def getImagePlane(self, renderer = "default", feedbackObject = "default"):
+
+        renderer, feedbackObject = privutil.initRendererAndFeedback(renderer, feedbackObject, "LENSPLANE")
+
+        if "imageplane" in self.d:
+            feedbackObject.onStatus("Reusing image plane")
+            return self.d["imageplane"]
+
+        lensPlane = self.getLensPlane(renderer, feedbackObject)
+
+        if type(self.d["lens"]) != list:
+            if "Ds" in self.d and "Dds" in self.d:
+                Ds = self.d["Ds"]
+                Dds = self.d["Dds"]
+            elif "zd" in self.d and "zs" in self.d and self.cosm:
+                Dd = self.cosm.getAngularDiameterDistance(self.d["zd"])
+                if abs((Dd-lens.getAngularDiameterDistance())/Dd) > 1e-8:
+                    raise LensInfoException("The angular diameter distance stored in the lens instance doesn't seem to match the specified 'zd'")
+
+                self.d["Ds"] = self.cosm.getAngularDiameterDistance(self.d["zs"])
+                self.d["Dds"] = self.cosm.getAngularDiameterDistance(self.d["zd"], self.d["zs"])
+
+            imgPlane = images.ImagePlane(lensPlane, self.d["Ds"], self.d["Dds"])
+        else:
+            zs = self.d["zs"]
+            imgPlane = multiplane.MultiImagePlane(lensPlane, zs)
+
+        self.d["imageplane"] = imgPlane
+        return imgPlane
+
+    def getIntegratedMass(self, renderer = "default", feedbackObject = "default"):
+
+        if "totalmass" in self.d:
+            return self.d["totalmass"]
+
+        Dd = self.d["lens"].getLensDistance()
+        massPixelSum = sum(sum(self.getDensityPixels(renderer, feedbackObject)))
+
+        bottomLeft = self.d["bottomleft"]
+        topRight = self.d["topright"]
+        totalWidth = abs(topRight[0] - bottomLeft[0])
+        totalHeight = abs(topRight[1] - bottomLeft[1])
+
+        self.d["totalmass"] = Dd**2 * (totalWidth/self.d["numx"])*(totalHeight/self.d["numy"]) * massPixelSum
+
+        return self.d["totalmass"]
+
+    def getDensityPoints(self, renderer = "default", feedbackObject = "default"):
+
+        if "densitypoints" in self.d:
+            return self.d["densitypoints"]
+
+        bottomLeft = self.d["bottomleft"]
+        topRight = self.d["topright"]
+        numX = self.d["numx"] + 1
+        numY = self.d["numy"] + 1
+
+        if not "lens" in self.d:
+            raise LensInfoException("No lens has been set")
+
+        lens = self.d["lens"]
+        if type(self.d["lens"]) == list:
+            raise LensInfoException("Can't calculate the density for a multiple lens plane lens")
+
+        massMap = lens.getSurfaceMassDensityMap(bottomLeft, topRight, numX, numY, renderer = renderer, feedbackObject = feedbackObject, reduceToPixels = False)
+        self.d["densitypoints"] = massMap
+
+        return massMap
+
 class PlotException(Exception):
     """An exception that will be thrown in case something goes wrong when plotting"""
     pass
-
-def _prepareDensity(lensInfo, renderer, feedbackObject):
-
-    renderer, feedbackObject = privutil.initRendererAndFeedback(renderer, feedbackObject, "MASSDENS")
-
-    if "numx" not in lensInfo:
-        lensInfo["numx"] = 511
-    if "numy" not in lensInfo:
-        lensInfo["numy"] = 511
-
-    bottomLeft = lensInfo["bottomleft"]
-    topRight = lensInfo["topright"]
-    numX = lensInfo["numx"] + 1
-    numY = lensInfo["numy"] + 1
-
-    if "densitypixels" in lensInfo and "densitypoints" in lensInfo:
-
-        massMap = lensInfo["densitypoints"]
-        pixels = lensInfo["densitypixels"]
-
-        if numX == massMap.shape[1] and numY == massMap.shape[0]:
-
-            if numX == pixels.shape[1]+1 and numY == pixels.shape[0]+1:
-                feedbackObject.onStatus("Reusing density pixels and points")
-                return
-            else:
-                lensInfo["densitypixels"] = None
-        else:
-            lensInfo["densitypoints"] = None
-
-    if "densitypoints" not in lensInfo:
-
-        lens = lensInfo["lens"]
-        massMap = lens.getSurfaceMassDensityMap(bottomLeft, topRight, numX, numY, renderer = renderer, feedbackObject = feedbackObject, reduceToPixels = False)
-        pixels = 0.25*massMap[0:numY-1,0:numX-1] + 0.25*massMap[0:numY-1,1:numX] + 0.25*massMap[1:numY,0:numX-1] + 0.25*massMap[1:numY,1:numX]
-
-        lensInfo["densitypixels"] = pixels
-        lensInfo["densitypoints"] = massMap
-
-    else: # densitypoints in lensInfo, but not densitypixels
-
-        massMap = lensInfo["densitypoints"]
-        pixels = 0.25*massMap[0:numY-1,0:numX-1] + 0.25*massMap[0:numY-1,1:numX] + 0.25*massMap[1:numY,0:numX-1] + 0.25*massMap[1:numY,1:numX]
-        lensInfo["densitypixels"] = pixels
-
-    massPixelSum = sum(sum(lensInfo["densitypixels"]))
-    totalWidth = abs(topRight[0] - bottomLeft[0])
-    totalHeight = abs(topRight[1] - bottomLeft[1])
-
-    Dd = None
-    if "Dd" in lensInfo:
-        Dd = lensInfo["Dd"]
-    elif "lens" in lensInfo:
-        lens = lensInfo["lens"]
-        Dd = lens.getLensDistance()
-        lensInfo["Dd"] = Dd
-
-    if Dd is not None:
-        lensInfo["totalmass"] = Dd**2 * (totalWidth/lensInfo["numx"])*(totalHeight/lensInfo["numy"]) * massPixelSum
-
-    return lensInfo
-
 
 # Based on https://stackoverflow.com/a/48695245/2828217
 def plot3DInteractive(X, Y, Z, height=600, xlabel = "X", ylabel = "Y", zlabel = "Z", flipX = False, initialCamera = None, visJSoptions = None,
@@ -322,16 +443,11 @@ def plotDensityInteractive(lensOrLensInfo, numX=75, numY=75, height=600, xlabel=
     angularUnit = _getAngularUnit(angularUnit)
 
     lensInfo = _toLensInfo(lensOrLensInfo)
-    _prepareDensity(lensInfo, renderer, feedbackObject)
 
     # TODO: can we replace this using a gridfunction?
-    plotArray = privutilcython.resample2DArray(lensInfo["densitypoints"], numY, numX)
-    bottomLeft = lensInfo["bottomleft"]
-    topRight = lensInfo["topright"]
-
-    pixels = lensInfo["densitypixels"]
-    bottomLeft = lensInfo["bottomleft"]
-    topRight = lensInfo["topright"]
+    plotArray = privutilcython.resample2DArray(lensInfo.getDensityPoints(renderer, feedbackObject), numY, numX)
+    bottomLeft = lensInfo.getBottomLeft()
+    topRight = lensInfo.getTopRight()
 
     X, Y = np.meshgrid(np.linspace(bottomLeft[0], topRight[0], numX),
                        np.linspace(bottomLeft[1], topRight[1], numY))
@@ -339,7 +455,6 @@ def plotDensityInteractive(lensOrLensInfo, numX=75, numY=75, height=600, xlabel=
     X /= angularUnit
     Y /= angularUnit
     Z = plotArray/densityUnit
-
     
     plot3DInteractive(X, Y, Z, flipX=flipX, xlabel=xlabel, ylabel=ylabel, zlabel=zlabel, initialCamera=initialCamera, 
                       visJSoptions=visJSoptions, maxPoints=maxPoints, height=height, visJS=visJS, visCSS=visCSS,
@@ -397,13 +512,12 @@ Arguments:
     angularUnit = _getAngularUnit(angularUnit)
 
     lensInfo = _toLensInfo(lensOrLensInfo)
-    _prepareDensity(lensInfo, renderer, feedbackObject)
 
     if axes is not False:
 
-        pixels = lensInfo["densitypixels"]
-        bottomLeft = lensInfo["bottomleft"]
-        topRight = lensInfo["topright"]
+        pixels = lensInfo.getDensityPixels(renderer, feedbackObject)
+        bottomLeft = lensInfo.getBottomLeft()
+        topRight = lensInfo.getTopRight()
 
         if axes is None:
             import matplotlib.pyplot as plt
@@ -416,88 +530,10 @@ Arguments:
 
     return lensInfo
 
-def _prepareImagePlane(lensInfo, renderer, feedbackObject, evenError, cosmology):
-
-    bottomLeft = lensInfo["bottomleft"]
-    topRight = lensInfo["topright"]
-    
-    if "numx" not in lensInfo:
-        lensInfo["numx"] = 511
-    if "numy" not in lensInfo:
-        lensInfo["numy"] = 511
-
-    if evenError and (lensInfo["numx"] % 2 == 0 or lensInfo["numy"] % 2 == 0):
-        raise PlotException("Using an odd number of pixels may work better for simple lenses, set evenError = False to disable this check")
-
-    renderer, feedbackObject = privutil.initRendererAndFeedback(renderer, feedbackObject, "LENSPLANE")
-
-    imgPlane = None
-    if "imageplane" in lensInfo:
-        imgPlane = lensInfo["imageplane"]
-        if type(imgPlane) == images.ImagePlane:
-            Ds = lensInfo["Ds"]
-            Dds = lensInfo["Dds"]
-
-            if imgPlane.getDs() != Ds or imgPlane.getDds() != Dds:
-                imgPlane = None
-        else:
-            # TODO: check against lenses?
-            pass
-
-        if imgPlane: # Make sure the render region and resolution hasn't changed
-            renderInfo = imgPlane.getRenderInfo()
-            if renderInfo["bottomleft"][0] != bottomLeft[0] or renderInfo["bottomleft"][1] != bottomLeft[1] or \
-               renderInfo["topright"][0] != topRight[0] or renderInfo["topright"][1] != topRight[1] or \
-               renderInfo["xpixels"] != lensInfo["numx"] or renderInfo["ypixels"] != lensInfo["numy"]:
-                imgPlane = None
-
-    if imgPlane is None:
-        lensPlane = None
-        if "lensplane" in lensInfo:
-            lensPlane = lensInfo["lensplane"]
-            renderInfo = lensPlane.getRenderInfo()
-
-            if renderInfo["bottomleft"][0] != bottomLeft[0] or renderInfo["bottomleft"][1] != bottomLeft[1] or \
-               renderInfo["topright"][0] != topRight[0] or renderInfo["topright"][1] != topRight[1] or \
-               renderInfo["xpoints"] != lensInfo["numx"]+1 or renderInfo["ypoints"] != lensInfo["numy"]+1:
-                lensPlane = None
-
-        if lensPlane is None:
-            if type(lensInfo["lens"]) != list:
-                if cosmology is not None:
-                    raise PlotException("For a single lens, the 'cosmology' parameter is not used and should be set to 'None'")
-
-                lensPlane = images.LensPlane(lensInfo["lens"], bottomLeft, topRight, lensInfo["numx"]+1, lensInfo["numy"]+1, renderer = renderer, feedbackObject = feedbackObject)
-            else: # multiple lens
-                #if renderer is not None:
-                #    raise PlotException("No special renderers are currently supported for a multi-lensplane scenario, the renderer should be set to 'None'")
-                if cosmology is None:
-                    raise PlotException("For a multiple lensplane scenario, the cosmology parameter must be set")
-
-                lensPlane = multiplane.MultiLensPlane(lensInfo["lens"], cosmology, bottomLeft, topRight, lensInfo["numx"]+1, lensInfo["numy"]+1, renderer = renderer, feedbackObject = feedbackObject)
-
-            lensInfo["lensplane"] = lensPlane
-        else:
-            feedbackObject.onStatus("Reusing lens plane")
-
-        if type(lensInfo["lens"]) != list:
-            Ds = lensInfo["Ds"]
-            Dds = lensInfo["Dds"]
-            imgPlane = images.ImagePlane(lensPlane, Ds, Dds)
-        else:
-            zs = lensInfo["zs"]
-            imgPlane = multiplane.MultiImagePlane(lensPlane, zs)
-
-        lensInfo["imageplane"] = imgPlane
-    else:
-        feedbackObject.onStatus("Reusing image plane")
-
-    return lensInfo
-    
 def plotImagePlane(lensOrLensInfo, sources = [], renderer = "default", feedbackObject = "default", 
                    angularUnit = "default", subSamples = 9, sourceRgb = (0, 1, 0), imageRgb = (1, 1, 1),
                    plotCaustics = True, plotCriticalLines = True, plotSources = True, plotImages = True,
-                   evenError = True, axes = None, cosmology = None, axImgCallback = None, **kwargs):
+                   evenError = True, axes = None, axImgCallback = None, **kwargs):
     """Create a matplotlib-based plot of image plane and/or source plane for certain
 lens parameters in `lensOrLensInfo`. You can also use this function to create the necessary
 calculated mappings but not the plot, by setting `axes` to `False`. This can be useful
@@ -576,10 +612,6 @@ Arguments:
    matplotlib axes object as well. The value `False` has a special meaning: in that case,
    the calculations will be performed as usual, but an actual plot will not be created.
 
- - `cosmology`: in case a multi-lensplane scenario is being rendered, this must be
-   set to a :class:`cosmological model <grale.cosmology.Cosmology>`. Otherwise, it must
-   be ``None``.
-
  - `axImgCallback`: if specified, this callback function will be called with the object
    returned by ``imshow`` as argument.
 
@@ -589,13 +621,12 @@ Arguments:
     angularUnit = _getAngularUnit(angularUnit)
 
     lensInfo = _toLensInfo(lensOrLensInfo)
-    _prepareImagePlane(lensInfo, renderer, feedbackObject, evenError, cosmology)
 
-    bottomLeft = lensInfo["bottomleft"]
-    topRight = lensInfo["topright"]
-    imgPlane = lensInfo["imageplane"]
-    numX = lensInfo["numx"]
-    numY = lensInfo["numy"]
+    bottomLeft = lensInfo.getBottomLeft()
+    topRight = lensInfo.getTopRight()
+    imgPlane = lensInfo.getImagePlane(renderer, feedbackObject)
+    numX = lensInfo.getNumXPixels()
+    numY = lensInfo.getNumYPixels()
 
     if axes is None:
         import matplotlib.pyplot as plt
@@ -665,7 +696,7 @@ def plotImagePlaneGnuplot(lensOrLensInfo, fileNameBase = None, sources = [],
                           plotCaustics = True, plotCriticalLines = True, plotSources = True, plotImages = True,
                           renderer = "default", feedbackObject = "default", angularUnit = "default", subSamples = 9,
                           evenError = True, axes = None, color = True, xlabel = "X", ylabel = "Y", grid = False,
-                          flipX = False, gnuplotExe = "gnuplot", convertExe = "convert", cosmology = None):
+                          flipX = False, gnuplotExe = "gnuplot", convertExe = "convert"):
 
     """Creates a gnuplot-based plot of the image plane/source plane that corresponds to the
 situation specified in `lensOrLensInfo`, saving various files with names starting with 
@@ -758,20 +789,15 @@ Arguments:
    using matplotlib: the eps generated by gnuplot is converted to a PNG file which is then
    shown using matplotlib.
 
- - `cosmology`: in case a multi-lensplane scenario is being rendered, this must be
-   set to a :class:`cosmological model <grale.cosmology.Cosmology>`. Otherwise, it must
-   be ``None``.
 """
     angularUnit = _getAngularUnit(angularUnit)
 
     lensInfo = _toLensInfo(lensOrLensInfo)
     gpVersion = _getGnuplotVersion(gnuplotExe)
 
-    _prepareImagePlane(lensInfo, renderer, feedbackObject, evenError, cosmology)
-
-    bottomLeft = lensInfo["bottomleft"]
-    topRight = lensInfo["topright"]
-    imgPlane = lensInfo["imageplane"]
+    bottomLeft = lensInfo.getBottomLeft()
+    topRight = lensInfo.getTopRight()
+    imgPlane = lensInfo.getImagePlane(renderer, feedbackObject)
     renderInfo = imgPlane.getRenderInfo()
 
     pointsize = 70.0/renderInfo["xpoints"]
@@ -1056,12 +1082,11 @@ Arguments:
 
     lensInfo = _toLensInfo(lensOrLensInfo)
     gpVersion = _getGnuplotVersion(gnuplotExe)
-    _prepareDensity(lensInfo, renderer, feedbackObject)
     
     # TODO: can we replace this using a gridfunction?
-    plotArray = privutilcython.resample2DArray(lensInfo["densitypoints"], numY, numX)
-    bottomLeft = lensInfo["bottomleft"]
-    topRight = lensInfo["topright"]
+    plotArray = privutilcython.resample2DArray(lensInfo.getDensityPoints(renderer, feedbackObject), numY, numX)
+    bottomLeft = lensInfo.getBottomLeft()
+    topRight = lensInfo.getTopRight()
 
     pointsize = 75.0/numX
     gnuplotData = ""
@@ -1313,8 +1338,19 @@ Arguments:
 
 def _toLensInfo(lensOrLensInfo):
     from . import lenses
+
     if issubclass(type(lensOrLensInfo), lenses.GravitationalLens):
         return quickLensInfo(lensOrLensInfo)
+
+    if type(lensOrLensInfo) == dict:
+        try:
+            lensOrLensInfo = DensInfo(**lensOrLensInfo)
+        except:
+            try:
+                lensOrLensInfo = LensInfo(**lensOrLensInfo)
+            except Exception as e:
+                raise LensInfoException("Can't interpret dictionary as DensInfo or LensInfo")
+
     return lensOrLensInfo
 
 def quickLensInfo(lens):
@@ -1324,8 +1360,7 @@ region are estimated using :func:`estimatePlotScale`, and `Ds` and
 `Dds` entries are set to 1.0.
 """
     s = estimatePlotScale(lens)
-    return { "lens": lens, "bottomleft": [ -s, -s], "topright": [s, s], 
-             "Dd": lens.getLensDistance(), "Dds": 1.0, "Ds": 1.0 }
+    return LensInfo(lens=lens, size = 2.0*s, Dds=1.0, Ds= 1.0)
 
 def calculateDeflectionAndDerivativesForFITS(lens, numXY, angularSize, lensCenterRARec, renderer = "default", 
                                              feedbackObject = "default"):
@@ -1468,22 +1503,13 @@ Example::
         "alpha_xy": axy,
     }
 
-def _getLensFunctionAndDistance(lensOrLensInfo):
-    #if type(lensOrLensInfo) == dict:
-
-    lens = lensOrLensInfo["lens"]
+def _getLensFunctionAndDistance(lensInfo):
+    lens = lensInfo.getLens()
     Dd = lens.getLensDistance()
 
-    gf = gridfunction.GridFunction(lensOrLensInfo["densitypoints"], bottomLeft = lensOrLensInfo["bottomleft"],
-                                   topRight = lensOrLensInfo["topright"])
-    F = gf.evaluate
-
-    #else:
-    #    lens = lensOrLensInfo
-    #    F = lens.getSurfaceMassDensity
-    #    Dd = lens.getLensDistance()
-
-    return F, Dd
+    gf = gridfunction.GridFunction(lensInfo.getDensityPoints(), bottomLeft = lensInfo.getBottomLeft(),
+                                   topRight = lensInfo.getTopRight())
+    return gf.evaluate, Dd
 
 def plotAverageDensityProfile(lensOrLensInfo, thetaMax, center = [0.0, 0.0], thetaSteps = 512, phiSteps = 512, 
                               angularUnit = "default", densityUnit = 1.0, axes = None, renderer = "default",
