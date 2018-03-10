@@ -635,7 +635,7 @@ std::string CompositeLens::getCLProgram(const std::vector<std::string> &subRouti
 			if (subRoutineNames[i] != std::string("clCompositeLensProgram"))
 			{
 				prog += "		else if (lensNumber == " + std::string(str) +")\n";
-				prog += "			s = " + subRoutineNames[i] + "(newCoord, &(pIntParams[intOffset]), &(pFloatParams[floatOffset]), -1, -1);\n";
+				prog += "			s = " + subRoutineNames[i] + "(newCoord, &(pIntParams[intOffset]), &(pFloatParams[floatOffset]));\n";
 			}
 			else
 			{
@@ -645,7 +645,7 @@ std::string CompositeLens::getCLProgram(const std::vector<std::string> &subRouti
 
 					sprintf(str, "%d", recursionLevel+1);
 
-					prog += "			s = " + subRoutineNames[i] + std::string(str) + "(newCoord, &(pIntParams[intOffset]), &(pFloatParams[floatOffset]), -1, -1);\n";
+					prog += "			s = " + subRoutineNames[i] + std::string(str) + "(newCoord, &(pIntParams[intOffset]), &(pFloatParams[floatOffset]));\n";
 				}
 			}
 		}
