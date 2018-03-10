@@ -15,7 +15,7 @@ public:
 	~OpenCLRenderer() { }
 protected:
 	string getRenderType() const { return "LENSPLANE"; }
-	string getVersionInfo() const { return "OpenMP lensplane renderer"; }
+	string getVersionInfo() const { return "OpenCL lensplane renderer"; }
 private:
 	bool_t renderGrid(const vector<uint8_t> &lensData, GravitationalLens *pLens, 
 	                  double x0, double y0, double dX, double dY, int numX, int numY,
@@ -101,17 +101,17 @@ bool_t OpenCLRenderer::renderGrid(const vector<uint8_t> &lensData, Gravitational
 
 	memset(&(hostResults[0]), 0, sizeof(float)*hostResults.size());
 
-	cl_mem clIntValues = clCreateBuffer(context, CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(int) * (numIntParams+1), &(intParams[0]), &err1);
-	cl_mem clFloatValues = clCreateBuffer(context, CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(float) * (numFloatParams+1), &(floatParams[0]), &err2);
-	cl_mem clResults = clCreateBuffer(context, CL_MEM_WRITE_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(float) * numtotal * 5, &(hostResults[0]), &err3);
+	cl_mem clIntValues = m_pCl->clCreateBuffer(context, CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(int) * (numIntParams+1), &(intParams[0]), &err1);
+	cl_mem clFloatValues = m_pCl->clCreateBuffer(context, CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(float) * (numFloatParams+1), &(floatParams[0]), &err2);
+	cl_mem clResults = m_pCl->clCreateBuffer(context, CL_MEM_WRITE_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(float) * numtotal * 5, &(hostResults[0]), &err3);
 
 	err = err1|err2|err3;
 
 	if (err != CL_SUCCESS)
 	{
-		if (clIntValues) clReleaseMemObject(clIntValues);
-		if (clFloatValues) clReleaseMemObject(clFloatValues);
-		if (clResults) clReleaseMemObject(clResults);
+		if (clIntValues) m_pCl->clReleaseMemObject(clIntValues);
+		if (clFloatValues) m_pCl->clReleaseMemObject(clFloatValues);
+		if (clResults) m_pCl->clReleaseMemObject(clResults);
 
 		return "Error allocating memory objects on GPU";
 	}
@@ -125,19 +125,19 @@ bool_t OpenCLRenderer::renderGrid(const vector<uint8_t> &lensData, Gravitational
 	cl_float2 step = { (float)(dX/deflectionScale), (float)(dY/deflectionScale) };
 	cl_kernel kernel = m_pCl->getKernel();
 
-	err |= clSetKernelArg(kernel, 0, sizeof(cl_float2), (void *)&startPos);
-	err |= clSetKernelArg(kernel, 1, sizeof(cl_float2), (void *)&step);
-	err |= clSetKernelArg(kernel, 2, sizeof(cl_int), (void *)&numX);
-	err |= clSetKernelArg(kernel, 3, sizeof(cl_int), (void *)&numY);
-	err |= clSetKernelArg(kernel, 4, sizeof(cl_mem), (void *)&clIntValues);
-	err |= clSetKernelArg(kernel, 5, sizeof(cl_mem), (void *)&clFloatValues);
-	err |= clSetKernelArg(kernel, 6, sizeof(cl_mem), (void *)&clResults);
+	err |= m_pCl->clSetKernelArg(kernel, 0, sizeof(cl_float2), (void *)&startPos);
+	err |= m_pCl->clSetKernelArg(kernel, 1, sizeof(cl_float2), (void *)&step);
+	err |= m_pCl->clSetKernelArg(kernel, 2, sizeof(cl_int), (void *)&numX);
+	err |= m_pCl->clSetKernelArg(kernel, 3, sizeof(cl_int), (void *)&numY);
+	err |= m_pCl->clSetKernelArg(kernel, 4, sizeof(cl_mem), (void *)&clIntValues);
+	err |= m_pCl->clSetKernelArg(kernel, 5, sizeof(cl_mem), (void *)&clFloatValues);
+	err |= m_pCl->clSetKernelArg(kernel, 6, sizeof(cl_mem), (void *)&clResults);
 
 	if (err != CL_SUCCESS)
 	{
-		clReleaseMemObject(clIntValues);
-		clReleaseMemObject(clFloatValues);
-		clReleaseMemObject(clResults);
+		m_pCl->clReleaseMemObject(clIntValues);
+		m_pCl->clReleaseMemObject(clFloatValues);
+		m_pCl->clReleaseMemObject(clResults);
 
 		return "Error setting kernel arguments";
 	}
@@ -145,13 +145,13 @@ bool_t OpenCLRenderer::renderGrid(const vector<uint8_t> &lensData, Gravitational
 	size_t workSize[2] = { (size_t)numX, (size_t)numY };
 	cl_command_queue commandQueue = m_pCl->getCommandQueue();
 
-	err |= clEnqueueNDRangeKernel(commandQueue, kernel, 2, NULL, workSize, NULL, 0, NULL, NULL);
-	err |= clFinish(commandQueue);
+	err |= m_pCl->clEnqueueNDRangeKernel(commandQueue, kernel, 2, NULL, workSize, NULL, 0, NULL, NULL);
+	err |= m_pCl->clFinish(commandQueue);
 
 	if (err == CL_SUCCESS)
 	{
-		err |= clEnqueueReadBuffer(commandQueue, clResults, true, 0, sizeof(float)*(numtotal*5), &(hostResults[0]), 0, NULL, NULL);
-		err |= clFinish(commandQueue);
+		err |= m_pCl->clEnqueueReadBuffer(commandQueue, clResults, true, 0, sizeof(float)*(numtotal*5), &(hostResults[0]), 0, NULL, NULL);
+		err |= m_pCl->clFinish(commandQueue);
 
 		int i5 = 0;
 
@@ -167,9 +167,9 @@ bool_t OpenCLRenderer::renderGrid(const vector<uint8_t> &lensData, Gravitational
 		}
 	}
 
-	clReleaseMemObject(clIntValues);
-	clReleaseMemObject(clFloatValues);
-	clReleaseMemObject(clResults);
+	m_pCl->clReleaseMemObject(clIntValues);
+	m_pCl->clReleaseMemObject(clFloatValues);
+	m_pCl->clReleaseMemObject(clResults);
 
 	if (err != CL_SUCCESS)
 		return "Error executing rendering kernel";
@@ -255,19 +255,19 @@ __kernel void renderLensPlane(int numXY,
 
 	memset(&(hostResults[0]), 0, sizeof(float)*hostResults.size());
 
-	cl_mem clFloatInputXY = clCreateBuffer(context, CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(float)*floatPos.size(), &floatPos[0], &err0);
-	cl_mem clIntValues = clCreateBuffer(context, CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(int) * (numIntParams+1), &(intParams[0]), &err1);
-	cl_mem clFloatValues = clCreateBuffer(context, CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(float) * (numFloatParams+1), &(floatParams[0]), &err2);
-	cl_mem clResults = clCreateBuffer(context, CL_MEM_WRITE_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(float) * hNumXY * 5, &(hostResults[0]), &err3);
+	cl_mem clFloatInputXY = m_pCl->clCreateBuffer(context, CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(float)*floatPos.size(), &floatPos[0], &err0);
+	cl_mem clIntValues = m_pCl->clCreateBuffer(context, CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(int) * (numIntParams+1), &(intParams[0]), &err1);
+	cl_mem clFloatValues = m_pCl->clCreateBuffer(context, CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(float) * (numFloatParams+1), &(floatParams[0]), &err2);
+	cl_mem clResults = m_pCl->clCreateBuffer(context, CL_MEM_WRITE_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(float) * hNumXY * 5, &(hostResults[0]), &err3);
 
 	err = err0|err1|err2|err3;
 
 	if (err != CL_SUCCESS)
 	{
-		if (clFloatInputXY) clReleaseMemObject(clFloatInputXY);
-		if (clIntValues) clReleaseMemObject(clIntValues);
-		if (clFloatValues) clReleaseMemObject(clFloatValues);
-		if (clResults) clReleaseMemObject(clResults);
+		if (clFloatInputXY) m_pCl->clReleaseMemObject(clFloatInputXY);
+		if (clIntValues) m_pCl->clReleaseMemObject(clIntValues);
+		if (clFloatValues) m_pCl->clReleaseMemObject(clFloatValues);
+		if (clResults) m_pCl->clReleaseMemObject(clResults);
 
 		return "Error allocating memory objects on GPU";
 	}
@@ -278,18 +278,18 @@ __kernel void renderLensPlane(int numXY,
 
 	cl_kernel kernel = m_pCl->getKernel();
 
-	err |= clSetKernelArg(kernel, 0, sizeof(cl_int), (void *)&numXY);
-	err |= clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&clFloatInputXY);
-	err |= clSetKernelArg(kernel, 2, sizeof(cl_mem), (void *)&clIntValues);
-	err |= clSetKernelArg(kernel, 3, sizeof(cl_mem), (void *)&clFloatValues);
-	err |= clSetKernelArg(kernel, 4, sizeof(cl_mem), (void *)&clResults);
+	err |= m_pCl->clSetKernelArg(kernel, 0, sizeof(cl_int), (void *)&numXY);
+	err |= m_pCl->clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&clFloatInputXY);
+	err |= m_pCl->clSetKernelArg(kernel, 2, sizeof(cl_mem), (void *)&clIntValues);
+	err |= m_pCl->clSetKernelArg(kernel, 3, sizeof(cl_mem), (void *)&clFloatValues);
+	err |= m_pCl->clSetKernelArg(kernel, 4, sizeof(cl_mem), (void *)&clResults);
 
 	if (err != CL_SUCCESS)
 	{
-		clReleaseMemObject(clFloatInputXY);
-		clReleaseMemObject(clIntValues);
-		clReleaseMemObject(clFloatValues);
-		clReleaseMemObject(clResults);
+		m_pCl->clReleaseMemObject(clFloatInputXY);
+		m_pCl->clReleaseMemObject(clIntValues);
+		m_pCl->clReleaseMemObject(clFloatValues);
+		m_pCl->clReleaseMemObject(clResults);
 
 		return "Error setting kernel arguments";
 	}
@@ -297,13 +297,13 @@ __kernel void renderLensPlane(int numXY,
 	size_t workSize[1] = { (size_t)numXY };
 	cl_command_queue commandQueue = m_pCl->getCommandQueue();
 
-	err |= clEnqueueNDRangeKernel(commandQueue, kernel, 1, NULL, workSize, NULL, 0, NULL, NULL);
-	err |= clFinish(commandQueue);
+	err |= m_pCl->clEnqueueNDRangeKernel(commandQueue, kernel, 1, NULL, workSize, NULL, 0, NULL, NULL);
+	err |= m_pCl->clFinish(commandQueue);
 
 	if (err == CL_SUCCESS)
 	{
-		err |= clEnqueueReadBuffer(commandQueue, clResults, true, 0, sizeof(float)*(hNumXY*5), &(hostResults[0]), 0, NULL, NULL);
-		err |= clFinish(commandQueue);
+		err |= m_pCl->clEnqueueReadBuffer(commandQueue, clResults, true, 0, sizeof(float)*(hNumXY*5), &(hostResults[0]), 0, NULL, NULL);
+		err |= m_pCl->clFinish(commandQueue);
 
 		int i5 = 0;
 
@@ -319,10 +319,10 @@ __kernel void renderLensPlane(int numXY,
 		}
 	}
 
-	clReleaseMemObject(clFloatInputXY);
-	clReleaseMemObject(clIntValues);
-	clReleaseMemObject(clFloatValues);
-	clReleaseMemObject(clResults);
+	m_pCl->clReleaseMemObject(clFloatInputXY);
+	m_pCl->clReleaseMemObject(clIntValues);
+	m_pCl->clReleaseMemObject(clFloatValues);
+	m_pCl->clReleaseMemObject(clResults);
 
 	if (err != CL_SUCCESS)
 		return "Error executing rendering kernel";
@@ -332,8 +332,23 @@ __kernel void renderLensPlane(int numXY,
 
 int main(int argc, char *argv[])
 {
+#ifdef GRALE_LOADLIBRARY
+	string defaultLibrary = "opencl.dll";
+#else
+	#ifdef __APPLE__
+	string defaultLibrary = "/System/Library/Frameworks/OpenCL.framework/OpenCL";
+#else
+	string defaultLibrary = "libOpenCL.so";
+#endif // __APPLE
+#endif // GRALE_LOADLIBRARY
+
+	string library = defaultLibrary;
+
+	if (getenv("GRALE_OPENCLLIB"))
+		library = string(getenv("GRALE_OPENCLLIB"));
+
 	OpenCLKernel clKernel;
-	if (!clKernel.init())
+	if (!clKernel.init(library))
 	{
 		cerr << "Unable to initialize OpenCL: " << clKernel.getErrorString() << endl;
 		return -1;

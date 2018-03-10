@@ -1,3 +1,8 @@
+#ifdef GRALE_LOADLIBRARY
+#include <windows.h>
+#else
+#include <dlfcn.h>
+#endif // GRALE_LOADLIBRARY
 #include "openclkernel.h"
 #include "inputoutput.h"
 #include <stdio.h>
@@ -13,6 +18,27 @@ OpenCLKernel::OpenCLKernel()
 	m_program = 0;
 	m_kernel = 0;
 	m_pDevices = 0;
+
+	clBuildProgram = nullptr;
+	clCreateCommandQueue = nullptr;
+	clCreateContext = nullptr;
+	clCreateKernel = nullptr;
+	clCreateProgramWithSource = nullptr;
+	clGetDeviceIDs = nullptr;
+	clGetPlatformIDs = nullptr;
+	clGetProgramBuildInfo = nullptr;
+	clReleaseCommandQueue = nullptr;
+	clReleaseContext = nullptr;
+	clReleaseKernel = nullptr;
+	clReleaseProgram = nullptr;
+	clCreateBuffer = nullptr;
+	clSetKernelArg = nullptr;
+	clReleaseMemObject = nullptr;
+	clEnqueueNDRangeKernel = nullptr;
+	clFinish = nullptr;
+	clEnqueueReadBuffer = nullptr;
+
+	m_pModule = nullptr;
 }
 
 OpenCLKernel::~OpenCLKernel()
@@ -20,13 +46,62 @@ OpenCLKernel::~OpenCLKernel()
 	destroy();
 }
 
-bool OpenCLKernel::init()
+#ifdef GRALE_LOADLIBRARY
+#define LOADLIBRARY(x) (void*)LoadLibrary(x)
+#define SYMBOL(l, x) GetProcAddress((HMODULE)l, x)
+#define CLOSELIBRARY(x) FreeLibrary((HMODULE)x)
+#define GETERRORSTRING() (strprintf("Error code %d", (int)GetLastError()))
+#else
+#define LOADLIBRARY(x) dlopen(x, RTLD_LAZY)
+#define SYMBOL(l, x) dlsym(l, x)
+#define CLOSELIBRARY(x) dlclose(x)
+#define GETERRORSTRING() (string(dlerror()))
+#endif // GRALE_LOADLIBRARY
+
+bool OpenCLKernel::init(const string &libraryName)
 {
 	if (m_init)
 	{
 		setErrorString("OpenCL kernel loader is already initialized");
 		return false;
 	}
+
+	// TODO: Windows, OS X
+	m_pModule = LOADLIBRARY(libraryName.c_str());
+	if (m_pModule == nullptr)
+	{
+		setErrorString("Unable to open OpenCL library: " + GETERRORSTRING());
+		return false;
+	}
+
+#define GETFUNCTION(x) \
+	x = (decltype(x))(SYMBOL(m_pModule, #x)); \
+	if (x == nullptr) \
+	{ \
+		setErrorString("Unable to locate symbol " #x " in OpenCL library"); \
+		CLOSELIBRARY(m_pModule); \
+		m_pModule = nullptr; \
+		return false; \
+	}
+
+	GETFUNCTION(clBuildProgram)
+	GETFUNCTION(clCreateCommandQueue)
+	GETFUNCTION(clCreateContext)
+	GETFUNCTION(clCreateKernel)
+	GETFUNCTION(clCreateProgramWithSource)
+	GETFUNCTION(clGetDeviceIDs)
+	GETFUNCTION(clGetPlatformIDs)
+	GETFUNCTION(clGetProgramBuildInfo)
+	GETFUNCTION(clReleaseCommandQueue)
+	GETFUNCTION(clReleaseContext)
+	GETFUNCTION(clReleaseKernel)
+	GETFUNCTION(clReleaseProgram)
+	GETFUNCTION(clCreateBuffer)
+	GETFUNCTION(clSetKernelArg)
+	GETFUNCTION(clReleaseMemObject)
+	GETFUNCTION(clEnqueueNDRangeKernel)
+	GETFUNCTION(clFinish)
+	GETFUNCTION(clEnqueueReadBuffer)
 
 	m_currentProgram = "";
 	m_currentKernel = "";
@@ -186,6 +261,8 @@ bool OpenCLKernel::destroy()
 
 	releaseAll();
 
+	if (m_pModule)
+		CLOSELIBRARY(m_pModule);
 	return true;
 }
 

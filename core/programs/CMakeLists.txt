@@ -11,7 +11,4 @@ if (MPI_FOUND)
 	add_subdirectory(mpi)
 endif()
 
-find_package(OpenCL)
-if (OPENCL_FOUND)
-	add_subdirectory(opencl)
-endif()
+add_subdirectory(opencl)
