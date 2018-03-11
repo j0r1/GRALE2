@@ -3,7 +3,7 @@ a lens plane mapping or a mass density on a grid, will only use a single
 processor core. Functions in the :py:mod:`plotutil <grale.plotutil>` module
 take a `renderer` argument, with which you can specify an external process
 to be used for this purpose. Depending on the type selected, this can use
-multiple threads using OpenMP, distributed processes using MPI, or the GPU
+multiple threads, distributed processes using MPI, or the GPU
 using OpenCL, each of which can lead to a significant speedup.
 
 A specified renderer can either be one of the objects that are present in
@@ -11,14 +11,14 @@ this module, or it can simply be a string that describes the kind of
 renderer to use. For a `lens plane renderer` these strings (case insensitive)
 and objects can be:
 
- - "OpenMP" or an instance of :py:class:`OpenMPLensPlaneRenderer`
+ - "Threads" or an instance of :class:`ThreadsLensPlaneRenderer`
  - "MPI" or an instance of :py:class:`MPILensPlaneRenderer`
  - "OpenCL" or an instance of :py:class:`OpenCLLensPlaneRenderer`
 
 For a `mass density renderer` these strings (case insensitive) and 
 objects can be:
 
- - "OpenMP" or an instance of :py:class:`OpenMPMassDensityRenderer`
+ - "Threads" or an instance of :class:`ThreadsMassDensityRenderer`
  - "MPI" or an instance of :py:class:`MPIMassDensityRenderer`
 
 """
@@ -221,17 +221,24 @@ class Renderer(object):
         except Exception as e:
             print("Warning: ignoring exception ({}) in onProgress".format(e))
 
-class OpenMPLensPlaneRenderer(Renderer):
-    """Renderer that uses multiple threads (using OpenMP) to speed up the 
-    calculation of a lens plane."""
+
+class ThreadsLensPlaneRenderer(Renderer):
+    """Renderer that uses multiple threads to speed up the calculation of a
+    lens plane."""
 
     def __init__(self, numProcesses = None, feedbackObject = None):
-        """If `numProcesses` is set, a specific number of threads will be requested by
-        setting the OMP_NUM_THREADS environment variable. A specific :py:mod:`feedback <grale.feedback>`
-        object can be specified for status and progress updates."""
-    
-        e = None if numProcesses is None else { "OMP_NUM_THREADS": str(numProcesses) }
-        super(OpenMPLensPlaneRenderer, self).__init__([ "grale_lensplane_openmp" ], "LENSPLANE", extraEnv = e, feedbackObject = feedbackObject)
+        """If `numProcesses` is set, a specific number of threads will be requested.
+        A specific :py:mod:`feedback <grale.feedback>` object can be specified for 
+        status and progress updates."""
+
+        from .inverters import _getNumHelpers
+
+        numHelpers = _getNumHelpers(numProcesses)
+        if numHelpers < 1 or numHelpers > 256:
+            raise RendererException("The number of processes should be at least one, and at most 256")
+
+        e = { "GRALE_NUMTHREADS": str(numHelpers) }
+        super(ThreadsLensPlaneRenderer, self).__init__([ "grale_lensplane_threads" ], "LENSPLANE", extraEnv = e, feedbackObject = feedbackObject)
 
 class MPILensPlaneRenderer(Renderer):
     """Renderer that uses multiple processes (using MPI) to speed up the 
@@ -261,17 +268,23 @@ class OpenCLLensPlaneRenderer(Renderer):
         
         super(OpenCLLensPlaneRenderer, self).__init__([ "grale_lensplane_opencl" ], "LENSPLANE", feedbackObject = feedbackObject)
 
-class OpenMPMassDensityRenderer(Renderer):
-    """Renderer that uses multiple threads (using OpenMP) to speed up the 
-    calculation of a mass density map."""
-    
+class ThreadsMassDensityRenderer(Renderer):
+    """Renderer that uses multiple threads to speed up the calculation of a
+    mass density map."""
+
     def __init__(self, numProcesses = None, feedbackObject = None):
-        """If `numProcesses` is set, a specific number of threads will be requested by
-        setting the OMP_NUM_THREADS environment variable. A specific :py:mod:`feedback <grale.feedback>`
-        object can be specified for status and progress updates."""
-        
-        e = None if numProcesses is None else { "OMP_NUM_THREADS": str(numProcesses) }
-        super(OpenMPMassDensityRenderer, self).__init__([ "grale_massdens_openmp" ], "MASSDENS", extraEnv = e, feedbackObject = feedbackObject)
+        """If `numProcesses` is set, a specific number of threads will be requested.
+        A specific :py:mod:`feedback <grale.feedback>` object can be specified for 
+        status and progress updates."""
+
+        from .inverters import _getNumHelpers
+
+        numHelpers = _getNumHelpers(numProcesses)
+        if numHelpers < 1 or numHelpers > 256:
+            raise RendererException("The number of processes should be at least one, and at most 256")
+
+        e = { "GRALE_NUMTHREADS": str(numHelpers) }
+        super(ThreadsMassDensityRenderer, self).__init__([ "grale_massdens_threads" ], "MASSDENS", extraEnv = e, feedbackObject = feedbackObject)
 
 class MPIMassDensityRenderer(Renderer):
     """Renderer that uses multiple processes (using MPI) to speed up the 

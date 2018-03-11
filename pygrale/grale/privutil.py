@@ -44,13 +44,13 @@ def _getMassRenderer(renderNameOrObject):
         return None
 
     if type(renderNameOrObject) == str:
-        if renderNameOrObject.lower() == "openmp":
-            return renderers.OpenMPMassDensityRenderer()
+        if renderNameOrObject.lower() == "threads":
+            return renderers.ThreadsMassDensityRenderer()
 
         if renderNameOrObject.lower() == "mpi":
             return renderers.MPIMassDensityRenderer()
 
-        raise RenderNameException("Supported renderer names are 'OpenMP' and 'MPI'")
+        raise RenderNameException("Supported renderer names are 'Threads' and 'MPI'")
 
     return renderNameOrObject
 
@@ -63,8 +63,8 @@ def _getLensPlaneRenderer(renderNameOrObject):
         return None
 
     if type(renderNameOrObject) == str:
-        if renderNameOrObject.lower() == "openmp":
-            return renderers.OpenMPLensPlaneRenderer()
+        if renderNameOrObject.lower() == "threads":
+            return renderers.ThreadsLensPlaneRenderer()
 
         if renderNameOrObject.lower() == "mpi":
             return renderers.MPILensPlaneRenderer()
@@ -72,7 +72,7 @@ def _getLensPlaneRenderer(renderNameOrObject):
         if renderNameOrObject.lower() == "opencl":
             return renderers.OpenCLLensPlaneRenderer()
 
-        raise RenderNameException("Supported renderer names are 'OpenCL', 'OpenMP' and 'MPI'")
+        raise RenderNameException("Supported renderer names are 'Threads', 'OpenCL' and 'MPI'")
 
     return renderNameOrObject
 

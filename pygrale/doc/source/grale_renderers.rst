@@ -19,7 +19,7 @@ Defaults
 Lens plane renderers
 --------------------
 
-.. autoclass:: OpenMPLensPlaneRenderer
+.. autoclass:: ThreadsLensPlaneRenderer
 
    .. automethod:: __init__
 
@@ -34,7 +34,7 @@ Lens plane renderers
 Mass density renderers
 ----------------------
 
-.. autoclass:: OpenMPMassDensityRenderer
+.. autoclass:: ThreadsMassDensityRenderer
 
    .. automethod:: __init__
 

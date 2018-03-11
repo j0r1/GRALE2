@@ -40,7 +40,7 @@ def main():
     f = MyFeedback()
 
     print("Grid based methods for deflections")
-    for renderClass in [ OpenMPLensPlaneRenderer, OpenCLLensPlaneRenderer, MPILensPlaneRenderer ]:
+    for renderClass in [ ThreadsLensPlaneRenderer, OpenMPLensPlaneRenderer, OpenCLLensPlaneRenderer, MPILensPlaneRenderer ]:
         print("Using class:", renderClass)
         r = renderClass(feedbackObject = f)
         result = r.render(p.toBytes(), bottomLeft, topRight, numX, numY)
@@ -51,7 +51,7 @@ def main():
         print("")
         
     print("Grid based methods for density")
-    for renderClass in [ OpenMPMassDensityRenderer, MPIMassDensityRenderer ]:
+    for renderClass in [ ThreadsMassDensityRenderer, OpenMPMassDensityRenderer, MPIMassDensityRenderer ]:
         print("Using class:", renderClass)
         r = renderClass(feedbackObject = f)
         result = r.render(p.toBytes(), bottomLeft, topRight, numX, numY)
@@ -61,7 +61,7 @@ def main():
         print("")
 
     print("Point vector based methods for deflections")
-    for renderClass in [ OpenMPLensPlaneRenderer, OpenCLLensPlaneRenderer, MPILensPlaneRenderer ]:
+    for renderClass in [ ThreadsLensPlaneRenderer, OpenMPLensPlaneRenderer, OpenCLLensPlaneRenderer, MPILensPlaneRenderer ]:
         print("Using class:", renderClass)
         r = renderClass(feedbackObject = f)
         result = r.renderXYVector(p.toBytes(), thetas)
@@ -72,7 +72,7 @@ def main():
         print("")
 
     print("Point vector based methods for density")
-    for renderClass in [ OpenMPMassDensityRenderer, MPIMassDensityRenderer ]:
+    for renderClass in [ ThreadsMassDensityRenderer, OpenMPMassDensityRenderer, MPIMassDensityRenderer ]:
         print("Using class:", renderClass)
         r = renderClass(feedbackObject = f)
         result = r.renderXYVector(p.toBytes(), thetas)
