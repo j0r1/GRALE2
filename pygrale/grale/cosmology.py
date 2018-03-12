@@ -33,6 +33,11 @@ class Cosmology(object):
         self.Wv = float(Omega_v)
         self.w = float(w)
 
+    def getParameters(self):
+        """Returns a dictionary that contains the model parameters that were specified in the
+        constructor."""
+        return { "h": self.h, "Omega_m": self.Wm, "Omega_r": self.Wr, "Omega_v": self.Wv, "w": self.w }
+
     def getAngularDiameterDistance(self, z1, z2 = None):
         """
         Returns the angular diameter distance between two redshifts, or if only one
@@ -155,10 +160,12 @@ class Cosmology(object):
 _defaultCosmology = [ None ]
 
 def getDefaultCosmology():
-    """TODO"""
+    """Returns the default cosmological model that has been set 
+    using :func:`setDefaultCosmology`."""
     return _defaultCosmology[0]
 
 def setDefaultCosmology(x):
-    """TODO"""
+    """Sets the default cosmological model to `x`, which should
+    be an instance of :class:`Cosmology`."""
     _defaultCosmology[0] = x
 
