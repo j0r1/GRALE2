@@ -6,7 +6,6 @@
 #include "inversioncommunicator.h"
 #include <serut/memoryserializer.h>
 #include <mogal/geneticalgorithm.h>
-//#include <unistd.h>
 
 #include <iostream>
 #include <string>
@@ -20,14 +19,8 @@ using namespace mogal;
 using namespace nut;
 using namespace errut;
 
-class MyGA : public GeneticAlgorithm
-{
-private:
-	void feedbackStatus(const std::string &str) const override
-	{
-		cerr << "GA feedback: " << str << endl;
-	}
-};
+#include "commonga.h"
+typedef CommonGA<GeneticAlgorithm> MyGA;
 
 class CSCommunicator : public InversionCommunicator
 {

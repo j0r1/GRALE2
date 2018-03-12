@@ -5,7 +5,6 @@
 #include <errut/booltype.h>
 #include <serut/memoryserializer.h>
 #include <mogal/geneticalgorithm.h>
-//#include <unistd.h>
 
 #include <iostream>
 #include <string>
@@ -16,14 +15,8 @@ using namespace serut;
 using namespace mogal;
 using namespace errut;
 
-class MyGA : public GeneticAlgorithm
-{
-private:
-	void feedbackStatus(const std::string &str) const override
-	{
-		cerr << "GA feedback: " << str << endl;
-	}
-};
+#include "commonga.h"
+typedef CommonGA<GeneticAlgorithm> MyGA;
 
 class SingleCoreCommunicator : public InversionCommunicator
 {

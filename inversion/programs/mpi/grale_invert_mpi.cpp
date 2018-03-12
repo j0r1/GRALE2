@@ -25,14 +25,8 @@ using namespace serut;
 using namespace mogal;
 using namespace errut;
 
-class MyGA : public MPIGeneticAlgorithm
-{
-private:
-	void feedbackStatus(const std::string &str) const override
-	{
-		cerr << "GA feedback: " << str << endl;
-	}
-};
+#include "commonga.h"
+typedef CommonGA<MPIGeneticAlgorithm> MyGA;
 
 class MultiCoreCommunicator : public InversionCommunicator
 {
