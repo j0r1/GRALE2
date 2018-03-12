@@ -20,10 +20,18 @@ import json
 import copy
 
 class LensInfoException(Exception):
+    """An exception that's raised in case of an error with a LensInfo object"""
     pass
 
 class DensInfo(object):
+    """In case you'd like to use the ``plotDensity`` functions to create
+    a plot based on a 2D NumPy array, you can pass an instance of this class
+    to the plot function. This can come in handy when creating the difference,
+    average or standard deviation of several mass maps from :class:`LensInfo`
+    objects."""
     def __init__(self, densitypoints, bottomleft, topright):
+        """Initialize the object so that the 2D NumPy array `densitypoints`
+        describes an area from `bottomleft` to `topright`."""
         self.d = { }
         self.d["densitypoints"] = densitypoints
         self.d["numy"] = densitypoints.shape[0]-1
@@ -32,18 +40,36 @@ class DensInfo(object):
         self.d["topright"] = copy.copy(topright)
 
     def getBottomLeft(self):
+        """Returns the `bottomleft` argument that was passed in the constructor,
+        as a NumPy array."""
         return np.array(self.d["bottomleft"], dtype=np.double)
 
     def getTopRight(self):
+        """Returns the `topright` argument that was passed in the constructor,
+        as a NumPy array."""
         return np.array(self.d["topright"], dtype=np.double)
 
     def getArea(self):
+        """Returns a dictionary with ``topright`` and ``bottomleft`` entries
+        as specified in the constructor. Can come in handy when passing these
+        arguments to another constructor to describe the same area."""
         return { "topright" : self.getTopRight(), "bottomleft": self.getBottomLeft() }
 
     def getDensityPoints(self, renderer = "default", feedbackObject = "default"):
+        """Returns the `densitypoints` NumPy array that was set in the constructor."""
         return self.d["densitypoints"]
 
     def getDensityPixels(self, renderer = "default", feedbackObject = "default"):
+        """Returns the density pixels, based on the `densitypoints` from the
+        constructor. The `densitypoints` describe the values *at* specific points
+        laid out on a grid; the pixels convert these values so that each entry
+        becomes the integrated value over a pixel.
+        
+        In an instance of the :class:`DensInfo` type, the `renderer` and `feedbackObject`
+        arguments are not used; in an instance of the derived class :class:`LensInfo`,
+        they can be used to specify the :ref:`renderer <renderers>` to use
+        to speed up the calculation, and with `feedbackObject` you can specify a
+        particular :ref:`feedback mechanism <feedback>`."""
 
         if "densitypixels" in self.d:
             return self.d["densitypixels"]
@@ -55,16 +81,50 @@ class DensInfo(object):
         self.d["densitypixels"] = pixels
         return pixels
 
+    def getNumXPoints(self):
+        """Returns the number of points in the X direction"""
+        return self.d["numx"]+1
+
+    def getNumYPoints(self):
+        """Returns the number of points in the Y direction"""
+        return self.d["numy"]+1
+
     def getNumXPixels(self):
+        """Returns the number of pixels in the X direction"""
         return self.d["numx"]
 
     def getNumYPixels(self):
+        """Returns the number of pixels in the Y direction"""
         return self.d["numy"]
 
 class LensInfo(DensInfo):
+    """This type of object can be used in the ``plotImagePlane`` and ``plotDensity``
+    functions, and is based on a single or multi lensplane scenario.
+    """
+
     def __init__(self, lens = None, bottomleft = None, topright = None, center = [0, 0], size = None, numx = None, numy = None, numxy = 511,
                  Ds = None, Dds = None, zd = None, zs = None, cosmology = "default"):
-        
+        """Constructs an object of this type.
+
+        Arguments:
+         * `lens`: for a single lens plane setting, this should be an instance of
+           a :class:`GravitationalLens <grale.lenses.GravitationalLens>` derived
+           class. In case a multi-lensplane scenario is to be used, this should be
+           an array of ``(lens, redshift)`` tuples.
+         * `bottomleft` and `topright`, or `size` and `center`: using these arguments
+           you can describe the area for which plot information should be calculated.
+         * `numx` and `numy`, or `numxy`: the number of columns and rows (or both) of 
+           the grid for which properties (deflection angles, densities, ...) should be 
+           calculated.
+         * `Ds` and `Dds`, or `zs` (and possibly `zd`): these are relevant for
+           image plane calculations, for which the position of the source needs to
+           be known. For a single lens plane setting, you can either set both
+           `Ds` and `Dds`, or both `zs` and `zd`. In case a multi lens plane setting
+           is used, you only need to specify `zs`. Note that when using the redshift
+           values, a cosmological model must be known as well.
+         * `cosmology`: the cosmological model to be used. This is necessary when
+           redshifts are to be used.
+        """
         self.d = { }
         if lens: 
             self.d["lens"] = copy.copy(lens) # Note: lens can be both an array of (lens,z) tuples, or just a lens
@@ -97,22 +157,31 @@ class LensInfo(DensInfo):
         self.cosm = copy.copy(cosmology)
 
     def setSourceRedshift(self, zs):
+        """Sets source redshift to `zs`."""
         self.d["zs"] = zs
         if "imageplane" in self.d:
             del self.d["imageplane"]
 
     def setSourceDistances(self, Ds, Dds):
+        """Sets the source distances to `Ds` and `Dds`."""
         self.d["Ds"] = Ds
         self.d["Dds"] = Dds
         if "imageplane" in self.d:
             del self.d["imageplane"]
 
     def getLens(self):
+        """Returns the lens (or multiple lenses) that was set at construction
+        time."""
         if not "lens" in self.d:
             raise LensInfoException("No lens has been set")
         return self.d["lens"]
 
     def getLensPlane(self, renderer = "default", feedbackObject = "default"):
+        """Returns the :class:`LensPlane` or :class:`MultiLensPlane` instance that
+        corresponds to the settings from the constructor, performing the necessary
+        calculations if needed. With the `renderer` argument, you can specify a specific :ref:`renderer <renderers>`
+        to speed up the calculation, and with `feedbackObject` you can specify a
+        particular :ref:`feedback mechanism <feedback>`."""
 
         renderer, feedbackObject = privutil.initRendererAndFeedback(renderer, feedbackObject, "LENSPLANE")
 
@@ -135,6 +204,11 @@ class LensInfo(DensInfo):
         return lensPlane
 
     def getImagePlane(self, renderer = "default", feedbackObject = "default"):
+        """Returns the :class:`ImagePlane` or :class:`MultiImagePlane` instance that
+        corresponds to the settings from the constructor, performing the necessary
+        calculations if needed. With the `renderer` argument, you can specify a specific :ref:`renderer <renderers>`
+        to speed up the calculation, and with `feedbackObject` you can specify a
+        particular :ref:`feedback mechanism <feedback>`."""
 
         renderer, feedbackObject = privutil.initRendererAndFeedback(renderer, feedbackObject, "LENSPLANE")
 
@@ -168,6 +242,11 @@ class LensInfo(DensInfo):
         return imgPlane
 
     def getIntegratedMass(self, renderer = "default", feedbackObject = "default"):
+        """Based on the grid as set in the constructor, this returns the total
+        estimated mass in the area, performing the necessary
+        calculations if needed. With the `renderer` argument, you can specify a specific :ref:`renderer <renderers>`
+        to speed up the calculation, and with `feedbackObject` you can specify a
+        particular :ref:`feedback mechanism <feedback>`."""
 
         if "totalmass" in self.d:
             return self.d["totalmass"]
@@ -185,6 +264,11 @@ class LensInfo(DensInfo):
         return self.d["totalmass"]
 
     def getDensityPoints(self, renderer = "default", feedbackObject = "default"):
+        """Returns the densities on a 2D NumPy grid that corresponds to the
+        area in the constructor, calculations if needed. With the `renderer` argument, 
+        you can specify a specific :ref:`renderer <renderers>`
+        to speed up the calculation, and with `feedbackObject` you can specify a
+        particular :ref:`feedback mechanism <feedback>`."""
 
         if "densitypoints" in self.d:
             return self.d["densitypoints"]
@@ -380,23 +464,9 @@ def plotDensityInteractive(lensOrLensInfo, numX=75, numY=75, height=600, xlabel=
     """Creates an interactive 3D plot of the mass density specified in `lensOrLensInfo`.
 
     Arguments:
-     - `lensOrLensInfo`: this can either be a gravitational lens instance or dictionary 
-       that contains at least the following entries
-
-        - `lens`: the gravitational lens that should be plotted
-        - `bottomleft`: the bottom-left corner of the plot region
-        - `topright`: the top-right corner of the plot region
-
-       optionally, the number of pixels that should be plotted can be specified as well:
-
-        - `numx`: number of pixels in x-direction, defaults to 511
-        - `numy`: number of pixels in y-direction, defaults to 511
-
-       If possible, the calculated mass density will be used to calculate the total mass
-       within the region, which will be stored in a `totalmass` entry of the dictionary.
-       The dictionary will also be used to cache some calculated properties in.
-
-       In case it's only a gravitational lens, an estimate of the corners will be used.
+     - `lensOrLensInfo`: this can either be a :class:`GravitationalLens <grale.lenses.GravitationalLens>`
+       instance or an instance of :class:`LensInfo` or even :class:`DensInfo`.
+       In case it's only a gravitational lens, an estimate of the relevant area will be used.
 
      - `numX`: the number of points in the x-direction used to create the surface or 2D
        plot.
@@ -474,23 +544,9 @@ the calculated density pixels) but you don't want an actual plot, you can set th
 `axes` parameter to `False`.
 
 Arguments:
- - `lensOrLensInfo`: this can either be a gravitational lens instance or dictionary 
-   that contains at least the following entries
-
-    - `lens`: the gravitational lens that should be plotted
-    - `bottomleft`: the bottom-left corner of the plot region
-    - `topright`: the top-right corner of the plot region
-
-   optionally, the number of pixels that should be plotted can be specified as well:
-
-    - `numx`: number of pixels in x-direction, defaults to 511
-    - `numy`: number of pixels in y-direction, defaults to 511
-
-   If possible, the calculated mass density will be used to calculate the total mass
-   within the region, which will be stored in a `totalmass` entry of the dictionary.
-   The dictionary will also be used to cache some calculated properties in.
-
-   In case it's only a gravitational lens, an estimate of the corners will be used.
+ - `lensOrLensInfo`: this can either be a :class:`GravitationalLens <grale.lenses.GravitationalLens>`
+   instance or an instance of :class:`LensInfo` or even :class:`DensInfo`.
+   In case it's only a gravitational lens, an estimate of the relevant area will be used.
 
  - `renderer`: this parameter can be used to specify a specific :ref:`renderer <renderers>`
    to speed up the calculation. 
@@ -545,32 +601,8 @@ to create a :py:class:`LensPlane<grale.images.LensPlane>` and :py:class:`ImagePl
 using a specific renderer to speed up the calculation.
 
 Arguments:
- - `lensOrLensInfo`: this can either be a gravitational lens instance or dictionary.
-   For a single lensplane lens, this dictionary should contain at least the following 
-   entries
-
-    - `lens`: the gravitational lens that used for the plot
-    - `bottomleft`: the bottom-left corner of the plot region
-    - `topright`: the top-right corner of the plot region
-    - `Ds`: the angular diameter distance to the source
-    - `Dds`: the angular diameter distance between lens and source
-
-   while for a multiple lensplane lens, it should contain:
-
-    - `lens`: a list of (:class:`gravitational lens <grale.lenses.GravitationalLens>`, redshift) tuples
-    - `bottomleft`: the bottom-left corner of the plot region
-    - `topright`: the top-right corner of the plot region
-    - `zs`: the redshift to the source
-
-   Optionally, the number of pixels that should be plotted can be specified as well:
-
-    - `numx`: number of pixels in x-direction, defaults to 511
-    - `numy`: number of pixels in y-direction, defaults to 511
-
-   Upon completion, this dictionary will contain `lensplane` and `imageplane`, containing
-   a :py:class:`LensPlane<grale.images.LensPlane>` and :py:class:`ImagePlane<grale.images.ImagePlane>` instance 
-   respectively.
-
+ - `lensOrLensInfo`: this can either be a :class:`GravitationalLens <grale.lenses.GravitationalLens>`
+   instance or an instance of :class:`LensInfo`.
    In case it's only a gravitational lens, an estimate of the corners will be used, and
    both `Ds` and `Dds` will be set to 1.0 (only the value of Dds/Ds matters, and will be
    one in this case).
@@ -706,32 +738,8 @@ situation specified in `lensOrLensInfo`, saving various files with names startin
 immediately, you can set `axes` to `False`.
 
 Arguments:
- - `lensOrLensInfo`: this can either be a gravitational lens instance or dictionary.
-   For a single lensplane lens, this dictionary should contain at least the following 
-   entries
-
-    - `lens`: the gravitational lens that used for the plot
-    - `bottomleft`: the bottom-left corner of the plot region
-    - `topright`: the top-right corner of the plot region
-    - `Ds`: the angular diameter distance to the source
-    - `Dds`: the angular diameter distance between lens and source
-
-   while for a multiple lensplane lens, it should contain:
-
-    - `lens`: a list of (:class:`gravitational lens <grale.lenses.GravitationalLens>`, redshift) tuples
-    - `bottomleft`: the bottom-left corner of the plot region
-    - `topright`: the top-right corner of the plot region
-    - `zs`: the redshift to the source
-
-   Optionally, the number of pixels that should be plotted can be specified as well:
-
-    - `numx`: number of pixels in x-direction, defaults to 511
-    - `numy`: number of pixels in y-direction, defaults to 511
-
-   Upon completion, this dictionary will contain `lensplane` and `imageplane`, containing
-   a :py:class:`LensPlane<grale.images.LensPlane>` and :py:class:`ImagePlane<grale.images.ImagePlane>` instance 
-   respectively.
-
+ - `lensOrLensInfo`: this can either be a :class:`GravitationalLens <grale.lenses.GravitationalLens>`
+   instance or an instance of :class:`LensInfo`.
    In case it's only a gravitational lens, an estimate of the corners will be used, and
    both `Ds` and `Dds` will be set to 1.0 (only the value of Dds/Ds matters, and will be
    one in this case).
@@ -1009,23 +1017,9 @@ generated. If you only want to generate these files, but not visualize them in a
 immediately, you can set `axes` to `False`.
 
 Arguments:
- - `lensOrLensInfo`: this can either be a gravitational lens instance or dictionary 
-   that contains at least the following entries
-
-    - `lens`: the gravitational lens that should be plotted
-    - `bottomleft`: the bottom-left corner of the plot region
-    - `topright`: the top-right corner of the plot region
-
-   optionally, the number of pixels that should be plotted can be specified as well:
-
-    - `numx`: number of pixels in x-direction, defaults to 511
-    - `numy`: number of pixels in y-direction, defaults to 511
-
-   If possible, the calculated mass density will be used to calculate the total mass
-   within the region, which will be stored in a `totalmass` entry of the dictionary.
-   The dictionary will also be used to cache some calculated properties in.
-
-   In case it's only a gravitational lens, an estimate of the corners will be used.
+ - `lensOrLensInfo`: this can either be a :class:`GravitationalLens <grale.lenses.GravitationalLens>`
+   instance or an instance of :class:`LensInfo` or even :class:`DensInfo`.
+   In case it's only a gravitational lens, an estimate of the relevant area will be used.
 
  - `fileNameBase`: the generated gnuplot file will have this name, ending with ``.gnuplot``.
    Similarly, the generated eps file will start with this and end with ``.eps``. If set to

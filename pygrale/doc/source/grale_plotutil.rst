@@ -9,6 +9,21 @@ Defaults
 
 .. autofunction:: getDefaultAngularUnit
 
+DensInfo and LensInfo
+---------------------
+
+.. autoexception:: LensInfoException
+
+.. autoclass:: DensInfo
+   :members:
+
+   .. automethod:: __init__
+
+.. autoclass:: LensInfo
+   :members:
+
+   .. automethod:: __init__
+
 PlotException
 -------------
 .. autoexception:: PlotException
