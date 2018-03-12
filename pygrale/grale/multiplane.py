@@ -19,7 +19,7 @@ class MultiLensPlane(object):
                                                    np.linspace(bottomLeft[1], topRight[1], numY))
         return thetas
 
-    def __init__(self, lensesAndRedshifts, cosmology, bottomLeft, topRight, numX, numY, renderer = "default", feedbackObject = None):
+    def __init__(self, lensesAndRedshifts, bottomLeft, topRight, numX, numY, renderer = "default", feedbackObject = None, cosmology = "default"):
         """This creates a MultiLensPlane instance that covers the area specified by the `bottomLeft` and
         `topRight` corners. It calculates and stores the deflection angles for the lenses
         in `lensesAndRedshifts`, which should be a list of 
@@ -39,6 +39,10 @@ class MultiLensPlane(object):
         """
         if not lensesAndRedshifts:
             raise MultiLensPlaneException("No lenses and redshifts were specified")
+
+        cosmology = privutil.initCosmology(cosmology)
+        if not cosmology:
+            raise MultiLensPlaneException("Cosmological model is not set")
 
         # check Dd vs z/cosmology. This also checks that the lens is probably a lens
         # (i.e. that it has the method getLensDistance())

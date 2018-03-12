@@ -152,3 +152,13 @@ class Cosmology(object):
 
         return reducedZValues
 
+_defaultCosmology = [ None ]
+
+def getDefaultCosmology():
+    """TODO"""
+    return _defaultCosmology[0]
+
+def setDefaultCosmology(x):
+    """TODO"""
+    _defaultCosmology[0] = x
+

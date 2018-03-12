@@ -63,8 +63,8 @@ class DensInfo(object):
 
 class LensInfo(DensInfo):
     def __init__(self, lens = None, bottomleft = None, topright = None, center = [0, 0], size = None, numx = None, numy = None, numxy = 511,
-                 Ds = None, Dds = None, zd = None, zs = None, cosmology = None):
-
+                 Ds = None, Dds = None, zd = None, zs = None, cosmology = "default"):
+        
         self.d = { }
         if lens: 
             self.d["lens"] = copy.copy(lens) # Note: lens can be both an array of (lens,z) tuples, or just a lens
@@ -93,6 +93,7 @@ class LensInfo(DensInfo):
         if zd is not None: self.d["zd"] = zd
         if zs is not None: self.d["zs"] = zs
 
+        cosmology = privutil.initCosmology(cosmology)
         self.cosm = copy.copy(cosmology)
 
     def setSourceRedshift(self, zs):
@@ -126,9 +127,9 @@ class LensInfo(DensInfo):
             lensPlane = images.LensPlane(self.d["lens"], self.d["bottomleft"], self.d["topright"], self.d["numx"]+1, self.d["numy"]+1, renderer = renderer, feedbackObject = feedbackObject)
         else: # multiple lens
             if self.cosm is None:
-                raise LensInfoException("For a multiple lensplane scenario, the cosmology parameter must be set")
+                raise LensInfoException("For a multiple lensplane scenario, the cosmology must be set")
 
-            lensPlane = multiplane.MultiLensPlane(self.d["lens"], self.cosm, self.d["bottomleft"], self.d["topright"], self.d["numx"]+1, self.d["numy"]+1, renderer = renderer, feedbackObject = feedbackObject)
+            lensPlane = multiplane.MultiLensPlane(self.d["lens"], self.d["bottomleft"], self.d["topright"], self.d["numx"]+1, self.d["numy"]+1, renderer = renderer, feedbackObject = feedbackObject, cosmology = self.cosm)
 
         self.d["lensplane"] = lensPlane
         return lensPlane
@@ -149,13 +150,16 @@ class LensInfo(DensInfo):
                 Dds = self.d["Dds"]
             elif "zd" in self.d and "zs" in self.d and self.cosm:
                 Dd = self.cosm.getAngularDiameterDistance(self.d["zd"])
-                if abs((Dd-lens.getAngularDiameterDistance())/Dd) > 1e-8:
+                Dd2 = self.d["lens"].getLensDistance()
+                if abs((Dd-Dd2)/Dd) > 1e-5 or abs((Dd-Dd2)/Dd2) > 1e-5:
                     raise LensInfoException("The angular diameter distance stored in the lens instance doesn't seem to match the specified 'zd'")
 
-                self.d["Ds"] = self.cosm.getAngularDiameterDistance(self.d["zs"])
-                self.d["Dds"] = self.cosm.getAngularDiameterDistance(self.d["zd"], self.d["zs"])
+                Ds = self.cosm.getAngularDiameterDistance(self.d["zs"])
+                Dds = self.cosm.getAngularDiameterDistance(self.d["zd"], self.d["zs"])
+            else:
+                raise LensInfoException("No distance info has been set; either Ds and Dds must be set, or zd and zs (and a cosmological model)")
 
-            imgPlane = images.ImagePlane(lensPlane, self.d["Ds"], self.d["Dds"])
+            imgPlane = images.ImagePlane(lensPlane, Ds, Dds)
         else:
             zs = self.d["zs"]
             imgPlane = multiplane.MultiImagePlane(lensPlane, zs)
@@ -558,8 +562,6 @@ Arguments:
     - `topright`: the top-right corner of the plot region
     - `zs`: the redshift to the source
 
-   Note that for a multi-lensplane scenario, the `cosmology` argument must be set.
-
    Optionally, the number of pixels that should be plotted can be specified as well:
 
     - `numx`: number of pixels in x-direction, defaults to 511
@@ -720,8 +722,6 @@ Arguments:
     - `bottomleft`: the bottom-left corner of the plot region
     - `topright`: the top-right corner of the plot region
     - `zs`: the redshift to the source
-
-   Note that for a multi-lensplane scenario, the `cosmology` argument must be set.
 
    Optionally, the number of pixels that should be plotted can be specified as well:
 

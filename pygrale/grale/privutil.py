@@ -128,6 +128,13 @@ def initInverterAndFeedback(inverter, feedbackObject):
 
     return (inverter, obj)
 
+def initCosmology(cosm):
+    from . import cosmology
+    if cosm == "default":
+        cosm = cosmology.getDefaultCosmology()
+    
+    return cosm
+
 _terminateInfo = {
     "iswin": None,
     "havepkill": None

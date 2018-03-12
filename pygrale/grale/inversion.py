@@ -368,16 +368,13 @@ class InversionWorkSpace(object):
 
      - repeat as needed/desired.
     """
-    def __init__(self, zLens, cosmology, regionSize, regionCenter = [0, 0], inverter = "default", 
-                 renderer = "default", feedbackObject = "default"):
+    def __init__(self, zLens, regionSize, regionCenter = [0, 0], inverter = "default", 
+                 renderer = "default", feedbackObject = "default", cosmology = "default"):
         
         """Constructor for this class.
 
         Arguments:
          - `zLens`: the redshift to the gravitational lens
-
-         - `cosmology`: an instance of :class:`Cosmology <grale.cosmology.Cosmology>`, describing
-           the cosmological model that should be used throughout these inversions.
 
          - `regionSize` and `regionCenter`: the width and height of the region in which the
            inversion should take plane, as well as its center. This will be used to base the
@@ -390,9 +387,16 @@ class InversionWorkSpace(object):
            subdivision grid)
         
          - `feedbackObject`: can be used to specify a particular :ref:`feedback mechanism <feedback>`.
+
+         - `cosmology`: an instance of :class:`Cosmology <grale.cosmology.Cosmology>`, describing
+           the cosmological model that should be used throughout these inversions.
         """
         if zLens <= 0 or zLens > 10:
-            raise Exception("Invalid lens redshift")
+            raise InversionException("Invalid lens redshift")
+
+        cosmology = privutil.initCosmology(cosmology)
+        if not cosmology:
+            raise InversionException("No cosmological model was specified")
             
         self.zd = zLens
         self.Dd = cosmology.getAngularDiameterDistance(zLens)
@@ -401,7 +405,7 @@ class InversionWorkSpace(object):
         self.inversionArgs = { } 
 
         if regionSize <= 0:
-            raise Exception("Invalid region size")
+            raise InversionException("Invalid region size")
         
         # Rough indication of grid position and dimensions, but randomness
         # may be added unless specified otherwise
@@ -438,7 +442,7 @@ class InversionWorkSpace(object):
         num = imgDat.getNumberOfImages()
         
         if zs < self.zd:
-            raise Exception("Can't add a source with a smaller redshift than the lens")
+            raise InversionException("Can't add a source with a smaller redshift than the lens")
         
         params = copy.deepcopy(otherParameters)
         if imgType:
