@@ -15,31 +15,27 @@ Example Jupyter notebooks
  * An example with multiple lens planes; also shows the effect as
    the source redshift increases: `multilensplane.ipynb <_static/multilensplane.ipynb>`_
 
-   * The movie in the notebook: `multiplelensplanetest.mp4 <_static/multiplelensplanetest.mp4>`_
-
  * An example that shows explicitly how you can modify an existing
    lens model to influence only the time delay: `timedelayadjust.ipynb <_static/timedelayadjust.ipynb>`_
 
- * TODO: MSD example: `msdexample.ipynb <_static/msdexample.ipynb>`_
+ * Illustration of the mass sheet degeneracy in its simplest guise: 
+   `msdexample.ipynb <_static/msdexample.ipynb>`_
 
  * Illustration of how to approximate a mass distribution by multiple Plummer
    basis functions: `fittest.ipynb <_static/fittest.ipynb>`_
 
-   * The image that's used in the notebook: `grale.png <_static/grale.png>`_
-   * The movie that's shown in the notebook: `gralesource.mp4 <_static/gralesource.mp4>`_
+ * Example notebook that illustrates how you can create a degenerate lens
+   that moves the source, by combining two mass disk degeneracies:
+   `massdisk_movesource_smooth.ipynb <_static/massdisk_movesource_smooth.ipynb>`_
 
- * TODO: move source degen `massdisk_movesource_smooth.ipynb <_static/massdisk_movesource_smooth.ipynb>`_
  * Multi-lensplane example from 
    `Compound lensing: Einstein Zig-Zags and high multiplicity lensed images <http://adsabs.harvard.edu/abs/2016MNRAS.456.2210C>`_
 
-   * TODO: `multisistests.ipynb <_static/multisistests.ipynb>`_
-     
-     * Movie in the notebook: `multisis-criticalline.mp4 <_static/multisis-criticalline.mp4>`_
-   
-   * TODO: `multisistests2.ipynb <_static/multisistests2.ipynb>`_
-   * TODO: `multisistests3.ipynb <_static/multisistests3.ipynb>`_
+   * Situation in Figure 7: `multisistests.ipynb <_static/multisistests.ipynb>`_
+   * Situation in Figure 2: `multisistests2.ipynb <_static/multisistests2.ipynb>`_
+   * Situation in Figure 6 (second row): `multisistests3.ipynb <_static/multisistests3.ipynb>`_
  
  * Illustrations of using a grid function, as well as of the subdivision grid: 
    `gridtests.ipynb <_static/gridtests.ipynb>`_
 
- * TODO: `tdsurfaces.ipynb <_static/tdsurfaces.ipynb>`_
+ * Example plots of time-delay surfaces: `tdsurfaces.ipynb <_static/tdsurfaces.ipynb>`_
