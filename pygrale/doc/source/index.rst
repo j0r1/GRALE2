@@ -19,20 +19,38 @@ between the C++ code and Python could be provided thanks to the
 
 This documentation is about the Python bindings only.
 
-**Status**
+.. _installation:
 
- * Creating various lenses, making plots etc should be fairly complete
- * Inversion code is starting to work from python as well, but needs examples
-   and documentation
- * While several modules and classes are well documented, overall documentation
-   and examples are still lacking
+Installation
+------------
 
-Contents
+The easiest way to install *pygrale* is using the `conda <http://conda.pydata.org/docs/intro.html>`_
+tool of the `Anaconda Python <https://www.continuum.io>`_ distribution. Just run the command::
+
+    conda install -c jori pygrale grale2modules
+
+in your environment. This should work on all platforms.
+
+For instructions on how to compile everything yourself, take a look at the
+`GitHub <https://github.com/j0r1/GRALE2>`_ page.
+
+Tutorial
 --------
+
+Continue to the :ref:`tutorial`.
+
+Indices and tables
+------------------
+
+* :ref:`genindex`
+* :ref:`modindex`
+* :ref:`search`
 
 .. toctree::
    :maxdepth: 1
-
+   :hidden:
+   
+   tutorial.rst
    example_notebooks.rst
    grale_constants.rst
    grale_contourfinder.rst
@@ -48,36 +66,4 @@ Contents
    grale_plotutil.rst
    grale_renderers.rst
 
-Indices and tables
-------------------
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
-
-Installation
-------------
-
-The easiest way to install *pygrale* is using the `conda <http://conda.pydata.org/docs/intro.html>`_
-tool of the `Anaconda Python <https://www.continuum.io>`_ distribution. Just run the command::
-
-    conda install -c jori pygrale grale2modules
-
-in your environment. This should work on all platforms.
-
-For instructions on how to compile everything yourself, take a look at the
-`GitHub <https://github.com/j0r1/GRALE2>`_ page.
-
-Overview
---------
-
-Simulation
-^^^^^^^^^^
-
-TODO
-
-Inversion
-^^^^^^^^^
-
-TODO
 
