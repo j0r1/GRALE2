@@ -81,6 +81,24 @@ class DensInfo(object):
         self.d["densitypixels"] = pixels
         return pixels
 
+    def getXPointCoordinates(self, repeat=True):
+        """Returns the X coordinates for the `densitypoints` grid, based on the
+        `bottomleft` and `topright` values from the constructor."""
+        tmp = np.linspace(self.d["bottomleft"][0], self.d["topright"][0], self.d["numx"]+1)
+        if not repeat:
+            return tmp
+        tmp = tmp.reshape((1,-1))
+        return np.repeat(tmp, self.d["numy"]+1, 0)
+
+    def getYPointCoordinates(self, repeat=True):
+        """Returns the Y coordinates for the `densitypoints` grid, based on the
+        `bottomleft` and `topright` values from the constructor."""
+        tmp = np.linspace(self.d["bottomleft"][1], self.d["topright"][1], self.d["numy"]+1)
+        if not repeat:
+            return tmp
+        tmp = tmp.reshape((-1, 1))
+        return np.repeat(tmp, self.d["numx"]+1, 1)
+
     def getNumXPoints(self):
         """Returns the number of points in the X direction"""
         return self.d["numx"]+1
