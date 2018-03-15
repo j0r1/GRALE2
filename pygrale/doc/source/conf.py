@@ -32,7 +32,13 @@ import os
 extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.mathjax',
+    'matplotlib.sphinxext.only_directives',
+    'matplotlib.sphinxext.plot_directive',
+    'sphinx.ext.doctest',
 ]
+
+plot_html_show_formats = False
+plot_html_show_source_link = False
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']

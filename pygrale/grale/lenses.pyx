@@ -76,7 +76,7 @@ def getCriticalDensity(double Dd, double Ds, double Dds):
 
     .. code-block:: python
 
-        Sigma_crit = c^2/(4*pi*G*Dd) * (Ds/Ds)
+        Sigma_crit = c^2/(4*pi*G*Dd) * (Ds/Dds)
 
     """
     return constants.SPEED_C**2/(4.0*np.pi*constants.CONST_G*Dd)*(Ds/Dds)
