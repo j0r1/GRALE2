@@ -174,6 +174,18 @@ class LensInfo(DensInfo):
         cosmology = privutil.initCosmology(cosmology)
         self.cosm = copy.copy(cosmology)
 
+    @staticmethod
+    def fromLensPlane(lensPlane):
+        """Creates a LensInfo instance based on a previously created :class:`LensInfo <grale.images.LensInfo>]`
+        instance."""
+        lens = lensPlane.getLens()
+        ri = lensPlane.getRenderInfo()
+        bl, tr = ri["bottomleft"], ri["topright"]
+        xpoints, ypoints = ri["xpoints"], ri["ypoints"]
+        li = LensInfo(lens, bottomleft = bl, topright = tr, numx = xpoints-1, numy = ypoints-1)
+        li.d["lensplane"] = lensPlane
+        return li
+
     def setSourceRedshift(self, zs):
         """Sets source redshift to `zs`."""
         self.d["zs"] = zs
