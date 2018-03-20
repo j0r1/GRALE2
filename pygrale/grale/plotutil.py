@@ -622,8 +622,10 @@ Arguments:
 
 def plotImagePlane(lensOrLensInfo, sources = [], renderer = "default", feedbackObject = "default", 
                    angularUnit = "default", subSamples = 9, sourceRgb = (0, 1, 0), imageRgb = (1, 1, 1),
+                   bgRgb = (0, 0, 0),
                    plotCaustics = True, plotCriticalLines = True, plotSources = True, plotImages = True,
-                   evenError = True, axes = None, axImgCallback = None, **kwargs):
+                   evenError = True, axes = None, axImgCallback = None, 
+                   processRenderPixels = None, **kwargs):
     """Create a matplotlib-based plot of image plane and/or source plane for certain
 lens parameters in `lensOrLensInfo`. You can also use this function to create the necessary
 calculated mappings but not the plot, by setting `axes` to `False`. This can be useful
@@ -658,6 +660,8 @@ Arguments:
 
  - `imageRgb`: the RGB color (each component is a number between 0 and 1) that should be
    given to a pixel that lies within an image.
+ 
+ - `bgRgb`: the RGB color for the background.
 
  - `plotCaustics`: boolean value that indicates if the caustics should be drawn on the plot.
 
@@ -679,6 +683,10 @@ Arguments:
  - `axImgCallback`: if specified, this callback function will be called with the object
    returned by ``imshow`` as argument.
 
+ - `processRenderPixels`: a function that is called before the final ``imshow`` call; it
+   is the array that's returned by this function (if specified) that is plotted. This can
+   be used to combine the images of several sources at different redshifts.
+
  - `kwargs`: these parameters will be passed on to the `imshow <https://matplotlib.org/devdocs/api/_as_gen/matplotlib.axes.Axes.imshow.html>`_
    function in matplotlib.
 """
@@ -698,27 +706,39 @@ Arguments:
 
     # TODO: sourceScale and imageScale
     
-    rgbSplane = np.zeros((numY, numX, 3))
-    rgbIplane = np.zeros((numY, numX, 3))
+    f = lambda x : np.array(x, dtype=np.double)
+    sourceRgb, imageRgb, bgRgb = list(map(f, [ sourceRgb, imageRgb, bgRgb ]))
+    
+    if len(bgRgb) == 1:
+        rgbSplane = np.multiply(np.ones((numY, numX)), bgRgb)
+        rgbIplane = np.multiply(np.ones((numY, numX)), bgRgb)
+    else:
+        rgbSplane = np.multiply(np.ones((numY, numX, 1)), bgRgb)
+        rgbIplane = np.multiply(np.ones((numY, numX, 1)), bgRgb)
 
     if sources:
 
+        def createRgbPlane(plane, rgb):
+            if len(rgb) != 1:
+                plane = plane.reshape(plane.shape + (1,))
+
+            return np.multiply(plane, rgb)
+
         if plotSources:
             splane = imgPlane.renderSources(sources, subSamples = subSamples)
-
-            rgbSplane[:,:,0] = splane*sourceRgb[0]
-            rgbSplane[:,:,1] = splane*sourceRgb[1]
-            rgbSplane[:,:,2] = splane*sourceRgb[2]
+            rgbSplane = createRgbPlane(splane, sourceRgb)
 
         if plotImages:
             iplane = imgPlane.renderImages(sources, subSamples = subSamples)
-            rgbIplane[:,:,0] = iplane*imageRgb[0]
-            rgbIplane[:,:,1] = iplane*imageRgb[1]
-            rgbIplane[:,:,2] = iplane*imageRgb[2]
+            rgbIplane = createRgbPlane(iplane, imageRgb)
 
     if axes is not False:
+        # This allows information from multiple
+        plane = rgbIplane+rgbSplane
+        plane = processRenderPixels(plane) if processRenderPixels else plane
         # Note: need to swap Y labeling here because of the way the pixels are ordered in this function
-        axImg = axes.imshow(rgbIplane + rgbSplane, extent = np.array([ bottomLeft[0], topRight[0], topRight[1], bottomLeft[1]])/angularUnit, **kwargs)
+        if plane is not None:
+            axImg = axes.imshow(plane, extent = np.array([ bottomLeft[0], topRight[0], topRight[1], bottomLeft[1]])/angularUnit, **kwargs)
         if axImgCallback: axImgCallback(axImg)
         
     criticalLines = imgPlane.getCriticalLines()
