@@ -622,7 +622,7 @@ Arguments:
 
 def plotImagePlane(lensOrLensInfo, sources = [], renderer = "default", feedbackObject = "default", 
                    angularUnit = "default", subSamples = 9, sourceRgb = (0, 1, 0), imageRgb = (1, 1, 1),
-                   bgRgb = (0, 0, 0),
+                   bgRgb = (0, 0, 0), caustColor = "blue", critColor = "red",
                    plotCaustics = True, plotCriticalLines = True, plotSources = True, plotImages = True,
                    evenError = True, axes = None, axImgCallback = None, 
                    processRenderPixels = None, **kwargs):
@@ -661,6 +661,10 @@ Arguments:
  - `imageRgb`: the RGB color (each component is a number between 0 and 1) that should be
    given to a pixel that lies within an image.
  
+ - `caustColor`: color for the caustics.
+
+ - `critColor`: color for the critical lines.
+
  - `bgRgb`: the RGB color for the background.
 
  - `plotCaustics`: boolean value that indicates if the caustics should be drawn on the plot.
@@ -739,7 +743,7 @@ Arguments:
         # Note: need to swap Y labeling here because of the way the pixels are ordered in this function
         if plane is not None:
             axImg = axes.imshow(plane, extent = np.array([ bottomLeft[0], topRight[0], topRight[1], bottomLeft[1]])/angularUnit, **kwargs)
-        if axImgCallback: axImgCallback(axImg)
+            if axImgCallback: axImgCallback(axImg)
         
     criticalLines = imgPlane.getCriticalLines()
 
@@ -757,11 +761,11 @@ Arguments:
 
     if plotCaustics:
         caustics = imgPlane.getCaustics()
-        plotLines(caustics, angularUnit, color="blue")
+        plotLines(caustics, angularUnit, color=caustColor)
 
     if plotCriticalLines:
         criticalLines = imgPlane.getCriticalLines()
-        plotLines(criticalLines, angularUnit, color="red")
+        plotLines(criticalLines, angularUnit, color=critColor)
 
     if axes is not False:
         axes.set_xlim([bottomLeft[0]/angularUnit, topRight[0]/angularUnit])
