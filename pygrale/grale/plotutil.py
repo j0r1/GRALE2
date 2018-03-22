@@ -29,13 +29,23 @@ class DensInfo(object):
     to the plot function. This can come in handy when creating the difference,
     average or standard deviation of several mass maps from :class:`LensInfo`
     objects."""
-    def __init__(self, densitypoints, bottomleft, topright):
-        """Initialize the object so that the 2D NumPy array `densitypoints`
-        describes an area from `bottomleft` to `topright`."""
+    def __init__(self, densitypointsOrPixels, bottomleft, topright, isPixels = False):
+        """Initialize the object so that the 2D NumPy array `densitypointsOrPixels`
+        describes an area from `bottomleft` to `topright`. The `isPixels` flag
+        informs the constructor if the specified data contains values at regularly
+        spaced points or values inside pixels. As the pixels can be calculated
+        from the points, but not the other way around, use points if you have
+        the option."""
         self.d = { }
-        self.d["densitypoints"] = densitypoints
-        self.d["numy"] = densitypoints.shape[0]-1
-        self.d["numx"] = densitypoints.shape[1]-1
+        if not isPixels:
+            self.d["densitypoints"] = densitypointsOrPixels
+            self.d["numy"] = densitypointsOrPixels.shape[0]-1
+            self.d["numx"] = densitypointsOrPixels.shape[1]-1
+        else:
+            self.d["densitypixels"] = densitypointsOrPixels
+            self.d["numy"] = densitypointsOrPixels.shape[0]
+            self.d["numx"] = densitypointsOrPixels.shape[1]
+
         self.d["bottomleft"] = copy.copy(bottomleft)
         self.d["topright"] = copy.copy(topright)
 
@@ -737,9 +747,9 @@ Arguments:
             rgbIplane = createRgbPlane(iplane, imageRgb)
 
     if axes is not False:
-        # This allows information from multiple
+        # This allows information from multiple planes to be accumulated
         plane = rgbIplane+rgbSplane
-        plane = processRenderPixels(plane) if processRenderPixels else plane
+        plane = processRenderPixels(plane) if processRenderPixels else np.clip(plane, 0, 1)
         # Note: need to swap Y labeling here because of the way the pixels are ordered in this function
         if plane is not None:
             axImg = axes.imshow(plane, extent = np.array([ bottomLeft[0], topRight[0], topRight[1], bottomLeft[1]])/angularUnit, **kwargs)
