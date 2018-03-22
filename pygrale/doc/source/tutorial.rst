@@ -256,11 +256,41 @@ example:
 Multiple lens planes
 ^^^^^^^^^^^^^^^^^^^^
 
-:class:`grale.images.MultiImagePlane`,
-:class:`grale.images.MultiLensPlane`
+Using a :class:`LensInfo <grale.plotutil.LensInfo>` object, you can also
+simulate lensing by multiple gravitational lenses as different redshifts.
+Instead of the :class:`LensPlane <grale.images.LensPlane>` and
+:class:`ImagePlane <grale.images.ImagePlane>` classes, internally now
+:class:`MultiLensPlane <grale.images.MultiLensPlane>` and
+:class:`MultiImagePlane <grale.images.MultiImagePlane>` will be used.
 
+For the `lens` parameter of the ``LensInfo`` object, you now need
+to specify a list of tuples, where each of the tuples contains a
+lens model and a redshift. To specify which cosmology must be used
+to convert the redshifts to angular diameter distances, you can either
+set the `cosmology` argument, or install a default cosmological model
+using :func:`setDefaultCosmology <grale.cosmology.setDefaultCosmology>`
+The example below illustrates this, more elaborate examples can be
+found in the :ref:`notebooks` section.
 
+.. literalinclude:: ex/example_plot_multiplane.py
+   :language: python
 
+.. plot:: ex/example_plot_multiplane.py
+
+Regarding density plots, this cannot be done when the ``LensInfo``
+object has been initialized for a multi-lensplane scenario. If you
+want information about the mass distributions of the individual lenses,
+you have to obtain the information for the individual lenses, and
+combine them manually. This way, you can decide yourself whether
+or not you need to take into account the lens effect of the foreground
+lens, as is illustrated in the following example, which continues
+from the SIS and SIE lenses in the previous one:
+
+.. literalinclude:: ex/example_plot_multiplane_dens.py
+   :language: python
+   :lines: 39-
+
+.. plot:: ex/example_plot_multiplane_dens.py
 
 Fitting to a mass distribution
 ------------------------------
