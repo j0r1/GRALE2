@@ -29,9 +29,11 @@
 #include "constants.h"
 #include "gravitationallens.h"
 #include "lensfitnessobject.h"
-#include "galensmodule.h"
 #include <serut/dummyserializer.h>
 #include <serut/memoryserializer.h>
+
+#define NOMINMAX
+#include "galensmodule.h" // includes windows.h, causes problems with std::min and std::max
 
 #include <iostream>
 

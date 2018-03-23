@@ -29,86 +29,10 @@
 
 #include <string.h>
 #include <cmath>
+#include <algorithm>
 
 namespace grale
 {
-#ifndef WIN32
-	inline float asinh(float x)
-	{
-		return ::asinhf(x);
-	}
-	
-	inline double asinh(double x)
-	{
-		return ::asinh(x);
-	}
-
-	inline long double asinh(long double x)
-	{
-		return ::asinhl(x);
-	}
-	
-	inline float acosh(float x)
-	{
-		return ::acoshf(x);
-	}
-	
-	inline double acosh(double x)
-	{
-		return ::acosh(x);
-	}
-
-	inline long double acosh(long double x)
-	{
-		return ::acoshl(x);
-	}	
-	
-	inline float atanh(float x)
-	{
-		return ::atanhf(x);
-	}
-	
-	inline double atanh(double x)
-	{
-		return ::atanh(x);
-	}
-
-	inline long double atanh(long double x)
-	{
-		return ::atanhl(x);
-	}
-
-	template<class T>
-	inline T min(T x, T y)
-	{
-		return (x < y)?x:y;
-	}
-	
-	template<class T>
-	inline T max(T x, T y)
-	{
-		return (x > y)?x:y;
-	}
-#else
-	template<class T>
-	T asinh(T x)
-	{
-		return (std::exp(x)-std::exp(-x))/(T)2;
-	}
-	
-	template<class T>
-	T acosh(T x)
-	{
-		return (std::exp(x)+std::exp(-x))/(T)2;
-	}
-
-	template<class T>
-	T atanh(T x)
-	{
-		return (std::exp(x)-std::exp(-x))/(std::exp(x)+std::exp(-x));
-	}
-#endif
-
 	template<class T>
 	inline T CalculateDotProduct(const T *a, const T *b, int num)
 	{
@@ -224,22 +148,16 @@ template<class T> inline T ABS(T x) { return std::abs(x); }
 #define ASIN(x)		std::asin(x)
 #define ATAN(x)		std::atan(x)
 #define LN(x)		std::log(x)
-#define ASINH(x)	grale::asinh(x)
-#define ACOSH(x)	grale::acosh(x)
-#define ATANH(x)	grale::atanh(x)
+#define ASINH(x)	std::asinh(x)
+#define ACOSH(x)	std::acosh(x)
+#define ATANH(x)	std::atanh(x)
 #define POW(x,y)	std::pow(x,y)
 #define EXP(x)		std::exp(x)
 #define SINH(x)		std::sinh(x)
 #define COSH(x)		std::cosh(x)
 #define TANH(x)		std::tanh(x)
-
-#ifndef WIN32
-#define MIN(x,y)	grale::min(x,y)
-#define MAX(x,y)	grale::max(x,y)
-#else
-#define MIN(x,y) (((x)<(y))?(x):(y))
-#define MAX(x,y) (((x)>(y))?(x):(y))
-#endif
+#define MIN(x,y)	std::min(x,y)
+#define MAX(x,y)	std::max(x,y)
 
 #endif // GRALE_MATHFUNCTIONS_H
 
