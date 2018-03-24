@@ -511,7 +511,7 @@ double PolynomialMassProfileLens::getProfileSurfaceMassDensity(double thetaLengt
 		zbPower *= (z + b);
 	}
 
-	if (offsetCoefficients[1] != 0)
+	if (offsetCoefficients.size() > 1 && offsetCoefficients[1] != 0)
 		sum += offsetCoefficients[1]/(z + b);
 
 	double density = m_polynomialParts[polyIndex].getYScale()/(m_polynomialParts[polyIndex].getXScale()*m_polynomialParts[polyIndex].getXScale()) 
