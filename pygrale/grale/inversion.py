@@ -8,6 +8,7 @@ This module will try do determine automatically where the inversion libraries
 to be used in the genetic algorithm are to be found. If the environment
 variable ``GRALE2_MODULEPATH`` is set, then this path will always be used.
 """
+from __future__ import print_function
 from . import constants as CT
 from . import inverters
 from . import inversionparams

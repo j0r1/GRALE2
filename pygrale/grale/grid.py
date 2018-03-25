@@ -9,7 +9,7 @@ Examples for how these functions can be used, can be found in the notebooks
 `gridtests.ipynb <_static/gridtests.ipynb>`_ and
 `fittest.ipynb <_static/fittest.ipynb>`_.
 """
-
+from __future__ import print_function
 from fractions import Fraction
 from . import gridfunction
 import pprint

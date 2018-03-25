@@ -14,7 +14,7 @@ classes. Available are:
  - "MPICS" or an instance of :class:`MPICSProcessInverter`
 
 """
-
+from __future__ import print_function
 from . import lenses
 from . import inversionparams
 from . import privutil
