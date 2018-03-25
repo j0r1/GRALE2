@@ -129,18 +129,9 @@ extensions = [
 def getVersionString():
     curScript = sys.argv[0]
     scriptDir = os.path.dirname(os.path.abspath(curScript))
-
-    dirName = os.path.basename(scriptDir)
-    pyGralePrefix = "pygrale2-"
-    if dirName.startswith(pyGralePrefix):
-        versionString = dirName[len(pyGralePrefix):]
-        # TODO: further checks?
-        return versionString
-
-    gralePrefix = "grale2-"
     parentDir = os.path.dirname(scriptDir)
     cmakeFile = os.path.join(parentDir, "CMakeLists.txt")
-    if os.path.basename(parentDir).startswith(gralePrefix) and os.path.exists(cmakeFile):
+    if os.path.exists(cmakeFile):
         versionStr = [ l for l in open(cmakeFile).readlines() if "set(VERSION" in l ][0].replace(")","").split()[1].strip()
         return versionStr
 
@@ -152,6 +143,7 @@ def getVersionString():
 
 
 versionStr = getVersionString()
+print("Using version string: '{}'".format(versionStr))
 
 pyMods = [ "grale.cosmology", "grale.plotutil", "grale.constants", "grale.renderers", "grale.timedio", "grale.untimedio",
            "grale.privutil", "grale.debuglog", "grale.feedback", "grale.bytestring", "grale.inverters",
