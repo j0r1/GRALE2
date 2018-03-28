@@ -46,6 +46,7 @@ public:
 	bool advance();
 	bool isFinished();
 	void printDebugInfo();
+	std::string getDebugInfo();
 public:
 	std::vector<FitnessHistory *> m_fitnessHistories;
 };

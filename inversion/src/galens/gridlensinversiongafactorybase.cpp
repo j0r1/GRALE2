@@ -677,4 +677,14 @@ void GridLensInversionGAFactoryBase::getGenomeSheetCalculationParameters(float &
 	stopfactor = 2.0;
 }
 
+void GridLensInversionGAFactoryBase::onCurrentBest(const list<mogal::Genome *> &bestGenomes)
+{
+	stringstream ss;
+	ss << "Current best:";
+	for (auto g : bestGenomes)
+		ss << "( " << g->getFitnessDescription() << ")";
+
+	sendMessage(ss.str());
+}
+
 } // end namespace

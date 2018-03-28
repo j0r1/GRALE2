@@ -35,7 +35,7 @@
 #include <grale/gravitationallens.h>
 #include <grale/multifitnesshistory.h>
 #include <vector>
-#include <iostream>
+#include <sstream>
 
 using namespace std;
 using namespace mogal;
@@ -106,8 +106,10 @@ public:
 		}
 
 		assert(m_pFitnessHistory);
-		cerr << "Generation " << generation << ": ";
-		m_pFitnessHistory->printDebugInfo();
+
+		stringstream ss;
+		ss << "Generation " << generation << ": " << m_pFitnessHistory->getDebugInfo();
+		sendMessage(ss.str());
 
 		if (m_pFitnessHistory->isFinished())
 		{

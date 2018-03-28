@@ -104,6 +104,8 @@ protected:
 #ifdef SHOWEVOLUTION
 	void onSortedPopulation(const std::vector<mogal::GenomeWrapper> &population);
 #endif // SHOWEVOLUTION
+
+	void onCurrentBest(const std::list<mogal::Genome *> &bestGenomes) override;
 private:
 	bool localSubInit(double z_d, const std::vector<ImagesDataExtended *> &images, 
 	                  const std::vector<std::pair<GravitationalLens *, Vector2D<double> > > &basisLenses,

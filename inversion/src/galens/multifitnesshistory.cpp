@@ -26,6 +26,7 @@
 #include "graleconfig.h"
 #include "multifitnesshistory.h"
 #include <iostream>
+#include <sstream>
 
 #include "debugnew.h"
 
@@ -79,20 +80,27 @@ bool MultiFitnessHistory::isFinished()
 	return true;
 }
 
-void MultiFitnessHistory::printDebugInfo()
+std::string MultiFitnessHistory::getDebugInfo()
 {
+	std::stringstream ss;
+
 	for (int i = 0 ; i < m_fitnessHistories.size() ; i++)
 	{
 		float curValue, refValue, convergence, thres;
 
 		m_fitnessHistories[i]->getDebugInfo(&curValue, &refValue, &convergence, &thres);
-		std::cerr << curValue << "/" << refValue << "(" << convergence << "/" << thres << "/";
+		ss << curValue << "/" << refValue << "(" << convergence << "/" << thres << "/";
 		if (m_fitnessHistories[i]->isFinished())
-			std::cerr << "true) ";
+			ss << "true) ";
 		else
-			std::cerr << "false) ";
+			ss << "false) ";
 	}
-	std::cerr << std::endl;
+	return ss.str();
+}
+
+void MultiFitnessHistory::printDebugInfo()
+{
+	std::cerr << getDebugInfo() << std::endl;
 }
 
 } // end namespace

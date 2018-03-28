@@ -7,14 +7,26 @@ class CommonGA : public GABase
 {
 	void feedbackStatus(const std::string &str) const override
 	{
-		cerr << "GA feedback: " << str << endl;
+		//cerr << "cerr:GAFEEDBACK:" << str << endl;
+		WriteLineStdout("GAFEEDBACK:" + str);
 	}
-	void onCurrentBest(const std::list<mogal::Genome *> &bestgenomes) const override
+
+	void onMessage(const std::string &msg) override
 	{
-		cerr << "Current best: ";
-		for (auto g : bestgenomes)
-			cerr << "( " << g->getFitnessDescription() << ")";
-		cerr << endl;
+		//cerr << "cerr:GAMESSAGESTR:" << msg << endl;
+		WriteLineStdout("GAMESSAGESTR:" + msg);
+	}
+
+	void onMessage(const std::vector<uint8_t> &msg) override
+	{
+		stringstream ss;
+
+		ss << "GAMESSAGEBYTES:" << msg.size();
+
+		//cerr << "cerr:" << ss.str() << endl;
+		WriteLineStdout(ss.str());
+		if (msg.size() > 0)
+			WriteBytesStdout(msg);
 	}
 };
 

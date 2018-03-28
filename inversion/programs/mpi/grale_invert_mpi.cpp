@@ -17,6 +17,7 @@
 #include <fcntl.h>
 #include <memory>
 #include <iostream>
+#include <sstream>
 #include <string>
 
 using namespace std;
