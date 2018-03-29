@@ -37,9 +37,19 @@ bool_t WriteBytes(int fd, const void *pBytes, size_t len)
 	if (len == 0)
 		return "Can't write null bytes";
 
-	ssize_t num = write(fd, pBytes, len);
-	if (num != (ssize_t)len)
-		return strprintf("Incomplete write: %d", num);
+	const unsigned char *pPtr = reinterpret_cast<const unsigned char *>(pBytes);
+
+	while (len > 0)
+	{
+		ssize_t num = write(fd, pPtr, len);
+		if (num < 0)
+			return strprintf("Error in write: %d", (int)num);
+
+		assert(num < (ssize_t)len);
+
+		pPtr += num;
+		len -= (size_t)len;
+	}
 
 	return true;
 }
