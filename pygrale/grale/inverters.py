@@ -141,6 +141,8 @@ class Inverter(object):
             numSols = int(line[len(numSolsStr):])
 
             sols = []
+            # TODO status message?
+            print("Expecting {} solutions from line '{}'".format(numSols, line.strip()))
             for i in range(numSols):
                 line = io.readLine(30)
                 if not line.startswith(resultStr):
@@ -282,7 +284,7 @@ def calculateFitness(moduleName, inputImages, zd, fitnessObjectParameters, lens)
     io.writeBytes(factoryParams)
 
     while True:
-        line = io.readLine(60*60*24*365*1000)
+        line = io.readLine(60*60*24)
         if line == "DONE":
             break
 
