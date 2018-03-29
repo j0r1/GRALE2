@@ -296,3 +296,11 @@ class PipePair(object):
         except:
             pass
 
+
+def _wait(proc, maxtime):
+    startTime = time.time()
+    while time.time() - startTime < maxtime:
+        if proc.poll() is not None:
+            break
+        time.sleep(0.1)
+

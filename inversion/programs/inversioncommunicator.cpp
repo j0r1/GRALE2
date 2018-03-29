@@ -2,6 +2,7 @@
 #include <io.h>
 #include <fcntl.h>
 #endif
+#include "log.h"
 #include "inversioncommunicator.h"
 #include "inputoutput.h"
 #include "gaparameters.h"
@@ -108,12 +109,16 @@ bool_t InversionCommunicator::run()
 	if (!(r = runModule(moduleDir, moduleFile, &module)))
 		return r;
 
+	LOG(Log::DBG, "Waiting for EXIT line");
 	string exitStr;
 	if (!(r = ReadLineStdin(10000, exitStr)))
 		return "Couldn't read 'EXIT' line: " + r.getErrorString();
+
+	LOG(Log::DBG, "Read '" + exitStr + "'");
 	if (exitStr != "EXIT")
 		return "Expected 'EXIT', but got: '" + exitStr + "'";
 
+	LOG(Log::DBG, "At end of run");
 	return true;
 }
 
@@ -167,6 +172,8 @@ bool_t InversionCommunicator::runModule(const string &moduleDir, const string &m
 	if (!(r = runGA(popSize, *pFactory, params, moduleDir, moduleFile, factoryParamBytes)))
 		return r;
 
+	LOG(Log::DBG, "Finished runGA, end of runModule");
+
 	return true;
 }
 
@@ -203,25 +210,31 @@ bool_t InversionCommunicator::onGAFinished(mogal::GeneticAlgorithm &ga)
 	{
 		const LensInversionGenomeBase *pGenome = static_cast<const LensInversionGenomeBase *>(bestGenomes[i]);
 		string fitnessValues = pGenome->getFitnessDescription();
-		cerr << "Selected genome has fitness: "	<< fitnessValues << endl;
+		LOG(Log::DBG, "Selected genome has fitness: " + fitnessValues);
 
 		string errStr;
 		double totalmass; // This isn't really used anymore
 
+		LOG(Log::DBG, "Getting lens for genome");
 		unique_ptr<GravitationalLens> lens(pGenome->createLens(&totalmass, errStr));
 		if (!lens.get())
 			return "Unable to create lens from genome: " + errStr;
 
+		LOG(Log::DBG, "Writing lens to buffer");
 		VectorSerializer bufSer;
 		if (!lens->write(bufSer))
 			return "Error serializing resulting lens: " + lens->getErrorString();
 
+		LOG(Log::DBG, "Writing buffer over connection");
 		auto buf = bufSer.getBuffer();
 		WriteLineStdout(strprintf("RESULT:%d", (int)buf.size()));
 		WriteBytesStdout(buf);
+
+		LOG(Log::DBG, "Writing fitness");
 		WriteLineStdout("FITNESS:" + fitnessValues);
 	}
 
+	LOG(Log::DBG, "End of onGAFinished");
 	return true;
 }
 

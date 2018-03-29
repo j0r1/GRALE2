@@ -4,6 +4,7 @@ set(HEADERS
 	${PROJECT_BINARY_DIR}/core/src/general/graleconfig.h 
 	general/constants.h 
 	general/configurationparameters.h
+	general/log.h
 	lens/gravitationallens.h 
 	lens/multipleplummerlens.h 
 	lens/gausslens.h 
@@ -95,6 +96,7 @@ set(SOURCES
 	general/debugnew.cpp 
 	general/configurationparameters.cpp
 	general/gslcblasdummy.cpp
+	general/log.cpp
 	math/real1dfunctionintegrator.cpp
 	math/gridfunction.cpp
 	math/contourfinder.cpp

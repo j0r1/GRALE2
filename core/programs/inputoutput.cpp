@@ -45,7 +45,8 @@ bool_t WriteBytes(int fd, const void *pBytes, size_t len)
 		if (num < 0)
 			return strprintf("Error in write: %d", (int)num);
 
-		assert(num < (ssize_t)len);
+		//cerr << "num = " << num << " len = " << len << endl;
+		assert(num <= (ssize_t)len);
 
 		pPtr += num;
 		len -= (size_t)len;

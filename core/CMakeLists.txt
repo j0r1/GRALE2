@@ -25,6 +25,13 @@ else (NOT MSVC OR GRALE_COMPILE_STATIC)
 	set(GRALE_EXPORT "__declspec(dllexport)")
 endif (NOT MSVC OR GRALE_COMPILE_STATIC)
 
+option(GRALE_ENABLE_LOGGING "Should logging system be enabled" OFF)
+if (GRALE_ENABLE_LOGGING)
+	set(GRALECONFIG_SUPPORT_LOGGING "#define GRALECONFIG_SUPPORT_LOGGING")
+else ()
+	set(GRALECONFIG_SUPPORT_LOGGING "// Logging system disabled")
+endif ()
+
 configure_file("${PROJECT_SOURCE_DIR}/core/src/general/graleconfig.h.in" "${PROJECT_BINARY_DIR}/core/src/general/graleconfig.h")
 
 list(APPEND GRALE_INTERNAL_INCLUDES "${PROJECT_BINARY_DIR}/core/src/general")

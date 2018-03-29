@@ -1,5 +1,6 @@
 #include <enut/ipv4address.h>
 #include <errut/booltype.h>
+#include "log.h"
 #include "inputoutput.h"
 #include "gaparameters.h"
 #include "gridlensinversiongafactoryparams.h"
@@ -87,6 +88,7 @@ int main0(int argc, char *argv[])
 
 int main(int argc, char *argv[])
 {
+	LOG.init(argv[0]);
 #ifdef _WIN32
 	WSADATA dat;
 	WSAStartup(MAKEWORD(2,2),&dat);

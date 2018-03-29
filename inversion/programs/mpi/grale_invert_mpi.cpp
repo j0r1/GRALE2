@@ -3,6 +3,7 @@
 #ifdef MOGALCONFIG_MPISUPPORT
 
 #include <mpi.h>
+#include "log.h"
 #include "inputoutput.h"
 #include "gaparameters.h"
 #include "gridlensinversiongafactoryparams.h"
@@ -20,11 +21,15 @@
 #include <sstream>
 #include <string>
 
+#include <unistd.h>
+
 using namespace std;
 using namespace grale;
 using namespace serut;
 using namespace mogal;
 using namespace errut;
+
+#define MPIABORT(errMsg) do { LOG(Log::ERR, (errMsg)); cerr << errMsg << std::endl; cerr.flush(); sleep(10); MPI_Abort(MPI_COMM_WORLD, -1); } while(0)
 
 #include "commonga.h"
 typedef CommonGA<MPIGeneticAlgorithm> MyGA;
@@ -121,20 +126,20 @@ int main(int argc, char *argv[])
 
 	MPI_Init(&argc, &argv);
 	MPI_Comm_size(MPI_COMM_WORLD, &worldSize);
+	MPI_Comm_rank(MPI_COMM_WORLD, &myRank);
+
+	LOG.init(argv[0]);
+	
+	if (myRank == 0)
+		LOG(Log::INF, "Root node");
+	else
+		LOG(Log::INF, "Helper node");
 
 	if (argc != 3)
-	{
-		cerr << "ERROR: the names of input and output pipes are needed on command line" << endl;
-		MPI_Abort(MPI_COMM_WORLD, -1);
-	}
+		MPIABORT("ERROR: the names of input and output pipes are needed on command line");
 
 	if (worldSize <= 1)
-	{
-		cerr << "ERROR: Need more than one process to be able to work" << endl;
-		MPI_Abort(MPI_COMM_WORLD, -1);
-	}
-
-	MPI_Comm_rank(MPI_COMM_WORLD, &myRank);
+		MPIABORT("ERROR: Need more than one process to be able to work");
 
 	if (myRank == 0)
 	{
@@ -153,19 +158,13 @@ int main(int argc, char *argv[])
 
 		bool_t r = comm.run();
 		if (!r)
-		{
-			cerr << "ERROR: " << r.getErrorString() << endl;
-			MPI_Abort(MPI_COMM_WORLD, -1);
-		}
+			MPIABORT("ERROR: " + r.getErrorString());
 	}
 	else
 	{
 		bool_t r = runHelper();
 		if (!r)
-		{
-			cerr << "ERROR: " + r.getErrorString() << endl;
-			MPI_Abort(MPI_COMM_WORLD, -1);
-		}
+			MPIABORT("ERROR: " + r.getErrorString());
 	}
 
 	return 0;

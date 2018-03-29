@@ -1,3 +1,4 @@
+#include "log.h"
 #include "inputoutput.h"
 #include "gaparameters.h"
 #include "gridlensinversiongafactoryparams.h"
@@ -42,6 +43,7 @@ protected:
 
 int main(int argc, char *argv[])
 {
+	LOG.init(argv[0]);
 	SingleCoreCommunicator comm;
 
 	bool_t r = comm.run();

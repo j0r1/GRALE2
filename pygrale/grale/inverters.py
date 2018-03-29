@@ -145,6 +145,7 @@ class Inverter(object):
             print("Expecting {} solutions from line '{}'".format(numSols, line.strip()))
             for i in range(numSols):
                 line = io.readLine(30)
+                print("Read line '{}'".format(line))
                 if not line.startswith(resultStr):
                     raise InverterException("Unexpected identifier from inverter process: '{}'".format(line))
 
@@ -153,18 +154,20 @@ class Inverter(object):
                 lensData = io.readBytes(numBytes)
 
                 line = io.readLine(30)
+                print("Read line '{}'".format(line))
                 if not line.startswith(fitId):
                     raise InverterException("Unexpected identifier from inverter process: '{}'".format(line))
                 fitnessValues = [ float(x) for x in line[len(fitId):].strip().split(" ") ]
 
                 sols.append((lenses.GravitationalLens.fromBytes(lensData), fitnessValues))
 
+            print("Writing EXIT")
             io.writeLine("EXIT")
-            #time.sleep(10)
 
-            #print("Waiting...")
-            proc.wait()
-            #print("Done waiting")
+            print("Waiting for process to finish...")
+            #proc.wait()
+            privutil._wait(proc, 1)
+            print("Done waiting")
 
         finally:
             try:
