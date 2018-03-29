@@ -418,6 +418,15 @@ class InversionWorkSpace(object):
         self.inverter = inverter
         self.feedbackObject = feedbackObject
 
+    def setRegionSize(self, regionSize, regionCenter = [0, 0]):
+        """Set the inversion region, same as in the constructor: `regionSize` and 
+        `regionCenter` are the width, height and center of the region in which the
+        inversion should take plane. This will be used to base the
+        grid dimensions on, but by default some randomness will be added 
+        (see e.g. :func:`setUniformGrid`)."""
+        self.regionSize = regionSize
+        self.regionCenter = copy.deepcopy(regionCenter)
+
     def getCosmology(self):
         """Returns the cosmological model that was specified during initialization."""
         return self.cosm
