@@ -5,6 +5,7 @@ import subprocess
 import time
 import os
 import tempfile
+import errno
 
 class RenderNameException(Exception):
     pass
@@ -137,20 +138,26 @@ def initCosmology(cosm):
 
 _terminateInfo = {
     "iswin": None,
-    "havepkill": None
+    "havepkill": None,
+    "havegrep": None
 }
 
 if _terminateInfo["iswin"] is None:
     if hasattr(subprocess, 'STARTUPINFO'):
         _terminateInfo["iswin"] = True
         _terminateInfo["havepkill"] = False
+        _terminateInfo["havegrep"] = False
     else:
         _terminateInfo["iswin"] = False
         _terminateInfo["havepkill"] = False
+        _terminateInfo["havepgrep"] = False
         if "PATH" in os.environ:
             for p in os.environ["PATH"].split(os.pathsep):
                 if os.path.exists(os.path.join(p, "pkill")):
                     _terminateInfo["havepkill"] = True
+                if os.path.exists(os.path.join(p, "pgrep")):
+                    _terminateInfo["havepgrep"] = True
+
 
 def terminateProcess(proc, feedbackObject = None, maxHalfTime = 1.0):
 
@@ -160,11 +167,17 @@ def terminateProcess(proc, feedbackObject = None, maxHalfTime = 1.0):
 
     isWin = _terminateInfo["iswin"]
     havePKill = _terminateInfo["havepkill"]
+    havePGrep = _terminateInfo["havepgrep"]
+
+    subProcIds = [ ]
 
     if isWin:
         feedbackObject.onStatus("On windows, will use taskkill for process termination")
     if havePKill:
         feedbackObject.onStatus("Pkill is available for process termination")
+
+    if havePGrep:
+        subProcIds = list(map(int, subprocess.check_output([ "pgrep", "-P", str(proc.pid)]).decode().splitlines()))
 
     # First terminate
     if proc.poll() is None:
@@ -177,6 +190,7 @@ def terminateProcess(proc, feedbackObject = None, maxHalfTime = 1.0):
                         subprocess.call(["pkill", "-P", str(proc.pid)])
 
                     proc.terminate()
+                    time.sleep(0.05)
                 else:
                     subprocess.call(["taskkill", "/F", "/T", "/PID", str(proc.pid)])
             except Exception as e:
@@ -194,6 +208,7 @@ def terminateProcess(proc, feedbackObject = None, maxHalfTime = 1.0):
         while time.time() - t0 < maxHalfTime:
             try:
                 proc.kill()
+                time.sleep(0.05)
             except Exception as e:
                 feedbackObject.onStatus("Error killing background process: " + str(e))
                 pass
@@ -203,6 +218,53 @@ def terminateProcess(proc, feedbackObject = None, maxHalfTime = 1.0):
 
             time.sleep(0.05)
 
+    # Check child processes again
+
+    if havePGrep:
+        startTime = time.time()	
+        while subProcIds and time.time()-startTime < 10.0:
+            time.sleep(0.05)
+            for opts in [ [], [ "-KILL" ] ]:
+                time.sleep(0.1)
+                newProcIds = [ ]
+                for pid in subProcIds:
+                    if _pid_exists(pid):
+                        newProcIds.append(pid)
+
+                        cmd = [ "kill" ] + opts + [ str(pid) ]
+                        #print(cmd)
+                        subprocess.call(cmd)
+
+                subProcIds = newProcIds
+
+# From https://stackoverflow.com/a/6940314/2828217
+def _pid_exists(pid):
+    """Check whether pid exists in the current process table.
+    UNIX only.
+    """
+    if pid < 0:
+        return False
+    if pid == 0:
+        # According to "man 2 kill" PID 0 refers to every process
+        # in the process group of the calling process.
+        # On certain systems 0 is a valid PID but we have no way
+        # to know that in a portable fashion.
+        raise ValueError('invalid PID 0')
+    try:
+        os.kill(pid, 0)
+    except OSError as err:
+        if err.errno == errno.ESRCH:
+            # ESRCH == No such process
+            return False
+        elif err.errno == errno.EPERM:
+            # EPERM clearly means there's a process to deny access to
+            return True
+        else:
+            # According to "man 2 kill" possible error values are
+            # (EINVAL, EPERM, ESRCH)
+            raise
+    else:
+        return True
 
 class PipePair(object):
     def __init__(self):
