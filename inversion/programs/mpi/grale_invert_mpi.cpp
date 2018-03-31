@@ -167,6 +167,7 @@ int main(int argc, char *argv[])
 			MPIABORT("ERROR: " + r.getErrorString());
 	}
 
+	MPI_Finalize();
 	return 0;
 }
 
