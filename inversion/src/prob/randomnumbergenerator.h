@@ -41,8 +41,10 @@ public:
 	RandomNumberGenerator();
 	~RandomNumberGenerator();
 	double pickRandomNumber() const;
+	uint32_t getSeed() const { return m_seed; }
 private:
 	mutable gsl_rng *m_pRng;
+	uint32_t m_seed;
 };
 
 } // end namespace

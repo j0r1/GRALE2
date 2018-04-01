@@ -94,6 +94,8 @@ public:
 	BackProjectMatrixNew *getShortBackProjectMatrix()					{ return m_pShortBPMatrix; }
 	BackProjectMatrixNew *getTotalBackProjectMatrix()					{ return m_pTotalBPMatrix; }
 	LensFitnessObject *getFitnessObject()							{ return m_pFitnessObject; }
+
+	void sendMessage(const std::string &s);
 protected:
 	int getMaximumNumberOfGenerations() const						{ return m_maxGenerations; }
 
@@ -106,6 +108,7 @@ protected:
 #endif // SHOWEVOLUTION
 
 	void onCurrentBest(const std::list<mogal::Genome *> &bestGenomes) override;
+	void onGeneticAlgorithmStart() override;
 private:
 	bool localSubInit(double z_d, const std::vector<ImagesDataExtended *> &images, 
 	                  const std::vector<std::pair<GravitationalLens *, Vector2D<double> > > &basisLenses,
@@ -133,6 +136,8 @@ private:
 	LensFitnessObject *m_pFitnessObject;
 	DeflectionMatrix *m_pDeflectionMatrix;
 	BackProjectMatrixNew *m_pShortBPMatrix, *m_pTotalBPMatrix;
+
+	std::vector<std::string> m_queuedMessages;
 };
 
 } // end namespace

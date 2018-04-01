@@ -52,6 +52,26 @@ using namespace std;
 namespace grale
 {
 
+class GADeflectionMatrix : public DeflectionMatrix
+{
+public:
+	GADeflectionMatrix(GridLensInversionGAFactoryBase *pFactory) : m_pFactory(pFactory)
+	{
+		assert(pFactory != nullptr);
+	}
+
+	~GADeflectionMatrix()
+	{
+	}
+private:
+	void log(const string &s) override
+	{
+		m_pFactory->sendMessage(s);
+	}
+
+	GridLensInversionGAFactoryBase *m_pFactory;
+};
+
 GridLensInversionGAFactoryBase::GridLensInversionGAFactoryBase()
 {
 	m_pCurrentParams = 0;
@@ -92,6 +112,26 @@ const mogal::GAFactoryParams *GridLensInversionGAFactoryBase::getCurrentParamete
 	return m_pCurrentParams;
 }
 
+void GridLensInversionGAFactoryBase::sendMessage(const std::string &s)
+{
+	if (getCurrentAlgorithm())
+		GAFactory::sendMessage(s);
+	else // queue for later
+	{
+		cerr << "Queue: " << s << endl;
+		m_queuedMessages.push_back(s);
+	}
+}
+
+void GridLensInversionGAFactoryBase::onGeneticAlgorithmStart()
+{
+	// Send the messages that were previously queued
+	for (auto &s : m_queuedMessages)
+		GAFactory::sendMessage(s);
+
+	m_queuedMessages.clear();
+}
+
 bool GridLensInversionGAFactoryBase::init(const mogal::GAFactoryParams *p)
 {
 	if (m_pCurrentParams != 0)
@@ -113,6 +153,8 @@ bool GridLensInversionGAFactoryBase::init(const mogal::GAFactoryParams *p)
 		return false;
 	}
 
+	sendMessage("RNG SEED: " + std::to_string(m_rndGen.getSeed()));
+
 	const GridLensInversionGAFactoryParams *p2 = (const GridLensInversionGAFactoryParams *)p;
 	
 	m_pCurrentParams = p2->createCopy();
@@ -126,7 +168,7 @@ bool GridLensInversionGAFactoryBase::init(const mogal::GAFactoryParams *p)
 
 	if (p2->useMassWeights())
 	{
-		std::cout << "Using mass weights" << std::endl;
+		sendMessage("Using mass weights");
 		
 		double sum = 0;
 
@@ -149,7 +191,7 @@ bool GridLensInversionGAFactoryBase::init(const mogal::GAFactoryParams *p)
 			m_massWeights[i] = (float)((((double)m_numMasses)*w2)/sum);
 //			std::cout << " " << m_massWeights[i];
 		}
-		std::cout << std::endl;
+		//std::cout << std::endl;
 	}
 	else
 	{
@@ -285,16 +327,16 @@ bool GridLensInversionGAFactoryBase::init(const mogal::GAFactoryParams *p)
 		//
 		//m_sheetScale = massScale/gridArea;
 		m_sheetScale = (SPEED_C*SPEED_C/(4.0*CONST_PI*CONST_G))*(1.0/D_d);
-		std::cout << "Using sheet scale " << m_sheetScale << std::endl;
+		sendMessage("Using sheet scale " + std::to_string(m_sheetScale));
 	}
 
 	m_allowNegativeValues = p2->allowNegativeValues();
 	m_wideSearch = p2->useWideSearch();
 
 	if (m_wideSearch)
-		std::cout << "Using wide scale factor search" << endl;
+		sendMessage("Using wide scale factor search");
 	else
-		std::cout << "Using normal scale factor search" << endl;
+		sendMessage("Using normal scale factor search");
 
 	return true;
 }
@@ -538,7 +580,7 @@ bool GridLensInversionGAFactoryBase::localSubInit(double z_d, const std::vector<
 		return false;
 	}
 
-	m_pDeflectionMatrix = new DeflectionMatrix();
+	m_pDeflectionMatrix = new GADeflectionMatrix(this);
 	if (!m_pDeflectionMatrix->startInit())
 	{
 		setErrorString(m_pDeflectionMatrix->getErrorString());

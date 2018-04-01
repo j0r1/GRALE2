@@ -57,6 +57,8 @@ public:
 	Vector2D<float> getDeflectionAngle(int index) const						{ return m_deflectionAngles[index]; }
 	void getDeflectionDerivatives(int index, float *pAxx, float *pAyy, float *pAxy) const		{ *pAxx = m_derivatives[0][index]; *pAyy = m_derivatives[1][index]; *pAxy = m_derivatives[2][index]; }
 	float getPotential(int index) const								{ return m_potentialValues[index]; }
+protected:
+	virtual void log(const std::string &s);
 private:
 	void calculateAngularScale();
 	void clear();

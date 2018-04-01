@@ -26,6 +26,7 @@
 #include "graleconfig.h"
 #include "deflectionmatrix.h"
 #include "gravitationallens.h"
+#include <string>
 
 // TODO
 #include <iostream>
@@ -295,13 +296,18 @@ bool DeflectionMatrix::endInit(const std::vector<std::pair<GravitationalLens *, 
 
 	double MB = ((double)numBytesInMatrices)/(1024.0*1024.0);
 
-	std::cout << "Matrices need " << MB << " MB"  << std::endl;
-	std::cout << "  Number of deflection points: " << m_deflectionMatrix[0].size() << std::endl;
-	std::cout << "  Number of derivative points: " << m_derivativeMatrices[0].size() << std::endl;
-	std::cout << "  Number of potential points: " << m_potentialMatrix.size() << std::endl;
-	std::cout << "  Number of basis functions: " << m_numBasisFunctions << std::endl;
+	log("Matrices need " + std::to_string(MB) + " MB");
+	log("  Number of deflection points: " + std::to_string(m_deflectionMatrix[0].size()));
+	log("  Number of derivative points: " + std::to_string(m_derivativeMatrices[0].size()));
+	log("  Number of potential points: " + std::to_string(m_potentialMatrix.size()));
+	log("  Number of basis functions: " + std::to_string(m_numBasisFunctions));
 
 	return true;
+}
+
+void DeflectionMatrix::log(const std::string &s)
+{
+	std::cerr << s << std::endl;
 }
 
 void DeflectionMatrix::calculateAngularScale()

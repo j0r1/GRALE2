@@ -43,9 +43,11 @@ RandomNumberGenerator::RandomNumberGenerator()
 	if ((debugSeed = getenv("GRALE_DEBUG_SEED")) != 0)
 		seed = (uint32_t)strtol(debugSeed, 0, 10);
 
-	std::cerr << "USING GSL RNG SEED " << seed << std::endl;
+	//std::cerr << "USING GSL RNG SEED " << seed << std::endl;
 	m_pRng = gsl_rng_alloc(gsl_rng_env_setup());
 	gsl_rng_set(m_pRng, seed);
+
+	m_seed = seed;
 }
 
 RandomNumberGenerator::~RandomNumberGenerator()
