@@ -31,8 +31,13 @@ def print(*args): # Do a flush afterwards
     real_print(*args)
     sys.stdout.flush()
 
-if "INVERTER_USE_TIMEDIO" in os.environ:
-    print("Using timed IO")
+# For now, always use the timed version: better chance of detecting a
+# crashed MPI process (since we're using a named pipe in that case, the
+# crashed subprocess doesn't seem to register as a closed connection?
+# TODO: alternatively the 'mpi' version could be disabled, and 'mpics'
+#       used?
+if True: # "INVERTER_USE_TIMEDIO" in os.environ:
+    # print("Using timed IO")
     from . import timedio as timed_or_untimed_io
 else:
     #print("Using untimed IO")
@@ -122,7 +127,7 @@ class Inverter(object):
             fitId = "FITNESS:"
 
             while True:
-                line = io.readLine(1000000)
+                line = io.readLine(300) # Wait at most five minutes
                 #print(line)
                 if line.startswith(statusStr):
                     s = line[len(statusStr):]
@@ -287,7 +292,9 @@ def calculateFitness(moduleName, inputImages, zd, fitnessObjectParameters, lens)
     io.writeBytes(factoryParams)
 
     while True:
-        line = io.readLine(60*60*24)
+        # This can take a while
+        # TODO send some keepalive message so that this timeout can be lower
+        line = io.readLine(60*60*24) 
         if line == "DONE":
             break
 

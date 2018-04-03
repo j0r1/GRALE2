@@ -26,8 +26,11 @@ objects can be:
 from __future__ import print_function
 import os
 
-if "RENDERER_USE_TIMEDIO" in os.environ:
-    print("Using timed IO")
+# For now, always use the timed version: better chance of detecting a
+# crashed MPI process (since we're using a named pipe in that case, the
+# crashed subprocess doesn't seem to register as a closed connection?
+if True: # "RENDERER_USE_TIMEDIO" in os.environ:
+    #print("Using timed IO")
     from . import timedio as timed_or_untimed_io
 else:
     #print("Using untimed IO")
@@ -140,7 +143,9 @@ class Renderer(object):
             progressStr = "PROGRESS:"
             resultStr = "RESULT:"
             while True:
-                line = io.readLine(1000000)
+                # Is 600 secs long enough?
+                # TODO: add a keepalive message to be able to reduce this
+                line = io.readLine(600) 
                 if line.startswith(statusStr):
                     s = line[len(statusStr):]
                     self.onStatus(s)
