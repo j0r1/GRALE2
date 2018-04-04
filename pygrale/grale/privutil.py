@@ -139,14 +139,14 @@ def initCosmology(cosm):
 _terminateInfo = {
     "iswin": None,
     "havepkill": None,
-    "havegrep": None
+    "havepgrep": None
 }
 
 if _terminateInfo["iswin"] is None:
     if hasattr(subprocess, 'STARTUPINFO'):
         _terminateInfo["iswin"] = True
         _terminateInfo["havepkill"] = False
-        _terminateInfo["havegrep"] = False
+        _terminateInfo["havepgrep"] = False
     else:
         _terminateInfo["iswin"] = False
         _terminateInfo["havepkill"] = False
