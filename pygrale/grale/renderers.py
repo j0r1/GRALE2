@@ -25,18 +25,18 @@ objects can be:
 
 from __future__ import print_function
 import os
+import subprocess
 
 # For now, always use the timed version: better chance of detecting a
 # crashed MPI process (since we're using a named pipe in that case, the
 # crashed subprocess doesn't seem to register as a closed connection?
-if True: # "RENDERER_USE_TIMEDIO" in os.environ:
+if not hasattr(subprocess, 'STARTUPINFO'): # Not Windows: can't use 'poll' there
     #print("Using timed IO")
     from . import timedio as timed_or_untimed_io
 else:
     #print("Using untimed IO")
     from . import untimedio as timed_or_untimed_io
 
-import subprocess
 import struct
 import time
 import tempfile
