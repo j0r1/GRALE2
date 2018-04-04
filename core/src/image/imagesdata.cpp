@@ -902,6 +902,12 @@ bool ImagesData::getTriangles(int image, std::vector<TriangleIndices> &triangles
 		return false;
 	}
 
+	if (image < 0 || image >= m_triangulations.size())
+	{
+		setErrorString("Invalid image index was specified");
+		return false;
+	}
+
 	triangles = m_triangulations[image];
 	return true;
 }
