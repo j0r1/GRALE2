@@ -292,10 +292,12 @@ from the SIS and SIE lenses in the previous one:
 
 .. plot:: ex/example_plot_multiplane_dens.py
 
-Fitting to a mass distribution
-------------------------------
+Modelling arbitrary mass distributions
+--------------------------------------
 
-TODO: :mod:`grale.grid`, :mod:`grale.gridfunction`
+
+TODO: :mod:`grale.grid`, :mod:`grale.gridfunction`, :class:`grale.lenses.MultipleSquareLens`,
+`fittest.ipynb <_static/fittest.ipynb>`_
 
 Inversion
 ---------
