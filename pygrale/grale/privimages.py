@@ -371,3 +371,123 @@ def readInputImagesFile(inputData, isPointImagesFile, lineAnalyzer = "default", 
     #return sourceData
     return srcList
 
+def createGridTriangles(bottomLeft, topRight, numX, numY, holes = None, triangleExe = "triangle"):
+    import tempfile
+    import os
+    import numpy as np
+    import subprocess
+    import copy
+    import matplotlib.path as mplPath
+    from . import images
+
+    holes = [] if not holes else copy.deepcopy(holes)
+    
+    filesToDelete = [ ]
+    f = tempfile.NamedTemporaryFile("w+t", suffix=".poly", delete=False)
+    filesToDelete.append(f.name)
+    eleName = f.name[:-4] + "1.ele"
+    
+    try:
+        X,Y = np.meshgrid(np.linspace(bottomLeft[0], topRight[0], numX), 
+                          np.linspace(bottomLeft[1], topRight[1], numY))
+
+        XY = np.empty(X.shape + (2,))
+        XY[:,:,0], XY[:,:,1]= X, Y
+        XY = XY.reshape((-1,2))
+
+        holesPoints = sum([ len(h)-1 for h in holes])
+        totalPoints = holesPoints + len(XY)
+        pointIds = { }
+
+        ptIdx = 1      
+        polyData = "{} 2 0 0\n".format(totalPoints)
+
+        for hIdx in range(len(holes)):
+            h = holes[hIdx]
+            hNew = [ ]
+            if len(h) < 3:
+                raise images.ImagesDataException("Hole must contain at least three points")
+
+            #print(h[0])
+            if h[0][0] != h[-1][0] or h[0][1] != h[-1][1]:
+                raise images.ImagesDataException("Hole is not closed!")
+
+            for i in range(len(h)-1):
+                pointIds[ptIdx] = { "xy": h[i] }
+                polyData += "    {} {:.15g} {:.15g}\n".format(ptIdx, h[i][0], h[i][1])
+                hNew.append({ "idx": ptIdx, "xy": h[i] })
+                ptIdx += 1
+
+            hNew.append(hNew[0]) # Close it
+            holes[hIdx] = hNew
+
+        for i in range(len(XY)):
+            pointIds[ptIdx] = { "xy": XY[i] }
+            polyData += "    {} {:.15g} {:.15g}\n".format(ptIdx, XY[i,0], XY[i,1])
+            ptIdx += 1
+
+        # Lines of the holes
+        polyData += "{} 0\n".format(holesPoints)
+        lnIdx = 1
+        for h in holes:
+            for i in range(len(h)-1):
+                polyData += "    {} {} {}\n".format(lnIdx, h[i]["idx"], h[i+1]["idx"])
+                lnIdx += 1
+
+        def getInternalHolePoint(h):
+            bbPath = mplPath.Path(np.array([d["xy"] for d in h]))
+            for i in range(len(h)-1):
+                x0,y0 = h[i]["xy"] 
+                x2, y2 = h[(i+2)%(len(h)-1)]["xy"]
+                x, y = (x0+x2)/2.0, (y0+y2)/2.0
+                if bbPath.contains_point([x,y]):
+                    return x, y
+
+            raise images.ImagesDataException("No internal point found")
+
+        # Internal points for the holes
+        polyData += "{}\n".format(len(holes))
+        hIdx = 1
+        for h in holes:
+            x, y = getInternalHolePoint(h)
+            polyData += "{} {:.15g} {:.15g}\n".format(hIdx, x, y)
+            hIdx += 1
+
+        #print(polyData)
+        f.write(polyData)
+        f.close()
+        
+        subprocess.check_call([triangleExe, "-pcNP", f.name ])
+        filesToDelete.append(eleName)
+            
+        triangData = open(eleName, "rt").read().splitlines()
+        numTriangles, dummy1, dummy2 = list(map(int, triangData[0].split()))
+        #print(triangData)
+
+        img = images.ImagesData(1)
+        for i in range(numTriangles):
+            tIdx, pt1, pt2, pt3 = list(map(int, triangData[i+1].split()))
+            imgIdx = [ ]
+
+            for pt in [ pt1, pt2, pt3 ]:
+                e = pointIds[pt]
+                if not "imgidx" in e:
+                    e["imgidx"] = img.addPoint(0, e["xy"])
+
+                imgIdx.append(e["imgidx"])
+
+            img.addTriangle(0, imgIdx[0], imgIdx[1], imgIdx[2])
+
+        return img
+    finally:
+        try:
+            f.close()
+        except Exception as e:
+            print("Warning: couldn't close f: {}".format(e))
+            
+        for n in filesToDelete:
+            try:
+                os.unlink(n)
+            except Exception as e:
+                print("Warning: couldn't remove '{}': {}".format(n, e)) 
+
