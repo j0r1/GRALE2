@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 def hoursMinutesSecondsToDegrees(s):
     """Converts a string or array of three parts, specifying hours, minutes and seconds,
     into a single floating point number that corresponds to a number of degrees.
@@ -371,7 +373,38 @@ def readInputImagesFile(inputData, isPointImagesFile, lineAnalyzer = "default", 
     #return sourceData
     return srcList
 
-def createGridTriangles(bottomLeft, topRight, numX, numY, holes = None, triangleExe = "triangle"):
+def enlargePolygon(points, offset, simplifyScale = 0.02):
+    """TODO"""
+    from shapely.geometry.polygon import LinearRing
+    from .images import ImagesDataException
+
+    if len(points) < 4:
+        raise ImagesDataException("At least four points must be present")
+    if points[0][0] != points[-1][0] or points[0][1] != points[-1][1]:
+        raise ImagesDataException("Not closed: first point should equal last point")
+
+    def getScale(x):
+        minx, miny, maxx, maxy = x.bounds
+        scale = ((maxx-minx)**2 + (maxy-miny)**2)**0.5
+        return scale
+
+    r = LinearRing(points[:-1])
+    if offset < 0: # Negative indicates fractional enlarge
+        offset = (-offset)*getScale(r)
+        
+    direction = "right" if r.is_ccw else "left"
+    o = r.parallel_offset(offset, direction, join_style=2)
+    if hasattr(o, "geoms"):
+        raise Exception("Couldn't find a single shape after adding border")
+    
+    o = LinearRing(o.coords)
+    simpl = o.simplify(simplifyScale*getScale(o), preserve_topology=False) if simplifyScale > 0 else o
+    pts = [ pt for pt in simpl.coords ]
+    return pts + pts[:1]
+
+def createGridTriangles(bottomLeft, topRight, numX, numY, holes = None, enlargeHoleOffset = None,
+                        simplifyScale = 0.02, triangleExe = "triangle"):
+    """TODO"""
     import tempfile
     import os
     import numpy as np
@@ -395,6 +428,21 @@ def createGridTriangles(bottomLeft, topRight, numX, numY, holes = None, triangle
         XY[:,:,0], XY[:,:,1]= X, Y
         XY = XY.reshape((-1,2))
 
+        for hIdx in range(len(holes)):
+            if enlargeHoleOffset is None:
+                raise ImagesDataException("When holes are present, you always need to specify the amount with which they should be enlarged")
+
+            h = holes[hIdx]
+            if enlargeHoleOffset != 0:
+                holes[hIdx] = enlargePolygon(h, enlargeHoleOffset, simplifyScale)
+
+            if len(h) < 4:
+                raise ImagesDataException("Hole must contain at least four points")
+
+            #print(h[0])
+            if h[0][0] != h[-1][0] or h[0][1] != h[-1][1]:
+                raise ImagesDataException("Hole is not closed!")
+
         holesPoints = sum([ len(h)-1 for h in holes])
         totalPoints = holesPoints + len(XY)
         pointIds = { }
@@ -405,12 +453,6 @@ def createGridTriangles(bottomLeft, topRight, numX, numY, holes = None, triangle
         for hIdx in range(len(holes)):
             h = holes[hIdx]
             hNew = [ ]
-            if len(h) < 3:
-                raise ImagesDataException("Hole must contain at least three points")
-
-            #print(h[0])
-            if h[0][0] != h[-1][0] or h[0][1] != h[-1][1]:
-                raise ImagesDataException("Hole is not closed!")
 
             for i in range(len(h)-1):
                 pointIds[ptIdx] = { "xy": h[i] }
@@ -457,10 +499,14 @@ def createGridTriangles(bottomLeft, topRight, numX, numY, holes = None, triangle
         f.write(polyData)
         f.close()
 
-        try:
-            DEVNULL = subprocess.DEVNULL
-        except AttributeError:
-            DEVNULL = open(os.devnull, "wb")
+        if "GRALE_DEBUG_TRIANGLE" in os.environ:
+            DEVNULL = None
+            print(polyData)
+        else:
+            try:
+                DEVNULL = subprocess.DEVNULL
+            except AttributeError:
+                DEVNULL = open(os.devnull, "wb")
         
         subprocess.check_call([triangleExe, "-pcNP", f.name ], stdout=DEVNULL, stderr=subprocess.STDOUT)
         filesToDelete.append(eleName)
