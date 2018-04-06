@@ -378,7 +378,7 @@ def createGridTriangles(bottomLeft, topRight, numX, numY, holes = None, triangle
     import subprocess
     import copy
     import matplotlib.path as mplPath
-    from . import images
+    from .images import ImagesData, ImagesDataException
 
     holes = [] if not holes else copy.deepcopy(holes)
     
@@ -406,11 +406,11 @@ def createGridTriangles(bottomLeft, topRight, numX, numY, holes = None, triangle
             h = holes[hIdx]
             hNew = [ ]
             if len(h) < 3:
-                raise images.ImagesDataException("Hole must contain at least three points")
+                raise ImagesDataException("Hole must contain at least three points")
 
             #print(h[0])
             if h[0][0] != h[-1][0] or h[0][1] != h[-1][1]:
-                raise images.ImagesDataException("Hole is not closed!")
+                raise ImagesDataException("Hole is not closed!")
 
             for i in range(len(h)-1):
                 pointIds[ptIdx] = { "xy": h[i] }
@@ -443,7 +443,7 @@ def createGridTriangles(bottomLeft, topRight, numX, numY, holes = None, triangle
                 if bbPath.contains_point([x,y]):
                     return x, y
 
-            raise images.ImagesDataException("No internal point found")
+            raise ImagesDataException("No internal point found")
 
         # Internal points for the holes
         polyData += "{}\n".format(len(holes))
@@ -456,15 +456,20 @@ def createGridTriangles(bottomLeft, topRight, numX, numY, holes = None, triangle
         #print(polyData)
         f.write(polyData)
         f.close()
+
+        try:
+            DEVNULL = subprocess.DEVNULL
+        except AttributeError:
+            DEVNULL = open(os.devnull, "wb")
         
-        subprocess.check_call([triangleExe, "-pcNP", f.name ])
+        subprocess.check_call([triangleExe, "-pcNP", f.name ], stdout=DEVNULL, stderr=subprocess.STDOUT)
         filesToDelete.append(eleName)
             
         triangData = open(eleName, "rt").read().splitlines()
         numTriangles, dummy1, dummy2 = list(map(int, triangData[0].split()))
         #print(triangData)
 
-        img = images.ImagesData(1)
+        img = ImagesData(1)
         for i in range(numTriangles):
             tIdx, pt1, pt2, pt3 = list(map(int, triangData[i+1].split()))
             imgIdx = [ ]
