@@ -497,6 +497,109 @@ cdef class ImagesData:
         """
         self.m_pImgData.subtractIntensity(v)
 
+    def getConvexHull(self, image, asIndices = False):
+        """getConvexHull(image, asIndices = False)
+
+        Returns the convex hull of the points for image ID `image`. By default, a list of coordinates is returned,
+        but if `asIndices` is ``True``, then the point indices are returned instead.
+        If successful, the first and last point in the list will be the same.
+        """
+        from scipy.spatial import ConvexHull
+
+        num = self.getNumberOfImagePoints(image)
+        points = [ self.getImagePointPosition(image, pt) for pt in range(num) ]
+        if len(points) < 3:
+            raise ImagesDataException("Need at least three points for a convex hull")
+
+        hull = ConvexHull(points)
+        if asIndices:
+            h = [ pt for pt in hull.vertices ]
+        else:
+            h = [ self.getImagePointPosition(image, pt) for pt in hull.vertices ]
+        return h + h[:1]
+
+    def getBorder(self, image, asIndices = False):
+        """getBorder(image, asIndices = False)
+
+        For the image with ID `image`, return the border, based on the triangulation
+        that's stored for this image. By default, a list of coordinates is returned,
+        but if `asIndices` is ``True``, then the point indices are returned instead.
+        If successful, the first and last point in the list will be the same.
+        """
+        tList = self.getTriangles(image)
+        edgeCount = { }
+
+        def getEdges(i1, i2, i3):
+            return [ tuple(sorted([a,b])) for a,b in [(i1,i2), (i2,i3), (i1,i3)]]
+
+        for i1,i2,i3 in tList:
+            edges = getEdges(i1, i2, i3)
+            for e in edges:
+                if not e in edgeCount:
+                    edgeCount[e] = 1
+                else:
+                    edgeCount[e] += 1
+                    if edgeCount[e] > 2:
+                        raise Exception("Unexpected amount of shared edges")
+
+        border = sorted([ e for e in edgeCount if edgeCount[e] == 1 ])
+        if not border:
+            raise Exception("No border found")
+
+        #pprint.pprint(border)
+        
+        # TODO: check that each vertex is used two times
+
+        end1, end2 = border[0]
+        borderPoints = [ end1, end2 ]
+        border = border[1:]
+        if end1 == end2:
+            raise Exception("Error: edge between identical points")
+
+        while True:
+            for idx in range(len(border)):
+                i1, i2 = border[idx]
+                if i1 == end1:
+                    end1 = i2
+                    borderPoints = [i2] + borderPoints
+                    del border[idx]
+                    break
+                elif i1 == end2:
+                    end2 = i2
+                    borderPoints = borderPoints + [i2]
+                    del border[idx]
+                    break
+                elif i2 == end1:
+                    end1 = i1
+                    borderPoints = [i1] + borderPoints
+                    del border[idx]
+                    break
+                elif i2 == end2:
+                    end2 = i1
+                    borderPoints = borderPoints + [i1]
+                    del border[idx]
+                    break
+            else:
+                raise Exception("No next edge found")
+
+            if end1 == end2: # We've closed the border
+                break
+
+        if border:
+            raise Exception("Closed border, but still have edges left")
+
+        if borderPoints[0] != borderPoints[-1]:
+            raise Exception("Internal error: border not closed as expected")
+
+        #borderPoints.pop()
+        #pprint.pprint(borderPoints)
+
+        if asIndices:
+            borderPoints = [ ptIdx for ptIdx in borderPoints ]
+        else:
+            borderPoints = [ self.getImagePointPosition(image, ptIdx) for ptIdx in borderPoints ]
+        return borderPoints
+
     @staticmethod
     def fromBytes(bytes b):
         """fromBytes(b)
