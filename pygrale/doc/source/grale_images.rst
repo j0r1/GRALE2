@@ -20,6 +20,8 @@ Functions
 
 .. autofunction:: degreesMinutesSecondsToDegrees
 
+.. autofunction:: enlargePolygon
+
 ImagesData
 ----------
 
@@ -29,6 +31,8 @@ ImagesData
    .. automethod:: __init__
 
 .. autoexception:: ImagesDataException
+
+.. autofunction:: createGridTriangles
 
 LensPlane & ImagePlane
 ----------------------

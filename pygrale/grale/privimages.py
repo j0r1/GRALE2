@@ -374,7 +374,21 @@ def readInputImagesFile(inputData, isPointImagesFile, lineAnalyzer = "default", 
     return srcList
 
 def enlargePolygon(points, offset, simplifyScale = 0.02):
-    """TODO"""
+    """For a given set of points that describe a polygon, enlarge this
+    by adding a specified offset. The `Shapely <https://shapely.readthedocs.io/en/latest/>`_
+    library is used to accomplish this.
+    
+    Arguments:
+     * `points`: this list of points describes the polygon; the last point 
+       should be the same as the first point.
+     * `offset`: if this value is positive, it describes a distance that's 
+       added to the sides of the polygon; if it is negative the absolte 
+       value is interpreted as a fraction and the distance that's added is 
+       calculated as this fraction times the scale of the polygon. 
+     * `simplifyScale`: if greate than zero, the newly obtained polygon is 
+       simplified, and this describes a tolerance below which points can be
+       removed. It is specified as a fraction of the scale of the polygon.
+    """
     from shapely.geometry.polygon import LinearRing
     from .images import ImagesDataException
 
@@ -404,7 +418,32 @@ def enlargePolygon(points, offset, simplifyScale = 0.02):
 
 def createGridTriangles(bottomLeft, topRight, numX, numY, holes = None, enlargeHoleOffset = None,
                         simplifyScale = 0.02, triangleExe = "triangle"):
-    """TODO"""
+    """Creates a grid of triangles, out of which some holes may be cut. This grid can
+    then be used as a null space grid in lens inversions. When such holes are cut out,
+    it is usually a good idea to make them somewhat larger than the images themselves.
+    Even if no enlargement of the holes is required, it must still be specified. 
+
+    The `Triangle <https://www.cs.cmu.edu/~quake/triangle.html>`_ program is used
+    to create the triangulation.
+
+    Arguments:
+     * `bottomLeft`: bottom-left corner of the triangulated region.
+     * `topRight`: top-right corner of the triangulated region.
+     * `numX`: number of points in the X-direction.
+     * `numY`: number of points in the Y-direction.
+     * `holes`: a list of holes that should be cut out of the triangulation. Each
+       hole is a list of points describing a polygon, where the first point in the
+       list must equal the last point.
+     * `enlargeHoleOffset`: specifies the value by which the holes need to be
+       enlarged. For each hole, this is passed as the `offset` argument of the
+       :func:`enlargeHoleOffset` function. If holes are present, it _must_ be
+       specified, so if you do not want to enlarge the holes you should set this
+       to 0.
+     * `simplifyScale`: this is passed to the :func:`enlargeHoleOffset` function
+       which is used to enlarge the specified holes.
+     * `triangleExe`: the executable for the `Triangle <https://www.cs.cmu.edu/~quake/triangle.html>`_ 
+       program
+    """
     import tempfile
     import os
     import numpy as np
