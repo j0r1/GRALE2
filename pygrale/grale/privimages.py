@@ -416,6 +416,41 @@ def enlargePolygon(points, offset, simplifyScale = 0.02):
     pts = [ pt for pt in simpl.coords ]
     return pts + pts[:1]
 
+def _getHolesList(holes):
+    from .images import ImagesData, ImagesDataException
+    import copy
+
+    newHoles = []
+    if holes:
+        for h in holes:
+            # For an ImagesData instance, try to use the triangulated data
+            # to get a boundary for the region, or if not available, use 
+            # the convex hull of the points
+            if type(h) == ImagesData:
+                for i in range(h.getNumberOfImages()):
+                    foundBorder = False
+                    try:
+                        b = h.getBorder(i)
+                        foundBorder = True
+                    except ImagesDataException as e:
+                        print("Warning: ignoring exception: {}".format(e))
+                        pass
+
+                    if foundBorder:
+                        newHoles.append(b)
+                        continue
+
+                    try:
+                        b = h.getConvexHull(i)
+                        newHoles.append(b)
+                    except ImagesDataException as e:
+                        raise ImagesDataException("Unable to get image border based on either triangulation or convex hull: {}".format(e))
+
+            else: # If not an ImagesData instance, assume it's polygon coords
+                newHoles.append(copy.deepcopy(h))
+
+    return newHoles
+
 def createGridTriangles(bottomLeft, topRight, numX, numY, holes = None, enlargeHoleOffset = None,
                         simplifyScale = 0.02, triangleExe = "triangle"):
     """Creates a grid of triangles, out of which some holes may be cut. This grid can
@@ -431,8 +466,15 @@ def createGridTriangles(bottomLeft, topRight, numX, numY, holes = None, enlargeH
      * `topRight`: top-right corner of the triangulated region.
      * `numX`: number of points in the X-direction.
      * `numY`: number of points in the Y-direction.
-     * `holes`: a list of holes that should be cut out of the triangulation. Each
-       hole is a list of points describing a polygon, where the first point in the
+     * `holes`: a list of holes that should be cut out of the triangulation. 
+       If an entry of this list is an :class:`ImagesData <grale.images.ImagesData>
+       instance, then for each image a hole will be added, preferrably based on the
+       triangulated data that may be stored in the instance (using
+       :func:`ImagesData.getBorder <grale.images.ImagesData.getBorder>`), or as a 
+       fall-back based on the convex hull of the image (using
+       :func:`ImagesData.getConvexHull <grale.images.ImagesData.getConvexHull>`).
+       If it is not an ``ImagesData`` instance, it is assumed to be a list of 
+       points describing a polygon, where the first point in the
        list must equal the last point.
      * `enlargeHoleOffset`: specifies the value by which the holes need to be
        enlarged. For each hole, this is passed as the `offset` argument of the
@@ -452,7 +494,7 @@ def createGridTriangles(bottomLeft, topRight, numX, numY, holes = None, enlargeH
     import matplotlib.path as mplPath
     from .images import ImagesData, ImagesDataException
 
-    holes = [] if not holes else copy.deepcopy(holes)
+    holes = _getHolesList(holes)
     
     filesToDelete = [ ]
     f = tempfile.NamedTemporaryFile("w+t", suffix=".poly", delete=False)
