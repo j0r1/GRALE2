@@ -540,11 +540,11 @@ cdef class ImagesData:
                 else:
                     edgeCount[e] += 1
                     if edgeCount[e] > 2:
-                        raise Exception("Unexpected amount of shared edges")
+                        raise ImagesDataException("Unexpected amount of shared edges")
 
         border = sorted([ e for e in edgeCount if edgeCount[e] == 1 ])
         if not border:
-            raise Exception("No border found")
+            raise ImagesDataException("No border found")
 
         #pprint.pprint(border)
         
@@ -554,7 +554,7 @@ cdef class ImagesData:
         borderPoints = [ end1, end2 ]
         border = border[1:]
         if end1 == end2:
-            raise Exception("Error: edge between identical points")
+            raise ImagesDataException("Error: edge between identical points")
 
         while True:
             for idx in range(len(border)):
@@ -580,16 +580,16 @@ cdef class ImagesData:
                     del border[idx]
                     break
             else:
-                raise Exception("No next edge found")
+                raise ImagesDataException("No next edge found")
 
             if end1 == end2: # We've closed the border
                 break
 
         if border:
-            raise Exception("Closed border, but still have edges left")
+            raise ImagesDataException("Closed border, but still have edges left")
 
         if borderPoints[0] != borderPoints[-1]:
-            raise Exception("Internal error: border not closed as expected")
+            raise ImagesDataException("Internal error: border not closed as expected")
 
         #borderPoints.pop()
         #pprint.pprint(borderPoints)
