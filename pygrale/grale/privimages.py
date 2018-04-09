@@ -416,6 +416,83 @@ def enlargePolygon(points, offset, simplifyScale = 0.02):
     pts = [ pt for pt in simpl.coords ]
     return pts + pts[:1]
 
+def _checkHoleOverlap(holes):
+    from shapely.geometry.polygon import LinearRing, Polygon
+    import shapely.ops
+    import copy
+
+    holes = [ LinearRing(h[:-1]) for h in holes ]
+
+    # Check if some holes are completely interior to another
+    insideSomething = set()
+    for i in range(0, len(holes)-1):
+        for j in range(i+1, len(holes)):
+            if holes[i].within(holes[j]):
+                insideSomething.add(i)
+            elif holes[j].within(holes[i]):
+                insideSomething.add(j)
+
+    # Remove the shapes that are completely inside another
+    holes = [ holes[i] for i in range(len(holes)) if not i in insideSomething ]
+
+    # Check intersections
+    intersections = { }
+    for i in range(0, len(holes)-1):
+        for j in range(i+1, len(holes)):
+            if holes[i].intersects(holes[j]):
+                s = set() if not i in intersections else intersections[i]
+                s.add(i)
+                s.add(j)
+                origSet = copy.copy(s)
+                for k in origSet:
+                    if k in intersections:
+                        s |= intersections[k]
+
+                for k in origSet:
+                    intersections[k] = s
+    
+    #import pprint
+    #print("Intersections:")
+    #pprint.pprint(intersections)
+
+    # First add the holes that have no intersections
+    newHoles = [ holes[i] for i in range(len(holes)) if not i in intersections ]
+
+    # If there are intersections, try to do something sensible
+    for i in intersections:
+        if not holes[i]: # We've already processed this
+            continue
+
+        # join the intersections in this list
+        s = intersections[i]
+
+        #print("Handling i = ", i)
+        # Try to use the union function from, and use convex hull if it fails
+        totalObj = shapely.ops.unary_union([ Polygon(holes[j].coords) for j in s])
+        try:
+            totalObj = LinearRing(totalObj.boundary.coords)
+        except Exception as e:
+            print("Warning: couldn't find union ({}), falling back to convex hull".format(e))
+            
+            #allPoints = [ pt for pt in holes[j].coords for j in s ]
+            totalObj = LinearRing(totalObj.convex_hull.boundary.coords)
+
+
+        # Mark holes as processed
+        for j in s:
+            holes[j] = None
+
+        newHoles.append(totalObj)
+        #pprint.pprint(totalObj)
+
+    # Convert back to list of points
+    holes = [ ]
+    for h in newHoles:
+        pts = [ pt for pt in h.coords ]
+        holes.append(pts + pts[:1])
+
+    return holes
+
 def _getHolesList(holes):
     from .images import ImagesData, ImagesDataException
     import copy
@@ -433,7 +510,7 @@ def _getHolesList(holes):
                         b = h.getBorder(i)
                         foundBorder = True
                     except ImagesDataException as e:
-                        print("Warning: ignoring exception: {}".format(e))
+                        #print("Warning: ignoring exception: {}".format(e))
                         pass
 
                     if foundBorder:
@@ -452,7 +529,8 @@ def _getHolesList(holes):
     return newHoles
 
 def createGridTriangles(bottomLeft, topRight, numX, numY, holes = None, enlargeHoleOffset = None,
-                        simplifyScale = 0.02, triangleExe = "triangle"):
+                        simplifyScale = 0.02, triangleExe = "triangle",
+                        checkOverlap = True):
     """Creates a grid of triangles, out of which some holes may be cut. This grid can
     then be used as a null space grid in lens inversions. When such holes are cut out,
     it is usually a good idea to make them somewhat larger than the images themselves.
@@ -524,6 +602,9 @@ def createGridTriangles(bottomLeft, topRight, numX, numY, holes = None, enlargeH
             #print(h[0])
             if h[0][0] != h[-1][0] or h[0][1] != h[-1][1]:
                 raise ImagesDataException("Hole is not closed!")
+
+        if checkOverlap:
+            holes = _checkHoleOverlap(holes)
 
         holesPoints = sum([ len(h)-1 for h in holes])
         totalPoints = holesPoints + len(XY)
