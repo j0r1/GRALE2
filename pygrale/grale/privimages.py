@@ -500,6 +500,7 @@ def createGridTriangles(bottomLeft, topRight, numX, numY, holes = None, enlargeH
     f = tempfile.NamedTemporaryFile("w+t", suffix=".poly", delete=False)
     filesToDelete.append(f.name)
     eleName = f.name[:-4] + "1.ele"
+    nodeName = f.name[:-4] + "1.node"
     
     try:
         X,Y = np.meshgrid(np.linspace(bottomLeft[0], topRight[0], numX), 
@@ -526,7 +527,6 @@ def createGridTriangles(bottomLeft, topRight, numX, numY, holes = None, enlargeH
 
         holesPoints = sum([ len(h)-1 for h in holes])
         totalPoints = holesPoints + len(XY)
-        pointIds = { }
 
         ptIdx = 1      
         polyData = "{} 2 0 0\n".format(totalPoints)
@@ -536,7 +536,6 @@ def createGridTriangles(bottomLeft, topRight, numX, numY, holes = None, enlargeH
             hNew = [ ]
 
             for i in range(len(h)-1):
-                pointIds[ptIdx] = { "xy": h[i] }
                 polyData += "    {} {:.15g} {:.15g}\n".format(ptIdx, h[i][0], h[i][1])
                 hNew.append({ "idx": ptIdx, "xy": h[i] })
                 ptIdx += 1
@@ -545,7 +544,6 @@ def createGridTriangles(bottomLeft, topRight, numX, numY, holes = None, enlargeH
             holes[hIdx] = hNew
 
         for i in range(len(XY)):
-            pointIds[ptIdx] = { "xy": XY[i] }
             polyData += "    {} {:.15g} {:.15g}\n".format(ptIdx, XY[i,0], XY[i,1])
             ptIdx += 1
 
@@ -589,12 +587,26 @@ def createGridTriangles(bottomLeft, topRight, numX, numY, holes = None, enlargeH
             except AttributeError:
                 DEVNULL = open(os.devnull, "wb")
         
-        subprocess.check_call([triangleExe, "-pcNP", f.name ], stdout=DEVNULL, stderr=subprocess.STDOUT)
+        subprocess.check_call([triangleExe, "-pcP", f.name ], stdout=DEVNULL, stderr=subprocess.STDOUT)
         filesToDelete.append(eleName)
+        filesToDelete.append(nodeName)
             
+        # Read the points that are used in the triangulation file
+        pointIds = { }
+        nodeData = open(nodeName, "rt").read().splitlines()
+        numPts, dummy1, dummy2, dummy3 = list(map(int, nodeData[0].split()))
+        if "GRALE_DEBUG_TRIANGLE" in os.environ:
+            print("\n".join(nodeData))
+
+        for i in range(numPts):
+            ptId, x, y, dummy = list(map(float, nodeData[i+1].split()))
+            pointIds[ptId] = { "xy": [ x, y] }
+
+        # Read the triangles
         triangData = open(eleName, "rt").read().splitlines()
         numTriangles, dummy1, dummy2 = list(map(int, triangData[0].split()))
-        #print(triangData)
+        if "GRALE_DEBUG_TRIANGLE" in os.environ:
+            print("\n".join(triangData))
 
         img = ImagesData(1)
         for i in range(numTriangles):
@@ -617,9 +629,10 @@ def createGridTriangles(bottomLeft, topRight, numX, numY, holes = None, enlargeH
         except Exception as e:
             print("Warning: couldn't close f: {}".format(e))
             
-        for n in filesToDelete:
-            try:
-                os.unlink(n)
-            except Exception as e:
-                print("Warning: couldn't remove '{}': {}".format(n, e)) 
+        if not "GRALE_DEBUG_TRIANGLE_KEEPFILES" in os.environ:
+            for n in filesToDelete:
+                try:
+                    os.unlink(n)
+                except Exception as e:
+                    print("Warning: couldn't remove '{}': {}".format(n, e)) 
 
