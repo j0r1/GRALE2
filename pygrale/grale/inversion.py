@@ -19,6 +19,7 @@ import platform
 import os
 import copy
 import random
+import numpy as np
 
 class InversionException(Exception):
     """An exception that's generated if something goes wrong in a function
@@ -578,6 +579,49 @@ class InversionWorkSpace(object):
             moduleName = self.inversionArgs["moduleName"]
 
         return calculateFitness(self.imgDataList, self.zd, fitnessObjectParameters, lens, moduleName)
+
+    def backProject(self, lens, typeFilter = [ "pointimages", "extendedimages" ]):
+        """Takes the information of the images that were added using :func:`addImageDataToList`,
+        and projects the points back onto the respective source planes using the lens
+        model `lens`. Note that only the basic, single core procedure is used to 
+        back-project the images.
+
+        The `typeFilter` can be used to prevent that e.g. the null space grid is
+        back-projected as well. If set to `None`, then all added ``ImagesData`` entries
+        will be used. If it is a list of strings, then an entry will only be considered
+        if the the `type` that was specified is present in this list. The `typeFilter`
+        can also be a function that's used to filter the added entries: return ``True``
+        to include an entry, or ``False`` to ignore it. The function will receive two
+        parameters: an index into the list of ``ImagesData`` instances, and a dictionary
+        that contains the ``ImagesData`` object as well as distances and parameters.
+        """
+
+        def listBasedFilter(idx, imgInfo, l):
+            params = imgInfo["params"]
+            if "type" in params and params["type"] in l:
+                return True
+            return False
+
+        # None means no filter
+        if typeFilter is None:
+            filterFunction = lambda idx, imgInfo: True
+        # If it's a list, it must match the 'type'
+        elif type(typeFilter) == list:
+            filterFunction = lambda idx, imgInfo: listBasedFilter(idx, imgInfo, typeFilter)
+        # Can also be a function that takes the image position and image Info
+        else:
+            filterFunction = typeFilter
+
+        bpImages = [ ]
+        for i in range(len(self.imgDataList)):
+            imgInfo = self.imgDataList[i]
+            if filterFunction(i, copy.deepcopy(imgInfo)): # Make a copy so it can't be modified accidentally
+                allPoints = np.array([ y["position"] for x in imgInfo["images"].getAllImagePoints() for y in x ], dtype=np.double)
+                bpImages.append(lens.traceTheta(imgInfo["Ds"], imgInfo["Dds"], allPoints))
+
+        return bpImages
+
+            
 
 def getDefaultInverter():
     """Convenience function in this module, just calls 
