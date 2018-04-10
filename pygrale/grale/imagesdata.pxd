@@ -46,6 +46,7 @@ cdef extern from "grale/imagesdata.h" namespace "grale":
         double getImagePointIntensity(int image, int point)
         double getShearComponent1(int image, int point)
         double getShearComponent2(int image, int point)
+        void setImagePointPosition(int image, int point, Vector2Dd position)
     
         int getNumberOfGroups()
         int getNumberOfGroupPoints(int group)

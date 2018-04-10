@@ -81,6 +81,8 @@ public:
 	double getShearComponent1(int image, int point) const				{ return m_shearComponent1s[image][point]; }
 	double getShearComponent2(int image, int point) const				{ return m_shearComponent2s[image][point]; }
 
+	void setImagePointPosition(int image, int point, Vector2D<double> position) { m_images[image][point] = position; }
+
 	bool hasTriangulation()	const							{ if (m_triangulations.size() != 0) return true; return false; }
 	bool getTriangles(int image, std::vector<TriangleIndices> &triangles) const;
 	void clearTriangulation();

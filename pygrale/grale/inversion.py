@@ -616,8 +616,22 @@ class InversionWorkSpace(object):
         for i in range(len(self.imgDataList)):
             imgInfo = self.imgDataList[i]
             if filterFunction(i, copy.deepcopy(imgInfo)): # Make a copy so it can't be modified accidentally
-                allPoints = np.array([ y["position"] for x in imgInfo["images"].getAllImagePoints() for y in x ], dtype=np.double)
-                bpImages.append(lens.traceTheta(imgInfo["Ds"], imgInfo["Dds"], allPoints))
+                # Create a copy, we'll use this to store the modified points in
+                # This way, the triangulation info is preserved for example.
+                img = copy.deepcopy(imgInfo["images"])
+
+                # Gather all coordinates so that the traceTheta call will be
+                # somewhat more efficient
+                allPoints = np.array([ img.getImagePointPosition(i, j) for i in range(img.getNumberOfImages()) for j in range(img.getNumberOfImagePoints(i)) ], dtype=np.double)
+                allPoints = lens.traceTheta(imgInfo["Ds"], imgInfo["Dds"], allPoints)
+
+                # Save the traced points in the 'img' instance again
+                for i in range(img.getNumberOfImages()):
+                    numImagePoints = img.getNumberOfImagePoints(i)
+                    for j in range(img.getNumberOfImagePoints(i)):
+                        img.setImagePointPosition(i, j, allPoints[numImagePoints*i + j])
+
+                bpImages.append(img)
 
         return bpImages
 

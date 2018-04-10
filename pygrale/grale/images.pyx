@@ -292,6 +292,17 @@ cdef class ImagesData:
         pos = self.m_pImgData.getImagePointPosition(image, point)
         return np.array([pos.getX(), pos.getY()])
 
+    def setImagePointPosition(self, image, point, position):
+        """setImagePointPosition(image, point, position)
+
+        Changes the stored position for the point with ID `point` and image with ID
+        `image`, to the coordinates in `pos`.
+        """
+        cdef vector2d.Vector2Dd p = vector2d.Vector2Dd(position[0], position[1])
+
+        self._checkImagePointNumber(image, point)
+        self.m_pImgData.setImagePointPosition(image, point, p)
+
     def getAllImagePoints(self):
         """getAllImagePoints()
 
