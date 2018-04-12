@@ -9,6 +9,7 @@ import glob
 import sys
 import os
 import pprint
+import subprocess
 
 extraFlags = [ ]
 extraIncludes = [ ]
@@ -116,7 +117,7 @@ extensions = [
         extra_compile_args = extraFlags
     ),
     Extension("grale.contourfinder", 
-        [ "grale/contourfinder.pyx" ],
+        [ "grale/contourfinder.pyx", "grale/multicontourfinder.cpp" ],
         include_dirs = extraIncludes,
         libraries = libraries,
         library_dirs = libDirs,
@@ -148,6 +149,19 @@ print("Using version string: '{}'".format(versionStr))
 pyMods = [ "grale.cosmology", "grale.plotutil", "grale.constants", "grale.renderers", "grale.timedio", "grale.untimedio",
            "grale.privutil", "grale.debuglog", "grale.feedback", "grale.bytestring", "grale.inverters",
            "grale.inversion", "grale.grid", "grale.multiplane", "grale.privimages" ]
+
+for ui in [ "grale/editor/contourleveldialog.ui",
+            "grale/editor/pointinfodialog.ui",
+            "grale/editor/fitslayerinfodialog.ui",
+            "grale/editor/fitslistwidget.ui",
+            "grale/editor/rgblistwidget.ui",
+            "grale/editor/pointslistwidget.ui",
+            "grale/editor/mainwindow.ui",
+        ]:
+    pyName = os.path.join(os.path.dirname(ui),"ui_" + os.path.basename(ui)[:-3] + ".py")
+    print(ui, "->", pyName)
+    subprocess.check_call( [ "pyuic5", "-o", pyName, ui ])
+
 setup(name = "grale", version = versionStr, ext_modules = cythonize(extensions), py_modules = pyMods)
 
 

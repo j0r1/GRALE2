@@ -89,6 +89,8 @@ public:
 											 std::string &errorString);
 
 	bool traceBeta(Vector2Dd beta, std::vector<Vector2Dd> &thetaPoints, int numIterations = 4, bool check = true) const;
+
+	bool traceThetaApproximately(Vector2Dd theta, Vector2Dd *pBeta) const;
 private:
 	void searchCritCaust(double *inversemagnifications);
 	bool refinePosition(Vector2Dd beta, Vector2Dd startTheta, Vector2Dd &theta, int numIterations) const;

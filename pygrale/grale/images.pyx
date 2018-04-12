@@ -1449,6 +1449,38 @@ cdef class ImagePlane:
 
         return points
 
+    def traceThetaApproximately(self, thetas):
+        """Use the already calculated theta/beta mapping (image plane position to
+        source plane positions), to estimate the mapping for theta vectors that
+        have not been calculated exactly."""
+
+        thetas = np.array(thetas)
+        reshapedThetas = thetas.reshape((-1,2))
+        reshapedBetas = self._traceThetaApprox(reshapedThetas)
+        return reshapedBetas.reshape(thetas.shape)
+
+    cdef _traceThetaApprox(self, np.ndarray[double, ndim=2] reshapedThetas):
+        cdef Vector2Dd beta, theta, bottomLeft, topRight
+        cdef np.ndarray[double, ndim=2] betas = np.zeros((reshapedThetas.shape[0], reshapedThetas.shape[1]))
+        cdef int num, i
+
+        bottomLeft = self.m_pImgPlane.getBottomLeft()
+        topRight = self.m_pImgPlane.getTopRight()
+
+        num = betas.shape[0]
+        for i in range(num):
+            theta = Vector2Dd(reshapedThetas[i,0], reshapedThetas[i,1])
+            if theta.getX() < bottomLeft.getX() or theta.getY() < bottomLeft.getY() or theta.getX() > topRight.getX() or theta.getY() > topRight.getY():
+                raise ImagePlaneException("Not all points lie withing the image plane boundaries")
+
+            if not self.m_pImgPlane.traceThetaApproximately(theta, cython.address(beta)):
+                raise ImagePlaneException(S(self.m_pImgPlane.getErrorString()))
+
+            betas[i,0] = beta.getX()
+            betas[i,1] = beta.getY()
+
+        return betas
+
     def __getstate__(self):
         return [ self.m_lensPlane.toBytes(), self.m_Ds, self.m_Dds ]
 

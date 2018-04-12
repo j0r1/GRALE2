@@ -28,7 +28,7 @@ cdef class ContourFinder:
     :func:`findContour` member function to calculate a specific
     contour."""
 
-    cdef cppcontourfinder.ContourFinder *m_pContourFinder
+    cdef cppcontourfinder.MultiContourFinder *m_pContourFinder
 
     def __cinit__(self):
         self.m_pContourFinder = NULL
@@ -70,14 +70,16 @@ cdef class ContourFinder:
             for x in range(numX):
                 valueVector[x+offset] = values[y,x]
         
-        self.m_pContourFinder = new cppcontourfinder.ContourFinder(valueVector, bl, tr, numX, numY)
+        self.m_pContourFinder = new cppcontourfinder.MultiContourFinder(valueVector, bl, tr, numX, numY)
 
     def _check(self):
         if self.m_pContourFinder == NULL:
             raise ContourFinderException("No internal contour finder instance was allocated")
 
     def findContour(self, level):
-        """Within the height map as specified during initialization, look for the contours
+        """findContour(level)
+        
+        Within the height map as specified during initialization, look for the contours
         that correspond to the height `level`. As several distinct lines may be found, the
         function returns a list of lists, where the second list contains the consecutive coordinates of 
         a part of the contour."""
@@ -96,3 +98,37 @@ cdef class ContourFinder:
             contourParts.append(np.array(part))
 
         return contourParts
+
+    def findMultipleContours(self, levels, numThreads = -1):
+        """findMultipleContours(levels)
+        TODO"""
+        cdef vector[double] vecLevels
+        cdef vector[vector[vector[Vector2Dd]]] contours
+
+        self._check()
+
+        if numThreads <= 0:
+            import multiprocessing
+            numThreads = multiprocessing.cpu_count()
+
+        for l in levels:
+            vecLevels.push_back(l)
+
+        if not self.m_pContourFinder.findContours(vecLevels, numThreads):
+            raise ContourFinderException(S(self.m_pContourFinder.getErrorString()))
+
+        contours = self.m_pContourFinder.getContours()
+
+        levelData = [ ]
+        for l in range(int(contours.size())):
+            contourParts = [ ]
+            for i in range(int(contours[l].size())):
+                part = [ ]
+                for j in range(int(contours[l][i].size())):
+                    part.append([contours[l][i][j].getX(), contours[l][i][j].getY()])
+
+                contourParts.append(np.array(part))
+
+            levelData.append(contourParts)
+
+        return levelData

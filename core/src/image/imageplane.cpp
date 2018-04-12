@@ -646,5 +646,20 @@ bool ImagePlane::staticTraceBetaApproximately(Vector2Dd beta, vector<Vector2Dd> 
 	return true;
 }
 
+bool ImagePlane::traceThetaApproximately(Vector2Dd theta, Vector2Dd *pBeta) const
+{
+	if (!m_pGridLens)
+	{
+		setErrorString("Grid based lens does not exist, not initialized successfully");
+		return false;
+	}
+	if (!m_pGridLens->traceTheta(m_Ds, m_Dds, theta, pBeta))
+	{
+		setErrorString("Unable to trace approximately: " + m_pGridLens->getErrorString());
+		return false;
+	}
+	return true;
+}
+
 } // end namespace
 

@@ -35,6 +35,7 @@ cdef extern from "grale/imageplane.h" namespace "grale":
         vector[vector[Vector2Dd]] &getCausticSegments()
 
         bool traceBeta(Vector2Dd beta, vector[Vector2Dd] &thetaPoints)
+        bool traceThetaApproximately(Vector2Dd theta, Vector2Dd *pBeta)
 
         @staticmethod
         bool staticTraceBetaApproximately(Vector2Dd beta, vector[Vector2Dd] &thetaPoints, vector[Vector2Dd] &betaMap, Vector2Dd bottomLeft, Vector2Dd topRight, int numX, int numY, string &errorString)
