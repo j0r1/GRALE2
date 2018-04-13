@@ -632,7 +632,7 @@ Arguments:
 
 def plotImagePlane(lensOrLensInfo, sources = [], renderer = "default", feedbackObject = "default", 
                    angularUnit = "default", subSamples = 9, sourceRgb = (0, 1, 0), imageRgb = (1, 1, 1),
-                   bgRgb = (0, 0, 0), caustColor = "blue", critColor = "red",
+                   bgRgb = (0, 0, 0), caustColor = "blue", caustKw = {}, critColor = "red", critKw = {},
                    plotCaustics = True, plotCriticalLines = True, plotSources = True, plotImages = True,
                    evenError = True, axes = None, axImgCallback = None, 
                    processRenderPixels = None, **kwargs):
@@ -673,7 +673,13 @@ Arguments:
  
  - `caustColor`: color for the caustics.
 
+ - `caustKw`: dictionary describing keyword arguments for the matplotlib's ``plot`` function
+   for drawing the caustics.
+
  - `critColor`: color for the critical lines.
+
+ - `critKw`: dictionary describing keyword arguments for the matplotlib's ``plot`` function
+   for drawing the critical lines.
 
  - `bgRgb`: the RGB color for the background.
 
@@ -771,11 +777,11 @@ Arguments:
 
     if plotCaustics:
         caustics = imgPlane.getCaustics()
-        plotLines(caustics, angularUnit, color=caustColor)
+        plotLines(caustics, angularUnit, color=caustColor, **caustKw)
 
     if plotCriticalLines:
         criticalLines = imgPlane.getCriticalLines()
-        plotLines(criticalLines, angularUnit, color=critColor)
+        plotLines(criticalLines, angularUnit, color=critColor, **critKw)
 
     if axes is not False:
         axes.set_xlim([bottomLeft[0]/angularUnit, topRight[0]/angularUnit])
