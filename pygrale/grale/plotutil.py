@@ -1618,7 +1618,9 @@ Arguments:
     # Obtain the map if not yet available
     lensInfo = plotDensity(lensOrLensInfo, axes=False, renderer=renderer, feedbackObject=feedbackObject)
 
-    F, Dd = _getLensFunctionAndDistance(lensInfo)
+    gf = gridfunction.GridFunction(lensInfo.getDensityPoints(), bottomLeft = lensInfo.getBottomLeft(),
+                                   topRight = lensInfo.getTopRight())
+    F = gf.evaluate
     rMax, rSteps = thetaMax, thetaSteps
 
     averageValues = np.zeros([rSteps], dtype=np.double)
