@@ -295,9 +295,58 @@ from the SIS and SIE lenses in the previous one:
 Modelling arbitrary mass distributions
 --------------------------------------
 
+There are several reasons you might want to be able to calculate the
+lens effect for a mass distribution of which you don't know how to
+expand it in terms of the basic :mod:`GravitationalLens <grale.lenses>`
+derived classes: perhaps the lens shape is some analytic model and
+either the lens effect is not known, or an appropriate model is
+not available in Grale. Another reason might be that you want to know
+the lens effect for some pixelized distribution, e.g. the light that's
+observed in a cluster and stored in a FITS file.
 
-TODO: :mod:`grale.grid`, :mod:`grale.gridfunction`, :class:`grale.lenses.MultipleSquareLens`,
-`fittest.ipynb <_static/fittest.ipynb>`_
+For the pixelized case, in principle you could use the 
+:class:`MultipleSquareLens <grale.lenses.MultipleSquareLens>` model
+and add the effect for each individual pixel. This will certainly work,
+and depending on the size of the pixels will create a good approximation
+to the true, non-pixelized distribution. However, the number of pixels will become
+very large rather quickly, causing the calculations for e.g. the
+image plane (which itself is subdivided into a large number of locations)
+to become very slow, even when you can accelerate the calculations
+by using one of the :mod:`renderers <grale.renderers>`. Also, the final
+model will lack some smoothness that may be desired, after all it is
+built up from square pixels.
+
+To reduce the complexity of the calculation and still obtain a good
+model, it is possible to create a fit to the mass distribution using
+Plummer basis functions of varying sizes. To do so, first you 
+create a :mod:`grid <grale.grid>` that's based on the density you'd
+like to model. Typically, this grid will be created so that the regions
+that contain more mass will have a more narrow subdivision. Then,
+using this grid as input, the :func:`fitMultiplePlummerLens <grale.grid.fitMultiplePlummerLens>`
+function is called, which assigns Plummer basis functions to the
+grid cells (with a width proportional to the cell size), fit the weights
+of these basis functions to obtain a close match to the target density,
+and finally returns the result as a :class:`MultiplePlummerLens <grale.lenses.MultiplePlummerLens>`
+lens model.
+
+The target density needs to be supplied to the ``fitMultiplePlummerLens``
+function by supplying a callback function. Depending on what you'd like
+to model, the :mod:`GridFunction <grale.gridfunction>` class can be
+useful, for example to use a FITS file as input with the 
+:func:`GridFunction.createFromFITS <grale.gridfunction.GridFunction.createFromFITS>`
+function.
+
+Examples of this fitting procedure can be found in the
+`fittest.ipynb <_static/fittest.ipynb>`_ notebook.
+
+How much the subdivision grid needs to be refined will depend on the
+complexity of the mass distribution you're trying to model, and will
+require some experimentation. In the various :func:`createSubdivisionGrid <grale.grid.createSubdivisionGrid>`-like
+functions with which the grid will typically be created, there's an
+argument called `keepLarger`, which defaults to ``False``. In my experience,
+fitting is somewhat improved by setting this to ``True``; this causes
+the original grid cell to be present in the subdivision grid even when
+it's subdivided further.
 
 Inversion
 ---------
@@ -333,6 +382,10 @@ TODO
 Examples
 ^^^^^^^^
 
-TODO
+GraleEditor
+-----------
 
+Creating a new version of GraleEditor is still work in progress. For now, the 
+`old version <http://research.edm.uhasselt.be/jori/page/Physics/GraleV1.html>`_ still 
+needs to be used. 
 
