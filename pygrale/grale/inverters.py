@@ -26,6 +26,8 @@ import struct
 import socket
 import sys
 
+debugOutput = False
+
 real_print = print
 def print(*args): # Do a flush afterwards
     real_print(*args)
@@ -184,7 +186,8 @@ class Inverter(object):
             try:
                 privutil.terminateProcess(proc, feedbackObject = self.feedback)
             except Exception as e:
-                print("Ignoring exception when terminating program: " + str(e))
+                if debugOutput:
+                    print("Ignoring exception when terminating program: " + str(e))
         
         if returnNds:
             return(sols, fitnessCriteria)

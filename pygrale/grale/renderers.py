@@ -200,7 +200,8 @@ class Renderer(object):
                 from . import privutil
                 privutil.terminateProcess(proc, feedbackObject = self.feedback)
             except Exception as e:
-                print("Ignoring exception when terminating program: " + str(e))
+                if debugOutput:
+                    print("Ignoring exception when terminating program: " + str(e))
         
             if debugOutput: # for debugging
                 errFile.flush()
