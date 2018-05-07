@@ -486,7 +486,7 @@ class InversionWorkSpace(object):
             w = self.regionSize
             dx = (random.random()-0.5) * w*randomFraction
             dy = (random.random()-0.5) * w*randomFraction
-            c = [ self.regionCenter[0], self.regionCenter[1]]
+            c = [ self.regionCenter[0] + dx, self.regionCenter[1] + dy ]
         else: # assume it's something we can call to obtain the grid dimensions
             w, c = randomFraction(self.regionSize, copy.copy(self.regionCenter))
 
