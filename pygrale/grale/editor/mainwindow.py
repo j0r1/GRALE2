@@ -9,8 +9,11 @@ import imagelayer
 import actionstack
 import os
 import json
+from debug import log
 
 import grale.images as images # TODO?
+
+JSONDump = lambda s: json.dumps(s, sort_keys=True, indent=4, separators=(',', ': '))
 
 class MultipleLayerActionStack(actionstack.ActionStack):
     def __init__(self, scene):
@@ -122,9 +125,21 @@ class MultipleLayerScene(scenes.LayerScene):
 
         self.listWidget = listWidget
         self.mainWidget = mainWidget
+        self.layerItems = { }
 
     def allocateActionStackInstance(self):
         return MultipleLayerActionStack(self)
+
+    def addLayerItem(self, uuid, w):
+        self.layerItems[uuid] = w
+
+    def removeLayerItem(self, uuid):
+        del self.layerItems[uuid]
+
+    def getLayerItem(self, uuid):
+        if uuid in self.layerItems:
+            return self.layerItems[uuid]
+        raise Exception("Specified layer {} not found".format(uuid))
 
     def getCurrentItemAndLayer(self):
         layer, isVisible = self.listWidget.getActiveLayer()
@@ -225,6 +240,7 @@ class MainWindow(QtWidgets.QMainWindow):
         item = self.scene.getLayerItem(layer.getUuid())
         self.scene.removeItem(item)
         self.scene.getActionStack().recordDeleteLayer(layer, item, position)
+        self.scene.removeLayerItem(layer.getUuid())
 
     def _onCheckLayerOrderingAndVisibilities(self):
         self.scene.checkLayerOrderingAndVisibilities()
@@ -293,6 +309,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def addLayer(self, l):
         w = l.createGraphicsItem()
+        self.scene.addLayerItem(l.getUuid(), w)
+
         self.scene.addItem(w)
         w.updatePoints()
 
@@ -300,7 +318,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.m_listWidget.setActiveLayer(l.getUuid())
 
         self._onCheckLayerOrderingAndVisibilities()
-
         self.scene.getActionStack().recordAddLayer(l, w, pos)
 
     def closeEvent(self, evt):
@@ -424,10 +441,16 @@ class MainWindow(QtWidgets.QMainWindow):
         return d
 
     def _onNewZoom(self, v):
-        self.view.setScale(v)
+        self.setZoom(v)
 
     def _onSetCenter(self, dummy):
-        x, y = self.ui.m_xEdit.getValue(), self.ui.m_yEdit.getValue()
+        self.setCenter(self.ui.m_xEdit.getValue(),  self.ui.m_yEdit.getValue())
+    
+    def setZoom(self, v):
+        self.view.setScale(v)
+        self.scene.onScaleChanged(v)
+
+    def setCenter(self, x, y):
         self.view.centerOn(x, y)
 
     def getCurrentState(self):
@@ -447,13 +470,13 @@ class MainWindow(QtWidgets.QMainWindow):
             "layers": layers,
             "visibilities": visibilities,
             "activelayerindex": activeLayerIndex,
-            "globalsettings": self.getGlobalSettings()
+            "globalsettings": self.getGlobalSettings(),
         }
         return state
 
     def getCurrentStateString(self):
         s = self.getCurrentState()
-        stateStr = json.dumps(s, sort_keys=True, indent=4, separators=(',', ': '))
+        stateStr = JSONDump(s)
         return stateStr
 
     def _onNew(self, checked):
@@ -485,9 +508,22 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.m_graphicsViewLayout.removeWidget(oldView)
         self.ui.m_zoomEdit.setValue(self.view.getScale())
 
+        oldView.setParent(None)
+        oldView.deleteLater()
+
+        self.scene.getActionStack().clear() # Don't undo adding layers 
+        self.lastSavedState = self.getCurrentStateString()
+
     def loadFile(self, fileName):
         self._startNewFile() # Clear everything
-        state = json.load(open(fileName, "rt"))
+        stateAndView = json.load(open(fileName, "rt"))
+        if not "state" in stateAndView:
+            state = stateAndView
+            view = None
+        else:
+            state = stateAndView["state"]
+            view = stateAndView["view"]
+
         layers, visibilities = state["layers"], state["visibilities"]
         activeLayerIndex = state["activelayerindex"]
         globalSettings = state["globalsettings"]
@@ -506,6 +542,10 @@ class MainWindow(QtWidgets.QMainWindow):
             self.ui.m_listWidget.setActiveLayer(activeLayerUuid)
 
         self.scene.getActionStack().clear() # Don't undo adding layers 
+        self.lastSavedState = self.getCurrentStateString()
+
+        if view:
+            self.setCurrentView(view)
 
     def _onLoad(self, checked):
         fileName, selectedFilter = QtWidgets.QFileDialog.getOpenFileName(self, "Select load file name", filter="JSON files (*.json)")
@@ -524,7 +564,10 @@ class MainWindow(QtWidgets.QMainWindow):
             return
 
     def _onSave(self, checked):
-        stateStr = self.getCurrentStateString()
+        state = self.getCurrentState()
+        view = self.getCurrentView()
+        stateAndView = { "state": state, "view": view }
+        stateAndViewStr = JSONDump(stateAndView)
 
         fileName, selectedFilter = QtWidgets.QFileDialog.getSaveFileName(self, "Specify save file name", filter="JSON files (*.json)")
         if not fileName:
@@ -532,13 +575,27 @@ class MainWindow(QtWidgets.QMainWindow):
 
         try:
             f = open(fileName, "wt")
-            f.write(stateStr)
+            f.write(stateAndViewStr)
             f.close()
         except Exception as e:
             self.scene.warning("Error while saving", "Encountered a problem while saving to file '{}': {}".format(fileName, e))
             return
 
-        self.lastSavedState = stateStr
+        self.lastSavedState = JSONDump(state)
+
+    def getCurrentView(self):
+        ctr = self.view.getCenter()
+        scale = self.view.getScale()
+
+        return { "center": [ ctr.x(), ctr.y() ], "zoom": scale }
+
+    def setCurrentView(self, v):
+        ctr = v["center"]
+        s = v["zoom"]
+        self.view.centerOn(ctr[0], ctr[1])
+        self.view.setScale(s)
+        self.ui.m_zoomEdit.setValue(self.view.getScale())
+        self.scene.onScaleChanged(self.view.getScale()) # May be needed to recalculate the point size transformation
 
 def main():
     checkQtAvailable()
@@ -551,7 +608,7 @@ def main():
         for a in sys.argv[1:]:
             if a.endswith(".json"):
                 d = json.load(open(a, "rt"))
-                if type(d) == dict and "layers" in d:
+                if type(d) == dict and ("layers" in d or "state" in d):
                     if firstArg:
                         w.loadFile(a)
                     else:

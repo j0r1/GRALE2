@@ -158,9 +158,18 @@ for ui in [ "grale/editor/contourleveldialog.ui",
             "grale/editor/pointslistwidget.ui",
             "grale/editor/mainwindow.ui",
         ]:
-    pyName = os.path.join(os.path.dirname(ui),"ui_" + os.path.basename(ui)[:-3] + ".py")
+    pathParts = os.path.dirname(ui).split("/")
+    ui = os.path.join(*ui.split("/"))
+    outName = "ui_" + os.path.basename(ui)[:-3] + ".py"
+    pyName = os.path.join(*pathParts, outName)
     print(ui, "->", pyName)
-    subprocess.check_call( [ "pyuic5", "-o", pyName, ui ])
+    cmd = [ "-o", pyName, ui ]
+    if platform.system() == "Windows":
+        cmd = [ "cmd.exe", "/c", "pyuic5.bat" ] + cmd
+    else:
+        cmd = [ "pyuic5" ] + cmd
+    subprocess.check_call(cmd)
+
 
 setup(name = "grale", version = versionStr, ext_modules = cythonize(extensions), py_modules = pyMods)
 

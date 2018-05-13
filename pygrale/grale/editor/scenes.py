@@ -9,12 +9,12 @@ import copy
 import grale.images as images # TODO
 import grale.contourfinder as contourfinder
 
-from base import GraphicsView, GraphicsScene, PointGraphicsItemBase, Layer
-from imagelayer import FITSImageLayer, RGBImageLayer, MatchPointGraphicsItem, RGBGraphicsItem, FITSGraphicsItem, ImageGraphicsItem
-from pointslayer import PointsLayer, TriangleItem, SinglePointGraphicsItem, MultiplePointGraphicsItem
+from base import GraphicsView, GraphicsScene, PointGraphicsItemBase, Layer, TriangleItem
+from imagelayer import FITSImageLayer, RGBImageLayer, RGBGraphicsItem, FITSGraphicsItem, ImageGraphicsItem
+from pointslayer import PointsLayer, MultiplePointGraphicsItem
 from checkqt import checkQtAvailable
 from hullprocessor import createTriangulationFromHull
-from actionstack import ActionStack
+from actionstack import ActionStack, objectToDouble
 from contourleveldialog import ContourLevelDialog
 from pointinfodialog import PointInfoDialog
 from fitslayerinfodialog import FITSLayerInfoDialog
@@ -44,19 +44,8 @@ class LayerScene(GraphicsScene):
     def allocateActionStackInstance(self):
         return ActionStack()
 
-    def getPointItem(self, uuid):
-        for i in self.items():
-            if issubclass(type(i), PointGraphicsItemBase) and i.getUuid() == uuid:
-                return i
-
-        raise Exception("Point with uuid '{}' not found in scene".format(uuid))
-
     def getLayerItem(self, uuid):
-        for i in self.items():
-            if type(i) in [ MultiplePointGraphicsItem, FITSGraphicsItem, RGBGraphicsItem ] and i.getLayer().getUuid() == uuid:
-                return i
-
-        raise Exception("Layer with uuid '{}' not found in scene".format(uuid))
+        raise Exception("Implement in derived class!")
 
     def undo(self):
         self.actionStack.undo(self)
@@ -75,7 +64,7 @@ class LayerScene(GraphicsScene):
         if not curItem or not curLayer:
             return
 
-        uuid = curItem.addPoint(pos, label=label)
+        uuid = curItem.addPoint(pos[0], pos[1], label)
         ptInfo = curLayer.getPoint(uuid)
         if type(curLayer) == PointsLayer:
             self.getActionStack().recordAddNormalPoint(curLayer.getUuid(), uuid, ptInfo["xy"], ptInfo["timedelay"], ptInfo["label"], None)
@@ -88,7 +77,8 @@ class LayerScene(GraphicsScene):
     def mouseHandler_moved(self, movableItem, cursorPos, itemPos, moveId):
         if movableItem:
             oldPosition, newPosition = movableItem.syncPosition()
-            self.actionStack.recordPointMove(movableItem.getUuid(), oldPosition, newPosition, moveId)
+            layerUuid = movableItem.getLayer().getUuid()
+            self.getActionStack().recordPointMove(layerUuid, movableItem.getUuid(), oldPosition, newPosition, moveId)
 
     def mouseHandler_click(self, movableItem, pos, modInfo):
         selItems = self.selectedItems() # Note, the following 'super' might clear the selection
@@ -147,9 +137,9 @@ class LayerScene(GraphicsScene):
         pointsToMatch = [ matchPoints[label] for label in matchPoints if len(matchPoints[label]) == 2 ]
         
         try:
-            oldTrans = curLayer.getTransform()
+            oldTrans = curLayer.getImageTransform()
             curLayer.matchToPoints(pointsToMatch)
-            newTrans = curLayer.getTransform()
+            newTrans = curLayer.getImageTransform()
         except Exception as e:
             self.warning("Can't calculate correspondence", str(e))
             return
@@ -237,14 +227,19 @@ class LayerScene(GraphicsScene):
                 if contour is not None:
                     self._addTriangulationFromHull(contour)
         else:
-            if type(movableItem) == MatchPointGraphicsItem:
+            if not movableItem.isNormalPoint():
                 movableItem.toggleFocus()
             else: # Point item
                 self._pointDoubleClicked(movableItem)
 
     def _pointDoubleClicked(self, movableItem):
         if movableItem.isSelected():
-            pts = [ i for i in self.selectedItems() if type(i) == SinglePointGraphicsItem ]
+            pts = [ ]
+            for i in self.selectedItems():
+                i = PointGraphicsItemBase.getPointGraphicsItem(i) 
+                if i and i.isNormalPoint():
+                    pts.append(i)
+
             if len(pts) < 3:
                 movableItem.toggleFocus()
                 return
@@ -276,10 +271,8 @@ class LayerScene(GraphicsScene):
 
             for pts in tri.simplices:
                 ptIds = [ ids[p] for p in pts ]
-                tUuid = layer.addTriangle(*ptIds)
+                tUuid = layerItem.addTriangle(*ptIds)
                 self.getActionStack().recordAddTriangle(layerUuid, tUuid, ptIds, addId)
-
-            layerItem.updatePoints()
 
         else:
             movableItem.toggleFocus()
@@ -288,48 +281,65 @@ class LayerScene(GraphicsScene):
         items = self.selectedItems()
         pointItems, triangItems = [ ], [ ]
         for i in items:
-            if type(i) in [ SinglePointGraphicsItem, MatchPointGraphicsItem ]:
-                pointItems.append(i)
-            elif type(i) == TriangleItem:
-                triangItems.append(i)
+            p = PointGraphicsItemBase.getPointGraphicsItem(i)
+            if p:
+                pointItems.append(p)
+            else:
+                t = TriangleItem.getTriangleItem(i)
+                if t:
+                    triangItems.append(t)
 
         self._deleteItems(pointItems, triangItems, deletePoints, deleteTriangles)
 
-    def _deleteItems(self, pointItems, triangItems, deletePoints, deleteTriangles):
+    def _deleteItems(self, pointItems, triangItems, deletePointsFlag, deleteTrianglesFlag):
     
         affectedLayerItems = set()
         deleteId = uuid.uuid4()
 
+        deleteNormalPoints = [ ]
+        deleteTriangles = [ ]
+        deleteMatchPoints = [ ]
+
         needUpdate = False
-        if triangItems and deleteTriangles:
+        if triangItems and deleteTrianglesFlag:
             for t in triangItems:
                 tUuid = t.getUuid()
                 layer = t.getLayer()
-                layerUuid = layer.getUuid()
+                layerUuid = layer.getUuid() # TODO: better way to get layer item from layer!
+                layerItem = self.getLayerItem(layer.getUuid())
                 pts = layer.getTriangle(tUuid)
-                layer.clearTriangle(tUuid)
-                self.getActionStack().recordDeleteTriangle(layerUuid, tUuid, pts, deleteId)
-                affectedLayerItems.add(self.getLayerItem(layerUuid))
+
+                #self.getActionStack().recordDeleteTriangle(layerUuid, tUuid, pts, deleteId)
+                deleteTriangles.append({"layer": layerUuid, "triangle": tUuid, "points": pts })
+
+                layerItem.clearTriangle(tUuid)
         
-        if pointItems and deletePoints:
+        if pointItems and deletePointsFlag:
             for p in pointItems:
                 pUuid = p.getUuid()
                 layer = p.getLayer()
                 layerUuid = layer.getUuid()
+                layerItem = self.getLayerItem(layer.getUuid())
                 ptInfo = layer.getPoint(pUuid)
 
-                triangs = layer.clearPoint(pUuid) # returns affected triangles
-                if type(p) == SinglePointGraphicsItem:
-                    self.getActionStack().recordDeletePoint(layerUuid, pUuid, ptInfo["xy"], ptInfo["timedelay"], ptInfo["label"], deleteId)
+                isNormalPoint = p.isNormalPoint() # Note: we need to do this before deleting the point, as this will also delete the graphics item
+                triangs = layerItem.clearPoint(pUuid) # returns affected triangles
+
+                if isNormalPoint:
+                    deleteNormalPoints.append({"layer": layerUuid, "point": pUuid, "pos": ptInfo["xy"], "timedelay": ptInfo["timedelay"], "label": ptInfo["label"] })
                     for t in triangs:
-                        self.getActionStack().recordDeleteTriangle(layerUuid, t, triangs[t], deleteId)
+                        deleteTriangles.append({"layer": layerUuid, "triangle": t, "points": triangs[t] })
                 else: # Match point
-                    self.getActionStack().recordDeleteMatchPoint(layerUuid, pUuid, ptInfo["xy"], ptInfo["label"], deleteId)
+                    pos = ptInfo["xy"]
+                    pos = layer.getImageTransform().map(pos[0], pos[1])
+                    deleteMatchPoints.append({"layer": layerUuid, "point": pUuid, "pos": pos, "label": ptInfo["label"] })
 
-                affectedLayerItems.add(self.getLayerItem(layerUuid))
-
-        for i in affectedLayerItems:
-            i.updatePoints()
+        if deleteNormalPoints:
+            self.getActionStack().recordDeletePoints(deleteNormalPoints, deleteId)
+        if deleteTriangles:
+            self.getActionStack().recordDeleteTriangles(deleteTriangles, deleteId)
+        if deleteMatchPoints:
+            self.getActionStack().recordDeleteMatchPoints(deleteMatchPoints, deleteId)
 
     def _addTriangulationFromHull(self, path):
 
@@ -351,7 +361,7 @@ class LayerScene(GraphicsScene):
 
         importPoints = [ ]
         for p in pts:
-            ptUuid = layer.addPoint(path[p], timedelay = None, label = None)
+            ptUuid = item.addPoint(float(path[p][0]), float(path[p][1]))
             uuids.append(ptUuid)
 
             ptInfo = layer.getPoint(ptUuid)
@@ -361,12 +371,11 @@ class LayerScene(GraphicsScene):
 
         importTriangles = [ ]
         for p0, p1, p2 in simp:
-            tUuid = layer.addTriangle(uuids[p0], uuids[p1], uuids[p2])
+            tUuid = item.addTriangle(uuids[p0], uuids[p1], uuids[p2])
             importTriangles.append({"triangle": tUuid, "layer": layerUuid, "points": [ uuids[p0], uuids[p1], uuids[p2] ] })
         
         self.getActionStack().recordAddTriangles(importTriangles, addId)
         
-        item.updatePoints()
 
     def keyHandler_clicked(self, key, keyStr, modifiers):
 
@@ -394,6 +403,10 @@ class LayerScene(GraphicsScene):
             self._deleteSelectedItems(modifiers["shift"], modifiers["control"])
             return
 
+        if keyStr == "I":
+            for i in self.items():
+                print(i)
+
     def importFromImagesData(self, imgDat, imgIdx):
         item, layer = self.getCurrentItemAndLayer()
         if type(layer) != PointsLayer:
@@ -418,14 +431,14 @@ class LayerScene(GraphicsScene):
         
         self.getActionStack().recordAddTriangles(importTriangles, addId)
 
-        item.updatePoints()
+        item.updatePointList([u for u in pts], [t for t in triangs])
 
     def mouseHandler_startDrawing(self, pos, modInfo):
         item, layer = self.getCurrentItemAndLayer()
         if type(layer) != PointsLayer:
             return False
 
-        pprint.pprint(modInfo) 
+        #pprint.pprint(modInfo) 
 
         self.drawItem.setVisible(True)
         path = QtGui.QPainterPath(QtCore.QPointF(pos[0], pos[1]))
@@ -457,12 +470,16 @@ class LayerScene(GraphicsScene):
         items = self.selectedItems()
         pointItems, triangItems, matchPointItems = [ ], [ ], [ ]
         for i in items:
-            if type(i) ==  SinglePointGraphicsItem:
-                pointItems.append(i)
-            elif type(i) == TriangleItem:
-                triangItems.append(i)
-            elif type(i) == MatchPointGraphicsItem:
-                matchPointItems.append(i)
+            p = PointGraphicsItemBase.getPointGraphicsItem(i)
+            if p:
+                if p.isNormalPoint():
+                    pointItems.append(p)
+                else:
+                    matchPointItems.append(p)
+            else:
+                t = TriangleItem.getTriangleItem(i)
+                if t:
+                    triangItems.append(t)
 
         ptMap = { }
 
@@ -516,7 +533,10 @@ class LayerScene(GraphicsScene):
             copyInfo = json.loads(txt)
             item, layer = self.getCurrentItemAndLayer()
             layerUuid = layer.getUuid()
-            added = False
+    
+            addedNormalPoints = [ ]
+            addedTriangles = [ ]
+            addedMatchPoints = [ ]
 
             addId = uuid.uuid4()
             if type(layer) == PointsLayer:
@@ -524,41 +544,39 @@ class LayerScene(GraphicsScene):
                 for pIdx in range(len(copyInfo["normalpoints"])):
                     added = True
                     
-                    ptInfo = copy.deepcopy(copyInfo["normalpoints"][pIdx])
+                    ptInfo = copyInfo["normalpoints"][pIdx]
                     pos = ptInfo["xy"]
-                    del ptInfo["xy"]
 
-                    ptUuid = layer.addPoint(pos, **ptInfo)
+                    ptUuid = item.addPoint(pos[0], pos[1], ptInfo["label"], objectToDouble(ptInfo["timedelay"]))
                     ptMap[pIdx] = ptUuid
                     
-                    self.getActionStack().recordAddNormalPoint(layerUuid, ptUuid, pos, ptInfo["timedelay"], ptInfo["label"], addId)
+                    addedNormalPoints.append({"layer": layerUuid, "point": ptUuid, "pos": pos, "timedelay": ptInfo["timedelay"], "label": ptInfo["label"] })
 
                 for tIdx in range(len(copyInfo["triangles"])):
-                    added = True
-
                     pts = list(map(lambda x: ptMap[x], copyInfo["triangles"][tIdx]))
-                    tUuid = layer.addTriangle(*pts)
-                    self.getActionStack().recordAddTriangle(layerUuid, tUuid, pts, addId)
+                    tUuid = item.addTriangle(*pts)
+                    addedTriangles.append({"layer": layerUuid, "triangle": tUuid, "points": pts })
 
             else: # image layer
                 for pIdx in range(len(copyInfo["matchpoints"])):
-                    added = True
+                    ptInfo = copyInfo["matchpoints"][pIdx]
 
-                    ptInfo = copy.deepcopy(copyInfo["matchpoints"][pIdx])
-                    pos = item.getPixelPosition(ptInfo["xy"]) # Transform scene coords to image coords
-                    del ptInfo["xy"]
+                    pos = ptInfo["xy"]
+                    ptUuid = item.addPoint(pos[0], pos[1], ptInfo["label"])
+                    addedMatchPoints.append({"layer": layerUuid, "point": ptUuid, "pos": pos, "label": ptInfo["label"]})
+            
+            if addedNormalPoints:
+                self.getActionStack().recordAddNormalPoints(addedNormalPoints, addId)
+            if addedTriangles:
+                self.getActionStack().recordAddTriangles(addedTriangles, addId)
+            if addedMatchPoints:
+                self.getActionStack().recordAddMatchPoints(addedMatchPoints, addId)
 
-                    ptUuid = layer.addPoint(pos, **ptInfo)
-                    self.getActionStack().recordAddMatchPoint(layerUuid, ptUuid, pos, ptInfo["label"], addId)
-
-
-            if added:
-                item.updatePoints()
         except Exception as e:
             self.warning("Unable to paste clipboard contents", "Can't paste: {}".format(e))
 
     def cut(self):
-        ptItems, triangItems =  self.copy()
+        ptItems, triangItems = self.copy()
         self._deleteItems(ptItems, triangItems, True, True)
 
     def _editPointInfo(self, pointItem):
@@ -569,7 +587,7 @@ class LayerScene(GraphicsScene):
         dlg = PointInfoDialog(ptInfo, self.getDialogWidget())
         if dlg.exec_():
             ptInfoNew = dlg.getPointInfo()
-            layer.setPoint(ptUuid, ptInfoNew["xy"], label=ptInfoNew["label"], timedelay=ptInfoNew["timedelay"])
+            layer.setPoint(ptUuid, ptInfoNew["xy"], ptInfoNew["label"], ptInfoNew["timedelay"])
             pointItem.fetchSettings() # adjust the QGraphicsItem to match the point settings
 
             self.getActionStack().recordSetNormalPoint(layer.getUuid(), ptUuid, ptInfo["xy"], ptInfoNew["xy"],
@@ -598,9 +616,9 @@ class LayerScene(GraphicsScene):
 
     def mouseHandler_rightClick(self, pointItem, pos, modInfo):
         if pointItem:
-            if type(pointItem) == SinglePointGraphicsItem:
+            pointItem = PointGraphicsItemBase.getPointGraphicsItem(pointItem)
+            if pointItem and pointItem.isNormalPoint():
                 self._editPointInfo(pointItem)
-
         else:
             # Look for RGBGraphicsItem or FITSGraphicsItem
             for item in self.items(QtCore.QPointF(pos[0], pos[1])):
@@ -622,6 +640,11 @@ class SingleLayerScene(LayerScene):
         self.layer = layer
         self.item = layer.createGraphicsItem()
         self.addItem(self.item)
+
+    def getLayerItem(self, uuid):
+        if uuid == self.layer.getUuid():
+            return self.item
+        raise Exception("Layer with uuid {} not found".format(uuid))
 
     def getCurrentItemAndLayer(self):
         return self.item, self.layer

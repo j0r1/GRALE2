@@ -1,4 +1,10 @@
 from __future__ import print_function
+import pprint
+
+def objectToDouble(x):
+    if type(x) == float:
+        return float(x)
+    return float("NaN")
 
 class ActionStack(object):
     def __init__(self, maxUndoDepth = 256):
@@ -38,8 +44,9 @@ class ActionStack(object):
                 "new": newLabel
             })
 
-    def recordPointMove(self, pointUuid, oldPosition, newPosition, moveId):
+    def recordPointMove(self, layerUuid, pointUuid, oldPosition, newPosition, moveId):
         pointMove = { 
+            "layer": layerUuid,
             "point": pointUuid,
             "old": oldPosition,
             "new": newPosition
@@ -112,6 +119,22 @@ class ActionStack(object):
             self.appendToStack(x)
         return x
 
+    def recordAddMatchPoints(self, points, addId):
+        x = {
+            "cmd": "add",
+            "id": addId,
+            "normalpoints": [ ],
+            "matchpoints": points,
+            "triangles": [ ]
+        }
+        # Check if we can merge
+        prevOp = self._getPreviousOperation()
+        if prevOp and not "finished" in prevOp and prevOp["cmd"] == "add" and addId and prevOp["id"] == addId:
+            prevOp["matchpoints"] += points
+        else:
+            self.appendToStack(x)
+        return x
+
     def recordAddTriangle(self, layerUuid, triangUuid, pointUuids, addId):
         triangAdd = {
             "triangle": triangUuid,
@@ -166,6 +189,55 @@ class ActionStack(object):
             "triangles": [ ]
         }
         self.appendToStack(x)
+        return x
+
+    def recordDeletePoints(self, points, deleteId):
+        x = {
+            "cmd": "del",
+            "id": deleteId,
+            "normalpoints": points,
+            "matchpoints": [ ],
+            "triangles": [ ]
+        }
+        # Check if we can merge
+        prevOp = self._getPreviousOperation()
+        if prevOp and not "finished" in prevOp and prevOp["cmd"] == "del" and deleteId and prevOp["id"] == deleteId:
+            prevOp["normalpoints"] += points
+        else:
+            self.appendToStack(x)
+        return x
+
+    def recordDeleteMatchPoints(self, points, deleteId):
+        x = {
+            "cmd": "del",
+            "id": deleteId,
+            "normalpoints": [ ],
+            "matchpoints": points,
+            "triangles": [ ]
+        }
+        # Check if we can merge
+        prevOp = self._getPreviousOperation()
+        if prevOp and not "finished" in prevOp and prevOp["cmd"] == "del" and deleteId and prevOp["id"] == deleteId:
+            prevOp["matchpoints"] += points
+        else:
+            self.appendToStack(x)
+            pprint.pprint(x)
+        return x
+
+    def recordDeleteTriangles(self, triangs, deleteId):
+        x = {
+            "cmd": "del",
+            "id": deleteId,
+            "normalpoints": [ ],
+            "matchpoints": [ ],
+            "triangles": triangs
+        }
+        # Check if we can merge
+        prevOp = self._getPreviousOperation()
+        if prevOp and not "finished" in prevOp and prevOp["cmd"] == "del" and deleteId and prevOp["id"] == deleteId:
+            prevOp["triangles"] += triangs
+        else:
+            self.appendToStack(x)
         return x
 
     def recordDeletePoint(self, layerUuid, pointUuid, pos, timedelay, label, deleteId):
@@ -248,91 +320,49 @@ class ActionStack(object):
         layerItem = scene.getLayerItem(x["layer"])
         assert(layerItem.getLayer() is layer)
 
-        ptInfo = layer.getPoint(x["point"])
-        ptInfo["label"] = x["new"] if isRedo else x["old"]
-
-        xy = ptInfo["xy"]
-        del ptInfo["xy"]
-        layer.setPoint(x["point"], xy, **ptInfo)
-        layerItem.updatePoints()
+        label = x["new"] if isRedo else x["old"]
+        layerItem.setLabel(x["point"], label)
 
     def _undoRedoMove(self, isRedo, x, scene):
-        layersToUpdate = set()
         for pointMove in x["moves"]:
+            layerUuid = pointMove["layer"]
             uuid = pointMove["point"]
             pos = pointMove["new"] if isRedo else pointMove["old"]
-            item = scene.getPointItem(uuid)
-            
-            layer = item.getLayer()
-            ptInfo = layer.getPoint(uuid)
-            del ptInfo["xy"]
-
-            layer.setPoint(uuid, pos, **ptInfo)
-            layerItem = scene.getLayerItem(layer.getUuid())
-            layersToUpdate.add(layerItem)
-
-        for li in layersToUpdate:
-            li.updatePoints()
+            layerItem = scene.getLayerItem(layerUuid)
+            layerItem.movePoint(uuid, pos[0], pos[1])
 
     def _redoAdd(self, x, scene):
-        layersToUpdate = set()
-
         for p in x["normalpoints"]:
             layerUuid = p["layer"]
             layerItem = scene.getLayerItem(layerUuid)
-            layersToUpdate.add(layerItem)
-
-            layer = layerItem.getLayer()
-            layer.setPoint(p["point"], p["pos"], timedelay=p["timedelay"], label=p["label"])
+            layerItem.addPoint(p["pos"][0], p["pos"][1], p["label"], objectToDouble(p["timedelay"]), p["point"])
 
         for t in x["triangles"]:
             layerUuid = t["layer"]
             layerItem = scene.getLayerItem(layerUuid)
-            layersToUpdate.add(layerItem)
-
-            layer = layerItem.getLayer()
-            layer.addTriangle(*t["points"], t["triangle"])
+            layerItem.addTriangle(*t["points"], t["triangle"])
 
         for m in x["matchpoints"]:
             layerUuid = m["layer"]
             layerItem = scene.getLayerItem(layerUuid)
-            layersToUpdate.add(layerItem)
-
-            layer = layerItem.getLayer()
-            layer.setPoint(m["point"], m["pos"], label=m["label"])
-
-        for li in layersToUpdate:
-            li.updatePoints()
+            layerItem.addPoint(m["pos"][0], m["pos"][1], m["label"], objectToDouble(None), m["point"])
 
     def _redoDelete(self, x, scene):
-        layersToUpdate = set()
 
         for t in x["triangles"]:
             layerUuid = t["layer"]
             layerItem = scene.getLayerItem(layerUuid)
-            layersToUpdate.add(layerItem)
-
-            layer = layerItem.getLayer()
-            layer.clearTriangle(t["triangle"])
+            layerItem.clearTriangle(t["triangle"])
 
         for p in x["normalpoints"]:
             layerUuid = p["layer"]
             layerItem = scene.getLayerItem(layerUuid)
-            layersToUpdate.add(layerItem)
-
-            layer = layerItem.getLayer()
-            layer.clearPoint(p["point"])
+            layerItem.clearPoint(p["point"])
 
         for m in x["matchpoints"]:
             layerUuid = m["layer"]
             layerItem = scene.getLayerItem(layerUuid)
-            layersToUpdate.add(layerItem)
-
-            layer = layerItem.getLayer()
-            layer.clearPoint(m["point"])
-
-        for li in layersToUpdate:
-            li.updatePoints()
+            layerItem.clearPoint(m["point"])
 
     def _undoRedoCenter(self, isRedo, x, scene):
         
@@ -358,7 +388,7 @@ class ActionStack(object):
         t = x["new"] if isRedo else x["old"]
         layerItem = scene.getLayerItem(x["layer"])
         layer = layerItem.getLayer()
-        layer.setTransform(t)
+        layer.setImageTransform(t)
         layerItem.updateTransform()
 
     def _undoRedoSetPoint(self, isRedo, x, scene):
@@ -366,9 +396,7 @@ class ActionStack(object):
         label = x["label"][1] if isRedo else x["label"][0]
         timedelay = x["timedelay"][1] if isRedo else x["timedelay"][0]
         layerItem = scene.getLayerItem(x["layer"])
-        layer = layerItem.getLayer()
-        layer.setPoint(x["point"], pos, label=label, timedelay=timedelay)
-        layerItem.updatePoints()
+        layerItem.setPoint(x["point"], pos[0], pos[1], label, objectToDouble(timedelay))
 
     def _undoRedo(self, isRedo, x, scene):
         if x["cmd"] == "label":

@@ -9,72 +9,14 @@ import uuid
 # point matching: there, the coordinates are in pixel space and the 
 # transformation converts them to scene space (where each unit is an arc second)
 
-class Layer(object):
+from cppqt.cppqt import Layer as LayerCPP
+
+class Layer(LayerCPP):
     def __init__(self, name = "Untitled"):
-        self.points = { }
-        self.transform = QtGui.QTransform(1, 0, 0, 1, 0, 0)
-        self.uuid = self.generateKey()
-        self.name = name
-    
-    def setName(self, n):
-        self.name = n
-
-    def getName(self):
-        return self.name
-
-    def getUuid(self):
-        return self.uuid
+        super(Layer, self).__init__(name)
     
     def createGraphicsItem(self):
         raise Exception("Implement this in derived class!")
-
-    def _setPointKw(self, **kwargs): # Implement this in derived class for other props
-        pass
-
-    def generateKey(self):
-        key = uuid.uuid4()
-        return key
-
-    def addPoint(self, xy, **kwargs):
-        key = self.generateKey()
-        d = { "xy": [xy[0], xy[1]] }
-        self._setPointKw(d, **kwargs)
-        self.points[key] = d
-        return key
-
-    def setPoint(self, key, xy, **kwargs):
-        d = { "xy": [xy[0], xy[1]] }
-        self._setPointKw(d, **kwargs)
-        self.points[key] = d
-
-    def clearPoint(self, key):
-        del self.points[key]
-
-    def clearAllPoints(self):
-        self.points = { }
-
-    def getPoint(self, key):
-        return copy.deepcopy(self.points[key])
-
-    def getPoints(self, transformed = False):
-        if not transformed:
-            return copy.deepcopy(self.points)
-
-        tranformedPoints = { }
-        for key in self.points:
-            newPt = copy.deepcopy(self.points[key]) # keep other properties
-            xy = newPt["xy"]
-            mXy = self.transform.map(QtCore.QPointF(xy[0], xy[1]))
-            newPt["xy"] = [ mXy.x(), mXy.y() ]
-            tranformedPoints[key] = newPt
-
-        return tranformedPoints
-
-    def getTransform(self):
-        return self.transform
-
-    def setTransform(self, t):
-        self.transform = t
 
     @staticmethod
     def fromSettings(settings):
@@ -87,164 +29,27 @@ class Layer(object):
             return FITSImageLayer.fromSettings(settings)
         return PointsLayer.fromSettings(settings)
 
-class EmptyGraphicsItem(QtWidgets.QGraphicsItem):
-    def __init__(self, parent = None):
-        super(EmptyGraphicsItem, self).__init__(parent)
+from cppqt.cppqt import PointGraphicsItemBase, TriangleItem, LayerGraphicsItemBase as LayerGraphicsItemBaseCPP
 
-    def boundingRect(self):
-        # The childrenBoundingRect doesn't take the visibility status into account
-        r = QtCore.QRectF(0,0,1,1)
-        for i in self.childItems():
-            if i.isVisible():
-                r |= i.mapToParent(i.boundingRect()).boundingRect()
-        return r
+class LayerGraphicsItemBase(LayerGraphicsItemBaseCPP):
+    def __init__(self, layer, pointType, parent = None):
+        super(LayerGraphicsItemBase, self).__init__(layer, pointType, parent)
 
-    def paint(self, painter, option, widget):
-        pass
-
-class SyncTextEditItem(QtWidgets.QGraphicsTextItem):
-    def __init__(self, layer, uuid, label, parent):
-        super(SyncTextEditItem, self).__init__(label, parent)
-
-        self.layer = layer
-        self.uuid = uuid
-
-    def keyReleaseEvent(self, evt):
-        #print("keyReleaseEvent")
-        super(SyncTextEditItem, self).keyReleaseEvent(evt)
-        self._syncValueAndCenter()
-    
-    def inputMethodEvent(self, evt):
-        #print("inputMethodEvent")
-        super(SyncTextEditItem, self).inputMethodEvent(evt)
-        self._syncValueAndCenter()
-
-    def focusOutEvent(self, evt):
-        #print("focusOutEvent")
-        super(SyncTextEditItem, self).focusOutEvent(evt)
-        self._syncValueAndCenter()
-        if not self.layer.getPoint(self.uuid)["label"]:
-            self.setVisible(False)
-
-    def recenter(self):
-        r = self.boundingRect()
-        dx = (r.right()+r.left())/2.0
-        self.setTransform(QtGui.QTransform(0.1,0,0,-0.1,0,0))
-        self.setTransform(QtGui.QTransform(1,0,0,1,-dx, 10), True)
-
-    def _syncValueAndCenter(self):
-        # Sync value
-        label = self.document().toPlainText()
-        ptInfo = self.layer.getPoint(self.uuid)
-        xy, oldLabel = ptInfo["xy"], ptInfo["label"]
-        del ptInfo["xy"]
-        del ptInfo["label"]
-        self.layer.setPoint(self.uuid, xy, label=label, **ptInfo)
-
-        scene = self.scene()
-        if scene:
-            scene.onPointLabelChanged(self.layer.getUuid(), self.uuid, oldLabel, label)
-
-        # Center
-        self.recenter()
-
-class LayerObjectGraphicsItem(EmptyGraphicsItem):
-    def __init__(self, layer, objectUuid, parent):
-        super(LayerObjectGraphicsItem, self).__init__(parent)
-        self.layer = layer
-        self.uuid = objectUuid
-
-    def getUuid(self):
-        return self.uuid
-
-    def getLayer(self):
-        return self.layer
-
-class PointGraphicsItemBase(LayerObjectGraphicsItem):
-    def __init__(self, parent, uuid, label = None):
-        super(PointGraphicsItemBase, self).__init__(parent.getLayer(), uuid, parent)
-
-        self.setMovable()
-
-        label = "" if not label else label
-        self.txt = SyncTextEditItem(self.getLayer(), uuid, label, self)
-        self.txt.setFlag(QtWidgets.QGraphicsItem.ItemIsFocusable)
-        self.txt.setDefaultTextColor(QtGui.QColor(QtCore.Qt.cyan))
-        self.txt.setTextInteractionFlags(QtCore.Qt.TextEditorInteraction)
-        self.txt.recenter()
-
-        if not label:
-            self.txt.setVisible(False)
-
+    def arePointsVisible(self):
         s = self.scene()
-        if s:
-            self.setTransform(s._getPointTransform())
-
-    def isMovable(self):
-        f = self.flags()
-        if f&QtWidgets.QGraphicsItem.ItemIsMovable and f&QtWidgets.QGraphicsItem.ItemIsSelectable:
+        if not s:
             return True
-        return False
+        return s.areMatchPointsVisible()
 
-    def setMovable(self, v = True):
-        self.setFlag(QtWidgets.QGraphicsItem.ItemIsSelectable, v)
-        self.setFlag(QtWidgets.QGraphicsItem.ItemIsMovable, v)
+    # TODO: rename/remove this?
+    def getScenePosition(self, pos):
+        p = self.getLayer().getImageTransform().map(pos[0], pos[1])
+        return list(p)
 
-    # Override in derived class to convert scene position to point coordinates
-    def scenePositionToPointPosition(self, pos):
-        return pos
-    def pointPositionToScenePosition(self, pos):
-        return pos
-
-    def fetchSettings(self):
-        layer = self.getLayer()
-        props = layer.getPoint(self.uuid)
-        pos = self.pointPositionToScenePosition(props["xy"])
-       
-        self.setPos(QtCore.QPointF(pos[0], pos[1]))
-
-        if not props["label"]:
-            self.txt.setVisible(False)
-        else:
-            self.txt.setPlainText(props["label"])
-            self.txt.setVisible(True)
-            self.txt.recenter()
-        
-        return props
-
-    def syncPosition(self, pos = None):
-        if not pos:
-            pos = self.pos()
-            pos = (pos.x(), pos.y())
-        else:
-            self.setPos(pos[0], pos[1])
-
-        layer = self.getLayer()
-        pos = self.scenePositionToPointPosition(pos)
-        props = layer.getPoint(self.uuid)
-       
-        oldPosition, newPosition = props["xy"], pos
-        del props["xy"]
-        
-        layer.setPoint(self.uuid, pos, **props)
-
-        return oldPosition, newPosition
-
-    def onSelected(self, value):
-        print("TODO: implement onSelected in derived class")
-
-    def itemChange(self, change, value):
-        if change == QtWidgets.QGraphicsItem.ItemSelectedChange:
-            self.onSelected(value)
-
-        return super(PointGraphicsItemBase, self).itemChange(change, value)
-
-    def toggleFocus(self):
-        if self.txt.hasFocus():
-            self.txt.clearFocus()
-        else:
-            self.txt.setFocus()
-            self.txt.setVisible(True)
+    # TODO: rename/remove this?
+    def getPixelPosition(self, pos):
+        p = self.getLayer().getImageTransform().inverted()[0].map(pos[0], pos[1])
+        return list(p)
 
 class GraphicsView(QtWidgets.QGraphicsView):
     def __init__(self, scene, initialZoom = 8.0, parent = None):
@@ -337,7 +142,9 @@ class AxesGraphicsItem(QtWidgets.QGraphicsItemGroup):
         self.line2.setPen(linePen)
         self.setZValue(1000000)
 
-class GraphicsScene(QtWidgets.QGraphicsScene):
+from cppqt.cppqt import SceneBase
+
+class GraphicsScene(SceneBase):
 
     def __init__(self, doubleClickTimeout = 200): # set timeout to zero to disable double click detection within interval
         super(GraphicsScene, self).__init__()
@@ -411,16 +218,9 @@ class GraphicsScene(QtWidgets.QGraphicsScene):
         s = self.pointScale if self.pointSizeFixed else self.pointSceneSize
         return QtGui.QTransform(s*self.axisDirection, 0, 0, s, 0, 0)
 
-    def _setPointScale(self, s):
-        self.pointScale = s
-        self._updatePointScale()
-
     def _updatePointScale(self):
         t = self._getPointTransform()
-
-        for item in self.items():
-            if issubclass(type(item), PointGraphicsItemBase):
-                item.setTransform(t)
+        self.setPointTransform(t);
 
     def setPointSizeFixed(self, v):
         self.pointSizeFixed = True if v else False
@@ -443,7 +243,8 @@ class GraphicsScene(QtWidgets.QGraphicsScene):
 
     def onScaleChanged(self, f):
         if self.pointSizeFixed:
-            self._setPointScale(self.pointPixelSize/(2.2*f))
+            self.pointScale = self.pointPixelSize/(2.2*f)
+            self._updatePointScale()
 
     def mousePressEvent(self, evt):
 
@@ -465,14 +266,17 @@ class GraphicsScene(QtWidgets.QGraphicsScene):
 
             items = self.items(pos)
             for item in items:
-                if issubclass(type(item), PointGraphicsItemBase) and item.isMovable():
+                item = PointGraphicsItemBase.getPointGraphicsItem(item)
+                if item and item.isMovable():
 
                     self.moveItem = item
                     self.moveItems = [ (item, item.pos()) ]
 
-                    for i in self.selectedItems():
-                        if i is not item and issubclass(type(i), PointGraphicsItemBase) and item.isMovable():
-                            self.moveItems.append( (i, i.pos()) )
+                    if self.lastClickModifier["control"]:
+                        for i in self.selectedItems():
+                            i = PointGraphicsItemBase.getPointGraphicsItem(i)
+                            if i and item.isMovable() and i != item:
+                                self.moveItems.append( (i, i.pos()) )
 
                     return
 
@@ -483,11 +287,10 @@ class GraphicsScene(QtWidgets.QGraphicsScene):
             self.isRightClick = True
 
     def _singleClickHandlerWrapper(self, item, pos):
-        from pointslayer import TriangleItem
-
         if item is None: # may still be a triangle
             for item in self.items(QtCore.QPointF(pos[0], pos[1])):
-                if type(item) == TriangleItem:
+                item = TriangleItem.getTriangleItem(item)
+                if item:
                     self.mouseHandler_click(item, pos, self.lastClickModifier)
                     break
             else:
@@ -504,15 +307,15 @@ class GraphicsScene(QtWidgets.QGraphicsScene):
         # Don't do anything if there are more clicks, just reset
         self.doubleClickCounter = 0
         self.doubleClickStartItem = None
-        self.doubleClickStartScreenPos = (0, 0)
-        self.doubleClickStartScenePos = (0, 0)
+        self.doubleClickStartScreenPos = [0, 0]
+        self.doubleClickStartScenePos = [0, 0]
 
     def basicSingleClickHandler(self, movableItem, screenPos, scenePos):
         if not self.doubleClickTimer.isActive():
             self.doubleClickCounter = 1
             self.doubleClickStartItem = movableItem
-            self.doubleClickStartScreenPos = (screenPos.x(), screenPos.y())
-            self.doubleClickStartScenePos = (scenePos.x(), scenePos.y())
+            self.doubleClickStartScreenPos = [screenPos.x(), screenPos.y()]
+            self.doubleClickStartScenePos = [scenePos.x(), scenePos.y()]
             self.doubleClickTimer.start()
             return
 
@@ -538,10 +341,11 @@ class GraphicsScene(QtWidgets.QGraphicsScene):
         if self.isRightClick:
             rightClickPoint = None
             for item in self.items(pos):
-                if issubclass(type(item), PointGraphicsItemBase):
+                item = PointGraphicsItemBase.getPointGraphicsItem(item)
+                if item:
                     rightClickPoint = item
                     break
-            self.mouseHandler_rightClick(rightClickPoint, (pos.x(), pos.y()), self.lastClickModifier)
+            self.mouseHandler_rightClick(rightClickPoint, [pos.x(), pos.y()], self.lastClickModifier)
             return
 
         if self.moveEventCount == 0: #  or self.moveItem is None:
@@ -549,12 +353,13 @@ class GraphicsScene(QtWidgets.QGraphicsScene):
         else:
             moveId = uuid.uuid4()
             for i, origPos in self.moveItems:
+                i.setFlag(QtWidgets.QGraphicsItem.ItemSendsScenePositionChanges, False)
                 itemPos = pos - self.moveClickStartPos + origPos
-                scenePos = (pos.x(), pos.y()) if i == self.moveItem else None
-                self.mouseHandler_moved(i, scenePos, (itemPos.x(), itemPos.y()), moveId)
+                scenePos = [pos.x(), pos.y()] if i == self.moveItem else None
+                self.mouseHandler_moved(i, scenePos, [itemPos.x(), itemPos.y()], moveId)
 
             if not self.moveItems:
-                self.mouseHandler_stopDrawing((pos.x(), pos.y()))
+                self.mouseHandler_stopDrawing([pos.x(), pos.y()])
 
         self.moveItem = None
         self.moveItems = [ ]
@@ -563,7 +368,7 @@ class GraphicsScene(QtWidgets.QGraphicsScene):
     def mouseMoveEvent(self, evt):
 
         pos = evt.scenePos()
-        self.onMousePosition((pos.x(), pos.y()))
+        self.onMousePosition([pos.x(), pos.y()])
 
         if self.selectMode:
             return
@@ -574,17 +379,18 @@ class GraphicsScene(QtWidgets.QGraphicsScene):
 
         itemPos = None
         for i, origPos in self.moveItems:
+            i.setFlag(QtWidgets.QGraphicsItem.ItemSendsScenePositionChanges)
             itemPos = pos - self.moveClickStartPos + origPos
             i.setPos(itemPos)
             i.setSelected(True)
-            itemPos = (itemPos.x(), itemPos.y())
+            itemPos = [itemPos.x(), itemPos.y()]
 
         if self.moveClickStartPos and not self.moveItems: # nothing to move, drawing mode
             if self.moveEventCount == 1: # send start drawing as well
-                self.startedDrawing = self.mouseHandler_startDrawing((self.moveClickStartPos.x(), self.moveClickStartPos.y()), self.lastClickModifier)
+                self.startedDrawing = self.mouseHandler_startDrawing([self.moveClickStartPos.x(), self.moveClickStartPos.y()], self.lastClickModifier)
 
             if self.startedDrawing:
-                self.mouseHandler_drawing((pos.x(), pos.y()))
+                self.mouseHandler_drawing([pos.x(), pos.y()])
 
     def mouseDoubleClickEvent(self, evt):
         #print("Double click")
@@ -641,17 +447,20 @@ class GraphicsScene(QtWidgets.QGraphicsScene):
         pass
 
     def mouseHandler_click(self, movableItem, pos, modInfo):
-        #print("Item", movableItem, "clicked at", pos)
-        sel = movableItem.isSelected() if movableItem else False
+        if movableItem:
+            if modInfo["control"]:
+                movableItem.setSelected(not movableItem.isSelected())
+            else:
+                sel = True if movableItem.isSelected() else False
+                for i in self.selectedItems():
+                    i.setSelected(False)
 
-        if sel:
-            movableItem.setSelected(False)
+                if not sel:
+                    movableItem.setSelected(True)
+
         else:
             for i in self.selectedItems():
                 i.setSelected(False)
-
-            if movableItem:
-                movableItem.setSelected(True)
 
     def mouseHandler_doubleClick(self, movableItem, pos, modInfo):
         #print("Item", movableItem, "double clicked at", pos)
@@ -756,5 +565,5 @@ class GraphicsScene(QtWidgets.QGraphicsScene):
         self.matchPointsVisible = v
         for i in self.items():
             if issubclass(type(i), ImageGraphicsItem):
-                i.updatePoints()
+                i.setPointsVisible(v)
 
