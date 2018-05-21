@@ -120,11 +120,16 @@ class FITSImageLayer(Layer):
     def toSettings(self):
         pts = self.getPoints()
 
+        ptsInfo = [ ]
+        for k in pts:
+            p = pts[k]
+            ptsInfo.append({ "xy": p["xy"], "label": p["label"] })
+
         settings = {
             "name": self.getName(),
             "fitsfile": self.fileName,
             "hduidx": self.hduIdx,
-            "points": [ pts[k] for k in pts ],
+            "points": ptsInfo,
             "center": [ float(self.centerRa), float(self.centerDec) ],
             "minmax": [ float(self.min), float(self.max) ]
         }
