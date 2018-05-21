@@ -122,10 +122,10 @@ public:
 	SceneBase();
 	~SceneBase();
 
-	PointGraphicsItemBase *getPointItem(const QString &uuid);
-
 	void setPointTransform(const QTransform &t);
 	QTransform getPointTransform() const;
+
+	virtual void onPointLabelChanged(const QString &layerUuid, const QString &ptUuid, const QString &oldLabel, const QString &newLabel);
 };
 
 class LayerGraphicsItemBase : public EmptyGraphicsItem

@@ -794,17 +794,6 @@ void MatchPointGraphicsItemCircle::onSelected(bool v)
 		m_pCircle->setPen(s_normalLinePen);
 }
 
-PointGraphicsItemBase *SceneBase::getPointItem(const QString &uuid)
-{
-	for (auto p : items())
-	{
-		PointGraphicsItemBase *pItem = dynamic_cast<PointGraphicsItemBase *>(p);
-		if (pItem && pItem->getUuid() == uuid)
-			return pItem;
-	}
-	return nullptr;
-}
-
 void SceneBase::setPointTransform(const QTransform &t)
 {
 	m_pointTransform = t;
@@ -1070,8 +1059,10 @@ void LayerGraphicsItemBase::setPoint(const QString &uuid, double x, double y, co
 		m_pointItems[uuid] = pItem;
 	}
 	else
+	{
+		pItem = it.value();
 		pItem->fetchSettings(*pInf);
-
+	}
 	QTransform trans(1, 0, 0, 1, 0, 0);
 	SceneBase *pScene = dynamic_cast<SceneBase *>(scene());
 	if (pScene)

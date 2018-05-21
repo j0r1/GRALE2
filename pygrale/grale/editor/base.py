@@ -433,10 +433,6 @@ class GraphicsScene(SceneBase):
         #print("Cursor at pos", pos)
         pass
 
-    def onPointLabelChanged(self, layerUuid, pointUuid, oldLabel, newLabel):
-        #print("onPointLabelChanged", layerUuid, pointUuid, oldLabel, newLabel)
-        pass
-
     # Override these in derived class
     def keyHandler_clicked(self, key, keyStr, modifiers):
         #print(key, modifiers)

@@ -312,14 +312,7 @@ class ActionStack(object):
         })
 
     def _undoRedoLabel(self, isRedo, x, scene):
-        item = scene.getPointItem(x["point"])
-
-        layer = item.getLayer()
-        assert(layer.getUuid() == x["layer"])
-
         layerItem = scene.getLayerItem(x["layer"])
-        assert(layerItem.getLayer() is layer)
-
         label = x["new"] if isRedo else x["old"]
         layerItem.setLabel(x["point"], label)
 
