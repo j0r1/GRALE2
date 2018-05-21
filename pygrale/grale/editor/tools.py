@@ -75,7 +75,7 @@ def _splitPointsAndTriangles(allPoints, allTriangles):
 
     return imageInfo
 
-def layersToImagesData(layers, multipleImagesPerLayer = True):
+def layersToImagesData(layers, multipleImagesPerLayer = True, saveGroups = True, saveTimeDelays = True):
     
     imageInfo = [ ]
 
@@ -145,19 +145,21 @@ def layersToImagesData(layers, multipleImagesPerLayer = True):
             groupInfo[groupName].append(pt["indices"])
 
     # Store the groups
-    for groupName in groupInfo:
-        gId = imgDat.addGroup()
-        points = groupInfo[groupName]
-        for imIdx, ptIdx in points:
-            imgDat.addGroupPoint(gId, imIdx, ptIdx)
+    if saveGroups:
+        for groupName in groupInfo:
+            gId = imgDat.addGroup()
+            points = groupInfo[groupName]
+            for imIdx, ptIdx in points:
+                imgDat.addGroupPoint(gId, imIdx, ptIdx)
 
     # Store the time delay info
-    for points in imagePoints:
-        for ptIdx in points:
-            pt = points[ptIdx]
-            if pt["timedelay"] is not None:
-                imIdx, ptIdx = pt["indices"]
-                imgDat.addTimeDelayInfo(imIdx, ptIdx, pt["timedelay"])
+    if saveTimeDelays:
+        for points in imagePoints:
+            for ptIdx in points:
+                pt = points[ptIdx]
+                if pt["timedelay"] is not None:
+                    imIdx, ptIdx = pt["indices"]
+                    imgDat.addTimeDelayInfo(imIdx, ptIdx, pt["timedelay"])
 
     return imgDat
 

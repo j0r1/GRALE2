@@ -10,7 +10,7 @@ import actionstack
 import os
 import json
 from debug import log
-
+import tools
 import grale.images as images # TODO?
 
 JSONDump = lambda s: json.dumps(s, sort_keys=True, indent=4, separators=(',', ': '))
@@ -206,6 +206,11 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.actionNew.triggered.connect(self._onNew)
         self.ui.actionLoad.triggered.connect(self._onLoad)
         self.ui.actionSave.triggered.connect(self._onSave)
+        self.ui.actionPoints_layer_per_image.triggered.connect(self._onImportImgDat_layerPerImage)
+        self.ui.actionAll_in_one_points_layer.triggered.connect(self._onImportImgDat_oneLayer)
+        self.ui.actionExport_to_images_data.triggered.connect(self._onExportImgDat)
+        self.ui.actionImport_JSON_file.triggered.connect(self._onImportJSON)
+        self.ui.actionExport_to_JSON_file.triggered.connect(self._onExportJSON)
         self.ui.actionExit.triggered.connect(self.close)
         self.ui.actionUndo.triggered.connect(self._onActionUndo)
         self.ui.actionRedo.triggered.connect(self._onActionRedo)
@@ -635,6 +640,77 @@ class MainWindow(QtWidgets.QMainWindow):
             l = base.Layer.fromSettings(s)
             self.addLayer(l)
 
+    def _onImportImgDat_layerPerImage(self, checked):
+        # TODO
+        pass
+
+    def _onImportImgDat_oneLayer(self, checked):
+        # TODO
+        pass
+
+    def _onExportImgDat(self, checked):
+        try:
+            splitLayers = self.ui.actionSplit_layer_into_images.isChecked()
+            exportGroups = self.ui.actionExport_groups.isChecked()
+            exportTimeDelays = self.ui.actionExport_time_delays.isChecked()
+
+            layers = self._getVisiblePointsLayers()
+            if not layers:
+                raise Exception("No visible points layers could be detected")
+
+            imgDat = tools.layersToImagesData(layers, splitLayers, exportGroups, exportTimeDelays)
+        except Exception as e:
+            self.scene.warning("Error while exporting", "Encountered a problem while exporting visible points layers: {}".format(e))
+            return
+
+        try:
+            fileName, selectedFilter = QtWidgets.QFileDialog.getSaveFileName(self, "Specify export images data file name", filter="Images Data files (*.imgdata *.imgdat)")
+            if not fileName:
+                return
+
+            imgDat.save(fileName)
+        except Exception as e:
+            self.scene.warning("Error while saving", "Encountered a problem while saving to file '{}': {}".format(fileName, e))
+            return
+
+    def _getVisiblePointsLayers(self):
+        layers = self.ui.m_listWidget.getLayersAndVisibilities()
+        layers = [ l for l,v in layers if v and type(l) == pointslayer.PointsLayer ]
+        return layers
+
+    def _getVisibleLayers(self):
+        layers = self.ui.m_listWidget.getLayersAndVisibilities()
+        layers = [ l for l,v in layers if v ]
+        return layers
+
+    def _onImportJSON(self, checked):
+        # TODO
+        pass
+
+    def _onExportJSON(self, checked):
+        try:
+            layers = self._getVisibleLayers()
+            if not layers:
+                raise Exception("No visible layers could be detected")
+
+            layerStr = JSONDump([ l.toSettings() for l in layers ])
+        except Exception as e:
+            self.scene.warning("Error while exporting", "Encountered a problem while exporting visible layers: {}".format(e))
+            return
+
+        try:
+            fileName, selectedFilter = QtWidgets.QFileDialog.getSaveFileName(self, "Specify export file name", filter="JSON files (*.json)")
+            if not fileName:
+                return
+
+            f = open(fileName, "wt")
+            f.write(layerStr)
+            f.close()
+        except Exception as e:
+            self.scene.warning("Error while exporting", "Encountered a problem while exporting visible layers to file '{}': {}".format(fileName, e))
+            return
+
+
 def main():
     checkQtAvailable()
 
@@ -667,7 +743,7 @@ def main():
                 l = pointslayer.PointsLayer()
                 w.addLayer(l)
 
-            elif a.endswith(".imgdata"):
+            elif (a.endswith(".imgdata") or a.endswith(".imgdat")):
                 allInOne = True
                 fileName = a
                 if "," in a:
