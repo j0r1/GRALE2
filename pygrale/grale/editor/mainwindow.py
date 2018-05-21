@@ -597,6 +597,44 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.m_zoomEdit.setValue(self.view.getScale())
         self.scene.onScaleChanged(self.view.getScale()) # May be needed to recalculate the point size transformation
 
+    def importImagesData(self, imgDat, which, layerTitleFormat = "Points from images data"):
+        if which == "all":
+            l = pointslayer.PointsLayer()
+            l.importFromImagesData(imgDat, "all")
+            l.setName(layerTitleFormat)
+            self.addLayer(l)
+        else:
+            if which >= 0:
+                l = pointslayer.PointsLayer()
+                l.importFromImagesData(imgDat, which)
+                l.setName(layerTitleFormat)
+                self.addLayer(l)
+            else:
+                numImages = imgDat.getNumberOfImages()
+                for idx in range(numImages):
+                    l = pointslayer.PointsLayer()
+                    l.importFromImagesData(imgDat, idx)
+                    l.setName(layerTitleFormat.format(idx))
+                    self.addLayer(l)
+
+    def importFromJSON(self, dictOrArray):
+
+        layers = [ ]
+        if "state" in dictOrArray:
+            layers = dictOrArray["state"]["layers"]
+        elif "layers" in dictOrArray:
+            layers = dictOrArray["layers"]
+        elif type(dictOrArray) == dict:
+            layers = [ dictOrArray ]
+        elif type(dictOrArray) == list:
+            layers = dictOrArray
+        else:
+            raise Exception("Can't understand data to import")
+
+        for s in layers:
+            l = base.Layer.fromSettings(s)
+            self.addLayer(l)
+
 def main():
     checkQtAvailable()
 
@@ -608,20 +646,14 @@ def main():
         for a in sys.argv[1:]:
             if a.endswith(".json"):
                 d = json.load(open(a, "rt"))
+                loaded = False
                 if type(d) == dict and ("layers" in d or "state" in d):
                     if firstArg:
                         w.loadFile(a)
-                    else:
-                        for s in d["layers"]:
-                            l = base.Layer.fromSettings(s)
-                            w.addLayer(l)
-                elif type(d) == list: # assume list of layers
-                    for s in d:
-                        l = base.Layer.fromSettings(s)
-                        w.addLayer(l)
-                else: # assume it's the settings of a single lager
-                    l = base.Layer.fromSettings(d)
-                    w.addLayer(l)
+                        loaded = True
+
+                if not loaded:
+                    w.importFromJSON(d)
 
             elif (a.endswith(".png") or a.endswith(".jpg")):
                 l = imagelayer.RGBImageLayer(a)
@@ -646,23 +678,16 @@ def main():
                 shortName = os.path.basename(fileName)
                 imgDat = images.ImagesData.load(fileName)
                 if allInOne:
-                    l = pointslayer.PointsLayer()
-                    l.importFromImagesData(imgDat, "all")
-                    l.setName("All images from '{}'".format(shortName))
-                    w.addLayer(l)
+                    which = "all"
+                    layerTitle = "All images from '{}'".format(shortName)
                 else:
+                    which = imgIndex
                     if imgIndex >= 0:
-                        l = pointslayer.PointsLayer()
-                        l.importFromImagesData(imgDat, imgIndex)
-                        l.setName("Index {} in '{}'".format(imgIndex, shortName))
-                        w.addLayer(l)
+                        layerTitle = "Index {} in '{}'".format(imgIndex, shortName)
                     else:
-                        numImages = imgDat.getNumberOfImages()
-                        for idx in range(numImages):
-                            l = pointslayer.PointsLayer()
-                            l.importFromImagesData(imgDat, idx)
-                            l.setName("Index {} in '{}'".format(idx,shortName))
-                            w.addLayer(l)
+                        layerTitle = "Index {{}} in '{}'".format(shortName)
+
+                w.importImagesData(imgDat, which, layerTitle)
             else:
                 raise Exception("Unknown argument '{}'".format(a))
 
