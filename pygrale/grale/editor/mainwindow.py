@@ -641,12 +641,36 @@ class MainWindow(QtWidgets.QMainWindow):
             self.addLayer(l)
 
     def _onImportImgDat_layerPerImage(self, checked):
-        # TODO
-        pass
+        try:
+            fileName, selectedFilter = QtWidgets.QFileDialog.getOpenFileName(self, "Select images data file", filter="Images Data files (*.imgdata *.imgdat)")
+            if not fileName:
+                return
+
+            imgDat = images.ImagesData.load(fileName)
+            
+            shortName = os.path.basename(fileName)
+            layerTitle = "Index {{}} in '{}'".format(shortName)
+            
+            self.importImagesData(imgDat, -1, layerTitle)
+        except Exception as e:
+            self.scene.warning("Unable to import file", "Encountered a problem while importing file '{}': {}".format(fileName, e))
+            return
 
     def _onImportImgDat_oneLayer(self, checked):
-        # TODO
-        pass
+        try:
+            fileName, selectedFilter = QtWidgets.QFileDialog.getOpenFileName(self, "Select images data file", filter="Images Data files (*.imgdata *.imgdat)")
+            if not fileName:
+                return
+
+            imgDat = images.ImagesData.load(fileName)
+            
+            shortName = os.path.basename(fileName)
+            layerTitle = "All images from '{}'".format(shortName)
+            
+            self.importImagesData(imgDat, "all", layerTitle)
+        except Exception as e:
+            self.scene.warning("Unable to import file", "Encountered a problem while importing file '{}': {}".format(fileName, e))
+            return
 
     def _onExportImgDat(self, checked):
         try:
@@ -684,8 +708,15 @@ class MainWindow(QtWidgets.QMainWindow):
         return layers
 
     def _onImportJSON(self, checked):
-        # TODO
-        pass
+        try:
+            fileName, selectedFilter = QtWidgets.QFileDialog.getOpenFileName(self, "Select JSON file", filter="JSON files (*.json)")
+            if not fileName:
+                return
+
+            self.importFromJSON(json.load(open(fileName, "rt")))
+        except Exception as e:
+            self.scene.warning("Unable to import file", "Encountered a problem while importing file '{}': {}".format(fileName, e))
+            return
 
     def _onExportJSON(self, checked):
         try:
