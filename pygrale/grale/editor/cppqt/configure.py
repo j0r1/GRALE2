@@ -7,7 +7,10 @@ import pprint
 import platform
 
 build_file = "cppqt.sbf"
+
 config = sipconfig.Configuration()
+config.default_mod_dir = os.path.join(config.default_mod_dir, "grale", "editor", "cppqt")
+
 macros = config.build_macros()
 for x in [ "CXX", "CC" ]:
     if x in os.environ:
@@ -23,7 +26,7 @@ for x in [ "CXXFLAGS", "CFLAGS" ]:
         macros[x] += " " + os.environ[x]
 
 config.set_build_macros(macros)
-pprint.pprint(config.build_macros())
+#pprint.pprint(config.build_macros())
 
 extraCppIncludes = [ ]
 extraLibraryDirs = [ ]

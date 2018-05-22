@@ -148,7 +148,31 @@ print("Using version string: '{}'".format(versionStr))
 
 pyMods = [ "grale.cosmology", "grale.plotutil", "grale.constants", "grale.renderers", "grale.timedio", "grale.untimedio",
            "grale.privutil", "grale.debuglog", "grale.feedback", "grale.bytestring", "grale.inverters",
-           "grale.inversion", "grale.grid", "grale.multiplane", "grale.privimages" ]
+           "grale.inversion", "grale.grid", "grale.multiplane", "grale.privimages",
+           "grale.editor.actionstack",
+           "grale.editor.base",
+           "grale.editor.checkqt",
+           "grale.editor.contourleveldialog",
+           "grale.editor.debug",
+           "grale.editor.doublelineedit",
+           "grale.editor.fitslayerinfodialog",
+           "grale.editor.fitslistwidget",
+           "grale.editor.hullprocessor",
+           "grale.editor.imagelayer",
+           "grale.editor.__init__",
+           "grale.editor.layerlist",
+           "grale.editor.listwidgetbase",
+           "grale.editor.__main__",
+           "grale.editor.mainwindow",
+           "grale.editor.nullgriddialog",
+           "grale.editor.openglhelper",
+           "grale.editor.pointinfodialog",
+           "grale.editor.pointslayer",
+           "grale.editor.pointslistwidget",
+           "grale.editor.rgblistwidget",
+           "grale.editor.scenes",
+           "grale.editor.tools",
+           ]
 
 for ui in [ "grale/editor/contourleveldialog.ui",
             "grale/editor/pointinfodialog.ui",
@@ -171,7 +195,27 @@ for ui in [ "grale/editor/contourleveldialog.ui",
         cmd = [ "pyuic5" ] + cmd
     subprocess.check_call(cmd)
 
+    pyMods.append("grale.editor." + os.path.basename(pyName)[:-3])
 
 setup(name = "grale", version = versionStr, ext_modules = cythonize(extensions), py_modules = pyMods)
+
+makeCmd = "nmake" if platform.system() == "Windows" else "make"
+if "build" in sys.argv or "install" in sys.argv:
+    cwd = os.getcwd()
+    try:
+        os.chdir(os.path.join("grale","editor","cppqt"))
+        if not os.path.exists("Makefile"):
+            subprocess.check_call( [ "python", "configure.py" ])
+        subprocess.check_call( [ makeCmd ] )
+    finally:
+        os.chdir(cwd)
+
+if "install" in sys.argv:
+    cwd = os.getcwd()
+    try:
+        os.chdir(os.path.join("grale","editor","cppqt"))
+        subprocess.check_call( [ makeCmd, "install" ])
+    finally:
+        os.chdir(cwd)
 
 
