@@ -157,6 +157,7 @@ for ui in [ "grale/editor/contourleveldialog.ui",
             "grale/editor/rgblistwidget.ui",
             "grale/editor/pointslistwidget.ui",
             "grale/editor/mainwindow.ui",
+            "grale/editor/nullgriddialog.ui",
         ]:
     pathParts = os.path.dirname(ui).split("/")
     ui = os.path.join(*ui.split("/"))

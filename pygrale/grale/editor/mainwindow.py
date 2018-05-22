@@ -11,6 +11,7 @@ import os
 import json
 from debug import log
 import tools
+import nullgriddialog
 import grale.images as images # TODO?
 
 JSONDump = lambda s: json.dumps(s, sort_keys=True, indent=4, separators=(',', ': '))
@@ -217,6 +218,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.actionCopy.triggered.connect(self._onActionCopy)
         self.ui.actionPaste.triggered.connect(self._onActionPaste)
         self.ui.actionCut.triggered.connect(self._onActionCut)
+        self.ui.actionCreate_null_grid.triggered.connect(self._onNullGrid)
 
         self.ui.m_axisVisibleBox.clicked.connect(self._onGuiSettingChanged)
         self.ui.m_axisRightBox.clicked.connect(self._onGuiSettingChanged)
@@ -740,6 +742,12 @@ class MainWindow(QtWidgets.QMainWindow):
         except Exception as e:
             self.scene.warning("Error while exporting", "Encountered a problem while exporting visible layers to file '{}': {}".format(fileName, e))
             return
+
+    def _onNullGrid(self, checked):
+
+        # TODO
+        dlg = nullgriddialog.NullGridDialog(self)
+        dlg.exec_()
 
 
 def main():
