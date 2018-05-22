@@ -266,6 +266,12 @@ class GraphicsScene(SceneBase):
 
             items = self.items(pos)
             for item in items:
+
+                if type(item) == QtWidgets.QGraphicsPixmapItem:
+                    # If this is the case, then we're seeing the image/fits, and we
+                    # don't care if there's a point item that's behind that
+                    break
+
                 item = PointGraphicsItemBase.getPointGraphicsItem(item)
                 if item and item.isMovable():
 
