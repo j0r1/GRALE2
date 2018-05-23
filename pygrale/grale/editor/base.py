@@ -515,7 +515,7 @@ class GraphicsScene(SceneBase):
 
         pixRegion = QtCore.QRectF(0, 0, widthPixels, heightPixels)
         sceneRegion = QtCore.QRectF(center[0]-sizes[0]/2.0, center[1]-sizes[1]/2.0, sizes[0], sizes[1])
-        self.render(painter, pixRegion, sceneRegion)
+        self.render(painter, pixRegion, sceneRegion, QtCore.Qt.IgnoreAspectRatio)
         painter.end()
 
         img = pixmap.toImage()
