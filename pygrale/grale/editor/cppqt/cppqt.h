@@ -86,21 +86,13 @@ private:
 class EmptyGraphicsItem : public QGraphicsItem
 {
 public:
-	EmptyGraphicsItem(QGraphicsItem *pParent = 0);
+	EmptyGraphicsItem(bool childrenBoundingRect, QGraphicsItem *pParent = 0);
 	~EmptyGraphicsItem();
 
 	QRectF boundingRect() const;
 	void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget = 0);
-};
-
-class ChildrenGraphicsItem : public QGraphicsItem
-{
-public:
-	ChildrenGraphicsItem(QGraphicsItem *pParent = 0);
-	~ChildrenGraphicsItem();
-
-	QRectF boundingRect() const;
-	void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget = 0);
+private:
+	bool m_childrenBoundingRect;
 };
 
 class TriangleItem : public QGraphicsItem
@@ -156,7 +148,7 @@ private:
 	QString m_pointUuid;
 };
 
-class LayerObjectGraphicsItem : public ChildrenGraphicsItem
+class LayerObjectGraphicsItem : public EmptyGraphicsItem
 {
 public:
 	LayerObjectGraphicsItem();
@@ -275,7 +267,7 @@ class LayerGraphicsItemBase : public EmptyGraphicsItem
 public:
 	enum PointType { Normal, Circle, Cross };
 
-	LayerGraphicsItemBase(Layer *pLayer, PointType pType, QGraphicsItem *pParent = 0);
+	LayerGraphicsItemBase(Layer *pLayer, PointType pType, bool childrenBoundingRect, QGraphicsItem *pParent = 0);
 	~LayerGraphicsItemBase();
 
 	Layer *getLayer() { return m_pLayer; }

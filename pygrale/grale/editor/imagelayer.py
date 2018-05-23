@@ -11,7 +11,7 @@ from base import Layer, PointGraphicsItemBase, LayerGraphicsItemBase
 
 class ImageGraphicsItem(LayerGraphicsItemBase):
     def __init__(self, layer, parent, drawCrosses):
-        super(ImageGraphicsItem, self).__init__(layer, LayerGraphicsItemBase.Cross if drawCrosses else LayerGraphicsItemBase.Circle, parent)
+        super(ImageGraphicsItem, self).__init__(layer, LayerGraphicsItemBase.Cross if drawCrosses else LayerGraphicsItemBase.Circle, True, parent)
 
         self.imgItem = None
 

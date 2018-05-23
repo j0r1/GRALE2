@@ -310,7 +310,8 @@ void Layer::clearTriangle(const QString &triangUuid)
 	m_triangles.erase(it);
 }
 
-EmptyGraphicsItem::EmptyGraphicsItem(QGraphicsItem *pParent) : QGraphicsItem(pParent)
+EmptyGraphicsItem::EmptyGraphicsItem(bool childrenBoundingRect, QGraphicsItem *pParent) 
+	: m_childrenBoundingRect(childrenBoundingRect), QGraphicsItem(pParent)
 {
 }
 
@@ -320,24 +321,10 @@ EmptyGraphicsItem::~EmptyGraphicsItem()
 
 QRectF EmptyGraphicsItem::boundingRect() const
 {
-	return QRectF();
-}
+	if (!m_childrenBoundingRect)
+		return QRectF();
 
-void EmptyGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget)
-{
-}
-
-ChildrenGraphicsItem::ChildrenGraphicsItem(QGraphicsItem *pParent) : QGraphicsItem(pParent)
-{
-}
-
-ChildrenGraphicsItem::~ChildrenGraphicsItem()
-{
-}
-
-QRectF ChildrenGraphicsItem::boundingRect() const
-{
-	auto r = QRectF(0,0,1,1);
+	auto r = QRectF(0,0,0,0);
 	for (auto &i : childItems())
 	{
 		if (i->isVisible())
@@ -346,7 +333,7 @@ QRectF ChildrenGraphicsItem::boundingRect() const
 	return r;
 }
 
-void ChildrenGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget)
+void EmptyGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget)
 {
 }
 
@@ -493,12 +480,12 @@ void SyncTextEditItem::syncValueAndCenter()
 }
 
 LayerObjectGraphicsItem::LayerObjectGraphicsItem()
-	: m_pLayer(nullptr), ChildrenGraphicsItem(nullptr)
+	: m_pLayer(nullptr), EmptyGraphicsItem(true, nullptr)
 {
 }
 
 LayerObjectGraphicsItem::LayerObjectGraphicsItem(Layer *pLayer, const QString &objectUuid, QGraphicsItem *pParent)
-    : m_pLayer(pLayer), m_uuid(objectUuid), ChildrenGraphicsItem(pParent)
+    : m_pLayer(pLayer), m_uuid(objectUuid), EmptyGraphicsItem(true, pParent)
 {
 }
 
@@ -806,8 +793,8 @@ void SceneBase::setPointTransform(const QTransform &t)
 	}
 }
 
-LayerGraphicsItemBase::LayerGraphicsItemBase(Layer *pLayer, PointType pType, QGraphicsItem *pParent)
-	: m_pLayer(pLayer), m_pointType(pType), EmptyGraphicsItem(pParent)
+LayerGraphicsItemBase::LayerGraphicsItemBase(Layer *pLayer, PointType pType, bool childrenBoundingRect, QGraphicsItem *pParent)
+	: m_pLayer(pLayer), m_pointType(pType), EmptyGraphicsItem(childrenBoundingRect, pParent)
 {
 	m_pointsVisible = true;
 }

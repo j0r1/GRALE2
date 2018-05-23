@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from __future__ import print_function
 import os
 import subprocess
 import sipconfig
@@ -46,6 +47,7 @@ if "CONDA_PREFIX" in os.environ:
         extraSipIncludes.append("-I" + os.path.join(os.environ["CONDA_PREFIX"], "share", "sip", "PyQt5"))
 
 sipFlags = QtCore.PYQT_CONFIGURATION["sip_flags"].split()
+print("Generating C++ code for PyQt5 bindings")
 subprocess.check_call([config.sip_bin, "-c", ".", "-b", build_file] + extraSipIncludes + sipFlags + [ "cppqt.sip"])
 
 makefile = sipconfig.SIPModuleMakefile(config, build_file)

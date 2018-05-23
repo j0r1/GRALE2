@@ -7,7 +7,7 @@ from debug import log
 
 class MultiplePointGraphicsItem(LayerGraphicsItemBase):
     def __init__(self, layer, parent = None):
-        super(MultiplePointGraphicsItem, self).__init__(layer, LayerGraphicsItemBase.Normal, parent)
+        super(MultiplePointGraphicsItem, self).__init__(layer, LayerGraphicsItemBase.Normal, False, parent)
 
 class PointsLayer(Layer):
     def __init__(self, name = "Points layer"):

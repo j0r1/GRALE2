@@ -43,23 +43,8 @@ class EmptyGraphicsItem : public QGraphicsItem
 %End
 
 public:
-	EmptyGraphicsItem(QGraphicsItem *pParent /TransferThis/ = 0);
+	EmptyGraphicsItem(bool childrenBoundingRect, QGraphicsItem *pParent /TransferThis/ = 0);
 	~EmptyGraphicsItem();
-
-	QRectF boundingRect() const;
-	void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget = 0);
-};
-
-class ChildrenGraphicsItem : public QGraphicsItem
-{
-
-%TypeHeaderCode
-#include "cppqt.h"
-%End
-
-public:
-	ChildrenGraphicsItem(QGraphicsItem *pParent /TransferThis/ = 0);
-	~ChildrenGraphicsItem();
 
 	QRectF boundingRect() const;
 	void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget = 0);
@@ -81,7 +66,7 @@ public:
 	static TriangleItem *getTriangleItem(QGraphicsItem *pItem);
 };
 
-class LayerObjectGraphicsItem : public ChildrenGraphicsItem
+class LayerObjectGraphicsItem : public EmptyGraphicsItem
 {
 %TypeHeaderCode
 #include "cppqt.h"
@@ -136,7 +121,7 @@ class LayerGraphicsItemBase : public EmptyGraphicsItem
 public:
 	enum PointType { Normal, Circle, Cross };
 
-	LayerGraphicsItemBase(Layer *pLayer, PointType pType, QGraphicsItem *pParent /TransferThis/ = 0);
+	LayerGraphicsItemBase(Layer *pLayer, PointType pType, bool childrenBoundingRect, QGraphicsItem *pParent /TransferThis/ = 0);
 	~LayerGraphicsItemBase();
 
 	Layer *getLayer();

@@ -32,8 +32,8 @@ class Layer(LayerCPP):
 from cppqt.cppqt import PointGraphicsItemBase, TriangleItem, LayerGraphicsItemBase as LayerGraphicsItemBaseCPP
 
 class LayerGraphicsItemBase(LayerGraphicsItemBaseCPP):
-    def __init__(self, layer, pointType, parent = None):
-        super(LayerGraphicsItemBase, self).__init__(layer, pointType, parent)
+    def __init__(self, layer, pointType, childrenBoundingRect, parent = None):
+        super(LayerGraphicsItemBase, self).__init__(layer, pointType, childrenBoundingRect, parent)
 
     def arePointsVisible(self):
         s = self.scene()
