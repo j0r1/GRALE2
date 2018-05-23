@@ -14,6 +14,7 @@ import tools
 import nullgriddialog
 import exportareadialog
 import grale.images as images # TODO?
+import numpy as np
 
 JSONDump = lambda s: json.dumps(s, sort_keys=True, indent=4, separators=(',', ': '))
 
@@ -751,10 +752,57 @@ class MainWindow(QtWidgets.QMainWindow):
         dlg = nullgriddialog.NullGridDialog(self)
         dlg.exec_()
 
+    @staticmethod
+    def _getPointLayerRect(l):
+        pointCoords = [ l.getPoint(p)["xy"] for p in l.getPoints() ]
+        if not pointCoords:
+            return QtCore.QRectF(0, 0, 0, 0)
+        x = [ p[0] for p in pointCoords ]
+        y = [ p[1] for p in pointCoords ]
+        return QtCore.QRectF(QtCore.QPointF(min(x), min(y)), QtCore.QPointF(max(x), max(y)))
+
+    def _getViewportRect(self):
+        view = self.view
+        v = view.viewport().rect()
+        p1 = view.mapToScene(v.topLeft())
+        p2 = view.mapToScene(v.bottomRight())
+        return QtCore.QRectF(QtCore.QPointF(min(p1.x(), p2.x()), min(p1.y(), p2.y())),
+                             QtCore.QPointF(max(p1.x(), p2.x()), max(p1.y(), p2.y())))
+
     def _onExportArea(self, checked):
-        # TODO
-        dlg = exportareadialog.ExportAreaDialog(self)
-        dlg.exec_()
+        
+        visiblePointLayers = [ l for l,v in self.ui.m_listWidget.getLayersAndVisibilities() if v and type(l) == pointslayer.PointsLayer ]
+        r = QtCore.QRectF(0, 0, 0, 0)
+        for l in visiblePointLayers:
+            r |= self._getPointLayerRect(l)
+
+        r2 = self._getViewportRect()
+
+        dlg = exportareadialog.ExportAreaDialog(r, r2, self)
+        if not dlg.exec_():
+            return
+
+        widthPixels = dlg.getWidthPixels()
+        heightPixels = dlg.getHeightPixels()
+
+        r = dlg.getExportRect()
+        centerX, centerY = (r.left() + r.right())/2.0, (r.top() + r.bottom())/2.0
+        widthArcsec, heightArcsec = abs(r.left() - r.right()), abs(r.top() - r.bottom())
+
+        try:
+            img = self.scene.getSceneRegionImage([ centerX-widthArcsec/2.0, centerY-heightArcsec/2.0 ],
+                                           [ centerX+widthArcsec/2.0, centerY+heightArcsec/2.0 ], widthPixels, heightPixels)
+        except Exception as e:
+            self.scene.warning("Error while exporting", "Encountered a problem while exporting to image: {}".format(e))
+            return
+
+        fileName, selectedFilter = QtWidgets.QFileDialog.getSaveFileName(self, "Specify export file name", filter="Images (*.jpg *.png)")
+        if not fileName:
+            return
+
+        if not img.save(fileName):
+            self.scene.warning("Error while exporting", "Unable to write to file {}".format(fileName))
+        
 
 def main():
     checkQtAvailable()

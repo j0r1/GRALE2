@@ -25,7 +25,7 @@
         <item row="0" column="0">
          <layout class="QVBoxLayout" name="verticalLayout">
           <item>
-           <widget class="QRadioButton" name="radioButton">
+           <widget class="QRadioButton" name="m_currentViewBox">
             <property name="text">
              <string>Current view</string>
             </property>
@@ -38,7 +38,7 @@
            </widget>
           </item>
           <item>
-           <widget class="QRadioButton" name="radioButton_2">
+           <widget class="QRadioButton" name="m_specificAreaBox">
             <property name="text">
              <string>Specific area</string>
             </property>
@@ -83,7 +83,7 @@
              </widget>
             </item>
             <item row="0" column="1">
-             <widget class="DoubleLineEdit" name="lineEdit"/>
+             <widget class="DoubleLineEdit" name="m_centerXEdit"/>
             </item>
             <item row="0" column="2" rowspan="2">
              <widget class="QLabel" name="label_4">
@@ -93,7 +93,7 @@
              </widget>
             </item>
             <item row="1" column="1" rowspan="2">
-             <widget class="DoubleLineEdit" name="lineEdit_2"/>
+             <widget class="DoubleLineEdit" name="m_centerYEdit"/>
             </item>
             <item row="2" column="0">
              <widget class="QLabel" name="label_3">
@@ -117,7 +117,7 @@
              </widget>
             </item>
             <item row="3" column="1">
-             <widget class="DoubleLineEdit" name="lineEdit_3"/>
+             <widget class="DoubleLineEdit" name="m_widthArcsecEdit"/>
             </item>
             <item row="3" column="2">
              <widget class="QLabel" name="label_7">
@@ -134,7 +134,7 @@
              </widget>
             </item>
             <item row="4" column="1">
-             <widget class="DoubleLineEdit" name="lineEdit_4"/>
+             <widget class="DoubleLineEdit" name="m_heightArcsecEdit"/>
             </item>
             <item row="4" column="2">
              <widget class="QLabel" name="label_8">
@@ -175,10 +175,30 @@
              </widget>
             </item>
             <item row="0" column="1">
-             <widget class="QSpinBox" name="spinBox"/>
+             <widget class="QSpinBox" name="m_widthPixelsBox">
+              <property name="minimum">
+               <number>1</number>
+              </property>
+              <property name="maximum">
+               <number>65536</number>
+              </property>
+              <property name="value">
+               <number>512</number>
+              </property>
+             </widget>
             </item>
             <item row="1" column="1">
-             <widget class="QSpinBox" name="spinBox_2"/>
+             <widget class="QSpinBox" name="m_heightPixelsBox">
+              <property name="minimum">
+               <number>1</number>
+              </property>
+              <property name="maximum">
+               <number>65536</number>
+              </property>
+              <property name="value">
+               <number>512</number>
+              </property>
+             </widget>
             </item>
             <item row="0" column="2">
              <spacer name="horizontalSpacer_2">
@@ -196,9 +216,12 @@
            </layout>
           </item>
           <item>
-           <widget class="QCheckBox" name="checkBox">
+           <widget class="QCheckBox" name="m_aspectBox">
             <property name="text">
              <string>Preserve aspect ratio</string>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
             </property>
            </widget>
           </item>
