@@ -172,6 +172,7 @@ pyMods = [ "grale.cosmology", "grale.plotutil", "grale.constants", "grale.render
            "grale.editor.rgblistwidget",
            "grale.editor.scenes",
            "grale.editor.tools",
+           "grale.editor.exportareadialog",
            ]
 
 for ui in [ "grale/editor/contourleveldialog.ui",
@@ -182,6 +183,7 @@ for ui in [ "grale/editor/contourleveldialog.ui",
             "grale/editor/pointslistwidget.ui",
             "grale/editor/mainwindow.ui",
             "grale/editor/nullgriddialog.ui",
+            "grale/editor/exportareadialog.ui",
         ]:
     pathParts = os.path.dirname(ui).split("/")
     ui = os.path.join(*ui.split("/"))

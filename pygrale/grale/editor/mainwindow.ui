@@ -341,7 +341,7 @@
      <x>0</x>
      <y>0</y>
      <width>800</width>
-     <height>20</height>
+     <height>19</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -373,6 +373,8 @@
     <addaction name="separator"/>
     <addaction name="actionImport_JSON_file"/>
     <addaction name="actionExport_to_JSON_file"/>
+    <addaction name="separator"/>
+    <addaction name="actionExport_area_view"/>
     <addaction name="separator"/>
     <addaction name="actionExit"/>
    </widget>
@@ -520,6 +522,11 @@
   <action name="actionCreate_null_grid">
    <property name="text">
     <string>Create null grid</string>
+   </property>
+  </action>
+  <action name="actionExport_area_view">
+   <property name="text">
+    <string>Export area/view</string>
    </property>
   </action>
  </widget>

@@ -12,6 +12,7 @@ import json
 from debug import log
 import tools
 import nullgriddialog
+import exportareadialog
 import grale.images as images # TODO?
 
 JSONDump = lambda s: json.dumps(s, sort_keys=True, indent=4, separators=(',', ': '))
@@ -212,6 +213,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.actionExport_to_images_data.triggered.connect(self._onExportImgDat)
         self.ui.actionImport_JSON_file.triggered.connect(self._onImportJSON)
         self.ui.actionExport_to_JSON_file.triggered.connect(self._onExportJSON)
+        self.ui.actionExport_area_view.triggered.connect(self._onExportArea)
         self.ui.actionExit.triggered.connect(self.close)
         self.ui.actionUndo.triggered.connect(self._onActionUndo)
         self.ui.actionRedo.triggered.connect(self._onActionRedo)
@@ -749,6 +751,10 @@ class MainWindow(QtWidgets.QMainWindow):
         dlg = nullgriddialog.NullGridDialog(self)
         dlg.exec_()
 
+    def _onExportArea(self, checked):
+        # TODO
+        dlg = exportareadialog.ExportAreaDialog(self)
+        dlg.exec_()
 
 def main():
     checkQtAvailable()
