@@ -864,7 +864,10 @@ def main():
     except Exception as e:
         print("Error processing arguments:", e)
         raise
-        sys.exit(-1)
+
+    QtCore.QCoreApplication.setOrganizationDomain("grale2")
+    QtCore.QCoreApplication.setOrganizationName("pygrale")
+    QtCore.QCoreApplication.setApplicationName("editor")
 
     app.exec_()
 
