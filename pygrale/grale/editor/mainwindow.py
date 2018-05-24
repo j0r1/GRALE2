@@ -237,6 +237,46 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.m_yEdit.signalNewValueEntered.connect(self._onSetCenter)
 
         self.setGlobalSettings(self.getDefaultGlobalSettings())
+
+        settings = QtCore.QSettings()
+        mainWinGeom = settings.value("mainwindow/geometry")
+        mainWinState = settings.value("mainwindow/state")
+        splitterGeom = settings.value("mainwindow/splittersizes")
+        if mainWinGeom:
+            self.restoreGeometry(mainWinGeom)
+        if mainWinState:
+            self.restoreState(mainWinState)
+        if splitterGeom:
+            splitterGeom = list(map(int, splitterGeom))
+            self.ui.m_splitter.setSizes(splitterGeom)
+
+        def strToBool(s):
+            if s.lower() == "false":
+                return False
+            if s.lower() == "true":
+                return True
+            raise Exception("Unrecognized boolean string '{}'".format(s))
+
+        sa = settings.value("generalview/showaxes")
+        sa = False if sa is None else strToBool(sa)
+        self.ui.m_axisVisibleBox.setChecked(sa)
+
+        al = settings.value("generalview/axesleft")
+        al = True if al is None else strToBool(al)
+        self.ui.m_axisLeftBox.setChecked(True) if al else self.ui.m_axisRightBox.setChecked(True)
+
+        pf = settings.value("generalview/pointsizefixed")
+        pf = False if pf is None else strToBool(pf)
+        self.ui.m_pointPixelsBox.setChecked(True) if pf else self.ui.m_pointArcsecBox.setChecked(True)
+        
+        psp = settings.value("generalview/pointsizepixels")
+        if psp:
+            self.ui.m_pointPixelSize.setValue(int(psp))
+        psa = settings.value("generalview/pointsizearcsec")
+        if psa:
+            self.ui.m_pointArcsecSize.setValue(float(psa))
+
+        self._onGuiSettingChanged()
         self.lastSavedState = self.getCurrentStateString()
 
     def _onMousePositionChanged(self, x, y):
@@ -343,6 +383,16 @@ class MainWindow(QtWidgets.QMainWindow):
         if reallyExit:
             self.view.setScene(None) # Needed to prevent crash
             evt.accept()
+
+            settings = QtCore.QSettings()
+            settings.setValue("mainwindow/geometry", self.saveGeometry())
+            settings.setValue("mainwindow/state", self.saveState())
+            settings.setValue("mainwindow/splittersizes", self.ui.m_splitter.sizes())
+            settings.setValue("generalview/showaxes", self.ui.m_axisVisibleBox.isChecked())
+            settings.setValue("generalview/axesleft", self.ui.m_axisLeftBox.isChecked())
+            settings.setValue("generalview/pointsizefixed", self.ui.m_pointPixelsBox.isChecked())
+            settings.setValue("generalview/pointsizepixels", self.ui.m_pointPixelSize.value())
+            settings.setValue("generalview/pointsizearcsec", self.ui.m_pointArcsecSize.value())
         else:
             evt.ignore()
 
@@ -808,6 +858,10 @@ def main():
     checkQtAvailable()
 
     app = QtWidgets.QApplication(sys.argv)
+    QtCore.QCoreApplication.setOrganizationDomain("grale2")
+    QtCore.QCoreApplication.setOrganizationName("pygrale")
+    QtCore.QCoreApplication.setApplicationName("editor")
+
     w = MainWindow()
 
     firstArg = True
@@ -864,10 +918,6 @@ def main():
     except Exception as e:
         print("Error processing arguments:", e)
         raise
-
-    QtCore.QCoreApplication.setOrganizationDomain("grale2")
-    QtCore.QCoreApplication.setOrganizationName("pygrale")
-    QtCore.QCoreApplication.setApplicationName("editor")
 
     app.exec_()
 
