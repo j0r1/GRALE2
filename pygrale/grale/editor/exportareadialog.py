@@ -16,11 +16,20 @@ class ExportAreaDialog(QtWidgets.QDialog):
         self.ui.m_widthArcsecEdit.signalNewValueEntered.connect(self._onAreaSizeChanged)
         self.ui.m_heightArcsecEdit.signalNewValueEntered.connect(self._onAreaSizeChanged)
 
+        def strToBool(s):
+            if s.lower() == "false":
+                return False
+            if s.lower() == "true":
+                return True
+            raise Exception("Unrecognized boolean string '{}'".format(s))
+
         settings = QtCore.QSettings()
         isArea = settings.value("exportdialog/exportarea")
+        isArea = False if isArea is None else strToBool(isArea)
         self.ui.m_specificAreaBox.setChecked(True) if isArea else self.ui.m_currentViewBox.setChecked(True)
         
         ignoreAspect = settings.value("exportdialog/ignoreaspect")
+        ignoreAspect = False if ignoreAspect is None else strToBool(ignoreAspect)
         self.ui.m_aspectBox.setChecked(False) if ignoreAspect else self.ui.m_aspectBox.setChecked(True)
 
         if areaRect.width() != 0 and areaRect.height() != 0:
