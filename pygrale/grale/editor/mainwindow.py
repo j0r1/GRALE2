@@ -258,7 +258,7 @@ class MainWindow(QtWidgets.QMainWindow):
             raise Exception("Unrecognized boolean string '{}'".format(s))
 
         sa = settings.value("generalview/showaxes")
-        sa = False if sa is None else strToBool(sa)
+        sa = True if sa is None else strToBool(sa)
         self.ui.m_axisVisibleBox.setChecked(sa)
 
         al = settings.value("generalview/axesleft")
