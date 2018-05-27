@@ -1,6 +1,5 @@
 
-# Quite straightforward port of a C++ routine
-def createTriangulationFromHull(pts, maxImgPoints = 50, maxRelativeDistance = 0.02):
+def createTriangulationFromHull(pts, extraPoints, maxImgPoints = 50, maxRelativeDistance = 0.02):
 
     def getScale():
         X, Y = pts[:,0], pts[:,1]
@@ -63,7 +62,10 @@ def createTriangulationFromHull(pts, maxImgPoints = 50, maxRelativeDistance = 0.
     imgPoints = imgPoints[:-1]
 
     from scipy.spatial import Delaunay
-    tri = Delaunay(pts[imgPoints])
+    import numpy as np
+
+    triangPoints = np.array(pts[imgPoints].tolist() + extraPoints)
+    tri = Delaunay(triangPoints)
 
     from shapely.geometry import Point
     from shapely.geometry.polygon import Polygon
@@ -72,9 +74,9 @@ def createTriangulationFromHull(pts, maxImgPoints = 50, maxRelativeDistance = 0.
 
     originalPoly = Polygon(pts)
     for p0, p1, p2 in tri.simplices:
-        xc, yc = (pts[imgPoints[p0]] + pts[imgPoints[p1]] + pts[imgPoints[p2]])/3.0
+        xc, yc = (triangPoints[p0] + triangPoints[p1] + triangPoints[p2])/3.0
         
         if originalPoly.contains(Point(xc, yc)):
             simp.append([p0, p1, p2])
 
-    return imgPoints, simp
+    return triangPoints.tolist(), simp

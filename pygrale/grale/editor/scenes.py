@@ -341,15 +341,24 @@ class LayerScene(GraphicsScene):
         if deleteMatchPoints:
             self.getActionStack().recordDeleteMatchPoints(deleteMatchPoints, deleteId)
 
+    def _findExtraPointsInsidePath(self, path, layerUuid):
+        poly = QtGui.QPolygonF([ QtCore.QPointF(p[0], p[1]) for p in path ])
+        possibleElemsInside = self.items(poly)
+        extraPoints = { }
+
+        for p in possibleElemsInside:
+            p = PointGraphicsItemBase.getPointGraphicsItem(p)
+            if p and p.isNormalPoint() and p.getLayer().getUuid() == layerUuid:
+                if poly.containsPoint(p.pos(), QtCore.Qt.OddEvenFill):
+                    pos = p.pos()
+                    coord = (pos.x(), pos.y())
+                    if not coord in extraPoints:
+                        extraPoints[coord] = p
+
+        return extraPoints
+
     def _addTriangulationFromHull(self, path):
 
-        try:
-            pts, simp = createTriangulationFromHull(np.array(path)) # TODO: default settings
-        except Exception as e:
-            self.warning("Can't create triangulation", "Can't create hull points and triangulation: {}".format(e))
-            return
-
-        addId = uuid.uuid4()
         item, layer = self.getCurrentItemAndLayer()
         layerUuid = layer.getUuid()
 
@@ -357,11 +366,24 @@ class LayerScene(GraphicsScene):
             self.warning("Can't create triangulation", "Current layer is not a points layer, can't create a triangulation based on the drawn hull")
             return
 
+        try:
+            extraPoints = self._findExtraPointsInsidePath(path, layerUuid)
+            pts, simp = createTriangulationFromHull(np.array(path), [ c for c in extraPoints]) # TODO: default settings
+        except Exception as e:
+            self.warning("Can't create triangulation", "Can't create hull points and triangulation: {}".format(e))
+            return
+
+        addId = uuid.uuid4()
+
         uuids = [ ]
 
         importPoints = [ ]
         for p in pts:
-            ptUuid = item.addPoint(float(path[p][0]), float(path[p][1]))
+            p = tuple(p)
+            if p in extraPoints:
+                ptUuid = extraPoints[p].getUuid()
+            else:
+                ptUuid = item.addPoint(float(p[0]), float(p[1]))
             uuids.append(ptUuid)
 
             ptInfo = layer.getPoint(ptUuid)
