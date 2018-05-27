@@ -1102,12 +1102,13 @@ QVariant LayerGraphicsItemBase::clearPoint(const QString &uuid)
 	// Remove the point from the layer data
 	QVariant affectedTriangles = m_pLayer->clearPoint(uuid);
 	
-	QList<QVariant> triangList = affectedTriangles.toList();
+	auto triangList = affectedTriangles.toMap();
 
 	// Remove the triangle items
-	for (auto & i : triangList)
+	for (auto i = triangList.begin() ; i != triangList.end() ; ++i)
 	{
-		QString triangUuid = i.toString();
+		QString triangUuid = i.key();
+
 		auto it = m_triangleItems.find(triangUuid);
 		if (it != m_triangleItems.end())
 		{
