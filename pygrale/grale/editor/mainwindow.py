@@ -14,6 +14,7 @@ import tools
 import nullgriddialog
 import exportareadialog
 import grale.images as images # TODO?
+from grale.constants import ANGLE_ARCSEC
 import numpy as np
 
 JSONDump = lambda s: json.dumps(s, sort_keys=True, indent=4, separators=(',', ': '))
@@ -250,12 +251,7 @@ class MainWindow(QtWidgets.QMainWindow):
             splitterGeom = list(map(int, splitterGeom))
             self.ui.m_splitter.setSizes(splitterGeom)
 
-        def strToBool(s):
-            if s.lower() == "false":
-                return False
-            if s.lower() == "true":
-                return True
-            raise Exception("Unrecognized boolean string '{}'".format(s))
+        from tools import strToBool
 
         sa = settings.value("generalview/showaxes")
         sa = True if sa is None else strToBool(sa)
@@ -798,9 +794,39 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _onNullGrid(self, checked):
 
-        # TODO
-        dlg = nullgriddialog.NullGridDialog(self)
-        dlg.exec_()
+        rectItem = QtWidgets.QGraphicsRectItem()
+        rectItem.setZValue(10000)
+        b = QtGui.QBrush(QtCore.Qt.green)
+        p = QtGui.QPen(b, 2)
+        p.setCosmetic(True)
+        rectItem.setPen(QtGui.QPen(p))
+        scale = self.view.getScale()
+        center = self.view.getCenter()
+        self.scene.addItem(rectItem)
+        
+        try:
+            dlg = nullgriddialog.NullGridDialog(self.view, rectItem, self)
+            if not dlg.exec_():
+                return
+
+            bl, tr = dlg.getBottomLeftAndTopRight()
+            bl, tr = [ bl[0]*ANGLE_ARCSEC, bl[1]*ANGLE_ARCSEC ], [ tr[0]*ANGLE_ARCSEC, tr[1]*ANGLE_ARCSEC ]
+            numX, numY = dlg.getNumXYPoints()
+            extraRadius = dlg.getExtraCutoutRadius()
+            splitImages = dlg.getSplitImages()
+
+            visiblePointLayers = [ l for l,v in self.ui.m_listWidget.getLayersAndVisibilities() if v and type(l) == pointslayer.PointsLayer ]
+            cutoutImages = [ tools.layersToImagesData([l], splitImages) for l in visiblePointLayers ]
+
+            nullImg = images.createGridTriangles(bl, tr, numX, numY, cutoutImages, enlargeHoleOffset=extraRadius*ANGLE_ARCSEC)
+            self.importImagesData(nullImg, 0, "Null space")
+        except Exception as e:
+            self.scene.warning("Error while creating null grid", "Encountered a problem while creating the null grid: {}".format(e))
+        finally:
+            self.scene.removeItem(rectItem)
+            self.view.setScale(scale)
+            self.view.centerOn(center)
+
 
     @staticmethod
     def _getPointLayerRect(l):

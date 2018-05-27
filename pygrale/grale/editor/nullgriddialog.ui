@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>499</width>
+    <width>320</width>
     <height>415</height>
    </rect>
   </property>
@@ -34,7 +34,7 @@
              </widget>
             </item>
             <item row="0" column="1">
-             <widget class="DoubleLineEdit" name="lineEdit"/>
+             <widget class="DoubleLineEdit" name="m_widthEdit"/>
             </item>
             <item row="0" column="2">
              <widget class="QLabel" name="label_3">
@@ -51,7 +51,7 @@
              </widget>
             </item>
             <item row="1" column="1">
-             <widget class="DoubleLineEdit" name="lineEdit_2"/>
+             <widget class="DoubleLineEdit" name="m_heightEdit"/>
             </item>
             <item row="1" column="2">
              <widget class="QLabel" name="label_4">
@@ -68,7 +68,7 @@
              </widget>
             </item>
             <item row="2" column="1">
-             <widget class="DoubleLineEdit" name="lineEdit_3"/>
+             <widget class="DoubleLineEdit" name="m_centerXEdit"/>
             </item>
             <item row="2" column="2">
              <widget class="QLabel" name="label_9">
@@ -85,7 +85,7 @@
              </widget>
             </item>
             <item row="3" column="1">
-             <widget class="DoubleLineEdit" name="lineEdit_4"/>
+             <widget class="DoubleLineEdit" name="m_centerYEdit"/>
             </item>
             <item row="3" column="2">
              <widget class="QLabel" name="label_10">
@@ -102,7 +102,14 @@
              </widget>
             </item>
             <item row="4" column="1">
-             <widget class="QSpinBox" name="spinBox"/>
+             <widget class="QSpinBox" name="m_numXBox">
+              <property name="minimum">
+               <number>2</number>
+              </property>
+              <property name="maximum">
+               <number>1024</number>
+              </property>
+             </widget>
             </item>
             <item row="5" column="0">
              <widget class="QLabel" name="label_8">
@@ -112,7 +119,14 @@
              </widget>
             </item>
             <item row="5" column="1">
-             <widget class="QSpinBox" name="spinBox_2"/>
+             <widget class="QSpinBox" name="m_numYBox">
+              <property name="minimum">
+               <number>2</number>
+              </property>
+              <property name="maximum">
+               <number>1024</number>
+              </property>
+             </widget>
             </item>
            </layout>
           </item>
@@ -128,7 +142,7 @@
           <item row="0" column="0">
            <layout class="QVBoxLayout" name="verticalLayout">
             <item>
-             <widget class="QCheckBox" name="checkBox">
+             <widget class="QCheckBox" name="m_splitBox">
               <property name="text">
                <string>Split points layer into multiple images</string>
               </property>
@@ -147,7 +161,7 @@
                </widget>
               </item>
               <item>
-               <widget class="DoubleLineEdit" name="lineEdit_5"/>
+               <widget class="DoubleLineEdit" name="m_cutoutEdit"/>
               </item>
               <item>
                <widget class="QLabel" name="label_12">

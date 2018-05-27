@@ -5,6 +5,20 @@ from pointslayer import PointsLayer
 import grale.images as images # TODO
 from grale.constants import ANGLE_ARCSEC
 
+def strToBool(s):
+    if type(s) == bool:
+        return s
+    if s.lower() == "false":
+        return False
+    if s.lower() == "true":
+        return True
+    raise Exception("Unrecognized boolean string '{}'".format(s))
+
+def valueFromSettings(settings, name, castFunction, defaultValue):
+    x = settings.value(name)
+    x = castFunction(x) if x is not None else defaultValue
+    return x
+
 def _splitPointsAndTriangles(allPoints, allTriangles):
 
     imageInfo = [ ]

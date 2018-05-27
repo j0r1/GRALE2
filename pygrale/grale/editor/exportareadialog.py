@@ -16,12 +16,7 @@ class ExportAreaDialog(QtWidgets.QDialog):
         self.ui.m_widthArcsecEdit.signalNewValueEntered.connect(self._onAreaSizeChanged)
         self.ui.m_heightArcsecEdit.signalNewValueEntered.connect(self._onAreaSizeChanged)
 
-        def strToBool(s):
-            if s.lower() == "false":
-                return False
-            if s.lower() == "true":
-                return True
-            raise Exception("Unrecognized boolean string '{}'".format(s))
+        from tools import strToBool
 
         settings = QtCore.QSettings()
         isArea = settings.value("exportdialog/exportarea")
