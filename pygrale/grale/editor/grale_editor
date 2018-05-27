@@ -1,0 +1,5 @@
+#!/home/jori/anaconda3-510/envs/grale2env/bin/python
+
+import grale.editor # Will adjust sys.path so that the editor's python files can be found
+import grale.editor.mainwindow as mainwindow
+mainwindow.main()

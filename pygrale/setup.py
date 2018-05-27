@@ -142,82 +142,106 @@ def getVersionString():
 
     raise Exception("Couldn't get version string for pygrale2")
 
-
 versionStr = getVersionString()
 print("Using version string: '{}'".format(versionStr))
 
 pyMods = [ "grale.cosmology", "grale.plotutil", "grale.constants", "grale.renderers", "grale.timedio", "grale.untimedio",
            "grale.privutil", "grale.debuglog", "grale.feedback", "grale.bytestring", "grale.inverters",
-           "grale.inversion", "grale.grid", "grale.multiplane", "grale.privimages",
-           "grale.editor.actionstack",
-           "grale.editor.base",
-           "grale.editor.checkqt",
-           "grale.editor.contourleveldialog",
-           "grale.editor.debug",
-           "grale.editor.doublelineedit",
-           "grale.editor.fitslayerinfodialog",
-           "grale.editor.fitslistwidget",
-           "grale.editor.hullprocessor",
-           "grale.editor.imagelayer",
-           "grale.editor.__init__",
-           "grale.editor.layerlist",
-           "grale.editor.listwidgetbase",
-           "grale.editor.__main__",
-           "grale.editor.mainwindow",
-           "grale.editor.nullgriddialog",
-           "grale.editor.openglhelper",
-           "grale.editor.pointinfodialog",
-           "grale.editor.pointslayer",
-           "grale.editor.pointslistwidget",
-           "grale.editor.rgblistwidget",
-           "grale.editor.scenes",
-           "grale.editor.tools",
-           "grale.editor.exportareadialog",
-           ]
+           "grale.inversion", "grale.grid", "grale.multiplane", "grale.privimages" ]
+extraSetupArgs = { }
 
-for ui in [ "grale/editor/contourleveldialog.ui",
-            "grale/editor/pointinfodialog.ui",
-            "grale/editor/fitslayerinfodialog.ui",
-            "grale/editor/fitslistwidget.ui",
-            "grale/editor/rgblistwidget.ui",
-            "grale/editor/pointslistwidget.ui",
-            "grale/editor/mainwindow.ui",
-            "grale/editor/nullgriddialog.ui",
-            "grale/editor/exportareadialog.ui",
-        ]:
-    pathParts = os.path.dirname(ui).split("/")
-    ui = os.path.join(*ui.split("/"))
-    outName = "ui_" + os.path.basename(ui)[:-3] + ".py"
-    pyName = os.path.join(*pathParts, outName)
-    print(ui, "->", pyName)
-    cmd = [ "-o", pyName, ui ]
-    if platform.system() == "Windows":
-        cmd = [ "cmd.exe", "/c", "pyuic5.bat" ] + cmd
-    else:
-        cmd = [ "pyuic5" ] + cmd
-    subprocess.check_call(cmd)
+try:
+    from PyQt5 import QtCore
+    import sipconfig
 
-    pyMods.append("grale.editor." + os.path.basename(pyName)[:-3])
+    config = sipconfig.Configuration()
+    subprocess.check_call( [ config.sip_bin, "-V" ])
+    isQtAvailable = True
+except Exception as e:
+    print("Unable to detect PyQt5 or SIP, not building Grale editor")
+    isQtAvailable = False
 
-setup(name = "grale", version = versionStr, ext_modules = cythonize(extensions), py_modules = pyMods)
+if isQtAvailable:
+    pyMods += [
+               "grale.editor.actionstack",
+               "grale.editor.base",
+               "grale.editor.checkqt",
+               "grale.editor.contourleveldialog",
+               "grale.editor.debug",
+               "grale.editor.doublelineedit",
+               "grale.editor.fitslayerinfodialog",
+               "grale.editor.fitslistwidget",
+               "grale.editor.hullprocessor",
+               "grale.editor.imagelayer",
+               "grale.editor.__init__",
+               "grale.editor.layerlist",
+               "grale.editor.listwidgetbase",
+               "grale.editor.__main__",
+               "grale.editor.mainwindow",
+               "grale.editor.nullgriddialog",
+               "grale.editor.openglhelper",
+               "grale.editor.pointinfodialog",
+               "grale.editor.pointslayer",
+               "grale.editor.pointslistwidget",
+               "grale.editor.rgblistwidget",
+               "grale.editor.scenes",
+               "grale.editor.tools",
+               "grale.editor.exportareadialog",
+               ]
 
-makeCmd = "nmake" if platform.system() == "Windows" else "make"
-if "build" in sys.argv or "install" in sys.argv:
-    cwd = os.getcwd()
-    try:
-        os.chdir(os.path.join("grale","editor","cppqt"))
-        if not os.path.exists("Makefile"):
-            subprocess.check_call( [ "python", "configure.py" ])
-        subprocess.check_call( [ makeCmd ] )
-    finally:
-        os.chdir(cwd)
+    for ui in [ "grale/editor/contourleveldialog.ui",
+                "grale/editor/pointinfodialog.ui",
+                "grale/editor/fitslayerinfodialog.ui",
+                "grale/editor/fitslistwidget.ui",
+                "grale/editor/rgblistwidget.ui",
+                "grale/editor/pointslistwidget.ui",
+                "grale/editor/mainwindow.ui",
+                "grale/editor/nullgriddialog.ui",
+                "grale/editor/exportareadialog.ui",
+            ]:
+        pathParts = os.path.dirname(ui).split("/")
+        ui = os.path.join(*ui.split("/"))
+        outName = "ui_" + os.path.basename(ui)[:-3] + ".py"
+        pyName = os.path.join(*pathParts, outName)
+        print(ui, "->", pyName)
+        cmd = [ "-o", pyName, ui ]
+        if platform.system() == "Windows":
+            cmd = [ "cmd.exe", "/c", "pyuic5.bat" ] + cmd
+        else:
+            cmd = [ "pyuic5" ] + cmd
 
-if "install" in sys.argv:
-    cwd = os.getcwd()
-    try:
-        os.chdir(os.path.join("grale","editor","cppqt"))
-        subprocess.check_call( [ makeCmd, "install" ])
-    finally:
-        os.chdir(cwd)
+        if not "SKIPUIC" in os.environ:
+            subprocess.check_call(cmd)
+
+        pyMods.append("grale.editor." + os.path.basename(pyName)[:-3])
+
+    # TODO: Windows?
+    if not "scripts" in extraSetupArgs:
+        extraSetupArgs["scripts"] = [ ]
+    extraSetupArgs["scripts"] += [ "grale/editor/grale_editor" ]
+
+# Run the actual setup command
+setup(name = "grale", version = versionStr, ext_modules = cythonize(extensions), py_modules = pyMods, **extraSetupArgs)
+
+# Build and install SIP bindings for PyQt5 based Grale editor
+if isQtAvailable:
+    makeCmd = "nmake" if platform.system() == "Windows" else "make"
+    if "build" in sys.argv or "install" in sys.argv:
+        cwd = os.getcwd()
+        try:
+            os.chdir(os.path.join("grale","editor","cppqt"))
+            if not os.path.exists("Makefile"):
+                subprocess.check_call( [ "python", "configure.py" ])
+            subprocess.check_call( [ makeCmd ] )
+        finally:
+            os.chdir(cwd)
+
+    if "install" in sys.argv:
+        cwd = os.getcwd()
+        try:
+            os.chdir(os.path.join("grale","editor","cppqt"))
+            subprocess.check_call( [ makeCmd, "install" ])
+        finally:
+            os.chdir(cwd)
 
 
