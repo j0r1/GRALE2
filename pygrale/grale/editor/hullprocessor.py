@@ -64,8 +64,10 @@ def createTriangulationFromHull(pts, extraPoints, maxImgPoints = 50, maxRelative
     from scipy.spatial import Delaunay
     import numpy as np
 
-    triangPoints = np.array(pts[imgPoints].tolist() + extraPoints)
-    tri = Delaunay(triangPoints)
+    newPoints = pts[imgPoints].tolist()
+    triangPoints = newPoints + [ p["xy"] for p in extraPoints ]
+    triangPointsArray = np.array(triangPoints)
+    tri = Delaunay(triangPointsArray)
 
     from shapely.geometry import Point
     from shapely.geometry.polygon import Polygon
@@ -74,9 +76,9 @@ def createTriangulationFromHull(pts, extraPoints, maxImgPoints = 50, maxRelative
 
     originalPoly = Polygon(pts)
     for p0, p1, p2 in tri.simplices:
-        xc, yc = (triangPoints[p0] + triangPoints[p1] + triangPoints[p2])/3.0
+        xc, yc = (triangPointsArray[p0] + triangPointsArray[p1] + triangPointsArray[p2])/3.0
         
         if originalPoly.contains(Point(xc, yc)):
             simp.append([p0, p1, p2])
 
-    return triangPoints.tolist(), simp
+    return [ { "xy": t, "uuid": None } for t in newPoints ] + extraPoints, simp

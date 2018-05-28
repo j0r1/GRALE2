@@ -344,16 +344,14 @@ class LayerScene(GraphicsScene):
     def _findExtraPointsInsidePath(self, path, layerUuid):
         poly = QtGui.QPolygonF([ QtCore.QPointF(p[0], p[1]) for p in path ])
         possibleElemsInside = self.items(poly)
-        extraPoints = { }
+        extraPoints = [ ]
 
         for p in possibleElemsInside:
             p = PointGraphicsItemBase.getPointGraphicsItem(p)
             if p and p.isNormalPoint() and p.getLayer().getUuid() == layerUuid:
                 if poly.containsPoint(p.pos(), QtCore.Qt.OddEvenFill):
                     pos = p.pos()
-                    coord = (pos.x(), pos.y())
-                    if not coord in extraPoints:
-                        extraPoints[coord] = p
+                    extraPoints.append({ "xy": [pos.x(), pos.y()], "uuid": p.getUuid()})
 
         return extraPoints
 
@@ -368,7 +366,7 @@ class LayerScene(GraphicsScene):
 
         try:
             extraPoints = self._findExtraPointsInsidePath(path, layerUuid)
-            pts, simp = createTriangulationFromHull(np.array(path), [ c for c in extraPoints]) # TODO: default settings
+            pts, simp = createTriangulationFromHull(np.array(path), extraPoints) # TODO: default settings
         except Exception as e:
             self.warning("Can't create triangulation", "Can't create hull points and triangulation: {}".format(e))
             return
@@ -378,16 +376,17 @@ class LayerScene(GraphicsScene):
         uuids = [ ]
 
         importPoints = [ ]
-        for p in pts:
-            p = tuple(p)
-            if p in extraPoints:
-                ptUuid = extraPoints[p].getUuid()
-            else:
+        for pt in pts:
+            p = pt["xy"]
+            if pt["uuid"] is None:
                 ptUuid = item.addPoint(float(p[0]), float(p[1]))
-            uuids.append(ptUuid)
+                ptInfo = layer.getPoint(ptUuid)
+                importPoints.append({ "layer": layerUuid, "point": ptUuid, "pos": ptInfo["xy"], "timedelay": ptInfo["timedelay"], "label": ptInfo["label"] })
+            else:
+                #print("Point {} already exists, not recording".format(ptUuid))
+                ptUuid = pt["uuid"]
 
-            ptInfo = layer.getPoint(ptUuid)
-            importPoints.append({ "layer": layerUuid, "point": ptUuid, "pos": ptInfo["xy"], "timedelay": ptInfo["timedelay"], "label": ptInfo["label"] })
+            uuids.append(ptUuid)
         
         self.getActionStack().recordAddNormalPoints(importPoints, addId)
 
