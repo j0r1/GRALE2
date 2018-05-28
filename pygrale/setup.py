@@ -218,7 +218,9 @@ if isQtAvailable:
     # TODO: Windows?
     if not "scripts" in extraSetupArgs:
         extraSetupArgs["scripts"] = [ ]
-    extraSetupArgs["scripts"] += [ "grale/editor/grale_editor" ]
+
+    startScript = "grale/editor/grale_editor" if not platform.system() == "Windows" else "grale\\editor\\grale_editor.bat"
+    extraSetupArgs["scripts"] += [ startScript ]
 
 # Run the actual setup command
 setup(name = "grale", version = versionStr, ext_modules = cythonize(extensions), py_modules = pyMods, **extraSetupArgs)
