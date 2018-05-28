@@ -46,6 +46,13 @@ if "CONDA_PREFIX" in os.environ:
         extraLibraryDirs.append(os.path.join(os.environ["CONDA_PREFIX"], "lib"))
         extraSipIncludes.append("-I" + os.path.join(os.environ["CONDA_PREFIX"], "share", "sip", "PyQt5"))
 
+if "SIPINCLUDES" in os.environ:
+    extraSipIncludes += [ "-I" + p for p in os.environ["SIPINCLUDES"].split(":") ]
+if "QT5LIBDIRS" in os.environ:
+    extraLibraryDirs += os.environ["QT5LIBDIRS"].split(":")
+if "QT5INCLUDES" in os.environ:
+    extraCppIncludes += os.environ["QT5INCLUDES"].split(":")
+
 sipFlags = QtCore.PYQT_CONFIGURATION["sip_flags"].split()
 print("Generating C++ code for PyQt5 bindings")
 subprocess.check_call([config.sip_bin, "-c", ".", "-b", build_file] + extraSipIncludes + sipFlags + [ "cppqt.sip"])

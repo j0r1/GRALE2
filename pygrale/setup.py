@@ -46,6 +46,9 @@ if "CONDA_BUILD" in os.environ or "CONDA_PREFIX" in os.environ:
     else:
         extraIncludes += [ os.path.join(prefix, "include") ]
 
+if "INCLUDES" in os.environ:
+    extraIncludes += os.environ["INCLUDES"].split(":")
+
 print("Extra includes:")
 pprint.pprint(extraIncludes)
 print("Libraries:")
@@ -233,7 +236,7 @@ if isQtAvailable:
         try:
             os.chdir(os.path.join("grale","editor","cppqt"))
             if not os.path.exists("Makefile"):
-                subprocess.check_call( [ "python", "configure.py" ])
+                subprocess.check_call( [ sys.executable, "configure.py" ])
             subprocess.check_call( [ makeCmd ] )
         finally:
             os.chdir(cwd)
