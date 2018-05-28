@@ -4,8 +4,7 @@ apply_include_paths("${GRALE_EXTERNAL_INCLUDES}")
 add_subdirectory(single)
 add_subdirectory(clientserver)
 
-find_package(MPI)
-if (MPI_FOUND)
+if (GRALE_SUPPORT_MPI)
 	add_subdirectory(mpi)
 endif()
 

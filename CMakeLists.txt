@@ -39,6 +39,14 @@ else (NOT MSVC)
 	endif (GRALE_COMPILE_STATIC)
 endif (NOT MSVC)
 
+find_package(MPI)
+if (MPI_FOUND)
+	set(TMP TRUE)
+else (MPI_FOUND)
+	set(TMP FALSE)
+endif (MPI_FOUND)
+option(GRALE_SUPPORT_MPI "Enable MPI support" ${TMP})
+
 add_subdirectory(core)
 add_subdirectory(inversion)
 

@@ -6,8 +6,7 @@ if (THREADS_FOUND)
 	add_subdirectory(threads)
 endif()
 
-find_package(MPI)
-if (MPI_FOUND)
+if (GRALE_SUPPORT_MPI)
 	add_subdirectory(mpi)
 endif()
 
