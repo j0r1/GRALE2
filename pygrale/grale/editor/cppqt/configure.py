@@ -1,15 +1,38 @@
 #!/usr/bin/env python
 from __future__ import print_function
 import os
+import sys
 import subprocess
 import sipconfig
 from PyQt5 import QtCore
 import pprint
 import platform
 
+prefix = None
+for a in sys.argv[1:]:
+    prefArg = "--prefix="
+    if a.startswith(prefArg):
+        prefix = a[len(prefArg):]
+    else:
+        raise Exception("Unknown argument {}".format(a))
+
 build_file = "cppqt.sbf"
 
 config = sipconfig.Configuration()
+if prefix:
+    print("Prefix set to", prefix)
+    sysRoot = None
+    for i in config.sip_config_args.split():
+        sysRootArg="--sysroot="
+        if i.startswith(sysRootArg):
+            sysRoot=i[len(sysRootArg):]
+    if not sysRoot:
+        raise Exception("Prefix set, but sysroot could not be detected")
+    
+    print("Before:", config.default_mod_dir)
+    config.default_mod_dir = config.default_mod_dir.replace(sysRoot, prefix)
+    print("After:", config.default_mod_dir)
+
 config.default_mod_dir = os.path.join(config.default_mod_dir, "grale", "editor", "cppqt")
 
 macros = config.build_macros()

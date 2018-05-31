@@ -232,11 +232,17 @@ setup(name = "grale", version = versionStr, ext_modules = cythonize(extensions),
 if isQtAvailable:
     makeCmd = "nmake" if platform.system() == "Windows" else "make"
     if "build" in sys.argv or "install" in sys.argv:
+        prefixArg = [ ]
+        for a in sys.argv:
+            if a.startswith("--prefix="):
+                prefixArg.append(a)
+
         cwd = os.getcwd()
         try:
             os.chdir(os.path.join("grale","editor","cppqt"))
             if not os.path.exists("Makefile"):
-                subprocess.check_call( [ sys.executable, "configure.py" ])
+                print("Prefix set to", prefixArg)
+                subprocess.check_call( [ sys.executable, "configure.py" ] + prefixArg)
             subprocess.check_call( [ makeCmd ] )
         finally:
             os.chdir(cwd)
