@@ -46,6 +46,23 @@ if "CONDA_BUILD" in os.environ or "CONDA_PREFIX" in os.environ:
     else:
         extraIncludes += [ os.path.join(prefix, "include") ]
 
+else:
+    # Try to deduce paths
+    import numpy
+
+    numpyIncludeDir = os.path.join(os.path.dirname(numpy.__file__), "core", "include")
+    if os.path.exists(numpyIncludeDir):
+        print("Detected numpy include dir", numpyIncludeDir)
+        extraIncludes += [ numpyIncludeDir ]
+    
+    modDir = os.path.dirname(subprocess.__file__) 
+    if os.path.basename(modDir).startswith("python"):
+        modDir = os.path.dirname(modDir)
+
+    # TODO: make this work on windows as well
+    prefix = os.path.dirname(modDir)
+    extraIncludes += [ os.path.join(prefix, "include") ]
+
 if "INCLUDES" in os.environ:
     extraIncludes += os.environ["INCLUDES"].split(":")
 
@@ -58,20 +75,6 @@ if "CC" in os.environ and os.environ["CC"].startswith("ccache"):
     del os.environ["CC"]
 if "CXX" in os.environ and os.environ["CXX"].startswith("ccache"):
     del os.environ["CXX"]
-
-if "TEST_BUILD" in os.environ:
-
-    pref = os.path.join(sys.exec_prefix, "pkgs/numpy-")
-
-    def getNumPyVersion(s):                                                                             
-        l = len(pref)
-        m = [ x for x in map(int, s[l:].split("-")[0].split(".")) ]
-        return m
-
-    l = glob.glob(pref + "*/lib/python*/site-packages/numpy/core/include")
-    l = l[sorted([ ( getNumPyVersion(l[i]), i ) for i in range(len(l)) ])[-1][-1]]
-
-    extraIncludes += [ l, os.path.join(os.getcwd(),"../local/include/") ]
 
 extensions = [
     Extension("grale.lenses", 
