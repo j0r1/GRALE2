@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
 from distutils import sysconfig
 from distutils.core import setup
 from distutils.extension import Extension
@@ -10,6 +11,63 @@ import sys
 import os
 import pprint
 import subprocess
+
+def addNumPyDirs(includeDirs, libDirs):
+    try:
+        # Try to deduce paths
+        import numpy
+
+        numpyIncludeDir = os.path.join(os.path.dirname(numpy.__file__), "core", "include")
+        if os.path.exists(numpyIncludeDir):
+            includeDirs.append(numpyIncludeDir)
+    except Exception as e:
+        print("Exception during addNumPyDirs: {}".format(e))
+
+def addGeneralDirs(includeDirs, libDirs):
+    try:
+        modDir = os.path.dirname(subprocess.__file__) 
+        if os.path.basename(modDir).startswith("python"):
+            modDir = os.path.dirname(modDir)
+
+        # TODO: make this work on windows as well
+        prefix = os.path.dirname(modDir)
+        includeDirs.append(os.path.join(prefix, "include"))
+    except Exception as e:
+        print("Exception during addGeneralDirs: {}".format(e))
+
+def addGslDirs(includeDirs, libDirs):
+    try:
+        libs = subprocess.check_output( [ "gsl-config", "--libs"] ).split()
+        for l in libs:
+            if l.startswith("-L"):
+                libDirs.append(l[2:])
+
+        includes = subprocess.check_output( [ "gsl-config", "--cflags" ] ).split()
+        for i in includes:
+            if i.startswith("-I"):
+                includeDirs.append(i[2:])
+
+    except Exception as e:
+        print("Exception during addGslDirs: {}".format(e))
+
+def addGraleDirs(includeDirs, libDirs):
+    try:
+        graleBinDir = None
+        for p in os.environ["PATH"].split(os.pathsep):
+            if os.path.exists(os.path.join(p, "grale_massdens_threads")):
+                graleBinDir = p
+                break
+
+        if graleBinDir:
+            while graleBinDir.endswith(os.path.sep):
+                graleBinDir = graleBinDir[:-1]
+            graleDir = os.path.dirname(graleBinDir)
+
+            includeDirs.append(os.path.join(graleDir, "include"))
+            libDirs.append(os.path.join(graleDir, "lib"))
+
+    except Exception as e:
+        print("Exception during addGraleDirs: {}".format(e))
 
 extraFlags = [ ]
 extraIncludes = [ ]
@@ -47,27 +105,17 @@ if "CONDA_BUILD" in os.environ or "CONDA_PREFIX" in os.environ:
         extraIncludes += [ os.path.join(prefix, "include") ]
 
 else:
-    # Try to deduce paths
-    import numpy
 
-    numpyIncludeDir = os.path.join(os.path.dirname(numpy.__file__), "core", "include")
-    if os.path.exists(numpyIncludeDir):
-        print("Detected numpy include dir", numpyIncludeDir)
-        extraIncludes += [ numpyIncludeDir ]
-    
-    modDir = os.path.dirname(subprocess.__file__) 
-    if os.path.basename(modDir).startswith("python"):
-        modDir = os.path.dirname(modDir)
-
-    # TODO: make this work on windows as well
-    prefix = os.path.dirname(modDir)
-    extraIncludes += [ os.path.join(prefix, "include") ]
+    for f in [ addNumPyDirs, addGeneralDirs, addGslDirs, addGraleDirs ]:
+        f(extraIncludes, libDirs)
 
 if "INCLUDES" in os.environ:
     extraIncludes += os.environ["INCLUDES"].split(":")
 
 print("Extra includes:")
 pprint.pprint(extraIncludes)
+print("Library dirs:")
+pprint.pprint(libDirs)
 print("Libraries:")
 pprint.pprint(libraries)
 
@@ -208,7 +256,12 @@ if isQtAvailable:
         pathParts = os.path.dirname(ui).split("/")
         ui = os.path.join(*ui.split("/"))
         outName = "ui_" + os.path.basename(ui)[:-3] + ".py"
-        pyName = os.path.join(*pathParts, outName)
+        
+        pyName = pathParts[0]
+        for p in pathParts[1:]:
+            pyName = os.path.join(pyName, p)
+        pyName = os.path.join(pyName, outName)
+
         print(ui, "->", pyName)
         cmd = [ "-o", pyName, ui ]
         if platform.system() == "Windows":
