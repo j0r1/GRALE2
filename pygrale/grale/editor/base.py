@@ -111,6 +111,8 @@ class GraphicsView(QtWidgets.QGraphicsView):
         t = QtGui.QTransform(x*factor, 0, 0, -factor, 0, 0)
         self.setTransform(t, False)
 
+        self.scene().onScaleChanged(self.getScale())
+
     def scaleView(self, scaleFactor):
         factor = self.transform().scale(scaleFactor, scaleFactor).mapRect(QtCore.QRectF(0, 0, 1, 1)).width()
         if factor < 0.01 or factor > 10000:

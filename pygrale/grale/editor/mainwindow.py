@@ -202,6 +202,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.m_listWidget.signalRefreshOrder.connect(self._onCheckLayerOrderingAndVisibilities)
         self.ui.m_listWidget.signalLayerPropertyChanged.connect(self._onLayerPropertyChanged)
         self.ui.m_listWidget.signalVisibilityChanged.connect(self._onLayerVisibilityChanged)
+        self.ui.m_listWidget.signalCenterLayerInView.connect(self._onCenterLayerInView)
 
         self.ui.m_addPointsButton.clicked.connect(self._addPointsLayer)
         self.ui.m_addFITSButton.clicked.connect(self._addFITSLayer)
@@ -879,6 +880,14 @@ class MainWindow(QtWidgets.QMainWindow):
         if not img.save(fileName):
             self.scene.warning("Error while exporting", "Unable to write to file {}".format(fileName))
         
+    def _onCenterLayerInView(self, layer):
+        pts = layer.getPoints()
+        pointCoords = np.array([ pts[k]["xy"] for k in pts ], dtype=np.double)
+        x0, x1 = pointCoords[:,0].min(), pointCoords[:,0].max()
+        y0, y1 = pointCoords[:,1].min(), pointCoords[:,1].max()
+        cx = float((x0+x1)/2.0)
+        cy = float((y0+y1)/2.0)
+        self.view.centerOn(cx, cy)
 
 def main():
     checkQtAvailable()

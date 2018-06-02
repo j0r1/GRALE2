@@ -420,13 +420,16 @@ class LayerScene(GraphicsScene):
             self.cut()
             return
 
+        view = None if not self.views() else self.views()[0]
+        if view and keyStr in "0123456789":
+            zoomLevel = 2**int(keyStr)
+            center = view.getCenter()
+            view.setScale(zoomLevel)
+            view.centerOn(center)
+
         if key == QtCore.Qt.Key_Delete or key == QtCore.Qt.Key_Backspace:
             self._deleteSelectedItems(modifiers["shift"], modifiers["control"])
             return
-
-        if keyStr == "I":
-            for i in self.items():
-                print(i)
 
     def importFromImagesData(self, imgDat, imgIdx):
         item, layer = self.getCurrentItemAndLayer()
@@ -636,6 +639,12 @@ class LayerScene(GraphicsScene):
                 self.getActionStack().recordCenterAndMinMax(layer.getUuid(), oldRaDec, newRaDec, oldMinMax, newMinMax)
 
     def mouseHandler_rightClick(self, pointItem, pos, modInfo):
+        if modInfo["control"] == True:
+            view = None if not self.views() else self.views()[0]
+            if view:
+                view.centerOn(pos[0], pos[1])
+            return
+
         if pointItem:
             pointItem = PointGraphicsItemBase.getPointGraphicsItem(pointItem)
             if pointItem and pointItem.isNormalPoint():

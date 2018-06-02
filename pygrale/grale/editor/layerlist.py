@@ -6,18 +6,26 @@ from pointslayer import PointsLayer
 from imagelayer import FITSImageLayer, RGBImageLayer
 
 class PopupMenu(QtWidgets.QMenu):
-    def __init__(self, item, parent):
+    def __init__(self, item, centerOption, parent):
         super(PopupMenu, self).__init__(parent)
 
         self.parent = parent
         self.item = item
+
         deleteAction = QtWidgets.QAction("Delete layer", self)
         self.addAction(deleteAction)
-
         deleteAction.triggered.connect(self.onDelete)
+
+        if centerOption:
+            centerAction = QtWidgets.QAction("Center in view", self)
+            self.addAction(centerAction)
+            centerAction.triggered.connect(self.onCenter)
 
     def onDelete(self, checked):
         self.parent._onDeleteItem(self.item)
+
+    def onCenter(self, checked):
+        self.parent._onCenterInView(self.item)
 
 class LayerList(QtWidgets.QListWidget):
 
@@ -25,6 +33,7 @@ class LayerList(QtWidgets.QListWidget):
     signalRefreshOrder = QtCore.pyqtSignal()
     signalLayerPropertyChanged = QtCore.pyqtSignal(object, str, object)
     signalVisibilityChanged = QtCore.pyqtSignal(object, bool)
+    signalCenterLayerInView = QtCore.pyqtSignal(object)
 
     def __init__(self, parent = None):
         super(LayerList, self).__init__(parent)
@@ -95,7 +104,8 @@ class LayerList(QtWidgets.QListWidget):
     def _onContextMenu(self, pt):
         item = self.itemAt(pt)
         if item:
-            p = PopupMenu(item, self)
+            w = self.itemWidget(item)
+            p = PopupMenu(item, type(w) == PointsListWidget, self)
             p.exec_(self.mapToGlobal(pt))
 
     def dropEvent(self, evt):
@@ -145,6 +155,10 @@ class LayerList(QtWidgets.QListWidget):
             w = self.itemWidget(self.item(i))
             r.append( (w.getLayer(), w.isLayerVisible()) )
         return r
+
+    def _onCenterInView(self, item):
+        w = self.itemWidget(item)
+        self.signalCenterLayerInView.emit(w.getLayer())
 
 def main():
     import sys
