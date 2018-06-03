@@ -889,6 +889,9 @@ class MainWindow(QtWidgets.QMainWindow):
         cy = float((y0+y1)/2.0)
         self.view.centerOn(cx, cy)
 
+    def keyPressEvent(self, evt):
+        self.view.setFocus()
+
 def main():
     checkQtAvailable()
 

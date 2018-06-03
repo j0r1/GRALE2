@@ -55,3 +55,10 @@ class ListWidgetBase(QtWidgets.QFrame):
 
     def isActive(self):
         return self.isActiveFlag
+
+    def keyPressEvent(self, evt):
+        evt.ignore()
+
+    def keyReleaseEvent(self, evt):
+        evt.ignore()
+

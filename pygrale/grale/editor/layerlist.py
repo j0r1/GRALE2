@@ -160,6 +160,12 @@ class LayerList(QtWidgets.QListWidget):
         w = self.itemWidget(item)
         self.signalCenterLayerInView.emit(w.getLayer())
 
+    def keyPressEvent(self, evt):
+        evt.ignore()
+
+    def keyReleaseEvent(self, evt):
+        evt.ignore()
+
 def main():
     import sys
     import grale.images as images
