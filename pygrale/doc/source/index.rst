@@ -25,11 +25,13 @@ Installation
 ------------
 
 The easiest way to install *pygrale* is using the `conda <http://conda.pydata.org/docs/intro.html>`_
-tool of the `Anaconda Python <https://www.continuum.io>`_ distribution. Just run the command::
+tool of the `Anaconda Python <https://www.continuum.io>`_ distribution. To
+create a separate environment (recommended) for GRALE, just run the command::
 
-    conda install -c jori pygrale grale2modules
+    conda create -n grale -c jori pygrale grale2modules
 
-in your environment. This should work on all platforms.
+This then creates the environment called ``grale``, in which all of the necessary
+components are installed. This should work on all platforms.
 
 For instructions on how to compile everything yourself, take a look at the
 `GitHub <https://github.com/j0r1/GRALE2>`_ page.

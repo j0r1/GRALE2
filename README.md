@@ -37,12 +37,14 @@ Installation
 ### Using conda ###
 
 The easiest way to install pygrale is using the [conda](http://conda.pydata.org/docs/intro.html)
-tool of the [Anaconda Python](https://www.anaconda.com/) distribution. Just 
+tool of the [Anaconda Python](https://www.anaconda.com/) distribution. To
+create a separate environment (recommended) for GRALE, just 
 run the command:
 
-    conda install -c jori pygrale grale2modules
+    conda create -n grale -c jori pygrale grale2modules
 
-This should work on all platforms.
+This then creates the environment called `grale`, in which all of the necessary
+components are installed. This should work on all platforms.
 
 ### Manual build ###
 
@@ -72,13 +74,24 @@ Python bindings. To do so, you'll need [NumPy](http://www.numpy.org/) as well as
 
     python setup.py install
 
+The following Python packages will definitely be useful:
+
+ - [SciPy](https://www.scipy.org/) is used for the integration needed to
+   calculate angular diameter distances, as well as for some basic triangulation
+   tasks.
+ - [Astropy](http://www.astropy.org/) is used to read/write FITS files.
+ - [Shapely](https://github.com/Toblerity/Shapely) is used to add a border
+   to a polygon, when generating null space grids with holes in them for
+   certain images.
+ - When [PyQt5](https://www.riverbankcomputing.com/software/pyqt/download5) and
+   [SIP](https://www.riverbankcomputing.com/software/sip/download) are available, 
+   then the GRALE editor tool will be made available automatically.
+
 If you're also interested in performing lens inversions, you'll need to compile
 the inversion modules for the genetic algorithm as well. These are not compiled
 automatically, but are provided in the subdirectory `inversion_modules`, where
 the CMake build system can again be used to build them. You can either install
 them on your system, or set the `GRALE2_MODULEPATH` environment variable to inform
 the inversion scripts where to find them. This environment variable can also be
-used in case they are not automatically detected after installation for example.
-
-
+used in case they are not automatically detected after installation.
 
