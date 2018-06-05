@@ -65,7 +65,7 @@ class FITSImageLayer(Layer):
 
     def getPixmap(self):
         d = ((np.clip(self.data, self.min, self.max) - self.min)/(self.max-self.min) * 255.0).astype(np.uint8)
-        img = QtGui.QImage(d, self.data.shape[1], self.data.shape[0], self.data.shape[0], QtGui.QImage.Format_Grayscale8)
+        img = QtGui.QImage(d, self.data.shape[1], self.data.shape[0], self.data.shape[1], QtGui.QImage.Format_Grayscale8)
         return QtGui.QPixmap.fromImage(img)
 
     def resetMinMax(self):
