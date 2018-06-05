@@ -82,9 +82,11 @@ class MultipleLayerActionStack(actionstack.ActionStack):
 
             if add:
                 scene.addItem(x["item"])
+                scene.addLayerItem(x["layer"].getUuid(), x["item"])
                 scene.listWidget.addLayer(x["layer"], x["pos"], x["item"].isVisible())
             else:
                 scene.removeItem(x["item"])
+                scene.removeLayerItem(x["layer"].getUuid())
                 pos = scene.listWidget.removeLayer(x["layer"].getUuid())
                 assert(pos == x["pos"])
         else:
