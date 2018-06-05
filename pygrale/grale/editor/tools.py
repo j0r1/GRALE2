@@ -19,7 +19,7 @@ def valueFromSettings(settings, name, castFunction, defaultValue):
     x = castFunction(x) if x is not None else defaultValue
     return x
 
-def _splitPointsAndTriangles(allPoints, allTriangles):
+def _splitPointsAndTriangles(allPoints, allTriangles, pointsLeft = None):
 
     imageInfo = [ ]
 
@@ -85,11 +85,15 @@ def _splitPointsAndTriangles(allPoints, allTriangles):
 
     # Check if there are still points left
     for p in allPoints:
+        if pointsLeft is not None:
+            for p2 in allPoints:
+                pointsLeft.append(p2)
         raise Exception("Can't split points layer in multiple images: still points left after considering all triangulations")
 
     return imageInfo
 
-def layersToImagesData(layers, multipleImagesPerLayer = True, saveGroups = True, saveTimeDelays = True):
+def layersToImagesData(layers, multipleImagesPerLayer = True, saveGroups = True, saveTimeDelays = True,
+                       pointsLeftInfo = None):
     
     imageInfo = [ ]
 
@@ -103,7 +107,11 @@ def layersToImagesData(layers, multipleImagesPerLayer = True, saveGroups = True,
                 "triangles": l.getTriangles()
             })
         else:
-            imageInfo += _splitPointsAndTriangles(l.getPoints(), l.getTriangles())
+            if pointsLeftInfo is not None:
+                pl = [ ]
+                d = { "layer": l.getUuid(), "pointsleft": pl }
+                pointsLeftInfo.append(d)
+            imageInfo += _splitPointsAndTriangles(l.getPoints(), l.getTriangles(), pointsLeft=pl)
 
     if len(imageInfo) == 0:
         raise Exception("No image information found that can be exported to an images data object")

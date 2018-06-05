@@ -285,6 +285,8 @@ public:
 
     void clearTriangle(const QString &triangleUuid);
     QVariant clearPoint(const QString &uuid);
+
+    PointGraphicsItemBase *getPointItem(const QString &uuid);
 protected:
 	PointGraphicsItemBase *createPoint(const PointInfo &pt);
 	TriangleItem *createTriangle(const TriangleInfo *triangInf);

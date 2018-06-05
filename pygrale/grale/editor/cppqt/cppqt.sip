@@ -137,6 +137,8 @@ public:
 
 	void clearTriangle(const QString &triangleUuid);
 	QVariant clearPoint(const QString &uuid);
+
+    PointGraphicsItemBase *getPointItem(const QString &uuid);
 };
 
 %ModuleCode

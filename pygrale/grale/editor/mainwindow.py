@@ -734,9 +734,11 @@ class MainWindow(QtWidgets.QMainWindow):
             if not layers:
                 raise Exception("No visible points layers could be detected")
 
-            imgDat = tools.layersToImagesData(layers, splitLayers, exportGroups, exportTimeDelays)
+            pointsLeftInfo = [ ]
+            imgDat = tools.layersToImagesData(layers, splitLayers, exportGroups, exportTimeDelays, pointsLeftInfo=pointsLeftInfo)
         except Exception as e:
             self.scene.warning("Error while exporting", "Encountered a problem while exporting visible points layers: {}".format(e))
+            self._markRemainingPoints(pointsLeftInfo)
             return
 
         try:
@@ -748,6 +750,27 @@ class MainWindow(QtWidgets.QMainWindow):
         except Exception as e:
             self.scene.warning("Error while saving", "Encountered a problem while saving to file '{}': {}".format(fileName, e))
             return
+
+    def _markRemainingPoints(self, pointsLeftInfo):
+        foundPoints = False
+        for d in pointsLeftInfo:
+            if d["pointsleft"]:
+                foundPoints = True
+                break
+
+        if not foundPoints:
+            return
+       
+        if not self.scene.question("Select detected remaining points?"):
+            return
+
+        self.scene.clearSelection()
+        for d in pointsLeftInfo:
+            layerUuid = d["layer"]
+            layerItem = self.scene.getLayerItem(layerUuid)
+            for pt in d["pointsleft"]:
+                item = layerItem.getPointItem(pt)
+                item.setSelected(True)
 
     def _getVisiblePointsLayers(self):
         layers = self.ui.m_listWidget.getLayersAndVisibilities()
@@ -817,12 +840,14 @@ class MainWindow(QtWidgets.QMainWindow):
             splitImages = dlg.getSplitImages()
 
             visiblePointLayers = [ l for l,v in self.ui.m_listWidget.getLayersAndVisibilities() if v and type(l) == pointslayer.PointsLayer ]
-            cutoutImages = [ tools.layersToImagesData([l], splitImages) for l in visiblePointLayers ]
+            pointsLeftInfo = [ ]
+            cutoutImages = [ tools.layersToImagesData([l], splitImages, pointsLeftInfo=pointsLeftInfo) for l in visiblePointLayers ]
 
             nullImg = images.createGridTriangles(bl, tr, numX, numY, cutoutImages, enlargeHoleOffset=extraRadius*ANGLE_ARCSEC)
             self.importImagesData(nullImg, 0, "Null space")
         except Exception as e:
             self.scene.warning("Error while creating null grid", "Encountered a problem while creating the null grid: {}".format(e))
+            self._markRemainingPoints(pointsLeftInfo)
         finally:
             self.scene.removeItem(rectItem)
             self.view.setScale(scale)

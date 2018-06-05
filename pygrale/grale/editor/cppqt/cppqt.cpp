@@ -1120,3 +1120,12 @@ QVariant LayerGraphicsItemBase::clearPoint(const QString &uuid)
 	return affectedTriangles;
 }
 
+PointGraphicsItemBase *LayerGraphicsItemBase::getPointItem(const QString &uuid)
+{
+	auto pIt = m_pointItems.find(uuid);
+	if (pIt == m_pointItems.end())
+		return nullptr;
+
+	return pIt.value();
+}
+

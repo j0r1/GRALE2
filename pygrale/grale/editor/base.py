@@ -196,6 +196,11 @@ class GraphicsScene(SceneBase):
             text = title
         QtWidgets.QMessageBox.warning(self.dialogWidget, title, text)
 
+    def question(self, title, text = None):
+        if text is None:
+            text = title
+        return QtWidgets.QMessageBox.question(self.dialogWidget, title, text) == QtWidgets.QMessageBox.Yes
+
     def getAxesItem(self):
         return self.axes
 
