@@ -213,6 +213,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.actionNew.triggered.connect(self._onNew)
         self.ui.actionLoad.triggered.connect(self._onLoad)
         self.ui.actionSave.triggered.connect(self._onSave)
+        self.ui.actionSave_As.triggered.connect(self._onSaveAs)
         self.ui.actionPoints_layer_per_image.triggered.connect(self._onImportImgDat_layerPerImage)
         self.ui.actionAll_in_one_points_layer.triggered.connect(self._onImportImgDat_oneLayer)
         self.ui.actionExport_to_images_data.triggered.connect(self._onExportImgDat)
@@ -277,6 +278,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self._onGuiSettingChanged()
         self.lastSavedState = self.getCurrentStateString()
+        self.lastSaveFileName = None
 
     def _onMousePositionChanged(self, x, y):
         self.ui.m_xEdit.setValue(x)
@@ -572,6 +574,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.scene.getActionStack().clear() # Don't undo adding layers 
         self.lastSavedState = self.getCurrentStateString()
+        self.lastSaveFileName = None
 
     def loadFile(self, fileName):
         self._startNewFile() # Clear everything
@@ -602,6 +605,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.scene.getActionStack().clear() # Don't undo adding layers 
         self.lastSavedState = self.getCurrentStateString()
+        self.lastSaveFileName = fileName
 
         if view:
             self.setCurrentView(view)
@@ -623,14 +627,21 @@ class MainWindow(QtWidgets.QMainWindow):
             return
 
     def _onSave(self, checked):
+        if self.lastSaveFileName:
+            self.saveFile(self.lastSaveFileName)
+        else:
+            self._onSaveAs(False)
+
+    def status(self, s, timeout = 10):
+        bar = self.statusBar()
+        bar.showMessage(s, int(round(timeout*1000)))
+
+    def saveFile(self, fileName):
+
         state = self.getCurrentState()
         view = self.getCurrentView()
         stateAndView = { "state": state, "view": view }
         stateAndViewStr = JSONDump(stateAndView)
-
-        fileName, selectedFilter = QtWidgets.QFileDialog.getSaveFileName(self, "Specify save file name", filter="JSON files (*.json)")
-        if not fileName:
-            return
 
         try:
             f = open(fileName, "wt")
@@ -641,6 +652,17 @@ class MainWindow(QtWidgets.QMainWindow):
             return
 
         self.lastSavedState = JSONDump(state)
+        self.lastSaveFileName = fileName
+
+        self.status("File '{}' saved".format(os.path.basename(fileName)))
+
+    def _onSaveAs(self, checked):
+
+        fileName, selectedFilter = QtWidgets.QFileDialog.getSaveFileName(self, "Specify save file name", filter="JSON files (*.json)")
+        if not fileName:
+            return
+
+        self.saveFile(fileName)
 
     def getCurrentView(self):
         ctr = self.view.getCenter()
