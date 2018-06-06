@@ -626,10 +626,13 @@ class InversionWorkSpace(object):
                 allPoints = lens.traceTheta(imgInfo["Ds"], imgInfo["Dds"], allPoints)
 
                 # Save the traced points in the 'img' instance again
+
+                offset = 0
                 for i in range(img.getNumberOfImages()):
                     numImagePoints = img.getNumberOfImagePoints(i)
-                    for j in range(img.getNumberOfImagePoints(i)):
-                        img.setImagePointPosition(i, j, allPoints[numImagePoints*i + j])
+                    for j in range(numImagePoints):
+                        img.setImagePointPosition(i, j, allPoints[offset + j])
+                    offset += numImagePoints
 
                 bpImages.append(img)
 
