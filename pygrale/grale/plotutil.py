@@ -1736,7 +1736,7 @@ Arguments:
     return [ xpoints, ypoints ]
 
 
-def plotImagesData(imgDat, angularUnit = "default", plotHull = False, skipTriangles = False, axes = None):
+def plotImagesData(imgDat, angularUnit = "default", plotHull = False, skipTriangles = False, axes = None, fillTriangles = False):
     """Creates a plot of either a single images data set, or a list
 of them. In the first case, each image will be drawn with a different
 color, in the second, each complete images data set (typically
@@ -1762,6 +1762,8 @@ Arguments:
 
  - `axes`: the default will cause a new plot to be created, but you can specify an existing
    matplotlib axes object as well. 
+
+ - `fillTriangles`: if set, the triangulation, if present, will be filled.
 """
     angularUnit = _getAngularUnit(angularUnit)
 
@@ -1784,6 +1786,21 @@ Arguments:
                     segs.add(seg1)
                     segs.add(seg2)
                     segs.add(seg3)
+
+    def getImageTriangles(im, idx, triangles, fillColor):
+        if skipTriangles:
+            return
+
+        if triangles is None:
+            return
+
+        if im.hasTriangulation():
+            for corners in im.getTriangles(idx):
+                corners = np.array(list(map(lambda q: tuple(im.getImagePointPosition(idx, q)), corners)))/angularUnit
+
+                triangles.append([ corners[0][0], corners[1][0], corners[2][0] ])
+                triangles.append([ corners[0][1], corners[1][1], corners[2][1] ])
+                triangles.append(fillColor)
             
     def segsToCoords(segs, xsegs, ysegs):
 
@@ -1816,6 +1833,7 @@ Arguments:
             x.append(None)
             y.append(None)
     
+    import matplotlib.colors as colors
     if axes is None:
         import matplotlib.pyplot as plt
         axes = plt.gca()
@@ -1825,6 +1843,7 @@ Arguments:
             im = im["imgdata"] if type(im) == dict and "imgdata" in im else im
             x, y = [], []
             segs = set()
+
             num = im.getNumberOfImages()
             for idx in range(num):
                 processImage(im, idx, x, y, segs)
@@ -1832,7 +1851,17 @@ Arguments:
                     addHull(im, idx, x, y)
             
             segsToCoords(segs, x, y)
-            axes.plot(x, y, ".-")
+            p = axes.plot(x, y, ".-")
+
+            col = p[0].get_color()
+            col = colors.to_rgb(col) + (0.3,)
+            col = colors.to_hex(col, True)
+            triangles = [ ] if fillTriangles else None
+
+            if triangles is not None:
+                for idx in range(num):
+                    getImageTriangles(im, idx, triangles, col)
+                axes.fill(*triangles)
             
     else: # Each image of this one source in different color
         imgDat = imgDat["imgdata"] if type(imgDat) == dict and "imgdata" in imgDat else imgDat
@@ -1846,7 +1875,15 @@ Arguments:
             if plotHull:
                 addHull(imgDat, idx, x, y)
 
-            axes.plot(x, y, ".-")
+            p = axes.plot(x, y, ".-")
+
+            col = p[0].get_color()
+            col = colors.to_rgb(col) + (0.3,)
+            col = colors.to_hex(col, True)
+            triangles = [ ] if fillTriangles else None
+            if triangles is not None:
+                getImageTriangles(imgDat, idx, triangles, col)
+                axes.fill(*triangles)
                     
 def _getAngularUnit(u):
     if u == "default":
