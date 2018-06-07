@@ -1129,3 +1129,132 @@ PointGraphicsItemBase *LayerGraphicsItemBase::getPointItem(const QString &uuid)
 	return pIt.value();
 }
 
+QVariant splitPointsAndTriangles(Layer &layer)
+{
+	auto points = layer.getPointInfos();
+	auto triangles = layer.getTriangleInfos();
+
+	QList<QVariant> imageInfo;
+
+	QSet<PointInfo *> allPoints;
+	QSet<TriangleInfo *> allTriangles;
+
+	for (auto p : points)
+		allPoints.insert(p);
+	for (auto t : triangles)
+		allTriangles.insert(t);
+
+	while (true)
+	{
+		if (allTriangles.size() == 0)
+			break;
+
+		QSet<TriangleInfo *> curTriangles;
+		QSet<PointInfo *> curPoints;
+	
+		TriangleInfo *pStartTriang = *allTriangles.begin();
+		curTriangles.insert(pStartTriang);
+
+		auto tIt = allTriangles.find(pStartTriang);
+		if (tIt == allTriangles.end())
+			return QString("Internal error: couldn't find triangle in allTriangles");
+		allTriangles.erase(tIt);
+
+		for (int i = 0 ; i < 3 ; i++)
+		{
+			PointInfo *pPointInf = pStartTriang->m_p[i];
+			curPoints.insert(pPointInf);
+
+			auto pIt = allPoints.find(pPointInf);
+			if (pIt == allPoints.end())
+				return QString("Internal error: couldn't find point in allPoints");
+			allPoints.erase(pIt);
+		}
+
+		/*
+		qDebug() << "Initial points:" << endl;
+
+		for (auto p : curPoints)
+			qDebug() << "    " << p->m_uuid;
+
+		qDebug() << "";
+		*/
+	
+		// Look for other triangles in these points:
+		while (true)	
+		{
+			bool foundNew = false;
+
+			QSet<PointInfo *> newPoints;
+
+			for (auto p : curPoints)
+			{
+				//qDebug() << "Checking triangles in " << p->m_uuid;
+				for (auto k : p->m_triangles)
+				{
+					// Check that we didn't process this triangle yet
+					auto tIt = allTriangles.find(k);
+					if (tIt != allTriangles.end())
+					{
+
+						foundNew = true;
+						curTriangles.insert(k);
+						allTriangles.erase(tIt);
+
+						for (int i = 0 ; i < 3 ; i++)
+							newPoints.insert(k->m_p[i]);
+					}
+				}
+			}
+
+			if (!foundNew)
+				break;
+
+			curPoints.unite(newPoints);
+			allPoints.subtract(newPoints);
+		}
+
+		/*
+		qDebug() << "Final points:" << endl;
+		for (auto p : curPoints)
+			qDebug() << "    " << p->m_uuid;
+
+		qDebug() << "";
+		*/
+
+		QMap<QString, QVariant> inf;
+
+		QMap<QString, QVariant> pointsVar;
+		QMap<QString, QVariant> triangsVar;
+		for (auto p : curPoints)
+			pointsVar[p->m_uuid] = pointInfoToVariant(p->m_x, p->m_y, p->m_label, p->m_timedelay);
+
+		for (auto t : curTriangles)
+		{
+			QList<QVariant> pts { t->m_p[0]->m_uuid, t->m_p[1]->m_uuid, t->m_p[2]->m_uuid };
+			triangsVar[t->m_triangleUuid] = pts;
+		}
+
+		inf["points"] = pointsVar;
+		inf["triangles"] = triangsVar;
+
+		imageInfo.push_back(inf);
+	}
+
+	if (!allPoints.empty())
+	{
+		QList<QVariant> pointsLeft;
+
+		for (auto p : allPoints)
+			pointsLeft.push_back(p->m_uuid);
+
+		QMap<QString, QVariant> err;
+
+		err["error"] = QString("Can't split points layer in multiple images: still points left after considering all triangulations");
+		err["pointsleft"] = pointsLeft;
+		return err;
+	}
+
+    return imageInfo;
+}
+

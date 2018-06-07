@@ -4,6 +4,7 @@ from pointslayer import PointsLayer
 
 import grale.images as images # TODO
 from grale.constants import ANGLE_ARCSEC
+import cppqt
 
 def strToBool(s):
     if type(s) == bool:
@@ -19,78 +20,82 @@ def valueFromSettings(settings, name, castFunction, defaultValue):
     x = castFunction(x) if x is not None else defaultValue
     return x
 
-def _splitPointsAndTriangles(allPoints, allTriangles, pointsLeft = None):
-
-    imageInfo = [ ]
-
-    trianglesInPoints = { }
-    for t in allTriangles:
-        for p in allTriangles[t]:
-            if not p in trianglesInPoints:
-                trianglesInPoints[p] = set()
-            trianglesInPoints[p].add(t)
-
-    while True:
-        curPoints = { }
-        curTriangles = { }
-
-        t = None
-        for k in allTriangles:
-            t = k
-            break
-
-        if not t: # Can't find a triangle to start from
-            break
-
-        # Start with this triangle, and these points
-        curTriangles[t] = allTriangles[t]
-        del allTriangles[t]
-
-        #print("Found triangle", t)
-        #pprint.pprint(curTriangles[t])
-
-        for p in curTriangles[t]:
-            curPoints[p] = allPoints[p]
-            del allPoints[p]
-
-        # Look for other triangles in these points:
-        while True:
-            
-            t = None
-            for p in curPoints:
-                for k in trianglesInPoints[p]:
-                    # Check if we've already processed this triangle 
-                    if k in allTriangles:
-                        t = k
-                        break
-
-            if not t: # No remaining triangle found, stop
-                break
-
-            # Otherwise add the triangle and it's points
-            curTriangles[t] = allTriangles[t]
-            del allTriangles[t]
-            #print("Found next triangle", t)
-            #pprint.pprint(curTriangles[t])
-
-            for p in curTriangles[t]:
-                if p in allPoints: # It's possible that the point was already present in another triangle
-                    curPoints[p] = allPoints[p]
-                    del allPoints[p]
-
-        imageInfo.append({
-            "points": curPoints,
-            "triangles": curTriangles
-        })
-
-    # Check if there are still points left
-    for p in allPoints:
-        if pointsLeft is not None:
-            for p2 in allPoints:
-                pointsLeft.append(p2)
-        raise Exception("Can't split points layer in multiple images: still points left after considering all triangulations")
-
-    return imageInfo
+# Now implemented in C++, to speed things up for a null space for example
+###def _splitPointsAndTriangles(allPoints, allTriangles, pointsLeft = None):
+###
+###    imageInfo = [ ]
+###
+###    trianglesInPoints = { }
+###    for t in allTriangles:
+###        for p in allTriangles[t]:
+###            if not p in trianglesInPoints:
+###                trianglesInPoints[p] = set()
+###            trianglesInPoints[p].add(t)
+###
+###    while True:
+###        curPoints = { }
+###        curTriangles = { }
+###
+###        t = None
+###        for k in allTriangles:
+###            t = k
+###            break
+###
+###        if not t: # Can't find a triangle to start from
+###            break
+###
+###        # Start with this triangle, and these points
+###        curTriangles[t] = allTriangles[t]
+###        del allTriangles[t]
+###
+###        #print("Found triangle", t)
+###        #pprint.pprint(curTriangles[t])
+###
+###        for p in curTriangles[t]:
+###            curPoints[p] = allPoints[p]
+###            del allPoints[p]
+###
+###        # Look for other triangles in these points:
+###        while True:
+###            
+###            t = None
+###            for p in curPoints:
+###                for k in trianglesInPoints[p]:
+###                    # Check if we've already processed this triangle 
+###                    if k in allTriangles:
+###                        t = k
+###                        break
+###
+###                if t:
+###                    break
+###
+###            if not t: # No remaining triangle found, stop
+###                break
+###
+###            # Otherwise add the triangle and it's points
+###            curTriangles[t] = allTriangles[t]
+###            del allTriangles[t]
+###            #print("Found next triangle", t)
+###            #pprint.pprint(curTriangles[t])
+###
+###            for p in curTriangles[t]:
+###                if p in allPoints: # It's possible that the point was already present in another triangle
+###                    curPoints[p] = allPoints[p]
+###                    del allPoints[p]
+###
+###        imageInfo.append({
+###            "points": curPoints,
+###            "triangles": curTriangles
+###        })
+###
+###    # Check if there are still points left
+###    for p in allPoints:
+###        if pointsLeft is not None:
+###            for p2 in allPoints:
+###                pointsLeft.append(p2)
+###        raise Exception("Can't split points layer in multiple images: still points left after considering all triangulations")
+###
+###    return imageInfo
 
 def layersToImagesData(layers, multipleImagesPerLayer = True, saveGroups = True, saveTimeDelays = True,
                        pointsLeftInfo = None):
@@ -108,10 +113,19 @@ def layersToImagesData(layers, multipleImagesPerLayer = True, saveGroups = True,
             })
         else:
             if pointsLeftInfo is not None:
-                pl = [ ]
-                d = { "layer": l.getUuid(), "pointsleft": pl }
+                d = { "layer": l.getUuid(), "pointsleft": [] }
                 pointsLeftInfo.append(d)
-            imageInfo += _splitPointsAndTriangles(l.getPoints(), l.getTriangles(), pointsLeft=pl)
+            #imageInfo += _splitPointsAndTriangles(l.getPoints(), l.getTriangles(), pointsLeft=pl)
+
+            r = cppqt.cppqt.splitPointsAndTriangles(l)
+            pprint.pprint(r)
+            if type(r) == str: # an error message
+                raise Exception(r)
+            if type(r) == dict:
+                d["pointsleft"] = r["pointsleft"]
+                raise Exception(r["error"])
+
+            imageInfo += r
 
     if len(imageInfo) == 0:
         raise Exception("No image information found that can be exported to an images data object")

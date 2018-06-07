@@ -299,5 +299,7 @@ protected:
 	QMap<QString, TriangleItem *> m_triangleItems;
 };
 
+QVariant splitPointsAndTriangles(Layer &layer);
+
 #endif // CPPQT_H
 
