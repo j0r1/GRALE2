@@ -717,3 +717,18 @@ def createGridTriangles(bottomLeft, topRight, numX, numY, holes = None, enlargeH
                 except Exception as e:
                     print("Warning: couldn't remove '{}': {}".format(n, e)) 
 
+def createPolygonSourceFromImagesData(imgDat, idx = -1):
+    if idx < 0:
+        points = [ imgDat.getImagePointPosition(i,j) for i in range(imgDat.getNumberOfImages()) for j in range(imgDat.getNumberOfImagePoints(i)) ]
+    else:
+        points = [ imgDat.getImagePointPosition(idx,j) for j in range(imgDat.getNumberOfImagePoints(idx)) ]
+
+    from .images import PolygonSource
+    import numpy as np
+
+    points = np.array(points)
+    position = points[0,:]
+    points = points - position
+
+    return PolygonSource(position, points, True)
+
