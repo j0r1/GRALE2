@@ -2,7 +2,7 @@ from PyQt5 import QtWidgets, QtCore
 import ui_exportareadialog
 
 class ExportAreaDialog(QtWidgets.QDialog):
-    def __init__(self, areaRect, viewRect, parent):
+    def __init__(self, areaRect, viewRect, view, areaItem, parent):
         super(ExportAreaDialog, self).__init__(parent)
         self.ui = ui_exportareadialog.Ui_ExportAreaDialog()
         self.ui.setupUi(self)
@@ -15,6 +15,10 @@ class ExportAreaDialog(QtWidgets.QDialog):
         self.ui.m_heightPixelsBox.valueChanged.connect(self._onHeightPixelsChanged)
         self.ui.m_widthArcsecEdit.signalNewValueEntered.connect(self._onAreaSizeChanged)
         self.ui.m_heightArcsecEdit.signalNewValueEntered.connect(self._onAreaSizeChanged)
+        self.ui.m_specificAreaBox.clicked.connect(self._onNewArea)
+        self.ui.m_currentViewBox.clicked.connect(self._onNewArea)
+        self.ui.m_centerXEdit.signalNewValueEntered.connect(self._onNewArea)
+        self.ui.m_centerYEdit.signalNewValueEntered.connect(self._onNewArea)
 
         from tools import strToBool
 
@@ -64,6 +68,10 @@ class ExportAreaDialog(QtWidgets.QDialog):
             widthPixels = 512
         self.ui.m_widthPixelsBox.setValue(int(widthPixels))
         self._onWidthPixelsChanged(int(widthPixels))
+
+        self.areaItem = areaItem
+        self.view = view
+        self._onNewArea()
 
     def getExportRect(self):
         if self.ui.m_currentViewBox.isChecked():
@@ -135,4 +143,21 @@ class ExportAreaDialog(QtWidgets.QDialog):
             w = self.ui.m_widthPixelsBox.value()
             h = int(round(w/aspect))
             self.ui.m_heightPixelsBox.setValue(h)
+
+        self._onNewArea()
+
+    def _onNewArea(self, checked = False):
+        if not self.ui.m_specificAreaBox.isChecked():
+            self.view.fitInView(self.viewRect, QtCore.Qt.KeepAspectRatio)
+            self.areaItem.setVisible(False)
+        else:
+            x, y = self.ui.m_centerXEdit.getValue(), self.ui.m_centerYEdit.getValue()
+            w, h = abs(self.ui.m_widthArcsecEdit.getValue()), abs(self.ui.m_heightArcsecEdit.getValue())
+            r = QtCore.QRectF(x-w/2.0, y-h/2.0, w, h)
+
+            self.areaItem.setRect(r)
+            self.areaItem.setVisible(True)
+
+            r.adjust(-w/15, -h/15, w/15, h/15)
+            self.view.fitInView(r, QtCore.Qt.KeepAspectRatio)
 
