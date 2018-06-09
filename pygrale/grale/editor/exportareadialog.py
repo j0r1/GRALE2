@@ -73,7 +73,7 @@ class ExportAreaDialog(QtWidgets.QDialog):
         cy = self.ui.m_centerYEdit.getValue()
         w = self.ui.m_widthArcsecEdit.getValue()
         h = self.ui.m_heightArcsecEdit.getValue()
-        x1, x2 = cx-w/2.0, cy+w/2.0
+        x1, x2 = cx-w/2.0, cx+w/2.0
         y1, y2 = cy-h/2.0, cy+h/2.0
 
         x1, x2 = min(x1, x2), max(x1, x2)
