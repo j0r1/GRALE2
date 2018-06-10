@@ -4,6 +4,8 @@ class ListWidgetBase(QtWidgets.QFrame):
     
     s_inactiveStyleSheet = "ListWidgetBase { background-color:lightGray; }"
     s_activeStyleSheet = "ListWidgetBase { background-color:#00ff00; }"
+    s_inactiveSelectedStyleSheet = "ListWidgetBase { background-color:darkGray; }"
+    s_activeSelectedStyleSheet = "ListWidgetBase { background-color:#008000; }"
 
     signalLayerPropertyChanged = QtCore.pyqtSignal(object, str, object)
     signalVisibilityChanged = QtCore.pyqtSignal(object, bool)
@@ -12,7 +14,10 @@ class ListWidgetBase(QtWidgets.QFrame):
         super(ListWidgetBase, self).__init__(parent)
         self.item = item
         self.layer = layer
+        self.isSelectedFlag = False
+        self.isActiveFlag = False
         self.setActive(False)
+        self.setSelected(False)
 
         # Use a timer to update the size hint slightly later, so that
         # the constructor of the derived class has been called completely
@@ -43,15 +48,23 @@ class ListWidgetBase(QtWidgets.QFrame):
         self.signalVisibilityChanged.emit(self.layer, isVisible)
 
     def setActive(self, a):
-        styleSheet = ListWidgetBase.s_activeStyleSheet if a else ListWidgetBase.s_inactiveStyleSheet
-        self.setStyleSheet(styleSheet)
-        #pal = self.palette()
-        #col = ListWidgetBase.s_activeColor if a else ListWidgetBase.s_inactiveColor
-        #pal.setColor(QtGui.QPalette.Background, col)
-        #self.setPalette(pal)
-        self.setAutoFillBackground(True)
-
         self.isActiveFlag = a
+        self.updateBackground()
+
+    def setSelected(self, s):
+        self.isSelectedFlag = s
+        self.updateBackground()
+
+    def updateBackground(self):
+        a, s = self.isActiveFlag, self.isSelectedFlag
+
+        if not s:
+            styleSheet = ListWidgetBase.s_activeStyleSheet if a else ListWidgetBase.s_inactiveStyleSheet
+        else:
+            styleSheet = ListWidgetBase.s_activeSelectedStyleSheet if a else ListWidgetBase.s_inactiveSelectedStyleSheet
+
+        self.setStyleSheet(styleSheet)
+        self.setAutoFillBackground(True)
 
     def isActive(self):
         return self.isActiveFlag

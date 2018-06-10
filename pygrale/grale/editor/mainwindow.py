@@ -9,6 +9,7 @@ import imagelayer
 import actionstack
 import os
 import json
+import uuid
 from debug import log
 import tools
 import nullgriddialog
@@ -113,7 +114,8 @@ class MultipleLayerActionStack(actionstack.ActionStack):
             "pos": position
         })
 
-    def recordDeleteLayer(self, layer, layerItem, position):
+    def recordDeleteLayer(self, layer, layerItem, position, delUuid):
+        # TODO: take delUuid into account
         self.appendToStack({
             "cmd": "dellayer",
             "layer": layer,
@@ -201,6 +203,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._startNewFile() 
 
         self.ui.m_listWidget.signalLayerDeleted.connect(self._onLayerDeleted)
+        self.ui.m_listWidget.signalSelectedLayersDeleted.connect(self._onSelectedLayersDeleted)
         self.ui.m_listWidget.signalRefreshOrder.connect(self._onCheckLayerOrderingAndVisibilities)
         self.ui.m_listWidget.signalLayerPropertyChanged.connect(self._onLayerPropertyChanged)
         self.ui.m_listWidget.signalVisibilityChanged.connect(self._onLayerVisibilityChanged)
@@ -287,11 +290,17 @@ class MainWindow(QtWidgets.QMainWindow):
     def _onZoomChanged(self, s):
         self.ui.m_zoomEdit.setValue(s)
 
-    def _onLayerDeleted(self, layer, position):
+    def _onLayerDeleted(self, layer, position, delUuid = None):
         item = self.scene.getLayerItem(layer.getUuid())
         self.scene.removeItem(item)
-        self.scene.getActionStack().recordDeleteLayer(layer, item, position)
+        self.scene.getActionStack().recordDeleteLayer(layer, item, position, delUuid)
         self.scene.removeLayerItem(layer.getUuid())
+
+    def _onSelectedLayersDeleted(self, layersAndPositions):
+        # TODO: in one action stack call?
+        delUuid = uuid.uuid4()
+        for position, layer in layersAndPositions:
+            self._onLayerDeleted(layer, position, delUuid)
 
     def _onCheckLayerOrderingAndVisibilities(self):
         self.scene.checkLayerOrderingAndVisibilities()
@@ -941,6 +950,9 @@ class MainWindow(QtWidgets.QMainWindow):
         
     def _onCenterLayerInView(self, layer):
         pts = layer.getPoints()
+        if len(pts) == 0:
+            return
+
         pointCoords = np.array([ pts[k]["xy"] for k in pts ], dtype=np.double)
         x0, x1 = pointCoords[:,0].min(), pointCoords[:,0].max()
         y0, y1 = pointCoords[:,1].min(), pointCoords[:,1].max()

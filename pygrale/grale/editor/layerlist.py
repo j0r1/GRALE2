@@ -6,7 +6,7 @@ from pointslayer import PointsLayer
 from imagelayer import FITSImageLayer, RGBImageLayer
 
 class PopupMenu(QtWidgets.QMenu):
-    def __init__(self, item, centerOption, parent):
+    def __init__(self, item, centerOption, delSelected, parent):
         super(PopupMenu, self).__init__(parent)
 
         self.parent = parent
@@ -16,6 +16,11 @@ class PopupMenu(QtWidgets.QMenu):
         self.addAction(deleteAction)
         deleteAction.triggered.connect(self.onDelete)
 
+        if delSelected:
+            deleteSelectedAction = QtWidgets.QAction("Delete selected layers", self)
+            self.addAction(deleteSelectedAction)
+            deleteSelectedAction.triggered.connect(self.onDeleteSelected)
+
         if centerOption:
             centerAction = QtWidgets.QAction("Center in view", self)
             self.addAction(centerAction)
@@ -24,12 +29,16 @@ class PopupMenu(QtWidgets.QMenu):
     def onDelete(self, checked):
         self.parent._onDeleteItem(self.item)
 
+    def onDeleteSelected(self, checked):
+        self.parent._onDeleteSelectedItems()
+
     def onCenter(self, checked):
         self.parent._onCenterInView(self.item)
 
 class LayerList(QtWidgets.QListWidget):
 
     signalLayerDeleted = QtCore.pyqtSignal(object, int)
+    signalSelectedLayersDeleted = QtCore.pyqtSignal(object)
     signalRefreshOrder = QtCore.pyqtSignal()
     signalLayerPropertyChanged = QtCore.pyqtSignal(object, str, object)
     signalVisibilityChanged = QtCore.pyqtSignal(object, bool)
@@ -38,17 +47,22 @@ class LayerList(QtWidgets.QListWidget):
     def __init__(self, parent = None):
         super(LayerList, self).__init__(parent)
 
+        self.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
         self.itemDoubleClicked.connect(self.onItemDoubleClicked)
         self.setDragDropMode(QtWidgets.QAbstractItemView.InternalMove)
 
         self.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self._onContextMenu)
+        self.itemSelectionChanged.connect(self._onItemSelectionChanged)
 
     def onItemDoubleClicked(self, clickedItem):
+        self._setActive(clickedItem)
+
+    def _setActive(self, item):
         for i in range(self.count()):
             rowItem = self.item(i)
             w = self.itemWidget(rowItem)
-            w.setActive(True) if rowItem == clickedItem else w.setActive(False)
+            w.setActive(True) if rowItem == item else w.setActive(False)
 
     def fetchSettings(self):
         for i in range(self.count()):
@@ -87,7 +101,7 @@ class LayerList(QtWidgets.QListWidget):
     def removeLayer(self, uuid):
         for i in range(self.count()):
             it = self.item(i)
-            w = self.itemWidget(self.item(i))
+            w = self.itemWidget(it)
             if w.getLayer().getUuid() == uuid:
                 r = self.row(it)
                 self.takeItem(r)
@@ -101,11 +115,40 @@ class LayerList(QtWidgets.QListWidget):
         self.takeItem(r)
         self.signalLayerDeleted.emit(w.getLayer(), r)
 
+    def _onDeleteSelectedItems(self):
+        layers = [ ]
+        for i in range(self.count()):
+            it = self.item(i)
+            r = self.row(it)
+            assert(r == i)
+
+            if it.isSelected():
+                w = self.itemWidget(it)
+                w.setActive(False)
+                l = w.getLayer()
+                
+                layers.append( (i, l) )
+
+        layers = sorted(layers, key=lambda x: -x[0]) # sort from high to low layer number
+        for r, l in layers:
+            self.takeItem(r)
+
+        self.signalSelectedLayersDeleted.emit(layers)
+
     def _onContextMenu(self, pt):
         item = self.itemAt(pt)
         if item:
             w = self.itemWidget(item)
-            p = PopupMenu(item, type(w) == PointsListWidget, self)
+            isPointLayer = True if type(w) == PointsListWidget else False
+            otherSelection = False
+            for i in range(self.count()):
+                it = self.item(i)
+                w2 = self.itemWidget(it)
+                if it.isSelected() and w2 is not w:
+                    otherSelection = True
+                    break
+
+            p = PopupMenu(item, isPointLayer, otherSelection, self)
             p.exec_(self.mapToGlobal(pt))
 
     def dropEvent(self, evt):
@@ -158,6 +201,7 @@ class LayerList(QtWidgets.QListWidget):
 
     def _onCenterInView(self, item):
         w = self.itemWidget(item)
+        self._setActive(item)
         self.signalCenterLayerInView.emit(w.getLayer())
 
     def keyPressEvent(self, evt):
@@ -165,6 +209,13 @@ class LayerList(QtWidgets.QListWidget):
 
     def keyReleaseEvent(self, evt):
         evt.ignore()
+
+    def _onItemSelectionChanged(self):
+        for i in range(self.count()):
+            rowItem = self.item(i)
+            w = self.itemWidget(rowItem)
+            if w:
+                w.setSelected(rowItem.isSelected())
 
 def main():
     import sys
