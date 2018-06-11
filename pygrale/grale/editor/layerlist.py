@@ -39,7 +39,7 @@ class LayerList(QtWidgets.QListWidget):
 
     signalLayerDeleted = QtCore.pyqtSignal(object, int)
     signalSelectedLayersDeleted = QtCore.pyqtSignal(object)
-    signalRefreshOrder = QtCore.pyqtSignal()
+    signalRefreshOrder = QtCore.pyqtSignal(object, object)
     signalLayerPropertyChanged = QtCore.pyqtSignal(object, str, object)
     signalVisibilityChanged = QtCore.pyqtSignal(object, bool)
     signalCenterLayerInView = QtCore.pyqtSignal(object)
@@ -54,6 +54,8 @@ class LayerList(QtWidgets.QListWidget):
         self.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self._onContextMenu)
         self.itemSelectionChanged.connect(self._onItemSelectionChanged)
+
+        self.layerOrder = [ ]
 
     def onItemDoubleClicked(self, clickedItem):
         self._setActive(clickedItem)
@@ -96,7 +98,20 @@ class LayerList(QtWidgets.QListWidget):
             self.insertItem(position, item)
 
         self.setItemWidget(item, w)
+
+        self._updateLayerOrder()
         return self.row(item)
+
+    def _getLayerOrder(self):
+        order = [ ]
+        for i in range(self.count()):
+            it = self.item(i)
+            w = self.itemWidget(self.item(i))
+            order.append(w.getLayer().getUuid())
+        return order
+
+    def _updateLayerOrder(self):
+        self.layerOrder = self._getLayerOrder()
 
     def removeLayer(self, uuid):
         for i in range(self.count()):
@@ -105,6 +120,7 @@ class LayerList(QtWidgets.QListWidget):
             if w.getLayer().getUuid() == uuid:
                 r = self.row(it)
                 self.takeItem(r)
+                self._updateLayerOrder()
                 return r
         raise Exception("Specified layer ID not found")
 
@@ -113,6 +129,7 @@ class LayerList(QtWidgets.QListWidget):
         r = self.row(item)
         w.setActive(False) # Make sure it's no longer active in case of undo
         self.takeItem(r)
+        self._updateLayerOrder()
         self.signalLayerDeleted.emit(w.getLayer(), r)
 
     def _onDeleteSelectedItems(self):
@@ -133,6 +150,7 @@ class LayerList(QtWidgets.QListWidget):
         for r, l in layers:
             self.takeItem(r)
 
+        self._updateLayerOrder()
         self.signalSelectedLayersDeleted.emit(layers)
 
     def _onContextMenu(self, pt):
@@ -153,7 +171,13 @@ class LayerList(QtWidgets.QListWidget):
 
     def dropEvent(self, evt):
         super(LayerList, self).dropEvent(evt)
-        self.signalRefreshOrder.emit()
+
+        newOrder = self._getLayerOrder()
+        assert(len(newOrder) == len(self.layerOrder))
+        if newOrder != self.layerOrder:
+            oldOrder = self.layerOrder
+            self.layerOrder = newOrder
+            self.signalRefreshOrder.emit(oldOrder, newOrder)
 
     def setActiveLayer(self, uuid):
         for i in range(self.count()):
@@ -217,6 +241,43 @@ class LayerList(QtWidgets.QListWidget):
             if w:
                 w.setSelected(rowItem.isSelected())
 
+    def setOrder(self, order):
+        assert(len(order) == self.count())
+
+        actLayer, actVisible = self.getActiveLayer()
+
+        for u in range(len(order)):
+            uuid = order[u]
+            idx = self._find(uuid, u)
+            if idx == u: # already at right position, don't do anything
+                pass
+            else:
+                assert(idx > u)
+                item = self.item(idx)
+                w = self.itemWidget(item)
+                layer = w.getLayer()
+                vis = w.isLayerVisible()
+
+                self.takeItem(idx)
+
+                # Re-inserting w itself appears to cause a segfault,
+                # just call addLayer again
+                self.addLayer(layer, u, vis)
+
+        self.setActiveLayer(actLayer.getUuid())
+
+        # check again!
+        for u in range(len(order)):
+            w = self.itemWidget(self.item(u))
+            assert(w.getLayer().getUuid() == order[u])
+
+    def _find(self, uuid, startPos):
+        for i in range(startPos, self.count()):
+            w = self.itemWidget(self.item(i))
+            if w.getLayer().getUuid() == uuid:
+                return i
+        raise Exception("Layer with uuid {} not found".format(uuid))
+            
 def main():
     import sys
     import grale.images as images

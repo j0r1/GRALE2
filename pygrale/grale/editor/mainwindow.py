@@ -90,6 +90,10 @@ class MultipleLayerActionStack(actionstack.ActionStack):
                 scene.removeLayerItem(x["layer"].getUuid())
                 pos = scene.listWidget.removeLayer(x["layer"].getUuid())
                 assert(pos == x["pos"])
+        elif x["cmd"] == "order":
+            order = x["new"] if isRedo else x["old"]
+            scene.listWidget.setOrder(order)
+            scene.checkLayerOrderingAndVisibilities()
         else:
             raise Exception("Unknown command in '{}'".format(x))
 
@@ -121,6 +125,13 @@ class MultipleLayerActionStack(actionstack.ActionStack):
             "layer": layer,
             "item": layerItem,
             "pos": position
+        })
+
+    def recordLayerOrderChanged(self, oldOrder, newOrder):
+        self.appendToStack({
+            "cmd": "order",
+            "old": oldOrder,
+            "new": newOrder
         })
 
 class MultipleLayerScene(scenes.LayerScene):
@@ -302,8 +313,10 @@ class MainWindow(QtWidgets.QMainWindow):
         for position, layer in layersAndPositions:
             self._onLayerDeleted(layer, position, delUuid)
 
-    def _onCheckLayerOrderingAndVisibilities(self):
+    def _onCheckLayerOrderingAndVisibilities(self, oldOrder = None, newOrder = None):
         self.scene.checkLayerOrderingAndVisibilities()
+        if oldOrder is not None:
+            self.scene.getActionStack().recordLayerOrderChanged(oldOrder, newOrder)
 
     def _onLayerPropertyChanged(self, layer, propName, propValue):
         if propName == "name":
