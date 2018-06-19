@@ -373,6 +373,35 @@ def readInputImagesFile(inputData, isPointImagesFile, lineAnalyzer = "default", 
     #return sourceData
     return srcList
 
+# NOTE: for join_style = 2 the function below can cause some odd spikes in the
+#       enlarged polygon, e.g. with:
+#        import grale.images as images
+#        import numpy as np
+#        import matplotlib.pyplot as plt
+#        
+#        pts = np.array([
+#            [-14.468749999999998, 8.2265625],
+#            [-14.515625, 8.171875],
+#            [-14.59375, 8.140625],
+#            [-14.5, 8.1171875],
+#            [-14.875, 8.046875],
+#            [-14.9921875, 8.046875],
+#            [-15.0703125, 8.0859375],
+#            [-15.117187499999998, 8.125],
+#            [-15.132812499999998, 8.1796875],
+#            [-15.093750000000002, 8.3046875],
+#            [-14.9921875, 8.359375],
+#            [-14.7109375, 8.390625],
+#            [-14.476562499999998, 8.359375],
+#            [-14.445312500000002, 8.2734375],
+#            [-14.468749999999998, 8.2265625]])
+#        
+#        pts2 = np.array(images.enlargePolygon(pts, offset=0.5))
+#        
+#        plt.plot(pts[:,0], pts[:,1])
+#        plt.plot(pts2[:,0], pts2[:,1])
+#        plt.show()
+
 def enlargePolygon(points, offset, simplifyScale = 0.02):
     """For a given set of points that describe a polygon, enlarge this
     by adding a specified offset. The `Shapely <https://shapely.readthedocs.io/en/latest/>`_
@@ -407,7 +436,7 @@ def enlargePolygon(points, offset, simplifyScale = 0.02):
         offset = (-offset)*getScale(r)
         
     direction = "right" if r.is_ccw else "left"
-    o = r.parallel_offset(offset, direction, join_style=2)
+    o = r.parallel_offset(offset, direction, join_style=1)
     if hasattr(o, "geoms"):
         raise Exception("Couldn't find a single shape after adding border")
     
