@@ -48,7 +48,11 @@ components are installed. This should work on all platforms.
 
 ### Manual build ###
 
-Alternatively, you can build everything yourself. The first step is to compile
+Alternatively, you can build everything yourself. On GNU/Linux, you may find the
+script [BuildAll.sh](https://github.com/j0r1/GRALE2/blob/master/scripts/BuildAll.sh)
+useful.
+
+To really do everything yourself, the first step is to compile
 the libraries, for which you'll need a few dependencies:
 
  - Error utilities in [ErrUt](https://research.edm.uhasselt.be/jori/errut) 
@@ -74,7 +78,7 @@ Python bindings. To do so, you'll need [NumPy](http://www.numpy.org/) as well as
 
     python setup.py install
 
-The following Python packages will definitely be useful:
+The following Python packages and programs will definitely be useful:
 
  - [SciPy](https://www.scipy.org/) is used for the integration needed to
    calculate angular diameter distances, as well as for some basic triangulation
@@ -85,7 +89,10 @@ The following Python packages will definitely be useful:
    certain images.
  - When [PyQt5](https://www.riverbankcomputing.com/software/pyqt/download5) and
    [SIP](https://www.riverbankcomputing.com/software/sip/download) are available, 
-   then the GRALE editor tool will be made available automatically.
+   then the GRALE editor tool will be made available automatically. This package
+   in turn depends on [Qt5](https://www.qt.io/).
+ - Triangulations are made using the [triangle](http://www.cs.cmu.edu/~quake/triangle.html)
+   program, which allows one to create constrained triangulations.
 
 If you're also interested in performing lens inversions, you'll need to compile
 the inversion modules for the genetic algorithm as well. These are not compiled
