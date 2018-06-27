@@ -37,12 +37,12 @@ def addGeneralDirs(includeDirs, libDirs):
 
 def addGslDirs(includeDirs, libDirs):
     try:
-        libs = subprocess.check_output( [ "gsl-config", "--libs"] ).split()
+        libs = subprocess.check_output( [ "gsl-config", "--libs"] ).decode().split()
         for l in libs:
             if l.startswith("-L"):
                 libDirs.append(l[2:])
 
-        includes = subprocess.check_output( [ "gsl-config", "--cflags" ] ).split()
+        includes = subprocess.check_output( [ "gsl-config", "--cflags" ] ).decode().split()
         for i in includes:
             if i.startswith("-I"):
                 includeDirs.append(i[2:])
