@@ -57,7 +57,7 @@ if ! [ -e "$PREFIX/bin/activate" ] ; then
 		export PYTHONPATH=`echo $PREFIX/lib/*/site-packages/`
 		echo $PYTHONPATH
 	fi
-	virtualenv "$PREFIX"
+	virtualenv --always-copy "$PREFIX"
 fi
 source "$PREFIX/bin/activate"
 
@@ -95,8 +95,99 @@ cmake .. -DCMAKE_BUILD_TYPE=release -DCMAKE_INSTALL_PREFIX="$PREFIX" -DCMAKE_FIN
 make -j $NUMCORES
 make install
 
+BUILDPYQT="no"
+X=`which qmake|cat`
+if ! [ -z "$X" ] ; then
+	X=`qmake --version | grep "Using Qt version 5" | cat`
+	if ! [ -z "$X" ] ; then
+		BUILDPYQT="yes"
+		QTBASE=`which qmake|cat|rev|cut -f 3- -d /|rev`
+		echo "QTBASE=$QTBASE"
+	fi
+fi
+
+function download_and_extract {
+	cd "$PREFIX/src"
+
+	URL="$1"
+	echo "Downloading $URL"
+	FILENAME=`echo "$URL" | rev |cut -f 1 -d / | rev`
+	echo "Filename is $FILENAME"
+	DIRNAME="${FILENAME::-7}"
+	echo "Dirname is $DIRNAME"
+
+	if ! [ -e "$DIRNAME" ] ; then
+		if ! [ -e "$FILENAME" ] ; then
+			FOUND="no"
+			for k in {1..10} ; do
+				if curl -L -o "${FILENAME}.tmp" "$URL" ; then
+					FOUND="yes"
+					break
+				else
+					echo "Download failed, retrying in 2 seconds"
+					sleep 2
+				fi
+			done
+
+			if [ "$FOUND" != "yes" ] ; then
+				echo "Unable to download $URL"
+				exit -1
+			fi
+
+			mv "${FILENAME}.tmp" "$FILENAME"
+		else
+			echo "$FILENAME exists, using this" 
+		fi
+
+		tar xfz "$FILENAME"
+	else
+		echo "$DIRNAME exists, using this"
+	fi
+	
+	cd "$DIRNAME"
+}
+
+if [ "$BUILDPYQT" = "yes" ] ; then
+	QTVERSION=`qmake --version |cut -f 4 -d " "`
+	PYQTVERSIONS=`curl https://sourceforge.net/projects/pyqt/files/PyQt5/ |grep "tr title" | grep PyQt-5 | cut -f 2 -d \" |cut -f 2 -d "-"`
+	echo "Qt version detected: $QTVERSION"
+	echo "PyQt versions available for download: $PYQTVERSIONS" 
+
+	VPYQT=$(python -c "exec(\"import sys\ncompatibleVersion = lambda x, y: '.'.join(x.split('.')[:2]) == '.'.join(y.split('.')[:2])\nqtVersion = sys.argv[1]\nfor pyqtVersion in sys.argv[2:]:\n    if compatibleVersion(qtVersion, pyqtVersion):\n        print(pyqtVersion)\n        sys.exit(0)\nraise Exception('No compatible version found')\n\")" $QTVERSION $PYQTVERSIONS )
+	echo "Compatible PyQt version: $VPYQT"
+	PYQTURL="https://sourceforge.net/projects/pyqt/files/PyQt5/PyQt-${VPYQT}/PyQt5_gpl-${VPYQT}.tar.gz"
+	echo "PyQt URL: $PYQTURL"
+
+	# First download PyQt so that we can check which SIP version to use
+	# (I tried using the latest (4.19.10) with PyQt 5.9.2, but that caused
+	# a segfault due to a sip option '-n' not being specified
+	download_and_extract "$PYQTURL"
+	SIPVERSION=`grep "SIP_MIN_VERSION" configure.py | head -n 1 | cut -f 2 -d "'"`
+	echo "Needed SIP version: $SIPVERSION"
+
+	SIPURL="https://sourceforge.net/projects/pyqt/files/sip/sip-${SIPVERSION}/sip-${SIPVERSION}.tar.gz"
+	echo "SIP URL: $SIPURL"
+
+	EXTRAOPTS="--sysroot=$PREFIX"
+	for URL in "$SIPURL" "$PYQTURL" ; do
+
+		download_and_extract "$URL"
+
+		if ! [ -e Makefile ] ; then
+			python configure.py $EXTRAOPTS
+		fi
+		make -j $NUMCORES
+		make install
+
+		EXTRAOPTS="--confirm-license `for i in QtHelp QtMultimedia QtMultimediaWidgets QtNetwork QtPrintSupport QtQml QtQuick QtSql QtSvg QtTest QtWebKit QtWebKitWidgets QtXml QtXmlPatterns QtDesigner QAxContainer QtDBus QtSensors QtSerialPort QtX11Extras QtBluetooth QtMacExtras QtPositioning QtWinExtras QtQuickWidgets QtWebSockets QtWebChannel QtLocation QtNfc QtWebEngineCore QtWebEngine QtWebEngineWidgets Enginio; do echo "--disable $i" ; done`"
+	done
+fi
+
 cd "$PREFIX/src/GRALE2/pygrale"
-./setup.py build install
+export SIPINCLUDES="$PREFIX/share/sip/PyQt5/" 
+export QT5INCLUDES="$QTBASE/include:$QTBASE/include/QtCore:$QTBASE/include/QtGui:$QTBASE/include/QtWidgets"
+export QT5LIBDIRS="$QTBASE/lib"
+CXXFLAGS="-O3 -std=c++11" ./setup.py build install --prefix="$PREFIX"
 
 cd "$PREFIX/src"
 if ! [ -e triangle ] ; then
@@ -125,6 +216,9 @@ fi
 EOF
 
 cat << EOF
+
+---------------------------------------------------------------------
+
 Type
 
   source "$PREFIX/bin/activategrale"
