@@ -67,6 +67,9 @@ if ! [ -e "$PREFIX/src" ] ; then
 	mkdir "$PREFIX/src"
 fi
 
+SITEPACKAGES=`echo "$PREFIX"/lib/python*/site-packages/`
+echo "SITEPACKAGES=$SITEPACKAGES"
+
 for p in ErrUt SerUt ENUt MOGAL GRALE2 ; do
 	cd "$PREFIX/src"
 	if ! [ -e $p ] ; then
@@ -178,6 +181,13 @@ if [ "$BUILDPYQT" = "yes" ] ; then
 		fi
 		make -j $NUMCORES
 		make install
+
+		if ! [ -e "${SITEPACKAGES}/PyQt5" ] ; then
+			mkdir "${SITEPACKAGES}/PyQt5"
+		fi
+		if [ -e "${SITEPACKAGES}/sip.so" ] && ! [ -e "${SITEPACKAGES}/PyQt5/sip.so" ] ; then
+			ln -s "${SITEPACKAGES}/sip.so" "${SITEPACKAGES}/PyQt5/sip.so"
+		fi
 
 		EXTRAOPTS="--confirm-license `for i in QtHelp QtMultimedia QtMultimediaWidgets QtNetwork QtPrintSupport QtQml QtQuick QtSql QtSvg QtTest QtWebKit QtWebKitWidgets QtXml QtXmlPatterns QtDesigner QAxContainer QtDBus QtSensors QtSerialPort QtX11Extras QtBluetooth QtMacExtras QtPositioning QtWinExtras QtQuickWidgets QtWebSockets QtWebChannel QtLocation QtNfc QtWebEngineCore QtWebEngine QtWebEngineWidgets Enginio; do echo "--disable $i" ; done`"
 	done
