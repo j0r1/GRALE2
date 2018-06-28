@@ -154,7 +154,7 @@ if [ "$BUILDPYQT" = "yes" ] ; then
 	QTVERSION=`qmake --version |cut -f 4 -d " "`
 	PYQTVERSIONS=`curl https://sourceforge.net/projects/pyqt/files/PyQt5/ |grep "tr title" | grep PyQt-5 | cut -f 2 -d \" |cut -f 2 -d "-"`
 	echo "Qt version detected: $QTVERSION"
-	echo "PyQt versions available for download: $PYQTVERSIONS" 
+	#echo "PyQt versions available for download: $PYQTVERSIONS" 
 
 	VPYQT=$(python -c "exec(\"import sys\ncompatibleVersion = lambda x, y: '.'.join(x.split('.')[:2]) == '.'.join(y.split('.')[:2])\nqtVersion = sys.argv[1]\nfor pyqtVersion in sys.argv[2:]:\n    if compatibleVersion(qtVersion, pyqtVersion):\n        print(pyqtVersion)\n        sys.exit(0)\nraise Exception('No compatible version found')\n\")" $QTVERSION $PYQTVERSIONS )
 	echo "Compatible PyQt version: $VPYQT"
@@ -166,32 +166,45 @@ if [ "$BUILDPYQT" = "yes" ] ; then
 	# a segfault due to a sip option '-n' not being specified
 	download_and_extract "$PYQTURL"
 	SIPVERSION=`grep "SIP_MIN_VERSION" configure.py | head -n 1 | cut -f 2 -d "'"`
+	NEEDPYQT5SIP=`grep "from PyQt5 import sip" configure.py |cat`
 	echo "Needed SIP version: $SIPVERSION"
 
 	SIPURL="https://sourceforge.net/projects/pyqt/files/sip/sip-${SIPVERSION}/sip-${SIPVERSION}.tar.gz"
 	echo "SIP URL: $SIPURL"
 
-	EXTRAOPTS="--sysroot=$PREFIX"
-	for URL in "$SIPURL" "$PYQTURL" ; do
-
-		download_and_extract "$URL"
-
-		if ! [ -e Makefile ] ; then
-			python configure.py $EXTRAOPTS
-		fi
-		make -j $NUMCORES
+	# For now we'll always keep this legacy system around
+	# (don't yet know how the new system will need to be used)
+	download_and_extract "$SIPURL"
+	# avoid rebuilding if not necessary
+	if ! [ -e ".buildcomplete" ] ; then
+		rm -f Makefile
+		python configure.py --sysroot="$PREFIX"
+		make clean
 		make install
 
-		if ! [ -e "${SITEPACKAGES}/PyQt5" ] ; then
-			mkdir "${SITEPACKAGES}/PyQt5"
+		if ! [ -z "$NEEDPYQT5SIP" ] ; then
+			rm -f Makefile
+			python configure.py --sysroot="$PREFIX" --sip-module=PyQt5.sip
+			make clean
+			make install
 		fi
-		if [ -e "${SITEPACKAGES}/sip.so" ] && ! [ -e "${SITEPACKAGES}/PyQt5/sip.so" ] ; then
-			ln -s "${SITEPACKAGES}/sip.so" "${SITEPACKAGES}/PyQt5/sip.so"
-		fi
+		touch ".buildcomplete"
+	fi
 
-		EXTRAOPTS="--confirm-license `for i in QtHelp QtMultimedia QtMultimediaWidgets QtNetwork QtPrintSupport QtQml QtQuick QtSql QtSvg QtTest QtWebKit QtWebKitWidgets QtXml QtXmlPatterns QtDesigner QAxContainer QtDBus QtSensors QtSerialPort QtX11Extras QtBluetooth QtMacExtras QtPositioning QtWinExtras QtQuickWidgets QtWebSockets QtWebChannel QtLocation QtNfc QtWebEngineCore QtWebEngine QtWebEngineWidgets Enginio; do echo "--disable $i" ; done`"
-	done
+	download_and_extract "$PYQTURL"
+	# avoid rebuilding if not necessary
+	if ! [ -e ".buildcomplete" ] ; then
+		if ! [ -e Makefile ] ; then
+			python configure.py --confirm-license `for i in QtHelp QtMultimedia QtMultimediaWidgets QtNetwork QtPrintSupport QtQml QtQuick QtSql QtSvg QtTest QtWebKit QtWebKitWidgets QtXml QtXmlPatterns QtDesigner QAxContainer QtDBus QtSensors QtSerialPort QtX11Extras QtBluetooth QtMacExtras QtPositioning QtWinExtras QtQuickWidgets QtWebSockets QtWebChannel QtLocation QtNfc QtWebEngineCore QtWebEngine QtWebEngineWidgets Enginio; do echo "--disable $i" ; done`
+			make clean
+		fi
+		# building with multiple cores sometimes appears to fail
+		#make -j $NUMCORES install
+		make install
+		touch ".buildcomplete"
+	fi
 fi
+echo "Continuing"
 
 cd "$PREFIX/src/GRALE2/pygrale"
 export SIPINCLUDES="$PREFIX/share/sip/PyQt5/" 
