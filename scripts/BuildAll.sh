@@ -73,13 +73,16 @@ echo "SITEPACKAGES=$SITEPACKAGES"
 for p in ErrUt SerUt ENUt MOGAL GRALE2 ; do
 	cd "$PREFIX/src"
 	if ! [ -e $p ] ; then
+		echo "Cloning $p"
 		git clone https://github.com/j0r1/$p
 		cd $p
 	else
+		echo "Updating $p"
 		cd $p
 		git pull
 	fi
 
+	echo "Building $p"
 	if ! [ -e "build" ] ; then
 		mkdir build
 	fi
@@ -89,6 +92,7 @@ for p in ErrUt SerUt ENUt MOGAL GRALE2 ; do
 	make install
 done
 
+echo "Building inversion modules"
 cd "$PREFIX/src/GRALE2/inversion_modules"
 if ! [ -e "build" ] ; then
 	mkdir build
@@ -99,14 +103,24 @@ make -j $NUMCORES
 make install
 
 BUILDPYQT="no"
-X=`which qmake|cat`
-if ! [ -z "$X" ] ; then
-	X=`qmake --version | grep "Using Qt version 5" | cat`
+PYVER=`python --version|cut -f 2 -d " "|cut -f 1 -d .`
+if [ "$PYVER" = "3" ] ; then
+	X=`which qmake|cat`
 	if ! [ -z "$X" ] ; then
-		BUILDPYQT="yes"
-		QTBASE=`which qmake|cat|rev|cut -f 3- -d /|rev`
-		echo "QTBASE=$QTBASE"
+		X=`qmake --version | grep "Using Qt version 5" | cat`
+		if ! [ -z "$X" ] ; then
+			BUILDPYQT="yes"
+			QTBASE=`which qmake|cat|rev|cut -f 3- -d /|rev`
+			echo "Qt5 detected, will build PyQt5"
+			echo "QTBASE=$QTBASE"
+		else
+			echo "Not building PyQt5, qmake found, but is not for Qt5"
+		fi
+	else
+		echo "Not building PyQt5, qmake not found in PATH"
 	fi
+else
+	echo "Not building PyQt5, not python 3"
 fi
 
 function download_and_extract {
@@ -204,7 +218,6 @@ if [ "$BUILDPYQT" = "yes" ] ; then
 		touch ".buildcomplete"
 	fi
 fi
-echo "Continuing"
 
 cd "$PREFIX/src/GRALE2/pygrale"
 export SIPINCLUDES="$PREFIX/share/sip/PyQt5/" 
@@ -216,6 +229,7 @@ cd "$PREFIX/src"
 if ! [ -e triangle ] ; then
 	mkdir triangle
 fi
+echo "Downloading 'triangle' sources"
 cd triangle
 if ! [ -e "triangle.zip" ] ; then
 	curl -o triangle.zip http://www.netlib.org/voronoi/triangle.zip
@@ -226,6 +240,7 @@ if [ -z "$CC" ] ; then
 	CC=gcc
 fi
 
+echo "Building 'triangle'"
 $CC -O2 -DNO_TIMER -DLINUX -o../../bin/triangle triangle.c -lm
 
 cat > "$PREFIX/bin/activategrale" << EOF
