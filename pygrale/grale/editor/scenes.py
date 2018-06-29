@@ -23,7 +23,9 @@ class DrawItem(QtWidgets.QGraphicsPathItem):
     def __init__(self, parent = None):
         super(DrawItem, self).__init__(parent)
 
-        pen = QtGui.QPen(QtGui.QBrush(QtCore.Qt.green), 2)
+        pen = QtGui.QPen()
+        pen.setColor(QtCore.Qt.green)
+        pen.setWidth(2)
         pen.setCosmetic(True)
 
         self.setPen(pen)

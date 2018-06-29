@@ -136,7 +136,9 @@ class GraphicsView(QtWidgets.QGraphicsView):
 class AxesGraphicsItem(QtWidgets.QGraphicsItemGroup):
     def __init__(self, parent):
         super(AxesGraphicsItem, self).__init__(parent)
-        linePen = QtGui.QPen(QtGui.QBrush(QtCore.Qt.red), 2)
+        linePen = QtGui.QPen()
+        linePen.setColor(QtCore.Qt.red)
+        linePen.setWidth(2)
         linePen.setCosmetic(True)
         self.line1 = QtWidgets.QGraphicsLineItem(-1000,0, 1000, 0, self)
         self.line1.setPen(linePen)

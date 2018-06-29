@@ -865,10 +865,11 @@ class MainWindow(QtWidgets.QMainWindow):
     def _getRectItem(self):
         rectItem = QtWidgets.QGraphicsRectItem()
         rectItem.setZValue(10000)
-        b = QtGui.QBrush(QtCore.Qt.green)
-        p = QtGui.QPen(b, 2)
+        p = QtGui.QPen()
+        p.setWidth(2)
+        p.setColor(QtCore.Qt.green)
         p.setCosmetic(True)
-        rectItem.setPen(QtGui.QPen(p))
+        rectItem.setPen(p)
         self.scene.addItem(rectItem)
 
         return rectItem
