@@ -61,7 +61,7 @@ if ! [ -e "$PREFIX/bin/activate" ] ; then
 fi
 source "$PREFIX/bin/activate"
 
-$PIP install numpy scipy astropy shapely cython
+$PIP install numpy scipy astropy shapely cython matplotlib
 
 if ! [ -e "$PREFIX/src" ] ; then
 	mkdir "$PREFIX/src"
