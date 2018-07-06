@@ -6,8 +6,6 @@ from grale.cosmology import Cosmology
 import grale.images as images
 import numpy as np
 
-V = lambda x, y: np.array([x,y], dtype=np.double)
-
 renderers.setDefaultLensPlaneRenderer("mpi") # threads, mpi, opencl, None or a Renderer object
 renderers.setDefaultMassRenderer("mpi") # threads, mpi, None, or a Renderer object
 inversion.setDefaultInverter("mpi") # singlecore, mpi, localcs, mpics, or an Inverter object
