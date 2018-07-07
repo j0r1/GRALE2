@@ -103,7 +103,7 @@ make -j $NUMCORES
 make install
 
 BUILDPYQT="no"
-PYVER=`python --version|cut -f 2 -d " "|cut -f 1 -d .`
+PYVER=`python --version 2>&1|cut -f 2 -d " "|cut -f 1 -d .`
 if [ "$PYVER" = "3" ] ; then
 	X=`which qmake|cat`
 	if ! [ -z "$X" ] ; then
@@ -130,7 +130,7 @@ function download_and_extract {
 	echo "Downloading $URL"
 	FILENAME=`echo "$URL" | rev |cut -f 1 -d / | rev`
 	echo "Filename is $FILENAME"
-	DIRNAME="${FILENAME::-7}"
+	DIRNAME="${FILENAME::${#FILENAME}-7}"
 	echo "Dirname is $DIRNAME"
 
 	if ! [ -e "$DIRNAME" ] ; then
