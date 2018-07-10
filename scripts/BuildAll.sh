@@ -34,8 +34,17 @@ D="$1"
 if ! [ -e "$D" ] ; then
 	mkdir "$D"
 fi
-
 cd "$D"
+if ! [ -e lib ] ; then
+	mkdir lib
+fi
+if ! [ -e lib64 ] ; then
+	ln -s lib lib64
+fi
+if ! [ -e pipcache ] ; then
+	mkdir pipcache
+fi
+
 PREFIX=`pwd`
 NUMCORES=`python -c "import multiprocessing;print(multiprocessing.cpu_count())"`
 
@@ -53,7 +62,7 @@ fi
 if ! [ -e "$PREFIX/bin/activate" ] ; then
 	if ! virtualenv --version ; then
 		echo "Virtualenv not found, installing"
-		$PIP install virtualenv --prefix="$PREFIX" -I
+		$PIP install --cache-dir "$D/pipcache" virtualenv --prefix="$PREFIX" -I
 		export PYTHONPATH=`echo $PREFIX/lib/*/site-packages/`
 		echo $PYTHONPATH
 	fi
@@ -61,7 +70,7 @@ if ! [ -e "$PREFIX/bin/activate" ] ; then
 fi
 source "$PREFIX/bin/activate"
 
-$PIP install numpy scipy astropy shapely cython matplotlib
+$PIP install --cache-dir "$D/pipcache" numpy scipy astropy shapely cython matplotlib
 
 if ! [ -e "$PREFIX/src" ] ; then
 	mkdir "$PREFIX/src"
