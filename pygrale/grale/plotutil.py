@@ -1506,29 +1506,6 @@ Example::
 
     renderer, feedbackObject = privutil.initRendererAndFeedback(renderer, feedbackObject, "LENSPLANE")
 
-    def createEmptyFits(xPix, yPix, angularWidthDeg, angularHeightDeg, raCenterDeg, decCenterDeg, xpCenter, ypCenter):
-
-        from astropy.io import fits
-
-        zeros = np.zeros((yPix,xPix),dtype="double")
-        hdu = fits.PrimaryHDU(zeros)
-        hdu.header["equinox"] = 2000.
-        hdu.header["radecsys"] = "FK5     "
-        hdu.header["ctype1"]= "RA---TAN"
-        hdu.header["crval1"] = raCenterDeg
-        hdu.header["crpix1"] = xpCenter+1
-        hdu.header["cdelt1"] = -1.0*angularWidthDeg/xPix
-        hdu.header["cunit1"] = 'deg     '
-        hdu.header["ctype2"] = 'DEC--TAN'
-        hdu.header["crval2"] = decCenterDeg
-        hdu.header["crpix2"] = ypCenter+1
-        hdu.header["cdelt2"] = 1.0*angularHeightDeg/yPix
-        hdu.header["cunit2"] = 'deg     '
-        hdu.header["date"] = time.strftime("%Y-%m-%dT%H:%M:%S")
-
-        hdulist = fits.HDUList([hdu])
-        return hdulist
-
     f = createEmptyFits(numX, numY,
                         1.0*numX/(numX-1)*angularWidth/ANGLE_DEGREE, 
                         1.0*numY/(numY-1)*angularHeight/ANGLE_DEGREE, centerRA/ANGLE_DEGREE,
@@ -1884,7 +1861,107 @@ Arguments:
             if triangles is not None:
                 getImageTriangles(imgDat, idx, triangles, col)
                 axes.fill(*triangles)
+
+def createEmptyFits(xPix, yPix, angularWidthDeg, angularHeightDeg, raCenterDeg, decCenterDeg, xpCenter, ypCenter):
+    """Helper function to create an empty FITS file. 
+
+Arguments:
+
+ - `xPix`: number of pixels in the FITS file in the X-direction
+ - `yPix`: number of pixels in the FITS file in the Y-direction
+ - `angularWidthDeg`: the angular width of the file, in degrees
+ - `angularHeightDeg`: the angular height of the file, in degrees
+ - `raCenterDeg`: the right ascension of the `xpCenter` pixel, in degrees
+ - `decCenterDeg`: the declination of the center `ypCenter` pixel, in degrees
+ - `xpCenter`: the pixel position that corresponds to `raCenterDeg`
+ - `ypCenter`: the pixel position that corresponds to `decCenterDeg`
+"""
+    from astropy.io import fits
+
+    zeros = np.zeros((yPix,xPix),dtype="double")
+    hdu = fits.PrimaryHDU(zeros)
+    hdu.header["equinox"] = 2000.
+    hdu.header["radecsys"] = "FK5     "
+    hdu.header["ctype1"]= "RA---TAN"
+    hdu.header["crval1"] = raCenterDeg
+    hdu.header["crpix1"] = xpCenter+0.5
+    hdu.header["cdelt1"] = -1.0*angularWidthDeg/xPix
+    hdu.header["cunit1"] = 'deg     '
+    hdu.header["ctype2"] = 'DEC--TAN'
+    hdu.header["crval2"] = decCenterDeg
+    hdu.header["crpix2"] = ypCenter+0.5
+    hdu.header["cdelt2"] = 1.0*angularHeightDeg/yPix
+    hdu.header["cunit2"] = 'deg     '
+    hdu.header["date"] = time.strftime("%Y-%m-%dT%H:%M:%S")
+
+    hdulist = fits.HDUList([hdu])
+    return hdulist
+
+def plotImagePlaneFITS(lensInfo, sources, raCenterDeg, decCenterDeg, renderer = "default",
+                       feedbackObject = "default", plotSources = False):
+    """Creates a FITS image (actually a HDUList that can then be saved) for a
+lensing situation.
+
+Arguments:
+ - `lensInfo`: an instance of :class:`LensInfo`
+
+ - `sources`: a list of :ref:`source shapes <sourceshapes>` that should be used to calculate
+   the images from.
+
+ - `raCenterDeg`: the right ascension of the center of the rendered image plane, in degrees.
+
+ - `decCenterDeg`: the declination of the center of the rendered image plane, in degrees
+
+ - `renderer`: this parameter can be used to specify a specific :ref:`renderer <renderers>`
+   to speed up the calculation. 
+
+ - `feedbackObject`: can be used to specify a particular :ref:`feedback mechanism <feedback>`.
+
+ - `plotSources`: if `True`, the sources themselves will be plotted instead of the images.
+
+"""
+    xPix, yPix = lensInfo.getNumXPixels(), lensInfo.getNumYPixels()
+    tr, bl = lensInfo.getTopRight(), lensInfo.getBottomLeft()
+    angularWidthDeg = (tr[0]-bl[0])/ANGLE_DEGREE
+    angularHeightDeg = (tr[1]-bl[1])/ANGLE_DEGREE
+    xpCenter = xPix/2.0
+    ypCenter = yPix/2.0
+    f = createEmptyFits(xPix, yPix, angularWidthDeg, angularHeightDeg, raCenterDeg, decCenterDeg, xpCenter, ypCenter)
+    
+    imgPlane = lensInfo.getImagePlane(renderer, feedbackObject)
+    data = imgPlane.renderImages(sources) if not plotSources else imgPlane.renderSources(sources)
+    f[0].data = np.fliplr(data)
+    return f
                     
+def plotDensityFITS(lensInfo, raCenterDeg, decCenterDeg, renderer = "default",
+                    feedbackObject = "default"):
+    """Creates a FITS image (actually a HDUList that can then be saved) for the
+mass density in `lensInfo`.
+
+Arguments:
+ - `lensInfo`: an instance of :class:`LensInfo` or of :class:`DensInfo`.
+
+ - `raCenterDeg`: the right ascension of the center of the rendered image plane, in degrees.
+
+ - `decCenterDeg`: the declination of the center of the rendered image plane, in degrees
+
+ - `renderer`: this parameter can be used to specify a specific :ref:`renderer <renderers>`
+   to speed up the calculation. 
+
+ - `feedbackObject`: can be used to specify a particular :ref:`feedback mechanism <feedback>`.
+"""
+    xPix, yPix = lensInfo.getNumXPixels(), lensInfo.getNumYPixels()
+    tr, bl = lensInfo.getTopRight(), lensInfo.getBottomLeft()
+    angularWidthDeg = (tr[0]-bl[0])/ANGLE_DEGREE
+    angularHeightDeg = (tr[1]-bl[1])/ANGLE_DEGREE
+    xpCenter = xPix/2.0
+    ypCenter = yPix/2.0
+    f = createEmptyFits(xPix, yPix, angularWidthDeg, angularHeightDeg, raCenterDeg, decCenterDeg, xpCenter, ypCenter)
+    
+    data = lensInfo.getDensityPixels(renderer, feedbackObject)
+    f[0].data = np.fliplr(data)
+    return f
+
 def _getAngularUnit(u):
     if u == "default":
         return getDefaultAngularUnit()

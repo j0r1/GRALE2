@@ -50,6 +50,15 @@ Functions to create gnuplot plots
 
 .. autofunction:: plotImagePlaneGnuplot
 
+Functions to create FITS files
+------------------------------
+
+.. autofunction:: plotDensityFITS
+
+.. autofunction:: plotImagePlaneFITS
+
+.. autofunction:: calculateDeflectionAndDerivativesForFITS
+
 Interactive plotting
 --------------------
 
@@ -61,8 +70,6 @@ Helper functions
 ----------------
 
 .. autofunction:: estimatePlotScale
-
-.. autofunction:: calculateDeflectionAndDerivativesForFITS
 
 .. autofunction:: quickLensInfo
 
