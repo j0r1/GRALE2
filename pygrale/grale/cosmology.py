@@ -80,7 +80,7 @@ class Cosmology(object):
 
         return (constants.SPEED_C*A*((1.0/(1.0+z2))/100000.0)/self.h)*constants.DIST_MPC
 
-    def findRedshiftForAngularDiameterDistance(self, Dtarget, zref = 0, zmax = 20, iterations = 10, stepsPerIteration = 100):
+    def findRedshiftForAngularDiameterDistance(self, Dtarget, zref = 0, zmax = 20):
         """This function attempts to find the redshift(s) that correspond to the
         angular diameter distance ``Dtarget``. 
         
@@ -92,70 +92,31 @@ class Cosmology(object):
            respect to a specific redshift, this redshift can be specified here.
          - ``zmax``: the algorithm will look for redshifts that are smaller than this
            value.
-         - ``iterations``: the procedure subdivides the possible range of redshift values
-           into a number of pieces, yielding a first set of possible redshifts. These are
-           then refined a number of times, specified by this value.
-         - ``stepsPerIteration``: the number of parts a trial redshift range should be
-           subdivided in.
         """
 
         zref, zmax = float(zref), float(zmax)
-
-        def findIntervals(z1, z2, steps, iterations):
-
-            intervals = [ ]
-            dz = (z2-z1)/(steps-1)
-            z = z1
-
-            zD = [ ]
-
-            # Calculate the mappings in this range
-            for s in range(steps):
-                D = self.getAngularDiameterDistance(zref, z)
-                zD.append((z,D))
-                z += dz
-
-            # And see which intervals contain Dtarget
-            for s in range(steps-1):
-                if (zD[s][1] <= Dtarget and zD[s+1][1] > Dtarget) or (zD[s][1] >= Dtarget and zD[s+1][1] < Dtarget):
-                    intervals.append((zD[s][0], zD[s+1][0]))
-
-            #print(intervals)
-
-            if iterations == 0:
-                return intervals
-
-            finerIntervals = [ ]
-
-            for zf1, zf2 in intervals:
-                sub = findIntervals(zf1, zf2, steps, iterations-1)
-                if len(sub) >= 1:
-                    finerIntervals += sub
-                else:
-                    finerIntervals += [( zf1, zf2)]
-
-            return finerIntervals
 
         if zref < 0 or zmax < 0:
             raise CosmologyException("Both zref and zmax must be positive")
         if zref > zmax:
             raise CosmologyException("The value of zref must be less than zmax")
 
-        intervals = findIntervals(zref, zmax, stepsPerIteration, iterations)
-        zvalues = [ ]
-        for z1, z2 in intervals:
-            zvalues.append((z1+z2)/2.0)
+        import scipy.optimize as opt
 
-        zvalues.sort()
-        reducedZValues = []
+        def f(z):
+            if z < zref:
+                z = zref
+            if z > zmax:
+                z = zmax
+            return self.getAngularDiameterDistance(zref, z) - Dtarget
 
-        prevZ = -1e200
-        for z in zvalues:
-            if abs(z-prevZ) > 1e-6:
-                reducedZValues.append(z)
-            prevZ = z
-
-        return reducedZValues
+        z1 = opt.root(f, (zmax-zref)*0.01+zref)
+        z2 = opt.root(f, (zmax-zref)*0.99+zref)
+        
+        sols = [ ]
+        for z in z1, z2:
+            if z.success: sols.append(float(z.x))
+        return sols
 
 _defaultCosmology = [ None ]
 
