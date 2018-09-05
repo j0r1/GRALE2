@@ -40,8 +40,16 @@ class MultipleLayerActionStack(actionstack.ActionStack):
         super(MultipleLayerActionStack, self).recordAddNormalPoint(layerUuid, pointUuid, pos, timedelay, label, addId)
         self.scene.updateLayerWidget()
 
+    def recordAddNormalPoints(self, points, addId):
+        super(MultipleLayerActionStack, self).recordAddNormalPoints(points, addId)
+        self.scene.updateLayerWidget()
+
     def recordAddTriangle(self, layerUuid, triangUuid, pointUuids, addId):
         super(MultipleLayerActionStack, self).recordAddTriangle(layerUuid, triangUuid, pointUuids, addId)
+        self.scene.updateLayerWidget()
+
+    def recordAddTriangles(self, triangles, addId):
+        super(MultipleLayerActionStack, self).recordAddTriangles(triangles, addId)
         self.scene.updateLayerWidget()
 
     #def recordAddMatchPoint(self, layerUuid, pointUuid, pos, label, addId):
