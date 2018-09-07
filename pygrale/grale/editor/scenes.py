@@ -200,12 +200,29 @@ class LayerScene(GraphicsScene):
         if len(contours) < 1:
             return None
 
+
+        rectItem = self._getRectItem()
+        rectItem.setRect(QtCore.QRectF(bottomLeft[0], bottomLeft[1], viewSize, viewSize))
+
         self.drawItem.setVisible(True)
         dlg = ContourLevelDialog(contours, self.drawItem, self.getDialogWidget())
         r = contours[dlg.getSelectedContour()] if dlg.exec_() else None
         self.drawItem.setVisible(False)
+        self.removeItem(rectItem)
 
         return r
+
+    def _getRectItem(self):
+        rectItem = QtWidgets.QGraphicsRectItem()
+        rectItem.setZValue(10000)
+        p = QtGui.QPen()
+        p.setWidth(2)
+        p.setColor(QtCore.Qt.green)
+        p.setCosmetic(True)
+        rectItem.setPen(p)
+        self.addItem(rectItem)
+
+        return rectItem
 
     def _recenter(self, item, layer, pos):
         pixPos = item.getPixelPosition(pos)

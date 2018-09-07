@@ -870,21 +870,9 @@ class MainWindow(QtWidgets.QMainWindow):
             self.scene.warning("Error while exporting", "Encountered a problem while exporting visible layers to file '{}': {}".format(fileName, e))
             return
 
-    def _getRectItem(self):
-        rectItem = QtWidgets.QGraphicsRectItem()
-        rectItem.setZValue(10000)
-        p = QtGui.QPen()
-        p.setWidth(2)
-        p.setColor(QtCore.Qt.green)
-        p.setCosmetic(True)
-        rectItem.setPen(p)
-        self.scene.addItem(rectItem)
-
-        return rectItem
-
     def _onNullGrid(self, checked):
 
-        rectItem = self._getRectItem()
+        rectItem = self.scene._getRectItem()
         scale = self.view.getScale()
         center = self.view.getCenter()
         
@@ -941,7 +929,7 @@ class MainWindow(QtWidgets.QMainWindow):
         r2 = self._getViewportRect()
 
         try:
-            rectItem = self._getRectItem()
+            rectItem = self.scene._getRectItem()
             dlg = exportareadialog.ExportAreaDialog(r, r2, self.view, rectItem, self)
             if not dlg.exec_():
                 return
