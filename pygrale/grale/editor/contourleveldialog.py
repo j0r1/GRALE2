@@ -16,14 +16,38 @@ class ContourLevelDialog(QtWidgets.QDialog):
         self.clickPos = clickPos
         self.sceneRegionCallback = sceneRegionCallback
 
+        self.ui.m_pContourLevelSlider.sliderMoved.connect(self.slotSliderMoved)
+        self.ui.m_pContourLevelSlider.valueChanged.connect(self.slotSliderMoved)
+
+        self.ui.m_settingsButton.clicked.connect(self.onSettingsClicked)
+        self.ui.m_updateButton.clicked.connect(self.updateSettings)
+        self.resizeTimer = QtCore.QTimer()
+        self.resizeTimer.timeout.connect(self.onResizeTimeout)
+        self.resizeTimer.setSingleShot(True)
+        self.resizeTimer.setInterval(0)
+
+        self.ui.m_settingsBox.hide()
+        self.resizeTimer.start()
+
+        self.updateSettings()
+
+    def onResizeTimeout(self):
+        self.resize(self.width(), 0)
+
+    def onSettingsClicked(self, checked = False):
+        if self.ui.m_settingsBox.isVisible():
+            self.ui.m_settingsBox.hide()
+            self.resizeTimer.start()
+        else:
+            self.ui.m_settingsBox.show()
+
+    def updateSettings(self, checked = False):
+
         self.levels = self._getLevels()
         minValue, maxValue = 0, len(self.levels)-1
 
         self.ui.m_pContourLevelSlider.setMinimum(minValue)
         self.ui.m_pContourLevelSlider.setMaximum(maxValue)
-
-        self.ui.m_pContourLevelSlider.sliderMoved.connect(self.slotSliderMoved)
-        self.ui.m_pContourLevelSlider.valueChanged.connect(self.slotSliderMoved)
 
         startValue = int(round((maxValue-minValue)/3.0+minValue))
         if startValue < minValue: 
@@ -53,9 +77,9 @@ class ContourLevelDialog(QtWidgets.QDialog):
 
     def _getLevels(self):
 
-        pixelSize = 256 # TODO: make this configurable
-        viewSize = 4 # 4 arcsec, TODO: make this configurable
-        pixelBlurSize = 4 # TODO: make this configurable
+        pixelSize = self.ui.m_pixelsBox.value()
+        viewSize = self.ui.m_arcsecBox.value()
+        pixelBlurSize = self.ui.m_blurBox.value()
 
         self.rectItem.setVisible(False)
         self.pathItem.setVisible(False)
