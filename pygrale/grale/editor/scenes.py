@@ -7,7 +7,6 @@ import json
 import copy
 
 import grale.images as images # TODO
-import grale.contourfinder as contourfinder
 
 from base import GraphicsView, GraphicsScene, PointGraphicsItemBase, Layer, TriangleItem
 from imagelayer import FITSImageLayer, RGBImageLayer, RGBGraphicsItem, FITSGraphicsItem, ImageGraphicsItem
@@ -153,60 +152,25 @@ class LayerScene(GraphicsScene):
         # store original visibilities
         itemList = [ i for i in self.items() if type(i) == MultiplePointGraphicsItem ] + [ self.drawItem, self.getAxesItem() ]
         itemList = [ (i,i.isVisible()) for i in itemList ]
-        for i,v in itemList:
-            i.setVisible(False)
 
-        try:
-            pixelSize = 256 # TODO: make this configurable
-            viewSize = 4 # 4 arcsec, TODO: make this configurable
-            pixelBlurSize = 4 # TODO: make this configurable
-
-            bottomLeft, topRight = [pos[0] - viewSize/2.0, pos[1] - viewSize/2.0], [pos[0] + viewSize/2.0, pos[1] + viewSize/2.0]
-            arr = self.getSceneRegionNumPyArray(bottomLeft, topRight, pixelSize, pixelSize, grayScale=True)
-            arr = arr.astype(np.double)
-            
-            # Blur the region to get smoother contours
-            from scipy.ndimage.filters import gaussian_filter
-            arr = gaussian_filter(arr, sigma=pixelBlurSize)
-        finally:
-            # Restore original visibilities
+        def showHideFunction(show):
             for i,v in itemList:
-                i.setVisible(v)
-        
-        # From https://stackoverflow.com/a/21613346/2828217
-        def isInside(pos, cntr):
-            from shapely.geometry import Point
-            from shapely.geometry.polygon import Polygon
+                i.setVisible(show and v) # Becomes False if show is False, or v if show is True
 
+        def getSceneRegion(pixelSize, viewSize):
+            showHideFunction(False)
             try:
-                point = Point(pos[0], pos[1])
-                polygon = Polygon(cntr)
-                return polygon.contains(point)
-            except Exception as e:
-                print("WARNING: {}".format(e))
-                return False
-
-        levels = list(np.linspace(arr.min(),arr.max(), 255))
-        cf = contourfinder.ContourFinder(arr, bottomLeft, topRight)
-        contours = cf.findMultipleContours(levels)
-        filteredContours = [ ]
-        for c in contours:
-            for part in c:
-                if isInside(pos, part):
-                    filteredContours.append(part)
-                    break
-    
-        contours = filteredContours
-        if len(contours) < 1:
-            return None
-
+                bottomLeft, topRight = [pos[0] - viewSize/2.0, pos[1] - viewSize/2.0], [pos[0] + viewSize/2.0, pos[1] + viewSize/2.0]
+                arr = self.getSceneRegionNumPyArray(bottomLeft, topRight, pixelSize, pixelSize, grayScale=True)
+                arr = arr.astype(np.double)
+                return arr, bottomLeft, topRight
+            finally:
+                showHideFunction(True)
 
         rectItem = self._getRectItem()
-        rectItem.setRect(QtCore.QRectF(bottomLeft[0], bottomLeft[1], viewSize, viewSize))
+        dlg = ContourLevelDialog(pos, self.drawItem, rectItem, getSceneRegion, self.getDialogWidget())
+        r = dlg.getSelectedContour() if dlg.exec_() else None
 
-        self.drawItem.setVisible(True)
-        dlg = ContourLevelDialog(contours, self.drawItem, self.getDialogWidget())
-        r = contours[dlg.getSelectedContour()] if dlg.exec_() else None
         self.drawItem.setVisible(False)
         self.removeItem(rectItem)
 
