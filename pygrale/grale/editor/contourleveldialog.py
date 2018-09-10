@@ -3,14 +3,27 @@ from PyQt5 import QtWidgets, QtGui, QtCore
 import grale.contourfinder as contourfinder
 import ui_contourleveldialog
 import numpy as np
+from tools import valueFromSettings
 
 class ContourLevelDialog(QtWidgets.QDialog):
+    
+    g_defaultPixels = 256
+    g_defaultArcsecWidth = 4.0
+    g_defaultBlur = 4
+
     def __init__(self, clickPos, pathItem, rectItem, sceneRegionCallback, parent = None):
         super(ContourLevelDialog, self).__init__(parent)
 
         self.ui = ui_contourleveldialog.Ui_ContourLevelDialog()
         self.ui.setupUi(self)
+
+        settings = QtCore.QSettings()
+        self.ui.m_pixelsBox.setValue(valueFromSettings(settings, "contourdialog/pixels", int, ContourLevelDialog.g_defaultPixels))
+        self.ui.m_arcsecBox.setValue(valueFromSettings(settings, "contourdialog/arcsecwidth", float, ContourLevelDialog.g_defaultArcsecWidth))
+        self.ui.m_blurBox.setValue(valueFromSettings(settings, "contourdialog/blur", int, ContourLevelDialog.g_defaultBlur))
         
+        self.accepted.connect(self._onAccepted)
+
         self.pathItem = pathItem
         self.rectItem = rectItem
         self.clickPos = clickPos
@@ -19,6 +32,7 @@ class ContourLevelDialog(QtWidgets.QDialog):
         self.ui.m_pContourLevelSlider.sliderMoved.connect(self.slotSliderMoved)
         self.ui.m_pContourLevelSlider.valueChanged.connect(self.slotSliderMoved)
 
+        self.ui.m_defaultsButton.clicked.connect(self.setDefaultSettings)
         self.ui.m_settingsButton.clicked.connect(self.onSettingsClicked)
         self.ui.m_updateButton.clicked.connect(self.updateSettings)
         self.resizeTimer = QtCore.QTimer()
@@ -30,6 +44,11 @@ class ContourLevelDialog(QtWidgets.QDialog):
         self.resizeTimer.start()
 
         self.updateSettings()
+
+    def setDefaultSettings(self):
+        self.ui.m_pixelsBox.setValue(ContourLevelDialog.g_defaultPixels)
+        self.ui.m_arcsecBox.setValue(ContourLevelDialog.g_defaultArcsecWidth)
+        self.ui.m_blurBox.setValue(ContourLevelDialog.g_defaultBlur)
 
     def onResizeTimeout(self):
         self.resize(self.width(), 0)
@@ -122,3 +141,11 @@ class ContourLevelDialog(QtWidgets.QDialog):
 
         self.rectItem.setRect(QtCore.QRectF(bottomLeft[0], bottomLeft[1], viewSize, viewSize))
         return contours
+
+    def _onAccepted(self):
+
+        settings = QtCore.QSettings()
+        settings.setValue("contourdialog/pixels", self.ui.m_pixelsBox.value())
+        settings.setValue("contourdialog/arcsecwidth", self.ui.m_arcsecBox.value())
+        settings.setValue("contourdialog/blur", self.ui.m_blurBox.value())
+

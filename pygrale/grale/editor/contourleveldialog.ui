@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>506</width>
-    <height>160</height>
+    <width>550</width>
+    <height>170</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -188,13 +188,20 @@
          </spacer>
         </item>
         <item>
-         <widget class="QPushButton" name="m_updateButton">
+         <widget class="QPushButton" name="m_defaultsButton">
           <property name="text">
-           <string>Update</string>
+           <string>Defaults</string>
           </property>
          </widget>
         </item>
        </layout>
+      </item>
+      <item row="1" column="0">
+       <widget class="QPushButton" name="m_updateButton">
+        <property name="text">
+         <string>Update</string>
+        </property>
+       </widget>
       </item>
      </layout>
     </widget>
@@ -241,6 +248,15 @@
    </item>
   </layout>
  </widget>
+ <tabstops>
+  <tabstop>m_pContourLevelSlider</tabstop>
+  <tabstop>m_settingsButton</tabstop>
+  <tabstop>m_pixelsBox</tabstop>
+  <tabstop>m_arcsecBox</tabstop>
+  <tabstop>m_blurBox</tabstop>
+  <tabstop>m_defaultsButton</tabstop>
+  <tabstop>m_updateButton</tabstop>
+ </tabstops>
  <resources/>
  <connections>
   <connection>
