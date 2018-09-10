@@ -174,6 +174,7 @@ class GraphicsScene(SceneBase):
 
         self.lastClickModifier = None
         self.isRightClick = False
+        self.rightClickScreenPos = None
 
         self.dialogWidget = None
 
@@ -300,6 +301,7 @@ class GraphicsScene(SceneBase):
 
         elif evt.button() == 2: # Right click
             self.isRightClick = True
+            self.rightClickScreenPos = evt.screenPos()
 
     def _singleClickHandlerWrapper(self, item, pos):
         if item is None: # may still be a triangle
@@ -360,7 +362,13 @@ class GraphicsScene(SceneBase):
                 if item:
                     rightClickPoint = item
                     break
-            self.mouseHandler_rightClick(rightClickPoint, [pos.x(), pos.y()], self.lastClickModifier)
+
+            screenPos = evt.screenPos()
+            if (screenPos.x()-self.rightClickScreenPos.x())**2 + (screenPos.y()-self.rightClickScreenPos.y())**2 <= 9: # TODO: make configurable
+                self.mouseHandler_rightClick(rightClickPoint, [pos.x(), pos.y()], self.lastClickModifier)
+
+            self.isRightClick = False
+            self.rightClickScreenPos = None
             return
 
         if self.moveEventCount == 0: #  or self.moveItem is None:
