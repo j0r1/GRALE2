@@ -382,10 +382,8 @@ TODO
 Examples
 ^^^^^^^^
 
-GraleEditor
------------
+GRALE Editor
+------------
 
-Creating a new version of GraleEditor is still work in progress. For now, the 
-`old version <http://research.edm.uhasselt.be/jori/page/Physics/GraleV1.html>`_ still 
-needs to be used. 
+Creating a new version of the :ref:`graleeditor` is still work in progress. 
 
