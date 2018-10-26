@@ -87,6 +87,7 @@ bool BackProjectMatrixNew::startInit(double z_d, double D_d, DeflectionMatrix *p
 	m_subPotentialValues.resize(images.size());
 
 	m_betas.resize(images.size());
+	m_alphas.resize(images.size());
 	m_axx.resize(images.size());
 	m_ayy.resize(images.size());
 	m_axy.resize(images.size());
@@ -97,7 +98,7 @@ bool BackProjectMatrixNew::startInit(double z_d, double D_d, DeflectionMatrix *p
 
 	if (pBaseLens)
 	{
-		m_baseBetas.resize(images.size());
+		m_baseAlphas.resize(images.size());
 		m_baseAxx.resize(images.size());
 		m_baseAyy.resize(images.size());
 		m_baseAxy.resize(images.size());
@@ -110,7 +111,7 @@ bool BackProjectMatrixNew::startInit(double z_d, double D_d, DeflectionMatrix *p
 	if (useMassSheet)
 	{
 		m_useMassSheet = true;
-		m_sheetThetas.resize(images.size());
+		m_sheetAlphas.resize(images.size());
 		m_sheetPotentials.resize(images.size());
 	}
 	else
@@ -135,10 +136,11 @@ bool BackProjectMatrixNew::startInit(double z_d, double D_d, DeflectionMatrix *p
 				m_deflectionIndices[s][i] = -1;
 			m_subDeflectionAngles[s].resize(offset);
 			m_betas[s].resize(offset);
+			m_alphas[s].resize(offset);
 			if (m_useBaseLens)
-				m_baseBetas[s].resize(offset);
+				m_baseAlphas[s].resize(offset);
 			if (m_useMassSheet)
-				m_sheetThetas[s].resize(offset);
+				m_sheetAlphas[s].resize(offset);
 		}
 
 		if (useDerivatives[s])
@@ -250,16 +252,16 @@ bool BackProjectMatrixNew::startInit(double z_d, double D_d, DeflectionMatrix *p
 
 	if (m_useBaseLens)
 	{
-		m_baseBetasUnscaled.resize(m_originalPoints.size());
+		m_baseAlphasUnscaled.resize(m_originalPoints.size());
 		m_basePotentialsUnscaled.resize(m_originalPoints.size());
 
 		for (int s = 0 ; s < m_originalPoints.size() ; s++)
 		{
 			int numPoints;
 
-			if ((numPoints = m_baseBetas[s].size()) > 0)
+			if ((numPoints = m_baseAlphas[s].size()) > 0)
 			{
-				m_baseBetasUnscaled[s].resize(numPoints);
+				m_baseAlphasUnscaled[s].resize(numPoints);
 
 				for (int i = 0 ; i < numPoints ; i++)
 				{
@@ -272,7 +274,7 @@ bool BackProjectMatrixNew::startInit(double z_d, double D_d, DeflectionMatrix *p
 						return false;
 					}
 
-					m_baseBetasUnscaled[s][i] = m_originalPoints[s][i] - ((double)m_distanceFractions[s]) * alpha;
+					m_baseAlphasUnscaled[s][i] = ((double)m_distanceFractions[s]) * alpha;
 				}
 			}
 			if ((numPoints = m_baseAxx[s].size()) > 0)
@@ -362,10 +364,10 @@ bool BackProjectMatrixNew::endInit() // m_pDeflectionMatrix->endInit() must be c
 		{
 			int numPoints;
 
-			if ((numPoints = m_baseBetas[s].size()) > 0)
+			if ((numPoints = m_baseAlphas[s].size()) > 0)
 			{
 				for (int i = 0 ; i < numPoints ; i++)
-					m_baseBetas[s][i] = Vector2D<float>(m_baseBetasUnscaled[s][i].getX()/angularScale, m_baseBetasUnscaled[s][i].getY()/angularScale);
+					m_baseAlphas[s][i] = Vector2D<float>(m_baseAlphasUnscaled[s][i].getX()/angularScale, m_baseAlphasUnscaled[s][i].getY()/angularScale);
 			}
 
 			if ((numPoints = m_basePotentials[s].size()) > 0)
@@ -379,10 +381,10 @@ bool BackProjectMatrixNew::endInit() // m_pDeflectionMatrix->endInit() must be c
 		{
 			int numPoints;
 
-			if ((numPoints = m_sheetThetas[s].size()) > 0)
+			if ((numPoints = m_sheetAlphas[s].size()) > 0)
 			{
 				for (int i = 0 ; i < numPoints ; i++)
-					m_sheetThetas[s][i] = m_thetas[s][i]*m_distanceFractions[s];
+					m_sheetAlphas[s][i] = m_thetas[s][i]*m_distanceFractions[s];
 			}
 			if ((numPoints = m_sheetPotentials[s].size()) > 0)
 			{
@@ -393,7 +395,7 @@ bool BackProjectMatrixNew::endInit() // m_pDeflectionMatrix->endInit() must be c
 	}
 
 	m_originalPoints.clear();
-	m_baseBetasUnscaled.clear();
+	m_baseAlphasUnscaled.clear();
 	m_basePotentialsUnscaled.clear();
 
 	m_timeDelayScale = (float)((1.0+m_zd)*m_Dd*angularScale*angularScale/(SPEED_C*60.0*60.0*24.0));
@@ -460,14 +462,14 @@ void BackProjectMatrixNew::calculate(float scaleFactor, float massSheetFactor)
 
 		if ((numPoints = m_deflectionIndices[s].size()) > 0)
 		{
-			if (m_useBaseLens)
-				CopyVector((float *)&(m_betas[s][0]), (float *)&(m_baseBetas[s][0]), numPoints*2);
-			else
-				CopyVector((float *)&(m_betas[s][0]), (float *)&(m_thetas[s][0]), numPoints*2);
-			CalculateAddProductC((float *)&(m_betas[s][0]), (float *)&(m_subDeflectionAngles[s][0]), -scaleFactor, numPoints*2, &(m_tmpBuffer[0]));
+			MultiplyVector((float *)&(m_alphas[s][0]), (float *)&(m_subDeflectionAngles[s][0]), scaleFactor, numPoints*2);
 
+			if (m_useBaseLens)
+				AddVector((float *)&(m_alphas[s][0]), (float *)&(m_baseAlphas[s][0]), numPoints*2);
 			if (massSheetFactor != 0 && m_useMassSheet)
-				CalculateAddProductC((float *)&(m_betas[s][0]), (float *)&(m_sheetThetas[s][0]), -massSheetFactor, numPoints*2, &(m_tmpBuffer[0]));
+				CalculateAddProductC((float *)&(m_alphas[s][0]), (float *)&(m_sheetAlphas[s][0]), massSheetFactor, numPoints*2, &(m_tmpBuffer[0]));
+
+			SubVector((float *)&(m_betas[s][0]), (float *)&(m_thetas[s][0]), (float *)&(m_alphas[s][0]), numPoints*2);
 		}
 
 		if ((numPoints = m_derivativeIndices[s].size()) > 0)

@@ -832,6 +832,91 @@ float calculateTimeDelayFitness(const ProjectedImagesInterface &iface, const vec
 	return timeDelayFitness;
 }
 
+float calculateTimeDelayFitnessExperimental(const ProjectedImagesInterface &iface, const vector<int> &sourceIndices)
+{
+	float timeDelayFitness = 0;
+
+	for (int s : sourceIndices)
+	{
+		assert(iface.getOriginalNumberOfTimeDelays(s) > 0);
+
+		int numTimeDelays = iface.getOriginalNumberOfTimeDelays(s);
+		float tdfit = 0;
+		int count = 0;
+
+		for (int i = 0 ; i < numTimeDelays ; i++)
+		{
+			int img1, point1;
+			float originalDelay1;
+
+			iface.getOriginalTimeDelay(s, i, &img1, &point1, &originalDelay1);
+
+			if (originalDelay1 < -0.0001f) // negative values can be used to simply indicate a source position
+				continue;
+
+			for (int j = 0 ; j < numTimeDelays ; j++)
+			{
+				if (j == i)
+					continue;
+
+				int img2, point2;
+				float originalDelay2;
+
+				iface.getOriginalTimeDelay(s, j, &img2, &point2, &originalDelay2);
+
+				if (originalDelay2 < -0.0001f)
+					continue;
+
+				float realTimeDelayDifference = originalDelay2 - originalDelay1;
+
+				// We have a time delay difference. Now, we'll see how well we can fit this
+				// for each backprojected image position
+
+				float squaredSum = 0;
+
+				for (int k = 0 ; k < numTimeDelays ; k++)
+				{
+					int srcImg, srcPoint;
+					float dummyValue;
+					Vector2D<float> beta1;
+
+					iface.getOriginalTimeDelay(s, k, &srcImg, &srcPoint, &dummyValue);
+					beta1 = iface.getBetas(s, srcImg)[srcPoint];
+
+					for (int l = 0 ; l < numTimeDelays ; l++)
+					{
+						Vector2D<float> beta2;
+
+						iface.getOriginalTimeDelay(s, l, &srcImg, &srcPoint, &dummyValue);
+						beta2 = iface.getBetas(s, srcImg)[srcPoint];
+
+						float delay1 = iface.getTimeDelay(s, img1, point1, beta1);
+						float delay2 = iface.getTimeDelay(s, img2, point2, beta2);
+						float calculatedDifference = delay2 - delay1;
+
+						float relativeDiff = (realTimeDelayDifference - calculatedDifference)/realTimeDelayDifference;
+
+						squaredSum += relativeDiff*relativeDiff;
+					}
+				}
+
+				squaredSum /= (float)(numTimeDelays*numTimeDelays);
+
+
+				tdfit += squaredSum;
+				count++;
+			}
+		}
+		
+		if (count)
+			tdfit /= (int)count;
+
+		timeDelayFitness += tdfit;
+	}
+
+	return timeDelayFitness;
+}
+
 float calculateKappaThresholdFitness(const ProjectedImagesInterface &iface, const vector<int> &sourceIndices,
 		                             const vector<float> &kappaThresholds)
 {

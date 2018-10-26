@@ -66,6 +66,8 @@ public:
 	double getAngularScale() const							{ return m_angularScale; }
 	const Vector2D<float> *getBetas(int sourceNumber) const				{ checkBetas(sourceNumber); return &(m_betas[sourceNumber][0]); }
 	const Vector2D<float> *getBetas(int sourceNumber, int imageNumber) const	{ checkBetas(sourceNumber); return &(m_betas[sourceNumber][m_offsets[sourceNumber][imageNumber]]); }
+	const Vector2D<float> *getAlphas(int sourceNumber) const				{ checkAlphas(sourceNumber); return &(m_alphas[sourceNumber][0]); }
+	const Vector2D<float> *getAlphas(int sourceNumber, int imageNumber) const	{ checkAlphas(sourceNumber); return &(m_alphas[sourceNumber][m_offsets[sourceNumber][imageNumber]]); }
 	const Vector2D<float> *getThetas(int sourceNumber) const			{ return &(m_thetas[sourceNumber][0]); }
 	const Vector2D<float> *getThetas(int sourceNumber, int imageNumber) const	{ return &(m_thetas[sourceNumber][m_offsets[sourceNumber][imageNumber]]); }
 	const float *getDerivativesXX(int sourceNumber) const				{ checkDerivatives(sourceNumber); return &(m_axx[sourceNumber][0]); }
@@ -87,12 +89,14 @@ public:
 	bool write(const std::string &fname, double angularunit, bool magnifyFlux) const;
 private:
 	void checkBetas(int sourceNumber) const;
+	void checkAlphas(int sourceNumber) const;
 	void checkDerivatives(int sourceNumber) const;
 	void checkInvMag(int sourceNumber) const;
 	void checkShear(int sourceNumber) const;
 	void checkConvergence(int sourceNumber) const;
 
 	mutable std::vector<std::vector<Vector2D<float> > > m_betas;
+	mutable std::vector<std::vector<Vector2D<float> > > m_alphas;
 	std::vector<std::vector<Vector2D<float> > > m_thetas;
 	std::vector<std::vector<Vector2D<double> > > m_originalThetas;
 	mutable std::vector<std::vector<float> > m_axx, m_ayy, m_axy;

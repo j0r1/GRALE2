@@ -55,6 +55,7 @@ ImagesBackProjector::ImagesBackProjector(GravitationalLens &lens, const std::lis
 	storeOriginalData(imagesVector, true, true, true);
 
 	m_betas.resize(images.size());
+	m_alphas.resize(images.size());
 	m_thetas.resize(images.size());
 	m_originalThetas.resize(images.size());
 	m_axx.resize(images.size());
@@ -223,6 +224,26 @@ void ImagesBackProjector::checkBetas(int sourceNumber) const
 
 		beta /= m_angularScale;
 		m_betas[sourceNumber][i] = Vector2D<float>(beta.getX(), beta.getY());
+	}
+}
+
+void ImagesBackProjector::checkAlphas(int sourceNumber) const
+{
+	int numPoints = m_thetas[sourceNumber].size();
+
+	if (m_alphas[sourceNumber].size() == numPoints)
+		return;
+
+	m_alphas[sourceNumber].resize(numPoints);
+
+	for (int i = 0 ; i < numPoints ; i++)
+	{
+		Vector2D<double> alpha(0,0);
+
+		m_pLens->getAlphaVector(m_originalThetas[sourceNumber][i], &alpha);
+		alpha *= m_distanceFractions[sourceNumber];
+		alpha /= m_angularScale;
+		m_alphas[sourceNumber][i] = Vector2D<float>(alpha.getX(), alpha.getY());
 	}
 }
 

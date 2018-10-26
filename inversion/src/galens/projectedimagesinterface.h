@@ -139,6 +139,12 @@ public:
 	/** Returns the positions in the source plane for a specific image of a specific source. */
 	virtual const Vector2D<float> *getBetas(int sourcenum, int imagenum) const = 0;
 
+	/** Returns the (scaled) deflection angles all points of a specific source index. */
+	virtual const Vector2D<float> *getAlphas(int sourcenum) const = 0;
+
+	/** Returns the (scaled) deflection angles for a specific image of a specific source. */
+	virtual const Vector2D<float> *getAlphas(int sourcenum, int imagenum) const = 0;
+
 	/** Returns the (stored) positions in the image plane of all points of a specific source. */
 	virtual const Vector2D<float> *getThetas(int sourcenum) const = 0;
 

@@ -76,6 +76,8 @@ public:
 	double getLensRedshift() const										{ return m_zd; }
 	const Vector2D<float> *getBetas(int sourceNumber) const							{ return &(m_betas[sourceNumber][0]); }
 	const Vector2D<float> *getBetas(int sourceNumber, int imageNumber) const 				{ return &(m_betas[sourceNumber][m_offsets[sourceNumber][imageNumber]]); }
+	const Vector2D<float> *getAlphas(int sourceNumber) const							{ return &(m_alphas[sourceNumber][0]); }
+	const Vector2D<float> *getAlphas(int sourceNumber, int imageNumber) const 				{ return &(m_alphas[sourceNumber][m_offsets[sourceNumber][imageNumber]]); }
 	const Vector2D<float> *getThetas(int sourceNumber) const 						{ return &(m_thetas[sourceNumber][0]); }
 	const Vector2D<float> *getThetas(int sourceNumber, int imageNumber) const				{ return &(m_thetas[sourceNumber][m_offsets[sourceNumber][imageNumber]]); }
 	const float *getDerivativesXX(int sourceNumber) const							{ return &(m_axx[sourceNumber][0]); }
@@ -106,8 +108,8 @@ private:
 	bool m_useBaseLens;
 	std::vector<std::vector<float> > m_baseAxx, m_baseAyy, m_baseAxy;
 	std::vector<std::vector<float> > m_basePotentials;
-	std::vector<std::vector<Vector2D<float> > > m_baseBetas;
-	std::vector<std::vector<Vector2D<double> > > m_baseBetasUnscaled;
+	std::vector<std::vector<Vector2D<float> > > m_baseAlphas;
+	std::vector<std::vector<Vector2D<double> > > m_baseAlphasUnscaled;
 	std::vector<std::vector<double> > m_basePotentialsUnscaled;
 
 	double m_Dd, m_zd;
@@ -121,13 +123,14 @@ private:
 	std::vector<std::vector<float> > m_subPotentialValues;
 
 	std::vector<std::vector<Vector2D<float> > > m_betas;
+	std::vector<std::vector<Vector2D<float> > > m_alphas;
 	std::vector<std::vector<float> > m_axx, m_ayy, m_axy;
 	std::vector<std::vector<float> > m_potentials;
 	std::vector<std::vector<float> > m_inverseMagnifications;
 	std::vector<std::vector<float> > m_shearComponent1;
 	std::vector<std::vector<float> > m_convergence;
 
-	std::vector<std::vector<Vector2D<float> > > m_sheetThetas;
+	std::vector<std::vector<Vector2D<float> > > m_sheetAlphas;
 	std::vector<std::vector<float> > m_sheetPotentials;
 	bool m_useMassSheet;
 

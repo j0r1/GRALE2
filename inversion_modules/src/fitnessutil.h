@@ -47,6 +47,8 @@ float calculateWeakLensingFitness(const ProjectedImagesInterface &interface, con
 
 float calculateTimeDelayFitness(const ProjectedImagesInterface &iface, const std::vector<int> &sourceIndices);
 
+float calculateTimeDelayFitnessExperimental(const ProjectedImagesInterface &iface, const std::vector<int> &sourceIndices);
+
 float calculateKappaThresholdFitness(const ProjectedImagesInterface &iface, const std::vector<int> &sourceIndices,
 		                             const std::vector<float> &kappaThresholds);
 
