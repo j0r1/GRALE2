@@ -95,6 +95,9 @@ public:
 	const float *getConvergence(int sourceNumber) const							{ return &(m_convergence[sourceNumber][0]); }
 	const float *getConvergence(int sourceNumber, int imageNumber) const					{ return &(m_convergence[sourceNumber][m_offsets[sourceNumber][imageNumber]]); }
 	float getTimeDelay(int sourceNumber, int imageNumber, int pointNumber, Vector2D<float> beta) const;
+
+	const float *getLensPotential(int sourceNumber) const { return &(m_potentials[sourceNumber][0]); }
+	const float *getLensPotential(int sourceNumber, int imageNumber) const { return &(m_potentials[sourceNumber][m_offsets[sourceNumber][imageNumber]]); }
 private:
 	DeflectionMatrix *m_pDeflectionMatrix;
 	bool m_init, m_initializing;

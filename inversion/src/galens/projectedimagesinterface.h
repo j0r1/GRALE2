@@ -125,7 +125,9 @@ public:
 	double getIntensityScale() const;
 
 	// For internal use only
-	bool setDistanceFractions(const std::vector<float> &fractions);
+	//bool setDistanceFractions(const std::vector<float> &fractions);
+
+	float getDistanceFraction(int sourcenum) const { return m_distanceFractions[sourcenum]; }
 
 	/** Returns the redshift of the lens. */
 	virtual double getLensRedshift() const = 0;
@@ -194,6 +196,13 @@ public:
 
 	/** Returns the calculated convergence (kappa) values for a specific image of a specific source. */
 	virtual const float *getConvergence(int sourceNumber, int imageNumber) const = 0;
+
+	// Lensing potential scale is angular scale squared
+	// This way, it makes sense in the time delay formula, where 1/2 (beta-theta)^2 - phi(theta)
+	// is used
+	//virtual double getLensPotentialScale() const = 0;
+	virtual const float *getLensPotential(int sourceNumber) const = 0;
+	virtual const float *getLensPotential(int sourceNumber, int imageNumber) const = 0;
 
 	/** For the specified point of an image of a source, calculate the time delay if the backprojected
 	 *  position of that point were \c beta. */

@@ -84,6 +84,9 @@ public:
 	const float *getShearComponents2(int sourceNumber, int imageNumber) const 	{ checkDerivatives(sourceNumber); return &(m_axy[sourceNumber][m_offsets[sourceNumber][imageNumber]]); }
 	const float *getConvergence(int sourceNumber) const				{ checkConvergence(sourceNumber); return &(m_convergence[sourceNumber][0]); }
 	const float *getConvergence(int sourceNumber, int imageNumber) const		{ checkConvergence(sourceNumber); return &(m_convergence[sourceNumber][m_offsets[sourceNumber][imageNumber]]); }
+
+	const float *getLensPotential(int sourceNumber) const { checkPotential(sourceNumber); return &(m_potential[sourceNumber][0]); }
+	const float *getLensPotential(int sourceNumber, int imageNumber) const { checkPotential(sourceNumber); return &(m_potential[sourceNumber][m_offsets[sourceNumber][imageNumber]]); }
 	float getTimeDelay(int sourceNumber, int imageNumber, int pointNumber, Vector2D<float> beta) const;
 
 	bool write(const std::string &fname, double angularunit, bool magnifyFlux) const;
@@ -94,6 +97,7 @@ private:
 	void checkInvMag(int sourceNumber) const;
 	void checkShear(int sourceNumber) const;
 	void checkConvergence(int sourceNumber) const;
+	void checkPotential(int sourceNumber) const;
 
 	mutable std::vector<std::vector<Vector2D<float> > > m_betas;
 	mutable std::vector<std::vector<Vector2D<float> > > m_alphas;
@@ -103,6 +107,7 @@ private:
 	mutable std::vector<std::vector<float> > m_invMag;
 	mutable std::vector<std::vector<float> > m_shearComponents1;
 	mutable std::vector<std::vector<float> > m_convergence;
+	mutable std::vector<std::vector<float> > m_potential;
 	double m_angularScale;
 
 	GravitationalLens *m_pLens;

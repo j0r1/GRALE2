@@ -189,6 +189,7 @@ void ProjectedImagesInterface::storeOriginalData(const std::vector<ImagesDataExt
 	}
 }
 
+/*
 bool ProjectedImagesInterface::setDistanceFractions(const std::vector<float> &fractions)
 {
 	if (fractions.size() != m_distanceFractions.size())
@@ -198,5 +199,6 @@ bool ProjectedImagesInterface::setDistanceFractions(const std::vector<float> &fr
 
 	return true;
 }
+*/
 
 } // end namespace

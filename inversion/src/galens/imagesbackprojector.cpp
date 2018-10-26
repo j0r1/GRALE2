@@ -64,6 +64,7 @@ ImagesBackProjector::ImagesBackProjector(GravitationalLens &lens, const std::lis
 	m_invMag.resize(images.size());
 	m_shearComponents1.resize(images.size());
 	m_convergence.resize(images.size());
+	m_potential.resize(images.size());
 	
 	double maxx = 0, minx = 0, maxy = 0, miny = 0;
 	bool extset = false;
@@ -317,6 +318,24 @@ void ImagesBackProjector::checkConvergence(int sourceNumber) const
 
 	for (int i = 0 ; i < numPoints ; i++)
 		m_convergence[sourceNumber][i] = (float)(0.5*((double)m_axx[sourceNumber][i] + (double)m_ayy[sourceNumber][i]));
+}
+
+void ImagesBackProjector::checkPotential(int sourceNumber) const
+{
+	int numPoints = m_thetas[sourceNumber].size();
+
+	if (m_potential[sourceNumber].size() == numPoints)
+		return;
+
+	m_potential[sourceNumber].resize(numPoints);
+	double potentialScale = m_angularScale*m_angularScale;
+
+	for (int i = 0 ; i < numPoints ; i++)
+	{
+		double potential = 0;
+		m_pLens->getProjectedPotential(1.0, m_distanceFractions[sourceNumber], m_originalThetas[sourceNumber][i], &potential);
+		m_potential[sourceNumber][i] = (float)(potential/potentialScale);
+	}
 }
 
 } // end namespace
