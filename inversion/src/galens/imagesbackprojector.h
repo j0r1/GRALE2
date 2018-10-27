@@ -62,6 +62,7 @@ public:
 	ImagesBackProjector(GravitationalLens &lens, const std::list<ImagesDataExtended *> &images, double z_d, bool copyLens); 
 	~ImagesBackProjector();
 	
+	double getLensDistance() const;
 	double getLensRedshift() const							{ return m_zd; }
 	double getAngularScale() const							{ return m_angularScale; }
 	const Vector2D<float> *getBetas(int sourceNumber) const				{ checkBetas(sourceNumber); return &(m_betas[sourceNumber][0]); }

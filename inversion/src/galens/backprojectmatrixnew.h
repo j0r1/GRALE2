@@ -73,6 +73,7 @@ public:
 	double getAngularScale() const										{ return m_angularScale; }
 	double getMassSheetScale() const									{ return m_massSheetScale; }
 
+	double getLensDistance() const										{ return m_Dd; }
 	double getLensRedshift() const										{ return m_zd; }
 	const Vector2D<float> *getBetas(int sourceNumber) const							{ return &(m_betas[sourceNumber][0]); }
 	const Vector2D<float> *getBetas(int sourceNumber, int imageNumber) const 				{ return &(m_betas[sourceNumber][m_offsets[sourceNumber][imageNumber]]); }

@@ -338,5 +338,10 @@ void ImagesBackProjector::checkPotential(int sourceNumber) const
 	}
 }
 
+double ImagesBackProjector::getLensDistance() const
+{ 
+	return m_pLens->getLensDistance(); 
+}
+
 } // end namespace
 

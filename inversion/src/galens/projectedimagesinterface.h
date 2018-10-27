@@ -129,6 +129,9 @@ public:
 
 	float getDistanceFraction(int sourcenum) const { return m_distanceFractions[sourcenum]; }
 
+	/** Returns the distance to the lens. */
+	virtual double getLensDistance() const = 0;
+
 	/** Returns the redshift of the lens. */
 	virtual double getLensRedshift() const = 0;
 
