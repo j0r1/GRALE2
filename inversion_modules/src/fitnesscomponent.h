@@ -199,6 +199,10 @@ public:
 			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence,
 								   bool &storeOrigIntens, bool &storeOrigTimeDelay, bool &storeOrigShear) override;
 	bool calculateFitness(const ProjectedImagesInterface &iface, float &fitness) override;
+
+	void setExperimentalFitness(bool f) { m_experimental = f; }
+private:
+	bool m_experimental;
 };
 
 class FitnessComponent_KappaThreshold : public FitnessComponent

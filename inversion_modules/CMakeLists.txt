@@ -72,3 +72,5 @@ add_library(galens_general SHARED src/general/general.cpp src/lensfitnessgeneral
 	                          src/pointgroupstorage.cpp)
 target_link_libraries(galens_general ${EXTRA_LIBS} ${GRALE_LIBRARIES})
 install(TARGETS galens_general DESTINATION ${LIBRARY_INSTALL_DIR})
+
+add_subdirectory(tests)

@@ -219,6 +219,8 @@ ConfigurationParameters *LensFitnessGeneral::getDefaultParametersInstance() cons
 	pParams->setParameter("priority_timedelay", 400);
 	pParams->setParameter("priority_kappathreshold", 600);
 	pParams->setParameter("priority_causticpenalty", 100);
+
+	pParams->setParameter("fitness_timedelay_experimental", false);
 	return pParams;
 }
 
@@ -248,13 +250,14 @@ bool LensFitnessGeneral::init(double z_d, std::list<ImagesDataExtended *> &image
 		pImg->clearRetrievalMarkers();
 	
 	// Populate m_totalComponents
+	FitnessComponent_TimeDelay *pTDComponent = new FitnessComponent_TimeDelay(pCache);
 	/*vector<FitnessComponent *>*/ m_totalComponents = {
 		new FitnessComponent_PointImagesOverlap(pCache),
 		new FitnessComponent_ExtendedImagesOverlap(pCache),
 		new FitnessComponent_WeakLensing(pCache),
 		new FitnessComponent_NullSpacePointImages(pCache),
 		new FitnessComponent_NullSpaceExtendedImages(pCache),
-		new FitnessComponent_TimeDelay(pCache),
+		pTDComponent,
 		new FitnessComponent_KappaThreshold(pCache),
 		new FitnessComponent_CausticPenalty(pCache)
 	};
@@ -272,6 +275,21 @@ bool LensFitnessGeneral::init(double z_d, std::list<ImagesDataExtended *> &image
 		}
 
 		pComp->setPriority(priority);
+	}
+
+	// TODO: experimental time delay fitness
+	{
+		bool value = false;
+		string keyName = "fitness_timedelay_experimental";
+		if (!pParams->getParameter(keyName, value))
+		{
+			setErrorString("Can't find (boolean) parameter '" + keyName + "': " + pParams->getErrorString());
+			return false;
+		}
+
+		if (value)
+			cerr << "EXPERIMENTAL TIME DELAY FITNESS (v2)" << endl;
+		pTDComponent->setExperimentalFitness(value);
 	}
 
 	// Get the supported type names

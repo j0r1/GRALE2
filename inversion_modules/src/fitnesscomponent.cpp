@@ -736,7 +736,8 @@ bool FitnessComponent_WeakLensing::calculateFitness(const ProjectedImagesInterfa
 // FitnessComponent_TimeDelay
 
 FitnessComponent_TimeDelay::FitnessComponent_TimeDelay(FitnessComponentCache *pCache) 
-	: FitnessComponent("timedelay", pCache)
+	: FitnessComponent("timedelay", pCache),
+	  m_experimental(false)
 {
 	addRecognizedTypeName("pointimages");
 	addRecognizedTypeName("extendedimages");
@@ -801,7 +802,10 @@ bool FitnessComponent_TimeDelay::inspectImagesData(int idx, const ImagesDataExte
 
 bool FitnessComponent_TimeDelay::calculateFitness(const ProjectedImagesInterface &iface, float &fitness)
 {
-	fitness = calculateTimeDelayFitness(iface, getUsedImagesDataIndices());
+	if (m_experimental)
+		fitness = calculateTimeDelayFitnessExperimental(iface, getUsedImagesDataIndices());
+	else
+		fitness = calculateTimeDelayFitness(iface, getUsedImagesDataIndices());
 	return true;
 }
 

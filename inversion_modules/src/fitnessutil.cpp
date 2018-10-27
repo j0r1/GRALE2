@@ -836,6 +836,11 @@ float calculateTimeDelayFitnessExperimental(const ProjectedImagesInterface &ifac
 {
 	float timeDelayFitness = 0;
 
+	double D_d = iface.getLensDistance();
+	double z_d = iface.getLensRedshift();
+	double dFactor = ((D_d*(1.0+z_d)/SPEED_C) * iface.getAngularScale()*iface.getAngularScale())/(60*60*24);
+	float baseFactor = (float)dFactor;
+
 	for (int s : sourceIndices)
 	{
 		assert(iface.getOriginalNumberOfTimeDelays(s) > 0);
@@ -843,6 +848,8 @@ float calculateTimeDelayFitnessExperimental(const ProjectedImagesInterface &ifac
 		int numTimeDelays = iface.getOriginalNumberOfTimeDelays(s);
 		float tdfit = 0;
 		int count = 0;
+	
+		float factor = baseFactor/iface.getDistanceFraction(s);
 
 		for (int i = 0 ; i < numTimeDelays ; i++)
 		{
@@ -854,11 +861,12 @@ float calculateTimeDelayFitnessExperimental(const ProjectedImagesInterface &ifac
 			if (originalDelay1 < -0.0001f) // negative values can be used to simply indicate a source position
 				continue;
 
-			for (int j = 0 ; j < numTimeDelays ; j++)
-			{
-				if (j == i)
-					continue;
+			Vector2Df alpha1 = iface.getAlphas(s, img1)[point1];
+			Vector2Df theta1 = iface.getThetas(s, img1)[point1];
+			float phi1 = iface.getLensPotential(s, img1)[point1];
 
+			for (int j = i+1 ; j < numTimeDelays ; j++)
+			{
 				int img2, point2;
 				float originalDelay2;
 
@@ -869,41 +877,28 @@ float calculateTimeDelayFitnessExperimental(const ProjectedImagesInterface &ifac
 
 				float realTimeDelayDifference = originalDelay2 - originalDelay1;
 
-				// We have a time delay difference. Now, we'll see how well we can fit this
-				// for each backprojected image position
+				Vector2Df alpha2 = iface.getAlphas(s, img2)[point2];
+				Vector2Df theta2 = iface.getThetas(s, img2)[point2];
+				float phi2 = iface.getLensPotential(s, img2)[point2];
 
-				float squaredSum = 0;
+				float phiDiff = (phi2-phi1);
+				//float alphaDiff = 0.5*(alpha2.getLengthSquared() - alpha1.getLengthSquared());
+				Vector2Df alphaSum = alpha2;
+				alphaSum += alpha1;
 
-				for (int k = 0 ; k < numTimeDelays ; k++)
-				{
-					int srcImg, srcPoint;
-					float dummyValue;
-					Vector2D<float> beta1;
+				Vector2Df thetaDiff = theta2;
+				thetaDiff -= theta1;
 
-					iface.getOriginalTimeDelay(s, k, &srcImg, &srcPoint, &dummyValue);
-					beta1 = iface.getBetas(s, srcImg)[srcPoint];
+				float calculatedDifference = (
+						0.5*(
+							(thetaDiff.getX()*alphaSum.getX()) + (thetaDiff.getY()*alphaSum.getY())
+						) 
+						-
+						phiDiff)*factor;
 
-					for (int l = 0 ; l < numTimeDelays ; l++)
-					{
-						Vector2D<float> beta2;
-
-						iface.getOriginalTimeDelay(s, l, &srcImg, &srcPoint, &dummyValue);
-						beta2 = iface.getBetas(s, srcImg)[srcPoint];
-
-						float delay1 = iface.getTimeDelay(s, img1, point1, beta1);
-						float delay2 = iface.getTimeDelay(s, img2, point2, beta2);
-						float calculatedDifference = delay2 - delay1;
-
-						float relativeDiff = (realTimeDelayDifference - calculatedDifference)/realTimeDelayDifference;
-
-						squaredSum += relativeDiff*relativeDiff;
-					}
-				}
-
-				squaredSum /= (float)(numTimeDelays*numTimeDelays);
-
-
-				tdfit += squaredSum;
+				float relativeDiff = (realTimeDelayDifference - calculatedDifference)/realTimeDelayDifference;
+					
+				tdfit += relativeDiff*relativeDiff;
 				count++;
 			}
 		}
