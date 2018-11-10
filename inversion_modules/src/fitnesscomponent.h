@@ -191,6 +191,8 @@ private:
 class FitnessComponent_TimeDelay : public FitnessComponent
 {
 public:
+	enum TDFitnessType { Paper2009, ExpI, ExpII };
+
 	FitnessComponent_TimeDelay(FitnessComponentCache *pCache);
 	~FitnessComponent_TimeDelay();
 
@@ -200,9 +202,9 @@ public:
 								   bool &storeOrigIntens, bool &storeOrigTimeDelay, bool &storeOrigShear) override;
 	bool calculateFitness(const ProjectedImagesInterface &iface, float &fitness) override;
 
-	void setExperimentalFitness(bool f) { m_experimental = f; }
+	void setFitnessType(TDFitnessType t) { m_fitnessType = t; }
 private:
-	bool m_experimental;
+	TDFitnessType m_fitnessType;
 };
 
 class FitnessComponent_KappaThreshold : public FitnessComponent

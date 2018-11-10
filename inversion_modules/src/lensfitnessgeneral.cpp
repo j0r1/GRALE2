@@ -220,7 +220,7 @@ ConfigurationParameters *LensFitnessGeneral::getDefaultParametersInstance() cons
 	pParams->setParameter("priority_kappathreshold", 600);
 	pParams->setParameter("priority_causticpenalty", 100);
 
-	pParams->setParameter("fitness_timedelay_experimental", false);
+	pParams->setParameter("fitness_timedelay_type", string("Paper2009"));
 	return pParams;
 }
 
@@ -279,17 +279,41 @@ bool LensFitnessGeneral::init(double z_d, std::list<ImagesDataExtended *> &image
 
 	// TODO: experimental time delay fitness
 	{
-		bool value = false;
-		string keyName = "fitness_timedelay_experimental";
-		if (!pParams->getParameter(keyName, value))
+		string keyName = "fitness_timedelay_type";
+		string valueStr;
+
+		TypedParameter tp;
+		if (pParams->getParameter(keyName, tp))
 		{
-			setErrorString("Can't find (boolean) parameter '" + keyName + "': " + pParams->getErrorString());
+			cerr << "Type = " << (int)tp.getType() << endl;
+		}
+
+		if (!pParams->getParameter(keyName, valueStr))
+		{
+			setErrorString("Can't find (string) parameter '" + keyName + "': " + pParams->getErrorString());
 			return false;
 		}
 
-		if (value)
-			cerr << "EXPERIMENTAL TIME DELAY FITNESS (v2)" << endl;
-		pTDComponent->setExperimentalFitness(value);
+		if (valueStr == "Paper2009")
+		{
+			cerr << "Regular Time Delay Fitness (from 2009 article)" << endl;
+			pTDComponent->setFitnessType(FitnessComponent_TimeDelay::Paper2009);
+		}
+		else if (valueStr == "ExperimentalI")
+		{
+			cerr << "EXPERIMENTAL TIME DELAY FITNESS I" << endl;
+			pTDComponent->setFitnessType(FitnessComponent_TimeDelay::ExpI);
+		}
+		else if (valueStr == "ExperimentalII")
+		{
+			cerr << "EXPERIMENTAL TIME DELAY FITNESS II" << endl;
+			pTDComponent->setFitnessType(FitnessComponent_TimeDelay::ExpII);
+		}
+		else
+		{
+			setErrorString("Invalid type for '" + keyName + "': " + valueStr);
+			return false;
+		}
 	}
 
 	// Get the supported type names

@@ -737,7 +737,7 @@ bool FitnessComponent_WeakLensing::calculateFitness(const ProjectedImagesInterfa
 
 FitnessComponent_TimeDelay::FitnessComponent_TimeDelay(FitnessComponentCache *pCache) 
 	: FitnessComponent("timedelay", pCache),
-	  m_experimental(false)
+	  m_fitnessType(Paper2009)
 {
 	addRecognizedTypeName("pointimages");
 	addRecognizedTypeName("extendedimages");
@@ -802,10 +802,17 @@ bool FitnessComponent_TimeDelay::inspectImagesData(int idx, const ImagesDataExte
 
 bool FitnessComponent_TimeDelay::calculateFitness(const ProjectedImagesInterface &iface, float &fitness)
 {
-	if (m_experimental)
-		fitness = calculateTimeDelayFitnessExperimental(iface, getUsedImagesDataIndices());
-	else
+	if (m_fitnessType == Paper2009)
 		fitness = calculateTimeDelayFitness(iface, getUsedImagesDataIndices());
+	else if (m_fitnessType == ExpI)
+		fitness = calculateTimeDelayFitnessExperimental(iface, getUsedImagesDataIndices());
+	else if (m_fitnessType == ExpII)
+		fitness = calculateTimeDelayFitnessExperimental2(iface, getUsedImagesDataIndices());
+	else
+	{
+		setErrorString("Unknown TD fitness type");
+		return false;
+	}
 	return true;
 }
 
