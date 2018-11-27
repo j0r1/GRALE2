@@ -4,6 +4,7 @@
 #include <grale/projectedimagesinterface.h>
 #include <limits>
 #include <list>
+#include <sstream>
 
 #include <iostream>
 
@@ -789,6 +790,24 @@ bool FitnessComponent_TimeDelay::inspectImagesData(int idx, const ImagesDataExte
 		}
 		if (!useTd) // time delay info was explicitly specified to be skipped
 			return true; // just ignore this
+	}
+
+	// Check that there are no negative time delay values: in the past this
+	// was used to ignore a specific value, we'll generate an error if such
+	// a value is still present
+	int numTimeDelays = imgDat.getNumberOfTimeDelays();
+	for (int tIdx = 0 ; tIdx < numTimeDelays ; tIdx++)
+	{
+		int img, point;
+		double delay;
+		imgDat.getTimeDelay(tIdx, &img, &point, &delay);
+		if (delay < 0)
+		{
+			stringstream ss;
+			ss << "A negative time delay (" << delay << ") was present for image " << img << ", point " << point;
+			setErrorString(ss.str());
+			return false;
+		}
 	}
 	
 	needCalcPotential = true;
