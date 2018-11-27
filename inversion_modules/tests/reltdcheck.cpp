@@ -1,17 +1,3 @@
-/*
- * This is a test file for an experimental time delay fitness measure, to
- * make sure that it reaches a near-zero value when the correct lens is used.
- *
- * First, for a certain lens model, a random source position is used, the
- * corresponding images are calculated and the time delays for these images
- * are determined. This is then used as input for fake lenses, which are
- * simply rescaled (in mass density value) versions of the original lens,
- * so for a scale factor of 1, the correct lens is again used and the time
- * delay fitness values should be (nearly) zero at that point. 
- *
- * The output should be saved to 'dat' and the experimentaltdcheck_plot.py
- * file can be used to create a plot.
- */ 
 #include "fitnessutil.h"
 #include <grale/gravitationallens.h>
 #include <grale/lensplane.h>
@@ -21,8 +7,10 @@
 #include <grale/imagesdataextended.h>
 #include <grale/imagesbackprojector.h>
 #include <grale/compositelens.h>
+#include <grale/masssheetlens.h>
 #include <iostream>
 #include <limits>
+#include <memory>
 
 using namespace std;
 using namespace grale;
@@ -30,15 +18,33 @@ using namespace grale;
 int main(void)
 {
 	double zd = 0.4;
-	GravitationalLens *pLens = nullptr;
+	GravitationalLens *pLoadedLens = nullptr;
 	string errstr;
 
-	if (!GravitationalLens::load("reallens_nosheet.lensdata", &pLens, errstr))
+	if (!GravitationalLens::load("reallens_nosheet.lensdata", &pLoadedLens, errstr))
 		cerr << errstr << endl;
+	
+	unique_ptr<GravitationalLens> loadedLens(pLoadedLens);
+	double Dd = pLoadedLens->getLensDistance();
 
-	double Dd = pLens->getLensDistance();
+	MassSheetLens sheetLens;
+	MassSheetLensParams sheetLensParams{ 1.0 };
+	if (!sheetLens.init(Dd, &sheetLensParams))
+		cerr << "Can't init sheet lens: " << sheetLens.getErrorString() << endl;
+
+	CompositeLens realLens;
+	CompositeLensParams realLensParams;
+
+	double loadedLensFrac = 1.0;
+	double sheetLensFrac = 3.0;
+	realLensParams.addLens(loadedLensFrac, {0, 0}, 0, *pLoadedLens);
+	realLensParams.addLens(sheetLensFrac, {0, 0}, 0, sheetLens);
+
+	if (!realLens.init(Dd, &realLensParams))
+		cerr << "Can't init real lens: " << realLens.getErrorString() << endl;
+
 	LensPlane lp;
-	if (!lp.init(pLens, Vector2Dd(-120,-120)*ANGLE_ARCSEC, Vector2Dd(120,120)*ANGLE_ARCSEC, 1024, 1024))
+	if (!lp.init(&realLens, Vector2Dd(-120,-120)*ANGLE_ARCSEC, Vector2Dd(120,120)*ANGLE_ARCSEC, 1024, 1024))
 		cerr << lp.getErrorString() << endl;
 
 	RandomNumberGenerator rng;
@@ -70,7 +76,7 @@ int main(void)
 	for (int i = 0 ; i < thetas.size() ; i++)
 	{
 		double td = 0;
-		pLens->getTimeDelay(zd, 1.0, DdsOverDs, thetas[i], beta, &td);
+		realLens.getTimeDelay(zd, 1.0, DdsOverDs, thetas[i], beta, &td);
 		td /= 24*60*60;
 		if (td < minTd)
 			minTd = td;
@@ -91,16 +97,16 @@ int main(void)
 		imgDat.addTimeDelayInfo(i, pt, td);
 	}
 
-	ImagesBackProjector bpReal(*pLens, { &imgDat }, zd, false);
-	vector<pair<int,int>> refPts;
+	ImagesBackProjector bpReal(realLens, { &imgDat }, zd, false);
+	vector<pair<int,int>> refPoints;
 
 	cerr << "calculateTimeDelayFitness: " << calculateTimeDelayFitness(bpReal, { 0 }) << std::endl;
-	cerr << "calculateTimeDelayFitnessExperimental: " << calculateTimeDelayFitnessExperimental(bpReal, { 0 }) << std::endl;
+	cerr << "calculateTimeDelayFitness_Relative: " << calculateTimeDelayFitness_Relative(bpReal, { 0 }, refPoints) << std::endl;
 	cerr << "calculateTimeDelayFitnessExperimental2: " << calculateTimeDelayFitnessExperimental2(bpReal, { 0 }) << std::endl;
-	cerr << "calculateTimeDelayFitness_Relative: " << calculateTimeDelayFitness_Relative(bpReal, { 0 }, refPts) << std::endl;
+	cerr << "calculateTimeDelayFitnessExperimental2_Relative: " << calculateTimeDelayFitnessExperimental2_Relative(bpReal, { 0 }, refPoints) << std::endl;
 	cerr << endl;
 
-	cout << "# frac normal experimental experimental2 normal_rel" << endl;
+	cout << "# frac normal experimental2 normal_rel experimental2_rel" << endl;
 	for (int i = 10 ; i < 200 ; i++)
 	{
 		double frac = (double)i/100.0;
@@ -108,16 +114,17 @@ int main(void)
 
 		CompositeLensParams params;
 		CompositeLens lens;
-		params.addLens(frac, { 0, 0 }, 0, *pLens);
+		params.addLens(loadedLensFrac, { 0, 0 }, 0, *loadedLens.get());
+		params.addLens(frac*sheetLensFrac, { 0, 0 }, 0, sheetLens);
 
 		if (!lens.init(Dd, &params))
 			cerr << "Couldn't init composite lens" << endl;
 
 		ImagesBackProjector bp(lens, { &imgDat }, zd, false);
 		cout << calculateTimeDelayFitness(bp, { 0 }) << " ";
-		cout << calculateTimeDelayFitnessExperimental(bp, { 0 }) << " ";
 		cout << calculateTimeDelayFitnessExperimental2(bp, { 0 }) << " ";
-		cout << calculateTimeDelayFitness_Relative(bp, { 0 }, refPts) << std::endl;
+		cout << calculateTimeDelayFitness_Relative(bp, { 0 }, refPoints) << " ";
+		cout << calculateTimeDelayFitnessExperimental2_Relative(bp, { 0 }, refPoints) << std::endl;
 	}
 
 	return 0;

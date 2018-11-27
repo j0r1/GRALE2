@@ -51,6 +51,13 @@ float calculateTimeDelayFitnessExperimental(const ProjectedImagesInterface &ifac
 
 float calculateTimeDelayFitnessExperimental2(const ProjectedImagesInterface &iface, const std::vector<int> &sourceIndices);
 
+float calculateTimeDelayFitness_Relative(const ProjectedImagesInterface &iface, const std::vector<int> &sourceIndices,
+													  std::vector<std::pair<int,int>> &referencePoints);
+
+float calculateTimeDelayFitnessExperimental2_Relative(const ProjectedImagesInterface &iface, 
+		                                              const std::vector<int> &sourceIndices,
+													  std::vector<std::pair<int,int>> &referencePoints);
+
 float calculateKappaThresholdFitness(const ProjectedImagesInterface &iface, const std::vector<int> &sourceIndices,
 		                             const std::vector<float> &kappaThresholds);
 
