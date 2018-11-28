@@ -738,7 +738,8 @@ bool FitnessComponent_WeakLensing::calculateFitness(const ProjectedImagesInterfa
 
 FitnessComponent_TimeDelay::FitnessComponent_TimeDelay(FitnessComponentCache *pCache) 
 	: FitnessComponent("timedelay", pCache),
-	  m_fitnessType(Paper2009)
+	  m_fitnessType(Paper2009),
+	  m_relative(false)
 {
 	addRecognizedTypeName("pointimages");
 	addRecognizedTypeName("extendedimages");
@@ -821,8 +822,19 @@ bool FitnessComponent_TimeDelay::inspectImagesData(int idx, const ImagesDataExte
 
 bool FitnessComponent_TimeDelay::calculateFitness(const ProjectedImagesInterface &iface, float &fitness)
 {
+	if (m_relative && m_fitnessType != Paper2009)
+	{
+		setErrorString("Currently only the Paper2009 algorithm is supported for relative time delays");
+		return false;
+	}
+
 	if (m_fitnessType == Paper2009)
-		fitness = calculateTimeDelayFitness(iface, getUsedImagesDataIndices());
+	{
+		if (!m_relative)
+			fitness = calculateTimeDelayFitness(iface, getUsedImagesDataIndices());
+		else
+			fitness = calculateTimeDelayFitness_Relative(iface, getUsedImagesDataIndices(), m_referencePoints);
+	}
 	else if (m_fitnessType == ExpI)
 		fitness = calculateTimeDelayFitnessExperimental(iface, getUsedImagesDataIndices());
 	else if (m_fitnessType == ExpII)

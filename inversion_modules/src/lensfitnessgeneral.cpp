@@ -221,6 +221,7 @@ ConfigurationParameters *LensFitnessGeneral::getDefaultParametersInstance() cons
 	pParams->setParameter("priority_causticpenalty", 100);
 
 	pParams->setParameter("fitness_timedelay_type", string("Paper2009"));
+	pParams->setParameter("fitness_timedelay_relative", false);
 	return pParams;
 }
 
@@ -277,16 +278,16 @@ bool LensFitnessGeneral::init(double z_d, std::list<ImagesDataExtended *> &image
 		pComp->setPriority(priority);
 	}
 
-	// TODO: experimental time delay fitness
+	// Time delay fitness type
 	{
 		string keyName = "fitness_timedelay_type";
 		string valueStr;
 
 		TypedParameter tp;
-		if (pParams->getParameter(keyName, tp))
-		{
-			cerr << "Type = " << (int)tp.getType() << endl;
-		}
+		//if (pParams->getParameter(keyName, tp))
+		//{
+		//	cerr << "Type = " << (int)tp.getType() << endl;
+		//}
 
 		if (!pParams->getParameter(keyName, valueStr))
 		{
@@ -314,6 +315,19 @@ bool LensFitnessGeneral::init(double z_d, std::list<ImagesDataExtended *> &image
 			setErrorString("Invalid type for '" + keyName + "': " + valueStr);
 			return false;
 		}
+	}
+	// Relative TD fitness?
+	{
+		string keyName = "fitness_timedelay_relative";
+		bool value;
+
+		if (!pParams->getParameter(keyName, value))
+		{
+			setErrorString("Can't find (boolean) parameter '" + keyName + "': " + pParams->getErrorString());
+			return false;
+		}
+
+		pTDComponent->setUseRelativeDelays(value);
 	}
 
 	// Get the supported type names

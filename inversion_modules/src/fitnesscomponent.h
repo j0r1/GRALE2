@@ -203,8 +203,11 @@ public:
 	bool calculateFitness(const ProjectedImagesInterface &iface, float &fitness) override;
 
 	void setFitnessType(TDFitnessType t) { m_fitnessType = t; }
+	void setUseRelativeDelays(bool f = true) { m_relative = f; }
 private:
 	TDFitnessType m_fitnessType;
+	bool m_relative;
+	std::vector<std::pair<int,int>> m_referencePoints; // for relative TD fitness
 };
 
 class FitnessComponent_KappaThreshold : public FitnessComponent
