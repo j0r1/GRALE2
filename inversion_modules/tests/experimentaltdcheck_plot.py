@@ -1,7 +1,10 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import sys
 
-data = np.array([ list(map(float,l.split())) for l in open("dat") if l and not l.startswith("#")])
+inputFile = sys.argv[1]
+outputPng = sys.argv[2]
+data = np.array([ list(map(float,l.split())) for l in open(inputFile) if l and not l.startswith("#")])
 print(data)
 
 plt.figure(figsize=(15,10))
@@ -38,5 +41,5 @@ plt.plot(data[:,0], data[:,3], "+")
 plt.gca().set_title("Experimental time delay fitness measure II (log)")
 plt.gca().set_xlabel("Scale factor")
 
-plt.savefig("td_fitness_comparison.png", bbox_inches="tight")
+plt.savefig(outputPng, bbox_inches="tight")
 
