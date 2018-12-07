@@ -32,6 +32,7 @@
 #include <errut/errorbase.h>
 #include <vector>
 #include <map>
+#include <memory>
 
 namespace grale
 {
@@ -48,7 +49,7 @@ public:
 	int addDeflectionPoint(Vector2D<double> point);
 	int addDerivativePoint(Vector2D<double> point);
 	int addPotentialPoint(Vector2D<double> point);
-	bool endInit(const std::vector<std::pair<GravitationalLens *, Vector2D<double> > > &basisLenses);
+	bool endInit(const std::vector<std::pair<std::shared_ptr<GravitationalLens>, Vector2D<double> > > &basisLenses);
 
 	bool calculateBasisMatrixProducts(const std::vector<float> &basisWeights, bool calcDeflection, bool calcDerivatives, bool calcPotential);
 

@@ -33,6 +33,7 @@
 #include "vector2d.h"
 #include <mogal/gafactorydefaults.h>
 #include <vector>
+#include <memory>
 
 namespace grale
 {
@@ -106,7 +107,7 @@ protected:
 	void onGeneticAlgorithmStart() override;
 private:
 	bool localSubInit(double z_d, const std::vector<ImagesDataExtended *> &images, 
-	                  const std::vector<std::pair<GravitationalLens *, Vector2D<double> > > &basisLenses,
+	                  const std::vector<std::pair<std::shared_ptr<GravitationalLens>, Vector2D<double> > > &basisLenses,
 					  const GravitationalLens *pBaseLens, bool useSheet, 
 					  const ConfigurationParameters *pFitnessObjectParams);
 	double getAngularScale() const								{ return m_pShortBPMatrix->getAngularScale(); }
@@ -121,7 +122,7 @@ private:
 
 	std::vector<float> m_massWeights;
 
-	std::vector<std::pair<GravitationalLens *, Vector2D<double> > > m_basisLenses;
+	std::vector<std::pair<std::shared_ptr<GravitationalLens>, Vector2D<double> > > m_basisLenses;
 
 	LensFitnessObject *m_pFitnessObject;
 	DeflectionMatrix *m_pDeflectionMatrix;

@@ -9,6 +9,7 @@
 #include "masssheetlens.h"
 #include <vector>
 #include <iostream>
+#include <memory>
 
 using namespace grale;
 using namespace std;
@@ -123,7 +124,7 @@ int main(void)
 	if (!bpMatrix.startInit(z_d, D_d, &matrix, images, ones, ones, ones, pBaseLens, true, true, true, useMassSheet))
 		cerr << "Couldn't init BackProjectMatrixNew" << endl;
 
-	vector<pair<GravitationalLens *, Vector2Dd>> basisLenses;
+	vector<pair<shared_ptr<GravitationalLens>, Vector2Dd>> basisLenses;
 	for (int i = 0 ; i < NLENSES ; i++) // lenses
 	{
 		double x = (rng.pickRandomNumber()*2.0-1.0)*15*ANGLE_ARCSEC;
@@ -133,7 +134,7 @@ int main(void)
 		double w = (rng.pickRandomNumber()*0.9+0.1)*7*ANGLE_ARCSEC;
 		double mass = (rng.pickRandomNumber()*0.9+0.1)*MASS_SOLAR*1e13;
 		PlummerLensParams params(mass, w);
-		GravitationalLens *pLens = new PlummerLens();
+		shared_ptr<GravitationalLens> pLens(new PlummerLens());
 		if (!pLens->init(D_d, &params))
 			cerr << "Couldn't init lens" << endl;
 

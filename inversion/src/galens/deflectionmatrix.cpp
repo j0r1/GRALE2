@@ -168,7 +168,7 @@ int DeflectionMatrix::addPotentialPoint(Vector2D<double> point)
 	return existingIndex;
 }
 
-bool DeflectionMatrix::endInit(const std::vector<std::pair<GravitationalLens *, Vector2D<double> > > &basisLenses)
+bool DeflectionMatrix::endInit(const std::vector<std::pair<std::shared_ptr<GravitationalLens>, Vector2D<double> > > &basisLenses)
 {
 	if (m_initialized)
 	{

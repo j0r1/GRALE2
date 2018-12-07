@@ -27,9 +27,6 @@
 #include "gridlensinversiongafactoryparams.h"
 #include "gridlensinversiongenomebase.h"
 #include "compositelens.h"
-#include "plummerlens.h"
-#include "squarelens.h"
-#include "gausslens.h"
 #include "masssheetlens.h"
 #include "lensfitnessobject.h"
 #include "imagesdata.h"
@@ -87,8 +84,6 @@ GridLensInversionGAFactoryBase::~GridLensInversionGAFactoryBase()
 {
 	if (m_pCurrentParams)
 		delete m_pCurrentParams;
-	for (int i = 0 ; i < m_basisLenses.size() ; i++)
-		delete m_basisLenses[i].first;
 	if (m_pDeflectionMatrix)
 			delete m_pDeflectionMatrix;
 	if (m_pShortBPMatrix)
@@ -162,95 +157,35 @@ bool GridLensInversionGAFactoryBase::init(const mogal::GAFactoryParams *p)
 
 	// Determine mass weights
 
-	const std::vector<GridSquare> &squares = m_pCurrentParams->getGridSquares();
-	m_massWeights.resize(squares.size());
-	m_numMasses = m_pCurrentParams->getGridSquares().size();
-
-	if (p2->useMassWeights())
+	auto basisLenses = m_pCurrentParams->getBasisLenses();
+	if (basisLenses.size() == 0)
 	{
-		sendMessage("Using mass weights");
-		
-		double sum = 0;
-
-		auto it = squares.begin();
-		for (it = squares.begin(); it != squares.end() ; it++)
-		{
-			double w = (*it).getSize();
-			double w2 = (w*w);
-
-			sum += w2;
-		}
-		
-		// on a uniform grid, we'd like each weight to be one
-		it = squares.begin();
-		for (int i = 0 ; it != squares.end() ; i++, it++)
-		{
-			double w = (*it).getSize();
-			double w2 = (w*w);
-
-			m_massWeights[i] = (float)((((double)m_numMasses)*w2)/sum);
-//			std::cout << " " << m_massWeights[i];
-		}
-		//std::cout << std::endl;
-	}
-	else
-	{
-		int i = 0;
-
-		for (auto it = squares.begin(); it != squares.end() ; it++, i++)
-			m_massWeights[i] = 1;
+		setErrorString("Unable to get basis lenses: " + m_pCurrentParams->getErrorString());
+		return false;
 	}
 
-	// Create the basis functions
+	m_numMasses = basisLenses.size();
 
-	std::vector<std::pair<GravitationalLens *, Vector2D<double> > > basisLenses;
-	double massScale = p2->getMassScale();
-	double D_d = p2->getD_d();
-	int squareNumber = 0;
-
-	for (auto squareIt = squares.begin() ; squareIt != squares.end() ; squareIt++, squareNumber++)
+	double totalRelevantLensingMass = 0;
+	for (const auto &bl : basisLenses)
 	{
-		double gridSize = (*squareIt).getSize();
-		Vector2D<double> gridCenter = (*squareIt).getCenter();
-		bool returnValue;
-		GravitationalLens *pLens;
-	
-		if (m_pCurrentParams->getBasisFunctionType() == GridLensInversionParameters::PlummerBasis)
+		m_basisLenses.push_back( { bl.m_pLens, bl.m_center });
+		
+		double m = bl.m_relevantLensingMass;
+		if (m <= 0)
 		{
-			PlummerLensParams lensParams(massScale * m_massWeights[squareNumber], gridSize);
-
-			pLens = new PlummerLens();
-			returnValue = pLens->init(D_d, &lensParams);
-		}
-		else if (m_pCurrentParams->getBasisFunctionType() == GridLensInversionParameters::GaussBasis)
-		{
-			GaussLensParams lensParams(massScale * m_massWeights[squareNumber], gridSize);
-
-			pLens = new GaussLens();
-			returnValue = pLens->init(D_d, &lensParams);
-		}
-		else // Squares
-		{
-			SquareLensParams lensParams(massScale * m_massWeights[squareNumber], gridSize);
-
-			pLens = new SquareLens();
-			returnValue = pLens->init(D_d, &lensParams);
-		}
-
-		if (!returnValue)
-		{
-			setErrorString(std::string("Couldn't initialize basis lens: ") + pLens->getErrorString());
-			for (int i = 0 ; i < m_basisLenses.size() ; i++)
-				delete m_basisLenses[i].first;
-			m_basisLenses.clear();
-			delete pLens;
-			delete m_pCurrentParams;
-			m_pCurrentParams = 0;
+			setErrorString("A basis lens has a negative lensing mass");
 			return false;
 		}
 
-		m_basisLenses.push_back(std::pair<GravitationalLens *, Vector2D<double> >(pLens, gridCenter));
+		totalRelevantLensingMass += m;
 	}
+
+	// Note: this yields numerically the same result as the older implementation
+	totalRelevantLensingMass /= m_numMasses; 
+
+	for (const auto &bl : basisLenses)
+		m_massWeights.push_back((float)(bl.m_relevantLensingMass/totalRelevantLensingMass));
 
 	bool useSheet = false;
 
@@ -272,8 +207,6 @@ bool GridLensInversionGAFactoryBase::init(const mogal::GAFactoryParams *p)
 				m_pCurrentParams->getFitnessObjectParameters()))
 	{
 		// Error string is set in subInit
-		for (int i = 0 ; i < m_basisLenses.size() ; i++)
-			delete m_basisLenses[i].first;
 		m_basisLenses.clear();
 		delete m_pCurrentParams;
 		m_pCurrentParams = 0;
@@ -391,7 +324,7 @@ GravitationalLens *GridLensInversionGAFactoryBase::createLens(const std::vector<
 	CompositeLens *pLens;
 
 	for (int i = 0 ; i < m_basisLenses.size() ; i++)
-		lensParams.addLens((double)masses[i]*(double)scaleFactor, m_basisLenses[i].second, 0, *(m_basisLenses[i].first));
+		lensParams.addLens((double)masses[i]*(double)scaleFactor, m_basisLenses[i].second, 0, *m_basisLenses[i].first.get());
 
 	if (m_sheetScale != 0)
 	{
@@ -465,7 +398,7 @@ void GridLensInversionGAFactoryBase::onSortedPopulation(const std::vector<mogal:
 #endif // SHOWEVOLUTION
 
 bool GridLensInversionGAFactoryBase::localSubInit(double z_d, const std::vector<ImagesDataExtended *> &images, 
-	                  const std::vector<std::pair<GravitationalLens *, Vector2D<double> > > &basisLenses,
+	                  const std::vector<std::pair<std::shared_ptr<GravitationalLens>, Vector2D<double> > > &basisLenses,
                       const GravitationalLens *pBaseLens, bool useSheet, 
 					  const ConfigurationParameters *pFitnessObjectParams)
 {
