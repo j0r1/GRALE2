@@ -229,9 +229,6 @@ bool GridLensInversionParameters::write(serut::SerializationInterface &si) const
 
 	switch(m_massSheetSearchType)
 	{
-	case Loop:
-		val = SHEETSEARCHTYPE_LOOP;
-		break;
 	case Genome:
 		val = SHEETSEARCHTYPE_GENOME;
 		break;
@@ -447,9 +444,6 @@ bool GridLensInversionParameters::read(serut::SerializationInterface &si)
 		break;
 	case SHEETSEARCHTYPE_GENOME:
 		m_massSheetSearchType = Genome;
-		break;
-	case SHEETSEARCHTYPE_LOOP:
-		m_massSheetSearchType = Loop;
 		break;
 	default:
 		setErrorString("Invalid mass-sheet search type");

@@ -17,8 +17,7 @@ cdef extern from "grale/gridlensinversionparameters.h" namespace "grale::GridLen
 
     cdef enum MassSheetSearchType:
         NoSheet,
-        Genome,
-        Loop
+        Genome
 
 cdef extern from "grale/gridlensinversionparameters.h" namespace "grale":
     cdef cppclass GridLensInversionParameters(errut.ErrorBase):

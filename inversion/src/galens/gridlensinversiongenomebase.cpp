@@ -155,8 +155,6 @@ bool GridLensInversionGenomeBase::calculateFitness()
 		stopValue /= massum;
 	}
 
-	bool loopSheet = m_pFactory->useLoopSheet();
-
 	// Forward transform
 	float (*FT)(float x) = IdentityTrans;
 	// Inverse transform
@@ -175,7 +173,7 @@ bool GridLensInversionGenomeBase::calculateFitness()
 	startValue0 = startValue;
 	stopValue0 = stopValue;
 
-	if (!loopSheet)
+	if (1) // (!loopSheet)
 	{
 		float currentBestFitness = std::numeric_limits<float>::max();
 		float currentBestScaleFactor = 1.0f;
@@ -217,81 +215,6 @@ bool GridLensInversionGenomeBase::calculateFitness()
 		}
 
 		m_scaleFactor = IT(currentBestScaleFactor);
-	}
-	else
-	{
-		//std::cerr << std::endl << std::endl << std::endl;
-
-		float currentBestFitness = std::numeric_limits<float>::max();
-		float currentBestScaleFactor = 1.0f;
-		float currentBestSheetFactor = 1.0f;
-		float sheetScale = m_pFactory->getSheetScale();
-
-		// For the sheet search, we're not going to to a logarithmic search, to allow
-		// for a sheet of zero as well
-
-		sheetStartValue *= sheetScale;
-		sheetStopValue *= sheetScale;
-
-		sheetStartValue0 = sheetStartValue;
-		sheetStopValue0 = sheetStopValue;
-
- 		for (int i = 0 ; i < numiterations ; i++)
-		{
-			float stepsize = (stopValue-startValue)/((float)(numiterationsteps-1));
-			float sheetStepSize = (sheetStopValue-sheetStartValue)/((float)(numiterationsteps-1));
-			float s = startValue;
-
-			for (int j = 0 ; j < numiterationsteps ; j++, s += stepsize)
-			{
-				float realScale = IT(s);
-				float s2 = sheetStartValue;
-
-				for (int k = 0 ; k < numiterationsteps ; k++, s2 += sheetStepSize)
-				{
-					float f;
-					
-					if (!calculateMassScaleFitness(realScale, s2, f))
-						return false; // error should already have been set
-				
-					//std::cerr << s << " " << s2 << " " << f << std::endl;
-
-					if (f < currentBestFitness)
-					{
-						currentBestFitness = f;
-						currentBestScaleFactor = s;
-						currentBestSheetFactor = s2;
-					}
-				}
-				//std::cerr << std::endl;
-			}
-
-			startValue = currentBestScaleFactor-stepsize;
-			stopValue = currentBestScaleFactor+stepsize;
-			sheetStartValue = currentBestSheetFactor-sheetStepSize;
-			sheetStopValue = currentBestSheetFactor+sheetStepSize;
-
-			// Make sure we stay within bounds
-			if (startValue < startValue0)
-				startValue = startValue0;
-			if (stopValue > stopValue0)
-				stopValue = stopValue0;
-			if (sheetStartValue < sheetStartValue0)
-				sheetStartValue = sheetStartValue0;
-			if (sheetStopValue > sheetStopValue0)
-				sheetStopValue = sheetStopValue0;
-
-			// After the first loop, we're going to just zoom in on the first located value
-			// This can use a different number of steps
-			numiterationsteps = numiterationsteps2;
-		}
-
-		m_scaleFactor = IT(currentBestScaleFactor);
-		sheetFactor = currentBestSheetFactor;
-
-		// std::cout << "Best factors are " << scalefactor << "," << sheetFactor << std::endl;
-
-		m_sheetFactor = sheetFactor;
 	}
 
 	// Do the final (possibly multi-component) fitness evaluation
@@ -614,9 +537,7 @@ GravitationalLens *GridLensInversionGenomeBase::createLens(double *totalmass, st
 
 	return lens;
 #else
-	if (!m_pFactory->useLoopSheet())
-		return m_pFactory->createLens(m_masses, m_sheetValue, m_scaleFactor, totalmass, errstr);
-	return m_pFactory->createLens(m_masses, m_sheetFactor/m_pFactory->getSheetScale(), m_scaleFactor, totalmass, errstr);
+	return m_pFactory->createLens(m_masses, m_sheetValue, m_scaleFactor, totalmass, errstr);
 #endif
 }
 

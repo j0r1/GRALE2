@@ -78,7 +78,6 @@ public:
 	bool allowNegativeValues() const							{ return m_allowNegativeValues; }
 	const float *getMassWeights() const							{ return &(m_massWeights[0]); }
 	float getSheetScale() const								{ return m_sheetScale; }
-	bool useLoopSheet() const								{ return m_useLoopSheet; }
 	
 	void getGenomeCalculationParameters(float &startfactor, float &stopfactor, int &numiterationsteps, int &numiterations, int &numiterationsteps2) const;
 	void getGenomeSheetCalculationParameters(float &startfactor, float &stopfactor) const;
@@ -121,7 +120,6 @@ private:
 	int m_numMasses, m_maxGenerations;
 	bool m_allowNegativeValues;
 	bool m_useGenomeSheet;
-	bool m_useLoopSheet;
 	float m_sheetScale;
 	bool m_wideSearch;
 

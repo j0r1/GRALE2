@@ -260,21 +260,11 @@ bool GridLensInversionGAFactoryBase::init(const mogal::GAFactoryParams *p)
 		// TODO: what is a good value here?
 		m_sheetScale = 1.1;
 		m_useGenomeSheet = true;
-		m_useLoopSheet = false;
-	}
-	else if (p2->getMassSheetSearchType() == GridLensInversionParameters::Loop)
-	{
-		useSheet = true;
-		// TODO: what is a good value here?
-		m_sheetScale = 1.1;
-		m_useGenomeSheet = false;
-		m_useLoopSheet = true;
 	}
 	else // no sheet
 	{
 		m_sheetScale = 0;
 		m_useGenomeSheet = false;
-		m_useLoopSheet = false;
 	}
 
 	// perform sub-initialization
@@ -321,15 +311,6 @@ bool GridLensInversionGAFactoryBase::init(const mogal::GAFactoryParams *p)
 	m_gridSize = SQRT((maxx-minx)*(maxx-minx)+(maxy-miny)*(maxy-miny));
 	m_gridCenter /= m_plummerPositions.size();
 	
-	if (m_useLoopSheet)
-	{
-		//double gridArea = m_gridSize*m_gridSize*getAngularScale()*getAngularScale()*D_d*D_d;
-		//
-		//m_sheetScale = massScale/gridArea;
-		m_sheetScale = (SPEED_C*SPEED_C/(4.0*CONST_PI*CONST_G))*(1.0/D_d);
-		sendMessage("Using sheet scale " + std::to_string(m_sheetScale));
-	}
-
 	m_allowNegativeValues = p2->allowNegativeValues();
 	m_wideSearch = p2->useWideSearch();
 

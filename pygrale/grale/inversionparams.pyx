@@ -232,10 +232,8 @@ cdef class GridLensInversionParameters(object):
                 sheetSearchType = gridlensinversionparameters.NoSheet
             elif sheetSearch == "genome":
                 sheetSearchType = gridlensinversionparameters.Genome
-            elif sheetSearch == "loop":
-                sheetSearchType = gridlensinversionparameters.Loop
             else:
-                raise InversionParametersException("Unknown sheet search type '{}', should be 'nosheet', 'genome' or 'loop'".format(sheetSearch))
+                raise InversionParametersException("Unknown sheet search type '{}', should be 'nosheet' or 'genome'".format(sheetSearch))
 
             if fitnessObjectParameters:
                 fitnessObjectParametersObj = ConfigurationParameters(fitnessObjectParameters)

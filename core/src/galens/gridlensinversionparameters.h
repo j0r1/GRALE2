@@ -44,7 +44,7 @@ class GRALE_IMPORTEXPORT GridLensInversionParameters : public errut::ErrorBase
 {
 public:
 	enum BasisFunctionType { PlummerBasis, SquareBasis, GaussBasis };
-	enum MassSheetSearchType { NoSheet, Genome, Loop };
+	enum MassSheetSearchType { NoSheet, Genome };
 	
 	GridLensInversionParameters();
 	GridLensInversionParameters(int maxgenerations,
