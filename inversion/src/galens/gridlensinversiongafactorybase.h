@@ -71,10 +71,6 @@ public:
 	bool hasFloatingPointFitnessValues() const 						{ return true; }
 
 	const mogal::RandomNumberGenerator *getRandomNumberGenerator() const			{ return &m_rndGen; }
-	const std::vector<Vector2D<float> > &getPlummerPositions() const			{ return m_plummerPositions; }
-	const std::vector<float> &getSquareSizes() const					{ return m_squareSizes; }
-	float getGridSize() const								{ return m_gridSize; }
-	Vector2D<float> getGridCenter() const							{ return m_gridCenter; }
 	bool allowNegativeValues() const							{ return m_allowNegativeValues; }
 	const float *getMassWeights() const							{ return &(m_massWeights[0]); }
 	float getSheetScale() const								{ return m_sheetScale; }
@@ -123,11 +119,7 @@ private:
 	float m_sheetScale;
 	bool m_wideSearch;
 
-	std::vector<Vector2D<float> > m_plummerPositions;
-	std::vector<float> m_squareSizes;
 	std::vector<float> m_massWeights;
-	float m_gridSize;
-	Vector2D<float> m_gridCenter;
 
 	std::vector<std::pair<GravitationalLens *, Vector2D<double> > > m_basisLenses;
 

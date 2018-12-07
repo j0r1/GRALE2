@@ -281,36 +281,6 @@ bool GridLensInversionGAFactoryBase::init(const mogal::GAFactoryParams *p)
 	}
 	
 	m_maxGenerations = m_pCurrentParams->getMaximumNumberOfGenerations();
-	int k;
-	float minx = 1e30f;
-	float miny = 1e30f;
-	float maxx = -1e30f;
-	float maxy = -1e30f;
-
-	m_plummerPositions.resize(squares.size());
-	m_squareSizes.resize(squares.size());
-	m_gridCenter = Vector2D<float>(0, 0);
-
-	auto it = squares.begin();
-	for (it = squares.begin(), k = 0 ; it != squares.end() ; it++, k++)
-	{
-		Vector2D<double> pos = (*it).getCenter()/getAngularScale();
-		float x = (float)pos.getX();
-		float y = (float)pos.getY();
-
-		m_plummerPositions[k] = Vector2D<float>(x, y);
-		m_squareSizes[k] = (*it).getSize()/getAngularScale();
-
-		minx = MIN(minx, x);
-		miny = MIN(miny, y);
-		maxx = MAX(maxx, x);
-		maxy = MAX(maxy, y);
-
-		m_gridCenter += Vector2D<float>(x, y);
-	}
-	m_gridSize = SQRT((maxx-minx)*(maxx-minx)+(maxy-miny)*(maxy-miny));
-	m_gridCenter /= m_plummerPositions.size();
-	
 	m_allowNegativeValues = p2->allowNegativeValues();
 	m_wideSearch = p2->useWideSearch();
 
