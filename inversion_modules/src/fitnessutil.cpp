@@ -59,6 +59,7 @@ float getScaleFactor_PointImages(const ProjectedImagesInterface &interface,
 		if (dx > 0 && dy > 0)
 			scale = 1.0f/(dx*dx + dy*dy);
 	}
+	assert(!isnan(scale));
 	return scale;
 }
 
@@ -109,6 +110,7 @@ float calculateOverlapFitness_PointImages(const ProjectedImagesInterface &interf
 	if (sourceCount > 0)
 		fitness /= (float)sourceCount;
 
+	assert(!isnan(fitness));
 	return fitness;
 }
 
@@ -261,6 +263,7 @@ float calculateOverlapFitness_Extended(const PointGroupStorage &pointGroups, con
 	if (sourceCount > 0)
 		posfitness /= sourceCount;
 	
+	assert(!isnan(posfitness));
 	return posfitness;
 }
 
@@ -480,6 +483,7 @@ float calculateNullFitness_PointImages(const ProjectedImagesInterface &interface
 		nullFitness += nullenergy * nullWeights[weigthIdx];
 	}
 
+	assert(!isnan(nullFitness));
 	return nullFitness;
 }
 
@@ -544,6 +548,11 @@ void getEstimatedSourceShape(int s, const ProjectedImagesInterface &iface, Fitne
 	maxX = maxx;
 	minY = miny;
 	maxY = maxy;
+
+	assert(!isnan(minX));
+	assert(!isnan(maxX));
+	assert(!isnan(minY));
+	assert(!isnan(maxY));
 }
 
 float calculateNullFitness_ExtendedImages(const ProjectedImagesInterface &iface, 
@@ -668,6 +677,7 @@ float calculateNullFitness_ExtendedImages(const ProjectedImagesInterface &iface,
 		nullfitness += nullenergy * nullWeights[weigthIdx];
 	}
 
+	assert(!isnan(nullfitness));
 	return nullfitness;
 }
 
@@ -745,6 +755,7 @@ float calculateWeakLensingFitness(const ProjectedImagesInterface &interface, con
 	else
 		shearFitness /= usedPoints; // this also covers all the weak lensing data sets
 
+	assert(!isnan(shearFitness));
 	return shearFitness;
 }
 
@@ -830,6 +841,7 @@ float calculateTimeDelayFitness(const ProjectedImagesInterface &iface, const vec
 		timeDelayFitness += tdfit;
 	}
 
+	assert(!isnan(timeDelayFitness));
 	return timeDelayFitness;
 }
 
@@ -897,6 +909,7 @@ float calculateTimeDelayFitnessExperimental(const ProjectedImagesInterface &ifac
 		timeDelayFitness += tdfit;
 	}
 
+	assert(!isnan(timeDelayFitness));
 	return timeDelayFitness;
 }
 
@@ -978,6 +991,7 @@ float calculateTimeDelayFitnessExperimental2(const ProjectedImagesInterface &ifa
 		timeDelayFitness += tdfit;
 	}
 
+	assert(!isnan(timeDelayFitness));
 	return timeDelayFitness;
 }
 
@@ -1161,6 +1175,7 @@ float calculateTimeDelayFitness_Relative(const ProjectedImagesInterface &iface, 
 		timeDelayFitness += tdfit;
 	}
 
+	assert(!isnan(timeDelayFitness));
 	return timeDelayFitness;
 }
 
@@ -1284,8 +1299,8 @@ float calculateTimeDelayFitnessExperimental2_Relative(const ProjectedImagesInter
 		timeDelayFitness += tdfit;
 	}
 
+	assert(!isnan(timeDelayFitness));
 	return timeDelayFitness;
-
 }
 
 float calculateKappaThresholdFitness(const ProjectedImagesInterface &iface, const vector<int> &sourceIndices,
@@ -1313,6 +1328,7 @@ float calculateKappaThresholdFitness(const ProjectedImagesInterface &iface, cons
 				fitness += (pKappas[i]-threshold);
 		}
 	}
+	assert(!isnan(fitness));
 	return fitness;
 }
 
@@ -1563,6 +1579,8 @@ float calculateCausticPenaltyFitness(const ProjectedImagesInterface &iface,
 			//std::cerr << std::endl;
 		}
 	}
+
+	assert(!isnan(causticFitness));
 	return causticFitness;
 }
 
