@@ -30,7 +30,6 @@
 #include "graleconfig.h"
 #include "lensinversiongafactoryparams.h"
 #include "gridlensinversionparameters.h"
-#include <memory>
 
 namespace grale
 {
@@ -42,24 +41,6 @@ class ConfigurationParameters;
 class GRALE_IMPORTEXPORT GridLensInversionGAFactoryParams : public LensInversionGAFactoryParams
 {
 public:
-	class BasisLensInfo
-	{
-	public:
-		BasisLensInfo(std::shared_ptr<GravitationalLens> &lens, Vector2Dd center, double relevantLensingMass)
-			: m_pLens(lens), m_center(center), m_relevantLensingMass(relevantLensingMass)
-		{
-		}
-
-		BasisLensInfo(const BasisLensInfo &src)
-			: m_pLens(src.m_pLens), m_center(src.m_center), m_relevantLensingMass(src.m_relevantLensingMass)
-		{
-		}
-
-		const std::shared_ptr<GravitationalLens> m_pLens;
-		const Vector2Dd m_center;
-		const double m_relevantLensingMass;
-	};
-
 	GridLensInversionGAFactoryParams();
 	GridLensInversionGAFactoryParams(int maxgenerations,
 					 const std::vector<ImagesDataExtended *> &images, 
@@ -83,9 +64,6 @@ public:
 	double getZ_d() const															{ return m_pParams->getZ_d(); }
 	double getMassScale() const														{ return m_pParams->getMassScale(); }
 	const std::vector<ImagesDataExtended *> &getImages() const						{ return m_pParams->getImages(); }
-	const std::vector<GridSquare> &getGridSquares() const							{ return m_pParams->getGridSquares(); }
-	bool useMassWeights() const														{ return m_pParams->useMassWeights(); }
-	GridLensInversionParameters::BasisFunctionType getBasisFunctionType() const		{ return m_pParams->getBasisFunctionType(); }
 	bool allowNegativeValues() const												{ return m_pParams->allowNegativeValues(); }
 	const GravitationalLens *getBaseLens() const									{ return m_pParams->getBaseLens(); }
 	GridLensInversionParameters::MassSheetSearchType getMassSheetSearchType() const	{ return m_pParams->getMassSheetSearchType(); }
@@ -94,7 +72,7 @@ public:
 
 	// TODO: for now we'll generate this from the grid, but in
 	//       the future it will be stored in the constructor
-	std::vector<BasisLensInfo> getBasisLenses() const;
+	std::vector<GridLensInversionParameters::BasisLensInfo> getBasisLenses() const	{ return m_pParams->getBasisLenses(); }
 	
 	bool write(serut::SerializationInterface &si) const;
 	bool read(serut::SerializationInterface &si);

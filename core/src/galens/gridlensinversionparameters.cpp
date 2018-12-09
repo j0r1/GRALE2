@@ -28,6 +28,9 @@
 #include "imagesdataextended.h"
 #include "gravitationallens.h"
 #include "configurationparameters.h"
+#include "plummerlens.h"
+#include "squarelens.h"
+#include "gausslens.h"
 #include <serut/memoryserializer.h>
 #include <serut/dummyserializer.h>
 #include <vector>
@@ -487,6 +490,101 @@ GridLensInversionParameters *GridLensInversionParameters::createCopy() const
 	return new GridLensInversionParameters(m_maxGenerations, m_images, m_gridSquares, m_Dd, m_zd, m_massScale,
 			                                    true, m_useMassWeights, m_basisFunctionType, m_allowNegative,
 											    m_pBaseLens, m_massSheetSearchType, m_pParams, m_wideSearch);
+}
+
+
+vector<GridLensInversionParameters::BasisLensInfo> GridLensInversionParameters::getBasisLenses() const
+{
+	const vector<GridSquare> &squares = getGridSquares();
+	const int numMasses = squares.size();
+	vector<double> massWeights(numMasses);
+
+	if (numMasses == 0)
+	{
+		setErrorString("No basis lenses are present");
+		return vector<BasisLensInfo>(); // return empty vector
+	}
+
+	if (useMassWeights())
+	{
+		//sendMessage("Using mass weights");
+		cerr << "Using mass weights" << endl;
+		
+		double sum = 0;
+
+		auto it = squares.begin();
+		for (it = squares.begin(); it != squares.end() ; it++)
+		{
+			double w = (*it).getSize();
+			double w2 = (w*w);
+
+			sum += w2;
+		}
+		
+		// on a uniform grid, we'd like each weight to be one
+		it = squares.begin();
+		for (int i = 0 ; it != squares.end() ; i++, it++)
+		{
+			double w = (*it).getSize();
+			double w2 = (w*w);
+
+			massWeights[i] = ((((double)numMasses)*w2)/sum);
+		}
+	}
+	else
+	{
+		int i = 0;
+
+		for (auto it = squares.begin(); it != squares.end() ; it++, i++)
+			massWeights[i] = 1;
+	}
+
+	// Create the basis functions
+
+	vector<BasisLensInfo> basisLenses;
+	double massScale = getMassScale();
+	double D_d = getD_d();
+	int squareNumber = 0;
+
+	for (auto squareIt = squares.begin() ; squareIt != squares.end() ; squareIt++, squareNumber++)
+	{
+		double gridSize = squareIt->getSize();
+		Vector2D<double> gridCenter = squareIt->getCenter();
+		bool returnValue;
+		shared_ptr<GravitationalLens> pLens;
+	
+		if (getBasisFunctionType() == GridLensInversionParameters::PlummerBasis)
+		{
+			PlummerLensParams lensParams(massScale * massWeights[squareNumber], gridSize);
+
+			pLens = shared_ptr<GravitationalLens>(new PlummerLens());
+			returnValue = pLens->init(D_d, &lensParams);
+		}
+		else if (getBasisFunctionType() == GridLensInversionParameters::GaussBasis)
+		{
+			GaussLensParams lensParams(massScale * massWeights[squareNumber], gridSize);
+
+			pLens = shared_ptr<GravitationalLens>(new GaussLens());
+			returnValue = pLens->init(D_d, &lensParams);
+		}
+		else // Squares
+		{
+			SquareLensParams lensParams(massScale * massWeights[squareNumber], gridSize);
+
+			pLens = shared_ptr<GravitationalLens>(new SquareLens());
+			returnValue = pLens->init(D_d, &lensParams);
+		}
+
+		if (!returnValue)
+		{
+			setErrorString(std::string("Couldn't initialize basis lens: ") + pLens->getErrorString());
+			return vector<BasisLensInfo>(); // return empty vector
+		}
+
+		basisLenses.push_back({ pLens, gridCenter, massScale*massWeights[squareNumber] });
+	}
+
+	return basisLenses;
 }
 
 } // end namespace

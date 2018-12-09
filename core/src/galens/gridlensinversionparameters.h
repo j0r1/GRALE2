@@ -32,6 +32,7 @@
 #include <serut/serializationinterface.h>
 #include <errut/errorbase.h>
 #include <vector>
+#include <memory>
 
 namespace grale
 {
@@ -46,6 +47,24 @@ public:
 	enum BasisFunctionType { PlummerBasis, SquareBasis, GaussBasis };
 	enum MassSheetSearchType { NoSheet, Genome };
 	
+	class BasisLensInfo
+	{
+	public:
+		BasisLensInfo(std::shared_ptr<GravitationalLens> &lens, Vector2Dd center, double relevantLensingMass)
+			: m_pLens(lens), m_center(center), m_relevantLensingMass(relevantLensingMass)
+		{
+		}
+
+		BasisLensInfo(const BasisLensInfo &src)
+			: m_pLens(src.m_pLens), m_center(src.m_center), m_relevantLensingMass(src.m_relevantLensingMass)
+		{
+		}
+
+		const std::shared_ptr<GravitationalLens> m_pLens;
+		const Vector2Dd m_center;
+		const double m_relevantLensingMass;
+	};
+
 	GridLensInversionParameters();
 	GridLensInversionParameters(int maxgenerations,
 					 const std::vector<ImagesDataExtended *> &images, 
@@ -80,6 +99,8 @@ public:
 	
 	bool write(serut::SerializationInterface &si) const;
 	bool read(serut::SerializationInterface &si);
+
+	std::vector<GridLensInversionParameters::BasisLensInfo> getBasisLenses() const;
 
 	GridLensInversionParameters *createCopy() const;
 private:
