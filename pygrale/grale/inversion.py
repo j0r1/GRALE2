@@ -328,9 +328,9 @@ def invert(inputImages, grid, zd, Dd, popSize, moduleName = "general", massScale
 
     feedbackObject.onStatus("Mass scale is: {:g} solar masses".format(massScale/CT.MASS_SUN))
 
-    params = inversionparams.GridLensInversionParameters(maximumGenerations, inputImages, grid, Dd, zd, massScale,
-               rescaleBasisFunctions, basisFunctionType, allowNegativeValues, baseLens, sheetSearch, fullFitnessObjParams,
-               wideSearch)
+    params = inversionparams.GridLensInversionParameters(maximumGenerations, inputImages, 
+               { "gridSquares": grid, "useWeights": rescaleBasisFunctions, "basisFunction": basisFunctionType },
+               Dd, zd, massScale, allowNegativeValues, baseLens, sheetSearch, fullFitnessObjParams, wideSearch)
 
     # TODO: for now, we're getting the component description in a separate way as it
     #       is not yet integrated in mogal. Once it is, this should be removed

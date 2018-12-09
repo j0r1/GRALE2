@@ -138,7 +138,10 @@ cdef class GridLensInversionParameters(object):
     # - "Ds"
     # - "Dds"
     # - (optionally) "params", itself a dict or list
-    def __init__(self, maxGen, imageList, gridSquareList, Dd, zd, massScale, useWeights = False, basisFunction = "plummer",
+    # - gridInfoOrBasisFunctions:
+    #   either a dictionary { "gridSquares": grid squares, "useWeights": flag, "basisFunction": basis type }
+    #   or a list of basisfunction info [ { "lens": lens model, "mass": relevant lensing mass, "center": center }, ... ]
+    def __init__(self, maxGen, imageList, gridInfoOrBasisFunctions, Dd, zd, massScale,
                  allowNegativeValues = False, baseLens = None, sheetSearch = "nosheet",
                  fitnessObjectParameters = None, wideSearch = False):
         """TODO:"""
@@ -153,7 +156,9 @@ cdef class GridLensInversionParameters(object):
         cdef gridlensinversionparameters.BasisFunctionType basisFunctionType
         cdef gridlensinversionparameters.MassSheetSearchType sheetSearchType
         cdef gravitationallens.GravitationalLens *pBaseLens = NULL
+        cdef gravitationallens.GravitationalLens *pBasisLensModel = NULL
         cdef configurationparameters.ConfigurationParameters *pFitnessObjectParameters = NULL
+        cdef vector[gridlensinversionparameters.BasisLensInfo] basisLensInfo
 
         mSer = NULL
 
@@ -196,24 +201,6 @@ cdef class GridLensInversionParameters(object):
                 del mSer
                 mSer = NULL
 
-            # Build the grid square vector
-            for square in gridSquareList:
-                cx, cy = square["center"]
-                s = square["size"]
-
-                centerVector = vector2d.Vector2Dd(float(cx), float(cy))
-                gridSquares.push_back(grid.GridSquare(centerVector, float(s)))
-
-            # Check the basis function type
-            if basisFunction == "plummer": 
-                basisFunctionType = gridlensinversionparameters.PlummerBasis
-            elif basisFunction == "gaussian": 
-                basisFunctionType = gridlensinversionparameters.GaussBasis
-            elif basisFunction == "square":
-                basisFunctionType = gridlensinversionparameters.SquareBasis
-            else:
-                raise InversionParametersException("Unknown basis function type '{}', should be 'plummer', 'gaussian' or 'square'".format(basisFunction))
-
             # Load a base lens if specified
             if baseLens:
                 lensBytes = baseLens.toBytes()
@@ -239,15 +226,74 @@ cdef class GridLensInversionParameters(object):
                 fitnessObjectParametersObj = ConfigurationParameters(fitnessObjectParameters)
                 pFitnessObjectParameters = ConfigurationParameters._getConfigurationParameters(fitnessObjectParametersObj)
 
-            self.m_pParams = new gridlensinversionparameters.GridLensInversionParameters(maxGen, imgVector, gridSquares,
+            if type(gridInfoOrBasisFunctions) == dict:
+                gridSquareList = gridInfoOrBasisFunctions["gridSquares"]
+                basisFunction = gridInfoOrBasisFunctions["basisFunction"] if "basisFunction" in gridInfoOrBasisFunctions else "plummer"
+                useWeights = gridInfoOrBasisFunctions["useWeights"] if "useWeights" in gridInfoOrBasisFunctions else False
+
+                # Build the grid square vector
+                for square in gridSquareList:
+                    cx, cy = square["center"]
+                    s = square["size"]
+
+                    centerVector = vector2d.Vector2Dd(float(cx), float(cy))
+                    gridSquares.push_back(grid.GridSquare(centerVector, float(s)))
+
+                # Check the basis function type
+                if basisFunction == "plummer": 
+                    basisFunctionType = gridlensinversionparameters.PlummerBasis
+                elif basisFunction == "gaussian": 
+                    basisFunctionType = gridlensinversionparameters.GaussBasis
+                elif basisFunction == "square":
+                    basisFunctionType = gridlensinversionparameters.SquareBasis
+                else:
+                    raise InversionParametersException("Unknown basis function type '{}', should be 'plummer', 'gaussian' or 'square'".format(basisFunction))
+
+                self.m_pParams = new gridlensinversionparameters.GridLensInversionParameters(maxGen, imgVector, gridSquares,
                                                 Dd, zd, massScale, useWeights, basisFunctionType, allowNegativeValues,
                                                 pBaseLens, sheetSearchType, pFitnessObjectParameters, wideSearch)
 
+            elif type(gridInfoOrBasisFunctions) == list:
+
+                for entry in gridInfoOrBasisFunctions:
+                    cx, cy = entry["center"]
+                    relevantLensingMass = entry["mass"]
+
+                    lensBytes = entry["lens"].toBytes()
+                    buf = chararrayfrombytes(lensBytes)
+                    mSer = new serut.MemorySerializer(buf.data.as_voidptr, len(lensBytes), NULL, 0)
+
+                    if not gravitationallens.GravitationalLens.read(deref(mSer), cython.address(pBasisLensModel), errorString):
+                        del mSer
+                        raise InversionParametersException(S(errorString))
+
+                    del mSer
+                    mSer = NULL
+
+                    GridLensInversionParameters._appendHelper(basisLensInfo, pBasisLensModel, cx, cy, relevantLensingMass)
+                    #basisLensInfo.push_back(gridlensinversionparameters.BasisLensInfo(
+                    #                            shared_ptr[gravitationallens.GravitationalLens](pBasisLensModel),
+                    #                            vector2d.Vector2Dd(cx, cy),
+                    #                            relevantLensingMass))
+
+                self.m_pParams = new gridlensinversionparameters.GridLensInversionParameters(maxGen, imgVector, basisLensInfo,
+                                                Dd, zd, massScale, allowNegativeValues, pBaseLens, sheetSearchType, 
+                                                pFitnessObjectParameters, wideSearch)
+            else:
+                raise InversionParametersException("Unsupported type for gridInfoOrBasisFunctions parameter, should be dict or list")
 
         finally:
             # Clean up
             del mSer
             del pBaseLens
+
+    @staticmethod
+    cdef _appendHelper(vector[gridlensinversionparameters.BasisLensInfo] &basisLensInfo,
+                       gravitationallens.GravitationalLens *pLensModel, double cx, double cy, double relevantLensingMass):
+        cdef shared_ptr[gravitationallens.GravitationalLens] lensModel
+        
+        lensModel.reset(pLensModel)
+        basisLensInfo.push_back(gridlensinversionparameters.BasisLensInfo(lensModel, vector2d.Vector2Dd(cx, cy), relevantLensingMass))
 
     cdef _check(self):
         if self.m_pParams == NULL:

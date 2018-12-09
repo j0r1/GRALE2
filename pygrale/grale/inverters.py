@@ -286,7 +286,8 @@ def calculateFitness(moduleName, inputImages, zd, fitnessObjectParameters, lens)
     g = grid.createUniformGrid(1, [0,0], 1) # Just a dummy grid
     g = grid._fractionalGridToRealGrid(g)
     Dd = 1.0 if not lens else lens.getLensDistance()
-    params = inversionparams.GridLensInversionParameters(1, inputImages, g, Dd, zd, 1.0, baseLens = lens, 
+    params = inversionparams.GridLensInversionParameters(1, inputImages, { "gridSquares": g },
+                                                         Dd, zd, 1.0, baseLens = lens, 
                                                          fitnessObjectParameters=fitnessObjectParameters)
 
     factoryParams = params.toBytes()
