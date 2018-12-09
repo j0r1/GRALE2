@@ -43,12 +43,11 @@ class GRALE_IMPORTEXPORT GridLensInversionGAFactoryParams : public LensInversion
 public:
 	GridLensInversionGAFactoryParams();
 	GridLensInversionGAFactoryParams(int maxgenerations,
-					 const std::vector<ImagesDataExtended *> &images, 
+					 const std::vector<std::shared_ptr<ImagesDataExtended>> &images, 
 	                 const std::vector<GridSquare> &gridsquares, 
 					 double D_d,
 					 double z_d,
 					 double massscale,
-					 bool copyimages,
 					 bool useweights = false,
 					 GridLensInversionParameters::BasisFunctionType basisFunction = GridLensInversionParameters::PlummerBasis,
 					 bool allowNegativeValues = false,
@@ -63,15 +62,12 @@ public:
 	double getD_d() const															{ return m_pParams->getD_d(); }
 	double getZ_d() const															{ return m_pParams->getZ_d(); }
 	double getMassScale() const														{ return m_pParams->getMassScale(); }
-	const std::vector<ImagesDataExtended *> &getImages() const						{ return m_pParams->getImages(); }
+	const std::vector<std::shared_ptr<ImagesDataExtended>> &getImages() const		{ return m_pParams->getImages(); }
 	bool allowNegativeValues() const												{ return m_pParams->allowNegativeValues(); }
 	const GravitationalLens *getBaseLens() const									{ return m_pParams->getBaseLens(); }
 	GridLensInversionParameters::MassSheetSearchType getMassSheetSearchType() const	{ return m_pParams->getMassSheetSearchType(); }
 	const ConfigurationParameters *getFitnessObjectParameters() const				{ return m_pParams->getFitnessObjectParameters(); }
 	bool useWideSearch() const														{ return m_pParams->useWideSearch(); }
-
-	// TODO: for now we'll generate this from the grid, but in
-	//       the future it will be stored in the constructor
 	const std::vector<GridLensInversionParameters::BasisLensInfo> &getBasisLenses() const { return m_pParams->getBasisLenses(); }
 	
 	bool write(serut::SerializationInterface &si) const;

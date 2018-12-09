@@ -106,7 +106,7 @@ protected:
 	void onCurrentBest(const std::list<mogal::Genome *> &bestGenomes) override;
 	void onGeneticAlgorithmStart() override;
 private:
-	bool localSubInit(double z_d, const std::vector<ImagesDataExtended *> &images, 
+	bool localSubInit(double z_d, const std::vector<std::shared_ptr<ImagesDataExtended>> &images, 
 	                  const std::vector<std::pair<std::shared_ptr<GravitationalLens>, Vector2D<double> > > &basisLenses,
 					  const GravitationalLens *pBaseLens, bool useSheet, 
 					  const ConfigurationParameters *pFitnessObjectParams);

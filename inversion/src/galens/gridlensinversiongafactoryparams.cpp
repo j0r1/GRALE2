@@ -45,10 +45,10 @@ GridLensInversionGAFactoryParams::GridLensInversionGAFactoryParams() : LensInver
 }
 
 GridLensInversionGAFactoryParams::GridLensInversionGAFactoryParams(int maxgen, 
-		const vector<ImagesDataExtended *> &images, 
+		const vector<shared_ptr<ImagesDataExtended>> &images, 
 		const vector<GridSquare> &gridsquares,
 		double D_d, double z_d, double massscale, 
-		bool copyimages, bool useweights,
+		bool useweights,
 		GridLensInversionParameters::BasisFunctionType b, bool allowNegativeValues,
 		const GravitationalLens *pBaseLens,
 		GridLensInversionParameters::MassSheetSearchType sheetSearchType,
@@ -56,7 +56,7 @@ GridLensInversionGAFactoryParams::GridLensInversionGAFactoryParams(int maxgen,
 		bool wideSearch) 
 	: LensInversionGAFactoryParams(LensInversionGAFactoryParams::GridInversion)
 {
-	m_pParams = new GridLensInversionParameters(maxgen, images, gridsquares, D_d, z_d, massscale, copyimages,
+	m_pParams = new GridLensInversionParameters(maxgen, images, gridsquares, D_d, z_d, massscale,
 			                                    useweights, b, allowNegativeValues, pBaseLens, sheetSearchType,
 												pFitnessObjectParams, wideSearch);
 }

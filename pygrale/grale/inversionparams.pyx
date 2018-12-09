@@ -3,6 +3,7 @@
 """
 from libcpp.string cimport string
 from libcpp.vector cimport vector
+from libcpp.memory cimport shared_ptr
 from libcpp cimport bool as cbool
 from cpython.array cimport array,clone
 import cython
@@ -142,11 +143,11 @@ cdef class GridLensInversionParameters(object):
                  fitnessObjectParameters = None, wideSearch = False):
         """TODO:"""
 
-        cdef vector[imagesdataextended.ImagesDataExtended *] imgVector
+        cdef vector[shared_ptr[imagesdataextended.ImagesDataExtended]] imgVector
         cdef vector[grid.GridSquare] gridSquares
         cdef serut.MemorySerializer *mSer
         cdef array[char] buf
-        cdef imagesdataextended.ImagesDataExtended *pImgDat = NULL
+        cdef shared_ptr[imagesdataextended.ImagesDataExtended] pImgDat
         cdef string errorString
         cdef vector2d.Vector2Dd centerVector
         cdef gridlensinversionparameters.BasisFunctionType basisFunctionType
@@ -185,10 +186,9 @@ cdef class GridLensInversionParameters(object):
                 buf = chararrayfrombytes(imgBytes)
                 mSer = new serut.MemorySerializer(buf.data.as_voidptr, len(imgBytes), NULL, 0)
 
-                pImgDat = new imagesdataextended.ImagesDataExtended()
-                if not pImgDat.read(deref(mSer)):
-                    errorString = pImgDat.getErrorString()
-                    del pImgDat
+                pImgDat.reset(new imagesdataextended.ImagesDataExtended())
+                if not pImgDat.get().read(deref(mSer)):
+                    errorString = pImgDat.get().getErrorString()
                     raise InversionParametersException(S(errorString))
 
                 imgVector.push_back(pImgDat)    
@@ -240,15 +240,12 @@ cdef class GridLensInversionParameters(object):
                 pFitnessObjectParameters = ConfigurationParameters._getConfigurationParameters(fitnessObjectParametersObj)
 
             self.m_pParams = new gridlensinversionparameters.GridLensInversionParameters(maxGen, imgVector, gridSquares,
-                                                Dd, zd, massScale, True, useWeights, basisFunctionType, allowNegativeValues,
+                                                Dd, zd, massScale, useWeights, basisFunctionType, allowNegativeValues,
                                                 pBaseLens, sheetSearchType, pFitnessObjectParameters, wideSearch)
 
 
         finally:
             # Clean up
-            for img in imgVector:
-                del img
-
             del mSer
             del pBaseLens
 

@@ -45,11 +45,11 @@ int main(int argc, char *argv[])
 	double D_d = 1000*DIST_MPC;
 	double D_s = 1600*DIST_MPC;
 	double D_ds = 1200*DIST_MPC;
-	ImagesDataExtended imgExt(D_s, D_ds);
+	shared_ptr<ImagesDataExtended> imgExt(new ImagesDataExtended(D_s, D_ds));
 	
-	if (!imgExt.create(3, false, false))
+	if (!imgExt->create(3, false, false))
 	{
-		cerr << "Couldn't create images data: " << imgExt.getErrorString() << endl;
+		cerr << "Couldn't create images data: " << imgExt->getErrorString() << endl;
 		return -1;
 	}
 
@@ -64,7 +64,7 @@ int main(int argc, char *argv[])
 		{
 			Vector2Dd realPt = pt;
 			realPt *= ANGLE_ARCSEC;
-			imgExt.addPoint(idx, realPt);
+			imgExt->addPoint(idx, realPt);
 		}
 		idx++;
 	}
@@ -105,8 +105,8 @@ int main(int argc, char *argv[])
 							 << " sheetSearchType: " << (int)sheetSearchType << " wideSearch: " << wideSearch << endl;
 
 						GridLensInversionGAFactoryParams origParams(1, // maxgenerations
-							{ &imgExt }, gridSquares, D_d, 0, // z_d
-							massScale, false, // copyimages
+							{ imgExt }, gridSquares, D_d, 0, // z_d
+							massScale,
 							useWeights, basisFunction, allowNeg, nullptr, // pBaseLens
 							sheetSearchType, pFitnessObjectParams,
 							wideSearch);

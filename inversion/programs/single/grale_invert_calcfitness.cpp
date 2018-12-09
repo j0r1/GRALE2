@@ -53,7 +53,7 @@ bool_t CalcFitnessCommunicator::runModule(const string &moduleDir, const string 
 	// list can be modified
 	list<ImagesDataExtended *> images;
 	for (auto img : factoryParams.getImages())
-		images.push_back(img);
+		images.push_back(img.get());
 
 	double z_d = factoryParams.getZ_d();
 	if (!f->init(z_d, images, dummyShortList, factoryParams.getFitnessObjectParameters()))

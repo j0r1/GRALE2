@@ -47,11 +47,10 @@ GridLensInversionParameters::GridLensInversionParameters()
 }
 
 void GridLensInversionParameters::commonConstructor(int maxGenerations,
-			const std::vector<ImagesDataExtended *> &images,
+			const vector<shared_ptr<ImagesDataExtended>> &images,
 			double D_d,
 			double z_d,
 			double massScale,
-			bool copyImages,
 			bool allowNegativeValues,
 			const GravitationalLens *pBaseLens,
 			MassSheetSearchType sheetSearchType,
@@ -60,31 +59,14 @@ void GridLensInversionParameters::commonConstructor(int maxGenerations,
 {
 	zero();
 
-	if (copyImages)
-		m_deleteImages = true;
-	else
-		m_deleteImages = false;
-	
 	m_maxGenerations = maxGenerations;
 	m_allowNegative = allowNegativeValues;
 
 	m_Dd = D_d;
 	m_zd = z_d;
 	m_massScale = massScale; 
+	m_images = images;
 	
-	for (auto it = images.begin() ; it != images.end() ; it++)
-	{
-		ImagesDataExtended *img = (*it);
-		ImagesDataExtended *img2;
-
-		if (copyImages)
-			img2 = new ImagesDataExtended(*img);
-		else
-			img2 = img;
-			
-		m_images.push_back(img2);
-	}
-
 	m_pBaseLens = nullptr;
 	if (pBaseLens)
 		m_pBaseLens = pBaseLens->createCopy();
@@ -98,36 +80,35 @@ void GridLensInversionParameters::commonConstructor(int maxGenerations,
 }
 
 GridLensInversionParameters::GridLensInversionParameters(int maxGenerations,
-			const std::vector<ImagesDataExtended *> &images,
-			const std::vector<BasisLensInfo> &basisLenses,
+			const vector<shared_ptr<ImagesDataExtended>> &images,
+			const vector<BasisLensInfo> &basisLenses,
 			double D_d,
 			double z_d,
 			double massScale,
-			bool copyImages,
 			bool allowNegativeValues,
 			const GravitationalLens *pBaseLens,
 			MassSheetSearchType sheetSearchType,
 			const ConfigurationParameters *pFitnessObjectParams,
 			bool wideSearch)
 {
-	commonConstructor(maxGenerations, images, D_d, z_d, massScale, copyImages, allowNegativeValues, pBaseLens,
+	commonConstructor(maxGenerations, images, D_d, z_d, massScale, allowNegativeValues, pBaseLens,
 			          sheetSearchType, pFitnessObjectParams, wideSearch);
 
 	m_basisLenses = basisLenses;
 }
 
 GridLensInversionParameters::GridLensInversionParameters(int maxGenerations, 
-		const vector<ImagesDataExtended *> &images, 
+		const vector<shared_ptr<ImagesDataExtended>> &images, 
 		const vector<GridSquare> &gridsquares,
 		double D_d, double z_d, double massScale, 
-		bool copyImages, bool useweights,
+		bool useweights,
 		BasisFunctionType b, bool allowNegativeValues,
 		const GravitationalLens *pBaseLens,
 		MassSheetSearchType sheetSearchType,
 		const ConfigurationParameters *pFitnessObjectParams,
 		bool wideSearch) 
 {
-	commonConstructor(maxGenerations, images, D_d, z_d, massScale, copyImages, allowNegativeValues, pBaseLens,
+	commonConstructor(maxGenerations, images, D_d, z_d, massScale, allowNegativeValues, pBaseLens,
 			          sheetSearchType, pFitnessObjectParams, wideSearch);
 
 	buildBasisLenses(gridsquares, b, useweights);
@@ -177,7 +158,7 @@ bool GridLensInversionParameters::write(serut::SerializationInterface &si) const
 
 	for (auto pImg : m_images)
 	{
-		assert(pImg);
+		assert(pImg.get());
 
 		if (!pImg->write(si))
 		{
@@ -272,11 +253,6 @@ bool GridLensInversionParameters::write(serut::SerializationInterface &si) const
 
 void GridLensInversionParameters::clear()
 {
-	if (m_deleteImages)
-	{
-		for (auto pImg : m_images)
-			delete pImg;
-	}
 	m_images.clear();
 	m_basisLenses.clear();
 
@@ -289,7 +265,6 @@ void GridLensInversionParameters::clear()
 void GridLensInversionParameters::zero()
 {
 	m_maxGenerations = 0;
-	m_deleteImages = false;
 	m_Dd = 0;
 	m_massScale = 0;
 	m_zd = 0;
@@ -303,8 +278,6 @@ bool GridLensInversionParameters::read(serut::SerializationInterface &si)
 {
 	clear();
 
-	m_deleteImages = true;
-	
 	int32_t maxgen;
 
 	if (!si.readInt32(&maxgen))
@@ -343,11 +316,10 @@ bool GridLensInversionParameters::read(serut::SerializationInterface &si)
 	
 	for (int32_t i = 0 ; i < numimages ; i++)
 	{
-		ImagesDataExtended *img = new ImagesDataExtended();
+		shared_ptr<ImagesDataExtended> img(new ImagesDataExtended());
 		if (!img->read(si))
 		{
 			setErrorString(img->getErrorString());
-			delete img;
 			return false;
 		}
 		m_images.push_back(img);
@@ -458,7 +430,7 @@ GridLensInversionParameters *GridLensInversionParameters::createCopy() const
 {
 	vector<BasisLensInfo> copiedBasisLenses;
 
-	for (const auto bl : m_basisLenses)
+	for (const auto &bl : m_basisLenses)
 	{
 		assert(bl.m_pLens);
 		shared_ptr<GravitationalLens> newLens(bl.m_pLens->createCopy());
@@ -471,8 +443,22 @@ GridLensInversionParameters *GridLensInversionParameters::createCopy() const
 		copiedBasisLenses.push_back( { newLens, bl.m_center, bl.m_relevantLensingMass } );
 	}
 
-	return new GridLensInversionParameters(m_maxGenerations, m_images, copiedBasisLenses,
-			                               m_Dd, m_zd, m_massScale, true, m_allowNegative,
+	vector<shared_ptr<ImagesDataExtended>> imagesCopy;
+
+	for (const auto &img : m_images)
+	{
+		assert(img.get());
+		shared_ptr<ImagesDataExtended> imgCopy(new ImagesDataExtended(*img.get()));
+		if (!imgCopy.get())
+		{
+			setErrorString("Unable to create copy of an images data set: " + imgCopy->getErrorString());
+			return nullptr;
+		}
+		imagesCopy.push_back(imgCopy);
+	}
+
+	return new GridLensInversionParameters(m_maxGenerations, imagesCopy, copiedBasisLenses,
+			                               m_Dd, m_zd, m_massScale, m_allowNegative,
 										   m_pBaseLens, m_massSheetSearchType, m_pParams,
 										   m_wideSearch);
 }

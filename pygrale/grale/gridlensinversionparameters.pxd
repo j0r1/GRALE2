@@ -1,5 +1,6 @@
 from libcpp.string cimport string
 from libcpp.vector cimport vector
+from libcpp.memory cimport shared_ptr
 from libcpp cimport bool
 
 cimport grale.serut as serut
@@ -23,12 +24,11 @@ cdef extern from "grale/gridlensinversionparameters.h" namespace "grale":
     cdef cppclass GridLensInversionParameters(errut.ErrorBase):
         GridLensInversionParameters()
         GridLensInversionParameters(int maxgenerations,
-                     const vector[imagesdataextended.ImagesDataExtended *] &images, 
+                     const vector[shared_ptr[imagesdataextended.ImagesDataExtended]] &images, 
                      const vector[grid.GridSquare] &gridsquares, 
                      double D_d,
                      double z_d,
                      double massscale,
-                     bool copyimages,
                      bool useweights,
                      BasisFunctionType basisFunction,
                      bool allowNegativeValues,

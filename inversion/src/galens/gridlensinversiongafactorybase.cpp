@@ -397,15 +397,15 @@ void GridLensInversionGAFactoryBase::onSortedPopulation(const std::vector<mogal:
 
 #endif // SHOWEVOLUTION
 
-bool GridLensInversionGAFactoryBase::localSubInit(double z_d, const std::vector<ImagesDataExtended *> &images, 
-	                  const std::vector<std::pair<std::shared_ptr<GravitationalLens>, Vector2D<double> > > &basisLenses,
+bool GridLensInversionGAFactoryBase::localSubInit(double z_d, const vector<shared_ptr<ImagesDataExtended>> &images, 
+	                  const vector<pair<shared_ptr<GravitationalLens>, Vector2D<double> > > &basisLenses,
                       const GravitationalLens *pBaseLens, bool useSheet, 
 					  const ConfigurationParameters *pFitnessObjectParams)
 {
 	std::list<ImagesDataExtended *> reducedImages;
 	
 	for (auto i :images)
-		reducedImages.push_back(i);
+		reducedImages.push_back(i.get());
 
 	std::list<ImagesDataExtended *> shortImages;
 

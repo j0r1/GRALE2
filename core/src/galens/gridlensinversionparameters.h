@@ -77,12 +77,11 @@ public:
 	// then a search is done for another scale factor that provides the best
 	// fitness value
 	GridLensInversionParameters(int maxGenerations,
-			const std::vector<ImagesDataExtended *> &images,
+			const std::vector<std::shared_ptr<ImagesDataExtended>> &images,
 			const std::vector<BasisLensInfo> &basisLenses,
 			double D_d,
 			double z_d,
 			double massScale,
-			bool copyImages,
 			bool allowNegativeValues = false,
 			const GravitationalLens *pBaseLens = nullptr,
 			MassSheetSearchType sheetSearchType = NoSheet,
@@ -90,12 +89,11 @@ public:
 			bool wideSearch = false);
 
 	GridLensInversionParameters(int maxgenerations,
-					 const std::vector<ImagesDataExtended *> &images, 
+					 const std::vector<std::shared_ptr<ImagesDataExtended>> &images, 
 	                 const std::vector<GridSquare> &gridsquares, 
 					 double D_d,
 					 double z_d,
 					 double massscale,
-					 bool copyimages,
 					 bool useweights = false,
 					 BasisFunctionType basisFunction = PlummerBasis,
 					 bool allowNegativeValues = false,
@@ -110,7 +108,7 @@ public:
 	double getD_d() const															{ return m_Dd; }
 	double getZ_d() const															{ return m_zd; }
 	double getMassScale() const														{ return m_massScale; }
-	const std::vector<ImagesDataExtended *> &getImages() const						{ return m_images; }
+	const std::vector<std::shared_ptr<ImagesDataExtended>> &getImages() const		{ return m_images; }
 	bool allowNegativeValues() const												{ return m_allowNegative; }
 
 	const GravitationalLens *getBaseLens() const									{ return m_pBaseLens; }
@@ -126,11 +124,10 @@ public:
 	GridLensInversionParameters *createCopy() const;
 private:
 	void commonConstructor(int maxGenerations,
-			const std::vector<ImagesDataExtended *> &images,
+			const std::vector<std::shared_ptr<ImagesDataExtended>> &images,
 			double D_d,
 			double z_d,
 			double massScale,
-			bool copyImages,
 			bool allowNegativeValues,
 			const GravitationalLens *pBaseLens,
 			MassSheetSearchType sheetSearchType,
@@ -142,9 +139,8 @@ private:
 	void clear();
 
 	int m_maxGenerations;
-	bool m_deleteImages;
 	double m_Dd, m_massScale, m_zd;
-	std::vector<ImagesDataExtended *> m_images;
+	std::vector<std::shared_ptr<ImagesDataExtended>> m_images;
 	bool m_allowNegative;
 	GravitationalLens *m_pBaseLens;
 	MassSheetSearchType m_massSheetSearchType;
