@@ -60,12 +60,35 @@ public:
 		{
 		}
 
-		const std::shared_ptr<GravitationalLens> m_pLens;
-		const Vector2Dd m_center;
-		const double m_relevantLensingMass;
+		std::shared_ptr<GravitationalLens> m_pLens;
+		Vector2Dd m_center;
+		double m_relevantLensingMass;
 	};
 
 	GridLensInversionParameters();
+
+	// The idea is to supply a vector of basis functions, which basically 
+	// corresponds to the contribution when the value in the genome is 1.
+	// Each basis function also has a relevant lensing mass, which can be
+	// the entire mass of the basis function, or the mass in the lensing
+	// are if more appropriate (e.g. for a mass sheet, or for a SIS lens)
+	// For a given genome (basis function weights), the weights will first
+	// be rescaled so that the total mass corresponds to the mass scale, and
+	// then a search is done for another scale factor that provides the best
+	// fitness value
+	GridLensInversionParameters(int maxGenerations,
+			const std::vector<ImagesDataExtended *> &images,
+			const std::vector<BasisLensInfo> &basisLenses,
+			double D_d,
+			double z_d,
+			double massScale,
+			bool copyImages,
+			bool allowNegativeValues = false,
+			const GravitationalLens *pBaseLens = nullptr,
+			MassSheetSearchType sheetSearchType = NoSheet,
+			const ConfigurationParameters *pFitnessObjectParams = nullptr,
+			bool wideSearch = false);
+
 	GridLensInversionParameters(int maxgenerations,
 					 const std::vector<ImagesDataExtended *> &images, 
 	                 const std::vector<GridSquare> &gridsquares, 
@@ -98,14 +121,23 @@ public:
 	bool write(serut::SerializationInterface &si) const;
 	bool read(serut::SerializationInterface &si);
 
-	std::vector<GridLensInversionParameters::BasisLensInfo> getBasisLenses() const;
+	const std::vector<BasisLensInfo> &getBasisLenses() const						{ return m_basisLenses; }
 
 	GridLensInversionParameters *createCopy() const;
 private:
-	const std::vector<GridSquare> &getGridSquares() const								{ return m_gridSquares; }
-	bool useMassWeights() const														{ return m_useMassWeights; }
-	BasisFunctionType getBasisFunctionType() const									{ return m_basisFunctionType; }
+	void commonConstructor(int maxGenerations,
+			const std::vector<ImagesDataExtended *> &images,
+			double D_d,
+			double z_d,
+			double massScale,
+			bool copyImages,
+			bool allowNegativeValues,
+			const GravitationalLens *pBaseLens,
+			MassSheetSearchType sheetSearchType,
+			const ConfigurationParameters *pFitnessObjectParams,
+			bool wideSearch);
 
+	void buildBasisLenses(const std::vector<GridSquare> &squares, BasisFunctionType basisFunctionType, bool useMassWeights);
 	void zero();
 	void clear();
 
@@ -113,14 +145,13 @@ private:
 	bool m_deleteImages;
 	double m_Dd, m_massScale, m_zd;
 	std::vector<ImagesDataExtended *> m_images;
-	std::vector<GridSquare> m_gridSquares;
-	bool m_useMassWeights;
-	BasisFunctionType m_basisFunctionType;
 	bool m_allowNegative;
 	GravitationalLens *m_pBaseLens;
 	MassSheetSearchType m_massSheetSearchType;
 	ConfigurationParameters *m_pParams;
 	bool m_wideSearch;
+
+	std::vector<BasisLensInfo> m_basisLenses;
 };
 	
 } // end namespace

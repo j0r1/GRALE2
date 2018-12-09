@@ -31,8 +31,7 @@
 #include "plummerlens.h"
 #include "squarelens.h"
 #include "gausslens.h"
-#include <serut/memoryserializer.h>
-#include <serut/dummyserializer.h>
+#include <assert.h>
 #include <vector>
 
 #include "debugnew.h"
@@ -47,47 +46,44 @@ GridLensInversionParameters::GridLensInversionParameters()
 	zero();
 }
 
-GridLensInversionParameters::GridLensInversionParameters(int maxgen, 
-		const vector<ImagesDataExtended *> &images, 
-		const vector<GridSquare> &gridsquares,
-		double D_d, double z_d, double massscale, 
-		bool copyimages, bool useweights,
-		BasisFunctionType b, bool allowNegativeValues,
-		const GravitationalLens *pBaseLens,
-		MassSheetSearchType sheetSearchType,
-		const ConfigurationParameters *pFitnessObjectParams,
-		bool wideSearch) 
+void GridLensInversionParameters::commonConstructor(int maxGenerations,
+			const std::vector<ImagesDataExtended *> &images,
+			double D_d,
+			double z_d,
+			double massScale,
+			bool copyImages,
+			bool allowNegativeValues,
+			const GravitationalLens *pBaseLens,
+			MassSheetSearchType sheetSearchType,
+			const ConfigurationParameters *pFitnessObjectParams,
+			bool wideSearch)
 {
 	zero();
 
-	if (copyimages)
+	if (copyImages)
 		m_deleteImages = true;
 	else
 		m_deleteImages = false;
 	
-	m_maxGenerations = maxgen;
-	m_useMassWeights = useweights; 
+	m_maxGenerations = maxGenerations;
+	m_allowNegative = allowNegativeValues;
 
 	m_Dd = D_d;
 	m_zd = z_d;
-	m_massScale = massscale; 
+	m_massScale = massScale; 
 	
 	for (auto it = images.begin() ; it != images.end() ; it++)
 	{
 		ImagesDataExtended *img = (*it);
 		ImagesDataExtended *img2;
 
-		if (copyimages)
+		if (copyImages)
 			img2 = new ImagesDataExtended(*img);
 		else
 			img2 = img;
 			
 		m_images.push_back(img2);
 	}
-
-	m_gridSquares = gridsquares;
-	m_basisFunctionType = b;
-	m_allowNegative = allowNegativeValues;
 
 	m_pBaseLens = nullptr;
 	if (pBaseLens)
@@ -101,18 +97,49 @@ GridLensInversionParameters::GridLensInversionParameters(int maxgen,
 	m_wideSearch = wideSearch;
 }
 
+GridLensInversionParameters::GridLensInversionParameters(int maxGenerations,
+			const std::vector<ImagesDataExtended *> &images,
+			const std::vector<BasisLensInfo> &basisLenses,
+			double D_d,
+			double z_d,
+			double massScale,
+			bool copyImages,
+			bool allowNegativeValues,
+			const GravitationalLens *pBaseLens,
+			MassSheetSearchType sheetSearchType,
+			const ConfigurationParameters *pFitnessObjectParams,
+			bool wideSearch)
+{
+	commonConstructor(maxGenerations, images, D_d, z_d, massScale, copyImages, allowNegativeValues, pBaseLens,
+			          sheetSearchType, pFitnessObjectParams, wideSearch);
+
+	m_basisLenses = basisLenses;
+}
+
+GridLensInversionParameters::GridLensInversionParameters(int maxGenerations, 
+		const vector<ImagesDataExtended *> &images, 
+		const vector<GridSquare> &gridsquares,
+		double D_d, double z_d, double massScale, 
+		bool copyImages, bool useweights,
+		BasisFunctionType b, bool allowNegativeValues,
+		const GravitationalLens *pBaseLens,
+		MassSheetSearchType sheetSearchType,
+		const ConfigurationParameters *pFitnessObjectParams,
+		bool wideSearch) 
+{
+	commonConstructor(maxGenerations, images, D_d, z_d, massScale, copyImages, allowNegativeValues, pBaseLens,
+			          sheetSearchType, pFitnessObjectParams, wideSearch);
+
+	buildBasisLenses(gridsquares, b, useweights);
+}
+
 GridLensInversionParameters::~GridLensInversionParameters()
 {
 	clear();
 }
 
-#define BASISFUNCTION_PLUMMER 1
-#define BASISFUNCTION_SQUARE  2
-#define BASISFUNCTION_GAUSS   3
-
 #define SHEETSEARCHTYPE_NONE  	0
 #define SHEETSEARCHTYPE_GENOME	1
-#define SHEETSEARCHTYPE_LOOP	2
 
 bool GridLensInversionParameters::write(serut::SerializationInterface &si) const
 {
@@ -140,7 +167,7 @@ bool GridLensInversionParameters::write(serut::SerializationInterface &si) const
 	int32_t sizes[2];
 
 	sizes[0] = m_images.size();
-	sizes[1] = m_gridSquares.size();
+	sizes[1] = m_basisLenses.size();
 
 	if (!si.writeInt32s(sizes,2))
 	{
@@ -159,50 +186,21 @@ bool GridLensInversionParameters::write(serut::SerializationInterface &si) const
 		}
 	}
 
-	for (auto s : m_gridSquares)
+	for (const auto &bl : m_basisLenses)
 	{
-		double params[3];
-
-		params[0] = s.getSize();
-		params[1] = s.getCenter().getX();
-		params[2] = s.getCenter().getY();
-	
-		if (!si.writeDoubles(params,3))
+		assert(bl.m_pLens.get());
+		if (!bl.m_pLens->write(si))
 		{
-			setErrorString(si.getErrorString());
+			setErrorString("Unable to write a basis lens model: " + bl.m_pLens->getErrorString());
 			return false;
 		}
-	}
 
-	int32_t w = (m_useMassWeights)?1:0;
-	if (!si.writeInt32(w))
-	{
-		setErrorString(si.getErrorString());
-		return false;
-	}
-
-	int32_t b = 0;
-
-	switch(m_basisFunctionType)
-	{
-	case PlummerBasis:
-		b = BASISFUNCTION_PLUMMER;
-		break;
-	case SquareBasis:
-		b = BASISFUNCTION_SQUARE;
-		break;
-	case GaussBasis:
-		b = BASISFUNCTION_GAUSS;
-		break;
-	default:
-		setErrorString("Detected invalid basis function setting");
-		return false;
-	}
-
-	if (!si.writeInt32(b))
-	{
-		setErrorString(si.getErrorString());
-		return false;
+		const double centerAndMass[3] = { bl.m_center.getX(), bl.m_center.getY(), bl.m_relevantLensingMass };
+		if (!si.writeDoubles(centerAndMass, 3))
+		{
+			setErrorString("Unable to write basis lens model position or mass: " + si.getErrorString());
+			return false;
+		}
 	}
 
 	int32_t n = (m_allowNegative)?1:0;
@@ -280,7 +278,7 @@ void GridLensInversionParameters::clear()
 			delete pImg;
 	}
 	m_images.clear();
-	m_gridSquares.clear();
+	m_basisLenses.clear();
 
 	delete m_pBaseLens;
 	delete m_pParams;
@@ -295,8 +293,6 @@ void GridLensInversionParameters::zero()
 	m_Dd = 0;
 	m_massScale = 0;
 	m_zd = 0;
-	m_useMassWeights = false;
-	m_basisFunctionType = PlummerBasis;
 	m_allowNegative = false;
 	m_pBaseLens = nullptr;
 	m_massSheetSearchType = NoSheet;
@@ -343,7 +339,7 @@ bool GridLensInversionParameters::read(serut::SerializationInterface &si)
 	}
 
 	int32_t numimages = sizes[0];
-	int32_t numsquares = sizes[1];
+	int32_t numBasisFunctions = sizes[1];
 	
 	for (int32_t i = 0 ; i < numimages ; i++)
 	{
@@ -357,54 +353,27 @@ bool GridLensInversionParameters::read(serut::SerializationInterface &si)
 		m_images.push_back(img);
 	}
 
-	for (int32_t i = 0 ; i < numsquares ; i++)
+	for (int32_t i = 0 ; i < numBasisFunctions ; i++)
 	{
-		double info[3];
-
-		if (!si.readDoubles(info,3))
+		string errStr;
+		GravitationalLens *pBasisFunction = nullptr;
+		if (!GravitationalLens::read(si, &pBasisFunction, errStr))
 		{
-			setErrorString(si.getErrorString());
+			setErrorString("Unable to read basis lens model: " + errStr);
 			return false;
 		}
-		m_gridSquares.push_back(GridSquare(Vector2D<double>(info[1],info[2]),info[0]));
+		shared_ptr<GravitationalLens> basisLens(pBasisFunction);
+
+		double centerAndMass[3];
+		if (!si.readDoubles(centerAndMass, 3))
+		{
+			setErrorString("Unable to read center or mass of a basis lens model:" + si.getErrorString());
+			return false;
+		}
+
+		m_basisLenses.push_back( { basisLens, { centerAndMass[0], centerAndMass[1] }, centerAndMass[2] });
 	}
 	
-	int32_t w;
-
-	if (!si.readInt32(&w))
-	{
-		setErrorString(si.getErrorString());
-		return false;
-	}
-	if (w == 0)
-		m_useMassWeights = false;
-	else
-		m_useMassWeights = true;
-
-	int32_t b;
-
-	if (!si.readInt32(&b))
-	{
-		setErrorString(si.getErrorString());
-		return false;
-	}
-
-	switch(b)
-	{
-	case BASISFUNCTION_PLUMMER:
-		m_basisFunctionType = PlummerBasis;
-		break;
-	case BASISFUNCTION_SQUARE:
-		m_basisFunctionType = SquareBasis;
-		break;
-	case BASISFUNCTION_GAUSS:
-		m_basisFunctionType = GaussBasis;
-		break;
-	default:
-		setErrorString("Read invalid basis function identifier");
-		return false;
-	}
-
 	int32_t n;
 
 	if (!si.readInt32(&n))
@@ -487,27 +456,40 @@ bool GridLensInversionParameters::read(serut::SerializationInterface &si)
 	
 GridLensInversionParameters *GridLensInversionParameters::createCopy() const
 {
-	return new GridLensInversionParameters(m_maxGenerations, m_images, m_gridSquares, m_Dd, m_zd, m_massScale,
-			                                    true, m_useMassWeights, m_basisFunctionType, m_allowNegative,
-											    m_pBaseLens, m_massSheetSearchType, m_pParams, m_wideSearch);
+	vector<BasisLensInfo> copiedBasisLenses;
+
+	for (const auto bl : m_basisLenses)
+	{
+		assert(bl.m_pLens);
+		shared_ptr<GravitationalLens> newLens(bl.m_pLens->createCopy());
+		if (!newLens.get())
+		{
+			setErrorString("Unable to create a copy from one of the basis lenses: " + bl.m_pLens->getErrorString());
+			return nullptr;
+		}
+
+		copiedBasisLenses.push_back( { newLens, bl.m_center, bl.m_relevantLensingMass } );
+	}
+
+	return new GridLensInversionParameters(m_maxGenerations, m_images, copiedBasisLenses,
+			                               m_Dd, m_zd, m_massScale, true, m_allowNegative,
+										   m_pBaseLens, m_massSheetSearchType, m_pParams,
+										   m_wideSearch);
 }
 
 
-vector<GridLensInversionParameters::BasisLensInfo> GridLensInversionParameters::getBasisLenses() const
+void GridLensInversionParameters::buildBasisLenses(const vector<GridSquare> &squares,
+                                                   BasisFunctionType basisFunctionType,
+												   bool useMassWeights)
 {
-	const vector<GridSquare> &squares = getGridSquares();
 	const int numMasses = squares.size();
 	vector<double> massWeights(numMasses);
 
 	if (numMasses == 0)
-	{
-		setErrorString("No basis lenses are present");
-		return vector<BasisLensInfo>(); // return empty vector
-	}
+		return;
 
-	if (useMassWeights())
+	if (useMassWeights)
 	{
-		//sendMessage("Using mass weights");
 		cerr << "Using mass weights" << endl;
 		
 		double sum = 0;
@@ -541,10 +523,10 @@ vector<GridLensInversionParameters::BasisLensInfo> GridLensInversionParameters::
 
 	// Create the basis functions
 
-	vector<BasisLensInfo> basisLenses;
 	double massScale = getMassScale();
 	double D_d = getD_d();
 	int squareNumber = 0;
+	vector<BasisLensInfo> basisLenses;
 
 	for (auto squareIt = squares.begin() ; squareIt != squares.end() ; squareIt++, squareNumber++)
 	{
@@ -553,14 +535,14 @@ vector<GridLensInversionParameters::BasisLensInfo> GridLensInversionParameters::
 		bool returnValue;
 		shared_ptr<GravitationalLens> pLens;
 	
-		if (getBasisFunctionType() == GridLensInversionParameters::PlummerBasis)
+		if (basisFunctionType == GridLensInversionParameters::PlummerBasis)
 		{
 			PlummerLensParams lensParams(massScale * massWeights[squareNumber], gridSize);
 
 			pLens = shared_ptr<GravitationalLens>(new PlummerLens());
 			returnValue = pLens->init(D_d, &lensParams);
 		}
-		else if (getBasisFunctionType() == GridLensInversionParameters::GaussBasis)
+		else if (basisFunctionType == GridLensInversionParameters::GaussBasis)
 		{
 			GaussLensParams lensParams(massScale * massWeights[squareNumber], gridSize);
 
@@ -569,6 +551,8 @@ vector<GridLensInversionParameters::BasisLensInfo> GridLensInversionParameters::
 		}
 		else // Squares
 		{
+			assert(basisFunctionType == GridLensInversionParameters::SquareBasis);
+
 			SquareLensParams lensParams(massScale * massWeights[squareNumber], gridSize);
 
 			pLens = shared_ptr<GravitationalLens>(new SquareLens());
@@ -577,14 +561,14 @@ vector<GridLensInversionParameters::BasisLensInfo> GridLensInversionParameters::
 
 		if (!returnValue)
 		{
-			setErrorString(std::string("Couldn't initialize basis lens: ") + pLens->getErrorString());
-			return vector<BasisLensInfo>(); // return empty vector
+			cerr << "Couldn't initialize basis lens: " << pLens->getErrorString() << endl;
+			return;
 		}
 
 		basisLenses.push_back({ pLens, gridCenter, massScale*massWeights[squareNumber] });
 	}
 
-	return basisLenses;
+	m_basisLenses = basisLenses;
 }
 
 } // end namespace

@@ -72,7 +72,7 @@ public:
 
 	// TODO: for now we'll generate this from the grid, but in
 	//       the future it will be stored in the constructor
-	std::vector<GridLensInversionParameters::BasisLensInfo> getBasisLenses() const	{ return m_pParams->getBasisLenses(); }
+	const std::vector<GridLensInversionParameters::BasisLensInfo> &getBasisLenses() const { return m_pParams->getBasisLenses(); }
 	
 	bool write(serut::SerializationInterface &si) const;
 	bool read(serut::SerializationInterface &si);

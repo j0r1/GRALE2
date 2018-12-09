@@ -6,6 +6,7 @@
 #include "constants.h"
 #include "grid.h"
 #include <mogal/gafactorymultiobjective.h>
+#include <serut/vectorserializer.h>
 #include <iostream>
 #include <memory>
 #include <stdlib.h>
@@ -102,12 +103,23 @@ int main(int argc, char *argv[])
 						cout << "-------------------------------------------------------------------------------------------------" << endl;
 						cout << "useWeights: " << useWeights << " allowNeg: " << allowNeg << " basisFunction: " << (int)basisFunction
 							 << " sheetSearchType: " << (int)sheetSearchType << " wideSearch: " << wideSearch << endl;
-						GridLensInversionGAFactoryParams params(1, // maxgenerations
+
+						GridLensInversionGAFactoryParams origParams(1, // maxgenerations
 							{ &imgExt }, gridSquares, D_d, 0, // z_d
 							massScale, false, // copyimages
 							useWeights, basisFunction, allowNeg, nullptr, // pBaseLens
 							sheetSearchType, pFitnessObjectParams,
 							wideSearch);
+
+						unique_ptr<GridLensInversionGAFactoryParams> pParamsCopy(origParams.createCopy());
+						serut::VectorSerializer ser;
+
+						GridLensInversionGAFactoryParams params;
+						if (!pParamsCopy->write(ser) || !params.read(ser))
+						{
+							cerr << "Unable to serialize/deserialize inversion parameters" << endl;
+							return -1;
+						}
 
 						GridLensInversionGAFactory_Test factory;
 						if (!factory.init(&params))
