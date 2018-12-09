@@ -88,10 +88,8 @@ public:
 	double getZ_d() const															{ return m_zd; }
 	double getMassScale() const														{ return m_massScale; }
 	const std::vector<ImagesDataExtended *> &getImages() const						{ return m_images; }
-	const std::vector<GridSquare> &getGridSquares() const								{ return m_gridSquares; }
-	bool useMassWeights() const														{ return m_useMassWeights; }
-	BasisFunctionType getBasisFunctionType() const									{ return m_basisFunctionType; }
 	bool allowNegativeValues() const												{ return m_allowNegative; }
+
 	const GravitationalLens *getBaseLens() const									{ return m_pBaseLens; }
 	MassSheetSearchType getMassSheetSearchType() const								{ return m_massSheetSearchType; }
 	const ConfigurationParameters *getFitnessObjectParameters() const				{ return m_pParams; }
@@ -104,6 +102,10 @@ public:
 
 	GridLensInversionParameters *createCopy() const;
 private:
+	const std::vector<GridSquare> &getGridSquares() const								{ return m_gridSquares; }
+	bool useMassWeights() const														{ return m_useMassWeights; }
+	BasisFunctionType getBasisFunctionType() const									{ return m_basisFunctionType; }
+
 	void zero();
 	void clear();
 
