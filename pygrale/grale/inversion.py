@@ -445,6 +445,7 @@ class InversionWorkSpace(object):
         self.regionSize = regionSize
         self.regionCenter = copy.deepcopy(regionCenter)
         self.grid = None
+        self.basisFunctions = None
         
         self.renderer = renderer
         self.inverter = inverter
@@ -602,6 +603,97 @@ class InversionWorkSpace(object):
                 del newKwargs[k]
 
         lens = invert(self.imgDataList, gridInfo, self.zd, self.Dd, populationSize, **newKwargs)
+        return lens
+
+    def clearBasisFunctions(self):
+        """Clears the list of basis functions that will be used in
+        :func:`invertBasisFunctions`"""
+        self.basisFunctions = [ ]
+
+    def _getImageSize(self):
+
+        xCoords = [ ]
+        yCoords = [ ]
+        for imgInfo in self.imgDataList:
+            
+            img = imgInfo["images"]
+            params = imgInfo["params"]
+            imgType = params["type"]
+            if imgType not in [ "extendedimages", "pointimages" ]:
+                continue
+                    
+            if img.getNumberOfImages() <= 1:
+                continue
+            
+            tr = img.getTopRightCorner()
+            bl = img.getBottomLeftCorner()
+            xCoords.append(tr.getX())
+            xCoords.append(bl.getX())
+            yCoords.append(tr.getY())
+            yCoords.append(bl.getY())
+
+        if not xCoords or not yCoords:
+            raise InversionException("No images are present from which the strong lensing region can be estimated")
+
+        xMax, xMin = max(xCoords), min(xCoords)
+        yMax, yMin = max(yCoords), min(yCoords)
+
+        return ((xMax-xMin)**2 + (yMax-yMin)**2)**0.5
+
+    def addBasisFunctions(self, basisFunctions):
+        """Add basis functions that will be used in :func:`invertBasisFunctions`.
+        If, for a specific basis function, no relevant lensing mass is specified,
+        it will be estimated numerically as the mass inside (roughly) the image
+        region."""
+
+        imgSize = None
+
+        for bf in basisFunctions:
+            d = { }
+            d["lens"] = copy.deepcopy(bf["lens"])
+            d["center"] = copy.deepcopy(bf["center"])
+            if "mass" in bf:
+                d["mass"] = copy.deepcopy(bf["mass"])
+            else:
+                if not imgSize:
+                    imgSize = _getImageSize() / 2.0
+
+                lens = d["lens"]
+                extra = 1.001
+                lensInfo = { 
+                    "lens": lens,
+                    "bottomleft": [ -imgSize*extra, -imgSize*extra ],
+                    "topright": [ imgSize*extra, imgSize*extra ],
+                }
+
+                # Abuse this function to perform the calculations
+                profile = plotutil.plotIntegratedMassProfile(lensInfo, imgSize, axes=False, 
+                                                             renderer=self.renderer,
+                                                             feedbackObject=self.feedbackObject)
+            
+                d["mass"] = profile[-1]
+                # TODO: for debugging
+                print("Estimated mass for basis function is: {} solar masses".format(d["mass"]/MASS_SUN))
+
+            self.basisFunctions.append(d)
+
+    def invertBasisFunctions(self, populationSize, **kwargs):
+        """For the lensing scenario specified in this :class:`InversionWorkSpace` instance,
+        this method calls the :func:`invert <grale.inversion.invert>` function, but instead
+        of using a grid, a list of basis functions (arbitrary basic lens models) is used
+        of which the weights need to be optimized by the genetic algorithm. 
+        function.
+        """
+        newKwargs = { }
+        newKwargs["inverter"] = self.inverter
+        newKwargs["feedbackObject"] = self.feedbackObject
+        for a in self.inversionArgs:
+            newKwargs[a] = self.inversionArgs[a]
+
+        for a in kwargs:
+            newKwargs[a] = kwargs[a]
+
+        lens = invert(self.imgDataList, self.basisFunctions, self.zd, self.Dd, populationSize, **newKwargs)
         return lens
 
     def calculateFitness(self, lens):
