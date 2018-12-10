@@ -1,3 +1,9 @@
+# For reproducibilty
+import os
+import random
+os.environ["GRALE_DEBUG_SEED"] = "12345"
+random.seed(12345)
+
 from grale.constants import *
 import grale.inversion as inversion
 import grale.renderers as renderers
@@ -7,9 +13,14 @@ from grale.cosmology import Cosmology
 import grale.images as images
 import numpy as np
 import matplotlib.pyplot as plt
+import sys
+
+popSize = 32
+maxGen = 50
+showPlots = False
 
 feedback.setDefaultFeedback("none")
-inversion.setDefaultInverter("mpics")
+#inversion.setDefaultInverter("mpics")
 
 pointData = """
 -24.72085695	-87.40427296	1.8379
@@ -135,19 +146,22 @@ for useWeights in [ False, True ]:
         iws.addImageDataToList(i["imgdata"], i["z"], "pointimages")
 
     iws.setUniformGrid(15)
-    plotutil.plotSubdivisionGrid(iws.getGrid())
-    plt.show()
-    lens1, fitness1, fitdesc = iws.invert(128, maximumGenerations=500, rescaleBasisFunctions=useWeights)
+    if showPlots:
+        plotutil.plotSubdivisionGrid(iws.getGrid())
+        plt.show()
+    lens1, fitness1, fitdesc = iws.invert(popSize, maximumGenerations=maxGen, rescaleBasisFunctions=useWeights)
 
     iws.setSubdivisionGrid(lens1, 300, 400)
-    plotutil.plotSubdivisionGrid(iws.getGrid())
-    plt.show()
-    lens2, fitness2, fitdesc = iws.invert(128, maximumGenerations=500, rescaleBasisFunctions=useWeights)
+    if showPlots:
+        plotutil.plotSubdivisionGrid(iws.getGrid())
+        plt.show()
+    lens2, fitness2, fitdesc = iws.invert(popSize, maximumGenerations=maxGen, rescaleBasisFunctions=useWeights)
 
     iws.setSubdivisionGrid(lens2, 500, 600)
-    plotutil.plotSubdivisionGrid(iws.getGrid())
-    plt.show()
-    lens3, fitness3, fitdesc = iws.invert(128, maximumGenerations=500, rescaleBasisFunctions=useWeights)
+    if showPlots:
+        plotutil.plotSubdivisionGrid(iws.getGrid())
+        plt.show()
+    lens3, fitness3, fitdesc = iws.invert(popSize, maximumGenerations=maxGen, rescaleBasisFunctions=useWeights)
 
     print(f"useWeights = {useWeights}")
 

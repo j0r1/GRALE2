@@ -170,8 +170,8 @@ def calculateFitness(inputImages, zd, fitnessObjectParameters, lens, moduleName 
 
     return inverters.calculateFitness(n, inputImages, zd, fullFitnessObjParams, lens)
 
-def invert(inputImages, grid, zd, Dd, popSize, moduleName = "general", massScale = "auto", rescaleBasisFunctions = False, 
-           basisFunctionType = "plummer", gridSizeFactor = "default", allowNegativeValues = False, baseLens = None, 
+def invert(inputImages, gridInfoOrBasisFunctions, zd, Dd, popSize, moduleName = "general", massScale = "auto",
+           allowNegativeValues = False, baseLens = None, 
            sheetSearch = "nosheet", fitnessObjectParameters = None, wideSearch = False, maximumGenerations = 16384,
            geneticAlgorithmParameters = { }, returnNds = False, inverter = "default", feedbackObject = "default"):
     """Start the genetic algorithm to look for a gravitational lens model that's
@@ -192,8 +192,44 @@ def invert(inputImages, grid, zd, Dd, popSize, moduleName = "general", massScale
           ``timedelay`` to ``False`` to ignore the time delay information in
           a particular images data instance.
 
-     - `grid`: a grid of cells which will be used to base the layout of the
-       basis functions on.
+     - `gridInfoOrBasisFunctions`: can be either a dictionary containing a grid
+       and options from which basis functions are derived, or a list of entries
+       containing basis function info. In the first case, the dict should have
+       the following entries:
+
+         - `grid`: a grid of cells which will be used to base the layout of the
+           basis functions on.
+         - `rescaleBasisFunctions` (optional, default is ``False``): by default, 
+           the weight of a basis function is a
+           measure of its total mass. This implies that smaller grid cells will correspond
+           to larger densities, i.e. if you set all weights of the basis functions to the
+           same value, the regions with smaller grid cells will have a considerably larger
+           density. Since the usual approach will be to subdivide the regions that contain
+           more mass into smaller grid cells, this does make sense and appears to produce
+           very good results in most cases. To make this effect less
+           pronounced, you can set this parameter to ``True``, and the basis functions will
+           be rescaled. The smaller grid cells will still have higher densities, but not
+           as much as before (in case square basis functions were used, equal weights would
+           generate equal densities irrespective of the grid size).
+         - `basisFunctionType` (optional, default is ``"plummer"``): can be ``"plummer"``, 
+           ``"gaussian"`` or ``"square"``, and specifies the basis function to use for each 
+           grid cell.
+         - `gridSizeFactor` (optional, default depends on basis function type): when assigning 
+           a basis function to a grid cell, the width will
+           be proportional to the cell size and this factor specifies this. For a ``"plummer"``
+           basis function, the default is 1.7, for the ``"gaussian"`` and ``"square"`` basis
+           functions, the default is 1.0.
+
+       It is also possible to specify a list of basis functions to be used directly. In that
+       case, this parameter should be a list of dictionaries with the following entries:
+
+         - `lens`: the lens model for this basis function.
+         - `center`: the x,y position at which this lens model should be placed.
+         - `mass`: the mass of this lens model, in the relevant area. Some models have a total
+           mass parameter which would likely work fine, but not all models have this (e.g. a
+           SIS lens or a mass sheet). You should then precalculate the mass in the strong lensing
+           region (approximately) and store it in this entry. This is needed to the algorithm can
+           estimate the total lensing mass of a certain combination of weighted basis functions.
 
      - `zd`: the redshift to the lens, used when calculating time delays
        (for other purposes the angular diameter distance will be used).
@@ -207,26 +243,6 @@ def invert(inputImages, grid, zd, Dd, popSize, moduleName = "general", massScale
      - `massScale`: a rough estimate of the total mass of the gravitational lens.
        Set to ``"auto"`` or ``"auto_nocheck"`` to let the :func:`estimateStrongLensingMass`
        function provide this estimate automatically.
-
-     - `rescaleBasisFunctions`: by default, the weight of a basis function is a
-       measure of its total mass. This implies that smaller grid cells will correspond
-       to larger densities, i.e. if you set all weights of the basis functions to the
-       same value, the regions with smaller grid cells will have a considerably larger
-       density. Since the usual approach will be to subdivide the regions that contain
-       more mass into smaller grid cells, this does make sense and appears to produce
-       very good results in most cases. To make this effect less
-       pronounced, you can set this parameter to ``True``, and the basis functions will
-       be rescaled. The smaller grid cells will still have higher densities, but not
-       as much as before (in case square basis functions were used, equal weights would
-       generate equal densities irrespective of the grid size).
-
-     - `basisFunctionType`: can be ``"plummer"``, ``"gaussian"`` or ``"square"``, and
-       specifies the basis function to use for each grid cell.
-
-     - `gridSizeFactor`: when assigning a basis function to a grid cell, the width will
-       be proportional to the cell size and this factor specifies this. For a ``"plummer"``
-       basis function, the default is 1.7, for the ``"gaussian"`` and ``"square"`` basis
-       functions, the default is 1.0.
 
      - `allowNegativeValues`: by default, the weight of the basis functions are only
        allowed to be positive, to make certain that an overall positive mass density
@@ -287,7 +303,6 @@ def invert(inputImages, grid, zd, Dd, popSize, moduleName = "general", massScale
      - `feedbackObject`: can be used to specify a particular :ref:`feedback mechanism <feedback>`.
     """
 
-    cellSizeFactorDefaults = { "plummer": 1.7, "gaussian": 1.0, "square": 1.0 }
     #print("FeedbackObject1", feedbackObject)
     inverter, feedbackObject = privutil.initInverterAndFeedback(inverter, feedbackObject)
     #print("FeedbackObject2", feedbackObject)
@@ -303,20 +318,6 @@ def invert(inputImages, grid, zd, Dd, popSize, moduleName = "general", massScale
         for k in fitnessObjectParameters:
             fullFitnessObjParams[k] = fitnessObjectParameters[k]
 
-    # Check if we need to convert fractional grid to real grid
-    if type(grid) == dict:
-        grid = gridModule._fractionalGridToRealGrid(grid)
-
-    # Resize the grid cells if necessary
-    if gridSizeFactor == "default":
-        cellFactor = cellSizeFactorDefaults[basisFunctionType]
-    else:
-        cellFactor = gridSizeFactor
-
-    grid = copy.deepcopy(grid) # Make sure we don't modify the input
-    for cell in grid:
-        cell["size"] *= cellFactor
-
     # Get massscale
     if massScale == "auto":
         massScale = estimateStrongLensingMass(Dd, inputImages, False)
@@ -328,9 +329,39 @@ def invert(inputImages, grid, zd, Dd, popSize, moduleName = "general", massScale
 
     feedbackObject.onStatus("Mass scale is: {:g} solar masses".format(massScale/CT.MASS_SUN))
 
-    params = inversionparams.GridLensInversionParameters(maximumGenerations, inputImages, 
-               { "gridSquares": grid, "useWeights": rescaleBasisFunctions, "basisFunction": basisFunctionType },
-               Dd, zd, massScale, allowNegativeValues, baseLens, sheetSearch, fullFitnessObjParams, wideSearch)
+    cellSizeFactorDefaults = { "plummer": 1.7, "gaussian": 1.0, "square": 1.0 }
+    if type(gridInfoOrBasisFunctions) == dict:
+        grid = gridInfoOrBasisFunctions["grid"]
+        rescaleBasisFunctions = gridInfoOrBasisFunctions["rescaleBasisFunctions"] if "rescaleBasisFunctions" in gridInfoOrBasisFunctions else False
+        basisFunctionType = gridInfoOrBasisFunctions["basisFunctionType"] if "basisFunctionType" in gridInfoOrBasisFunctions else "plummer"
+        gridSizeFactor = gridInfoOrBasisFunctions["gridSizeFactor"] if "gridSizeFactor" in gridInfoOrBasisFunctions else "default"
+
+        # Check if we need to convert fractional grid to real grid
+        if type(grid) == dict:
+            grid = gridModule._fractionalGridToRealGrid(grid)
+
+        # Resize the grid cells if necessary
+        if gridSizeFactor == "default":
+            cellFactor = cellSizeFactorDefaults[basisFunctionType]
+        else:
+            cellFactor = gridSizeFactor
+
+        grid = copy.deepcopy(grid) # Make sure we don't modify the input
+        for cell in grid:
+            cell["size"] *= cellFactor
+
+        basisInfo = { "gridSquares": grid, "useWeights": rescaleBasisFunctions, "basisFunction": basisFunctionType }
+
+    elif type(gridInfoOrBasisFunctions) == list:
+
+        basisInfo = gridInfoOrBasisFunctions
+
+    else:
+        raise InversionException("Unexpected type for 'gridInfoOrBasisFunctions', not a list and not a dictionary")
+
+    params = inversionparams.GridLensInversionParameters(maximumGenerations, inputImages, basisInfo,
+                                                         Dd, zd, massScale, allowNegativeValues, baseLens, 
+                                                         sheetSearch, fullFitnessObjParams, wideSearch)
 
     # TODO: for now, we're getting the component description in a separate way as it
     #       is not yet integrated in mogal. Once it is, this should be removed
@@ -546,7 +577,9 @@ class InversionWorkSpace(object):
         """For the current grid, the current images data sets, run the genetic algorithm
         for the inversion. This calls the :func:`invert <grale.inversion.invert>` function
         in this module, which you can consult for other arguments that you can specify
-        using keywords.
+        using keywords. In addition to the keyword arguments specified there, you can
+        also specify `gridSizeFactor`, `rescaleBasisFunctions` and `basisFunctionType`
+        which will be filled in in the `gridInfoOrBasisFunctions` dictionary.
 
         If the same arguments need to be set for each call of this method, you can use
         :func:`setDefaultInversionArguments` to set them. Note that the options passed
@@ -561,7 +594,14 @@ class InversionWorkSpace(object):
         for a in kwargs:
             newKwargs[a] = kwargs[a]
 
-        lens = invert(self.imgDataList, self.grid, self.zd, self.Dd, populationSize, **newKwargs)
+        gridInfo = { "grid": self.grid }
+        # Move some arguments to the gridInfo dict
+        for k in [ "gridSizeFactor", "rescaleBasisFunctions", "basisFunctionType" ]:
+            if k in newKwargs:
+                gridInfo[k] = newKwargs[k]
+                del newKwargs[k]
+
+        lens = invert(self.imgDataList, gridInfo, self.zd, self.Dd, populationSize, **newKwargs)
         return lens
 
     def calculateFitness(self, lens):
