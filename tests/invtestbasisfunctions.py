@@ -164,7 +164,7 @@ for useWeights in [ False ]:
     def lensModelFunction(opType, opInfo, parameters = None):
         if opType == "start":
             numCells = len(opInfo["grid"])
-            cellMass = gridMassEst #/numCells
+            cellMass = gridMassEst/numCells
             return { "cellmass": cellMass }
 
         assert(opType == "add")

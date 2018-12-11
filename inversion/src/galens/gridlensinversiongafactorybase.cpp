@@ -166,6 +166,7 @@ bool GridLensInversionGAFactoryBase::init(const mogal::GAFactoryParams *p)
 
 	m_numMasses = basisLenses.size();
 
+	double massScale = m_pCurrentParams->getMassScale();
 	double totalRelevantLensingMass = 0;
 	for (const auto &bl : basisLenses)
 	{
@@ -177,15 +178,10 @@ bool GridLensInversionGAFactoryBase::init(const mogal::GAFactoryParams *p)
 			setErrorString("A basis lens has a negative lensing mass");
 			return false;
 		}
-
-		totalRelevantLensingMass += m;
 	}
 
-	// Note: this yields numerically the same result as the older implementation
-	totalRelevantLensingMass /= m_numMasses; 
-
 	for (const auto &bl : basisLenses)
-		m_massWeights.push_back((float)(bl.m_relevantLensingMass/totalRelevantLensingMass));
+		m_massWeights.push_back((float)(bl.m_relevantLensingMass/massScale));
 
 	bool useSheet = false;
 
