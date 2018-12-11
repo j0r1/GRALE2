@@ -451,6 +451,9 @@ class InversionWorkSpace(object):
         self.inverter = inverter
         self.feedbackObject = feedbackObject
 
+    def getLensDistance(self):
+        return self.Dd
+
     def setRegionSize(self, regionSize, regionCenter = [0, 0]):
         """Set the inversion region, same as in the constructor: `regionSize` and 
         `regionCenter` are the width, height and center of the region in which the
@@ -640,6 +643,12 @@ class InversionWorkSpace(object):
 
         return ((xMax-xMin)**2 + (yMax-yMin)**2)**0.5
 
+    def setBasisFunctions(self, basisFunctions):
+        """Convenience method, just calls :func:`clearBasisFunctions` followed
+        by :func:`addBasisFunctions`."""
+        self.clearBasisFunctions()
+        self.addBasisFunctions(basisFunctions)
+
     def addBasisFunctions(self, basisFunctions):
         """Add basis functions that will be used in :func:`invertBasisFunctions`.
         If, for a specific basis function, no relevant lensing mass is specified,
@@ -676,6 +685,24 @@ class InversionWorkSpace(object):
                 print("Estimated mass for basis function is: {} solar masses".format(d["mass"]/MASS_SUN))
 
             self.basisFunctions.append(d)
+
+    def addBasisFunctionsBasedOnCurrentGrid(self, lensModelFunction):
+
+        lensModelFunctionParameters = lensModelFunction("start", { "grid": self.grid })
+        grid = gridModule._fractionalGridToRealGrid(self.grid) if type(self.grid) == dict else copy.deepcopy(self.grid)
+        for cell in grid:
+            center, size = cell["center"], cell["size"]
+            lens, mass = lensModelFunction("add", { "center": center, "size": size }, lensModelFunctionParameters)
+            entry = { "lens": lens, "center": center }
+            if mass is not None:
+                entry["mass"] = mass
+
+            self.basisFunctions.append(entry)
+
+    def estimateStrongLensingMass(self, skipParamCheck = False):
+        """Calls :func:`estimateStrongLensingMass <grale.inversion.estimateStrongLensingMass>`
+        with the images and lens distance that have been set for this inversion work space."""
+        return estimateStrongLensingMass(self.Dd, self.imgDataList, skipParamCheck)
 
     def invertBasisFunctions(self, populationSize, **kwargs):
         """For the lensing scenario specified in this :class:`InversionWorkSpace` instance,
