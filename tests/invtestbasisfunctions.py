@@ -139,6 +139,7 @@ pointData = """
 
 z_lens = 0.4
 
+#for useWeights in [ True ]:
 for useWeights in [ False ]:
     iws = inversion.InversionWorkSpace(z_lens, 250*ANGLE_ARCSEC, cosmology=Cosmology(0.7, 0.27, 0, 0.73))
 
@@ -170,14 +171,18 @@ for useWeights in [ False ]:
         assert(opType == "add")
 
         factor = 1.7
-        lens = lenses.PlummerLens(iws.getLensDistance(), { "width": opInfo["size"]*factor, "mass": parameters["cellmass"] })
-        return lens, parameters["cellmass"]
+        width = opInfo["size"]*factor
+        mass = parameters["cellmass"]
+        #mass *= (width/ANGLE_ARCSEC)**2 # smaller cells have less mass
+
+        lens = lenses.PlummerLens(iws.getLensDistance(), { "width": width, "mass": mass })
+        return lens, mass
 
 
     iws.clearBasisFunctions()
     iws.addBasisFunctionsBasedOnCurrentGrid(lensModelFunction)
 
-    lens2a, fitness2a, fitdesc = iws.invert(popSize, maximumGenerations=maxGen)
+    lens2a, fitness2a, fitdesc = iws.invert(popSize, maximumGenerations=maxGen, rescaleBasisFunctions=useWeights)
     lens2, fitness2, fitdesc = iws.invertBasisFunctions(popSize, maximumGenerations=maxGen)
 
     for idx, fitness, lens in [ (1, fitness1, lens1), (2, fitness2, lens2), ("2a", fitness2a, lens2a) ]:
