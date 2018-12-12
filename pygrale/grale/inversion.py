@@ -630,10 +630,10 @@ class InversionWorkSpace(object):
             
             tr = img.getTopRightCorner()
             bl = img.getBottomLeftCorner()
-            xCoords.append(tr.getX())
-            xCoords.append(bl.getX())
-            yCoords.append(tr.getY())
-            yCoords.append(bl.getY())
+            xCoords.append(tr[0])
+            xCoords.append(bl[0])
+            yCoords.append(tr[1])
+            yCoords.append(bl[1])
 
         if not xCoords or not yCoords:
             raise InversionException("No images are present from which the strong lensing region can be estimated")
@@ -665,7 +665,7 @@ class InversionWorkSpace(object):
                 d["mass"] = copy.deepcopy(bf["mass"])
             else:
                 if not imgSize:
-                    imgSize = _getImageSize() / 2.0
+                    imgSize = self._getImageSize() / 2.0
 
                 lens = d["lens"]
                 extra = 1.001
@@ -675,19 +675,31 @@ class InversionWorkSpace(object):
                     "topright": [ imgSize*extra, imgSize*extra ],
                 }
 
-                # Abuse this function to perform the calculations
-                profile = plotutil.plotIntegratedMassProfile(lensInfo, imgSize, axes=False, 
-                                                             renderer=self.renderer,
-                                                             feedbackObject=self.feedbackObject)
-            
-                d["mass"] = profile[-1]
+                mass = None
+                try:
+                    mass = lens.getRadialMassProfile([imgSize])[0]
+                except Exception as e:
+                    # TODO: for debugging
+                    print(f"Unable to get mass directly: {e}")
+
+                if mass is None:
+                    # TODO: for debugging
+                    print("Using numerical calculation")
+                    # Abuse this function to perform the calculations
+                    profile = plotutil.plotIntegratedMassProfile(lensInfo, imgSize, axes=False, 
+                                                                 renderer=self.renderer,
+                                                                 feedbackObject=self.feedbackObject)
+                    mass = profile[1][-1] # 1 for the mass values (0 is radii), -1 for the last integrated mass
+                
+                d["mass"] = mass
                 # TODO: for debugging
-                print("Estimated mass for basis function is: {} solar masses".format(d["mass"]/MASS_SUN))
+                print("Estimated mass for basis function is: {:g} solar masses".format(mass/CT.MASS_SUN))
 
             self.basisFunctions.append(d)
 
     def addBasisFunctionsBasedOnCurrentGrid(self, lensModelFunction):
 
+        tmpBasisFunctions = [ ]
         lensModelFunctionParameters = lensModelFunction("start", { "grid": self.grid })
         grid = gridModule._fractionalGridToRealGrid(self.grid) if type(self.grid) == dict else copy.deepcopy(self.grid)
         for cell in grid:
@@ -697,7 +709,9 @@ class InversionWorkSpace(object):
             if mass is not None:
                 entry["mass"] = mass
 
-            self.basisFunctions.append(entry)
+            tmpBasisFunctions.append(entry)
+
+        self.addBasisFunctions(tmpBasisFunctions)
 
     def estimateStrongLensingMass(self, skipParamCheck = False):
         """Calls :func:`estimateStrongLensingMass <grale.inversion.estimateStrongLensingMass>`
