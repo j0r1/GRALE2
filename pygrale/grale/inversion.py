@@ -15,11 +15,14 @@ from . import inversionparams
 from . import privutil
 from . import grid as gridModule
 from . import plotutil
+from . import lenses
 import platform
 import os
 import copy
 import random
 import numpy as np
+
+_cellSizeFactorDefaults = { "plummer": 1.7, "gaussian": 1.0, "square": 1.0 }
 
 class InversionException(Exception):
     """An exception that's generated if something goes wrong in a function
@@ -329,7 +332,6 @@ def invert(inputImages, gridInfoOrBasisFunctions, zd, Dd, popSize, moduleName = 
 
     feedbackObject.onStatus("Mass scale is: {:g} solar masses".format(massScale/CT.MASS_SUN))
 
-    cellSizeFactorDefaults = { "plummer": 1.7, "gaussian": 1.0, "square": 1.0 }
     if type(gridInfoOrBasisFunctions) == dict:
         grid = gridInfoOrBasisFunctions["grid"]
         rescaleBasisFunctions = gridInfoOrBasisFunctions["rescaleBasisFunctions"] if "rescaleBasisFunctions" in gridInfoOrBasisFunctions else False
@@ -342,7 +344,7 @@ def invert(inputImages, gridInfoOrBasisFunctions, zd, Dd, popSize, moduleName = 
 
         # Resize the grid cells if necessary
         if gridSizeFactor == "default":
-            cellFactor = cellSizeFactorDefaults[basisFunctionType]
+            cellFactor = _cellSizeFactorDefaults[basisFunctionType]
         else:
             cellFactor = gridSizeFactor
 
@@ -378,6 +380,45 @@ def invert(inputImages, gridInfoOrBasisFunctions, zd, Dd, popSize, moduleName = 
         result = (result[0], fitnessComponentDescription)
 
     return result
+
+def defaultLensModelFunction(operation, operationInfo, parameters):
+    """TODO"""
+
+    if operation == "start":
+
+        # Initialize to default parameters
+        usedParams = { "basistype": "plummer", "sizefactor": "default", "rescale": False }
+        if parameters:
+            for k in parameters:
+                usedParams[k] = parameters[k]
+
+        iws = operationInfo["workspace"]
+        gridMassEst = iws.estimateStrongLensingMass()
+
+        numCells = len(operationInfo["grid"])
+        usedParams["cellmass"] = gridMassEst/numCells
+
+        if usedParams["sizefactor"] == "default":
+            usedParams["sizefactor"] = _cellSizeFactorDefaults[usedParams["basistype"]]
+
+        usedParams["Dd"] = iws.getLensDistance()
+        return usedParams
+
+    if operation != "add":
+        raise InversionException(f"Unexpected operationtype {operation}, was expecting 'add'")
+
+    width = operationInfo["size"]*parameters["sizefactor"]
+    mass = parameters["cellmass"]
+    if parameters["rescale"]:
+        mass *= (width/CT.ANGLE_ARCSEC)**2 # smaller cells have less mass
+    
+    classes = { "plummer": lenses.PlummerLens,
+                "gaussian": lenses.GaussLens,
+                "square": lenses.SquareLens }
+
+    lens = classes[parameters["basistype"]](parameters["Dd"], { "width": width, "mass": mass })
+    return lens, mass
+
 
 class InversionWorkSpace(object):
     """This class tries to make it more straightforward to perform lens inversions
@@ -697,10 +738,12 @@ class InversionWorkSpace(object):
 
             self.basisFunctions.append(d)
 
-    def addBasisFunctionsBasedOnCurrentGrid(self, lensModelFunction):
+    def addBasisFunctionsBasedOnCurrentGrid(self, lensModelFunction = defaultLensModelFunction,
+                                            initialParameters = None):
+        """TODO"""
 
         tmpBasisFunctions = [ ]
-        lensModelFunctionParameters = lensModelFunction("start", { "grid": self.grid })
+        lensModelFunctionParameters = lensModelFunction("start", { "grid": self.grid, "workspace": self }, initialParameters)
         grid = gridModule._fractionalGridToRealGrid(self.grid) if type(self.grid) == dict else copy.deepcopy(self.grid)
         for cell in grid:
             center, size = cell["center"], cell["size"]
