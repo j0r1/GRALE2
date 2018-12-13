@@ -167,10 +167,12 @@ for useWeights in [ False, True ]:
                                             basisFunctionType=basisFunctionType)
     lens2, fitness2, fitdesc = iws.invertBasisFunctions(popSize, maximumGenerations=maxGen)
 
+    totalMass = sum(bf["mass"] for bf in iws.getBasisFunctions())
     for idx, fitness, lens in [ (1, fitness1, lens1), (2, fitness2, lens2), ("2a", fitness2a, lens2a) ]:
         print(f"Fitness for lens {idx}: {fitness}")
         print(f"Recalculated:", iws.calculateFitness(lens))
         print()
+    print(f"total mass basis functions: {totalMass/MASS_SUN:g}")
 
     print("Press enter to continue")
     input()

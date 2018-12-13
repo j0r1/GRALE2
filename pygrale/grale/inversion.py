@@ -387,19 +387,27 @@ def defaultLensModelFunction(operation, operationInfo, parameters):
     if operation == "start":
 
         # Initialize to default parameters
-        usedParams = { "basistype": "plummer", "sizefactor": "default", "rescale": False }
+        usedParams = { "basistype": "plummer", "sizefactor": "default", "rescale": False, 
+                       "totalmass": "auto" }
         if parameters:
             for k in parameters:
                 usedParams[k] = parameters[k]
 
         iws = operationInfo["workspace"]
-        gridMassEst = iws.estimateStrongLensingMass()
-
-        numCells = len(operationInfo["grid"])
-        usedParams["cellmass"] = gridMassEst/numCells
+        totalMass = iws.estimateStrongLensingMass() if usedParams["totalmass"] == "auto" else usedParams["totalmass"]
 
         if usedParams["sizefactor"] == "default":
             usedParams["sizefactor"] = _cellSizeFactorDefaults[usedParams["basistype"]]
+
+        grid = gridModule._fractionalGridToRealGrid(operationInfo["grid"])
+        if not usedParams["rescale"]:
+            numCells = len(grid)
+            usedParams["cellmass"] = totalMass/numCells
+        else:
+            totalRescale = 0
+            for cell in grid:
+                totalRescale += (cell["size"]*usedParams["sizefactor"]/CT.ANGLE_ARCSEC)**2
+            usedParams["cellmass"] = totalMass/totalRescale
 
         usedParams["Dd"] = iws.getLensDistance()
         return usedParams
@@ -653,6 +661,10 @@ class InversionWorkSpace(object):
         """Clears the list of basis functions that will be used in
         :func:`invertBasisFunctions`"""
         self.basisFunctions = [ ]
+
+    def getBasisFunctions(self):
+        """TODO"""
+        return self.basisFunctions
 
     def _getImageSize(self):
 
