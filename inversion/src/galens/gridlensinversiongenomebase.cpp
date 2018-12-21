@@ -457,88 +457,9 @@ void GridLensInversionGenomeBase::rescale()
 	}
 }
 
-// TODO: this should use the basis functions stored in gafactoryparams
 GravitationalLens *GridLensInversionGenomeBase::createLens(double *totalmass, std::string &errstr) const
 {
-#if 0
-	int nummasses = m_masses.size();
-	const GridLensInversionGAFactoryParams *params = (const GridLensInversionGAFactoryParams *)factory->getCurrentParameters();
-	const std::list<GridSquare> &squares = params->getGridSquares();
-	std::list<GridSquare>::const_iterator it = squares.begin();
-	const float *weights = factory->getMassWeights();
-	double massscale = params->getMassScale();
-	double tm = 0;
-	GravitationalLens *lens = 0;
-	
-	if (params->getBasisFunctionType() == GridLensInversionGAFactoryParams::PlummerBasis)
-	{
-		std::list<PlummerLensInfo> newplummers;
-	
-		for (int i = 0 ; i < nummasses ; i++, it++)
-		{
-			double m = massscale*(double)m_masses[i]*(double)weights[i]*(double)scalefactor;
-			newplummers.push_back(PlummerLensInfo(m, (*it).getSize(), (*it).getCenter()));
-			tm += m;
-		}
-	
-		MultiplePlummerLensParams lensparams(newplummers);
-		lens = new MultiplePlummerLens();
-
-		if (!lens->init(params->getD_d(), &lensparams))
-		{
-			errstr = lens->getErrorString();
-			delete lens;
-			return 0;
-		}
-	}
-	else if (params->getBasisFunctionType() == GridLensInversionGAFactoryParams::GaussBasis)
-	{
-		std::list<GaussLensInfo> newgaussians;
-	
-		for (int i = 0 ; i < nummasses ; i++, it++)
-		{
-			double m = massscale*(double)m_masses[i]*(double)weights[i]*(double)scalefactor;
-			newgaussians.push_back(GaussLensInfo(m, (*it).getSize(), (*it).getCenter()));
-			tm += m;
-		}
-	
-		MultipleGaussLensParams lensparams(newgaussians);
-		lens = new MultipleGaussLens();
-
-		if (!lens->init(params->getD_d(), &lensparams))
-		{
-			errstr = lens->getErrorString();
-			delete lens;
-			return 0;
-		}
-	}
-	else // Multiple squares
-	{
-		std::list<SquareLensInfo> newsquares;
-	
-		for (int i = 0 ; i < nummasses ; i++, it++)
-		{
-			double m = massscale*(double)m_masses[i]*(double)weights[i]*(double)scalefactor;
-			newsquares.push_back(SquareLensInfo(m, (*it).getSize(), (*it).getCenter()));
-			tm += m;
-		}
-	
-		MultipleSquareLensParams lensparams(newsquares);
-		lens = new MultipleSquareLens();
-
-		if (!lens->init(params->getD_d(), &lensparams))
-		{
-			errstr = lens->getErrorString();
-			delete lens;
-			return 0;
-		}
-	}
-	*totalmass = tm;
-
-	return lens;
-#else
 	return m_pFactory->createLens(m_masses, m_sheetValue, m_scaleFactor, totalmass, errstr);
-#endif
 }
 
 void GridLensInversionGenomeBase::initializeNewCalculation()
