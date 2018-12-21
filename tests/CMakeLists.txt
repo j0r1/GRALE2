@@ -33,7 +33,7 @@ list(APPEND GRALE_INTERNAL_INCLUDES "${PROJECT_SOURCE_DIR}/core/src/")
 list(APPEND GRALE_INTERNAL_INCLUDES "${PROJECT_SOURCE_DIR}/inversion/src/galens")
 list(APPEND GRALE_INTERNAL_INCLUDES "${PROJECT_SOURCE_DIR}/inversion/src/prob")
 list(APPEND GRALE_INTERNAL_INCLUDES "${PROJECT_SOURCE_DIR}/inversion/src/")
-list(APPEND GRALE_INTERNAL_INCLUDES "${PROJECT_SOURCE_DIR}/inversion_modules/src/")
+#list(APPEND GRALE_INTERNAL_INCLUDES "${PROJECT_SOURCE_DIR}/inversion_modules/src/")
 
 apply_include_paths("${GRALE_INTERNAL_INCLUDES}")
 apply_include_paths("${GRALE_EXTERNAL_INCLUDES}")
@@ -41,8 +41,3 @@ apply_include_paths("${GRALE_EXTERNAL_INCLUDES}")
 add_executable(backproject backproject.cpp)
 target_link_libraries(backproject graleinv-static gralecore-static ${GRALE_LINK_LIBS})
 
-add_executable(genometest genometest.cpp "${PROJECT_SOURCE_DIR}/inversion_modules/src/lensfitnesssimplerectangles.cpp"
-					  "${PROJECT_SOURCE_DIR}/inversion_modules/src/fitnessutil.cpp"
-					  "${PROJECT_SOURCE_DIR}/inversion_modules/src/fitnesscomponent.cpp"
-					  "${PROJECT_SOURCE_DIR}/inversion_modules/src/pointgroupstorage.cpp")
-target_link_libraries(genometest graleinv-static gralecore-static ${GRALE_LINK_LIBS})

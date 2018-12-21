@@ -1,10 +1,10 @@
-#include "gridlensinversiongafactorybase.h"
-#include "gridlensinversiongafactoryparams.h"
-#include "gridlensinversiongenomebase.h"
-#include "imagesdataextended.h"
+#include <grale/gridlensinversiongafactorybase.h>
+#include <grale/gridlensinversiongafactoryparams.h>
+#include <grale/gridlensinversiongenomebase.h>
+#include <grale/imagesdataextended.h>
+#include <grale/constants.h>
+#include <grale/grid.h>
 #include "lensfitnesssimplerectangles.h"
-#include "constants.h"
-#include "grid.h"
 #include <mogal/gafactorymultiobjective.h>
 #include <serut/vectorserializer.h>
 #include <iostream>
