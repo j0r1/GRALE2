@@ -565,18 +565,23 @@ class InversionWorkSpace(object):
         :func:`plotSubdivisionGrid <grale.plotutil.plotSubdivisionGrid>`."""
         return self.grid
 
-    def _getGridDimensions(self, randomFraction):
+    def _getGridDimensions(self, randomFraction, regionSize, regionCenter):
+        if regionSize is None:
+            regionSize = self.regionSize
+        if regionCenter is None:
+            regionCenter = self.regionCenter
+
         if type(randomFraction) == float: # Just a number, use the default method
-            w = self.regionSize
+            w = regionSize
             dx = (random.random()-0.5) * w*randomFraction
             dy = (random.random()-0.5) * w*randomFraction
-            c = [ self.regionCenter[0] + dx, self.regionCenter[1] + dy ]
+            c = [ regionCenter[0] + dx, regionCenter[1] + dy ]
         else: # assume it's something we can call to obtain the grid dimensions
-            w, c = randomFraction(self.regionSize, copy.copy(self.regionCenter))
+            w, c = randomFraction(regionSize, copy.copy(regionCenter))
 
         return w, c
     
-    def setUniformGrid(self, subDiv, randomFraction = 0.05):
+    def setUniformGrid(self, subDiv, randomFraction = 0.05, regionSize = None, regionCenter = None):
         """Based on the size and center provided during initialization, create
         a uniform grid with `subDiv` subdivisions along each axis, resulting
         in `subDiv`x`subDiv` cells. 
@@ -588,19 +593,25 @@ class InversionWorkSpace(object):
         size and center as two arguments, and it should return a tuple
         containing the width and center of the actual grid to use. This gives
         you somewhat more freedom in adding randomness to the grid size and center.
+
+        If specified, `regionSize` and `regionCenter` override the internally stored
+        dimensions.
         """
-        w, c = self._getGridDimensions(randomFraction)
+        w, c = self._getGridDimensions(randomFraction, regionSize, regionCenter)
         self.grid = gridModule.createUniformGrid(w, c, subDiv)
         
-    def setSubdivisionGrid(self, lensOrLensInfo, minSquares, maxSquares, startSubDiv = 1, randomFraction = 0.05):
+    def setSubdivisionGrid(self, lensOrLensInfo, minSquares, maxSquares, startSubDiv = 1, randomFraction = 0.05, regionSize = None, regionCenter = None):
         """Based on the lens that's provided as input, create a subdivision grid
         where regions with more mass are subdivided further, such that the number
         of resulting grid cells lies between `minSquares` and `maxSquares`. For
         more information about the procedure, see :func:`grid.createSubdivisionGrid <grale.grid.createSubdivisionGrid>`.
 
         The usage of the `randomFraction` parameter is the same as in :func:`setUniformGrid`.
+
+        If specified, `regionSize` and `regionCenter` override the internally stored
+        dimensions.
         """
-        w, c = self._getGridDimensions(randomFraction)
+        w, c = self._getGridDimensions(randomFraction, regionSize, regionCenter)
         if type(lensOrLensInfo) == dict:
             lensInfo = lensOrLensInfo
         else:
