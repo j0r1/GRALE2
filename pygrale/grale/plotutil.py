@@ -575,6 +575,67 @@ def plotDensityInteractive(lensOrLensInfo, numX=75, numY=75, height=600, xlabel=
                       canvas2svgJS=canvas2svgJS, fileSaverJS=fileSaverJS)
     return lensInfo
 
+def plotDensityContours(lensOrLensInfo, renderer = "default", feedbackObject = "default", angularUnit = "default", densityUnit = 1.0,
+                axes = None, axImgCallback = None, **kwargs):
+    """Creates a 2D plot of the situation specified in `lensOrLensInfo`.
+
+In case you just want the calculations to be performed (for example because you need
+the calculated density pixels) but you don't want an actual plot, you can set the
+`axes` parameter to `False`.
+
+Arguments:
+ - `lensOrLensInfo`: this can either be a :class:`GravitationalLens <grale.lenses.GravitationalLens>`
+   instance or an instance of :class:`LensInfo` or even :class:`DensInfo`.
+   In case it's only a gravitational lens, an estimate of the relevant area will be used.
+
+ - `renderer`: this parameter can be used to specify a specific :ref:`renderer <renderers>`
+   to speed up the calculation. 
+
+ - `feedbackObject`: can be used to specify a particular :ref:`feedback mechanism <feedback>`.
+
+ - `angularUnit`: the angular unit that should be used in the plot. The 
+   :ref:`pre-defined constants <constants>` can be useful here.
+
+ - `densityUnit`: by default, the density will be in kg/m^2, but another unit can be specified
+   here.
+
+ - `axes`: the default will cause a new plot to be created, but you can specify an existing
+   matplotlib axes object as well. The value `False` has a special meaning: in that case,
+   the calculations will be performed as usual, but an actual plot will not be created.
+
+ - `axImgCallback`: if specified, this callback function will be called with the object
+   returned by ``contour`` as argument.
+
+ - `kwargs`: these parameters will be passed on to the `contour <https://matplotlib.org/api/_as_gen/matplotlib.pyplot.contour.html>`_
+   function in matplotlib.
+"""
+    angularUnit = _getAngularUnit(angularUnit)
+
+    lensInfo = _toLensInfo(lensOrLensInfo)
+
+    if axes is not False:
+
+        X = lensInfo.getXPointCoordinates()/angularUnit
+        Y = lensInfo.getYPointCoordinates()/angularUnit
+        Z = lensInfo.getDensityPoints()/densityUnit
+
+        bottomLeft = lensInfo.getBottomLeft()
+        topRight = lensInfo.getTopRight()
+
+        if axes is None:
+            import matplotlib.pyplot as plt
+            axes = plt.gca()
+
+        # Note: need to swap Y labeling here because of the way the pixels are ordered in this function
+        axImg = axes.contour(X, Y, Z, **kwargs)
+        axes.set_xlim([bottomLeft[0]/angularUnit, topRight[0]/angularUnit])
+        axes.set_ylim([bottomLeft[1]/angularUnit, topRight[1]/angularUnit])
+        axes.set_aspect("equal")
+
+        if axImgCallback: axImgCallback(axImg)
+
+    return lensInfo
+
 def plotDensity(lensOrLensInfo, renderer = "default", feedbackObject = "default", angularUnit = "default", densityUnit = 1.0,
                 axes = None, axImgCallback = None, **kwargs):
     """Creates a 2D plot of the situation specified in `lensOrLensInfo`.
