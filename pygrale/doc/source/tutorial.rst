@@ -161,13 +161,11 @@ are shown below the code (which continues where the CL0024 example left off):
 The :class:`LensInfo <grale.plotutil.LensInfo>` object stores various 
 properties, like the :class:`ImagePlane <grale.images.ImagePlane>` and
 :class:`LensPlane <grale.images.LensPlane>` instances that were calculated,
-as well as the density map. In the example below, we use this stored information
-to generate a contour map using matplotlib's `contour <https://matplotlib.org/api/_as_gen/matplotlib.pyplot.contour.html>`_
-function. Note that in this case we're using the raw matplotlib functions, and
-our own plot scale factor will not be taken into account automatically.
-For this reason, we convert to arcsec units manually. The result is shown in the
-panel on the left.
-The center and right panels of the figure above show the circularly averaged mass 
+as well as the density map. In the example below, we use the 
+:func:`plotDensityContours <grale.plotutil.plotDensityContours>` function
+to create a contour map of the projected mass density of the lens.
+The result is shown in the panel on the left.
+The center and right panels of the same figure show the circularly averaged mass 
 density profile and integrated mass profile respectively, using the 
 :func:`plotAverageDensityProfile <grale.plotutil.plotAverageDensityProfile>`
 and :func:`plotIntegratedMassProfile <grale.plotutil.plotIntegratedMassProfile>`

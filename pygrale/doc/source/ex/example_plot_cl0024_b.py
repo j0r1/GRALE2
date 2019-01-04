@@ -9,9 +9,7 @@ lensInfo = pickle.loads(open("lensinfo.bin", "rb").read())
 
 plt.figure(figsize=(13,4))
 plt.subplot(1,3,1)
-plt.contour(lensInfo.getXPointCoordinates()/ANGLE_ARCSEC, 
-            lensInfo.getYPointCoordinates()/ANGLE_ARCSEC, 
-            lensInfo.getDensityPoints(), 20)
+plotutil.plotDensityContours(lensInfo, levels=20)
 plt.gca().invert_xaxis()
 plt.gca().set_title("Density contours")
 

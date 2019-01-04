@@ -576,8 +576,8 @@ def plotDensityInteractive(lensOrLensInfo, numX=75, numY=75, height=600, xlabel=
     return lensInfo
 
 def plotDensityContours(lensOrLensInfo, renderer = "default", feedbackObject = "default", angularUnit = "default", densityUnit = 1.0,
-                axes = None, axImgCallback = None, **kwargs):
-    """Creates a 2D plot of the situation specified in `lensOrLensInfo`.
+                axes = None, axImgCallback = None, levels = None, **kwargs):
+    """Creates a contour plot of the mass density specified in `lensOrLensInfo`.
 
 In case you just want the calculations to be performed (for example because you need
 the calculated density pixels) but you don't want an actual plot, you can set the
@@ -627,7 +627,11 @@ Arguments:
             axes = plt.gca()
 
         # Note: need to swap Y labeling here because of the way the pixels are ordered in this function
-        axImg = axes.contour(X, Y, Z, **kwargs)
+        if levels is None:
+            axImg = axes.contour(X, Y, Z, **kwargs)
+        else:
+            axImg = axes.contour(X, Y, Z, levels, **kwargs)
+
         axes.set_xlim([bottomLeft[0]/angularUnit, topRight[0]/angularUnit])
         axes.set_ylim([bottomLeft[1]/angularUnit, topRight[1]/angularUnit])
         axes.set_aspect("equal")
