@@ -304,7 +304,7 @@ int getSingleImageNullSpaceHitCount(Vector2D<float> beta, const vector<TriangleI
 			hitCount++;
 	}
 
-	if (hitCount < 1)
+	if (hitCount < 1) // in other code this needs to be >= 1
 		hitCount = 1;
 
 	return hitCount;
@@ -444,7 +444,7 @@ float calculateNullFitness_PointImages(const ProjectedImagesInterface &interface
 				nullenergy += totalCount; 
 			}
 
-			nullenergy -= (float)numImages;
+			//nullenergy -= (float)numImages;
 			if (nullenergy < 0)
 				nullenergy = 0;
 
@@ -476,6 +476,9 @@ float calculateNullFitness_PointImages(const ProjectedImagesInterface &interface
 
 			assert(numPoints <= hitCount);
 			nullenergy = (float)(hitCount-numPoints);
+
+			if (nullenergy < 0)
+				nullenergy = 0;
 		}
 
 		assert(weigthIdx < nullWeights.size());
@@ -670,6 +673,8 @@ float calculateNullFitness_ExtendedImages(const ProjectedImagesInterface &iface,
 			int hitCount = getSingleImageNullSpaceHitCount(beta, nullTriangles[tp], nullBetas);
 
 			nullenergy = (float)(hitCount-1);
+			if (nullenergy < 0)
+				nullenergy = 0;
 		}
 
 		assert(weigthIdx < nullWeights.size());
