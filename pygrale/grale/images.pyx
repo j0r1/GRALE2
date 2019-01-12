@@ -845,10 +845,11 @@ cdef class LensPlane:
         cdef array[char] buf2
 
         renderer, feedbackObject = privutil.initRendererAndFeedback(renderer, feedbackObject, "LENSPLANE")
-        self.feedback = feedbackObject
 
         if renderer and renderer.renderType != "LENSPLANE":
             raise LensPlaneException("Specified renderer does not appear to be for the LENSPLANE type")
+
+        self.feedback = feedbackObject
 
         try:
             lensData = lens.toBytes()
@@ -869,6 +870,7 @@ cdef class LensPlane:
         finally:
             del m
             del m2
+            self.feedback = None
 
     def getLens(self):
         """getLens()
