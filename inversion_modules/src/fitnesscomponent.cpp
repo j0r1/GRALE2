@@ -482,7 +482,9 @@ bool FitnessComponent_NullSpacePointImages::inspectImagesData(int idx, const Ima
 	addImagesDataIndex(m_lastImgIdx);
 	addImagesDataIndex(idx);
 	addToUsedImagesCount(m_lastImgNumImgs);
-	m_lastImgIdx = -1; // reset the referenced image
+	//Note: disabled this again, so we can easilye two null spaces (perhaps with diffent resolution)
+	//      for the same image
+	//m_lastImgIdx = -1; // reset the referenced image
 
 	return true;
 }
@@ -649,7 +651,9 @@ bool FitnessComponent_NullSpaceExtendedImages::inspectImagesData(int idx, const 
 	addImagesDataIndex(m_lastImgIdx);
 	addImagesDataIndex(idx);
 	addToUsedImagesCount(m_lastImgNumImgs);
-	m_lastImgIdx = -1; // reset the referenced image
+	//Note: disabled this again, so we can easilye two null spaces (perhaps with diffent resolution)
+	//      for the same image
+	//m_lastImgIdx = -1; // reset the referenced image
 
 	return true;
 }
@@ -1039,7 +1043,9 @@ bool FitnessComponent_CausticPenalty::inspectImagesData(int idx, const ImagesDat
 	addImagesDataIndex(m_lastImgIdx);
 	addImagesDataIndex(idx);
 	addToUsedImagesCount(m_lastImgNumImgs);
-	m_lastImgIdx = -1; // reset the referenced image
+	//Note: disabled this again, so we can use the same image for caustics and null space
+	//      for the same image
+	//m_lastImgIdx = -1; // reset the referenced image
 	return true;
 }
 

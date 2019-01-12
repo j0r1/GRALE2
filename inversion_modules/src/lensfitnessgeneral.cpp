@@ -341,7 +341,7 @@ bool LensFitnessGeneral::init(double z_d, std::list<ImagesDataExtended *> &image
 		for (size_t n = 0 ; n < names.size() ; n++)
 		{
 			supportedNames.insert(names[n]);
-			//cerr << "SUPPORTED NAME: " << names[n] << endl;
+			cerr << "SUPPORTED NAME: " << names[n] << endl;
 		}
 	}
 
