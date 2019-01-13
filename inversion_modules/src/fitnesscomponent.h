@@ -104,6 +104,12 @@ public:
 	bool calculateFitness(const ProjectedImagesInterface &iface, float &fitness) override;
 private:
 	std::vector<float> m_distanceFractions;
+	std::vector<float> m_workspace;
+	std::vector<float> m_scaleFactors;
+	std::vector<int> m_groups;
+
+	std::map<std::string, std::vector<int>> m_groupnameIndices;
+	std::vector<int> m_nogroupnameIndices;
 };
 
 class FitnessComponent_ExtendedImagesOverlap : public FitnessComponent

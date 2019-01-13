@@ -188,24 +188,81 @@ bool FitnessComponent_PointImagesOverlap::inspectImagesData(int idx, const Image
 
 	// If there's only a single point, it's not a constraint for this fitness component
 	// (but can still be used as a null space constraint)
-	if (numImg > 1)
+	if (numImg == 1)
+		return true;
+
+	needCalcDeflections = true;
+
+	float distFrac = (float)(Dds/Ds);
+	m_distanceFractions.push_back(distFrac);
+
+	addImagesDataIndex(idx);
+	addToUsedImagesCount(numImg);
+
+	if (imgDat.hasExtraParameter("groupname"))
 	{
-		needCalcDeflections = true;
+		string v;
+		if (!imgDat.getExtraParameter("groupname", v))
+		{
+			setErrorString("'groupname' parameter is present, but is not a string");
+			return false;
+		}
 
-		float distFrac = (float)(Dds/Ds);
-		m_distanceFractions.push_back(distFrac);
+		if (v.length() == 0)
+		{
+			setErrorString("'groupname' parameter is present, but the value is an empty string");
+			return false;
+		}
 
-		addImagesDataIndex(idx);
-		addToUsedImagesCount(numImg);
+		m_groupnameIndices[v].push_back(idx);
+
+		// TODO: check for same distance fraction?
 	}
+	else
+		m_nogroupnameIndices.push_back(idx);
 
 	return true;
 }
 
 bool FitnessComponent_PointImagesOverlap::calculateFitness(const ProjectedImagesInterface &iface, float &fitness)
 {
-	float scale = getScaleFactor_PointImages(iface, getUsedImagesDataIndices(), m_distanceFractions);
-	fitness = calculateOverlapFitness_PointImages(iface, getUsedImagesDataIndices(), m_distanceFractions, scale);
+	if (m_groups.size() != m_distanceFractions.size())
+	{
+		// First time, need to build the group indices from the map
+		// TODO: should add some finalize function to FitnessComponent, and move this there
+		m_groups.resize(m_distanceFractions.size(), -1);
+
+		int nextGroup = 0;
+
+		// Unnamed points go into group zero
+		for (auto idx : m_nogroupnameIndices)
+		{
+			assert(idx >= 0 && idx < m_groups.size());
+			m_groups[idx] = nextGroup;
+		}
+		nextGroup++;
+
+		for (auto it : m_groupnameIndices)
+		{
+			auto &indices = it.second;
+			for (auto idx : indices)
+			{
+				assert(idx >= 0 && idx < m_groups.size());
+				m_groups[idx] = nextGroup;
+			}
+
+			nextGroup++;
+		}
+
+		// check that every point has a group number (was initialized to -1)
+		for (auto idx : m_groups) { assert(m_groups[idx] >= 0); }
+
+		// Reserve space in scale factor array
+		m_scaleFactors.resize(nextGroup);
+	}
+
+	getScaleFactors_PointImages(iface, getUsedImagesDataIndices(), m_distanceFractions, m_groups, m_scaleFactors, m_workspace);
+	fitness = calculateOverlapFitness_PointImages(iface, getUsedImagesDataIndices(), m_distanceFractions, m_groups, m_scaleFactors);
 	return true;
 }
 
