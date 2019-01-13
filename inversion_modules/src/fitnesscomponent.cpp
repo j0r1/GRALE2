@@ -232,25 +232,32 @@ bool FitnessComponent_PointImagesOverlap::calculateFitness(const ProjectedImages
 		// TODO: should add some finalize function to FitnessComponent, and move this there
 		m_groups.resize(m_distanceFractions.size(), -1);
 
+		const auto &imageIndices = getUsedImagesDataIndices();
+		map<int,int> imgIndexToArrayIndex;
+		for (int i = 0 ; i < imageIndices.size() ; i++)
+			imgIndexToArrayIndex[imageIndices[i]] = i;
+
 		int nextGroup = 0;
 
-		// Unnamed points go into group zero
-		for (auto idx : m_nogroupnameIndices)
+		auto addIndices = [&nextGroup,&imgIndexToArrayIndex,this](const vector<int> &indices)
 		{
-			assert(idx >= 0 && idx < m_groups.size());
-			m_groups[idx] = nextGroup;
-		}
+			for (auto idx : indices)
+			{
+				assert(imgIndexToArrayIndex.find(idx) != imgIndexToArrayIndex.end());
+				int i = imgIndexToArrayIndex[idx];
+
+				assert(i >= 0 && i < m_groups.size());
+				m_groups[i] = nextGroup;
+			}
+		};
+
+		// Unnamed points go into group zero
+		addIndices(m_nogroupnameIndices);
 		nextGroup++;
 
 		for (auto it : m_groupnameIndices)
 		{
-			auto &indices = it.second;
-			for (auto idx : indices)
-			{
-				assert(idx >= 0 && idx < m_groups.size());
-				m_groups[idx] = nextGroup;
-			}
-
+			addIndices(it.second);
 			nextGroup++;
 		}
 
