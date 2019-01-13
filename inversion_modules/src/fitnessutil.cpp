@@ -14,25 +14,57 @@ namespace grale
 {
 
 float getScaleFactor_PointImages(const ProjectedImagesInterface &interface,
-		                         const vector<int> &sourceIndices,
-								 const vector<float> &sourceDistanceFractions)
+		                         const std::vector<int> &sourceIndices,
+								 const std::vector<float> &sourceDistanceFractions)
 {
-	float scale = (interface.getAngularScale()*interface.getAngularScale())/(ANGLE_ARCSEC*ANGLE_ARCSEC);
+	vector<int> sourceGroup(sourceIndices.size(), 0);
+	vector<float> scaleFactors(1, 0);
+	vector<float> workSpace(4);
 
+	getScaleFactors_PointImages(interface, sourceIndices, sourceDistanceFractions, sourceGroup, scaleFactors, workSpace);
+	float scale = scaleFactors[0];
+	assert(scale != 0);
+	return scale;
+}
+
+void getScaleFactors_PointImages(const ProjectedImagesInterface &interface,
+		                         const vector<int> &sourceIndices,
+								 const vector<float> &sourceDistanceFractions,
+								 const vector<int> &sourceGroup,
+								 vector<float> &scaleFactors, // one for each group
+								 vector<float> &workSpace)
+{
+	float defaultScale = (interface.getAngularScale()*interface.getAngularScale())/(ANGLE_ARCSEC*ANGLE_ARCSEC);
+	for (auto &s : scaleFactors)
+		s = defaultScale;
+
+	assert(scaleFactors.size() > 0);
+	assert(sourceGroup.size() == sourceIndices.size());
 	assert(sourceIndices.size() == sourceDistanceFractions.size());
 
 	if (sourceIndices.size() > 1) // We're assuming that different source indices are present
 	{
-		float minx = numeric_limits<float>::max();
-		float maxx = -numeric_limits<float>::max();
-		float miny = numeric_limits<float>::max();
-		float maxy = -numeric_limits<float>::max();
+		workSpace.resize(scaleFactors.size()*4);
+		for (int i = 0 ; i < scaleFactors.size() ; i++)
+		{
+			float minx = numeric_limits<float>::max();
+			float maxx = -numeric_limits<float>::max();
+			float miny = numeric_limits<float>::max();
+			float maxy = -numeric_limits<float>::max();
+
+			workSpace[i*4+0] = minx;
+			workSpace[i*4+1] = maxx;
+			workSpace[i*4+2] = miny;
+			workSpace[i*4+3] = maxy;
+		}
 
 		for (int sIdx = 0 ; sIdx < sourceIndices.size() ; sIdx++)
 		{
 			const int s = sourceIndices[sIdx];
+			const int group = sourceGroup[sIdx];
 			const float distFrac = sourceDistanceFractions[sIdx];
 
+			assert(group >= 0 && group < scaleFactors.size());
 			assert(s < interface.getNumberOfSources());
 			const int numImages = interface.getNumberOfImages(s);
 			const float sqrtDistFrac = SQRT(distFrac);
@@ -45,6 +77,11 @@ float getScaleFactor_PointImages(const ProjectedImagesInterface &interface,
 					float x = beta.getX()/sqrtDistFrac;
 					float y = beta.getY()/sqrtDistFrac;
 					
+					float &minx = workSpace[group*4+0];
+					float &maxx = workSpace[group*4+1];
+					float &miny = workSpace[group*4+2];
+					float &maxy = workSpace[group*4+3];
+
 					maxx = MAX(maxx, x);
 					minx = MIN(minx, x);
 					maxy = MAX(maxy, y);
@@ -53,33 +90,61 @@ float getScaleFactor_PointImages(const ProjectedImagesInterface &interface,
 			}
 		}
 
-		float dx = maxx-minx;
-		float dy = maxy-miny;
+		for (int group = 0 ; group < scaleFactors.size() ; group++)
+		{
+			float minx = workSpace[group*4+0];
+			float maxx = workSpace[group*4+1];
+			float miny = workSpace[group*4+2];
+			float maxy = workSpace[group*4+3];
 
-		if (dx > 0 && dy > 0)
-			scale = 1.0f/(dx*dx + dy*dy);
+			float dx = maxx-minx;
+			float dy = maxy-miny;
+
+			if (dx > 0 && dy > 0)
+			{
+				float scale = 1.0f/(dx*dx + dy*dy);
+				assert(!isnan(scale));
+
+				scaleFactors[group] = scale;
+			}
+		}
 	}
-	assert(!isnan(scale));
-	return scale;
+}
+
+float calculateOverlapFitness_PointImages(const ProjectedImagesInterface &interface, 
+		                                  const std::vector<int> &sourceIndices,
+										  const std::vector<float> &sourceDistanceFractions,
+										  float scale)
+{
+	vector<int> sourceGroup(sourceIndices.size(), 0);
+	vector<float> scaleFactors(1, scale);
+
+	return calculateOverlapFitness_PointImages(interface, sourceIndices, sourceDistanceFractions, sourceGroup, scaleFactors);
 }
 
 float calculateOverlapFitness_PointImages(const ProjectedImagesInterface &interface, 
 		                                  const vector<int> &sourceIndices,
 								          const vector<float> &sourceDistanceFractions,
-										  float scale)
+										  const vector<int> &sourceGroups,
+										  const vector<float> &scaleFactors)
 {
 	float fitness = 0;
 	int sourceCount = 0;
 
 	assert(sourceIndices.size() == sourceDistanceFractions.size());
+	assert(sourceGroups.size() == sourceIndices.size());
+	assert(scaleFactors.size() > 0);
 
 	for (int sIdx = 0 ; sIdx < sourceIndices.size() ; sIdx++)
 	{
 		const int s = sourceIndices[sIdx];
+		const int group = sourceGroups[sIdx];
 		const float distFrac = sourceDistanceFractions[sIdx];
 
+		assert(group >= 0 && group < scaleFactors.size());
 		assert(s < interface.getNumberOfSources());
 		const int numImages = interface.getNumberOfImages(s);
+		const float scale = scaleFactors[group];
 
 		if (numImages > 1)
 		{
@@ -101,12 +166,11 @@ float calculateOverlapFitness_PointImages(const ProjectedImagesInterface &interf
 			int numSprings = (numImages*(numImages-1))/2;
 			
 			sourceFitness /= (float)numSprings;
-			fitness += sourceFitness;
+			fitness += sourceFitness * scale;
 			sourceCount++; // Only count the sources that are actually used
 		}
 	}
 
-	fitness *= scale;
 	if (sourceCount > 0)
 		fitness /= (float)sourceCount;
 

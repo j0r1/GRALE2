@@ -17,10 +17,23 @@ float getScaleFactor_PointImages(const ProjectedImagesInterface &interface,
 		                         const std::vector<int> &sourceIndices,
 								 const std::vector<float> &sourceDistanceFractions);
 
+void getScaleFactors_PointImages(const ProjectedImagesInterface &interface,
+		                         const std::vector<int> &sourceIndices,
+								 const std::vector<float> &sourceDistanceFractions,
+								 const std::vector<int> &sourceGroup,
+								 std::vector<float> &scaleFactors, // one for each group
+								 std::vector<float> &workSpace);
+
 float calculateOverlapFitness_PointImages(const ProjectedImagesInterface &interface, 
 		                                  const std::vector<int> &sourceIndices,
 										  const std::vector<float> &sourceDistanceFractions,
 										  float scale);
+
+float calculateOverlapFitness_PointImages(const ProjectedImagesInterface &interface, 
+		                                  const std::vector<int> &sourceIndices,
+										  const std::vector<float> &sourceDistanceFractions,
+										  const std::vector<int> &sourceGroups,
+										  const std::vector<float> &scaleFactors);
 
 float calculateOverlapFitness_Extended(const PointGroupStorage &pointGroups, const ProjectedImagesInterface &iface,
 		                               const std::vector<int> &sourceIndices,
