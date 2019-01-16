@@ -221,55 +221,115 @@ bool FitnessComponent_PointImagesOverlap::inspectImagesData(int idx, const Image
 	else
 		m_nogroupnameIndices.push_back(idx);
 
+	if (imgDat.hasExtraParameter("usescalefrom"))
+	{
+		string v;
+		if (!imgDat.getExtraParameter("usescalefrom", v))
+		{
+			setErrorString("'usescalefrom' is present, but is not a string");
+			return false;
+		}
+
+		if (v.length() == 0)
+		{
+			setErrorString("'usescalefrom' is present, but the value is an empty string");
+			return false;
+		}
+
+		m_useScaleNames[idx] = v;
+	}
+
+	return true;
+}
+
+bool FitnessComponent_PointImagesOverlap::finalize()
+{
+	if (m_setScaleGroups.size() == m_distanceFractions.size())
+		return true;
+
+	//cerr << "DEBUG: finalize in FitnessComponent_PointImagesOverlap, for " << (void*)this << endl;
+
+	// Need to build the group indices from the map
+	m_setScaleGroups.resize(m_distanceFractions.size(), -1);
+
+	const auto &imageIndices = getUsedImagesDataIndices();
+	map<int,int> imgIndexToArrayIndex;
+	for (int i = 0 ; i < imageIndices.size() ; i++)
+		imgIndexToArrayIndex[imageIndices[i]] = i;
+
+	map<string, int> groupNameToIndex;
+	int nextGroup = 0;
+
+	auto addIndices = [&groupNameToIndex,&nextGroup,&imgIndexToArrayIndex,this](const vector<int> &indices, const string &name)
+	{
+		for (auto idx : indices)
+		{
+			assert(imgIndexToArrayIndex.find(idx) != imgIndexToArrayIndex.end());
+			int i = imgIndexToArrayIndex[idx];
+
+			assert(i >= 0 && i < m_setScaleGroups.size());
+			m_setScaleGroups[i] = nextGroup;
+		}
+		groupNameToIndex[name] = nextGroup;
+	};
+
+	// Unnamed points go into group zero
+	addIndices(m_nogroupnameIndices, "");
+	nextGroup++;
+
+	for (auto it : m_groupnameIndices)
+	{
+		addIndices(it.second, it.first);
+		nextGroup++;
+	}
+
+	// check that every point has a group number (was initialized to -1)
+	for (auto idx : m_setScaleGroups) { assert(m_setScaleGroups[idx] >= 0); }
+
+	// Reserve space in scale factor array
+	m_scaleFactors.resize(nextGroup);
+
+	// To allow a point to use a scale from another group, the m_useScaleGroups
+	// array is used
+	// Initialize this to m_setScaleGroups, and override when specified
+	m_useScaleGroups = m_setScaleGroups;
+
+	for (auto it : m_useScaleNames)
+	{
+		int imageIndex = it.first;
+		string groupName = it.second;
+
+		auto it2 = groupNameToIndex.find(groupName);
+		if (it2 == groupNameToIndex.end())
+		{
+			setErrorString("Group name '" + groupName + "' was mentioned in a 'usescalefrom' setting, but is not present as a 'groupname' setting");
+			return false;
+		}
+
+		int groupIndex = it2->second;
+
+		assert(imageIndex >= 0 && imageIndex < m_useScaleGroups.size());
+		assert(groupIndex >= 0 && groupIndex < m_scaleFactors.size());
+		m_useScaleGroups[imageIndex] = groupIndex;
+	}
+
+	//cerr << "m_setScaleGroups: " << m_setScaleGroups.size() << endl;
+	//cerr << "m_useScaleGroups: " << m_useScaleGroups.size() << endl;
+	//cerr << "m_distanceFractions: " << m_distanceFractions.size() << endl;
 	return true;
 }
 
 bool FitnessComponent_PointImagesOverlap::calculateFitness(const ProjectedImagesInterface &iface, float &fitness)
 {
-	if (m_groups.size() != m_distanceFractions.size())
-	{
-		// First time, need to build the group indices from the map
-		// TODO: should add some finalize function to FitnessComponent, and move this there
-		m_groups.resize(m_distanceFractions.size(), -1);
+	//cerr << "In calculateFitness " << (void*)this << endl;
+	//cerr << "m_setScaleGroups: " << m_setScaleGroups.size() << endl;
+	//cerr << "m_useScaleGroups: " << m_useScaleGroups.size() << endl;
+	//cerr << "m_distanceFractions: " << m_distanceFractions.size() << endl;
+	assert(m_setScaleGroups.size() == m_distanceFractions.size());
+	assert(m_useScaleGroups.size() == m_distanceFractions.size());
 
-		const auto &imageIndices = getUsedImagesDataIndices();
-		map<int,int> imgIndexToArrayIndex;
-		for (int i = 0 ; i < imageIndices.size() ; i++)
-			imgIndexToArrayIndex[imageIndices[i]] = i;
-
-		int nextGroup = 0;
-
-		auto addIndices = [&nextGroup,&imgIndexToArrayIndex,this](const vector<int> &indices)
-		{
-			for (auto idx : indices)
-			{
-				assert(imgIndexToArrayIndex.find(idx) != imgIndexToArrayIndex.end());
-				int i = imgIndexToArrayIndex[idx];
-
-				assert(i >= 0 && i < m_groups.size());
-				m_groups[i] = nextGroup;
-			}
-		};
-
-		// Unnamed points go into group zero
-		addIndices(m_nogroupnameIndices);
-		nextGroup++;
-
-		for (auto it : m_groupnameIndices)
-		{
-			addIndices(it.second);
-			nextGroup++;
-		}
-
-		// check that every point has a group number (was initialized to -1)
-		for (auto idx : m_groups) { assert(m_groups[idx] >= 0); }
-
-		// Reserve space in scale factor array
-		m_scaleFactors.resize(nextGroup);
-	}
-
-	getScaleFactors_PointImages(iface, getUsedImagesDataIndices(), m_distanceFractions, m_groups, m_scaleFactors, m_workspace);
-	fitness = calculateOverlapFitness_PointImages(iface, getUsedImagesDataIndices(), m_distanceFractions, m_groups, m_scaleFactors);
+	getScaleFactors_PointImages(iface, getUsedImagesDataIndices(), m_distanceFractions, m_setScaleGroups, m_scaleFactors, m_workspace);
+	fitness = calculateOverlapFitness_PointImages(iface, getUsedImagesDataIndices(), m_distanceFractions, m_useScaleGroups, m_scaleFactors);
 	return true;
 }
 

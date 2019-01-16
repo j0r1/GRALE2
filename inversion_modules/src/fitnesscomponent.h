@@ -69,6 +69,11 @@ public:
 			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
 			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence,
 								   bool &storeOrigIntens, bool &storeOrigTimeDelay, bool &storeOrigShear);
+
+	// Note that this may be called more than once
+	// TODO: prevent this?
+	// TODO: check that this is actually the case?
+	virtual bool finalize()																{ return true; }
 	virtual bool calculateFitness(const ProjectedImagesInterface &iface, float &fitness);
 	
 	const std::vector<int> &getUsedImagesDataIndices() const							{ return m_usedImagesDataIndices; }
@@ -101,14 +106,16 @@ public:
 			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
 			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence,
 								   bool &storeOrigIntens, bool &storeOrigTimeDelay, bool &storeOrigShear) override;
+	bool finalize() override;
 	bool calculateFitness(const ProjectedImagesInterface &iface, float &fitness) override;
 private:
 	std::vector<float> m_distanceFractions;
 	std::vector<float> m_workspace;
 	std::vector<float> m_scaleFactors;
-	std::vector<int> m_groups;
+	std::vector<int> m_setScaleGroups, m_useScaleGroups;
 
 	std::map<std::string, std::vector<int>> m_groupnameIndices;
+	std::map<int, std::string> m_useScaleNames;
 	std::vector<int> m_nogroupnameIndices;
 };
 

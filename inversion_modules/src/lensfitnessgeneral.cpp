@@ -341,7 +341,7 @@ bool LensFitnessGeneral::init(double z_d, std::list<ImagesDataExtended *> &image
 		for (size_t n = 0 ; n < names.size() ; n++)
 		{
 			supportedNames.insert(names[n]);
-			cerr << "SUPPORTED NAME: " << names[n] << endl;
+			//cerr << "SUPPORTED NAME: " << names[n] << endl;
 		}
 	}
 
@@ -443,7 +443,7 @@ bool LensFitnessGeneral::init(double z_d, std::list<ImagesDataExtended *> &image
 	m_totalStoreTimeDelay = reduceFlags(storeOrigTimeDelayFlags);
 	m_totalStoreShear = reduceFlags(storeOrigShearFlags);
 
-	// Clear the components that are not used
+	// Clear the components that are not used, finalize others
 	for (size_t i = 0 ; i < m_totalComponents.size() ; i++)
 	{
 		FitnessComponent *pComp = m_totalComponents[i];
@@ -453,6 +453,15 @@ bool LensFitnessGeneral::init(double z_d, std::list<ImagesDataExtended *> &image
 		{
 			delete pComp;
 			m_totalComponents[i] = 0;
+		}
+		else
+		{
+			//cerr << "Long finalize for " << pComp->getObjectName() << endl;
+			if (!pComp->finalize())
+			{
+				setErrorString("Unable to finalize component '" + pComp->getObjectName() + "':" + pComp->getErrorString());
+				return false;
+			}
 		}
 	}
 
@@ -530,6 +539,13 @@ bool LensFitnessGeneral::init(double z_d, std::list<ImagesDataExtended *> &image
 	m_shortStoreIntens = reduceFlags(storeShortOrigIntensFlags);
 	m_shortStoreTimeDelay = reduceFlags(storeShortOrigTimeDelayFlags);
 	m_shortStoreShear = reduceFlags(storeShortOrigShearFlags);
+
+	//cerr << "Short finalize for " << m_pShortComponent->getObjectName() << endl;
+	if (!m_pShortComponent->finalize())
+	{
+		setErrorString("Unable to finalize (short) component '" + m_pShortComponent->getObjectName() + "':" + m_pShortComponent->getErrorString());
+		return false;
+	}
 
 	// Time delays are requested, make sure that z_d is set!
 	if (m_totalComponents[COMPONENT_TIMEDELAY_IDX] != 0)
