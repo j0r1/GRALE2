@@ -314,18 +314,18 @@ _defaultMassRenderer = [ None ]
 _defaultLensRenderer = [ None ]
 
 def getDefaultLensPlaneRenderer():
-    """TODO:"""
+    """Returns the default lens plane renderer that was set using :func:`setDefaultLensPlaneRenderer`."""
     return _defaultLensRenderer[0]
 
 def getDefaultMassRenderer():
-    """TODO:"""
+    """Returns the default mass renderer that was set using :func:`setDefaultMassRenderer`."""
     return _defaultMassRenderer[0]
 
 def setDefaultLensPlaneRenderer(x):
-    """TODO:"""
+    """Sets the default lens plane renderer, see the module documentation for allowed values."""
     _defaultLensRenderer[0] = x
 
 def setDefaultMassRenderer(x):
-    """TODO:"""
+    """Sets the default mass renderer, see the module documentation for allowed values."""
     _defaultMassRenderer[0] = x
 

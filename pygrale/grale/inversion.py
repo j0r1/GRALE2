@@ -382,7 +382,24 @@ def invert(inputImages, gridInfoOrBasisFunctions, zd, Dd, popSize, moduleName = 
     return result
 
 def defaultLensModelFunction(operation, operationInfo, parameters):
-    """TODO"""
+    """This is the default `lensModelFunction` that's used in 
+    :func:`InversionWorkSpace.addBasisFunctionsBasedOnCurrentGrid <grale.inversion.InversionWorkSpace.addBasisFunctionsBasedOnCurrentGrid>`
+    This default function will case the same behaviour as the 
+    classic grid based inversion procedure.
+
+    The `initialParameters` in that function call will be merged with
+    a dictionary with the following entries:
+    
+     - ``basistype``: defaults to ``plummer``, but can also be ``square`` or ``gaussian``
+     - ``sizefactor``: a specific value can be set here which converts the grid square
+       size to a width of the basis function. The default value depends on the basis
+       function type: 1.7 ``for plummer`` and 1.0 for the two others.
+     - ``rescale``: defaults to ``False``, and has the same meaning as
+       `rescaleBasisFunctions` in the documentation of :func:`invert`.
+     - ``totalmass``: the mass scale for the entire lensing region. In case it's
+       ``"auto"``, it will be estimated from the images stored in the
+       :class:`InversionWorkSpace` instance.
+    """
 
     if operation == "start":
 
@@ -449,6 +466,10 @@ class InversionWorkSpace(object):
        inversion with a call to :func:`invert`.
 
      - repeat as needed/desired.
+
+    To get more control over the basis functions of which the weights will be
+    optimized, you can also set basis functions directly (see e.g. :func:`addBasisFunctions`)
+    and optimize their weights using :func:`invertBasisFunctions`.
     """
     def __init__(self, zLens, regionSize, regionCenter = [0, 0], inverter = "default", 
                  renderer = "default", feedbackObject = "default", cosmology = "default"):
@@ -501,6 +522,7 @@ class InversionWorkSpace(object):
         self.feedbackObject = feedbackObject
 
     def getLensDistance(self):
+        """Returns the angular diameter distance to the lens."""
         return self.Dd
 
     def setRegionSize(self, regionSize, regionCenter = [0, 0]):
@@ -674,7 +696,9 @@ class InversionWorkSpace(object):
         self.basisFunctions = [ ]
 
     def getBasisFunctions(self):
-        """TODO"""
+        """Returns the basis functions that have currently been stored, and
+        of which the weights will be optimized when :func:`invertBasisFunctions`
+        is called."""
         return self.basisFunctions
 
     def _getImageSize(self):
@@ -715,9 +739,17 @@ class InversionWorkSpace(object):
 
     def addBasisFunctions(self, basisFunctions):
         """Add basis functions that will be used in :func:`invertBasisFunctions`.
-        If, for a specific basis function, no relevant lensing mass is specified,
-        it will be estimated numerically as the mass inside (roughly) the image
-        region."""
+        Each entry in this list should be a dictionary with at least entries
+        ``lens`` and ``center`` containing the lens model and position at which
+        it should be placed. A ``mass`` parameter may be present as well,
+        describing the relevant lensing mass of this basis function. If no such
+        mass is specified, it will be estimated numerically as the mass inside 
+        (roughly) the image region.
+        
+        In the final call to the :func:`invert <grale.inversion.invert>` function,
+        the complete list is then passed as the `gridInfoOrBasisFunctions`
+        argument. You may look there for some additional information.
+        """
 
         imgSize = None
 
@@ -763,7 +795,35 @@ class InversionWorkSpace(object):
 
     def addBasisFunctionsBasedOnCurrentGrid(self, lensModelFunction = defaultLensModelFunction,
                                             initialParameters = None):
-        """TODO"""
+        """The goal of this function is to add basis functions based on the
+        grid that's currently stored. The conversion of grid cells to basis
+        functions is done using the function specified in
+        `lensModelFunction`.
+        
+        This function takes three arguments:
+
+         - `operation`: the name of the operation
+         - `operationInfo`: information about the operation
+         - `parameters`: additional parameters
+
+        First `lensModelFunction` is called with `operation` set to ``"start"``, `operationInfo`
+        set to a dictionary with entries ``workspace`` (this workspace) and ``grid`` (the current
+        grid), and `parameters` set to `initialParameters`. The return value of the function, let's
+        call this `lensModelFunctionParameters`, will be used as the `parameters` for subsequent
+        calls to `lensModelFunction`
+        
+        Then, for each grid cell in the current grid, `lensModelFunction` is called with
+        operation set to ``"add"``, `operationInfo` a dictionary with keys ``size`` and ``center``
+        containing the length of a cell square side and (x,y) coordinates of the cell center
+        respectively. The previously returned `lensModelFunctionParameters` is passed as the
+        `parameters` argument.
+
+        In this second phase, the `lensModelFunction` should return a tuple of two things:
+        the lens model for that grid cell, and (optionally) the relevant lensing mass for
+        this basis function. The lens model, the center and optionally this mass is then
+        added to a list, which is eventually processed by the :func:`addBasisFunctions`
+        procedure.
+        """
 
         tmpBasisFunctions = [ ]
         lensModelFunctionParameters = lensModelFunction("start", { "grid": self.grid, "workspace": self }, initialParameters)
