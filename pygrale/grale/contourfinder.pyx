@@ -100,8 +100,12 @@ cdef class ContourFinder:
         return contourParts
 
     def findMultipleContours(self, levels, numThreads = -1):
-        """findMultipleContours(levels)
-        TODO"""
+        """findMultipleContours(levels, numThreads = -1)
+        Similar to :func:`findContour`, but for several levels. If `numThreads` is positive,
+        this is the amount of contours that will be calculated in parallel, speeding things
+        up if you have multiple cores. If set to 0 or a negative value, the number of threads
+        will be set to the value detected by the `multiprocessing.cpucount <https://docs.python.org/3/library/multiprocessing.html>`_
+        function."""
         cdef vector[double] vecLevels
         cdef vector[vector[vector[Vector2Dd]]] contours
 

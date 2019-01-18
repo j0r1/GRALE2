@@ -22,6 +22,8 @@ Functions
 
 .. autofunction:: enlargePolygon
 
+.. autofunction:: createGridTriangles
+
 ImagesData
 ----------
 
@@ -31,8 +33,6 @@ ImagesData
    .. automethod:: __init__
 
 .. autoexception:: ImagesDataException
-
-.. autofunction:: createGridTriangles
 
 LensPlane & ImagePlane
 ----------------------

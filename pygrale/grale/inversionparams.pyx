@@ -1,5 +1,6 @@
-""" TODO
-
+"""This module contains classes which will contain various settings
+for the lens inversion method. They form the bridge between the Python
+side of the code, and the C++ one.
 """
 from libcpp.string cimport string
 from libcpp.vector cimport vector
@@ -23,11 +24,13 @@ cimport grale.gaparameters as gaparameters
 include "stringwrappers.pyx"
 
 class ConfigurationParametersException(Exception):
-    """TODO:"""
+    """This exception is raised in case somethings goes wrong in the
+    :class:`ConfigurationParameters` class."""
     pass
 
 cdef class ConfigurationParameters(object):
-    """TODO:"""
+    """This class describes configuration parameters for a specific lens inversion
+    module. It is the Python link to the similarly named C++ class."""
 
     cdef configurationparameters.ConfigurationParameters *m_pParams
 
@@ -39,7 +42,13 @@ cdef class ConfigurationParameters(object):
         return confParams.m_pParams
 
     def __init__(self, parameterDict = None):
-        """TODO:"""
+        """__init__(parameterDict = None)
+
+        Initializes this object, storing the key/value entries from `parameterDict`
+        (if present). Note that not all dictionaries are valid: the keys should be
+        strings, and the values can be integers, strings, floating point values
+        or boolean values.
+        """
         cdef int intValue = 0
         cdef cbool boolValue = False
         cdef double doubleValue = 0.0
@@ -72,7 +81,10 @@ cdef class ConfigurationParameters(object):
         del self.m_pParams
 
     def asDict(self):
-        """TODO:"""
+        """asDict()
+
+        This returns the key/value pairs stored in this instance as a dictionary.
+        """
         cdef vector[string] keys
         cdef configurationparameters.TypedParameter param
         cdef cbool boolValue = False
@@ -102,7 +114,12 @@ cdef class ConfigurationParameters(object):
 
     @staticmethod
     def fromBytes(paramBytes):
-        """TODO:"""
+        """fromBytes(paramBytes)
+
+        This method takes in the binary representation of the key/value pairs in
+        `paramBytes`, and stores them internally. It is needed to load the information
+        from a C++ version of the class.
+        """
         cdef configurationparameters.ConfigurationParameters *pParams = NULL
         cdef array[char] buf = chararrayfrombytes(paramBytes)
         cdef serut.MemorySerializer *m = new serut.MemorySerializer(buf.data.as_voidptr, len(paramBytes), NULL, 0)
@@ -119,11 +136,13 @@ cdef class ConfigurationParameters(object):
             del m
 
 class InversionParametersException(Exception):
-    """TODO:"""
+    """This exception is raised if something goes wrong with the lens inversion
+    parameters."""
     pass
 
 cdef class GridLensInversionParameters(object):
-    """TODO:"""
+    """An internal representation of the parameters for the lens inversion
+    procedure, needed to communicate with the C++ based inversion code."""
     
     cdef gridlensinversionparameters.GridLensInversionParameters *m_pParams
 
@@ -144,7 +163,68 @@ cdef class GridLensInversionParameters(object):
     def __init__(self, maxGen, imageList, gridInfoOrBasisFunctions, Dd, zd, massScale,
                  allowNegativeValues = False, baseLens = None, sheetSearch = "nosheet",
                  fitnessObjectParameters = None, wideSearch = False):
-        """TODO:"""
+        """__init__(maxGen, imageList, gridInfoOrBasisFunctions, Dd, zd, massScale, allowNegativeValues = False, baseLens = None, sheetSearch = "nosheet", fitnessObjectParameters = None, wideSearch = False)
+        
+        Creates an instance containing the input for the lens inversion method.
+
+        Parameters:
+         - `maxGen`: The maximum number of generations in the genetic algorithm. Intended as a fail-safe
+           to prevent the algorithm from running indefinitely.
+         - `imageList`: this describes the input images, and should be a list of dictionaries where 
+           each dictionary has the following entries:
+
+            - ``images``: an :class:`ImagesData <grale.images.ImagesData>` instance, containing
+              information about the extended images, point images or null space for example.
+            - ``Ds``: angular diameter distance from source to observer for this entry
+            - ``Dds``: angular diameter distance between source and lens for this entry
+            - ``params`` (optionally): extra parameters that belong to this entry, can be 
+              a list or a dictionary.
+
+         - `gridInfoOrBasisFunctions`: for the inversion method you can either provide
+           a grid as input, from which basis functions will be derived, or you can specify
+           the basis functions directly. 
+           
+           In the first case, the input should be a dictionary with the following entries:
+
+            - ``gridSquares``: a list of squares in the grid. Each entry is a dictionary
+              with ``center`` and ``size`` keys. This size is used directly as the width
+              of the used basis function.
+            - ``useWeights`` (optional, defaults to ``False``): by default, the initial
+              mass of a basis function is the same for a small or large grid cell. If set
+              to ``True``, it will be adjusted based on the size of the grid cell, so that
+              smaller cells contain less mass.
+            - ``basisFunctions`` (optional, defaults to ``plummer``): can be ``plummer``,
+              ``square`` or ``gaussian``
+
+           In the second case, it should be a list of dictionaries, where each dictionary
+           describes a basis function and should contain the entries:
+
+            - ``lens``: the lens model for this basis function, interpreted as centered on
+              the origin.
+            - ``mass``: the relevant lensing mass of this basis function. This will be used
+              to adjust weights to lie in the relevant total mass range.
+            - ``center``: the center (x,y) coordinates at which the lens model should be
+              positioned.
+
+         - `Dd`: the angular diameter distance to the lens
+         - `zd`: the redshift of the lens, important when using time delay information
+         - `massScale`: a mass scale for the optimization to use. The weights of the
+           basis functions will be adjusted to lie in a certain range around this
+           scale (the width of the range depends on `wideSearch`)
+         - `allowNegativeValues`: by default, only positive weights will be assigned to
+           the basis functions used in the optimization. If negative weights are allowed
+           as well (can be useful when starting from a certain `baseLens`), this can be
+           set to ``True``.
+         - `baseLens`: if present, the lens inversion method will look for additions to
+           this model. The `allowNegativeValues` argument may be useful in this case.
+         - `sheetSearch`: can be ``nosheet`` or ``genome``, and indicates if a mass sheet
+           basis function should be present in the lens inversion method.
+         - `fitnessObjectParameters`: parameters that should be passed to the inversion 
+           module that will be used.
+         - `wideSearch`: if set to ``True``, a wider range of masses will be probed around
+           the specified `massScale` argument. In typical cases, this is not needed, but
+           may be useful when trying to combine strong and weak lensing information.
+        """
 
         cdef vector[shared_ptr[imagesdataextended.ImagesDataExtended]] imgVector
         cdef vector[grid.GridSquare] gridSquares
@@ -303,7 +383,8 @@ cdef class GridLensInversionParameters(object):
     def fromBytes(bytes b):
         """fromBytes(bytes b)
         
-        TODO
+        Creates an instance of this class based on a binary representation. This is
+        the inverse function of :func:`toBytes`.
         """
         cdef array[char] buf = chararrayfrombytes(b)
         cdef serut.MemorySerializer *m = new serut.MemorySerializer(buf.data.as_voidptr, len(b), NULL, 0)
@@ -326,7 +407,8 @@ cdef class GridLensInversionParameters(object):
     def toBytes(self):
         """toBytes()
         
-        TODO
+        Returns a byte array that stores the settings contained in this instance. This
+        could be processed again by :func:`fromBytes`.
         """
         cdef serut.VectorSerializer vSer
 
@@ -337,7 +419,7 @@ cdef class GridLensInversionParameters(object):
         return <bytes>vSer.getBufferPointer()[0:vSer.getBufferSize()]
 
 cdef class GAParameters(object):
-    """TODO:"""
+    """General parameters for the genetic algorithm."""
     
     cdef gaparameters.GAParameters *m_pParams
 
@@ -352,11 +434,21 @@ cdef class GAParameters(object):
             raise InversionParametersException("Internal error: GAParameters instance has not been set")
 
     def __init__(self, selectionpressure = 2.5, elitism = True, alwaysincludebest = True, crossoverrate = 0.9):
-        """TODO:"""
+        """__init__(selectionpressure = 2.5, elitism = True, alwaysincludebest = True, crossoverrate = 0.9)
+        
+        Initializes an object representing general parameters for the genetic algorithm.
+        For more information about the meaning of the arguments, refer to the 
+        `documentation <http://research.edm.uhasselt.be/jori/mogal/documentation/classmogal_1_1GeneticAlgorithmParams.html>`_
+        of the library that's used for the genetic algorithm.
+
+        """
         self.m_pParams = new gaparameters.GAParameters(selectionpressure, elitism, alwaysincludebest, crossoverrate)
 
     def getSettings(self):
-        """TODO:"""
+        """getSettings()
+
+        Returns the settings as a dictionary.
+        """
         self._check()
         r = { }
         r["selectionpressure"] = self.m_pParams.getSelectionPressure()
@@ -367,7 +459,11 @@ cdef class GAParameters(object):
         return r
 
     def toBytes(self):
-        """TODO:"""
+        """toBytes()
+
+        Returns a binary representation of these parameters. Needed for the
+        communication with the C++ bases inversion algorithm.
+        """
         cdef serut.VectorSerializer vSer
 
         self._check()

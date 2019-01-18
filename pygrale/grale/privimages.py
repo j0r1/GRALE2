@@ -568,6 +568,9 @@ def createGridTriangles(bottomLeft, topRight, numX, numY, holes = None, enlargeH
     The `Triangle <https://www.cs.cmu.edu/~quake/triangle.html>`_ program is used
     to create the triangulation.
 
+    The result is returned as an :class:`ImagesData <grale.images.ImagesData>`
+    instance.
+
     Arguments:
      * `bottomLeft`: bottom-left corner of the triangulated region.
      * `topRight`: top-right corner of the triangulated region.

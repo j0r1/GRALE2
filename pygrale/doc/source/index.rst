@@ -68,5 +68,4 @@ Indices and tables
    grale_plotutil.rst
    grale_renderers.rst
    grale_editor.rst
-
-
+   internals.rst
