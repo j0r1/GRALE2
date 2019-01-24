@@ -617,7 +617,7 @@ Arguments:
 
         X = lensInfo.getXPointCoordinates()/angularUnit
         Y = lensInfo.getYPointCoordinates()/angularUnit
-        Z = lensInfo.getDensityPoints()/densityUnit
+        Z = lensInfo.getDensityPoints(renderer, feedbackObject)/densityUnit
 
         bottomLeft = lensInfo.getBottomLeft()
         topRight = lensInfo.getTopRight()
