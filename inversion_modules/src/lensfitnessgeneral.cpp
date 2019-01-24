@@ -194,7 +194,7 @@ bool componentSortFunction(const FitnessComponent *pComp1, const FitnessComponen
 	{
 		// For the same priority, use the number of images involved (that can actually be
 		// used as a constraint) as a tie breaker
-		if (pComp1->getNumberOfUsedImages() < pComp2->getNumberOfUsedImages())
+		if (pComp1->getNumberOfUsedImages() > pComp2->getNumberOfUsedImages())
 			return true;
 	}
 	return false;
