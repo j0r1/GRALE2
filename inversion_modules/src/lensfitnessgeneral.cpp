@@ -746,7 +746,9 @@ measures are:
 
  - `timedelay`: when time delay information is available for one or more
    multiply-imaged sources, a fitness measure will be calculated as described
-   in [Liesenborgs et al (2009)][4].
+   in [Liesenborgs et al (2009)][4]. Other, still experimental time delay
+   fitness measures can be used as well by changing the parameter
+   `fitness_timedelay_type` (see the section about *'module parameters'*).
 
  - `causticpenalty`: also described in [Liesenborgs et al (2009)][4], it is
    also possible to add a fitness measure to try to prevent a caustic from
@@ -770,31 +772,30 @@ yourself. See the section about *'module parameters'* for more information.
 Input images data list
 ----------------------
 
-The last argument to `imgdata/list/add` is called `type`, and can be used to
-specify what kind of data this is. This inversion module uses these type names
-to determine which fitness measures are needed in the genetic algorithm. 
-Sometimes, an images data set will require some extra parameters to be
-specified, which you can do by setting the third argument to `yes`, in that
-case you'll need to add lines containing three entries: the name of the 
-extra parameter, the type and the value. Supported types for these extra
-parameters are `int` (an integer number), `real` (a real number), `bool` 
-(a boolean) and `str` (a string).
-
-As mentioned above, the images data set type name describes what kind of data
+In [`InversionWorkSpace.addImageDataToList](http://research.edm.uhasselt.be/~jori/grale2/grale_inversion.html#grale.inversion.InversionWorkSpace.addImageDataToList),
+you specify the image type, as well as (optionally) extra parameters.
+The images data set type name describes what kind of data
 is contained in this entry, and can be one of the following:
 
  - `pointimages`: the images data set describes point images that originate
-   from a single source (also a point image of course). In general in a strong
+   from a single source (also a point of course). In general in a strong
    lensing scenario there will be more than one image, but single images are
    allowed as well. If this is the case, the image can't be used directly 
    because it originates from a single point source by definition, but it can
    still be useful for a null space constraint to inform the algorithm that
    this source should not lie in a region that produces multiple images.
 
+    For the overlap fitness, two options are possible: if the same `groupname`
+   is used for more multiple point images, the overlap of the points will be
+   measured relative to the scale of only these back-projected points. By
+   default, the scale of all backprojected points is used. If `usescalefrom`
+   is present, then for those points the scale set by another set of points,
+   identified by a specific `groupname`.
+
     In case time delay information was added to the images data set, by 
    default a time delay fitness measure will be calculated as well. This can
    still be disabled by specifying a boolean extra parameter `timedelay` that
-   is set to `no`.
+   is set to `False`.
 
     The fitness measures to which this type of data is relevant, are 
    `pointimageoverlap`, `pointimagenull` and `timedelay`.
@@ -806,7 +807,7 @@ is contained in this entry, and can be one of the following:
    a trial solution. 
    
     One extra parameter can be specified: `weight`, which should be a real and 
-   positive value. The estimated amount of extra images is multiplied by this
+   positive value. The estimated amount of images is multiplied by this
    number, and can be used to adjust the relative importance of some null 
    spaces. This can be useful to provide extra weight to singly imaged sources
    because they may otherwise provide only a small penalty.
@@ -907,15 +908,13 @@ is contained in this entry, and can be one of the following:
 Module parameters
 -----------------
 
-Extra parameters for this module can be set using `invert/grid/algparams/set`
-with argument `general` (the name of this inversion module). Like the extra
-parameters in the `imgdata/list/add` command, three entries need to be 
-provided for each extra parameter: the name, the type (`int`, `real`, `bool`
+Extra parameters for this module can be set using the `fitnessObjectParameters`
+argument in e.g. [`inversion.invert`](http://research.edm.uhasselt.be/~jori/grale2/grale_inversion.html#grale.inversion.InversionWorkSpace.invert)
 or `str`) and the value. The defaults can be obtained using the command
-`invert/grid/algparams/get` with argument `general`, and are listed in the
-following table:
+[`inversion.getDefaultModuleParameters`](http://research.edm.uhasselt.be/~jori/grale2/grale_inversion.html#grale.inversion.getDefaultModuleParameters), 
+and are listed in the following table:
 
-| Parameter name                | Value (all `int`) |
+| Parameter name                | Value             |
 |-------------------------------|-------------------|
 | priority_causticpenalty       | 100               |
 | priority_pointimagenull       | 200               |
@@ -925,24 +924,32 @@ following table:
 | priority_timedelay            | 400               |
 | priority_weaklensing          | 500               |
 | priority_kappathreshold       | 600               |
+| fitness_timedelay_type        | 'Paper2009'       |
+| fitness_timedelay_relative    | `False`           |
 
-As the names suggest, these describe priorities for fitness measures. These
-values do **not** have any effect on the way the genetic algorithm operates,
-only on the final solution that is chosen from the set of 'best' solutions.
+The `fitness_timedelay_type` can also be 'ExperimentalI' or 'ExperimentalII',
+but as you might guess, these are still experimental. The option
+`fitness_timedelay_relative` is extremely experimental: don't enable this, it
+does not work yet!
+
+As the names suggest, the options that start with `priority_` describe priorities 
+for fitness measures. These values do **not** have any effect on the way the 
+genetic algorithm operates, only on the final solution that is chosen from the 
+set of 'best' solutions.
 
 Here, the lower the priority value, the more important it is considered to be,
 so if for example both the `extendedimageoverlap` and `extendedimagenull`
 fitness measures are used based on the provided images data sets, there may
 be more than one 'best' solution found by the genetic algorithm. You may
-decide to save all these solutions using an option to `invert/gaparams/set`,
-but typically you'll want to go on using a single solution. 
+decide to save all these solutions by setting `returnNds` to `True` in
+the `invert` function, but typically you'll want to go on using a single solution. 
 	
 It is based on the priorities that were specified, that one solution will be 
 chosen. Using the default settings in our example, first the solution(s) will 
 be chosen with the lowest value for the `extendedimagenull` fitness value,
 and then for `extendedimageoverlap`. You can force this order to be turned
-around by using `invert/grid/algparams/set` to lower the value for
-`priority_extendedimageoverlap`.
+around by overriding some of these values in the `fitnessObjectParameters`
+argument.
 
 As you can see, some priorities have the same value. In case two fitness
 measures with the same priority are used, the number of images is typically
