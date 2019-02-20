@@ -58,7 +58,8 @@ float calculateNullFitness_ExtendedImages(const ProjectedImagesInterface &iface,
 float calculateWeakLensingFitness(const ProjectedImagesInterface &interface, const std::vector<int> &weakIndices, 
 							      const std::vector<bool> &reduced, const std::vector<double> &oneMinusKappaThreshold);
 
-float calculateTimeDelayFitness(const ProjectedImagesInterface &iface, const std::vector<int> &sourceIndices);
+float calculateTimeDelayFitness(const ProjectedImagesInterface &iface, const std::vector<int> &sourceIndices,
+		                        const std::vector<float> &tdScaleFactors = std::vector<float>());
 
 float calculateTimeDelayFitnessExperimental(const ProjectedImagesInterface &iface, const std::vector<int> &sourceIndices);
 

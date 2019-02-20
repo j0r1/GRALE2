@@ -221,6 +221,7 @@ private:
 	TDFitnessType m_fitnessType;
 	bool m_relative;
 	std::vector<std::pair<int,int>> m_referencePoints; // for relative TD fitness
+	std::vector<float> m_tdScaleFactors;
 };
 
 class FitnessComponent_KappaThreshold : public FitnessComponent

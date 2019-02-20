@@ -828,13 +828,20 @@ float calculateWeakLensingFitness(const ProjectedImagesInterface &interface, con
 	return shearFitness;
 }
 
-float calculateTimeDelayFitness(const ProjectedImagesInterface &iface, const vector<int> &sourceIndices)
+float calculateTimeDelayFitness(const ProjectedImagesInterface &iface, const vector<int> &sourceIndices,
+		                        const vector<float> &tdScaleFactors)
 {
+	assert(tdScaleFactors.size() == 0 || tdScaleFactors.size() == sourceIndices.size());
+
 	float timeDelayFitness = 0;
 
-	for (int s : sourceIndices)
+	for (int sIdx = 0 ; sIdx < sourceIndices.size() ; sIdx++)
 	{
+		const int s = sourceIndices[sIdx];
+		const float scaleFactor = (tdScaleFactors.size() == 0)?0:tdScaleFactors[sIdx];
+
 		assert(iface.getOriginalNumberOfTimeDelays(s) > 0);
+		assert(scaleFactor >= 0);
 
 		int numTimeDelays = iface.getOriginalNumberOfTimeDelays(s);
 		float tdfit = 0;
@@ -890,14 +897,14 @@ float calculateTimeDelayFitness(const ProjectedImagesInterface &iface, const vec
 						float delay2 = iface.getTimeDelay(s, img2, point2, beta2);
 						float calculatedDifference = delay2 - delay1;
 
-						float relativeDiff = (realTimeDelayDifference - calculatedDifference)/realTimeDelayDifference;
+						float denom = (scaleFactor == 0)?realTimeDelayDifference:scaleFactor;
+						float relativeDiff = (realTimeDelayDifference - calculatedDifference)/denom;
 
 						squaredSum += relativeDiff*relativeDiff;
 					}
 				}
 
 				squaredSum /= (float)(numTimeDelays*numTimeDelays);
-
 
 				tdfit += squaredSum;
 				count++;

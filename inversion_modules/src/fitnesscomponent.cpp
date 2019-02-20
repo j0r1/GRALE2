@@ -938,12 +938,37 @@ bool FitnessComponent_TimeDelay::inspectImagesData(int idx, const ImagesDataExte
 			return false;
 		}
 	}
+
+	float tdScaleFactor = 0;
+	if (imgDat.hasExtraParameter("timedelay_scalefactor"))
+	{
+		if (!(m_fitnessType == Paper2009 && m_relative == false))
+		{
+			setErrorString("'timedelay_scalefactor' was set but is only supported for the Paper2009 method and non-relative version");
+			return false;
+		}
+
+		double v;
+
+		if (!imgDat.getExtraParameter("timedelay_scalefactor", v))
+		{
+			setErrorString("Extra parameter 'timedelay_scalefactor' was specified, but is not a floating point value");
+			return false;
+		}
+		if (v <= 0)
+		{
+			setErrorString("Extra parameter 'timedelay_scalefactor' should be positive");
+			return false;
+		}
+		tdScaleFactor = (float)v;
+	}
 	
 	needCalcPotential = true;
 	storeOrigTimeDelay = true;
 
 	//cerr << "Added TD fitness for " << idx << endl;
-	addImagesDataIndex(idx);	
+	addImagesDataIndex(idx);
+	m_tdScaleFactors.push_back(tdScaleFactor);
 
 	return true;
 }
@@ -959,7 +984,7 @@ bool FitnessComponent_TimeDelay::calculateFitness(const ProjectedImagesInterface
 	if (m_fitnessType == Paper2009)
 	{
 		if (!m_relative)
-			fitness = calculateTimeDelayFitness(iface, getUsedImagesDataIndices());
+			fitness = calculateTimeDelayFitness(iface, getUsedImagesDataIndices(), m_tdScaleFactors);
 		else
 			fitness = calculateTimeDelayFitness_Relative(iface, getUsedImagesDataIndices(), m_referencePoints);
 	}
