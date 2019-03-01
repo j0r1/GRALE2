@@ -690,7 +690,9 @@ Arguments:
 
         # Note: need to swap Y labeling here because of the way the pixels are ordered in this function
         axImg = axes.imshow(pixels/densityUnit, extent = np.array([ bottomLeft[0], topRight[0], topRight[1], bottomLeft[1]])/angularUnit, **kwargs)
-        axes.invert_yaxis()
+        axes.set_xlim([bottomLeft[0]/angularUnit, topRight[0]/angularUnit])
+        axes.set_ylim([bottomLeft[1]/angularUnit, topRight[1]/angularUnit])   
+        axes.set_aspect("equal")
         if axImgCallback: axImgCallback(axImg)
 
     return lensInfo
