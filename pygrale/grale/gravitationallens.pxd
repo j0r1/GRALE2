@@ -54,7 +54,8 @@ cdef extern from "grale/gravitationallens.h" namespace "grale::GravitationalLens
         Sersic,
         EllipticSersic,
         PIEMD,
-        PIMD
+        PIMD,
+        AlphaPot
 
 cdef extern from "grale/gravitationallens.h" namespace "grale":
 
@@ -401,4 +402,18 @@ cdef extern from "grale/pimdlens.h" namespace "grale":
 
 ctypedef const PIMDLensParams* PIMDLensParamsPtrConst
 
+cdef extern from "grale/alphapotlens.h" namespace "grale":
+
+    cdef cppclass AlphaPotLensParams(GravitationalLensParams):
+        AlphaPotLensParams(double b, double s, double q, double K2, double alpha)
+        double getB()
+        double getS()
+        double getQ()
+        double getK2()
+        double getAlpha()
+
+    cdef cppclass AlphaPotLens(GravitationalLens):
+        pass
+
+ctypedef const AlphaPotLensParams* AlphaPotLensParamsPtrConst
 

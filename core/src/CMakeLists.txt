@@ -37,6 +37,7 @@ set(HEADERS
 	lens/ellipticsersiclens.h 
 	lens/piemdlens.h
 	lens/pimdlens.h
+	lens/alphapotlens.h
 	math/mathfunctions.h
 	math/real1dfunction.h
 	math/real1dfunctionintegrator.h
@@ -127,6 +128,7 @@ set(SOURCES
 	lens/ellipticsersiclens.cpp 
 	lens/piemdlens.cpp
 	lens/pimdlens.cpp
+	lens/alphapotlens.cpp
 	image/imagesdata.cpp
 	image/imagesdataextended.cpp
 	image/lensplane.cpp

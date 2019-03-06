@@ -31,6 +31,7 @@ directly. Instead allocate a class derived from this; currently available are
  * :class:`ProfileLens`
  * :class:`PIEMDLens`
  * :class:`PIMDLens`
+ * :class:`AlphaPotLens`
 
 """
 
@@ -572,6 +573,8 @@ cdef class GravitationalLens:
             l = PIEMDLens(None, None)
         elif t == gravitationallens.PIMD:
             l = PIMDLens(None, None)
+        elif t == gravitationallens.AlphaPot:
+            l = AlphaPotLens(None, None)
         else: # Unknown, can still use the interface
             l = GravitationalLens(_gravLensRndId)
 
@@ -2232,4 +2235,54 @@ cdef class PIMDLens(GravitationalLens):
             "scaleradius": pParams.getScaleRadius()
         }
 
+cdef class AlphaPotLens(GravitationalLens):
+    r"""TODO"""
+
+    cdef gravitationallens.GravitationalLens* _allocLens(self) except NULL:
+        return new gravitationallens.AlphaPotLens()
+
+    cdef gravitationallens.GravitationalLensParams* _allocParams(self, params) except NULL:
+        cdef double b, s, q, K2, alpha
+
+        GravitationalLens._checkParams(params, ["b", "s", "q", "K2", "alpha"])
+        b = params["b"]
+        s = params["s"]
+        q = params["q"]
+        K2 = params["K2"]
+        alpha = params["alpha"]
+
+        return new gravitationallens.AlphaPotLensParams(b, s, q, K2, alpha)
+
+    def __init__(self, Dd, params):
+        r"""__init__(Dd, params)
+
+        Parameters:
+         - Dd is the angular diameter distance to the lens.
+         - params: a dictionary containing the following entries:
+
+           * 'b': TODO
+           * 's': TODO
+           * 'q': TODO
+           * 'K2': TODO
+           * 'alpha': TODO
+
+        """
+        super(AlphaPotLens, self).__init__(_gravLensRndId)
+        self._lensInit(Dd, params)
+
+    def getLensParameters(self):
+        cdef gravitationallens.AlphaPotLensParamsPtrConst pParams
+        
+        self._check()
+        pParams = dynamic_cast[gravitationallens.AlphaPotLensParamsPtrConst](GravitationalLens._getLens(self).getLensParameters())
+        if pParams == NULL:
+            raise LensException("Unexpected: parameters are not those of a AlphaPotLens")
+
+        return { 
+            "b": pParams.getB(), 
+            "s": pParams.getS(),
+            "q": pParams.getQ(),
+            "K2": pParams.getK2(),
+            "alpha": pParams.getAlpha()
+        }
 

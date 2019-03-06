@@ -87,6 +87,7 @@ public:
 		EllipticSersic,		/**< An elliptical generalization of the symmetric Sersic profile. */
 		PIEMD, /** PIEMD (dPIE) as described in Eliasdottir (2014). */
 		PIMD, /** Circularly symmetric version of PIEMD. */
+		AlphaPot, /** Softened power law potential (similar to 'alphapot' in gravlens/lensmodel) */
 		MaxLensType
 	};
 protected:
