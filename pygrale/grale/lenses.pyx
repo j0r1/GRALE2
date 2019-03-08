@@ -2236,7 +2236,23 @@ cdef class PIMDLens(GravitationalLens):
         }
 
 cdef class AlphaPotLens(GravitationalLens):
-    r"""TODO"""
+    r"""This lens is based on the 'alphapot' softened power law lens model 
+    from lenstool/gravlens. The unscaled (:math:`D_{ds}/D_s = 1`) lensing 
+    potential is taken to be
+
+    .. math::
+
+        \psi(\vec{\theta}) = b\left(s^2 + \theta_x^2 + \frac{\theta_y^2}{q^2} + K^2\theta_x\theta_y\right)^{\frac{\alpha}{2}}
+
+    Note that because :math:`\kappa(\vec{\theta}) = \frac{1}{2}\left(\frac{\partial^2 \psi}{\partial \theta_x^2} + \frac{\partial^2 \psi}{\partial \theta_y^2}\right)`
+    you'll need to do an additional scaling (e.g. by adjusting :math:`b` or using a :class:`CompositeLens`)
+    by :math:`(1 \textrm{ arcsec})^{\alpha-2}` to get the same mass density as lenstool (there,
+    1 arcsec is used as angular unit).
+
+    **References**
+
+     *  `Keeton, C., gravlens 1.06: Software for Gravitational Lensing, January 2004. <http://www.physics.rutgers.edu/~keeton/gravlens/manual.pdf>`_
+    """
 
     cdef gravitationallens.GravitationalLens* _allocLens(self) except NULL:
         return new gravitationallens.AlphaPotLens()
@@ -2260,11 +2276,11 @@ cdef class AlphaPotLens(GravitationalLens):
          - Dd is the angular diameter distance to the lens.
          - params: a dictionary containing the following entries:
 
-           * 'b': TODO
-           * 's': TODO
-           * 'q': TODO
-           * 'K2': TODO
-           * 'alpha': TODO
+           * 'b': the value of :math:`b` in lensing potential
+           * 's': the value of :math:`s` in lensing potential
+           * 'q': the value of :math:`q` in lensing potential
+           * 'K2': the value of :math:`K^2` in lensing potential
+           * 'alpha': the value of :math:`\alpha` in the lensing potential
 
         """
         super(AlphaPotLens, self).__init__(_gravLensRndId)

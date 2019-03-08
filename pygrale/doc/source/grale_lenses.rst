@@ -178,3 +178,9 @@ PIMDLens
 
    .. automethod:: __init__
 
+AlphaPotLens
+------------
+.. autoclass:: grale.lenses.AlphaPotLens
+
+   .. automethod:: __init__
+
