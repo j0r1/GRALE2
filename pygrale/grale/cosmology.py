@@ -70,7 +70,7 @@ class Cosmology(object):
         if Wk == 0:
             A = s
         else:
-            prod = abs(Wk)*s
+            prod = abs(Wk)**0.5*s
             if abs(prod) < 1e-5: # flat enough
                 A = s
             elif Wk > 0:
