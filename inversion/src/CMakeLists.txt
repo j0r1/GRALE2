@@ -14,6 +14,7 @@ set(HEADERS
 	galens/lensinversiongenomebase.h
 	galens/multifitnesshistory.h
 	galens/projectedimagesinterface.h
+	galens/precalculatedbackprojector.h
 	prob/randomnumbergenerator.h
 	prob/probabilitydistribution.h
 	prob/simpleuniformdistribution.h
@@ -30,6 +31,7 @@ set(SOURCES
 	galens/imagesbackprojector.cpp
 	galens/multifitnesshistory.cpp
 	galens/projectedimagesinterface.cpp
+	galens/precalculatedbackprojector.cpp
 	prob/randomnumbergenerator.cpp
 	prob/probabilitydistribution.cpp
 	)

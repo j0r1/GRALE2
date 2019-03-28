@@ -41,3 +41,6 @@ apply_include_paths("${GRALE_EXTERNAL_INCLUDES}")
 add_executable(backproject backproject.cpp)
 target_link_libraries(backproject graleinv-static gralecore-static ${GRALE_LINK_LIBS})
 
+add_executable(precalcbackproj precalcbackproj.cpp)
+target_link_libraries(precalcbackproj graleinv-static gralecore-static ${GRALE_LINK_LIBS})
+
