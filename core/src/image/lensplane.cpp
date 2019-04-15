@@ -192,7 +192,7 @@ bool LensPlane::initInternal(GravitationalLens *pLensCopy, Vector2Dd bl, Vector2
 			
 			if (!pLensCopy->getAlphaVector(theta,&a))
 			{
-				setErrorString(std::string("Error raytracing theta vector: ") + m_pLens->getErrorString());
+				setErrorString(std::string("Error raytracing theta vector: ") + pLensCopy->getErrorString());
 				delete pLensCopy;
 				return false;
 			}
@@ -200,7 +200,13 @@ bool LensPlane::initInternal(GravitationalLens *pLensCopy, Vector2Dd bl, Vector2
 			//cerr << a.getX() << " " << a.getY() << endl;
 
 			m_alphas[index] = a;
-			pLensCopy->getAlphaVectorDerivatives(theta,axx,ayy,axy);
+
+			if (!pLensCopy->getAlphaVectorDerivatives(theta,axx,ayy,axy))
+			{
+				setErrorString(std::string("Error getting alpha derivatives for theta vector: ") + pLensCopy->getErrorString());
+				delete pLensCopy;
+				return false;
+			}
 			m_alphaxx[index] = axx;
 			m_alphayy[index] = ayy;
 			m_alphaxy[index] = axy;
