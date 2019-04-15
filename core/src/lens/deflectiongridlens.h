@@ -80,6 +80,7 @@ protected:
 	std::vector<double> m_alphaX, m_alphaY;
 	double m_pixelWidth, m_pixelHeight;
 	double m_densFactor;
+	double m_x0, m_x1, m_y0, m_y1;
 };
 
 } // end namespace

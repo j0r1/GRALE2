@@ -196,11 +196,26 @@ bool DeflectionGridLens::processParameters(const GravitationalLensParams *pLensP
 			                 pParams->getHeight());
 	m_densFactor = (SPEED_C*SPEED_C)/(getLensDistance()*8.0*CONST_PI*CONST_G);
 
+	m_x0 = bottomLeft.getX();
+	m_x1 = topRight.getX();
+	m_y0 = bottomLeft.getY();
+	m_y1 = topRight.getY();
+
+	if (m_x0 > m_x1) std::swap(m_x0, m_x1);
+	if (m_y0 > m_y1) std::swap(m_y0, m_y1);
+
 	return true;
 }
 
 bool DeflectionGridLens::getAlphaVector(Vector2D<double> theta, Vector2D<double> *pAlpha) const
 {
+	if (theta.getX() < m_x0 || theta.getX() > m_x1 ||
+		theta.getY() < m_y0 || theta.getY() > m_y1)
+	{
+		setErrorString("Theta position doesn't lie inside area of deflection grid");
+		return false;
+	}
+
 	double alphaX = (*m_pAxFunction)(theta);
 	double alphaY = (*m_pAyFunction)(theta);
 
@@ -210,6 +225,10 @@ bool DeflectionGridLens::getAlphaVector(Vector2D<double> theta, Vector2D<double>
 
 double DeflectionGridLens::getSurfaceMassDensity(Vector2D<double> theta) const
 {
+	if (theta.getX() < m_x0 || theta.getX() > m_x1 ||
+		theta.getY() < m_y0 || theta.getY() > m_y1)
+		return std::numeric_limits<double>::quiet_NaN();
+
 	Vector2D<double> x2 = theta + Vector2D<double>(m_pixelWidth/2.0, 0);
 	Vector2D<double> x1 = theta - Vector2D<double>(m_pixelWidth/2.0, 0);
 	Vector2D<double> y2 = theta + Vector2D<double>(0, m_pixelHeight/2.0);
@@ -223,6 +242,13 @@ double DeflectionGridLens::getSurfaceMassDensity(Vector2D<double> theta) const
 
 bool DeflectionGridLens::getAlphaVectorDerivatives(Vector2D<double> theta, double &axx, double &ayy, double &axy) const
 {
+	if (theta.getX() < m_x0 || theta.getX() > m_x1 ||
+		theta.getY() < m_y0 || theta.getY() > m_y1)
+	{
+		setErrorString("Theta position doesn't lie inside area of deflection grid");
+		return false;
+	}
+
 	Vector2D<double> x2 = theta + Vector2D<double>(m_pixelWidth/2.0, 0);
 	Vector2D<double> x1 = theta - Vector2D<double>(m_pixelWidth/2.0, 0);
 	Vector2D<double> y2 = theta + Vector2D<double>(0, m_pixelHeight/2.0);
