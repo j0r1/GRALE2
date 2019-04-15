@@ -6,12 +6,15 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <sstream>
 #include <iostream>
 
 using namespace std;
 using namespace grale;
 using namespace serut;
 using namespace errut;
+
+#define ERRMSGLEN 1024
 
 class MPIRenderer : public Communicator
 {
@@ -24,6 +27,7 @@ protected:
 	string getRenderType() const { return "LENSPLANE"; }
 	string getVersionInfo() const { return "MPI lensplane renderer"; }
 private:
+	bool_t checkErrors(const vector<char> &errMsgs);
 	bool_t renderGrid(const vector<uint8_t> &lensData, GravitationalLens *pLens, 
 	                  double x0, double y0, double dX, double dY, int numX, int numY,
 	                  vector<double> &renderPoints);
@@ -36,9 +40,9 @@ private:
 	static void getOffsetsAndSendCounts(int numXY, vector<int> &offsets, vector<int> &sendCounts);
 	static void renderNodeResults(MPIRenderer *pComm, GravitationalLens *pLens, double x0, double y0, double dX, double dY,
                                     int numX, int numY, vector<double> &nodeResults, vector<int> &offsets,
-									double *pTarget);
+									double *pTarget, char *errMsgs);
 	static void renderNodeResults(MPIRenderer *pComm, GravitationalLens *pLens, int numXY, const double *pXYPoints,
-									double *pTarget);
+									double *pTarget, char *errMsgs);
 };
 
 void MPIRenderer::getPixelOffsets(int numXY, vector<int> &offsets)
@@ -59,9 +63,21 @@ void MPIRenderer::getPixelOffsets(int numXY, vector<int> &offsets)
 	offsets[worldSize] = total;
 }
 
+void gatherErrorMessages(stringstream &ss, char *errMsgs)
+{
+	// Send error messages
+	char errorMessage[ERRMSGLEN] = { 0 };
+	strncpy(errorMessage, ss.str().c_str(), ERRMSGLEN);
+	errorMessage[ERRMSGLEN-1] = 0;
+
+	int worldSize;
+	MPI_Comm_size(MPI_COMM_WORLD, &worldSize);
+	MPI_Gather(errorMessage, ERRMSGLEN, MPI_CHAR, errMsgs, ERRMSGLEN, MPI_CHAR, 0, MPI_COMM_WORLD);
+}
+
 void MPIRenderer::renderNodeResults(MPIRenderer *pComm, GravitationalLens *pLens, double x0, double y0, double dX, double dY,
                                     int numX, int numY, vector<double> &nodeResults, vector<int> &offsets,
-									double *pTarget)
+									double *pTarget, char *errMsgs)
 {
 	getPixelOffsets(numX*numY, offsets);
 	//cerr << "Offsets: ";
@@ -83,6 +99,7 @@ void MPIRenderer::renderNodeResults(MPIRenderer *pComm, GravitationalLens *pLens
 	else if (reportInterval > numX) // report at most one line before reporting
 		reportInterval = numX;
 
+	stringstream ss;
 	for (int i = 0, off = 0, j = offsets[rank] ; i < numPixels ; i++, off += 5, j++)
 	{
 		int xi = j % numX;
@@ -95,12 +112,12 @@ void MPIRenderer::renderNodeResults(MPIRenderer *pComm, GravitationalLens *pLens
 		Vector2Dd alpha;
 		double axx = 0, ayy = 0, axy = 0;
 
-		// TODO: better error handling
 		if (!pLens->getAlphaVector(theta, &alpha) ||
 			!pLens->getAlphaVectorDerivatives(theta, axx, ayy, axy))
 		{
-			cerr << "Unable to calculate deflection or derivatives for point " << xi << "," << yi << endl;
-			MPI_Abort(MPI_COMM_WORLD, -1);
+			ss << "Unable to calculate deflection or derivatives for point " << xi << "," << yi << ": "
+			   << pLens->getErrorString();
+			break;
 		}
 
 		assert(off+4 < nodeResults.size());
@@ -132,6 +149,23 @@ void MPIRenderer::renderNodeResults(MPIRenderer *pComm, GravitationalLens *pLens
 
 	MPI_Gatherv(&(nodeResults[0]), nodeResults.size(), MPI_DOUBLE, pTarget, 
 			    &(recvCounts[0]), &(doubleOffsets[0]), MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+	gatherErrorMessages(ss, errMsgs);
+}
+
+bool_t MPIRenderer::checkErrors(const vector<char> &errMsgs)
+{
+	int worldSize = errMsgs.size()/ERRMSGLEN;
+	for (int i = 0 ; i < worldSize ; i++)
+	{
+		const char *pErr = &(errMsgs[i*ERRMSGLEN]);
+		if (pErr[0] == 0)
+			continue;
+		
+		WriteLineStdout("ERROR:" + string(pErr));
+		break;
+	}
+	return true;
 }
 
 bool_t MPIRenderer::renderGrid(const vector<uint8_t> &lensData, GravitationalLens *pLens, 
@@ -161,9 +195,13 @@ bool_t MPIRenderer::renderGrid(const vector<uint8_t> &lensData, GravitationalLen
 	// Let each node render it's parts
 	vector<int> offsets;
 	vector<double> nodeResults;
-	renderNodeResults(this, pLens, x0, y0, dX, dY, numX, numY, nodeResults, offsets, &(renderPoints[0]));
 
-	return true;
+	int worldSize;
+	MPI_Comm_size(MPI_COMM_WORLD, &worldSize);
+	vector<char> errMsgs(worldSize*ERRMSGLEN, 0);
+
+	renderNodeResults(this, pLens, x0, y0, dX, dY, numX, numY, nodeResults, offsets, &(renderPoints[0]), &(errMsgs[0]));
+	return checkErrors(errMsgs);
 }
 
 void MPIRenderer::getOffsetsAndSendCounts(int numXY, vector<int> &offsets, vector<int> &sendCounts)
@@ -196,12 +234,16 @@ bool_t MPIRenderer::renderPointVector(const std::vector<uint8_t> &lensData, gral
 
 	MPI_Bcast(&numXY, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
-	renderNodeResults(this, pLens, numXY, &(inputXY[0]), &(renderPoints[0]));
-	return true;
+	int worldSize;
+	MPI_Comm_size(MPI_COMM_WORLD, &worldSize);
+	vector<char> errMsgs(worldSize*ERRMSGLEN, 0);
+
+	renderNodeResults(this, pLens, numXY, &(inputXY[0]), &(renderPoints[0]), &(errMsgs[0]));
+	return checkErrors(errMsgs);
 }
 
 void MPIRenderer::renderNodeResults(MPIRenderer *pComm, GravitationalLens *pLens, int numXY, const double *pXYPoints,
-									double *pTarget)
+		double *pTarget, char *errMsgs)
 {
 	vector<int> offsets, sendCounts;
 	getOffsetsAndSendCounts(numXY, offsets, sendCounts); // note that offsets are multiplied by two to use as number of doubles
@@ -223,6 +265,7 @@ void MPIRenderer::renderNodeResults(MPIRenderer *pComm, GravitationalLens *pLens
 
 	vector<double> nodeResults(pixelsToRender * 5);
 
+	stringstream ss;
 	for (int i = 0 ; i < pixelsToRender ;  i++)
 	{
 		double x = xyRenderPart[i*2+0];
@@ -232,12 +275,12 @@ void MPIRenderer::renderNodeResults(MPIRenderer *pComm, GravitationalLens *pLens
 		Vector2Dd alpha;
 		double axx = 0, ayy = 0, axy = 0;
 
-		// TODO: better error handling
 		if (!pLens->getAlphaVector(theta, &alpha) ||
 			!pLens->getAlphaVectorDerivatives(theta, axx, ayy, axy))
 		{
-			cerr << "Unable to calculate deflection or derivatives for point " << x << "," << y << endl;
-			MPI_Abort(MPI_COMM_WORLD, -1);
+			ss << "Unable to calculate deflection or derivatives for point " << x << "," << y << ": "
+			   << pLens->getErrorString();
+			break;
 		}
 
 		int off = i*5;
@@ -270,6 +313,8 @@ void MPIRenderer::renderNodeResults(MPIRenderer *pComm, GravitationalLens *pLens
 
 	MPI_Gatherv(&(nodeResults[0]), nodeResults.size(), MPI_DOUBLE, pTarget, 
 			    &(recvCounts[0]), &(doubleOffsets[0]), MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+	gatherErrorMessages(ss, errMsgs);
 }
 
 void MPIRenderer::runMPIHelper()
@@ -310,14 +355,14 @@ void MPIRenderer::runMPIHelper()
 		// Let each node render its parts
 		vector<int> offsets;
 		vector<double> nodeResults;
-		renderNodeResults(0, pLens, dParams[0], dParams[1], dParams[2], dParams[3], iParams[0], iParams[1], nodeResults, offsets, NULL);
+		renderNodeResults(0, pLens, dParams[0], dParams[1], dParams[2], dParams[3], iParams[0], iParams[1], nodeResults, offsets, nullptr, nullptr);
 	}
 	else
 	{
 		int numXY = 0;
 		MPI_Bcast(&numXY, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
-		renderNodeResults(0, pLens, numXY, 0, 0);
+		renderNodeResults(0, pLens, numXY, 0, 0, nullptr);
 	}
 }
 

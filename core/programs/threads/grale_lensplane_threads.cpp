@@ -222,6 +222,7 @@ int main(int argc, char *argv[])
 	if (!(r = renderer.render()))
 	{
 		cerr << "ERROR: " << r.getErrorString() << endl;
+		cout << "ERROR: " << r.getErrorString() << endl;
 		return -1;
 	}
 	return 0;

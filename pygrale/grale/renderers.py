@@ -142,6 +142,7 @@ class Renderer(object):
             statusStr = "STATUS:"
             progressStr = "PROGRESS:"
             resultStr = "RESULT:"
+            errStr = "ERROR:"
             while True:
                 # Is 600 secs long enough?
                 # TODO: add a keepalive message to be able to reduce this
@@ -156,6 +157,8 @@ class Renderer(object):
                 elif line.startswith(resultStr):
                     numBytes = int(line[len(resultStr):])
                     break
+                elif line.startswith(errStr):
+                    raise RendererException(line[len(errStr):].strip())
                 else:
                     raise RendererException("Unexpected line '{}'".format(line))
                 
