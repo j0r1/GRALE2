@@ -220,7 +220,9 @@ cdef class GravitationalLens:
             potential = np.zeros([(l//2)], dtype = np.double)
             j = 0
             for i in range(0,l,2):
-                self.m_pLens.getProjectedPotential(Ds, Dds, Vector2Dd(thetas[i], thetas[i+1]), cython.address(value))
+                if not self.m_pLens.getProjectedPotential(Ds, Dds, Vector2Dd(thetas[i], thetas[i+1]), cython.address(value)):
+                    raise LensException(S(self.m_pLens.getErrorString()))
+
                 potential[j] = value
                 j += 1
         else:

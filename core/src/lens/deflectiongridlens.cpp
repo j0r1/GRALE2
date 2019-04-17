@@ -27,8 +27,12 @@
 #include "deflectiongridlens.h"
 #include "gridfunction.h"
 #include "constants.h"
+#include <cmath>
+#include <iostream>
 
 #include "debugnew.h"
+
+using namespace std;
 
 namespace grale
 {
@@ -160,16 +164,18 @@ bool DeflectionGridLensParams::read(serut::SerializationInterface &si)
 
 DeflectionGridLens::DeflectionGridLens() : GravitationalLens(DeflectionGrid)
 {
-	m_pAxFunction = 0;
-	m_pAyFunction = 0;
+	m_pAxFunction = nullptr;
+	m_pAyFunction = nullptr;
+	m_pPhiFromXFunction = nullptr;
+	m_pPhiFromYFunction = nullptr;
 }
 
 DeflectionGridLens::~DeflectionGridLens()
 {
-	if (m_pAxFunction)
-		delete m_pAxFunction;
-	if (m_pAyFunction)
-		delete m_pAyFunction;
+	delete m_pAxFunction;
+	delete m_pAyFunction;
+	delete m_pPhiFromXFunction;
+	delete m_pPhiFromYFunction;
 }
 
 bool DeflectionGridLens::processParameters(const GravitationalLensParams *pLensParams)
@@ -203,6 +209,94 @@ bool DeflectionGridLens::processParameters(const GravitationalLensParams *pLensP
 
 	if (m_x0 > m_x1) std::swap(m_x0, m_x1);
 	if (m_y0 > m_y1) std::swap(m_y0, m_y1);
+
+	// Build phi values
+	// ax = (phi_next-phi_current)/dx => phi_next = ax*dx+phi_current
+
+	int W = pParams->getWidth();
+	int H = pParams->getHeight();
+	double gridW = topRight.getX()-bottomLeft.getX();
+	double gridH = topRight.getY()-bottomLeft.getY();
+	double dx = gridW/(W-1);
+	double dy = gridH/(H-1);
+
+	{
+		// First process each row separately
+		m_phiFromX.resize(H*(W+1));
+		for (int y = 0 ; y < H ; y++)
+		{
+			m_phiFromX[y*(W+1)+0] = 0;
+			for (int x = 0 ; x < W ; x++)
+				m_phiFromX[y*(W+1)+x+1] = m_phiFromX[y*(W+1)+x] + m_pixelWidth*m_alphaX[y*W+x];
+
+			// Then try to introduce an offset in the rows so that the Y deflection matches
+			if (y == 0)
+				continue;
+
+			double requiredDiff = 0;
+			double requiredDiff2 = 0;
+			for (int x = 1 ; x < W ; x++)
+			{
+				// ay = (phi_cur+reqDiff-phi_prev)/Dy => ay*Dy+phi_prev-phi_cur = reqDiff
+				double ay = (m_alphaY[y*W+x]-m_alphaY[y*W+x-1])*0.5;
+				double reqDiff = ay*m_pixelHeight + m_phiFromX[(y-1)*(W+1)+x] - m_phiFromX[y*(W+1)+x];
+				requiredDiff += reqDiff;
+				requiredDiff2 += reqDiff*reqDiff;
+			}
+			requiredDiff /= (double)(W-1);
+			requiredDiff2 /= (double)(W-1);
+
+			//double stdDev = SQRT(requiredDiff2-requiredDiff*requiredDiff);
+			//cerr << requiredDiff << " " << requiredDiff2 << endl;
+
+			for (int x = 1 ; x < W+1 ; x++)
+				m_phiFromX[y*(W+1)+x] += requiredDiff;
+		}
+
+		Vector2Dd bottomLeftExtraX { bottomLeft.getX()-dx*0.5, bottomLeft.getY() };
+		Vector2Dd topRightExtraX { topRight.getX()+dx*0.5, topRight.getY() };
+
+		m_pPhiFromXFunction = new GridFunction(&(m_phiFromX[0]), bottomLeftExtraX, topRightExtraX, W+1, H);
+	}
+	
+	{
+		// Do the same for the columns
+		m_phiFromY.resize((H+1)*W);
+		for (int x = 0 ; x < W ; x++)
+		{
+			m_phiFromY[0*W+x] = 0;
+			for (int y = 0 ; y < H ; y++)
+				m_phiFromY[(y+1)*W+x] = m_phiFromY[y*W+x] + m_pixelHeight*m_alphaY[y*W+x];
+
+			// Then try to introduce an offset in the columns so that the X deflection matches
+			if (x == 0)
+				continue;
+
+			double requiredDiff = 0;
+			double requiredDiff2 = 0;
+			for (int y = 1 ; y < H ; y++)
+			{
+				// ax = (phi_cur+reqDiff-phi_prev)/Dx => ax*Dx+phi_prev-phi_cur = reqDiff
+				double ax = (m_alphaY[y*W+x]-m_alphaY[(y-1)*W+x])*0.5;
+				double reqDiff = ax*m_pixelWidth + m_phiFromY[y*W+x-1] - m_phiFromY[y*W+x];
+				requiredDiff += reqDiff;
+				requiredDiff2 += reqDiff*reqDiff;
+			}
+			requiredDiff /= (double)(H-1);
+			requiredDiff2 /= (double)(H-1);
+
+			//double stdDev = SQRT(requiredDiff2-requiredDiff*requiredDiff);
+			//cerr << requiredDiff << " " << requiredDiff2 << endl;
+
+			for (int y = 1 ; y < H+1 ; y++)
+				m_phiFromY[y*W+x] += requiredDiff;
+		}
+
+		Vector2Dd bottomLeftExtraY { bottomLeft.getX(), bottomLeft.getY()-dy*0.5 };
+		Vector2Dd topRightExtraY { topRight.getX(), topRight.getY()+dy*0.5 };
+
+		m_pPhiFromYFunction = new GridFunction(&(m_phiFromY[0]), bottomLeftExtraY, topRightExtraY, W, H+1);
+	}
 
 	return true;
 }
@@ -263,6 +357,25 @@ bool DeflectionGridLens::getAlphaVectorDerivatives(Vector2D<double> theta, doubl
 	ayy = dayy/m_pixelHeight;
 	axy = 0.5*(daxy/m_pixelHeight + dayx/m_pixelWidth);
 
+	return true;
+}
+
+bool DeflectionGridLens::getProjectedPotential(double D_s, double D_ds, Vector2D<double> theta, double *pPotentialValue) const
+{
+	if (theta.getX() < m_x0 || theta.getX() > m_x1 ||
+		theta.getY() < m_y0 || theta.getY() > m_y1)
+	{
+		setErrorString("Theta position doesn't lie inside area of deflection grid");
+		return false;
+	}
+
+	cerr << (void*)m_pPhiFromXFunction << endl;
+	double phiFromX = (*m_pPhiFromXFunction)(theta);
+	cerr << phiFromX << endl;
+	double phiFromY = (*m_pPhiFromYFunction)(theta);
+	cerr << phiFromY << endl;
+	double phi = 0.5*(phiFromX+phiFromY);
+	*pPotentialValue = (D_ds/D_s)*phi;
 	return true;
 }
 

@@ -71,8 +71,7 @@ public:
 	bool getAlphaVector(Vector2D<double> theta, Vector2D<double> *pAlpha) const;
 	double getSurfaceMassDensity(Vector2D<double> theta) const ;
 	bool getAlphaVectorDerivatives(Vector2D<double> theta, double &axx, double &ayy, double &axy) const;
-// 	TODO
-//	bool getProjectedPotential(double D_s, double D_ds, Vector2D<double> theta, double *pPotentialValue) const;
+	bool getProjectedPotential(double D_s, double D_ds, Vector2D<double> theta, double *pPotentialValue) const;
 protected:
 	bool processParameters(const GravitationalLensParams *pLensParams);
 
@@ -81,6 +80,8 @@ protected:
 	double m_pixelWidth, m_pixelHeight;
 	double m_densFactor;
 	double m_x0, m_x1, m_y0, m_y1;
+	GridFunction *m_pPhiFromXFunction, *m_pPhiFromYFunction;
+	std::vector<double> m_phiFromX, m_phiFromY;
 };
 
 } // end namespace
