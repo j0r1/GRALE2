@@ -238,7 +238,7 @@ bool DeflectionGridLens::processParameters(const GravitationalLensParams *pLensP
 			for (int x = 1 ; x < W ; x++)
 			{
 				// ay = (phi_cur+reqDiff-phi_prev)/Dy => ay*Dy+phi_prev-phi_cur = reqDiff
-				double ay = (m_alphaY[y*W+x]-m_alphaY[y*W+x-1])*0.5;
+				double ay = (m_alphaY[y*W+x]+m_alphaY[y*W+x-1])*0.5;
 				double reqDiff = ay*m_pixelHeight + m_phiFromX[(y-1)*(W+1)+x] - m_phiFromX[y*(W+1)+x];
 				requiredDiff += reqDiff;
 				requiredDiff2 += reqDiff*reqDiff;
@@ -277,7 +277,7 @@ bool DeflectionGridLens::processParameters(const GravitationalLensParams *pLensP
 			for (int y = 1 ; y < H ; y++)
 			{
 				// ax = (phi_cur+reqDiff-phi_prev)/Dx => ax*Dx+phi_prev-phi_cur = reqDiff
-				double ax = (m_alphaY[y*W+x]-m_alphaY[(y-1)*W+x])*0.5;
+				double ax = (m_alphaX[y*W+x]+m_alphaX[(y-1)*W+x])*0.5;
 				double reqDiff = ax*m_pixelWidth + m_phiFromY[y*W+x-1] - m_phiFromY[y*W+x];
 				requiredDiff += reqDiff;
 				requiredDiff2 += reqDiff*reqDiff;
@@ -369,11 +369,8 @@ bool DeflectionGridLens::getProjectedPotential(double D_s, double D_ds, Vector2D
 		return false;
 	}
 
-	cerr << (void*)m_pPhiFromXFunction << endl;
 	double phiFromX = (*m_pPhiFromXFunction)(theta);
-	cerr << phiFromX << endl;
 	double phiFromY = (*m_pPhiFromYFunction)(theta);
-	cerr << phiFromY << endl;
 	double phi = 0.5*(phiFromX+phiFromY);
 	*pPotentialValue = (D_ds/D_s)*phi;
 	return true;
