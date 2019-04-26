@@ -57,6 +57,8 @@ Right-click:
 Double click point/match point: allows to edit point group name or match 
 point name
 
+Double click on one of a set of selected points: create triangulation
+
 Double click elsewhere:
  - If FITS layer active: center on that point
  - If image layer active: match image to visible FITS layer

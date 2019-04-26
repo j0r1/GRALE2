@@ -438,12 +438,47 @@ def enlargePolygon(points, offset, simplifyScale = 0.02):
     direction = "right" if r.is_ccw else "left"
     o = r.parallel_offset(offset, direction, join_style=1)
     if hasattr(o, "geoms"):
-        raise Exception("Couldn't find a single shape after adding border")
+        o = o.convex_hull.exterior
+    else:
+        o = LinearRing(o.coords)
+
+#    if hasattr(o, "geoms"):
+#        #print("O:", o)
+#        for g in o.geoms:
+#            import matplotlib.pyplot as plt
+#            plt.plot(g.xy[0], g.xy[1], '.-')
+#
+#        h = o.convex_hull
+#        print(h.exterior)
+#        #print("convex hull:", h)
+#        plt.plot(h.xy[0], h.xy[1])
+#
+#        plt.plot(r.xy[0], r.xy[1], 'o-')
+#        plt.show()
+#
+#        raise Exception("Couldn't find a single shape after adding border")
     
-    o = LinearRing(o.coords)
     simpl = o.simplify(simplifyScale*getScale(o), preserve_topology=False) if simplifyScale > 0 else o
     pts = [ pt for pt in simpl.coords ]
     return pts + pts[:1]
+
+def _shapelyPlot(o, label=None, show=False):
+    import matplotlib.pyplot as plt
+    
+    if type(o) == list:
+        for x in o:
+            _shapelyPlot(x)
+    else:
+        if hasattr(o, "geoms"):
+            raise Exception("TODO")
+        else:
+            plt.plot(o.xy[0], o.xy[1])
+
+    if label:
+        plt.gca().set_title(label)
+
+    if show:
+        plt.show()
 
 def _checkHoleOverlap(holes):
     from shapely.geometry.polygon import LinearRing, Polygon
@@ -451,6 +486,8 @@ def _checkHoleOverlap(holes):
     import copy
 
     holes = [ LinearRing(h[:-1]) for h in holes ]
+
+    #_shapelyPlot(holes, "Holes", show=True)
 
     # Check if some holes are completely interior to another
     insideSomething = set()
@@ -465,29 +502,56 @@ def _checkHoleOverlap(holes):
     holes = [ holes[i] for i in range(len(holes)) if not i in insideSomething ]
 
     # Check intersections
-    intersections = { }
+#    intersections = { }
+#    for i in range(0, len(holes)-1):
+#        for j in range(i+1, len(holes)):
+#            if holes[i].intersects(holes[j]):
+#                s = set() if not i in intersections else intersections[i]
+#                s.add(i)
+#                s.add(j)
+#                origSet = copy.copy(s)
+#                for k in origSet:
+#                    if k in intersections:
+#                        s |= intersections[k]
+#
+#                for k in origSet:
+#                    intersections[k] = s
+    
+    
+    intersections = { i:set([i]) for i in range(len(holes)) }
     for i in range(0, len(holes)-1):
         for j in range(i+1, len(holes)):
             if holes[i].intersects(holes[j]):
-                s = set() if not i in intersections else intersections[i]
-                s.add(i)
-                s.add(j)
-                origSet = copy.copy(s)
-                for k in origSet:
-                    if k in intersections:
-                        s |= intersections[k]
+                intersections[i].add(j)
+                intersections[j].add(i)
 
-                for k in origSet:
-                    intersections[k] = s
-    
+    changed = True
+    while changed:
+        #import pprint
+        #print("Intersections:")
+        #pprint.pprint(intersections)
+        changed = False
+
+        for i in [ x for x in intersections]:
+            origSet = intersections[i].copy()
+            for j in origSet:
+                intersections[i] |= intersections[j]
+                if origSet != intersections[i]:
+                    changed = True
+
     #import pprint
-    #print("Intersections:")
+    #print("Final Intersections:")
     #pprint.pprint(intersections)
+
+    #_shapelyPlot(holes, "Intersections", show=True)
 
     # First add the holes that have no intersections
     newHoles = [ holes[i] for i in range(len(holes)) if not i in intersections ]
 
+    #pprint.pprint(holes)
+
     # If there are intersections, try to do something sensible
+    # For all the things that intersect, we're going to add a union
     for i in intersections:
         if not holes[i]: # We've already processed this
             continue
@@ -497,7 +561,8 @@ def _checkHoleOverlap(holes):
 
         #print("Handling i = ", i)
         # Try to use the union function from, and use convex hull if it fails
-        totalObj = shapely.ops.unary_union([ Polygon(holes[j].coords) for j in s])
+
+        totalObj = shapely.ops.unary_union([ Polygon(holes[j].coords) for j in s if holes[j]])
         try:
             totalObj = LinearRing(totalObj.boundary.coords)
         except Exception as e:
@@ -513,6 +578,8 @@ def _checkHoleOverlap(holes):
 
         newHoles.append(totalObj)
         #pprint.pprint(totalObj)
+
+    #_shapelyPlot(newHoles, "New holes", True)
 
     # Convert back to list of points
     holes = [ ]
