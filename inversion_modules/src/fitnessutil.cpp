@@ -606,7 +606,20 @@ void getEstimatedSourceShape(int s, const ProjectedImagesInterface &iface, Fitne
 	// Not found in cache, calculate the convex hull of the back-projected images
 	
 	int numimages = iface.getNumberOfImages(s); 
-	vector<Polygon2D<float>> polygons(numimages); 
+	vector<Vector2D<float>> allpoints; 
+
+	float maxx = -numeric_limits<float>::max();
+	float maxy = -numeric_limits<float>::max();
+	float minx = numeric_limits<float>::max();
+	float miny = numeric_limits<float>::max();
+
+	auto updateMinMax = [&maxx, &maxy, &minx, &miny](Vector2Df p)
+	{
+		maxx = MAX(maxx, p.getX()); 
+		maxy = MAX(maxy, p.getY()); 
+		minx = MIN(minx, p.getX()); 
+		miny = MIN(miny, p.getY()); 
+	};
 
 	// first calculate the convex hull for each image
 	for (int i = 0 ; i < numimages ; i++) 
@@ -614,35 +627,64 @@ void getEstimatedSourceShape(int s, const ProjectedImagesInterface &iface, Fitne
 		int numpoints = iface.getNumberOfImagePoints(s,i); 
 		const Vector2D<float> *sourceBetas = iface.getBetas(s,i); 
 		
-		polygons[i].init(sourceBetas, numpoints, true); 
+		if (numpoints > 2)
+		{
+			Polygon2D<float> poly;
+
+			poly.init(sourceBetas, numpoints, true);
+			int numPolyPoints = poly.getNumberOfPoints(); 
+			const Vector2D<float> *points = poly.getPoints(); 
+			
+			for (int p = 0 ; p < numPolyPoints ; p++) 
+			{
+				updateMinMax(points[p]);
+				allpoints.push_back(points[p]);
+			}
+		}
+		else
+		{
+			for (int i = 0 ; i < numpoints ; i++)
+			{
+				updateMinMax(sourceBetas[i]);
+				allpoints.push_back(sourceBetas[i]);
+			}
+		}
 	} 
 
 	// Then calculate the convex hull of these convex hulls as the
-	// current estimate of the source
-	Polygon2D<float> bigpoly; 
-	vector<Vector2D<float>> allpoints; 
+	// current estimate of the source	
+	assert(allpoints.size() > 1); // Should be more than one image with at least one point
 
-	float maxx = -numeric_limits<float>::max();
-	float maxy = -numeric_limits<float>::max();
-	float minx = numeric_limits<float>::max();
-	float miny = numeric_limits<float>::max();
+	if (allpoints.size() < 3)
+	{
+		// add a small circle
+		Vector2Df center = allpoints[0];
+		float radius = 1e-6; // TODO: this should never actually be used
+
+		if (allpoints.size() == 2)
+		{
+			center += allpoints[1];
+			center *= 0.5;
+
+			Vector2Df diff = allpoints[0];
+			diff -= center;
+
+			radius = diff.getLength();
+		}
+
+		int num = 8;
+		for (int i = 0 ; i < num ; i++)
+		{
+			float x = center.getX() + radius*COS(2.0f*(float)CONST_PI*(float)i/(float)num);
+			float y = center.getY() + radius*SIN(2.0f*(float)CONST_PI*(float)i/(float)num);
+			Vector2Df v(x, y);
+
+			allpoints.push_back(v);
+			updateMinMax(v);
+		}
+	}
 	
-	for (int i = 0 ; i < numimages ; i++) 
-	{ 
-		int numPolyPoints = polygons[i].getNumberOfPoints(); 
-		const Vector2D<float> *points = polygons[i].getPoints(); 
-		
-		for (int p = 0 ; p < numPolyPoints ; p++) 
-		{ 
-			allpoints.push_back(points[p]); 
-			
-			maxx = MAX(maxx,points[p].getX()); 
-			maxy = MAX(maxy,points[p].getY()); 
-			minx = MIN(minx,points[p].getX()); 
-			miny = MIN(miny,points[p].getY()); 
-		} 
-	} 
-	
+	Polygon2D<float> bigpoly; 
 	bigpoly.init(allpoints, true); 
 
 	// Store the final result in the cache (if possible)
