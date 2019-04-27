@@ -373,15 +373,26 @@ bool FitnessComponent_ExtendedImagesOverlap::inspectImagesData(int idx, const Im
 	}
 	else
 	{
+		int countPointImages = 0;
 		for (int i = 0 ; i < numImg ; i++)
 		{
 			int numPoints = imgDat.getNumberOfImagePoints(i);
-
-			if (numPoints <= 2)
+			if (numPoints < 2)
 			{
-				setErrorString("Each image must contain at least three points (or just a single point for a null space constraint)");
-				return false;
+				countPointImages++;
+				continue;
 			}
+			//if (numPoints <= 2)
+			//{
+			//	setErrorString("Each image must contain at least three points (or just a single point for a null space constraint)");
+			//	return false;
+			//}
+		}
+
+		if (countPointImages == numImg)
+		{
+			setErrorString("At least one image set must not be a point image");
+			return false;
 		}
 	}
 

@@ -188,138 +188,178 @@ float calculateOverlapFitness_Extended(const PointGroupStorage &pointGroups, con
 	float posfitness = 0;
 	int sourceCount = 0;
 
+	float avgImgScale = 0;
+	int imgScaleCount = 0;
+
 	assert(pointGroups.getNumberOfSources() == sourceIndices.size());
 	assert(rectFlags.size() == sourceIndices.size());
 	assert(groupFlags.size() == sourceIndices.size());
 
-	for (int sIdx = 0 ; sIdx < sourceIndices.size() ; sIdx++)
+	vector<bool> processedSource(sourceIndices.size(), false);
+
+	// In the first iteration, we'll handle the extended images
+	// In the second iteration we'll process the point images in a similar
+	// manner, but with the source scale based on the extended images
+	for (int it = 0 ; it < 2 ; it++)
 	{
-		const int s = sourceIndices[sIdx];
-		//std::cerr << "source = " << s << endl;
-
-		assert(s < iface.getNumberOfSources());
-		int numimages = iface.getNumberOfImages(s);
-		if (numimages < 2) // Sources with a single image may be present, they can be used in null space
-			continue;
-
-		float sourcefitness = 0;
-		vector<Vector2D<float> > bottomleftpoints(numimages);
-		vector<Vector2D<float> > toprightpoints(numimages);
-		float scale = 0;
-
-		for (int i = 0 ; i < numimages ; i++)
+		for (int sIdx = 0 ; sIdx < sourceIndices.size() ; sIdx++)
 		{
-			int numpoints = iface.getNumberOfImagePoints(s,i);
-			const Vector2D<float> *betas = iface.getBetas(s,i);
+			if (processedSource[sIdx])
+				continue;
 
-			float maxx = betas[0].getX();
-			float minx = betas[0].getX();
-			float maxy = betas[0].getY();
-			float miny = betas[0].getY();
+			const int s = sourceIndices[sIdx];
+			//std::cerr << "source = " << s << endl;
 
-			//cerr << "x = " << betas[0].getX() << " " << "y = " << betas[0].getY() << endl;
-			
-			for (int p = 1 ; p < numpoints ; p++)
+			assert(s < iface.getNumberOfSources());
+			int numimages = iface.getNumberOfImages(s);
+			if (numimages < 2) // Sources with a single image may be present, they can be used in null space
+				continue;
+
+			float sourcefitness = 0;
+			vector<Vector2D<float> > bottomleftpoints(numimages);
+			vector<Vector2D<float> > toprightpoints(numimages);
+			float scale = 0;
+
+			bool pointImage = false;
+			for (int i = 0 ; i < numimages && !pointImage ; i++)
 			{
-				maxx = MAX(maxx,betas[p].getX());
-				maxy = MAX(maxy,betas[p].getY());
-				minx = MIN(minx,betas[p].getX());
-				miny = MIN(miny,betas[p].getY());
+				int numpoints = iface.getNumberOfImagePoints(s,i);
+				if (numpoints == 1)
+					pointImage = true;
+
+				const Vector2D<float> *betas = iface.getBetas(s,i);
+
+				float maxx = betas[0].getX();
+				float minx = betas[0].getX();
+				float maxy = betas[0].getY();
+				float miny = betas[0].getY();
+
+				//cerr << "x = " << betas[0].getX() << " " << "y = " << betas[0].getY() << endl;
 				
-				//cerr << "x = " << betas[p].getX() << " " << "y = " << betas[p].getY() << endl;
-			}
-
-			bottomleftpoints[i] = Vector2D<float>(minx,miny);
-			toprightpoints[i] = Vector2D<float>(maxx,maxy);
-			float imgscale = SQRT((maxx-minx)*(maxx-minx)+(maxy-miny)*(maxy-miny));
-
-			scale += imgscale;
-
-			//std::cerr << "maxx = " << maxx << " maxy = " << maxy << " minx = " << minx << " miny = " << miny << std::endl;
-		}
-
-		scale /= (float)numimages;
-
-		// Cache the scale for use by the caustic penalty
-		if (pCache)
-			pCache->setEstimatedSourceScale(s, scale);
-
-		int numsprings = 0;
-
-		// Surrounding square
-		if (rectFlags[sIdx])
-		{
-			for (int i = 0 ; i < numimages ; i++)
-			{
-				Vector2D<float> corneri1(bottomleftpoints[i].getX(),toprightpoints[i].getY());
-				Vector2D<float> corneri2(toprightpoints[i].getX(),toprightpoints[i].getY());
-				Vector2D<float> corneri3(toprightpoints[i].getX(),bottomleftpoints[i].getY());
-				Vector2D<float> corneri4(bottomleftpoints[i].getX(),bottomleftpoints[i].getY());
-					
-				for (int j = i+1 ; j < numimages ; j++)
+				for (int p = 1 ; p < numpoints ; p++)
 				{
-					Vector2D<float> cornerj1(bottomleftpoints[j].getX(),toprightpoints[j].getY());
-					Vector2D<float> cornerj2(toprightpoints[j].getX(),toprightpoints[j].getY());
-					Vector2D<float> cornerj3(toprightpoints[j].getX(),bottomleftpoints[j].getY());
-					Vector2D<float> cornerj4(bottomleftpoints[j].getX(),bottomleftpoints[j].getY());
+					maxx = MAX(maxx,betas[p].getX());
+					maxy = MAX(maxy,betas[p].getY());
+					minx = MIN(minx,betas[p].getX());
+					miny = MIN(miny,betas[p].getY());
 					
-					Vector2D<float> diff1 = (corneri1-cornerj1)/scale;
-					Vector2D<float> diff2 = (corneri2-cornerj2)/scale;
-					Vector2D<float> diff3 = (corneri3-cornerj3)/scale;
-					Vector2D<float> diff4 = (corneri4-cornerj4)/scale;
-
-					sourcefitness += diff1.getLengthSquared()+diff2.getLengthSquared()+diff3.getLengthSquared()+diff4.getLengthSquared();
+					//cerr << "x = " << betas[p].getX() << " " << "y = " << betas[p].getY() << endl;
 				}
+
+				bottomleftpoints[i] = Vector2D<float>(minx,miny);
+				toprightpoints[i] = Vector2D<float>(maxx,maxy);
+				float imgscale = SQRT((maxx-minx)*(maxx-minx)+(maxy-miny)*(maxy-miny));
+
+				scale += imgscale;
+
+				//std::cerr << "maxx = " << maxx << " maxy = " << maxy << " minx = " << minx << " miny = " << miny << std::endl;
 			}
 
-			numsprings += 4*(numimages*(numimages-1))/2;
-		}
-	
-		// Point groups (if any)
-		if (groupFlags[sIdx])
-		{
-			assert(sIdx < pointGroups.getNumberOfSources());
-			int ng = pointGroups.getNumberOfGroups(sIdx);
+			scale /= (float)numimages;
 
-			for (int g = 0 ; g < ng ; g++)
+			if (it == 0)
 			{
-				int np = pointGroups.getNumberOfGroupPoints(sIdx,g);
-				
-				for (int p = 0 ; p < np ; p++)
+				if (pointImage) // handle point images when the scale has been set
+					continue;
+
+				avgImgScale += scale;
+				imgScaleCount++;
+			}
+			else
+			{
+				assert(!pointImage); // in the second iteraction we should only process pointimages
+				scale = avgImgScale;
+
+				if (scale == 0)
+					return std::numeric_limits<float>::quiet_NaN();
+			}
+
+			// Cache the scale for use by the caustic penalty
+			if (pCache)
+				pCache->setEstimatedSourceScale(s, scale);
+
+			int numsprings = 0;
+
+			// Surrounding square
+			if (rectFlags[sIdx])
+			{
+				for (int i = 0 ; i < numimages ; i++)
 				{
-					int img,point;
-
-					pointGroups.getGroupPointIndices(sIdx,g,p,&img,&point);
-
-					assert(s >= 0 && s < iface.getNumberOfSources());
-					assert(img >= 0 && img < iface.getNumberOfImages(s));
-					assert(point >= 0 && point < iface.getNumberOfImagePoints(s, img));
-					Vector2D<float> point1 = iface.getBetas(s,img)[point];
-					
-					for (int q = p+1 ; q < np ; q++)
+					Vector2D<float> corneri1(bottomleftpoints[i].getX(),toprightpoints[i].getY());
+					Vector2D<float> corneri2(toprightpoints[i].getX(),toprightpoints[i].getY());
+					Vector2D<float> corneri3(toprightpoints[i].getX(),bottomleftpoints[i].getY());
+					Vector2D<float> corneri4(bottomleftpoints[i].getX(),bottomleftpoints[i].getY());
+						
+					for (int j = i+1 ; j < numimages ; j++)
 					{
-						pointGroups.getGroupPointIndices(sIdx,g,q,&img,&point);
-						assert(img >= 0 && img < iface.getNumberOfImages(s));
-						assert(point >= 0 && point < iface.getNumberOfImagePoints(s, img));
-						Vector2D<float> point2 = iface.getBetas(s,img)[point];
+						Vector2D<float> cornerj1(bottomleftpoints[j].getX(),toprightpoints[j].getY());
+						Vector2D<float> cornerj2(toprightpoints[j].getX(),toprightpoints[j].getY());
+						Vector2D<float> cornerj3(toprightpoints[j].getX(),bottomleftpoints[j].getY());
+						Vector2D<float> cornerj4(bottomleftpoints[j].getX(),bottomleftpoints[j].getY());
+						
+						Vector2D<float> diff1 = (corneri1-cornerj1)/scale;
+						Vector2D<float> diff2 = (corneri2-cornerj2)/scale;
+						Vector2D<float> diff3 = (corneri3-cornerj3)/scale;
+						Vector2D<float> diff4 = (corneri4-cornerj4)/scale;
 
-						Vector2D<float> diff = (point2-point1)/scale;
-
-						sourcefitness += diff.getLengthSquared();
+						sourcefitness += diff1.getLengthSquared()+diff2.getLengthSquared()+diff3.getLengthSquared()+diff4.getLengthSquared();
 					}
 				}
-				
-				numsprings += (np*(np-1))/2;
+
+				numsprings += 4*(numimages*(numimages-1))/2;
 			}
+		
+			// Point groups (if any)
+			if (groupFlags[sIdx])
+			{
+				assert(sIdx < pointGroups.getNumberOfSources());
+				int ng = pointGroups.getNumberOfGroups(sIdx);
+
+				for (int g = 0 ; g < ng ; g++)
+				{
+					int np = pointGroups.getNumberOfGroupPoints(sIdx,g);
+					
+					for (int p = 0 ; p < np ; p++)
+					{
+						int img,point;
+
+						pointGroups.getGroupPointIndices(sIdx,g,p,&img,&point);
+
+						assert(s >= 0 && s < iface.getNumberOfSources());
+						assert(img >= 0 && img < iface.getNumberOfImages(s));
+						assert(point >= 0 && point < iface.getNumberOfImagePoints(s, img));
+						Vector2D<float> point1 = iface.getBetas(s,img)[point];
+						
+						for (int q = p+1 ; q < np ; q++)
+						{
+							pointGroups.getGroupPointIndices(sIdx,g,q,&img,&point);
+							assert(img >= 0 && img < iface.getNumberOfImages(s));
+							assert(point >= 0 && point < iface.getNumberOfImagePoints(s, img));
+							Vector2D<float> point2 = iface.getBetas(s,img)[point];
+
+							Vector2D<float> diff = (point2-point1)/scale;
+
+							sourcefitness += diff.getLengthSquared();
+						}
+					}
+					
+					numsprings += (np*(np-1))/2;
+				}
+			}
+
+			if (numsprings != 0)
+				sourcefitness /= (float)numsprings;
+
+			posfitness += sourcefitness;
+			sourceCount++;
+
+			processedSource[sIdx] = true;
+
+			if (it == 0)
+				avgImgScale /= imgScaleCount;
+
+			//std::cerr << "sourcefitness = " << sourcefitness << std::endl;	
 		}
-
-		if (numsprings != 0)
-			sourcefitness /= (float)numsprings;
-
-		posfitness += sourcefitness;
-		sourceCount++;
-
-		//std::cerr << "sourcefitness = " << sourcefitness << std::endl;	
 	}
 
 	//std::cerr << std::endl;
