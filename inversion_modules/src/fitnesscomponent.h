@@ -130,10 +130,12 @@ public:
 			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence,
 								   bool &storeOrigIntens, bool &storeOrigTimeDelay, bool &storeOrigShear) override;
 	bool calculateFitness(const ProjectedImagesInterface &iface, float &fitness) override;
+	bool finalize() override;
 private:
 	PointGroupStorage m_pointGroups;
 	std::vector<bool> m_rectFlags;
 	std::vector<bool> m_useGroupsFlags;
+	int m_extendedSourceCount;
 };
 
 class FitnessComponent_NullSpacePointImages : public FitnessComponent

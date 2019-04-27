@@ -339,6 +339,7 @@ FitnessComponent_ExtendedImagesOverlap::FitnessComponent_ExtendedImagesOverlap(F
 	: FitnessComponent("extendedimageoverlap", pCache)
 {
 	addRecognizedTypeName("extendedimages");
+	m_extendedSourceCount = 0;
 }
 
 FitnessComponent_ExtendedImagesOverlap::~FitnessComponent_ExtendedImagesOverlap()
@@ -377,23 +378,17 @@ bool FitnessComponent_ExtendedImagesOverlap::inspectImagesData(int idx, const Im
 		for (int i = 0 ; i < numImg ; i++)
 		{
 			int numPoints = imgDat.getNumberOfImagePoints(i);
-			if (numPoints < 2)
+			if (numPoints == 0)
 			{
-				countPointImages++;
-				continue;
+				setErrorString("An empty image is present");
+				return false;
 			}
-			//if (numPoints <= 2)
-			//{
-			//	setErrorString("Each image must contain at least three points (or just a single point for a null space constraint)");
-			//	return false;
-			//}
+			else if (numPoints == 1)
+				countPointImages++;
 		}
 
-		if (countPointImages == numImg)
-		{
-			setErrorString("At least one image set must not be a point image");
-			return false;
-		}
+		if (countPointImages != numImg)
+			m_extendedSourceCount++;
 	}
 
 	double Dds = imgDat.getDds();
@@ -454,6 +449,16 @@ bool FitnessComponent_ExtendedImagesOverlap::inspectImagesData(int idx, const Im
 		addToUsedImagesCount(numImg);
 	}
 
+	return true;
+}
+
+bool FitnessComponent_ExtendedImagesOverlap::finalize()
+{
+	if (m_extendedSourceCount == 0)
+	{
+		setErrorString("At least one set of extended images needs to be present to use this fitness measure");
+		return false;
+	}
 	return true;
 }
 
@@ -679,9 +684,9 @@ bool FitnessComponent_NullSpaceExtendedImages::inspectImagesData(int idx, const 
 			{
 				int numPoints = imgDat.getNumberOfImagePoints(i);
 
-				if (numPoints <= 2)
+				if (numPoints < 1)
 				{
-					setErrorString("Each image must contain at least three points (or just a single point for a null space constraint)");
+					setErrorString("An empty image was present");
 					return false;
 				}
 			}
@@ -1110,9 +1115,9 @@ bool FitnessComponent_CausticPenalty::inspectImagesData(int idx, const ImagesDat
 		{
 			int numPoints = imgDat.getNumberOfImagePoints(i);
 
-			if (numPoints <= 2)
+			if (numPoints < 1)
 			{
-				setErrorString("Each image must contain at least three points");
+				setErrorString("An empty image is present");
 				return false;
 			}
 		}
