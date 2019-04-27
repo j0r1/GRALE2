@@ -78,6 +78,10 @@ class ContourLevelDialog(QtWidgets.QDialog):
         self.slotSliderMoved(startValue)
 
     def slotSliderMoved(self, pos):
+        if pos < 0 or pos >= len(self.levels):
+            print(f"slotSliderMoved: pos = {pos}")
+            return
+
         l = self.levels[pos]
         path = QtGui.QPainterPath(QtCore.QPointF(l[0][0], l[0][1]))
         for i in range(1, len(l)):
