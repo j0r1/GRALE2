@@ -418,11 +418,10 @@ def enlargePolygon(points, offset, simplifyScale = 0.02):
        simplified, and this describes a tolerance below which points can be
        removed. It is specified as a fraction of the scale of the polygon.
     """
-    from shapely.geometry.polygon import LinearRing
+    from shapely.geometry.polygon import LinearRing, Polygon
+    import shapely.ops
     from .images import ImagesDataException
 
-    if len(points) < 4:
-        raise ImagesDataException("At least four points must be present")
     if points[0][0] != points[-1][0] or points[0][1] != points[-1][1]:
         raise ImagesDataException("Not closed: first point should equal last point")
 
@@ -431,16 +430,32 @@ def enlargePolygon(points, offset, simplifyScale = 0.02):
         scale = ((maxx-minx)**2 + (maxy-miny)**2)**0.5
         return scale
 
-    r = LinearRing(points[:-1])
+    points = points[:-1]
+    points2 = points[len(points)//2:] + points[:len(points)//2]
+    r, r2 = LinearRing(points), LinearRing(points2)
     if offset < 0: # Negative indicates fractional enlarge
-        offset = (-offset)*getScale(r)
+        offset = (-offset)*(getScale(r)+getScale(r2))*0.5
+
+    del points
+    del points2
         
     direction = "right" if r.is_ccw else "left"
-    o = r.parallel_offset(offset, direction, join_style=1)
-    if hasattr(o, "geoms"):
-        o = o.convex_hull.exterior
-    else:
-        o = LinearRing(o.coords)
+    o, o2 = [ x.parallel_offset(offset, direction, join_style=1) for x in [r, r2] ]
+
+    unionObjs = []
+    def addPoly(g):
+        pts = [ [g.xy[0][i], g.xy[1][i]] for i in range(len(g.xy[0])) ]
+        unionObjs.append(Polygon(pts))
+
+    for x in o, o2:
+        if hasattr(x, "geoms"):
+            for g in x:
+                addPoly(g)
+        else:
+            addPoly(x)
+
+    o = shapely.ops.unary_union(unionObjs)
+    o = LinearRing(o.boundary.coords)
 
 #    if hasattr(o, "geoms"):
 #        #print("O:", o)
@@ -625,35 +640,30 @@ def _getHolesList(holes, gridScale):
                         newHoles.append(b)
                         continue
 
-                    try:
-                        # Couldn't get convex hull or border, should be only one or two points
-                        pts = [ p["position"] for p in h.getImagePoints(i)]
-                        numPoints = 16 # TODO: configurable?
-                        if len(pts) == 1:
-                            center = pts[0]
-                            A = gridScale/1000 # TODO: configurable?
-                            B = A
-                            startAngle = 0
-                            angles = np.linspace(0, 2*np.pi, numPoints+1)[:-1]
-                        elif len(pts) == 2:
-                            center = (pts[0] + pts[1])/2
-                            A = np.sum((pts[0]-center)**2)**0.5
-                            B = A/20 # TODO: configurable?
-                            diff = pts[0]-center
-                            startAngle = np.arctan2(diff[1], diff[0])
-                            angles = np.linspace(0, 2*np.pi, numPoints+1)[:-1]
-                        else:
-                            raise ImagesDataException(f"Unable to get image border based on either triangulation or convex hull, and number of points ({len(pts)}) is different than expected")
+                    # Couldn't get convex hull or border, should be only one or two points
+                    pts = [ p["position"] for p in h.getImagePoints(i)]
+                    numPoints = 16 # TODO: configurable?
+                    if len(pts) == 1:
+                        center = pts[0]
+                        A = gridScale/1000 # TODO: configurable?
+                        B = A
+                        startAngle = 0
+                        angles = np.linspace(0, 2*np.pi, numPoints+1)[:-1]
+                    elif len(pts) == 2:
+                        center = (pts[0] + pts[1])/2
+                        A = np.sum((pts[0]-center)**2)**0.5
+                        B = A/20 # TODO: configurable?
+                        diff = pts[0]-center
+                        startAngle = np.arctan2(diff[1], diff[0])
+                        angles = np.linspace(0, 2*np.pi, numPoints+1)[:-1]
+                    else:
+                        raise ImagesDataException(f"Unable to get image border based on either triangulation or convex hull, and number of points ({len(pts)}) is different than expected")
 
-                        coords = np.empty((numPoints, 2))
-                        coords[:,0] = (A*np.cos(angles) * np.cos(startAngle) - B*np.sin(angles) * np.sin(startAngle)) + center[0]
-                        coords[:,1] = (A*np.cos(angles) * np.sin(startAngle) + B*np.sin(angles) * np.cos(startAngle)) + center[1]
-                        b = [xy for xy in coords]
-                        newHoles.append(b + b[:1])
-                    except:
-                        import traceback
-                        traceback.print_exc()
-                        raise
+                    coords = np.empty((numPoints, 2))
+                    coords[:,0] = (A*np.cos(angles) * np.cos(startAngle) - B*np.sin(angles) * np.sin(startAngle)) + center[0]
+                    coords[:,1] = (A*np.cos(angles) * np.sin(startAngle) + B*np.sin(angles) * np.cos(startAngle)) + center[1]
+                    b = [xy for xy in coords]
+                    newHoles.append(b + b[:1])
 
             else: # If not an ImagesData instance, assume it's polygon coords
                 newHoles.append(copy.deepcopy(h))
