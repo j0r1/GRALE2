@@ -589,8 +589,9 @@ def _checkHoleOverlap(holes):
 
     return holes
 
-def _getHolesList(holes):
+def _getHolesList(holes, gridScale):
     from .images import ImagesData, ImagesDataException
+    import numpy as np
     import copy
 
     newHoles = []
@@ -615,9 +616,44 @@ def _getHolesList(holes):
 
                     try:
                         b = h.getConvexHull(i)
-                        newHoles.append(b)
+                        foundBorder = True
                     except ImagesDataException as e:
-                        raise ImagesDataException("Unable to get image border based on either triangulation or convex hull: {}".format(e))
+                        #print("Warning: ignoring exception: {}".format(e))
+                        pass
+
+                    if foundBorder:
+                        newHoles.append(b)
+                        continue
+
+                    try:
+                        # Couldn't get convex hull or border, should be only one or two points
+                        pts = [ p["position"] for p in h.getImagePoints(i)]
+                        numPoints = 16 # TODO: configurable?
+                        if len(pts) == 1:
+                            center = pts[0]
+                            A = gridScale/1000 # TODO: configurable?
+                            B = A
+                            startAngle = 0
+                            angles = np.linspace(0, 2*np.pi, numPoints+1)[:-1]
+                        elif len(pts) == 2:
+                            center = (pts[0] + pts[1])/2
+                            A = np.sum((pts[0]-center)**2)**0.5
+                            B = A/20 # TODO: configurable?
+                            diff = pts[0]-center
+                            startAngle = np.arctan2(diff[1], diff[0])
+                            angles = np.linspace(0, 2*np.pi, numPoints+1)[:-1]
+                        else:
+                            raise ImagesDataException(f"Unable to get image border based on either triangulation or convex hull, and number of points ({len(pts)}) is different than expected")
+
+                        coords = np.empty((numPoints, 2))
+                        coords[:,0] = (A*np.cos(angles) * np.cos(startAngle) - B*np.sin(angles) * np.sin(startAngle)) + center[0]
+                        coords[:,1] = (A*np.cos(angles) * np.sin(startAngle) + B*np.sin(angles) * np.cos(startAngle)) + center[1]
+                        b = [xy for xy in coords]
+                        newHoles.append(b + b[:1])
+                    except:
+                        import traceback
+                        traceback.print_exc()
+                        raise
 
             else: # If not an ImagesData instance, assume it's polygon coords
                 newHoles.append(copy.deepcopy(h))
@@ -671,7 +707,8 @@ def createGridTriangles(bottomLeft, topRight, numX, numY, holes = None, enlargeH
     import matplotlib.path as mplPath
     from .images import ImagesData, ImagesDataException
 
-    holes = _getHolesList(holes)
+    gridScale = ((bottomLeft[0]-topRight[0])**2 + (bottomLeft[1]-topRight[1])**2)**0.5
+    holes = _getHolesList(holes, gridScale)
     
     filesToDelete = [ ]
     f = tempfile.NamedTemporaryFile("w+t", suffix=".poly", delete=False)
