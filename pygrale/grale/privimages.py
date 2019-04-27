@@ -430,17 +430,32 @@ def enlargePolygon(points, offset, simplifyScale = 0.02):
         scale = ((maxx-minx)**2 + (maxy-miny)**2)**0.5
         return scale
 
-    points = points[:-1]
-    points2 = points[len(points)//2:] + points[:len(points)//2]
-    r, r2 = LinearRing(points), LinearRing(points2)
-    if offset < 0: # Negative indicates fractional enlarge
-        offset = (-offset)*(getScale(r)+getScale(r2))*0.5
+    import copy
+    points = copy.deepcopy(points[:-1])
 
-    del points
-    del points2
+    for i in range(10,-1,-1):
+        points1 = points[:-1]
+        points2 = points[len(points1)//2:] + points[:len(points1)//2]
+        r, r2 = LinearRing(points1), LinearRing(points2)
+        if offset < 0: # Negative indicates fractional enlarge
+            offset = (-offset)*(getScale(r)+getScale(r2))*0.5
+
+        del points1
+        del points2
         
-    direction = "right" if r.is_ccw else "left"
-    o, o2 = [ x.parallel_offset(offset, direction, join_style=1) for x in [r, r2] ]
+        try:
+            o, o2 = [ x.parallel_offset(offset, "right" if x.is_ccw else "left", join_style=1) for x in [r, r2] ]
+        except Exception as e:
+            if i == 0:
+                raise
+
+            print("WARNING:", e)
+            import numpy as np
+            eps = getScale(r)*1e-8
+            for i in range(len(points)):
+                points[i][0] += np.random.normal(scale=eps)
+                points[i][1] += np.random.normal(scale=eps)
+
 
     unionObjs = []
     def addPoly(g):
