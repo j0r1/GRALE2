@@ -221,7 +221,7 @@ float calculateOverlapFitness_Extended(const PointGroupStorage &pointGroups, con
 			float scale = 0;
 
 			bool pointImage = false;
-			for (int i = 0 ; i < numimages && !pointImage ; i++)
+			for (int i = 0 ; i < numimages ; i++)
 			{
 				int numpoints = iface.getNumberOfImagePoints(s,i);
 				if (numpoints == 1)
@@ -252,15 +252,18 @@ float calculateOverlapFitness_Extended(const PointGroupStorage &pointGroups, con
 
 				scale += imgscale;
 
-				//std::cerr << "maxx = " << maxx << " maxy = " << maxy << " minx = " << minx << " miny = " << miny << std::endl;
 			}
 
 			scale /= (float)numimages;
+			//cerr << "scale for " << s << " is " << scale << endl;
 
 			if (it == 0)
 			{
 				if (pointImage) // handle point images when the scale has been set
+				{
+					//cerr << "is point image, skipping for now" << endl;
 					continue;
+				}
 
 				avgImgScale += scale;
 				imgScaleCount++;
@@ -269,6 +272,7 @@ float calculateOverlapFitness_Extended(const PointGroupStorage &pointGroups, con
 			{
 				assert(!pointImage); // in the second iteraction we should only process pointimages
 				scale = avgImgScale;
+				//cerr << "forcing scale to " << scale << endl;
 
 				if (scale == 0)
 					return std::numeric_limits<float>::quiet_NaN();
@@ -302,6 +306,10 @@ float calculateOverlapFitness_Extended(const PointGroupStorage &pointGroups, con
 						Vector2D<float> diff3 = (corneri3-cornerj3)/scale;
 						Vector2D<float> diff4 = (corneri4-cornerj4)/scale;
 
+						//cerr << "between " << i << " and " << j << ": " << diff1.getLengthSquared() << " "
+						//	<< diff2.getLengthSquared() << " "
+						//	<< diff3.getLengthSquared() << " "
+						//	<< diff4.getLengthSquared() << endl;
 						sourcefitness += diff1.getLengthSquared()+diff2.getLengthSquared()+diff3.getLengthSquared()+diff4.getLengthSquared();
 					}
 				}
@@ -350,6 +358,7 @@ float calculateOverlapFitness_Extended(const PointGroupStorage &pointGroups, con
 			if (numsprings != 0)
 				sourcefitness /= (float)numsprings;
 
+			//cerr << "sourcefitness: " << sourcefitness << endl;
 			posfitness += sourcefitness;
 			sourceCount++;
 
