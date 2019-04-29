@@ -431,30 +431,37 @@ def enlargePolygon(points, offset, simplifyScale = 0.02):
         return scale
 
     import copy
+    import numpy as np
     points = copy.deepcopy(points[:-1])
 
-    for i in range(10,-1,-1):
+    for j in range(10,-1,-1):
         points1 = points[:-1]
-        points2 = points[len(points1)//2:] + points[:len(points1)//2]
-        r, r2 = LinearRing(points1), LinearRing(points2)
-        if offset < 0: # Negative indicates fractional enlarge
-            offset = (-offset)*(getScale(r)+getScale(r2))*0.5
+        r = LinearRing(points1)
+        eps = getScale(r)*1e-8
+
+        points2 = points1[len(points1)//2:] + points1[:len(points1)//2]
+        for i in range(len(points2)):
+            points1[i][0] += np.random.normal(scale=eps)
+            points1[i][1] += np.random.normal(scale=eps)
+            points2[i][0] += np.random.normal(scale=eps)
+            points2[i][1] += np.random.normal(scale=eps)
+
+        r = LinearRing(points1)
+        r2 = LinearRing(points2)
 
         del points1
         del points2
         
+        if offset < 0: # Negative indicates fractional enlarge
+            offset = (-offset)*(getScale(r)+getScale(r2))*0.5
+
         try:
             o, o2 = [ x.parallel_offset(offset, "right" if x.is_ccw else "left", join_style=1) for x in [r, r2] ]
         except Exception as e:
-            if i == 0:
+            if j == 0:
                 raise
 
-            print("WARNING:", e)
-            import numpy as np
-            eps = getScale(r)*1e-8
-            for i in range(len(points)):
-                points[i][0] += np.random.normal(scale=eps)
-                points[i][1] += np.random.normal(scale=eps)
+            print(f"WARNING({j}): {e}")
 
 
     unionObjs = []
