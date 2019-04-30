@@ -475,7 +475,9 @@ def enlargePolygon(points, offset, simplifyScale = 0.02):
             px, py = cx - f*vy, cy + f*vx
             pts.append( [ px, py ])
 
-        unionObjs.append(Polygon(pts))
+        # NOTE: to work around a TopologyException here, the buffer(0)
+        #       trick is used. See https://stackoverflow.com/a/20873812/2828217
+        unionObjs.append(Polygon(pts).buffer(0))
 
     for x in o, o2:
         if hasattr(x, "geoms"):
