@@ -467,6 +467,14 @@ def enlargePolygon(points, offset, simplifyScale = 0.02):
     unionObjs = []
     def addPoly(g):
         pts = [ [g.xy[0][i], g.xy[1][i]] for i in range(len(g.xy[0])) ]
+        if len(pts) == 2: # add a point in between to create a nearly flat triangle
+            cx, cy = (g.xy[0][0] + g.xy[0][1])*0.5, (g.xy[1][0] + g.xy[1][1])*0.5
+            vx, vy = g.xy[0][0] - g.xy[0][1], g.xy[1][0] - g.xy[1][1]
+            f = 0.001 # TODO: what's a good value here?
+
+            px, py = cx - f*vy, cy + f*vx
+            pts.append( [ px, py ])
+
         unionObjs.append(Polygon(pts))
 
     for x in o, o2:
