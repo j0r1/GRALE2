@@ -245,12 +245,9 @@ if ! [ -e "triangle.zip" ] ; then
 fi
 
 unzip -o triangle.zip
-if [ -z "$CC" ] ; then
-	CC=gcc
-fi
 
 echo "Building 'triangle'"
-$CC -O2 -DNO_TIMER -DLINUX -o../../bin/triangle triangle.c -lm
+gcc -O2 -DNO_TIMER -DLINUX -o../../bin/triangle triangle.c -lm
 
 cat > "$PREFIX/bin/activategrale" << EOF
 source "$PREFIX/bin/activate"
