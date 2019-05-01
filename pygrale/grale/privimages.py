@@ -895,18 +895,36 @@ def createGridTriangles(bottomLeft, topRight, numX, numY, holes = None, enlargeH
                 except Exception as e:
                     print("Warning: couldn't remove '{}': {}".format(n, e)) 
 
-def createPolygonSourceFromImagesData(imgDat, idx = -1):
+def createSourceFromImagesData(imgDat, idx = -1):
     if idx < 0:
         points = [ imgDat.getImagePointPosition(i,j) for i in range(imgDat.getNumberOfImages()) for j in range(imgDat.getNumberOfImagePoints(i)) ]
     else:
         points = [ imgDat.getImagePointPosition(idx,j) for j in range(imgDat.getNumberOfImagePoints(idx)) ]
 
-    from .images import PolygonSource
+    if not points:
+        raise Exception("No points were specified in the images data instance")
+
+    from .images import PolygonSource, PointSource
     import numpy as np
+
+    if len(points) == 1:
+        return PointSource(points[0])
+
+    if len(points) == 2:
+        # Add some points to make a small diamond shape
+        cx = (points[0][0]+points[1][0])*0.5
+        cy = (points[0][1]+points[1][1])*0.5
+        vx = points[0][0] - cx
+        vy = points[0][1] - cy
+        f = 0.1 # TODO: what's a good value here?
+        wx = -vy*f
+        wy = vx*f
+        pt1 = [ cx+wx, cy+wy ]
+        pt3 = [ cx-wx, cy-wy ]
+        points = points[:1] + [ pt1 ] + points[1:] + [ pt3 ]
 
     points = np.array(points)
     position = points[0,:]
     points = points - position
-
     return PolygonSource(position, points, True)
 
