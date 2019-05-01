@@ -19,7 +19,7 @@ source shapes are derived from the class :class:`SourceImage` and can be
  - :class:`EllipticalSource`: describes a source that has an elliptical shape
  - :class:`PolygonSource`: describes a source which can be drawn as a polygon
  - :class:`DiscreteSource`: describes a source that consists of a grid of pixels
- - :class:`PolygonSource`: describes a point source
+ - :class:`PointSource`: describes a point source
 """
 
 from libcpp.string cimport string
