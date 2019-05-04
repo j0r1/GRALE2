@@ -716,8 +716,13 @@ Arguments:
    both `Ds` and `Dds` will be set to 1.0 (only the value of Dds/Ds matters, and will be
    one in this case).
 
- - `sources`: a list of :ref:`source shapes <sourceshapes>` that should be used to calculate
-   the images from.
+ - `sources`: one or more sources for which the lens effect will be calculated.
+   A source can either be a :ref:`source shape <sourceshapes>`, or a dictionary with
+   the following entries:
+
+       - ``shape``: the actual :ref:`source shape <sourceshapes>`
+       - ``z``, or ``Ds`` and  ``Dds``: redshift or angular diameter distances for this
+         source.
 
  - `renderer`: this parameter can be used to specify a specific :ref:`renderer <renderers>`
    to speed up the calculation. 
@@ -732,32 +737,33 @@ Arguments:
    is passed to :py:meth:`ImagePlane.renderImages<grale.images.ImagePlane.renderImages>`
    and :py:meth:`ImagePlane.renderSources<grale.images.ImagePlane.renderSources>`.
 
- - `sourceRgb`: the RGB color (each component is a number between 0 and 1) that should be
-   given to a pixel that lies within the source.
+ - `sourceRgb`: the RGB color, or a list of RGB colors, (each component is a number between 0 and 1) 
+   that should be given to a pixel that lies within a source.
 
- - `imageRgb`: the RGB color (each component is a number between 0 and 1) that should be
-   given to a pixel that lies within an image.
+ - `imageRgb`: the RGB color, or a list of RGB colors, (each component is a number between 0 and 1) 
+   that should be given to a pixel that lies within an image.
  
- - `caustColor`: color for the caustics.
+ - `caustColor`: color, or list of colors, for the caustics.
 
  - `caustKw`: dictionary describing keyword arguments for the matplotlib's ``plot`` function
    for drawing the caustics.
 
- - `critColor`: color for the critical lines.
+ - `critColor`: color, or list of colors, for the critical lines.
 
  - `critKw`: dictionary describing keyword arguments for the matplotlib's ``plot`` function
    for drawing the critical lines.
 
  - `bgRgb`: the RGB color for the background.
 
- - `plotCaustics`: boolean value that indicates if the caustics should be drawn on the plot.
+ - `plotCaustics`: boolean value, or list of values, that indicates if the caustics 
+   for a source should be drawn on the plot.
 
- - `plotCriticalLines`: boolean value that indicates if the critical lines should be drawn on
-   the plot.
+ - `plotCriticalLines`: boolean value, or list of values, that indicates if the critical lines 
+   for a source should be drawn on the plot.
 
- - `plotSources`: boolean value that indicates if the sources should be drawn on the plot.
+ - `plotSources`: boolean value (or list) that indicates if the sources should be drawn on the plot.
 
- - `plotImages`: boolean value that indicates if the images should be drawn on the plot.
+ - `plotImages`: boolean value (or list) that indicates if the images should be drawn on the plot.
 
  - `evenError`: by default, the function will raise an exception if the number of pixels
    in the x or y-direction is even, because for simple lenses odd pixel numbers work better.
@@ -772,7 +778,7 @@ Arguments:
 
  - `processRenderPixels`: a function that is called before the final ``imshow`` call; it
    is the array that's returned by this function (if specified) that is plotted. This can
-   be used to combine the images of several sources at different redshifts.
+   be used to combine the images of several sources with a galaxy image for example.
 
  - `kwargs`: these parameters will be passed on to the `imshow <https://matplotlib.org/devdocs/api/_as_gen/matplotlib.axes.Axes.imshow.html>`_
    function in matplotlib.
@@ -783,7 +789,6 @@ Arguments:
 
     bottomLeft = lensInfo.getBottomLeft()
     topRight = lensInfo.getTopRight()
-    imgPlane = lensInfo.getImagePlane(renderer, feedbackObject)
     numX = lensInfo.getNumXPixels()
     numY = lensInfo.getNumYPixels()
 
@@ -794,42 +799,90 @@ Arguments:
     # TODO: sourceScale and imageScale
     
     f = lambda x : np.array(x, dtype=np.double)
-    sourceRgb, imageRgb, bgRgb = list(map(f, [ sourceRgb, imageRgb, bgRgb ]))
+    bgRgb = f(bgRgb)
     
     if len(bgRgb) == 1:
-        rgbSplane = np.multiply(np.ones((numY, numX)), bgRgb)
-        rgbIplane = np.multiply(np.ones((numY, numX)), bgRgb)
+        bgPlane = np.multiply(np.ones((numY, numX)), bgRgb)
     else:
-        rgbSplane = np.multiply(np.ones((numY, numX, 1)), bgRgb)
-        rgbIplane = np.multiply(np.ones((numY, numX, 1)), bgRgb)
+        bgPlane = np.multiply(np.ones((numY, numX, 1)), bgRgb)
 
-    if sources:
+    def setSrcDistAndGetImagePlane(srcEntry):
+        if "z" in srcEntry:
+            lensInfo.setSourceRedshift(srcEntry["z"])
+        elif "Dds" in srcEntry and "Ds" in srcEntry:
+            lensInfo.setSourceDistances(srcEntry["Ds"], srcEntry["Dds"])
+        else:
+            raise PlotException("Expecting either 'z' or 'Ds' and 'Dds' to be present in the source information")
+        
+        return lensInfo.getImagePlane(renderer, feedbackObject)
 
+    if not sources:
+        # Make sure imgPlane exists
+        imgPlane = lensInfo.getImagePlane(renderer, feedbackObject)
+    else:
         def createRgbPlane(plane, rgb):
             if len(rgb) != 1:
                 plane = plane.reshape(plane.shape + (1,))
 
             return np.multiply(plane, rgb)
 
-        if plotSources:
-            splane = imgPlane.renderSources(sources, subSamples = subSamples)
-            rgbSplane = createRgbPlane(splane, sourceRgb)
+        if type(sources) != list:
+            sources = [ sources ]
 
-        if plotImages:
-            iplane = imgPlane.renderImages(sources, subSamples = subSamples)
-            rgbIplane = createRgbPlane(iplane, imageRgb)
+        if type(sources[0]) == dict:
+
+            if len(bgRgb) == 1:
+                rgbSplane = np.zeros((numY, numX))
+                rgbIplane = np.zeros((numY, numX))
+            else:
+                rgbSplane = np.zeros((numY, numX, len(bgRgb)))
+                rgbIplane = np.zeros((numY, numX, len(bgRgb)))
+
+            sourceRgbList = sourceRgb if type(sourceRgb) == list else [ sourceRgb for s in sources ]
+            imgRgbList = imageRgb  if type(imageRgb) == list else [ imageRgb for s in sources ]
+
+            for srcEntry, sourceRgb, imageRgb in zip(sources, sourceRgbList, imgRgbList):
+                splane, iplane = [ None ], [ None ]
+                imgPlane = setSrcDistAndGetImagePlane(srcEntry)
+                
+                for flag, renderFunction, destPlaneList in [
+                        (plotSources, imgPlane.renderSources, splane),
+                        (plotImages, imgPlane.renderImages, iplane)
+                        ]:
+                    if flag:
+                        plane = renderFunction([srcEntry["shape"]], subSamples = subSamples)
+                        if destPlaneList[0] is None:
+                            destPlaneList[0] = plane
+                        else:
+                            destPlaneList[0] += plane
+
+                splane = splane[0]
+                iplane = iplane[0]
+                                
+                if splane is not None:
+                    rgbSplane += createRgbPlane(splane, sourceRgb)
+                if iplane is not None:
+                    rgbIplane += createRgbPlane(iplane, imageRgb)
+
+        else:
+            imgPlane = lensInfo.getImagePlane(renderer, feedbackObject)
+
+            if plotSources:
+                splane = imgPlane.renderSources(sources, subSamples = subSamples)
+                rgbSplane = createRgbPlane(splane, sourceRgb)
+
+            if plotImages:
+                iplane = imgPlane.renderImages(sources, subSamples = subSamples)
+                rgbIplane = createRgbPlane(iplane, imageRgb)
 
     if axes is not False:
         # This allows information from multiple planes to be accumulated
-        plane = rgbIplane+rgbSplane
-        plane = processRenderPixels(plane) if processRenderPixels else np.clip(plane, 0, 1)
+        plane = processRenderPixels(plane) if processRenderPixels else np.clip(bgPlane+rgbSplane+rgbIplane, 0, 1)
         # Note: need to swap Y labeling here because of the way the pixels are ordered in this function
         if plane is not None:
             axImg = axes.imshow(plane, extent = np.array([ bottomLeft[0], topRight[0], topRight[1], bottomLeft[1]])/angularUnit, **kwargs)
             if axImgCallback: axImgCallback(axImg)
         
-    criticalLines = imgPlane.getCriticalLines()
-
     def plotLines(lines, angularUnit, **kwargs):
         for part in lines:
             x, y = [], []
@@ -842,13 +895,27 @@ Arguments:
                 axes.plot(x, y, **kwargs)
 #            print()
 
-    if plotCaustics:
-        caustics = imgPlane.getCaustics()
-        plotLines(caustics, angularUnit, color=caustColor, **caustKw)
+    for flagInfo, isCaust, colorInfo, keywords in [
+            (plotCaustics, True, caustColor, caustKw),
+            (plotCriticalLines, False, critColor, critKw)
+            ]:
+        if flagInfo:
+            if sources and type(sources[0]) == dict:
+                if type(flagInfo) != list:
+                    flagInfo = [ flagInfo for s in sources ]
+                if type(colorInfo) != list:
+                    colorInfo = [ colorInfo for c in colorInfo ]
 
-    if plotCriticalLines:
-        criticalLines = imgPlane.getCriticalLines()
-        plotLines(criticalLines, angularUnit, color=critColor, **critKw)
+                for srcEntry, plotFlag, col in zip(sources, flagInfo, colorInfo):
+                    if plotFlag:
+                        imgPlane = setSrcDistAndGetImagePlane(srcEntry)
+                        lines = imgPlane.getCaustics() if isCaust else imgPlane.getCriticalLines()
+                        plotLines(lines, angularUnit, color=col, **keywords)
+
+            else:
+                lines = imgPlane.getCaustics() if isCaust else imgPlane.getCriticalLines()
+                plotLines(lines, angularUnit, color=colorInfo, **keywords)
+
 
     if axes is not False:
         axes.set_xlim([bottomLeft[0]/angularUnit, topRight[0]/angularUnit])
