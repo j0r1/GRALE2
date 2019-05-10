@@ -44,3 +44,5 @@ target_link_libraries(backproject graleinv-static gralecore-static ${GRALE_LINK_
 add_executable(precalcbackproj precalcbackproj.cpp)
 target_link_libraries(precalcbackproj graleinv-static gralecore-static ${GRALE_LINK_LIBS})
 
+add_executable(mpcu mpcu.cpp)
+target_link_libraries(mpcu gralecore-static ${GRALE_LINK_LIBS})
