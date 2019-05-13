@@ -3,8 +3,10 @@
 #include "galensmodule.h"
 #include "lensfitnessobject.h"
 #include "imagesbackprojector.h"
+#include "precalculatedbackprojector.h"
 #include "gridlensinversiongafactoryparams.h"
 #include "gravitationallens.h"
+#include "imagesdataextended.h"
 #include <errut/booltype.h>
 #include <memory>
 #include <iostream>
@@ -26,10 +28,38 @@ protected:
 	bool_t runModule(const string &moduleDir, const string &moduleFile, GALensModule *pModule);
 };
 
+class GravitationalLensWrapper : public errut::ErrorBase
+{
+public:
+	GravitationalLensWrapper() { }
+	~GravitationalLensWrapper() { }
+
+	bool read(serut::SerializationInterface &s)
+	{
+		GravitationalLens *pLens = nullptr;
+		string errorString;
+
+		if (!GravitationalLens::read(s, &pLens, errorString))
+		{
+			setErrorString(errorString);
+			return false;
+		}
+
+		m_lens.reset(pLens);
+		return true;
+	}
+
+	GravitationalLens *get() const { return m_lens.get(); }
+private:
+	unique_ptr<GravitationalLens> m_lens;
+};
+
 bool_t CalcFitnessCommunicator::runModule(const string &moduleDir, const string &moduleFile, GALensModule *pModule)
 {
 	bool_t r;
-	int popSize = 0;
+	string type;
+	if (!(r= readLineWithPrefix("TYPE", type, 10000)))
+			return "Error reading fitness info/calculation type: " + r.getErrorString();
 
 	vector<uint8_t> factoryParamBytes;
 	if (!(r = readLineAndBytesWithPrefix("GAFACTORYPARAMS", factoryParamBytes, 10000)))
@@ -42,8 +72,9 @@ bool_t CalcFitnessCommunicator::runModule(const string &moduleDir, const string 
 	// We're just abusing the factory parameters to get the images, check
 	// that we're using some dummy settings to be sure that this is the purpose
 	if (factoryParams.getMaximumNumberOfGenerations() != 1 ||
-		factoryParams.getBasisLenses().size() != 1)
-		return "Expecting dummy settings for max number of generations and grid";
+		factoryParams.getBasisLenses().size() != 1 ||
+		factoryParams.getBaseLens() != nullptr)
+		return "Expecting dummy settings for max number of generations, grid and base lens";
 
 	unique_ptr<LensFitnessObject> f(pModule->createFitnessObject());
 	if (!f.get())
@@ -62,19 +93,58 @@ bool_t CalcFitnessCommunicator::runModule(const string &moduleDir, const string 
 	string fitnessDesc = f->getFitnessComponentsDescription();
 	WriteLineStdout("FITDESC:" + fitnessDesc);
 
-	// if a lens is set (we're abusing the base lens in the parameters for this), we'll
-	// calculate the fitness as well
-	const GravitationalLens *pLens = factoryParams.getBaseLens();
-	if (pLens)
+	if (type == "fitnessdescription")
 	{
-		// We'll abuse the base lens as the lens for which we're calculating the fitness
+		// Nothing to do
+	}
+	else if (type == "precalculated" || type == "lens")
+	{
+		unique_ptr<ProjectedImagesInterface> iface;
+		GravitationalLensWrapper lensWrapper;
 
-		unique_ptr<GravitationalLens> lens(pLens->createCopy());
-		ImagesBackProjector bp(*(lens.get()), images, z_d, false);
-		f->postInit(images, dummyShortList, bp.getAngularScale());
+		if (type == "lens")
+		{
+			vector<uint8_t> lensParams;
+			if (!(r = readLineAndBytesWithPrefix("LENS", lensParams, 10000)))
+				return "Error reading GA factory parameters: " + r.getErrorString();
+
+			if (!(r = loadFromBytes(lensWrapper, lensParams)))
+				return "Error loading lens: " + lensWrapper.getErrorString();
+
+			iface.reset(new ImagesBackProjector(*lensWrapper.get(), images, z_d, false));
+		}
+		else // precalculated
+		{
+			vector<ImagesData *> imagesVector;
+			for (auto img : factoryParams.getImages())
+				imagesVector.push_back(img.get());
+
+			vector<ImagesData *> bpImagesVector;
+			vector<shared_ptr<ImagesData>> bpImagesVectorSharedPtr;
+
+			for (size_t i = 0 ; i < imagesVector.size() ; i++)
+			{
+				vector<uint8_t> imgDataBytes;
+				if (!(r = readLineAndBytesWithPrefix("IMGDATA", imgDataBytes, 10000)))
+					return "Error reading backprojected image data bytes: " + r.getErrorString();
+
+				shared_ptr<ImagesData> imgDat(new ImagesData());
+				if (!(r = loadFromBytes(*(imgDat.get()), imgDataBytes)))
+					return "Couldn't load images data set from bytes: " + r.getErrorString();
+				bpImagesVectorSharedPtr.push_back(imgDat);
+				bpImagesVector.push_back(imgDat.get());
+			}
+
+			PreCalculatedBackProjector *pBp = new PreCalculatedBackProjector();
+			iface.reset(pBp);
+			if (!pBp->init(imagesVector, bpImagesVector))
+				return "Couldn't initialize pre-calculated backprojector interface: " + pBp->getErrorString();
+		}
+
+		f->postInit(images, dummyShortList, iface->getAngularScale());
 
 		vector<float> fitnessComp(f->getNumberOfFitnessComponents());
-		f->calculateOverallFitness(bp, &fitnessComp[0]); // TODO: do this in background thread and write PING/PONG stuff?
+		f->calculateOverallFitness(*iface.get(), &fitnessComp[0]); // TODO: do this in background thread and write PING/PONG stuff?
 
 		stringstream ss;
 		ss << fitnessComp[0];
@@ -83,6 +153,9 @@ bool_t CalcFitnessCommunicator::runModule(const string &moduleDir, const string 
 
 		WriteLineStdout("FITNESS:" + ss.str());
 	}
+	else
+		return "Invalid type '" + type + "' for fitness info/calculation";
+
 	WriteLineStdout("DONE");
 
 	return true;

@@ -146,7 +146,7 @@ def getInversionModuleUsage(moduleName = "general"):
     _getModuleDirectory(n) # So that GRALE2_MODULEPATH gets set
     return inverters.getInversionModuleUsage(n)
 
-def calculateFitness(inputImages, zd, fitnessObjectParameters, lens, moduleName = "general"):
+def calculateFitness(inputImages, zd, fitnessObjectParameters, lensOrBackProjectedImages, moduleName = "general"):
     """You can pass several parameters in the same way as you would do for a
     lens inversion, but here you also specify the specific lens for which the
     relevant fitness measures should be calculated.
@@ -158,8 +158,9 @@ def calculateFitness(inputImages, zd, fitnessObjectParameters, lens, moduleName 
      - `zd`: the redshift to the lens.
      - `fitnessObjectParameters`: parameters to be used when initializing the inversion
        module that's specified
-     - `lens`: the gravitational lens model for which the fitness measures should
-       be calculated.
+     - `lensOrBackProjectedImages`: either the gravitational lens model for which the 
+       fitness measures should be calculated, or a similar list as `inputImages`,
+       for which the positions has already been mapped onto the source plane.
      - `moduleName`: name of the inversion module for the genetic algorithm.
     """
     n = _getModuleName(moduleName)
@@ -171,7 +172,20 @@ def calculateFitness(inputImages, zd, fitnessObjectParameters, lens, moduleName 
         for k in fitnessObjectParameters:
             fullFitnessObjParams[k] = fitnessObjectParameters[k]
 
-    return inverters.calculateFitness(n, inputImages, zd, fullFitnessObjParams, lens)
+    lens, bpImages = None, None
+    try:
+        d = lensOrBackProjectedImages.getLensDistance()
+        lens = lensOrBackProjectedImages
+    except:
+        pass
+
+    try:
+        l = len(lensOrBackProjectedImages)
+        bpImages = lensOrBackProjectedImages
+    except:
+        pass
+
+    return inverters.calculateFitness(n, inputImages, zd, fullFitnessObjParams, lens=lens, bpImages=bpImages)
 
 def invert(inputImages, gridInfoOrBasisFunctions, zd, Dd, popSize, moduleName = "general", massScale = "auto",
            allowNegativeValues = False, baseLens = None, 
@@ -863,9 +877,12 @@ class InversionWorkSpace(object):
         lens = invert(self.imgDataList, self.basisFunctions, self.zd, self.Dd, populationSize, **newKwargs)
         return lens
 
-    def calculateFitness(self, lens):
+    def calculateFitness(self, lensOrBackProjectedImages):
         """For the current grid, the current images data sets, calculate the fitness values
-        for the specified lens. When you've received the final result after an inversion,
+        for the specified parameter, which can be either a lens, or the already backprojected
+        input images.
+        
+        When you've received the final result after an inversion,
         calling this function with that lens as its argument should yield the same fitness 
         values to a good approximation. Some differences may exist though, as different code 
         is used in the genetic algorithm.
@@ -877,7 +894,7 @@ class InversionWorkSpace(object):
         if "moduleName" in self.inversionArgs:
             moduleName = self.inversionArgs["moduleName"]
 
-        return calculateFitness(self.imgDataList, self.zd, fitnessObjectParameters, lens, moduleName)
+        return calculateFitness(self.imgDataList, self.zd, fitnessObjectParameters, lensOrBackProjectedImages, moduleName)
 
     def backProject(self, lens, typeFilter = [ "pointimages", "extendedimages" ]):
         """Takes the information of the images that were added using :func:`addImageDataToList`,

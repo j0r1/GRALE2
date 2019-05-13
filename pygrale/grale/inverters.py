@@ -211,8 +211,8 @@ class Inverter(object):
         except Exception as e:
             print("Warning: ignoring exception ({}) in onProgress".format(e))
 
-def _usageAndDefaultParamsHelper(moduleName, exeName, key):
- 
+def _commonModuleCommunication(moduleName, exeName, callback, **callbackArgs):
+
     try:
         proc = subprocess.Popen([exeName], stdin = subprocess.PIPE, stdout = subprocess.PIPE)
     except Exception as e:
@@ -231,18 +231,29 @@ def _usageAndDefaultParamsHelper(moduleName, exeName, key):
 
     io.writeLine("MODULE:" + moduleName)
 
-    line = io.readLine(10)
-    if not line.startswith(key + ":"):
-        raise InverterException("Process '{}' didn't respond with expected '{}'".format(exeName, key))
-
-    idx = line.find(":")
-    numBytes = int(line[idx+1:])
-    
-    retVal = None
-    if numBytes > 0:
-        retVal = os.read(outFd, numBytes)
+    retVal = callback(io, **callbackArgs)
 
     io.writeLine("EXIT")
+
+    return retVal
+
+def _usageAndDefaultParamsHelper(moduleName, exeName, key):
+ 
+    def f(io):
+        line = io.readLine(10)
+        if not line.startswith(key + ":"):
+            raise InverterException("Process '{}' didn't respond with expected '{}'".format(exeName, key))
+
+        idx = line.find(":")
+        numBytes = int(line[idx+1:])
+        
+        retVal = None
+        if numBytes > 0:
+            retVal = io.readBytes(numBytes)
+
+        return retVal
+
+    retVal = _commonModuleCommunication(moduleName, exeName, f)
 
     return retVal
 
@@ -260,59 +271,72 @@ def getInversionModuleDefaultConfigurationParameters(moduleName):
     return None
 
 # TODO: this uses a more low level moduleName, should this be documented?
-def calculateFitness(moduleName, inputImages, zd, fitnessObjectParameters, lens):
-    fitness, description = None, None
+# if lens is None and bpImages is None, only the fitness description is returned
+# if lens is set, it is used to backproject the images
+# if bpImages is set, they are assumed to be the backprojected images
+def calculateFitness(moduleName, inputImages, zd, fitnessObjectParameters, lens = None, bpImages = None):
 
-    try:
-        proc = subprocess.Popen(["grale_invert_calcfitness"], stdin = subprocess.PIPE, stdout = subprocess.PIPE)
-    except Exception as e:
-        raise InverterException("Unable to start process '{}': {}".format(exeName, e)) 
+    if lens is None and bpImages is None:
+        typeStr = "fitnessdescription"
+    elif lens is None and bpImages is not None:
+        typeStr = "precalculated"
+        if len(inputImages) != len(bpImages):
+            raise InverterException("Backprojected images list should have same length as images list")
+    elif lens is not None and bpImages is None:
+        typeStr = "lens"
+    else:
+        raise InverterException("Can't handle 'lens' and 'bpImages' both bein set, at least one should be 'None'")
 
-    inFd = proc.stdin.fileno()
-    outFd = proc.stdout.fileno()
-    io = timed_or_untimed_io.IO(outFd, inFd)
+    def f(io):
 
-    line = io.readLine(30)
-    invId = "GAINVERTER:"
-    if not line.startswith(invId):
-        raise InverterException("Unexpected idenficiation from process '{}': '{}'".format(exeName, line))
+        fitness, description = None, None
 
-    version = line[len(invId):]
+        io.writeLine("TYPE:" + typeStr)
 
-    io.writeLine("MODULE:" + moduleName)
+        # Abusing the GridLensInversionParameters for this
+        from . import grid
+        g = grid.createUniformGrid(1, [0,0], 1) # Just a dummy grid
+        g = grid._fractionalGridToRealGrid(g)
+        Dd = 1.0 if not lens else lens.getLensDistance()
+        params = inversionparams.GridLensInversionParameters(1, inputImages, { "gridSquares": g },
+                                                             Dd, zd, 1.0, baseLens = None, 
+                                                             fitnessObjectParameters=fitnessObjectParameters)
 
-    # Abusing the GridLensInversionParameters for this
-    from . import grid
-    g = grid.createUniformGrid(1, [0,0], 1) # Just a dummy grid
-    g = grid._fractionalGridToRealGrid(g)
-    Dd = 1.0 if not lens else lens.getLensDistance()
-    params = inversionparams.GridLensInversionParameters(1, inputImages, { "gridSquares": g },
-                                                         Dd, zd, 1.0, baseLens = lens, 
-                                                         fitnessObjectParameters=fitnessObjectParameters)
+        factoryParams = params.toBytes()
+        factoryParamsLen = len(factoryParams)
+        io.writeLine("GAFACTORYPARAMS:{}".format(factoryParamsLen))
+        io.writeBytes(factoryParams) 
 
-    factoryParams = params.toBytes()
-    factoryParamsLen = len(factoryParams)
-    io.writeLine("GAFACTORYPARAMS:{}".format(factoryParamsLen))
-    io.writeBytes(factoryParams)
+        if lens:
+            lensBytes = lens.toBytes()
+            io.writeLine("LENS:{}".format(len(lensBytes)))
+            io.writeBytes(lensBytes)
+        elif bpImages:
+            for img in bpImages:
+                imgBytes = img.toBytes()
+                io.writeLine("IMGDATA:{}".format(len(imgBytes)))
+                io.writeBytes(imgBytes)
 
-    while True:
-        # This can take a while
-        # TODO send some keepalive message so that this timeout can be lower
-        line = io.readLine(60*60*24) 
-        if line == "DONE":
-            break
+        while True:
+            # This can take a while
+            # TODO send some keepalive message so that this timeout can be lower
+            line = io.readLine(60*60*24) 
+            if line == "DONE":
+                break
 
-        p = line.split(":")
-        if len(p) != 2:
-            raise InverterException("Expecting two parts for separator ':', but got line '{}'".format(line))
-        if p[0] == "FITDESC":
-            description = p[1]
-        elif p[0] == "FITNESS":
-            fitness = list(map(float, p[1].split(",")))
-        else:
-            raise InverterException("Expecting FITDESC or FITNESS, but got line '{}'".format(line))
+            p = line.split(":")
+            if len(p) != 2:
+                raise InverterException("Expecting two parts for separator ':', but got line '{}'".format(line))
+            if p[0] == "FITDESC":
+                description = p[1]
+            elif p[0] == "FITNESS":
+                fitness = list(map(float, p[1].split(",")))
+            else:
+                raise InverterException("Expecting FITDESC or FITNESS, but got line '{}'".format(line))
 
-    io.writeLine("EXIT")
+        return fitness, description
+
+    fitness, description = _commonModuleCommunication(moduleName, "grale_invert_calcfitness", f)
 
     return (fitness, description)
 
