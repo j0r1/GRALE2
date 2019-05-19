@@ -32,10 +32,11 @@ import os
 extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.mathjax',
-    'matplotlib.sphinxext.only_directives',
     'matplotlib.sphinxext.plot_directive',
     'sphinx.ext.doctest',
 ]
+# 'matplotlib.sphinxext.only_directives',
+
 
 plot_html_show_formats = False
 plot_html_show_source_link = False
