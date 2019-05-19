@@ -816,6 +816,13 @@ Arguments:
         
         return lensInfo.getImagePlane(renderer, feedbackObject)
 
+    if len(bgRgb) == 1:
+        rgbSplane = np.zeros((numY, numX))
+        rgbIplane = np.zeros((numY, numX))
+    else:
+        rgbSplane = np.zeros((numY, numX, len(bgRgb)))
+        rgbIplane = np.zeros((numY, numX, len(bgRgb)))
+
     if not sources:
         # Make sure imgPlane exists
         imgPlane = lensInfo.getImagePlane(renderer, feedbackObject)
@@ -830,13 +837,6 @@ Arguments:
             sources = [ sources ]
 
         if type(sources[0]) == dict:
-
-            if len(bgRgb) == 1:
-                rgbSplane = np.zeros((numY, numX))
-                rgbIplane = np.zeros((numY, numX))
-            else:
-                rgbSplane = np.zeros((numY, numX, len(bgRgb)))
-                rgbIplane = np.zeros((numY, numX, len(bgRgb)))
 
             sourceRgbList = sourceRgb if type(sourceRgb) == list else [ sourceRgb for s in sources ]
             imgRgbList = imageRgb  if type(imageRgb) == list else [ imageRgb for s in sources ]
