@@ -351,6 +351,17 @@ class SingleProcessInverter(Inverter):
 
         super(SingleProcessInverter, self).__init__([ "grale_invert_single" ], "Single process", feedbackObject=feedbackObject)
 
+class SingleProcessGdbInverter(Inverter):
+    def __init__(self, feedbackObject = None):
+        self.pipePair = privutil.PipePair() # Keep it for the lifetime of this object
+        pp = self.pipePair
+        super(SingleProcessGdbInverter, self).__init__([ "xterm", "-e", 
+                                                         "gdb grale_invert_single -ex 'set args {} {}' ; echo sleeping 10 seconds; sleep 10".format(pp.wrFileName, pp.rdFileName),
+                                                         ], 
+                                                         "Single process GDB", feedbackObject=feedbackObject, 
+                                                         readDescriptor=pp.rdPipeDesc, 
+                                                         writeDescriptor=pp.wrPipeDesc)
+
 class MPIProcessInverter(Inverter):
     """If MPI is available for your platform, this inverter will use the MPI system
     to distribute the calculations over the available processes."""

@@ -6,6 +6,7 @@
 #include <errut/booltype.h>
 #include <serut/memoryserializer.h>
 #include <mogal/geneticalgorithm.h>
+#include <fcntl.h>
 
 #include <iostream>
 #include <sstream>
@@ -44,6 +45,19 @@ protected:
 int main(int argc, char *argv[])
 {
 	LOG.init(argv[0]);
+
+	if (argc == 3)
+	{
+		string inputPipeName(argv[1]);
+		string outputPipeName(argv[2]);
+		cerr << "Opening " << outputPipeName << " for communication" << endl;
+		// Nasty: override the file desc for communication
+		stdOutFileDescriptor = open(outputPipeName.c_str(), O_WRONLY); 
+		cerr << "Opening " << inputPipeName << " for communication" << endl;
+		// Nasty: override the file desc for communication
+		stdInFileDescriptor = open(inputPipeName.c_str(), O_RDWR); 
+	}
+
 	SingleCoreCommunicator comm;
 
 	bool_t r = comm.run();

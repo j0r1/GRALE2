@@ -102,6 +102,8 @@ def initInverterAndFeedback(inverter, feedbackObject):
     if type(inverter) == str:
         if inverter.lower() == "singlecore":
             inverter = inverters.SingleProcessInverter()
+        elif inverter.lower() == "gdb":
+            inverter = inverters.SingleProcessGdbInverter()
         elif inverter.lower() == "mpi":
             inverter = inverters.MPIProcessInverter()
         elif inverter.lower() == "localcs":
