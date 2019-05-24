@@ -28,11 +28,15 @@
 #include "gravitationallens.h"
 #include "imagesdataextended.h"
 #include "constants.h"
+#include <errut/booltype.h>
 
 // TODO
 #include <iostream>
 
 #include "debugnew.h"
+
+using namespace std;
+using namespace errut;
 
 namespace grale
 {
@@ -56,7 +60,7 @@ bool BackProjectMatrixNew::startInit(double z_d, double D_d, DeflectionMatrix *p
 		       		     bool storeOriginalIntensities,
 		       		     bool storeOriginalTimeDelays,
 		       		     bool storeOriginalShearInfo,
-				     bool useMassSheet)
+					 const GravitationalLens *pSheetLens)
 {
 	if (m_init)
 	{
@@ -108,10 +112,13 @@ bool BackProjectMatrixNew::startInit(double z_d, double D_d, DeflectionMatrix *p
 	else
 		m_useBaseLens = false;
 
-	if (useMassSheet)
+	if (pSheetLens)
 	{
 		m_useMassSheet = true;
 		m_sheetAlphas.resize(images.size());
+		m_sheetAxx.resize(images.size());
+		m_sheetAyy.resize(images.size());
+		m_sheetAxy.resize(images.size());
 		m_sheetPotentials.resize(images.size());
 	}
 	else
@@ -159,6 +166,12 @@ bool BackProjectMatrixNew::startInit(double z_d, double D_d, DeflectionMatrix *p
 				m_baseAxx[s].resize(offset);
 				m_baseAyy[s].resize(offset);
 				m_baseAxy[s].resize(offset);
+			}
+			if (m_useMassSheet)
+			{
+				m_sheetAxx[s].resize(offset);
+				m_sheetAyy[s].resize(offset);
+				m_sheetAxy[s].resize(offset);
 			}
 
 			m_inverseMagnifications[s].resize(offset);
@@ -250,73 +263,96 @@ bool BackProjectMatrixNew::startInit(double z_d, double D_d, DeflectionMatrix *p
 		}
 	}
 
-	if (m_useBaseLens)
+	auto &originalPoints = m_originalPoints;
+	auto &distanceFractions = m_distanceFractions;
+	auto getLensProperties = [&originalPoints, &distanceFractions](const GravitationalLens *pLens,
+								vector<vector<Vector2Dd>> &alphasUnscaled, 
+								vector<vector<double>> &potentialsUnscaled,
+								vector<vector<Vector2Df>> &alphas,
+								vector<vector<float>> &potentials,
+								vector<vector<float>> &axxs,
+								vector<vector<float>> &ayys,
+								vector<vector<float>> &axys) -> bool_t
 	{
-		m_baseAlphasUnscaled.resize(m_originalPoints.size());
-		m_basePotentialsUnscaled.resize(m_originalPoints.size());
+		alphasUnscaled.resize(originalPoints.size());
+		potentialsUnscaled.resize(originalPoints.size());
 
-		for (int s = 0 ; s < m_originalPoints.size() ; s++)
+		for (int s = 0 ; s < originalPoints.size() ; s++)
 		{
 			int numPoints;
 
-			if ((numPoints = m_baseAlphas[s].size()) > 0)
+			if ((numPoints = alphas[s].size()) > 0)
 			{
-				m_baseAlphasUnscaled[s].resize(numPoints);
+				alphasUnscaled[s].resize(numPoints);
 
 				for (int i = 0 ; i < numPoints ; i++)
 				{
-					Vector2D<double> point = m_originalPoints[s][i];
+					Vector2D<double> point = originalPoints[s][i];
 					Vector2D<double> alpha;
 
-					if (!pBaseLens->getAlphaVector(point, &alpha))
-					{
-						setErrorString(std::string("Unable to calculate base lens bending angle: ") + pBaseLens->getErrorString());
-						return false;
-					}
+					if (!pLens->getAlphaVector(point, &alpha))
+						return "Unable to calculate base lens bending angle: " + pLens->getErrorString();
 
-					m_baseAlphasUnscaled[s][i] = ((double)m_distanceFractions[s]) * alpha;
+					alphasUnscaled[s][i] = ((double)distanceFractions[s]) * alpha;
 				}
 			}
-			if ((numPoints = m_baseAxx[s].size()) > 0)
+			if ((numPoints = axxs[s].size()) > 0)
 			{
 				for (int i = 0 ; i < numPoints ; i++)
 				{
-					Vector2D<double> point = m_originalPoints[s][i];
+					Vector2D<double> point = originalPoints[s][i];
 					double axx, ayy, axy;
 
-					if (!pBaseLens->getAlphaVectorDerivatives(point, axx, ayy, axy))
-					{
-						setErrorString(std::string("Unable to calculate base lens deflection angle derivatives: ") + pBaseLens->getErrorString());
-						return false;
-					}
+					if (!pLens->getAlphaVectorDerivatives(point, axx, ayy, axy))
+						return "Unable to calculate base lens deflection angle derivatives: " + pLens->getErrorString();
 
-					axx *= (double)m_distanceFractions[s];
-					ayy *= (double)m_distanceFractions[s];
-					axy *= (double)m_distanceFractions[s];
+					axx *= (double)distanceFractions[s];
+					ayy *= (double)distanceFractions[s];
+					axy *= (double)distanceFractions[s];
 
-					m_baseAxx[s][i] = (float)axx;
-					m_baseAyy[s][i] = (float)ayy;
-					m_baseAxy[s][i] = (float)axy;
+					axxs[s][i] = (float)axx;
+					ayys[s][i] = (float)ayy;
+					axys[s][i] = (float)axy;
 				}
 			}
-			if ((numPoints = m_basePotentials[s].size()) > 0)
+			if ((numPoints = potentials[s].size()) > 0)
 			{
-				m_basePotentialsUnscaled[s].resize(numPoints);
+				potentialsUnscaled[s].resize(numPoints);
 
 				for (int i = 0 ; i < numPoints ; i++)
 				{
-					Vector2D<double> point = m_originalPoints[s][i];
+					Vector2D<double> point = originalPoints[s][i];
 					double potential;
 
-					if (!pBaseLens->getProjectedPotential(1.0, m_distanceFractions[s], point, &potential))
-					{
-						setErrorString(std::string("Unable to calculate base lens potential: ") + pBaseLens->getErrorString());
-						return false;
-					}
+					if (!pLens->getProjectedPotential(1.0, distanceFractions[s], point, &potential))
+						return "Unable to calculate base lens potential: " + pLens->getErrorString();
 					
-					m_basePotentialsUnscaled[s][i] = potential;
+					potentialsUnscaled[s][i] = potential;
 				}
 			}
+		}
+		return true;
+	};
+
+	if (m_useBaseLens)
+	{
+		bool_t r = getLensProperties(pBaseLens, m_baseAlphasUnscaled, m_basePotentialsUnscaled, 
+				                     m_baseAlphas, m_basePotentials, m_baseAxx, m_baseAyy, m_baseAxy);
+		if (!r)
+		{
+			setErrorString("Can't get lens properties for base lens: " + r.getErrorString());
+			return false;
+		}
+	}
+	if (m_useMassSheet)
+	{
+		bool_t r = getLensProperties(pSheetLens, m_sheetAlphasUnscaled, m_sheetPotentialsUnscaled,
+				                     m_sheetAlphas, m_sheetPotentials, m_sheetAxx, m_sheetAyy, m_sheetAxy);
+
+		if (!r)
+		{
+			setErrorString("Can't get lens properties for sheet lens: " + r.getErrorString());
+			return false;
 		}
 	}
 
@@ -384,12 +420,12 @@ bool BackProjectMatrixNew::endInit() // m_pDeflectionMatrix->endInit() must be c
 			if ((numPoints = m_sheetAlphas[s].size()) > 0)
 			{
 				for (int i = 0 ; i < numPoints ; i++)
-					m_sheetAlphas[s][i] = m_thetas[s][i]*m_distanceFractions[s];
+					m_sheetAlphas[s][i] = Vector2D<float>(m_sheetAlphasUnscaled[s][i].getX()/angularScale, m_sheetAlphasUnscaled[s][i].getY()/angularScale);
 			}
 			if ((numPoints = m_sheetPotentials[s].size()) > 0)
 			{
 				for (int i = 0 ; i < numPoints ; i++)
-					m_sheetPotentials[s][i] = 0.5*m_thetas[s][i].getLengthSquared()*m_distanceFractions[s];
+					m_sheetPotentials[s][i] = m_sheetPotentialsUnscaled[s][i]/(angularScale*angularScale);
 			}
 		}
 	}
@@ -485,9 +521,12 @@ void BackProjectMatrixNew::calculate(float scaleFactor, float massSheetFactor)
 			}
 			if (massSheetFactor != 0 && m_useMassSheet)
 			{
-				AddVector(&(m_axx[s][0]), massSheetFactor*m_distanceFractions[s], numPoints);
-				AddVector(&(m_ayy[s][0]), massSheetFactor*m_distanceFractions[s], numPoints);
+				//AddVector(&(m_axx[s][0]), massSheetFactor*m_distanceFractions[s], numPoints);
+				//AddVector(&(m_ayy[s][0]), massSheetFactor*m_distanceFractions[s], numPoints);
 				// axy is zero for mass sheet
+				CalculateAddProductC(&(m_axx[s][0]), (float *)&(m_sheetAxx[s][0]), massSheetFactor, numPoints, &(m_tmpBuffer[0]));
+				CalculateAddProductC(&(m_ayy[s][0]), (float *)&(m_sheetAyy[s][0]), massSheetFactor, numPoints, &(m_tmpBuffer[0]));
+				CalculateAddProductC(&(m_axy[s][0]), (float *)&(m_sheetAxy[s][0]), massSheetFactor, numPoints, &(m_tmpBuffer[0]));
 			}
 		}
 

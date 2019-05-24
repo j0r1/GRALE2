@@ -80,7 +80,7 @@ GridLensInversionGenomeBase::GridLensInversionGenomeBase(GridLensInversionGAFact
 	m_pFactory = f;
 	m_masses = masses;
 	m_sheetValue = sheetValue;
-	m_sheetFactor = 0;
+	m_sheetFactor = 0; // TODO: this is not used anymore
 	
 	m_fitnessComp = 0;
 	
@@ -103,7 +103,6 @@ static float IdentityTrans(float x) { return x; }
 bool GridLensInversionGenomeBase::calculateFitness()
 {
 	int nummasses = m_masses.size();
-	float sheetFactor = 0;
 	float startValue, startValue0;
 	float stopValue, stopValue0;
 	float sheetStartValue, sheetStartValue0;
@@ -178,8 +177,6 @@ bool GridLensInversionGenomeBase::calculateFitness()
 		float currentBestFitness = std::numeric_limits<float>::max();
 		float currentBestScaleFactor = 1.0f;
 
-		sheetFactor = m_pFactory->getSheetScale()*m_sheetValue;		
-
  		for (int i = 0 ; i < numiterations ; i++)
 		{
 			float stepsize = (stopValue-startValue)/((float)(numiterationsteps-1));
@@ -190,7 +187,7 @@ bool GridLensInversionGenomeBase::calculateFitness()
 				float realScale = IT(s);
 				float f;
 				
-				if (!calculateMassScaleFitness(realScale, sheetFactor, f))
+				if (!calculateMassScaleFitness(realScale, m_sheetValue, f))
 					return false; // error should already have been set
 
 				if (f < currentBestFitness)
@@ -218,7 +215,7 @@ bool GridLensInversionGenomeBase::calculateFitness()
 	}
 
 	// Do the final (possibly multi-component) fitness evaluation
-	calculateTotalFitness(m_scaleFactor, sheetFactor, m_fitnessValues);
+	calculateTotalFitness(m_scaleFactor, m_sheetValue, m_fitnessValues);
 
 	return true;
 }

@@ -65,7 +65,7 @@ public:
 	const std::vector<std::shared_ptr<ImagesDataExtended>> &getImages() const		{ return m_pParams->getImages(); }
 	bool allowNegativeValues() const												{ return m_pParams->allowNegativeValues(); }
 	const GravitationalLens *getBaseLens() const									{ return m_pParams->getBaseLens(); }
-	GridLensInversionParameters::MassSheetSearchType getMassSheetSearchType() const	{ return m_pParams->getMassSheetSearchType(); }
+	const GravitationalLens *getSheetLens() const									{ return m_pParams->getSheetLens(); }
 	const ConfigurationParameters *getFitnessObjectParameters() const				{ return m_pParams->getFitnessObjectParameters(); }
 	bool useWideSearch() const														{ return m_pParams->useWideSearch(); }
 	const std::vector<GridLensInversionParameters::BasisLensInfo> &getBasisLenses() const { return m_pParams->getBasisLenses(); }

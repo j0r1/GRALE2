@@ -31,6 +31,7 @@
 #include <serut/memoryserializer.h>
 #include <serut/dummyserializer.h>
 #include <vector>
+#include <memory>
 
 #include "debugnew.h"
 
@@ -56,8 +57,9 @@ GridLensInversionGAFactoryParams::GridLensInversionGAFactoryParams(int maxgen,
 		bool wideSearch) 
 	: LensInversionGAFactoryParams(LensInversionGAFactoryParams::GridInversion)
 {
+	shared_ptr<GravitationalLens> sheetLens = GridLensInversionParameters::createDefaultSheetLens(sheetSearchType, D_d);
 	m_pParams = new GridLensInversionParameters(maxgen, images, gridsquares, D_d, z_d, massscale,
-			                                    useweights, b, allowNegativeValues, pBaseLens, sheetSearchType,
+			                                    useweights, b, allowNegativeValues, pBaseLens, sheetLens.get(),
 												pFitnessObjectParams, wideSearch);
 }
 

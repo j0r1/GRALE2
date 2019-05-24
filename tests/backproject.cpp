@@ -114,14 +114,24 @@ int main(void)
 		cerr << "Not using base lens" << endl;
 
 	bool useMassSheet = (rng.pickRandomNumber() < 0.5)?true:false;
+	shared_ptr<GravitationalLens> sheetLens;
 	if (useMassSheet)
+	{
 		cerr << "Using mass sheet" << endl;
+		MassSheetLensParams params(D_d, 1, 1);
+		sheetLens = shared_ptr<GravitationalLens>(new MassSheetLens());
+		if (!sheetLens->init(D_d, &params))
+		{
+			cerr << "Unable to initialize sheet lens: " << sheetLens->getErrorString() << endl;
+			return -1;
+		}
+	}
 	else
 		cerr << "Not using mass sheet" << endl;
 
 	BackProjectMatrixNew bpMatrix;
 	
-	if (!bpMatrix.startInit(z_d, D_d, &matrix, images, ones, ones, ones, pBaseLens, true, true, true, useMassSheet))
+	if (!bpMatrix.startInit(z_d, D_d, &matrix, images, ones, ones, ones, pBaseLens, true, true, true, sheetLens.get()))
 		cerr << "Couldn't init BackProjectMatrixNew" << endl;
 
 	vector<pair<shared_ptr<GravitationalLens>, Vector2Dd>> basisLenses;

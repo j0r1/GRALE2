@@ -31,12 +31,15 @@
 #include "plummerlens.h"
 #include "squarelens.h"
 #include "gausslens.h"
+#include "masssheetlens.h"
+#include <errut/booltype.h>
 #include <assert.h>
 #include <vector>
 
 #include "debugnew.h"
 
 using namespace std;
+using namespace errut;
 
 namespace grale
 {
@@ -53,7 +56,7 @@ void GridLensInversionParameters::commonConstructor(int maxGenerations,
 			double massScale,
 			bool allowNegativeValues,
 			const GravitationalLens *pBaseLens,
-			MassSheetSearchType sheetSearchType,
+			const GravitationalLens *pSheetLens,
 			const ConfigurationParameters *pFitnessObjectParams,
 			bool wideSearch)
 {
@@ -71,7 +74,9 @@ void GridLensInversionParameters::commonConstructor(int maxGenerations,
 	if (pBaseLens)
 		m_pBaseLens = pBaseLens->createCopy();
 
-	m_massSheetSearchType = sheetSearchType;
+	m_pSheetLens = nullptr;
+	if (pSheetLens)
+		m_pSheetLens = pSheetLens->createCopy();
 
 	if (pFitnessObjectParams)
 		m_pParams = new ConfigurationParameters(*pFitnessObjectParams);
@@ -87,29 +92,29 @@ GridLensInversionParameters::GridLensInversionParameters(int maxGenerations,
 			double massScale,
 			bool allowNegativeValues,
 			const GravitationalLens *pBaseLens,
-			MassSheetSearchType sheetSearchType,
+			const GravitationalLens *pSheetLens,
 			const ConfigurationParameters *pFitnessObjectParams,
 			bool wideSearch)
 {
 	commonConstructor(maxGenerations, images, D_d, z_d, massScale, allowNegativeValues, pBaseLens,
-			          sheetSearchType, pFitnessObjectParams, wideSearch);
+			          pSheetLens, pFitnessObjectParams, wideSearch);
 
 	m_basisLenses = basisLenses;
 }
 
-GridLensInversionParameters::GridLensInversionParameters(int maxGenerations, 
-		const vector<shared_ptr<ImagesDataExtended>> &images, 
+GridLensInversionParameters::GridLensInversionParameters(int maxGenerations,
+		const vector<shared_ptr<ImagesDataExtended>> &images,
 		const vector<GridSquare> &gridsquares,
-		double D_d, double z_d, double massScale, 
+		double D_d, double z_d, double massScale,
 		bool useweights,
 		BasisFunctionType b, bool allowNegativeValues,
 		const GravitationalLens *pBaseLens,
-		MassSheetSearchType sheetSearchType,
+		const GravitationalLens *pSheetLens,
 		const ConfigurationParameters *pFitnessObjectParams,
 		bool wideSearch) 
 {
 	commonConstructor(maxGenerations, images, D_d, z_d, massScale, allowNegativeValues, pBaseLens,
-			          sheetSearchType, pFitnessObjectParams, wideSearch);
+			          pSheetLens, pFitnessObjectParams, wideSearch);
 
 	buildBasisLenses(gridsquares, b, useweights);
 }
@@ -118,9 +123,6 @@ GridLensInversionParameters::~GridLensInversionParameters()
 {
 	clear();
 }
-
-#define SHEETSEARCHTYPE_NONE  	0
-#define SHEETSEARCHTYPE_GENOME	1
 
 bool GridLensInversionParameters::write(serut::SerializationInterface &si) const
 {
@@ -192,40 +194,33 @@ bool GridLensInversionParameters::write(serut::SerializationInterface &si) const
 		return false;
 	}
 
-	int32_t val = (m_pBaseLens != nullptr)?1:0;
-	
-	if (!si.writeInt32(val))
+	auto writeLens = [](GravitationalLens *pLens, serut::SerializationInterface &si) -> bool_t
 	{
-		setErrorString(si.getErrorString());
-		return false;
-	}
+		int32_t val = (pLens != nullptr)?1:0;
+		if (!si.writeInt32(val))
+			return "Couldn't write lens flag: " + si.getErrorString();
 
-	if (m_pBaseLens)
-	{
-		if (!m_pBaseLens->write(si))
+		if (pLens)
 		{
-			setErrorString(m_pBaseLens->getErrorString());
-			return false;
+			if (!pLens->write(si))
+				return "Couldn't write lens: " + pLens->getErrorString();
 		}
-	}
+		return true;
+	};
 
-	switch(m_massSheetSearchType)
+	bool_t r;
+	if (!(r = writeLens(m_pBaseLens, si)))
 	{
-	case Genome:
-		val = SHEETSEARCHTYPE_GENOME;
-		break;
-	case NoSheet:
-	default:
-		val = SHEETSEARCHTYPE_NONE;
+		setErrorString("Couldn't write base lens: " + r.getErrorString());
+		return false;
 	}
-
-	if (!si.writeInt32(val))
+	if (!(r = writeLens(m_pSheetLens, si)))
 	{
-		setErrorString(si.getErrorString());
+		setErrorString("Couldn't write sheet lens: " + r.getErrorString());
 		return false;
 	}
 
-	val = (m_pParams == nullptr)?0:1;
+	int32_t val = (m_pParams == nullptr)?0:1;
 	if (!si.writeInt32(val)) // write marker for additional parameters
 	{
 		setErrorString(si.getErrorString());
@@ -257,6 +252,7 @@ void GridLensInversionParameters::clear()
 	m_basisLenses.clear();
 
 	delete m_pBaseLens;
+	delete m_pSheetLens;
 	delete m_pParams;
 
 	zero();
@@ -270,7 +266,7 @@ void GridLensInversionParameters::zero()
 	m_zd = 0;
 	m_allowNegative = false;
 	m_pBaseLens = nullptr;
-	m_massSheetSearchType = NoSheet;
+	m_pSheetLens = nullptr;
 	m_pParams = nullptr;
 }
 
@@ -356,44 +352,36 @@ bool GridLensInversionParameters::read(serut::SerializationInterface &si)
 
 	m_allowNegative = (n == 0)?false:true;
 
-	int32_t val;
-
-	if (!si.readInt32(&val))
+	auto readLens = [](GravitationalLens **pLens, serut::SerializationInterface &si) -> bool_t
 	{
-		setErrorString(si.getErrorString());
-		return false;
-	}
+		int32_t val;
 
-	if (val != 0)
-	{
-		string errStr;
+		if (!si.readInt32(&val))
+			return "Couldn't read lens flag: " + si.getErrorString();
 
-		if (!GravitationalLens::read(si, &m_pBaseLens, errStr))
+		if (val != 0)
 		{
-			setErrorString(errStr);
-			return false;
+			string errStr;
+
+			if (!GravitationalLens::read(si, pLens, errStr))
+				return "Coudln't read lens: " + errStr; 
 		}
-	}
+		return true;
+	};
 
-	if (!si.readInt32(&val))
+	bool_t r;
+	if (!(r = readLens(&m_pBaseLens, si)))
 	{
-		setErrorString(si.getErrorString());
+		setErrorString("Couldn't read base lens: " + r.getErrorString());
+		return false;
+	}
+	if (!(r = readLens(&m_pSheetLens, si)))
+	{
+		setErrorString("Couldn't read sheet lens: " + r.getErrorString());
 		return false;
 	}
 
-	switch(val)
-	{
-	case SHEETSEARCHTYPE_NONE:
-		m_massSheetSearchType = NoSheet;
-		break;
-	case SHEETSEARCHTYPE_GENOME:
-		m_massSheetSearchType = Genome;
-		break;
-	default:
-		setErrorString("Invalid mass-sheet search type");
-		return false;
-	}
-
+	int32_t val = 0;
 	if (!si.readInt32(&val))
 	{
 		setErrorString(si.getErrorString());
@@ -459,7 +447,7 @@ GridLensInversionParameters *GridLensInversionParameters::createCopy() const
 
 	return new GridLensInversionParameters(m_maxGenerations, imagesCopy, copiedBasisLenses,
 			                               m_Dd, m_zd, m_massScale, m_allowNegative,
-										   m_pBaseLens, m_massSheetSearchType, m_pParams,
+										   m_pBaseLens, m_pSheetLens, m_pParams,
 										   m_wideSearch);
 }
 
@@ -555,6 +543,19 @@ void GridLensInversionParameters::buildBasisLenses(const vector<GridSquare> &squ
 	}
 
 	m_basisLenses = basisLenses;
+}
+
+shared_ptr<GravitationalLens> GridLensInversionParameters::createDefaultSheetLens(MassSheetSearchType t, double Dd)
+{
+	shared_ptr<GravitationalLens> lens(nullptr);
+	if (t == Genome)
+	{
+		MassSheetLensParams params(Dd, 1.1, 1); // should give the same behaviour als the old mass sheet implementation
+		lens.reset(new MassSheetLens());
+		lens->init(Dd, &params);
+	}
+
+	return lens;
 }
 
 } // end namespace

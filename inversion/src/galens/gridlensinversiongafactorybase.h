@@ -74,7 +74,6 @@ public:
 	const mogal::RandomNumberGenerator *getRandomNumberGenerator() const			{ return &m_rndGen; }
 	bool allowNegativeValues() const							{ return m_allowNegativeValues; }
 	const float *getMassWeights() const							{ return &(m_massWeights[0]); }
-	float getSheetScale() const								{ return m_sheetScale; }
 	
 	void getGenomeCalculationParameters(float &startfactor, float &stopfactor, int &numiterationsteps, int &numiterations, int &numiterationsteps2) const;
 	void getGenomeSheetCalculationParameters(float &startfactor, float &stopfactor) const;
@@ -108,7 +107,7 @@ protected:
 private:
 	bool localSubInit(double z_d, const std::vector<std::shared_ptr<ImagesDataExtended>> &images, 
 	                  const std::vector<std::pair<std::shared_ptr<GravitationalLens>, Vector2D<double> > > &basisLenses,
-					  const GravitationalLens *pBaseLens, bool useSheet, 
+					  const GravitationalLens *pBaseLens, const GravitationalLens *pSheetLens, 
 					  const ConfigurationParameters *pFitnessObjectParams);
 	double getAngularScale() const								{ return m_pShortBPMatrix->getAngularScale(); }
 
@@ -117,12 +116,12 @@ private:
 	int m_numMasses, m_maxGenerations;
 	bool m_allowNegativeValues;
 	bool m_useGenomeSheet;
-	float m_sheetScale;
 	bool m_wideSearch;
 
 	std::vector<float> m_massWeights;
 
 	std::vector<std::pair<std::shared_ptr<GravitationalLens>, Vector2D<double> > > m_basisLenses;
+	std::shared_ptr<GravitationalLens> m_sheetLens;
 
 	LensFitnessObject *m_pFitnessObject;
 	DeflectionMatrix *m_pDeflectionMatrix;

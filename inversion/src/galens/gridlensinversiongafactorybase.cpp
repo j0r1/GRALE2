@@ -183,23 +183,20 @@ bool GridLensInversionGAFactoryBase::init(const mogal::GAFactoryParams *p)
 	for (const auto &bl : basisLenses)
 		m_massWeights.push_back((float)(bl.m_relevantLensingMass/massScale));
 
-	bool useSheet = false;
-
-	if (p2->getMassSheetSearchType() == GridLensInversionParameters::Genome)
+	const GravitationalLens *pSheetLens = p2->getSheetLens();
+	if (pSheetLens)
 	{
-		useSheet = true;
-		// TODO: what is a good value here?
-		m_sheetScale = 1.1;
+		m_sheetLens = shared_ptr<GravitationalLens>(pSheetLens->createCopy());
 		m_useGenomeSheet = true;
 	}
 	else // no sheet
 	{
-		m_sheetScale = 0;
+		m_sheetLens = nullptr;
 		m_useGenomeSheet = false;
 	}
 
 	// perform sub-initialization
-	if (!localSubInit(p2->getZ_d(), p2->getImages(), m_basisLenses, p2->getBaseLens(), useSheet, 
+	if (!localSubInit(p2->getZ_d(), p2->getImages(), m_basisLenses, p2->getBaseLens(), pSheetLens, 
 				m_pCurrentParams->getFitnessObjectParameters()))
 	{
 		// Error string is set in subInit
@@ -322,20 +319,8 @@ GravitationalLens *GridLensInversionGAFactoryBase::createLens(const std::vector<
 	for (int i = 0 ; i < m_basisLenses.size() ; i++)
 		lensParams.addLens((double)masses[i]*(double)scaleFactor, m_basisLenses[i].second, 0, *m_basisLenses[i].first.get());
 
-	if (m_sheetScale != 0)
-	{
-		double D_d = m_basisLenses[0].first->getLensDistance();
-		MassSheetLensParams sheetParams(((SPEED_C*SPEED_C)/(4.0*CONST_PI*CONST_G*D_d))*sheetValue*m_sheetScale);
-		MassSheetLens sheetLens;
-
-		if (!sheetLens.init(D_d, &sheetParams))
-		{
-			setErrorString(std::string("Can't initialize mass sheet component: ") + sheetLens.getErrorString());
-			return 0;
-		}
-
-		lensParams.addLens(1.0, Vector2D<double>(0,0), 0, sheetLens);
-	}
+	if (m_sheetLens.get())
+		lensParams.addLens(1.0, Vector2D<double>(0,0), 0, *m_sheetLens.get());
 
 	pLens = new CompositeLens();
 	pLens->init(m_basisLenses[0].first->getLensDistance(), &lensParams);
@@ -395,7 +380,7 @@ void GridLensInversionGAFactoryBase::onSortedPopulation(const std::vector<mogal:
 
 bool GridLensInversionGAFactoryBase::localSubInit(double z_d, const vector<shared_ptr<ImagesDataExtended>> &images, 
 	                  const vector<pair<shared_ptr<GravitationalLens>, Vector2D<double> > > &basisLenses,
-                      const GravitationalLens *pBaseLens, bool useSheet, 
+                      const GravitationalLens *pBaseLens, const GravitationalLens *pSheetLens, 
 					  const ConfigurationParameters *pFitnessObjectParams)
 {
 	std::list<ImagesDataExtended *> reducedImages;
@@ -482,7 +467,7 @@ bool GridLensInversionGAFactoryBase::localSubInit(double z_d, const vector<share
 				         reducedImagesVector, totalDeflectionFlags, totalDerivativeFlags, 
 					 totalPotentialFlags, pBaseLens, totalStoreIntens, totalStoreTimeDelay,
 					 totalStoreShearInfo,
-					 useSheet))
+					 pSheetLens))
 	{
 		setErrorString(m_pTotalBPMatrix->getErrorString());
 		delete m_pTotalBPMatrix;
@@ -507,7 +492,7 @@ bool GridLensInversionGAFactoryBase::localSubInit(double z_d, const vector<share
 						 shortImagesVector, shortDeflectionFlags, shortDerivativeFlags, 
 						 shortPotentialFlags, pBaseLens, shortStoreIntens, shortStoreTimeDelay,
 						 shortStoreShearInfo,
-						 useSheet))
+						 pSheetLens))
 		{
 			setErrorString(m_pShortBPMatrix->getErrorString());
 			delete m_pShortBPMatrix;

@@ -10,6 +10,7 @@
 #include "masssheetlens.h"
 #include "galensmodule.h"
 #include "lensfitnessobject.h"
+#include "gridlensinversionparameters.h"
 #include <vector>
 #include <iostream>
 #include <memory>
@@ -117,14 +118,18 @@ int main(int argc, char *argv[])
 		cerr << "Not using base lens" << endl;
 
 	bool useMassSheet = (rng.pickRandomNumber() < 0.5)?true:false;
+	shared_ptr<GravitationalLens> sheetLens;
 	if (useMassSheet)
+	{
 		cerr << "Using mass sheet" << endl;
+		sheetLens = GridLensInversionParameters::createDefaultSheetLens(GridLensInversionParameters::Genome, D_d); 
+	}
 	else
 		cerr << "Not using mass sheet" << endl;
 
 	BackProjectMatrixNew bpMatrix;
 	
-	if (!bpMatrix.startInit(z_d, D_d, &matrix, images, ones, ones, ones, pBaseLens, true, true, true, useMassSheet))
+	if (!bpMatrix.startInit(z_d, D_d, &matrix, images, ones, ones, ones, pBaseLens, true, true, true, sheetLens.get()))
 		cerr << "Couldn't init BackProjectMatrixNew" << endl;
 
 	vector<pair<shared_ptr<GravitationalLens>, Vector2Dd>> basisLenses;
@@ -171,13 +176,8 @@ int main(int argc, char *argv[])
 		compParams.addLens(1.0, Vector2Dd(0,0), 0, *pBaseLens);
 
 	if (useMassSheet)
-	{
-		MassSheetLensParams params(((SPEED_C*SPEED_C)/(4.0*CONST_PI*CONST_G*D_d)));
-		MassSheetLens l;
-		if (!l.init(D_d, &params))
-			cerr << "Couldn't init mass sheet lens" << endl;
-		compParams.addLens(sheetFactor, Vector2Dd(0,0), 0, l);
-	}
+		compParams.addLens(sheetFactor, Vector2Dd(0,0), 0, *sheetLens.get());
+
 	CompositeLens compLens;
 	if (!compLens.init(D_d, &compParams))
 		cerr << "Couldn't init composite lens" << endl;
@@ -228,7 +228,10 @@ int main(int argc, char *argv[])
 
 	GALensModule module;
 	if (!module.open("", argv[1]))
+	{
 		cerr << "Unable to open module " << argv[1] << ":" << module.getErrorString() << endl;
+		return -1;
+	}
 
 	LensFitnessObject *pLFO = module.createFitnessObject();
 	ConfigurationParameters *pConfParams = pLFO->getDefaultParametersInstance();
@@ -239,7 +242,10 @@ int main(int argc, char *argv[])
 	list<ImagesDataExtended *> dummy;
 
 	if (!pLFO->init(z_d, imagesList, dummy, pConfParams))
+	{
 		cerr << "Unable to initialize lens fitness object: " << pLFO->getErrorString() << endl;
+		return -1;
+	}
 
 	float fitnessMatrix, fitnessSlow, fitnessPrecalc;
 	if (!pLFO->calculateMassScaleFitness(bpMatrix, fitnessMatrix))
@@ -253,4 +259,5 @@ int main(int argc, char *argv[])
 	cerr << "fitnessSlow: " << fitnessSlow << endl;
 	cerr << "fitnessPrecalc:" << fitnessPrecalc << endl;
 	return 0;
+
 }

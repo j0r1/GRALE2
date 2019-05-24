@@ -58,7 +58,7 @@ public:
 		       bool storeOriginalIntensities,
 		       bool storeOriginalTimeDelays,
 		       bool storeOriginalShearInfo,
-		       bool useMassSheet);
+		       const GravitationalLens *pSheetLens);
 	bool endInit();
 
 	void storeDeflectionMatrixResults();
@@ -135,7 +135,10 @@ private:
 	std::vector<std::vector<float> > m_convergence;
 
 	std::vector<std::vector<Vector2D<float> > > m_sheetAlphas;
+	std::vector<std::vector<float> > m_sheetAxx, m_sheetAyy, m_sheetAxy;
 	std::vector<std::vector<float> > m_sheetPotentials;
+	std::vector<std::vector<Vector2D<double> > > m_sheetAlphasUnscaled;
+	std::vector<std::vector<double> > m_sheetPotentialsUnscaled;
 	bool m_useMassSheet;
 
 	std::vector<float> m_tmpBuffer;

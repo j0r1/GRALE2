@@ -10,6 +10,7 @@ from cpython.array cimport array,clone
 import cython
 from cython.operator cimport dereference as deref
 from . import images
+from . import lenses
 
 cimport grale.configurationparameters as configurationparameters
 cimport grale.gridlensinversionparameters as gridlensinversionparameters
@@ -217,7 +218,7 @@ cdef class GridLensInversionParameters(object):
            set to ``True``.
          - `baseLens`: if present, the lens inversion method will look for additions to
            this model. The `allowNegativeValues` argument may be useful in this case.
-         - `sheetSearch`: can be ``nosheet`` or ``genome``, and indicates if a mass sheet
+         - `sheetSearch`: can be ``nosheet``, ``genome`` or a lens model, and indicates if a mass sheet
            basis function should be present in the lens inversion method.
          - `fitnessObjectParameters`: parameters that should be passed to the inversion 
            module that will be used.
@@ -237,6 +238,8 @@ cdef class GridLensInversionParameters(object):
         cdef gridlensinversionparameters.MassSheetSearchType sheetSearchType
         cdef gravitationallens.GravitationalLens *pBaseLens = NULL
         cdef gravitationallens.GravitationalLens *pBasisLensModel = NULL
+        cdef gravitationallens.GravitationalLens *pSheetLensModel = NULL
+        cdef shared_ptr[gravitationallens.GravitationalLens] sheetLensModel
         cdef configurationparameters.ConfigurationParameters *pFitnessObjectParameters = NULL
         cdef vector[gridlensinversionparameters.BasisLensInfo] basisLensInfo
 
@@ -299,8 +302,21 @@ cdef class GridLensInversionParameters(object):
                 sheetSearchType = gridlensinversionparameters.NoSheet
             elif sheetSearch == "genome":
                 sheetSearchType = gridlensinversionparameters.Genome
+                sheetLensModel = gridlensinversionparameters.GridLensInversionParameters.createDefaultSheetLens(sheetSearchType, Dd)
+            elif isinstance(sheetSearch, lenses.GravitationalLens):
+                lensBytes = sheetSearch.toBytes()
+                buf = chararrayfrombytes(lensBytes)
+                mSer = new serut.MemorySerializer(buf.data.as_voidptr, len(lensBytes), NULL, 0)
+
+                if not gravitationallens.GravitationalLens.read(deref(mSer), cython.address(pSheetLensModel), errorString):
+                    del mSer
+                    raise InversionParametersException(S(errorString))
+
+                del mSer
+                mSer = NULL
+                sheetLensModel.reset(pSheetLensModel)
             else:
-                raise InversionParametersException("Unknown sheet search type '{}', should be 'nosheet' or 'genome'".format(sheetSearch))
+                raise InversionParametersException("Unknown sheet search type '{}', should be 'nosheet' or 'genome', or a lens model".format(sheetSearch))
 
             if fitnessObjectParameters:
                 fitnessObjectParametersObj = ConfigurationParameters(fitnessObjectParameters)
@@ -331,7 +347,7 @@ cdef class GridLensInversionParameters(object):
 
                 self.m_pParams = new gridlensinversionparameters.GridLensInversionParameters(maxGen, imgVector, gridSquares,
                                                 Dd, zd, massScale, useWeights, basisFunctionType, allowNegativeValues,
-                                                pBaseLens, sheetSearchType, pFitnessObjectParameters, wideSearch)
+                                                pBaseLens, sheetLensModel.get(), pFitnessObjectParameters, wideSearch)
 
             elif type(gridInfoOrBasisFunctions) == list:
 
@@ -351,13 +367,9 @@ cdef class GridLensInversionParameters(object):
                     mSer = NULL
 
                     GridLensInversionParameters._appendHelper(basisLensInfo, pBasisLensModel, cx, cy, relevantLensingMass)
-                    #basisLensInfo.push_back(gridlensinversionparameters.BasisLensInfo(
-                    #                            shared_ptr[gravitationallens.GravitationalLens](pBasisLensModel),
-                    #                            vector2d.Vector2Dd(cx, cy),
-                    #                            relevantLensingMass))
 
                 self.m_pParams = new gridlensinversionparameters.GridLensInversionParameters(maxGen, imgVector, basisLensInfo,
-                                                Dd, zd, massScale, allowNegativeValues, pBaseLens, sheetSearchType, 
+                                                Dd, zd, massScale, allowNegativeValues, pBaseLens, sheetLensModel.get(), 
                                                 pFitnessObjectParameters, wideSearch)
             else:
                 raise InversionParametersException("Unsupported type for gridInfoOrBasisFunctions parameter, should be dict or list")

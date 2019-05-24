@@ -275,13 +275,14 @@ def invert(inputImages, gridInfoOrBasisFunctions, zd, Dd, popSize, moduleName = 
 
      - `sheetSearch`: by default, only the basis functions for the grid cells are used.
        You can also allow a mass-sheet basis function, which may be useful as this kind
-       of effect is difficult to model by a grid of basis functions. Possible values that
-       include such a basis function are ``"genome"`` and ``"loop"``. In the first case,
-       the weight of the sheet basis function is an extra parameter in each trial lens
-       model. In the second case, for each trial model without mass sheet, the algorithm
-       will search (using a loop) for the mass sheet that produces the best result. Note
-       that is much more computationally demanding and the ``"genome"`` version usually
-       works very well.
+       of effect is difficult to model by a grid of basis functions. The traditional
+       way to specify that a mass sheet basis function should be used is to set this
+       to ``"genome"``. Alternatively you can specify a :module:`lens model <grale.lenses>`
+       to be used in a similar way, allowing you to e.g. use a mass disk. Of course,
+       you can use any lens model here, it doesn't need to be one resembling a mass
+       sheet. The lens model is very roughly an upper limit in the sense that the
+       search for this weight is initially between 0 and 1 (it is not included in the
+       scaling loop used in the genetic algorithm).
 
      - `fitnessObjectParameters`: parameters for the lens inversion module for the
        generic algorithm. For the ``"general"`` module, more information can be

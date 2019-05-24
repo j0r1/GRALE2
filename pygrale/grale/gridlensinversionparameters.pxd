@@ -10,6 +10,7 @@ cimport grale.cppgrid as grid
 cimport grale.gravitationallens as gravitationallens
 cimport grale.configurationparameters as configurationparameters
 cimport grale.vector2d as vector2d
+cimport grale.gravitationallens as gravitationallens
 
 cdef extern from "grale/gridlensinversionparameters.h" namespace "grale::GridLensInversionParameters":
     cdef enum BasisFunctionType:
@@ -38,7 +39,7 @@ cdef extern from "grale/gridlensinversionparameters.h" namespace "grale":
                      double massscale,
                      bool allowNegativeValues,
                      const gravitationallens.GravitationalLens *pBaseLens,
-                     MassSheetSearchType sheetSearchType,
+                     const gravitationallens.GravitationalLens *pSheetLens,
                      const configurationparameters.ConfigurationParameters *pFitnessObjectParams,
                      bool wideSearch)
         GridLensInversionParameters(int maxgenerations,
@@ -51,10 +52,13 @@ cdef extern from "grale/gridlensinversionparameters.h" namespace "grale":
                      BasisFunctionType basisFunction,
                      bool allowNegativeValues,
                      const gravitationallens.GravitationalLens *pBaseLens,
-                     MassSheetSearchType sheetSearchType,
+                     const gravitationallens.GravitationalLens *pSheetLens,
                      const configurationparameters.ConfigurationParameters *pFitnessObjectParams,
                      bool wideSearch)
 
         bool read(serut.SerializationInterface &si)
         bool write(serut.SerializationInterface &si)
+
+        @staticmethod
+        shared_ptr[gravitationallens.GravitationalLens] createDefaultSheetLens(MassSheetSearchType t, double Dd)
 
