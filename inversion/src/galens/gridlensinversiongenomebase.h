@@ -59,10 +59,8 @@ public:
 		
 	const float *getFitnessValues() const								{ return m_fitnessValues; }
 	float getScaleFactor() const									{ return m_scaleFactor; }
-	float getSheetFactor() const									{ return m_sheetFactor; }
 	void setFitnessValues(const float *f)								{ for (int i = 0 ; i < GRIDLENSINVERSIONGENOMEBASE_MAXFITNESSCOMP ; i++) m_fitnessValues[i] = f[i]; }
 	void setScaleFactor(float s)									{ m_scaleFactor = s; }
-	void setSheetFactor(float s)									{ m_sheetFactor = s; }
 	
 	const std::vector<float> &getMasses() const							{ return m_masses; }
 	float getSheetValue() const									{ return m_sheetValue; }
@@ -82,7 +80,6 @@ private:
 	float m_scaleFactor;
 	std::vector<float> m_masses;
 	float m_sheetValue;
-	float m_sheetFactor;
 
 	GridLensInversionGAFactoryBase *m_pFactory;
 };

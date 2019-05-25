@@ -275,11 +275,6 @@ bool GridLensInversionGAFactoryBase::writeGenomeFitness(serut::SerializationInte
 		setErrorString(si.getErrorString());
 		return false;
 	}
-	if (!si.writeFloat(g2->getSheetFactor()))
-	{
-		setErrorString(si.getErrorString());
-		return false;
-	}
 	return true;
 }
 
@@ -287,16 +282,15 @@ bool GridLensInversionGAFactoryBase::readGenomeFitness(serut::SerializationInter
 {
 	GridLensInversionGenomeBase *g2 = (GridLensInversionGenomeBase *)g;
 	int num = getNumberOfFitnessComponents();
-	float x[GRIDLENSINVERSIONGENOMEBASE_MAXFITNESSCOMP+2];
+	float x[GRIDLENSINVERSIONGENOMEBASE_MAXFITNESSCOMP+1];
 
-	if (!si.readFloats(x, num+2))
+	if (!si.readFloats(x, num+1))
 	{
 		setErrorString(si.getErrorString());
 		return false;
 	}
 	g2->setFitnessValues(x);
 	g2->setScaleFactor(x[num]);
-	g2->setSheetFactor(x[num+1]);
 	return true;
 }
 

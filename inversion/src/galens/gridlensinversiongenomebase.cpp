@@ -48,7 +48,6 @@ GridLensInversionGenomeBase::GridLensInversionGenomeBase(GridLensInversionGAFact
 {
 	m_pFactory = f;
 	m_fitnessComp = 0;
-	m_sheetFactor = 0;
 	
 	for (int i = 0 ; i < GRIDLENSINVERSIONGENOMEBASE_MAXFITNESSCOMP ; i++)
 		m_fitnessValues[i] = 0;
@@ -80,7 +79,6 @@ GridLensInversionGenomeBase::GridLensInversionGenomeBase(GridLensInversionGAFact
 	m_pFactory = f;
 	m_masses = masses;
 	m_sheetValue = sheetValue;
-	m_sheetFactor = 0; // TODO: this is not used anymore
 	
 	m_fitnessComp = 0;
 	
@@ -275,7 +273,6 @@ mogal::Genome *GridLensInversionGenomeBase::clone() const
 
 	g->setFitnessValues(m_fitnessValues);
 	g->setScaleFactor(m_scaleFactor);
-	g->setSheetFactor(m_sheetFactor);
 
 	return g;
 }
