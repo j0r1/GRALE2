@@ -314,7 +314,7 @@ GravitationalLens *GridLensInversionGAFactoryBase::createLens(const std::vector<
 		lensParams.addLens((double)masses[i]*(double)scaleFactor, m_basisLenses[i].second, 0, *m_basisLenses[i].first.get());
 
 	if (m_sheetLens.get())
-		lensParams.addLens(1.0, Vector2D<double>(0,0), 0, *m_sheetLens.get());
+		lensParams.addLens(sheetValue, Vector2D<double>(0,0), 0, *m_sheetLens.get());
 
 	pLens = new CompositeLens();
 	pLens->init(m_basisLenses[0].first->getLensDistance(), &lensParams);
