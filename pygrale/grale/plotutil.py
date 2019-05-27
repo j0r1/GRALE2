@@ -6,6 +6,7 @@ from __future__ import print_function
 from . import privutil
 from . import privutilcython
 from . import images
+from . import lenses
 from . import feedback
 from . import gridfunction
 from . import multiplane
@@ -2095,6 +2096,82 @@ Arguments:
     data = lensInfo.getDensityPixels(renderer, feedbackObject)
     f[0].data = np.fliplr(data)
     return f
+
+def plotDensitiesAtImagePositions(lens, imgList, angularUnit = "default", densityUnit = 1.0,
+                                  horCoordFunction = lambda xy: xy[0], **kwargs):
+    """Plots the densities at the image position for the specified lens.
+
+Arguments:
+ - `lens`: the gravitational lens to use, if this is an average of several sublenses,
+   average densities and error bars will be shown.
+ - `imgList`: list of images to use; if these are extended images, the average position of an
+   image is used to evaluate the density at.
+ - `angularUnit`: the angular unit that should be used in the plot. The 
+   :ref:`pre-defined constants <constants>` can be useful here.
+ - `densityUnit`: by default, the density will be in kg/m^2, but another unit can be specified
+   here.
+ - `horCoordFunction`: the resulting plot will plot the densities on the vertical axis, and
+   this function specifies how the 2D coordinates of the points should be converted to a single
+   value on the horizontal axis. By default, just the X-coordinate of a point is used.
+ - `kwargs`: these parameters will be passed on to the `plot <https://matplotlib.org/api/_as_gen/matplotlib.pyplot.plot.html#matplotlib.pyplot.plot>`_ 
+   or `errorbar <https://matplotlib.org/api/_as_gen/matplotlib.pyplot.errorbar.html#matplotlib.pyplot.errorbar>`_
+   functions in matplotlib.
+"""
+    def wrapLens(lens):
+        l = lenses.CompositeLens(lens.getLensDistance(), [ 
+            { "factor": 1, "angle": 0, "x": 0, "y": 0, "lens": lens } ])
+        return plotDensitiesAtImagePositions(l, imgList, angularUnit, densityUnit, horCoordFunction,
+                                             **kwargs)
+
+	# Find out if the lens is an average
+    if type(lens) != lenses.CompositeLens:
+        print("Not a composite lens, not an average of several individual solutions")
+        return wrapLens(lens)
+
+    params = lens.getLensParameters()
+    numSubLenses = len(params)
+    if numSubLenses == 0:
+        raise PlotException("No sublenses found")
+
+    expectedFactorIfAverage = 1.0/numSubLenses
+    hasExpectedFactor = True
+    for p in params:
+        f = p["factor"]
+        if abs(f-expectedFactorIfAverage) > 1e-6:
+            hasExpectedFactor = False
+            break
+
+    if not hasExpectedFactor:
+        print("Is a composite lens, but does not seem to be an average of several individual solutions")
+        return wrapLens(lens)
+
+    # Ok, here it's an average of individual ones (perhaps a dummy average of one lens)
+    subLenses = [ p["lens"] for p in params ]
+
+    X, Yavg, Ystd  = [], [], []
+    for img in imgList:
+        if type(img) == dict:
+            img = img["imgdata"]
+
+        for idx in range(img.getNumberOfImages()):
+            # If we're dealing with extended images, calculate a single position
+            avgPos = np.mean(np.array([p["position"] for p in img.getImagePoints(idx)]), 0)
+            X.append(horCoordFunction(avgPos))
+
+            densities = np.array([ l.getSurfaceMassDensity(avgPos) for l in subLenses ])
+            Yavg.append(np.mean(densities))
+            Ystd.append(np.std(densities))
+
+    angularUnit = _getAngularUnit(angularUnit)
+    X = np.array(X)/angularUnit
+    Yavg = np.array(Yavg)/densityUnit
+    Ystd = np.array(Ystd)/densityUnit
+
+    import matplotlib.pyplot as plt
+    if numSubLenses == 1:
+        plt.plot(X, Yavg, '.', **kwargs)
+    else:
+        plt.errorbar(X, Yavg, Ystd, fmt='.k', **kwargs)
 
 def _getAngularUnit(u):
     if u == "default":
