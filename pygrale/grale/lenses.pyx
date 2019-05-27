@@ -2304,3 +2304,5 @@ cdef class AlphaPotLens(GravitationalLens):
             "alpha": pParams.getAlpha()
         }
 
+from privlenses import createLensFromLenstoolFile
+

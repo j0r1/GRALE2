@@ -124,6 +124,22 @@ def _getLineAnalyzer(la):
         return getDefaultLineAnalyzer()
     return la
 
+def _getLinesFromInputData(inputData):
+    try:
+        # Check if it's a file that's already open
+        return inputData.readlines()
+    except:
+        pass
+
+    try:
+        with open(inputData, "rt") as f:
+            return f.readlines()
+    except:
+        pass
+
+    # Check if it's a string that can be split in lines
+    return inputData.splitlines()
+
 def readInputImagesFile(inputData, isPointImagesFile, lineAnalyzer = "default", centerOn = [0, 0]):
     """This function can process a text file (or previously read text data) into
     one or more :class:`ImagesData` instances.
@@ -274,17 +290,7 @@ def readInputImagesFile(inputData, isPointImagesFile, lineAnalyzer = "default", 
     """
 
     lineAnalyzer = _getLineAnalyzer(lineAnalyzer)
-
-    try:
-        # Check if it's a file that's already open
-        lines = inputData.readlines()
-    except:
-        try:
-            with open(inputData, "rt") as f:
-                lines = f.readlines()
-        except:
-            # Check if it's a string that can be split in lines
-            lines = inputData.splitlines()
+    lines = _getLinesFromInputData(inputData)
 
     internalIdPrefix = "justsomelongandunlikelyprefix_"
     internalSourceId = 0
