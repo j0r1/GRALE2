@@ -842,7 +842,7 @@ float calculateNullFitness_ExtendedImages(const ProjectedImagesInterface &iface,
 }
 
 float calculateWeakLensingFitness(const ProjectedImagesInterface &interface, const vector<int> &weakIndices,
-								  const vector<bool> &reduced, const vector<double> &oneMinusKappaThreshold)
+								  const vector<WeakLensingType> &weakType, const vector<double> &oneMinusKappaThreshold)
 {
 	assert(weakIndices.size() == reduced.size());
 	assert(weakIndices.size() == oneMinusKappaThreshold.size());
@@ -857,52 +857,91 @@ float calculateWeakLensingFitness(const ProjectedImagesInterface &interface, con
 
 		assert(s >= 0 && s < interface.getNumberOfSources());
 		int numPoints = interface.getNumberOfImagePoints(s);
-		const float *pRealReducedShear1 = interface.getOriginalShearComponent1s(s);
-		const float *pRealReducedShear2 = interface.getOriginalShearComponent2s(s);
+		const float *pStoredShear1 = interface.getOriginalShearComponent1s(s);
+		const float *pStoredShear2 = interface.getOriginalShearComponent2s(s);
 		const float *pCalcShear1 = interface.getShearComponents1(s);
 		const float *pCalcShear2 = interface.getShearComponents2(s);
 		const float *pConvergence = interface.getConvergence(s);
 
-		assert(pRealReducedShear1 && pRealReducedShear2 && pCalcShear1 && pCalcShear2 && pConvergence);
+		assert(pStoredShear1 && pStoredShear2 && pCalcShear1 && pCalcShear2 && pConvergence);
 
-		bool useReduced = reduced[sIdx];
+		WeakLensingType type = weakType[sIdx];
 		double threshold = oneMinusKappaThreshold[sIdx];
 		
 		for (int i = 0 ; i < numPoints ; i++)
 		{
-			float g1 = pCalcShear1[i];
-			float g2 = pCalcShear2[i];
+			float gamma1 = pCalcShear1[i]; 
+			float gamma2 = pCalcShear2[i];
 			float kappa = pConvergence[i];
 
 			// Note: we're also using the threshold here in case regular shear is used.
 			//       This probably doesn't make much sense but I leave it to the user to
 			//       specify that the oneMinusKappaThreshold should be zero in that case.
-			if (ABS(1.0-kappa) >= threshold)
+			if (ABS(1.0f-kappa) >= threshold)
 			{
-				if (!useReduced)
+				if (type == RealShear)
 				{
-					// In this case, despite the naming, pRealReducedShear is supposed to
+					// In this case, despite the naming, pStoredShear is supposed to
 					// hold the 'normal' shear and not the reduced shear
-					float d1 = (g1-pRealReducedShear1[i]);
-					float d2 = (g2-pRealReducedShear2[i]);
+					float d1 = (gamma1-pStoredShear1[i]);
+					float d2 = (gamma2-pStoredShear2[i]);
 
 					shearFitness += d1*d1 + d2*d2;
 				}
-				else
+				else if (type == RealReducedShear)
 				{
 					// use reduced shear
 					float factor = 1.0f-kappa;
-					float g1 = pCalcShear1[i];
-					float g2 = pCalcShear2[i];
 
-					float d1 = (g1-factor*pRealReducedShear1[i]);
-					float d2 = (g2-factor*pRealReducedShear2[i]);
+					float d1 = (gamma1-factor*pStoredShear1[i]);
+					float d2 = (gamma2-factor*pStoredShear2[i]);
 
 					// This should yield the likelihood for a constant noise on the
 					// measured shear parameters. The only deviation is the
 					// epsilon: if the error bars would become infinitely large,
 					// we replace them by something really large.
 					shearFitness += (d1*d1 + d2*d2)/(factor*factor + epsilon);
+				}
+				else
+				{
+					assert(type == MeasuredReducedShear);
+
+					// The measured reduced shear is based on orientation and axes lengths
+					// of observed galaxies. Let's calculate the ellipse that is created
+					// by a circular source, and use that to estimate the shear
+
+					float gamma = SQRT(gamma1*gamma1 + gamma2*gamma2);
+					float axis1Length = ABS(1.0f/(1.0f-kappa-gamma));
+					float axis2Length = ABS(1.0f/(1.0f-kappa+gamma));
+					Vector2Df v1(gamma2, gamma-gamma1);
+					Vector2Df v2(gamma1-gamma, gamma2);
+
+					float a, b;
+					Vector2Df orientation;
+					if (axis1Length > axis2Length)
+					{
+						orientation = v1;
+						a = axis1Length;
+						b = axis2Length;
+					}
+					else
+					{
+						orientation = v2;
+						a = axis2Length;
+						b = axis1Length;
+					}
+
+					float e = b/a;
+					float g = (1.0f-e)/(1.0f+e);
+
+					float phi = std::atan2(orientation.getY(), orientation.getX());
+					float g1 = g*COS(2.0f*phi);
+					float g2 = g*SIN(2.0f*phi);
+
+					float d1 = (g1-pStoredShear1[i]);
+					float d2 = (g2-pStoredShear2[i]);
+
+					shearFitness += d1*d1 + d2*d2;
 				}
 
 				usedPoints++;

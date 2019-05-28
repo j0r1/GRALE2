@@ -25,7 +25,6 @@
 */
 
 #include "lensfitnessweak.h"
-#include "fitnessutil.h"
 #include <grale/imagesdataextended.h>
 
 using namespace std;
@@ -96,9 +95,9 @@ bool LensFitnessWeak::init(double z_d, std::list<ImagesDataExtended *> &images,
 		}
 
 		if (shearType == 1.0)
-			m_reducedShear.push_back(true);
+			m_reducedShear.push_back(RealReducedShear);
 		else if (shearType == 2.0)
-			m_reducedShear.push_back(false);
+			m_reducedShear.push_back(RealShear);
 		else
 		{
 			setErrorString("As a second extra parameter, weak lensing data must have either 1 (reduced shear) or 2 (regular shear)");

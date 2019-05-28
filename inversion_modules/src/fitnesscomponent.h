@@ -3,6 +3,7 @@
 #define FITNESSCOMPONENT_H
 
 #include "pointgroupstorage.h"
+#include "fitnessutil.h"
 #include <grale/triangleindices.h>
 #include <errut/errorbase.h>
 #include <grale/polygon2d.h>
@@ -199,7 +200,7 @@ public:
 								   bool &storeOrigIntens, bool &storeOrigTimeDelay, bool &storeOrigShear) override;
 	bool calculateFitness(const ProjectedImagesInterface &iface, float &fitness) override;
 private:
-	std::vector<bool> m_reducedShear;
+	std::vector<WeakLensingType> m_wlType;
 	std::vector<double> m_thresholds;
 };
 

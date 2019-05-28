@@ -32,6 +32,7 @@
 #include <grale/rectangle2d.h>
 #include <grale/triangleindices.h>
 #include "pointgroupstorage.h"
+#include "fitnessutil.h"
 #include <vector>
 #include <list>
 
@@ -98,7 +99,7 @@ private:
 	std::vector<bool> m_usePointGroupFlags;
 
 	std::vector<float> m_nullWeights;
-	std::vector<bool> m_reducedShear;
+	std::vector<WeakLensingType> m_reducedShear;
 	std::vector<double> m_thresholds;
 
 	PointGroupStorage m_pointGroups;

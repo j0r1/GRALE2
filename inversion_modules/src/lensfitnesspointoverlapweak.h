@@ -28,6 +28,7 @@
 
 #define GRALE_LENSFITNESSPOINTOVERLAPWEAK_H
 
+#include "fitnessutil.h"
 #include <grale/lensfitnessobject.h>
 #include <grale/rectangle2d.h>
 #include <grale/triangleindices.h>
@@ -94,7 +95,7 @@ private:
 	std::vector<float> m_nullWeights;
 
 	std::vector<int> m_weakIndices;
-	std::vector<bool> m_reducedShear;
+	std::vector<WeakLensingType> m_reducedShear;
 	std::vector<double> m_thresholds;
 };
 

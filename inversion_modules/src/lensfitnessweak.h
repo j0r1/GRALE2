@@ -28,6 +28,7 @@
 
 #define GRALE_LENSFITNESSWEAK_H
 
+#include "fitnessutil.h"
 #include <grale/lensfitnessobject.h>
 
 namespace grale
@@ -76,7 +77,7 @@ private:
 
 	std::vector<int> m_weakIndices;
 	std::vector<bool> m_oneVector, m_zeroVector;
-	std::vector<bool> m_reducedShear;
+	std::vector<WeakLensingType> m_reducedShear;
 	std::vector<double> m_thresholds;
 };
 

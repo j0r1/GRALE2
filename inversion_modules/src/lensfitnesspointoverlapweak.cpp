@@ -25,7 +25,6 @@
 */
 
 #include "lensfitnesspointoverlapweak.h"
-#include "fitnessutil.h"
 #include <grale/vector2d.h>
 #include <grale/polygon2d.h>
 #include <grale/imagesdataextended.h>
@@ -278,9 +277,9 @@ bool LensFitnessPointOverlapNullWeak::init(double z_d, std::list<ImagesDataExten
 		}
 
 		if (shearType == 1.0)
-			m_reducedShear.push_back(true);
+			m_reducedShear.push_back(RealReducedShear);
 		else if (shearType == 2.0)
-			m_reducedShear.push_back(false);
+			m_reducedShear.push_back(RealShear);
 		else
 		{
 			setErrorString("As a second extra parameter, weak lensing data must have either 1 (reduced shear) or 2 (regular shear)");

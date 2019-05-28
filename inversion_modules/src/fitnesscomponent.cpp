@@ -810,7 +810,8 @@ bool FitnessComponent_NullSpaceExtendedImages::calculateFitness(const ProjectedI
 FitnessComponent_WeakLensing::FitnessComponent_WeakLensing(FitnessComponentCache *pCache) 
 	: FitnessComponent("weaklensing", pCache)
 {
-	addRecognizedTypeName("reducedshear");
+	addRecognizedTypeName("measuredreducedshear");
+	addRecognizedTypeName("realreducedshear");
 	addRecognizedTypeName("trueshear");
 }
 
@@ -826,7 +827,7 @@ bool FitnessComponent_WeakLensing::inspectImagesData(int idx, const ImagesDataEx
 	string typeName;
 
 	imgDat.getExtraParameter("type", typeName);
-	if (typeName != "reducedshear" && typeName != "trueshear")
+	if (typeName != "measuredreducedshear" && typeName != "realreducedshear" && typeName != "trueshear")
 		return true; // ignore
 
 	if (imgDat.getNumberOfImages() != 1)
@@ -845,13 +846,18 @@ bool FitnessComponent_WeakLensing::inspectImagesData(int idx, const ImagesDataEx
 	needCalcShear = true;
 	storeOrigShear = true;
 
-	if (typeName == "reducedshear")
+	if (typeName == "realreducedshear")
 	{
-		m_reducedShear.push_back(true);
+		m_wlType.push_back(RealReducedShear);
+		needCalcConvergence = true;
+	}
+	else if (typeName == "measuredreducedshear")
+	{
+		m_wlType.push_back(MeasuredReducedShear);
 		needCalcConvergence = true;
 	}
 	else
-		m_reducedShear.push_back(false);
+		m_wlType.push_back(RealShear);
 
 	double threshold = 0;
 	if (!imgDat.getExtraParameter("threshold", threshold))
@@ -874,7 +880,7 @@ bool FitnessComponent_WeakLensing::inspectImagesData(int idx, const ImagesDataEx
 
 bool FitnessComponent_WeakLensing::calculateFitness(const ProjectedImagesInterface &iface, float &fitness)
 {
-	fitness = calculateWeakLensingFitness(iface, getUsedImagesDataIndices(), m_reducedShear, m_thresholds);
+	fitness = calculateWeakLensingFitness(iface, getUsedImagesDataIndices(), m_wlType, m_thresholds);
 	return true;
 }
 
