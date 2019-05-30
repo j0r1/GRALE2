@@ -438,14 +438,15 @@ def enlargePolygon(points, offset, simplifyScale = 0.02):
 
     import copy
     import numpy as np
-    points = copy.deepcopy(points[:-1])
+    points = copy.deepcopy(points)
 
-    for j in range(10,-1,-1):
+    for j in range(10,-1,-1): # Try at most 10 times
         points1 = points[:-1]
         r = LinearRing(points1)
         eps = getScale(r)*1e-8
 
         points2 = points1[len(points1)//2:] + points1[:len(points1)//2]
+
         for i in range(len(points2)):
             points1[i][0] += np.random.normal(scale=eps)
             points1[i][1] += np.random.normal(scale=eps)
@@ -463,6 +464,7 @@ def enlargePolygon(points, offset, simplifyScale = 0.02):
 
         try:
             o, o2 = [ x.parallel_offset(offset, "right" if x.is_ccw else "left", join_style=1) for x in [r, r2] ]
+            break
         except Exception as e:
             if j == 0:
                 raise
