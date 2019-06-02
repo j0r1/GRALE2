@@ -176,6 +176,11 @@ class LayerScene(GraphicsScene):
 
         return r
 
+    def _getInteractiveContourAndAddTriangulation(self, pos):
+        contour = self._getInteractiveContour(pos)
+        if contour is not None:
+            self._addTriangulationFromHull(contour)
+
     def _getRectItem(self):
         rectItem = QtWidgets.QGraphicsRectItem()
         rectItem.setZValue(10000)
@@ -206,9 +211,7 @@ class LayerScene(GraphicsScene):
                 if refLayer:
                     self._matchTransform(layer, item, refLayer)
             elif type(layer) == PointsLayer:
-                contour = self._getInteractiveContour(pos)
-                if contour is not None:
-                    self._addTriangulationFromHull(contour)
+                self._getInteractiveContourAndAddTriangulation(pos)
         else:
             if not movableItem.isNormalPoint():
                 movableItem.toggleFocus()
@@ -404,7 +407,12 @@ class LayerScene(GraphicsScene):
             return
 
         view = None if not self.views() else self.views()[0]
-        if view and keyStr in "0123456789":
+        if view and keyStr == "L" and modifiers["control"] == True and modifiers["shift"] == False and modifiers["alt"] == False:
+            center = view.getCenter()
+            self._getInteractiveContourAndAddTriangulation([center.x(), center.y()])
+            return
+
+        if view and keyStr in "0123456789" and modifiers["control"] == False and modifiers["shift"] == False and modifiers["alt"] == False:
             zoomLevel = 2**int(keyStr)
             center = view.getCenter()
             view.setScale(zoomLevel)

@@ -301,6 +301,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._onGuiSettingChanged()
         self.lastSavedState = self.getCurrentStateString()
         self.lastSaveFileName = None
+        self.lastImgDatFileName = None
 
     def _onMousePositionChanged(self, x, y):
         self.ui.m_xEdit.setValue(x)
@@ -758,6 +759,7 @@ class MainWindow(QtWidgets.QMainWindow):
             layerTitle = "Index {{}} in '{}'".format(shortName)
             
             self.importImagesData(imgDat, -1, layerTitle)
+            self.lastImgDatFileName = fileName
         except Exception as e:
             self.scene.warning("Unable to import file", "Encountered a problem while importing file '{}': {}".format(fileName, e))
             return
@@ -774,11 +776,13 @@ class MainWindow(QtWidgets.QMainWindow):
             layerTitle = "All images from '{}'".format(shortName)
             
             self.importImagesData(imgDat, "all", layerTitle)
+            self.lastImgDatFileName = fileName
         except Exception as e:
             self.scene.warning("Unable to import file", "Encountered a problem while importing file '{}': {}".format(fileName, e))
             return
 
     def _onExportImgDat(self, checked):
+        pointsLeftInfo = [ ]
         try:
             splitLayers = self.ui.actionSplit_layer_into_images.isChecked()
             exportGroups = self.ui.actionExport_groups.isChecked()
@@ -788,7 +792,6 @@ class MainWindow(QtWidgets.QMainWindow):
             if not layers:
                 raise Exception("No visible points layers could be detected")
 
-            pointsLeftInfo = [ ]
             imgDat = tools.layersToImagesData(layers, splitLayers, exportGroups, exportTimeDelays, pointsLeftInfo=pointsLeftInfo)
         except Exception as e:
             self.scene.warning("Error while exporting", "Encountered a problem while exporting visible points layers: {}".format(e))
@@ -796,11 +799,12 @@ class MainWindow(QtWidgets.QMainWindow):
             return
 
         try:
-            fileName, selectedFilter = QtWidgets.QFileDialog.getSaveFileName(self, "Specify export images data file name", filter="Images Data files (*.imgdata *.imgdat)")
+            fileName, selectedFilter = QtWidgets.QFileDialog.getSaveFileName(self, "Specify export images data file name", self.lastImgDatFileName, filter="Images Data files (*.imgdata *.imgdat)")
             if not fileName:
                 return
 
             imgDat.save(fileName)
+            self.lastImgDatFileName = fileName
         except Exception as e:
             self.scene.warning("Error while saving", "Encountered a problem while saving to file '{}': {}".format(fileName, e))
             return
@@ -973,6 +977,9 @@ class MainWindow(QtWidgets.QMainWindow):
     #def keyPressEvent(self, evt):
     #    self.view.setFocus()
 
+    def setLastImageDataFileName(self, n):
+        self.lastImgDatFileName = n
+
 def main():
     checkQtAvailable()
 
@@ -983,10 +990,15 @@ def main():
 
     w = MainWindow()
 
+    lastImgDataFilePrefix = "--imgdataname:"
+
     firstArg = True
     try:
         for a in sys.argv[1:]:
-            if a.endswith(".json"):
+            if a.startswith(lastImgDataFilePrefix):
+                n = a[len(lastImgDataFilePrefix):]
+                w.setLastImageDataFileName(n)
+            elif a.endswith(".json"):
                 d = json.load(open(a, "rt"))
                 loaded = False
                 if type(d) == dict and ("layers" in d or "state" in d):
@@ -1030,6 +1042,7 @@ def main():
                         layerTitle = "Index {{}} in '{}'".format(shortName)
 
                 w.importImagesData(imgDat, which, layerTitle)
+                w.setLastImageDataFileName(fileName)
             else:
                 raise Exception("Unknown argument '{}'".format(a))
 
