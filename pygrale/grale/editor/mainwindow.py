@@ -973,6 +973,7 @@ class MainWindow(QtWidgets.QMainWindow):
         cx = float((x0+x1)/2.0)
         cy = float((y0+y1)/2.0)
         self.view.centerOn(cx, cy)
+        self.view.setFocus()
 
     #def keyPressEvent(self, evt):
     #    self.view.setFocus()
