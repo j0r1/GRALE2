@@ -214,6 +214,9 @@ class MultipleLayerScene(scenes.LayerScene):
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super(MainWindow, self).__init__()
+
+        self.checkSaveStateOnExit = True
+
         self.ui = ui_mainwindow.Ui_MainWindow()
         self.ui.setupUi(self)
         self.show()
@@ -302,6 +305,19 @@ class MainWindow(QtWidgets.QMainWindow):
         self.lastSavedState = self.getCurrentStateString()
         self.lastSaveFileName = None
         self.lastImgDatFileName = None
+
+        timer = QtCore.QTimer(self)
+        timer.setInterval(0)
+        timer.setSingleShot(True)
+        timer.timeout.connect(self._onStartup)
+        timer.start()
+
+    def _onStartup(self):
+        # Starting up, make sure view gets keyboard
+        self.view.setFocus()
+        self.ui.m_zoomEdit.releaseKeyboard()
+        self.ui.m_xEdit.releaseKeyboard()
+        self.ui.m_yEdit.releaseKeyboard()
 
     def _onMousePositionChanged(self, x, y):
         self.ui.m_xEdit.setValue(x)
@@ -406,8 +422,9 @@ class MainWindow(QtWidgets.QMainWindow):
         reallyExit = False
 
         curState = self.getCurrentStateString()
-        if curState != self.lastSavedState:
-            if QtWidgets.QMessageBox.question(self, "Warning! Unsaved changes!", "Detected changes that were not saved, exit anyway?") == QtWidgets.QMessageBox.Yes:
+        if curState != self.lastSavedState and self.checkSaveStateOnExit:
+            if QtWidgets.QMessageBox.question(self, "Warning! Unsaved changes!", "Detected changes that were not saved, exit anyway?", 
+                    defaultButton=QtWidgets.QMessageBox.No) == QtWidgets.QMessageBox.Yes:
                 reallyExit = True
         else:
             reallyExit = True
@@ -606,6 +623,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.scene.getActionStack().clear() # Don't undo adding layers 
         self.lastSavedState = self.getCurrentStateString()
         self.lastSaveFileName = None
+
+        self.scene.signalNumberPressed.connect(self._onNumberPressed)
 
     def loadFile(self, fileName):
         self._startNewFile() # Clear everything
@@ -981,6 +1000,17 @@ class MainWindow(QtWidgets.QMainWindow):
     def setLastImageDataFileName(self, n):
         self.lastImgDatFileName = n
 
+    def _onNumberPressed(self, keyStr, modifiers):
+        if modifiers["control"] == True and modifiers["alt"] == False:
+            # Center on an image
+            imageNr = int(keyStr)
+            if imageNr == 0:
+                imageNr = 10
+            self.ui.m_listWidget.centerOnImageNumber(imageNr)
+
+    def setCheckSaveStateOnExit(self, v):
+        self.checkSaveStateOnExit = v
+
 def main():
     checkQtAvailable()
 
@@ -992,6 +1022,8 @@ def main():
     w = MainWindow()
 
     lastImgDataFilePrefix = "--imgdataname:"
+    zoomPrefix = "--zoom:"
+    nocheckPrefix = "--nocheck"
 
     firstArg = True
     try:
@@ -999,6 +1031,11 @@ def main():
             if a.startswith(lastImgDataFilePrefix):
                 n = a[len(lastImgDataFilePrefix):]
                 w.setLastImageDataFileName(n)
+            elif a.startswith(zoomPrefix):
+                z = float(a[len(zoomPrefix):])
+                w.setZoom(z)
+            elif a == nocheckPrefix:
+                w.setCheckSaveStateOnExit(False)
             elif a.endswith(".json"):
                 d = json.load(open(a, "rt"))
                 loaded = False

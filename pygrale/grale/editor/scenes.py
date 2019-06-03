@@ -30,6 +30,8 @@ class DrawItem(QtWidgets.QGraphicsPathItem):
         self.setPen(pen)
 
 class LayerScene(GraphicsScene):
+    signalNumberPressed = QtCore.pyqtSignal(str, object)
+
     def __init__(self):
         super(LayerScene, self).__init__()
 
@@ -412,11 +414,17 @@ class LayerScene(GraphicsScene):
             self._getInteractiveContourAndAddTriangulation([center.x(), center.y()])
             return
 
-        if view and keyStr in "0123456789" and modifiers["control"] == False and modifiers["shift"] == False and modifiers["alt"] == False:
+        if view and keyStr in "0123456789" and modifiers["control"] == False and modifiers["alt"] == False:
+            # modifiers["shift"] == False: ; ignore shift, may be needed to get key string
             zoomLevel = 2**int(keyStr)
             center = view.getCenter()
             view.setScale(zoomLevel)
             view.centerOn(center)
+            return
+
+        if view and keyStr in "0123456789":
+            self.signalNumberPressed.emit(keyStr, modifiers)
+            return
 
         if key == QtCore.Qt.Key_Delete or key == QtCore.Qt.Key_Backspace:
             self._deleteSelectedItems(modifiers["shift"], modifiers["control"])

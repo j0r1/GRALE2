@@ -277,7 +277,28 @@ class LayerList(QtWidgets.QListWidget):
             if w.getLayer().getUuid() == uuid:
                 return i
         raise Exception("Layer with uuid {} not found".format(uuid))
-            
+
+    def centerOnImageNumber(self, imageNumber):
+        print("TODO: center on image number", imageNumber)
+        idx = 0
+        foundItem = None
+
+        for i in range(self.count()):
+            item = self.item(i)
+            w = self.itemWidget(item)
+            layer = w.getLayer()
+
+            if type(layer) == PointsLayer:
+                idx += 1
+                if idx == imageNumber:
+                    foundItem = item
+                    break
+
+        if foundItem is None:
+            return
+
+        self._onCenterInView(foundItem)
+
 def main():
     import sys
     import grale.images as images

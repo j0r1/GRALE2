@@ -13,6 +13,12 @@ Usage::
 
     grale_editor [arguments]
 
+Is:
+ - ``--nocheck`` : when exiting, don't ask to save changes if there are any
+
+Starts with:
+ - ``--zoom:`` : sets zoom level
+ - ``--imgdataname:`` : sets latest images data file name, can be useful to set export name
 
 Argument ends with 
 
@@ -75,8 +81,16 @@ Control-X: cut
 
 Control-Z: undo
 
+Control-L: detect contour levels around central position (cfr double click)
+
+Control-E: export visible images to images data file
+
 Shift-Control-Z: redo
 
 Double click on layer in list widget: make that layer active
 
 Right click on layer in list widget: popup menu with options
+
+Number 0-9:
+ - No 'control' or 'alt': set zoom to 2^number
+ - With 'control, but no 'alt': center point layer
