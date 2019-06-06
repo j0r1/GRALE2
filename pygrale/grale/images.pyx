@@ -109,7 +109,7 @@ cdef class ImagesData:
             raise ImagesDataException(S(self.m_pImgData.getErrorString()))
         return imageNum
 
-    def addPoint(self, int imageNum, point, intensity = None, shear = None):
+    def addPoint(self, int imageNum, point, intensity = None, shear = None, shearWeight = 1):
         """addPoint(imageNum, point, intensity = None, shear = None)
 
         Add a point to an image.
@@ -126,16 +126,20 @@ cdef class ImagesData:
 
         cdef pointNum = 0
         cdef vector2d.Vector2Dd p = vector2d.Vector2Dd(point[0], point[1])
+        cdef vector2d.Vector2Dd sh
+
         if intensity is None:
             if shear is None:
                 pointNum = self.m_pImgData.addPoint(imageNum, p)
             else:
-                pointNum = self.m_pImgData.addPoint(imageNum, p, shear[0], shear[1])
+                sh = vector2d.Vector2Dd(shear[0], shear[1])
+                pointNum = self.m_pImgData.addPoint(imageNum, p, sh, shearWeight)
         else:
             if shear is None:
                 pointNum = self.m_pImgData.addPoint(imageNum, p, intensity)
             else:
-                pointNum = self.m_pImgData.addPoint(imageNum, p, intensity, shear[0], shear[1])
+                sh = vector2d.Vector2Dd(shear[0], shear[1])
+                pointNum = self.m_pImgData.addPoint(imageNum, p, intensity, sh, shearWeight)
 
         if pointNum < 0:
             raise ImagesDataException(S(self.m_pImgData.getErrorString()))
@@ -337,6 +341,7 @@ cdef class ImagesData:
                 obj["intensity"] = self.getImagePointIntensity(image, i)
             if shear:
                 obj["shear"] = self.getShearComponents(image, i)
+                obj["shearweight"] = self.getShearWeight(image, i)
 
             yield obj
 
@@ -369,6 +374,16 @@ cdef class ImagesData:
         self._checkImagePointNumber(image, point)
         self._checkShear()
         return self.m_pImgData.getShearComponent2(image, point)
+
+    def getShearWeight(self, image, point):
+        """getShearComponent2(image, point)
+
+        Returns the second shear component stored for the point with ID
+        ``point`` inside the image with ID ``image``.
+        """
+        self._checkImagePointNumber(image, point)
+        self._checkShear()
+        return self.m_pImgData.getShearWeight(image, point)
 
     def getShearComponents(self, image, point):
         """getShearComponents(image, point)

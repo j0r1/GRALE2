@@ -57,8 +57,8 @@ public:
 	int addImage();
 	int addPoint(int imageNumber, Vector2D<double> point); // returns index of the point, -1 on error
 	int addPoint(int imageNumber, Vector2D<double> point, double intensity); // returns index of the point, -1 on error
-	int addPoint(int imageNumber, Vector2D<double> point, double shearComponent1, double shearComponent2);
-	int addPoint(int imageNumber, Vector2D<double> point, double intensity, double shearComponent1, double shearComponent2);
+	int addPoint(int imageNumber, Vector2D<double> point, Vector2D<double> shearComponents, double shearWeight = 1);
+	int addPoint(int imageNumber, Vector2D<double> point, double intensity, Vector2D<double> shearComponents, double shearWeight = 1);
 
 	int addGroup(); // returns the index of the group, -1 on error
 	bool addGroupPoint(int groupNumber, int imageIndex, int pointIndex);
@@ -80,6 +80,7 @@ public:
 	double getImagePointIntensity(int image, int point) const			{ return m_intensities[image][point]; }
 	double getShearComponent1(int image, int point) const				{ return m_shearComponent1s[image][point]; }
 	double getShearComponent2(int image, int point) const				{ return m_shearComponent2s[image][point]; }
+	double getShearWeight(int image, int point) const					{ return m_shearWeights[image][point]; }
 
 	void setImagePointPosition(int image, int point, Vector2D<double> position) { m_images[image][point] = position; findExtremes(); }
 
@@ -132,6 +133,7 @@ private:
 	std::vector<std::vector<double> > m_intensities;
 	std::vector<std::vector<double> > m_shearComponent1s;
 	std::vector<std::vector<double> > m_shearComponent2s;
+	std::vector<std::vector<double> > m_shearWeights;
 	std::vector<std::vector<int32_t> > m_groupPoints;
 	std::vector<std::vector<TriangleIndices> > m_triangulations;
 	std::vector<TimeDelayPoint> m_timeDelayInfo;

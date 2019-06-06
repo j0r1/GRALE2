@@ -43,6 +43,7 @@ void ImagesData::copyFrom(const ImagesData &data)
 	m_intensities = data.m_intensities;
 	m_shearComponent1s = data.m_shearComponent1s;
 	m_shearComponent2s = data.m_shearComponent2s;
+	m_shearWeights = data.m_shearWeights;
 	m_groupPoints = data.m_groupPoints;
 	m_timeDelayInfo = data.m_timeDelayInfo;
 	m_triangulations = data.m_triangulations;
@@ -61,6 +62,7 @@ void ImagesData::clear()
 	m_intensities.clear();
 	m_shearComponent1s.clear();
 	m_shearComponent2s.clear();
+	m_shearWeights.clear();
 	m_groupPoints.clear();
 	m_triangulations.clear();
 	m_timeDelayInfo.clear();
@@ -76,6 +78,7 @@ ImagesData *ImagesData::createCopy() const
 	imgdata->m_intensities = m_intensities;
 	imgdata->m_shearComponent2s = m_shearComponent2s;
 	imgdata->m_shearComponent1s = m_shearComponent1s;
+	imgdata->m_shearWeights = m_shearWeights;
 	imgdata->m_groupPoints = m_groupPoints;
 	imgdata->m_triangulations = m_triangulations;
 	imgdata->m_topRight = m_topRight;
@@ -101,6 +104,7 @@ bool ImagesData::create(int numImages, bool intensities, bool shearInfo)
 	{
 		m_shearComponent1s.resize(numImages);
 		m_shearComponent2s.resize(numImages);
+		m_shearWeights.resize(numImages);
 	}
 	return true;
 }
@@ -116,6 +120,7 @@ int ImagesData::addImage()
 	{
 		m_shearComponent1s.resize(newNumImages);
 		m_shearComponent2s.resize(newNumImages);
+		m_shearWeights.resize(newNumImages);
 	}
 	if (m_triangulations.size() > 0)
 		m_triangulations.resize(newNumImages);
@@ -183,7 +188,7 @@ int ImagesData::addPoint(int imageNumber, Vector2D<double> point, double intensi
 	return pointIndex;
 }
 
-int ImagesData::addPoint(int imageNumber, Vector2D<double> point, double shearComponent1, double shearComponent2)
+int ImagesData::addPoint(int imageNumber, Vector2D<double> point, Vector2D<double> shearComponents, double shearWeight)
 {
 	if (imageNumber < 0 || imageNumber >= m_images.size())
 	{
@@ -206,16 +211,21 @@ int ImagesData::addPoint(int imageNumber, Vector2D<double> point, double shearCo
 	
 	m_images[imageNumber].resize(pointIndex+1);
 	m_images[imageNumber][pointIndex] = point;
+
+	double shearComponent1 = shearComponents.getX();
+	double shearComponent2 = shearComponents.getY();
 	m_shearComponent1s[imageNumber].resize(pointIndex+1);
 	m_shearComponent1s[imageNumber][pointIndex] = shearComponent1;
 	m_shearComponent2s[imageNumber].resize(pointIndex+1);
 	m_shearComponent2s[imageNumber][pointIndex] = shearComponent2;
+	m_shearWeights[imageNumber].resize(pointIndex+1);
+	m_shearWeights[imageNumber][pointIndex] = shearWeight;
 	
 	findExtremes();
 	return pointIndex;
 }
 
-int ImagesData::addPoint(int imageNumber, Vector2D<double> point, double intensity, double shearComponent1, double shearComponent2)
+int ImagesData::addPoint(int imageNumber, Vector2D<double> point, double intensity, Vector2D<double> shearComponents, double shearWeight)
 {
 	if (imageNumber < 0 || imageNumber >= m_images.size())
 	{
@@ -240,10 +250,15 @@ int ImagesData::addPoint(int imageNumber, Vector2D<double> point, double intensi
 	m_images[imageNumber][pointIndex] = point;
 	m_intensities[imageNumber].resize(pointIndex+1);
 	m_intensities[imageNumber][pointIndex] = intensity;
+
+	double shearComponent1 = shearComponents.getX();
+	double shearComponent2 = shearComponents.getY();
 	m_shearComponent1s[imageNumber].resize(pointIndex+1);
 	m_shearComponent1s[imageNumber][pointIndex] = shearComponent1;
 	m_shearComponent2s[imageNumber].resize(pointIndex+1);
 	m_shearComponent2s[imageNumber][pointIndex] = shearComponent2;
+	m_shearWeights[imageNumber].resize(pointIndex+1);
+	m_shearWeights[imageNumber][pointIndex] = shearWeight;
 	
 	findExtremes();
 	return pointIndex;
@@ -384,13 +399,14 @@ bool ImagesData::save(const std::string &fname) const
 #define IMAGESDATA_FLAG_TRIANGULATIONS	2
 #define IMAGESDATA_FLAG_TIMEDELAY	4 
 #define IMAGESDATA_FLAG_SHEAR		8
+#define IMAGESDATA_FLAG_SHEARWEIGHTS	16
 
 bool ImagesData::read(serut::SerializationInterface &si)
 {
 	int32_t id, numimgs, flag;
-	bool gotintens, gottriang, gotTimeDelay, gotShear;
+	bool gotintens, gottriang, gotTimeDelay, gotShear, gotShearWeights;
 	std::vector<std::vector<Vector2D<double> > > imgs;
-	std::vector<std::vector<double> > intens, shearComponent1s, shearComponent2s;
+	std::vector<std::vector<double> > intens, shearComponent1s, shearComponent2s, shearWeights;
 	std::vector<TimeDelayPoint> timeDelays;
 	std::vector<int32_t> numpoints;
 	
@@ -414,6 +430,13 @@ bool ImagesData::read(serut::SerializationInterface &si)
 	gottriang = ((flag&IMAGESDATA_FLAG_TRIANGULATIONS) == 0)?false:true;
 	gotTimeDelay = ((flag&IMAGESDATA_FLAG_TIMEDELAY) == 0)?false:true;
 	gotShear = ((flag&IMAGESDATA_FLAG_SHEAR) == 0)?false:true;
+	gotShearWeights = ((flag&IMAGESDATA_FLAG_SHEARWEIGHTS) == 0)?false:true;
+
+	if (gotShearWeights && !gotShear)
+	{
+		setErrorString("Error in format: expecting shear weights, but not shear");
+		return false;
+	}
 	
 	if (!si.readInt32(&numimgs))
 	{
@@ -429,6 +452,7 @@ bool ImagesData::read(serut::SerializationInterface &si)
 	{
 		shearComponent1s.resize(numimgs);
 		shearComponent2s.resize(numimgs);
+		shearWeights.resize(numimgs);
 	}
 	
 	if (!si.readInt32s(numpoints))
@@ -448,6 +472,7 @@ bool ImagesData::read(serut::SerializationInterface &si)
 		{
 			shearComponent1s[i].resize(num);
 			shearComponent2s[i].resize(num);
+			shearWeights[i].resize(num);
 		}
 	}
 
@@ -474,6 +499,13 @@ bool ImagesData::read(serut::SerializationInterface &si)
 				if (!si.readDoubles(shearComponent1s[i]))
 					err = true;
 				else if (!si.readDoubles(shearComponent2s[i]))
+					err = true;
+				for (auto &w : shearWeights[i])
+					w = 1;
+			}
+			if (gotShearWeights && !err)
+			{
+				if (!si.readDoubles(shearWeights[i]))
 					err = true;
 			}
 		}
@@ -593,6 +625,7 @@ bool ImagesData::read(serut::SerializationInterface &si)
 	m_timeDelayInfo = timeDelays;
 	m_shearComponent1s = shearComponent1s;
 	m_shearComponent2s = shearComponent2s;
+	m_shearWeights = shearWeights;
 
 	findExtremes();
 
@@ -610,7 +643,10 @@ bool ImagesData::write(serut::SerializationInterface &si) const
 	if (m_timeDelayInfo.size() != 0)
 		flag |= IMAGESDATA_FLAG_TIMEDELAY;
 	if (m_shearComponent1s.size() != 0)
+	{
 		flag |= IMAGESDATA_FLAG_SHEAR;
+		flag |= IMAGESDATA_FLAG_SHEARWEIGHTS;
+	}
 
 	if (!si.writeInt32(IMAGESDATAID))
 	{
@@ -667,6 +703,11 @@ bool ImagesData::write(serut::SerializationInterface &si) const
 			if (!si.writeDoubles(m_shearComponent2s[i]))
 			{
 				setErrorString(std::string("Error writing images: ") + si.getErrorString());
+				return false;
+			}
+			if (!si.writeDoubles(m_shearWeights[i]))
+			{
+				setErrorString("Error writing images (shear weights): " + si.getErrorString());
 				return false;
 			}
 		}

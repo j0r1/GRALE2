@@ -160,6 +160,7 @@ void ProjectedImagesInterface::storeOriginalData(const std::vector<ImagesDataExt
 	{
 		m_originalShearComponent1s.resize(images.size());
 		m_originalShearComponent2s.resize(images.size());
+		m_shearWeights.resize(images.size());
 
 		for (int source = 0 ; source < images.size() ; source++)
 		{
@@ -170,6 +171,7 @@ void ProjectedImagesInterface::storeOriginalData(const std::vector<ImagesDataExt
 				m_originalShearInfoFlags[source] = true;
 				m_originalShearComponent2s[source].resize(m_numTotalPoints[source]);
 				m_originalShearComponent1s[source].resize(m_numTotalPoints[source]);
+				m_shearWeights[source].resize(m_numTotalPoints[source]);
 
 				int numImages = pImgDat->getNumberOfImages();
 				int point = 0;
@@ -182,6 +184,7 @@ void ProjectedImagesInterface::storeOriginalData(const std::vector<ImagesDataExt
 					{
 						m_originalShearComponent1s[source][point] = (float)pImgDat->getShearComponent1(i, p);
 						m_originalShearComponent2s[source][point] = (float)pImgDat->getShearComponent2(i, p);
+						m_shearWeights[source][point] = (float)pImgDat->getShearWeight(i, p);
 					}
 				}
 			}

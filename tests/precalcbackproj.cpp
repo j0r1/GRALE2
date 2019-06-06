@@ -83,8 +83,9 @@ int main(int argc, char *argv[])
 				double shear1 = rng.pickRandomNumber();
 				double shear2 = rng.pickRandomNumber();
 				Vector2Dd pt(x, y);
+				Vector2Dd shear(shear1, shear2);
 
-				int idx = pImg->addPoint(j, pt, intens, shear1, shear2);
+				int idx = pImg->addPoint(j, pt, intens, shear);
 
 				double td = rng.pickRandomNumber()*50;
 				pImg->addTimeDelayInfo(j, idx, td);

@@ -25,8 +25,8 @@ cdef extern from "grale/imagesdata.h" namespace "grale":
         int addImage();
         int addPoint(int imageNumber, Vector2Dd point)
         int addPoint(int imageNumber, Vector2Dd point, double intensity)
-        int addPoint(int imageNumber, Vector2Dd point, double shearComponent1, double shearComponent2)
-        int addPoint(int imageNumber, Vector2Dd point, double intensity, double shearComponent1, double shearComponent2)
+        int addPoint(int imageNumber, Vector2Dd point, Vector2Dd shearComponents, double shearWeight)
+        int addPoint(int imageNumber, Vector2Dd point, double intensity, Vector2Dd shearComponents, double shearWeight)
 
         int addGroup()
         bool addGroupPoint(int groupNumber, int imageIndex, int pointIndex)
@@ -46,6 +46,7 @@ cdef extern from "grale/imagesdata.h" namespace "grale":
         double getImagePointIntensity(int image, int point)
         double getShearComponent1(int image, int point)
         double getShearComponent2(int image, int point)
+        double getShearWeight(int image, int point)
         void setImagePointPosition(int image, int point, Vector2Dd position)
     
         int getNumberOfGroups()
