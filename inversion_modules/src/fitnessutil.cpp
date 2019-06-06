@@ -859,11 +859,12 @@ float calculateWeakLensingFitness(const ProjectedImagesInterface &interface, con
 		int numPoints = interface.getNumberOfImagePoints(s);
 		const float *pStoredShear1 = interface.getOriginalShearComponent1s(s);
 		const float *pStoredShear2 = interface.getOriginalShearComponent2s(s);
+		const float *pWeights = interface.getShearWeights(s);
 		const float *pCalcShear1 = interface.getShearComponents1(s);
 		const float *pCalcShear2 = interface.getShearComponents2(s);
 		const float *pConvergence = interface.getConvergence(s);
 
-		assert(pStoredShear1 && pStoredShear2 && pCalcShear1 && pCalcShear2 && pConvergence);
+		assert(pStoredShear1 && pStoredShear2 && pCalcShear1 && pCalcShear2 && pConvergence && pWeights);
 
 		WeakLensingType type = weakType[sIdx];
 		double threshold = oneMinusKappaThreshold[sIdx];
@@ -873,6 +874,7 @@ float calculateWeakLensingFitness(const ProjectedImagesInterface &interface, con
 			float gamma1 = pCalcShear1[i]; 
 			float gamma2 = pCalcShear2[i];
 			float kappa = pConvergence[i];
+			float weight = pWeights[i];
 
 			// Note: we're also using the threshold here in case regular shear is used.
 			//       This probably doesn't make much sense but I leave it to the user to
@@ -886,7 +888,7 @@ float calculateWeakLensingFitness(const ProjectedImagesInterface &interface, con
 					float d1 = (gamma1-pStoredShear1[i]);
 					float d2 = (gamma2-pStoredShear2[i]);
 
-					shearFitness += d1*d1 + d2*d2;
+					shearFitness += (d1*d1 + d2*d2)*weight;
 				}
 				else if (type == RealReducedShear)
 				{
@@ -900,7 +902,7 @@ float calculateWeakLensingFitness(const ProjectedImagesInterface &interface, con
 					// measured shear parameters. The only deviation is the
 					// epsilon: if the error bars would become infinitely large,
 					// we replace them by something really large.
-					shearFitness += (d1*d1 + d2*d2)/(factor*factor + epsilon);
+					shearFitness += weight*(d1*d1 + d2*d2)/(factor*factor + epsilon);
 				}
 				else
 				{
@@ -941,7 +943,7 @@ float calculateWeakLensingFitness(const ProjectedImagesInterface &interface, con
 					float d1 = (g1-pStoredShear1[i]);
 					float d2 = (g2-pStoredShear2[i]);
 
-					shearFitness += d1*d1 + d2*d2;
+					shearFitness += weight*(d1*d1 + d2*d2);
 				}
 
 				usedPoints++;
