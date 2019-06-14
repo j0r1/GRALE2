@@ -184,3 +184,8 @@ AlphaPotLens
 
    .. automethod:: __init__
 
+HarmonicLens
+------------
+.. autoclass:: grale.lenses.HarmonicLens
+
+   .. automethod:: __init__

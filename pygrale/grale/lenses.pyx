@@ -32,6 +32,7 @@ directly. Instead allocate a class derived from this; currently available are
  * :class:`PIEMDLens`
  * :class:`PIMDLens`
  * :class:`AlphaPotLens`
+ * :class:`HarmonicLens`
 
 """
 
@@ -2311,6 +2312,7 @@ cdef class HarmonicLens(GravitationalLens):
 
         \Sigma(\vec{\theta}) = \Sigma_0 \cos\left(\frac{k}{2}\theta_x + \phi_x\right) \cos\left(\frac{l}{2}\theta_y + \phi_y\right)
 
+    **References:**
      *  `Lam, D., A New Approach to Free-Form Cluster Lens Modeling Inspired by the JPEG Image Compression Method. <https://arxiv.org/abs/1906.00006>`_
     """
 

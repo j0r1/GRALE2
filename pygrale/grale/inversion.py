@@ -277,7 +277,7 @@ def invert(inputImages, gridInfoOrBasisFunctions, zd, Dd, popSize, moduleName = 
        You can also allow a mass-sheet basis function, which may be useful as this kind
        of effect is difficult to model by a grid of basis functions. The traditional
        way to specify that a mass sheet basis function should be used is to set this
-       to ``"genome"``. Alternatively you can specify a :module:`lens model <grale.lenses>`
+       to ``"genome"``. Alternatively you can specify a :mod:`lens model <grale.lenses>`
        to be used in a similar way, allowing you to e.g. use a mass disk. Of course,
        you can use any lens model here, it doesn't need to be one resembling a mass
        sheet. The lens model is very roughly an upper limit in the sense that the
