@@ -417,3 +417,18 @@ cdef extern from "grale/alphapotlens.h" namespace "grale":
 
 ctypedef const AlphaPotLensParams* AlphaPotLensParamsPtrConst
 
+cdef extern from "grale/harmoniclens.h" namespace "grale":
+
+    cdef cppclass HarmonicLensParams(GravitationalLensParams):
+        HarmonicLensParams(double sigma0, double k, double l, double phiX, double phiY)
+        double getDensityScale()
+        double getK()
+        double getL()
+        double getPhiX()
+        double getPhiY()
+
+    cdef cppclass HarmonicLens(GravitationalLens):
+        pass
+
+ctypedef const HarmonicLensParams* HarmonicLensParamsPtrConst
+

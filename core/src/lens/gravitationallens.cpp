@@ -50,6 +50,7 @@
 #include "piemdlens.h"
 #include "pimdlens.h"
 #include "alphapotlens.h"
+#include "harmoniclens.h"
 #include "constants.h"
 #include <serut/fileserializer.h>
 #include <serut/memoryserializer.h>
@@ -207,6 +208,7 @@ double GravitationalLens::getInverseMagnification(double D_s, double D_ds, Vecto
 #define LENSNUMBER_PIEMD							22
 #define LENSNUMBER_PIMD								23
 #define LENSNUMBER_ALPHAPOT								24
+#define LENSNUMBER_HARMONIC								25
 //#define LENSNUMBER_TESTLENS						234	
 
 bool GravitationalLens::write(serut::SerializationInterface &si) const
@@ -296,6 +298,9 @@ bool GravitationalLens::write(serut::SerializationInterface &si) const
 		break;
 	case AlphaPot:
 		lensNumber = LENSNUMBER_ALPHAPOT;
+		break;
+	case Harmonic:
+		lensNumber = LENSNUMBER_HARMONIC;
 		break;
 	default:
 		setErrorString("Lens type not recognized");
@@ -485,6 +490,10 @@ bool GravitationalLens::read(serut::SerializationInterface &si, GravitationalLen
 	case LENSNUMBER_ALPHAPOT:
 		pTmpLens = new AlphaPotLens();
 		pParams = new AlphaPotLensParams();
+		break;
+	case LENSNUMBER_HARMONIC:
+		pTmpLens = new HarmonicLens();
+		pParams = new HarmonicLensParams();
 		break;
 	default:
 		errorString = std::string("Can't recognize lens type");

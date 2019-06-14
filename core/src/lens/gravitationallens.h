@@ -88,6 +88,7 @@ public:
 		PIEMD, /** PIEMD (dPIE) as described in Eliasdottir (2014). */
 		PIMD, /** Circularly symmetric version of PIEMD. */
 		AlphaPot, /** Softened power law potential (similar to 'alphapot' in gravlens/lensmodel) */
+		Harmonic, /** 2D harmonic mass density (cfr JPEG lensing paper) */
 		MaxLensType
 	};
 protected:

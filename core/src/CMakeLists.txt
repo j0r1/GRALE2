@@ -38,6 +38,7 @@ set(HEADERS
 	lens/piemdlens.h
 	lens/pimdlens.h
 	lens/alphapotlens.h
+	lens/harmoniclens.h
 	math/mathfunctions.h
 	math/real1dfunction.h
 	math/real1dfunctionintegrator.h
@@ -130,6 +131,7 @@ set(SOURCES
 	lens/piemdlens.cpp
 	lens/pimdlens.cpp
 	lens/alphapotlens.cpp
+	lens/harmoniclens.cpp
 	image/imagesdata.cpp
 	image/imagesdataextended.cpp
 	image/lensplane.cpp

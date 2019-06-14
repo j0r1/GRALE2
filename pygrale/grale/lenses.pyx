@@ -2304,5 +2304,62 @@ cdef class AlphaPotLens(GravitationalLens):
             "alpha": pParams.getAlpha()
         }
 
+cdef class HarmonicLens(GravitationalLens):
+    r"""Harmonic 2D mass density, similar to what's used in the JPEG article.
+
+    .. math::
+
+        \Sigma(\vec{\theta}) = \Sigma_0 \cos\left(\frac{k}{2}\theta_x + \phi_x\right) \cos\left(\frac{l}{2}\theta_y + \phi_y\right)
+
+     *  `Lam, D., A New Approach to Free-Form Cluster Lens Modeling Inspired by the JPEG Image Compression Method. <https://arxiv.org/abs/1906.00006>`_
+    """
+
+    cdef gravitationallens.GravitationalLens* _allocLens(self) except NULL:
+        return new gravitationallens.HarmonicLens()
+
+    cdef gravitationallens.GravitationalLensParams* _allocParams(self, params) except NULL:
+        cdef double sigma0, phiX, phiY, k, l
+
+        GravitationalLens._checkParams(params, ["sigma0", "k", "l", "phi_x", "phi_y"])
+        sigma0 = params["sigma0"]
+        k = params["k"]
+        l = params["l"]
+        phiX = params["phi_x"]
+        phiY = params["phi_y"]
+
+        return new gravitationallens.HarmonicLensParams(sigma0, k, l, phiX, phiY)
+
+    def __init__(self, Dd, params):
+        r"""__init__(Dd, params)
+
+        Parameters:
+         - Dd is the angular diameter distance to the lens.
+         - params: a dictionary containing the following entries:
+
+           * 'sigma0': Maximum density :math:`\Sigma_0`
+           * 'k': value of 'k' in the formula
+           * 'l': value of 'l' in the formula
+           * 'phi_x': value of :math:`\phi_x` in the formula
+           * 'phi_y': value of :math:`\phi_y` in the formula
+        """
+        super(HarmonicLens, self).__init__(_gravLensRndId)
+        self._lensInit(Dd, params)
+
+    def getLensParameters(self):
+        cdef gravitationallens.HarmonicLensParamsPtrConst pParams
+        
+        self._check()
+        pParams = dynamic_cast[gravitationallens.HarmonicLensParamsPtrConst](GravitationalLens._getLens(self).getLensParameters())
+        if pParams == NULL:
+            raise LensException("Unexpected: parameters are not those of a HarmonicLens")
+
+        return { 
+            "sigma0": pParams.getDensityScale(),
+            "k": pParams.getK(),
+            "l": pParams.getL(),
+            "phi_x": pParams.getPhiX(),
+            "phi_y": pParams.getPhiY()
+        }
+
 from privlenses import createLensFromLenstoolFile
 

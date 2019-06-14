@@ -254,6 +254,19 @@ testLenses = [
             },
             "direct": True,
             "subpolynomial": False
+        },
+        {
+            "name": "HarmonicLens",
+            "type": HarmonicLens,
+            "params": {
+                "sigma0": getCriticalDensity(Dd, 1.0, 0.8)*20,
+                "k": 1/ANGLE_ARCSEC,
+                "l": 2/ANGLE_ARCSEC,
+                "phi_x": 1.2,
+                "phi_y": 3.4
+            },
+            "direct": True,
+            "subpolynomial": False
         }
 ]
 
