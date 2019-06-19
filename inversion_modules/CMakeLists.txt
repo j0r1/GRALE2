@@ -55,19 +55,6 @@ add_library(galens_j1004 SHARED src/j10044112/j1004test.cpp src/lensfitnessj1004
 target_link_libraries(galens_j1004 ${EXTRA_LIBS} ${GRALE_LIBRARIES})
 install(TARGETS galens_j1004 DESTINATION ${LIBRARY_INSTALL_DIR})
 
-add_library(galens_weak SHARED src/weak/weak.cpp src/lensfitnessweak.cpp src/fitnessutil.cpp src/fitnesscomponent.cpp src/pointgroupstorage.cpp)
-target_link_libraries(galens_weak ${EXTRA_LIBS} ${GRALE_LIBRARIES})
-install(TARGETS galens_weak DESTINATION ${LIBRARY_INSTALL_DIR})
-
-add_library(galens_pointoverlapnullweak SHARED src/weak/pointoverlapnullweak.cpp src/lensfitnesspointoverlapweak.cpp 
-	                                       src/fitnessutil.cpp src/fitnesscomponent.cpp src/pointgroupstorage.cpp)
-target_link_libraries(galens_pointoverlapnullweak ${EXTRA_LIBS} ${GRALE_LIBRARIES})
-install(TARGETS galens_pointoverlapnullweak DESTINATION ${LIBRARY_INSTALL_DIR})
-
-add_library(galens_extendednullweak SHARED src/weak/extendednullweak.cpp src/lensfitnessextendedweak.cpp src/pointgroupstorage.cpp src/fitnessutil.cpp src/fitnesscomponent.cpp)
-target_link_libraries(galens_extendednullweak ${EXTRA_LIBS} ${GRALE_LIBRARIES})
-install(TARGETS galens_extendednullweak DESTINATION ${LIBRARY_INSTALL_DIR})
-
 add_library(galens_general SHARED src/general/general.cpp src/lensfitnessgeneral.cpp src/fitnesscomponent.cpp src/fitnessutil.cpp
 	                          src/pointgroupstorage.cpp)
 target_link_libraries(galens_general ${EXTRA_LIBS} ${GRALE_LIBRARIES})

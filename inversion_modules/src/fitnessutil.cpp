@@ -7,6 +7,7 @@
 #include <assert.h>
 #include <limits>
 #include <tuple>
+#include <complex>
 
 using namespace std;
 
@@ -842,9 +843,8 @@ float calculateNullFitness_ExtendedImages(const ProjectedImagesInterface &iface,
 }
 
 float calculateWeakLensingFitness(const ProjectedImagesInterface &interface, const vector<int> &weakIndices,
-								  const vector<WeakLensingType> &weakType, const vector<double> &oneMinusKappaThreshold)
+								  WeakLensingType type, const vector<float> &oneMinusKappaThreshold)
 {
-	assert(weakIndices.size() == reduced.size());
 	assert(weakIndices.size() == oneMinusKappaThreshold.size());
 
 	const float epsilon = 1e-6; // to avoid division by zero
@@ -865,87 +865,61 @@ float calculateWeakLensingFitness(const ProjectedImagesInterface &interface, con
 		const float *pConvergence = interface.getConvergence(s);
 
 		assert(pStoredShear1 && pStoredShear2 && pCalcShear1 && pCalcShear2 && pConvergence && pWeights);
-
-		WeakLensingType type = weakType[sIdx];
-		double threshold = oneMinusKappaThreshold[sIdx];
+		float threshold = oneMinusKappaThreshold[sIdx];
 		
 		for (int i = 0 ; i < numPoints ; i++)
 		{
 			float gamma1 = pCalcShear1[i]; 
 			float gamma2 = pCalcShear2[i];
 			float kappa = pConvergence[i];
+			float oneMinusKappa = 1.0f-kappa;
 			float weight = pWeights[i];
 
 			// Note: we're also using the threshold here in case regular shear is used.
 			//       This probably doesn't make much sense but I leave it to the user to
 			//       specify that the oneMinusKappaThreshold should be zero in that case.
-			if (ABS(1.0f-kappa) >= threshold)
+			if (ABS(oneMinusKappa) >= threshold)
 			{
-				if (type == RealShear)
+				if (ABS(oneMinusKappa) < epsilon) // avoid division by zero
+					oneMinusKappa = copysign(epsilon, oneMinusKappa);
+
+				float d1 = 0, d2 = 0;
+				if (type == RealShear) // Real shear, for testing
 				{
 					// In this case, despite the naming, pStoredShear is supposed to
 					// hold the 'normal' shear and not the reduced shear
-					float d1 = (gamma1-pStoredShear1[i]);
-					float d2 = (gamma2-pStoredShear2[i]);
-
-					shearFitness += (d1*d1 + d2*d2)*weight;
+					d1 = (gamma1-pStoredShear1[i]);
+					d2 = (gamma2-pStoredShear2[i]);
 				}
-				else if (type == RealReducedShear)
+				else // Reduced
 				{
-					// use reduced shear
-					float factor = 1.0f-kappa;
+					float g1 = gamma1/oneMinusKappa;
+					float g2 = gamma2/oneMinusKappa;
 
-					float d1 = (gamma1-factor*pStoredShear1[i]);
-					float d2 = (gamma2-factor*pStoredShear2[i]);
-
-					// This should yield the likelihood for a constant noise on the
-					// measured shear parameters. The only deviation is the
-					// epsilon: if the error bars would become infinitely large,
-					// we replace them by something really large.
-					shearFitness += weight*(d1*d1 + d2*d2)/(factor*factor + epsilon);
-				}
-				else
-				{
-					assert(type == MeasuredReducedShear);
-
-					// The measured reduced shear is based on orientation and axes lengths
-					// of observed galaxies. Let's calculate the ellipse that is created
-					// by a circular source, and use that to estimate the shear
-
-					float gamma = SQRT(gamma1*gamma1 + gamma2*gamma2);
-					float axis1Length = ABS(1.0f/(1.0f-kappa-gamma));
-					float axis2Length = ABS(1.0f/(1.0f-kappa+gamma));
-					Vector2Df v1(gamma2, gamma-gamma1);
-					Vector2Df v2(gamma1-gamma, gamma2);
-
-					float a, b;
-					Vector2Df orientation;
-					if (axis1Length > axis2Length)
+					if (type == RealReducedShear) // use just reduced shear (for testing)
 					{
-						orientation = v1;
-						a = axis1Length;
-						b = axis2Length;
+						d1 = (g1-pStoredShear1[i]);
+						d2 = (g2-pStoredShear2[i]);
 					}
-					else
+					else // Ellipticities, this is the realistic use case
 					{
-						orientation = v2;
-						a = axis2Length;
-						b = axis1Length;
+						assert(type == AveragedEllipticities);
+						complex<float> Ee { pStoredShear1[i], pStoredShear2[i] }; // entry represents averaged ellipticities
+						complex<float> g { g1, g2 };
+
+						// See eg https://arxiv.org/pdf/astro-ph/0509252.pdf
+						// E(e) = g if    |g| <= 1
+						// E(e) = 1/g* if |g| > 1
+						
+						if (std::abs(g) > 1.0f)
+							g = 1.0f/std::conj(g);
+
+						d1 = (g.real()-Ee.real());
+						d2 = (g.imag()-Ee.imag());
 					}
-
-					float e = b/a;
-					float g = (1.0f-e)/(1.0f+e);
-
-					float phi = std::atan2(orientation.getY(), orientation.getX());
-					float g1 = g*COS(2.0f*phi);
-					float g2 = g*SIN(2.0f*phi);
-
-					float d1 = (g1-pStoredShear1[i]);
-					float d2 = (g2-pStoredShear2[i]);
-
-					shearFitness += weight*(d1*d1 + d2*d2);
 				}
 
+				shearFitness += (d1*d1 + d2*d2)*weight;
 				usedPoints++;
 			}
 		}

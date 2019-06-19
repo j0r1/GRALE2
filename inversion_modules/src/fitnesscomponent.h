@@ -199,9 +199,11 @@ public:
 			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence,
 								   bool &storeOrigIntens, bool &storeOrigTimeDelay, bool &storeOrigShear) override;
 	bool calculateFitness(const ProjectedImagesInterface &iface, float &fitness) override;
+
+	void setFitnessType(WeakLensingType t) { m_wlType = t; }
 private:
-	std::vector<WeakLensingType> m_wlType;
-	std::vector<double> m_thresholds;
+	WeakLensingType m_wlType;
+	std::vector<float> m_thresholds;
 };
 
 class FitnessComponent_TimeDelay : public FitnessComponent

@@ -222,6 +222,8 @@ ConfigurationParameters *LensFitnessGeneral::getDefaultParametersInstance() cons
 
 	pParams->setParameter("fitness_timedelay_type", string("Paper2009"));
 	pParams->setParameter("fitness_timedelay_relative", false);
+
+	pParams->setParameter("fitness_shear_type", string("AveragedEllipticities"));
 	return pParams;
 }
 
@@ -252,10 +254,11 @@ bool LensFitnessGeneral::init(double z_d, std::list<ImagesDataExtended *> &image
 	
 	// Populate m_totalComponents
 	FitnessComponent_TimeDelay *pTDComponent = new FitnessComponent_TimeDelay(pCache);
+	FitnessComponent_WeakLensing *pWLComponent = new FitnessComponent_WeakLensing(pCache);
 	/*vector<FitnessComponent *>*/ m_totalComponents = {
 		new FitnessComponent_PointImagesOverlap(pCache),
 		new FitnessComponent_ExtendedImagesOverlap(pCache),
-		new FitnessComponent_WeakLensing(pCache),
+		pWLComponent,
 		new FitnessComponent_NullSpacePointImages(pCache),
 		new FitnessComponent_NullSpaceExtendedImages(pCache),
 		pTDComponent,
@@ -328,6 +331,39 @@ bool LensFitnessGeneral::init(double z_d, std::list<ImagesDataExtended *> &image
 		}
 
 		pTDComponent->setUseRelativeDelays(value);
+	}
+
+	// WL fitness type
+	{
+		string keyName = "fitness_shear_type";
+		string valueStr;
+
+		if (!pParams->getParameter(keyName, valueStr))
+		{
+			setErrorString("Can't find (string) parameter '" + keyName + "': " + pParams->getErrorString());
+			return false;
+		}
+		
+		if (valueStr == "AveragedEllipticities")
+		{
+			cerr << "Setting WL fitness type to AveragedEllipticities" << endl;
+			pWLComponent->setFitnessType(AveragedEllipticities);
+		}
+		else if (valueStr == "RealShear")
+		{
+			cerr << "Setting WL fitness type to RealShear" << endl;
+			pWLComponent->setFitnessType(RealShear);
+		}
+		else if (valueStr == "RealReducedShear")
+		{
+			cerr << "Setting WL fitness type to RealReducedShear" << endl;
+			pWLComponent->setFitnessType(RealReducedShear);
+		}
+		else
+		{
+			setErrorString("Invalid type for '" + keyName + "': " + valueStr);
+			return false;
+		}
 	}
 
 	// Get the supported type names
@@ -914,23 +950,26 @@ or `str`) and the value. The defaults can be obtained using the command
 [`inversion.getDefaultModuleParameters`](http://research.edm.uhasselt.be/~jori/grale2/grale_inversion.html#grale.inversion.getDefaultModuleParameters), 
 and are listed in the following table:
 
-| Parameter name                | Value             |
-|-------------------------------|-------------------|
-| priority_causticpenalty       | 100               |
-| priority_pointimagenull       | 200               |
-| priority_extendedimagenull    | 200               |
-| priority_pointimageoverlap    | 300               |
-| priority_extendedimageoverlap | 300               |
-| priority_timedelay            | 400               |
-| priority_weaklensing          | 500               |
-| priority_kappathreshold       | 600               |
-| fitness_timedelay_type        | 'Paper2009'       |
-| fitness_timedelay_relative    | `False`           |
+| Parameter name                | Value                   |
+|-------------------------------|-------------------------|
+| priority_causticpenalty       | 100                     |
+| priority_pointimagenull       | 200                     |
+| priority_extendedimagenull    | 200                     |
+| priority_pointimageoverlap    | 300                     |
+| priority_extendedimageoverlap | 300                     |
+| priority_timedelay            | 400                     |
+| priority_weaklensing          | 500                     |
+| priority_kappathreshold       | 600                     |
+| fitness_timedelay_type        | 'Paper2009'             |
+| fitness_timedelay_relative    | `False`                 |
+| fitness_shear_type            | 'AveragedEllipticities' |
 
 The `fitness_timedelay_type` can also be 'ExperimentalI' or 'ExperimentalII',
 but as you might guess, these are still experimental. The option
 `fitness_timedelay_relative` is extremely experimental: don't enable this, it
 does not work yet!
+The `fitness_shear_type` can also be 'RealShear' or 'RealReducedShear', mainly
+for testing purposes.
 
 As the names suggest, the options that start with `priority_` describe priorities 
 for fitness measures. These values do **not** have any effect on the way the 
