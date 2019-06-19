@@ -424,6 +424,17 @@ def enlargePolygon(points, offset, simplifyScale = 0.02):
        simplified, and this describes a tolerance below which points can be
        removed. It is specified as a fraction of the scale of the polygon.
     """
+    for i in range(10, -1, -1):
+        try:
+            return _enlargePolygon(points, offset, simplifyScale)
+        except Exception as e:
+            if i == 0:
+                raise
+            print(f"WARNING({i}): {e}")
+
+    raise Exception("Unexpected: shouldn't get here")
+
+def _enlargePolygon(points, offset, simplifyScale = 0.02):
     from shapely.geometry.polygon import LinearRing, Polygon
     import shapely.ops
     from .images import ImagesDataException
@@ -443,9 +454,10 @@ def enlargePolygon(points, offset, simplifyScale = 0.02):
     for j in range(10,-1,-1): # Try at most 10 times
         points1 = points[:-1]
         r = LinearRing(points1)
-        eps = getScale(r)*1e-8
+        eps = getScale(r)*1e-5
 
         points2 = points1[len(points1)//2:] + points1[:len(points1)//2]
+        points2 = copy.deepcopy(points2)
 
         for i in range(len(points2)):
             points1[i][0] += np.random.normal(scale=eps)
@@ -470,7 +482,6 @@ def enlargePolygon(points, offset, simplifyScale = 0.02):
                 raise
 
             print(f"WARNING({j}): {e}")
-
 
     unionObjs = []
     def addPoly(g):
