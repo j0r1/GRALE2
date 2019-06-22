@@ -44,6 +44,7 @@ public:
 
 	void init(const std::list<ImagesDataExtended *> &images);
 	void add(const ImagesDataExtended *pImg);
+	void add(const ImagesDataExtended &img)										{ return add(&img); } 
 	void clear();
 
 	int getNumberOfSources() const												{ return m_groupInfo.size(); }

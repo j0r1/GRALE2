@@ -477,6 +477,7 @@ FitnessComponent_NullSpacePointImages::FitnessComponent_NullSpacePointImages(Fit
 	addRecognizedTypeName("pointimages");
 	addRecognizedTypeName("pointnullgrid");
 	addRecognizedTypeName("singlyimagedpoints");
+	addRecognizedTypeName("extendedimages");
 
 	m_lastImgIdx = -1;
 	m_lastImgDds = -1;
@@ -495,10 +496,23 @@ bool FitnessComponent_NullSpacePointImages::inspectImagesData(int idx, const Ima
 {
 	string typeName;
 
+	const int numImg = imgDat.getNumberOfImages();
+
+	auto finalize = [numImg, idx, this, &imgDat, &needCalcDeflections](const ImagesDataExtended &grpDat)
+	{
+		needCalcDeflections = true;
+
+		m_lastImgIdx = idx;
+		m_lastImgDds = imgDat.getDds();
+		m_lastImgDs = imgDat.getDs();
+		m_lastImgNumImgs = numImg;
+
+		m_pointGroups.add(grpDat);
+	};
+
 	imgDat.getExtraParameter("type", typeName);
 	if (typeName == "pointimages") 
 	{
-		int numImg = imgDat.getNumberOfImages();
 		if (numImg < 1)
 		{
 			setErrorString("Images data set doesn't contain any images");
@@ -515,21 +529,20 @@ bool FitnessComponent_NullSpacePointImages::inspectImagesData(int idx, const Ima
 			}
 		}
 		
-		// Just record some information at this point
+		string errStr;
+		auto grpImg = addGroupsToPointImages(imgDat, errStr);
+		if (!grpImg.get())
+		{
+			setErrorString("Couldn't add group info to point image: " + errStr);
+			return false;
+		}
 
-		needCalcDeflections = true;
-
-		m_lastImgIdx = idx;
-		m_lastImgDds = imgDat.getDds();
-		m_lastImgDs = imgDat.getDs();
-		m_lastImgNumImgs = numImg;
-
+		finalize(*grpImg.get());
 		return true;
 	}
 
 	if (typeName == "singlyimagedpoints")
 	{
-		int numImg = imgDat.getNumberOfImages();
 		if (numImg != 1)
 		{
 			setErrorString("For the specified images data set, only a single 'image' is allowed");
@@ -543,12 +556,45 @@ bool FitnessComponent_NullSpacePointImages::inspectImagesData(int idx, const Ima
 			return false;
 		}
 
-		needCalcDeflections = true;
-		m_lastImgIdx = idx;
-		m_lastImgDds = imgDat.getDds();
-		m_lastImgDs = imgDat.getDs();
-		m_lastImgNumImgs = numImg;
+		finalize(ImagesDataExtended()); // No groups are needed here, just add empty
+		return true;
+	}
 
+	if (typeName == "extendedimages")
+	{
+		if (numImg < 1)
+		{
+			setErrorString("Images data set doesn't contain any images");
+			return false;
+		}
+
+		if (imgDat.getNumberOfGroups() > 0) // ok, point groups are specified
+		{
+			finalize(imgDat);
+			return true;
+		}
+		
+		// no point groups, perhaps it's a point image and we can use this
+		for (int i = 0 ; i < numImg ; i++)
+		{
+			int numPoints = imgDat.getNumberOfImagePoints(i);
+			if (numPoints != 1)
+			{
+				setErrorString("Image does not contain point groups and is not a point image");
+				return false;
+			}
+		}
+
+		// Ok, it's a point image, so add group info
+		string errStr;
+		auto grpImg = addGroupsToPointImages(imgDat, errStr);
+		if (!grpImg.get())
+		{
+			setErrorString("Couldn't add group info to point image: " + errStr);
+			return false;
+		}
+
+		finalize(*grpImg.get());
 		return true;
 	}
 
@@ -583,7 +629,6 @@ bool FitnessComponent_NullSpacePointImages::inspectImagesData(int idx, const Ima
 		return false;
 	}
 
-	int numImg = imgDat.getNumberOfImages();
 	if (numImg != 1)
 	{
 		setErrorString("Null space data should contain only one image");
@@ -631,7 +676,8 @@ bool FitnessComponent_NullSpacePointImages::inspectImagesData(int idx, const Ima
 
 bool FitnessComponent_NullSpacePointImages::calculateFitness(const ProjectedImagesInterface &iface, float &fitness)
 {
-	fitness = calculateNullFitness_PointImages(iface, m_sourceIndices, m_nullIndices, m_nullTriangles, m_nullWeights);
+	fitness = calculateNullFitness_PointImages(m_pointGroups, iface, m_sourceIndices, 
+			                                   m_nullIndices, m_nullTriangles, m_nullWeights);
 	return true;
 }
 

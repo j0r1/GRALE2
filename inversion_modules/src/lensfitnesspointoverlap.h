@@ -28,6 +28,7 @@
 
 #define GRALE_LENSFITNESSPOINTOVERLAP_H
 
+#include "pointgroupstorage.h"
 #include <grale/lensfitnessobject.h>
 #include <grale/rectangle2d.h>
 #include <grale/triangleindices.h>
@@ -128,6 +129,7 @@ private:
 	std::vector<bool> m_shortDeflectionFlags, m_shortDerivativeFlags, m_shortPotentialFlags;
 	std::vector<float> m_distanceFractions;
 	std::vector<float> m_nullWeights;
+	PointGroupStorage m_pointGroups;
 };
 
 } // end namespace

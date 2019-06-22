@@ -232,6 +232,15 @@ bool LensFitnessPointOverlapNull::init(double z_d, std::list<ImagesDataExtended 
 			double distFrac = pImgDat->getDds()/pImgDat->getDs();
 
 			m_distanceFractions.push_back((float)distFrac);
+	
+			string errStr;
+			shared_ptr<ImagesDataExtended> grpImg = addGroupsToPointImages(*pImgDat, errStr);
+			if (!grpImg.get())
+			{
+				setErrorString(errStr);
+				return false;
+			}
+			m_pointGroups.add(grpImg.get());
 		}
 		else // null space data
 		{
@@ -348,7 +357,7 @@ bool LensFitnessPointOverlapNull::calculateOverallFitness(const ProjectedImagesI
 	float scale = getScaleFactor_PointImages(interface, m_sourceIndices, m_distanceFractions);
 
 	pFitnessValues[0] = calculateOverlapFitness_PointImages(interface, m_sourceIndices, m_distanceFractions, scale);
-	pFitnessValues[1] = calculateNullFitness_PointImages(interface, m_sourceIndices, m_nullIndices, m_nullTriangles, m_nullWeights);
+	pFitnessValues[1] = calculateNullFitness_PointImages(m_pointGroups, interface, m_sourceIndices, m_nullIndices, m_nullTriangles, m_nullWeights);
 
 	return true;
 }

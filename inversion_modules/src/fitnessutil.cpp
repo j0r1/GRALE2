@@ -424,7 +424,8 @@ int getSingleImageNullSpaceHitCount(Vector2D<float> beta, const vector<TriangleI
 	return hitCount;
 }
 
-float calculateNullFitness_PointImages(const ProjectedImagesInterface &interface, 
+float calculateNullFitness_PointImages(const PointGroupStorage &pointGroups,
+		                               const ProjectedImagesInterface &interface, 
                                        const vector<int> &sourceIndices,
 									   const vector<int> &nullIndices,
 									   const vector<vector<TriangleIndices> > &nullTriangles,
@@ -434,6 +435,7 @@ float calculateNullFitness_PointImages(const ProjectedImagesInterface &interface
 	assert(sourceIndices.size() == nullIndices.size());
 	assert(nullIndices.size() == nullTriangles.size());
 	assert(nullIndices.size() == nullWeights.size());
+	assert(pointGroups.size() == sourceIndices.size());
 
 	float nullFitness = 0;
 
@@ -458,125 +460,145 @@ float calculateNullFitness_PointImages(const ProjectedImagesInterface &interface
 		int numImages = interface.getNumberOfImages(s);
 		float nullenergy = 0;
 
-		if (numImages > 1)
+		if (numImages > 1) 
 		{
-			vector<Vector2D<float> > allpoints; // these will contain the backprojected image points
-			float maxx = -numeric_limits<float>::max();
-			float maxy = -numeric_limits<float>::max();
-			float minx = numeric_limits<float>::max();
-			float miny = numeric_limits<float>::max();
-
 			// In this case, there are multiple images. We're going to take
-			// the convex null of the backprojected images
+			// the convex null of the backprojected images. We're using
+			// point groups here, so we can also use extended images if
+			// they have corresponding points marked
 
-			for (int i = 0 ; i < numImages ; i++)
+			assert(idx < pointGroups.getNumberOfSources());
+			int numGrps = pointGroups.getNumberOfGroups(idx);
+
+			for (int g = 0 ; g < numGrps ; g++)
 			{
-				assert(interface.getNumberOfImagePoints(s, i) == 1); 
-
-				const Vector2D<float> *points = interface.getBetas(s, i);
-				allpoints.push_back(points[0]);
-				maxx = MAX(maxx,points[0].getX());
-				maxy = MAX(maxy,points[0].getY());
-				minx = MIN(minx,points[0].getX());
-				miny = MIN(miny,points[0].getY());
-			}
-
-			// If we only have two points, add a few points so that we can use the rest
-			// of the code
-			if (numImages == 2)
-			{
-				float centerX = (maxx+minx)/2.0;
-				float centerY = (maxy+miny)/2.0;
-				float dx = maxx-minx;
-				float dy = maxy-miny;
-				float r = SQRT(dx*dx+dy*dy)/50.0;
-
-				float angles[2] = { (float)(45.0*CONST_PI/180.0), (float)(135.0*CONST_PI/180.0) };
-				float extraPoints[2][2] = { { centerX+r*COS(angles[0]), centerY+r*SIN(angles[0]) },
-					                        { centerX+r*COS(angles[1]), centerY+r*SIN(angles[1]) } };
-
-				for (int extra = 0 ; extra < 2 ; extra++)
+				auto getGroupPoint = [idx, s, g, &pointGroups, &interface](int ptIdx) -> Vector2Df 
 				{
-					float px = extraPoints[extra][0];
-					float py = extraPoints[extra][1];
-					allpoints.push_back(Vector2D<float>(px, py));
-					maxx = MAX(maxx,px);
-					maxy = MAX(maxy,py);
-					minx = MIN(minx,px);
-					miny = MIN(miny,py);
-				}
-			}
+					const int srcIdx = idx;
+					assert(srcIdx >= 0 && srcIdx < pointGroups.getNumberOfSources());
+					assert(g >= 0 && g < pointGroups.getNumberOfGroups(srcIdx));
+					assert(ptIdx >= 0 && ptIdx < pointGroups.getNumberOfGroupPoints(srcIdx, g));
+					int imgNum, ptNum;
 
-			Polygon2D<float> bigpoly;
-			bigpoly.init(allpoints, true); // calculate convexhull
+					pointGroups.getGroupPointIndices(srcIdx, g, ptIdx, &imgNum, &ptNum);
+					assert(imgNum >= 0 && imgNum < interface.getNumberOfImages(s));
+					assert(ptNum >= 0 && ptNum < interface.getNumberOfImagePoints(s, imgNum));
+					return interface.getBetas(s, imgNum)[ptNum];
+				};
 
-			// Now search for triangles overlapping the source
-			
-			for (int idx = 0 ; idx < triangles.size() ; idx++)
-			{
-				TriangleIndices t = nullTriangles[tp][idx];
-				Vector2D<float> p[3];
+				vector<Vector2D<float> > allpoints; // these will contain the backprojected image points
+				float maxx = -numeric_limits<float>::max();
+				float maxy = -numeric_limits<float>::max();
+				float minx = numeric_limits<float>::max();
+				float miny = numeric_limits<float>::max();
 
-				p[0] = nullBetas[t.getIndex(0)];
-				p[1] = nullBetas[t.getIndex(1)];
-				p[2] = nullBetas[t.getIndex(2)];
+				auto updateMinMaxAllPoints = [&allpoints, &maxx, &maxy, &minx, &miny](Vector2Df v) {
+					maxx = MAX(maxx, v.getX());
+					maxy = MAX(maxy, v.getY());
+					minx = MIN(minx, v.getX());
+					miny = MIN(miny, v.getY());
+					allpoints.push_back(v);
+				};
 
-				if (p[0].getX() < minx && p[1].getX() < minx && p[2].getX() < minx)
-					continue;
+				int numPts = pointGroups.getNumberOfGroupPoints(idx, g);
+				if (numPts > 0)
+					updateMinMaxAllPoints(getGroupPoint(0));
 
-				if (p[0].getX() > maxx && p[1].getX() > maxx && p[2].getX() > maxx)
-					continue;
+				for (int p = 1 ; p < numPts ; p++)
+					updateMinMaxAllPoints(getGroupPoint(p));
 
-				if (p[0].getY() < miny && p[1].getY() < miny && p[2].getY() < miny)
-					continue;
-
-				if (p[0].getY() > maxy && p[1].getY() > maxy && p[2].getY() > maxy)
-					continue;
-
-				// Calculate overlapping area
-
-				Triangle2D<float> nulltriangle(p[0],p[1],p[2]);
-				const Vector2D<float> *hullpoints = bigpoly.getPoints();
-
-				int num = bigpoly.getNumberOfPoints() - 2;
-				float totalCount = 0;
-
-				for (int i = 0 ; i < num ; i++)
+				// If we only have two points, add a few points so that we can use the rest
+				// of the code
+				if (numPts == 2)
 				{
-					Triangle2D<float> polypart(hullpoints[0],hullpoints[1+i],hullpoints[2+i]);
+					float centerX = (maxx+minx)/2.0;
+					float centerY = (maxy+miny)/2.0;
+					float dx = maxx-minx;
+					float dy = maxy-miny;
+					float r = SQRT(dx*dx+dy*dy)/50.0;
 
-					if (polypart.getOverlapArea(nulltriangle) > 0)
+					float angles[2] = { (float)(45.0*CONST_PI/180.0), (float)(135.0*CONST_PI/180.0) };
+					float extraPoints[2][2] = { { centerX+r*COS(angles[0]), centerY+r*SIN(angles[0]) },
+												{ centerX+r*COS(angles[1]), centerY+r*SIN(angles[1]) } };
+
+					for (int extra = 0 ; extra < 2 ; extra++)
 					{
-						// Just estimate the number of null space triangles that overlap the source area
-						// As soon as one of the polygon parts overlaps with the triangle, we should
-						// count the triangle
-						totalCount += 1.0f;
-						break;
+						float px = extraPoints[extra][0];
+						float py = extraPoints[extra][1];
+						allpoints.push_back(Vector2D<float>(px, py));
+						maxx = MAX(maxx,px);
+						maxy = MAX(maxy,py);
+						minx = MIN(minx,px);
+						miny = MIN(miny,py);
 					}
 				}
 
-				nullenergy += totalCount; 
+				if (allpoints.size() == 0) // no point, nothing to do
+				{
+				}
+				else if (allpoints.size() == 1) // one point, use it as a constraint
+				{
+					nullenergy += getSingleImageNullSpaceHitCount(allpoints[0], nullTriangles[tp], nullBetas);
+				}
+				else // use convex hull and calculate overlap
+				{
+					Polygon2D<float> bigpoly;
+					bigpoly.init(allpoints, true); // calculate convexhull
+
+					// Now search for triangles overlapping the source
+					
+					for (int idx = 0 ; idx < triangles.size() ; idx++)
+					{
+						TriangleIndices t = nullTriangles[tp][idx];
+						Vector2D<float> p[3];
+
+						p[0] = nullBetas[t.getIndex(0)];
+						p[1] = nullBetas[t.getIndex(1)];
+						p[2] = nullBetas[t.getIndex(2)];
+
+						if (p[0].getX() < minx && p[1].getX() < minx && p[2].getX() < minx)
+							continue;
+
+						if (p[0].getX() > maxx && p[1].getX() > maxx && p[2].getX() > maxx)
+							continue;
+
+						if (p[0].getY() < miny && p[1].getY() < miny && p[2].getY() < miny)
+							continue;
+
+						if (p[0].getY() > maxy && p[1].getY() > maxy && p[2].getY() > maxy)
+							continue;
+
+						// Calculate overlapping area
+
+						Triangle2D<float> nulltriangle(p[0],p[1],p[2]);
+						const Vector2D<float> *hullpoints = bigpoly.getPoints();
+
+						int num = bigpoly.getNumberOfPoints() - 2;
+						float totalCount = 0;
+
+						for (int i = 0 ; i < num ; i++)
+						{
+							Triangle2D<float> polypart(hullpoints[0],hullpoints[1+i],hullpoints[2+i]);
+
+							if (polypart.getOverlapArea(nulltriangle) > 0)
+							{
+								// Just estimate the number of null space triangles that overlap the source area
+								// As soon as one of the polygon parts overlaps with the triangle, we should
+								// count the triangle
+								totalCount += 1.0f;
+								break;
+							}
+						}
+
+						nullenergy += totalCount; 
+					}
+				}
 			}
-
-			//nullenergy -= (float)numImages;
-			if (nullenergy < 0)
-				nullenergy = 0;
-
-			// TODO: for debugging
-	/*		{
-				const Vector2D<float> *pPolyPoints = bigpoly.getPoints();
-				int numPoints = bigpoly.getNumberOfPoints();
-				
-				cerr << bigpoly.getNumberOfPoints() << endl;
-
-				for (int i = 0 ; i < numPoints ; i++)
-					DrawLine(pPolyPoints[(i+1)%numPoints],pPolyPoints[i]);
-				cerr << endl << endl;
-			}
-	*/
 		}
-		else if (numImages == 1)
+		else if (numImages == 1) 
 		{
+			// use every single point in this image as a separate constraint
+
 			const int numPoints = interface.getNumberOfImagePoints(s, 0);
 			const Vector2D<float> *pBetas = interface.getBetas(s, 0);
 			int hitCount = 0;
@@ -588,11 +610,7 @@ float calculateNullFitness_PointImages(const ProjectedImagesInterface &interface
 				hitCount += getSingleImageNullSpaceHitCount(beta, nullTriangles[tp], nullBetas);
 			}
 
-			assert(numPoints <= hitCount);
-			nullenergy = (float)(hitCount-numPoints);
-
-			if (nullenergy < 0)
-				nullenergy = 0;
+			nullenergy = (float)hitCount;
 		}
 
 		assert(weigthIdx < nullWeights.size());
@@ -1764,6 +1782,43 @@ float calculateCausticPenaltyFitness(const ProjectedImagesInterface &iface,
 
 	assert(!isnan(causticFitness));
 	return causticFitness;
+}
+
+// Create one point group for the point images
+shared_ptr<ImagesDataExtended> addGroupsToPointImages(const ImagesDataExtended &imgDat, string &errStr)
+{
+	shared_ptr<ImagesDataExtended> Bad;
+	shared_ptr<ImagesDataExtended> grpDat0 { new ImagesDataExtended(imgDat) };
+	ImagesData &grpDat = *grpDat0.get();
+	bool hasPt = false;
+
+	if (grpDat.getNumberOfGroups() != 0)
+	{
+		errStr = "Image already contains point groups";
+		return Bad;
+	}
+
+	int newGrp = grpDat.addGroup();
+
+	for (int img = 0 ; img < grpDat.getNumberOfImages() ; img++)
+	{
+		int numPts = grpDat.getNumberOfImagePoints(img);
+		if (numPts != 1)
+		{
+			errStr = "Image id " + to_string(img) + " has " + to_string(numPts) + " points (should be exactly 1)";
+			return Bad;
+		}
+
+		grpDat.addGroupPoint(newGrp, img, 0);
+		hasPt = true;
+	}
+
+	if (!hasPt)
+	{
+		errStr = "No points were present, no groups could be added";
+		return Bad;
+	}
+	return grpDat0;
 }
 
 } // end namespace

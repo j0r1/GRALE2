@@ -4,7 +4,9 @@
 
 #include <grale/triangleindices.h>
 #include <grale/vector2d.h>
+#include <grale/imagesdataextended.h>
 #include <vector>
+#include <memory>
 
 namespace grale
 {
@@ -12,6 +14,8 @@ namespace grale
 class ProjectedImagesInterface;
 class PointGroupStorage;
 class FitnessComponentCache;
+
+std::shared_ptr<ImagesDataExtended> addGroupsToPointImages(const ImagesDataExtended &imgDat, std::string &errStr);
 
 float getScaleFactor_PointImages(const ProjectedImagesInterface &interface,
 		                         const std::vector<int> &sourceIndices,
@@ -41,7 +45,8 @@ float calculateOverlapFitness_Extended(const PointGroupStorage &pointGroups, con
 									   const std::vector<bool> &groupFlags,
 									   FitnessComponentCache *pCache = 0);
 
-float calculateNullFitness_PointImages(const ProjectedImagesInterface &interface, 
+float calculateNullFitness_PointImages(const PointGroupStorage &pointGroups,
+		                               const ProjectedImagesInterface &interface, 
 		                               const std::vector<int> &sourceIndices,
 									   const std::vector<int> &nullIndices,
 									   const std::vector<std::vector<TriangleIndices> > &nullTriangles,

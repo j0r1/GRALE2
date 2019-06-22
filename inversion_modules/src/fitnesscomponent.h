@@ -156,6 +156,7 @@ private:
 	double m_lastImgDs;
 	int m_lastImgNumImgs;
 
+	PointGroupStorage m_pointGroups;
 	std::vector<int> m_sourceIndices;
 	std::vector<int> m_nullIndices;
 	std::vector<float> m_nullWeights;
