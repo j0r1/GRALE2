@@ -39,6 +39,13 @@ float calculateOverlapFitness_PointImages(const ProjectedImagesInterface &interf
 										  const std::vector<int> &sourceGroups,
 										  const std::vector<float> &scaleFactors);
 
+enum PointGroupRMSType { AllBetas, AverageBeta };
+float calculateOverlapFitness_PointGroups(const PointGroupStorage &pointGroups,
+		                                  const ProjectedImagesInterface &interface,
+										  const std::vector<int> &sourceIndices,
+										  const std::vector<float> &sourceDistanceFractions,
+										  PointGroupRMSType t);
+
 float calculateOverlapFitness_Extended(const PointGroupStorage &pointGroups, const ProjectedImagesInterface &iface,
 		                               const std::vector<int> &sourceIndices,
 									   const std::vector<bool> &rectFlags,

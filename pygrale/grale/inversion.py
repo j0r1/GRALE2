@@ -44,7 +44,7 @@ def estimateStrongLensingMass(Dd, images, skipParamCheck = False):
     ``params`` key, for futher parameters of this images data set. These
     ``params`` should also be a dictionary with at least a ``type`` field;
     the images data set is skipped unless this type field is either
-    ``extendedimages`` or ``pointimages``. This way, images data sets describing
+    ``extendedimages``, ``pointimages`` or ``pointgroupimages``. This way, images data sets describing
     null space information for example, are skipped.
 
     If there's only one image, it will not be used in the mass estimate. Otherwise,
@@ -64,7 +64,7 @@ def estimateStrongLensingMass(Dd, images, skipParamCheck = False):
         if not skipParamCheck:
             params = imgInfo["params"]
             imgType = params["type"]
-            if imgType not in [ "extendedimages", "pointimages" ]:
+            if imgType not in [ "extendedimages", "pointimages", "pointgroupimages" ]:
                 continue
                 
         if img.getNumberOfImages() <= 1:
@@ -725,7 +725,7 @@ class InversionWorkSpace(object):
             img = imgInfo["images"]
             params = imgInfo["params"]
             imgType = params["type"]
-            if imgType not in [ "extendedimages", "pointimages" ]:
+            if imgType not in [ "extendedimages", "pointimages", "pointgroupimages" ]:
                 continue
                     
             if img.getNumberOfImages() <= 1:
@@ -897,7 +897,7 @@ class InversionWorkSpace(object):
 
         return calculateFitness(self.imgDataList, self.zd, fitnessObjectParameters, lensOrBackProjectedImages, moduleName)
 
-    def backProject(self, lens, typeFilter = [ "pointimages", "extendedimages" ]):
+    def backProject(self, lens, typeFilter = [ "pointimages", "extendedimages", "pointgroupimages" ]):
         """Takes the information of the images that were added using :func:`addImageDataToList`,
         and projects the points back onto the respective source planes using the lens
         model `lens`. Note that only the basic, single core procedure is used to 

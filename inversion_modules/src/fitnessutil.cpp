@@ -179,6 +179,135 @@ float calculateOverlapFitness_PointImages(const ProjectedImagesInterface &interf
 	return fitness;
 }
 
+float calculateOverlapFitness_PointGroups(const PointGroupStorage &pointGroups,
+		                                  const ProjectedImagesInterface &interface,
+										  const std::vector<int> &sourceIndices,
+										  const std::vector<float> &sourceDistanceFractions,
+										  PointGroupRMSType t)
+{
+	assert(sourceIndices.size() == pointGroups.getNumberOfSources());
+	assert(sourceDistanceFractions.size() == sourceIndices.size());
+	
+	int numContribs = 0;
+	float fitness = 0;
+
+	vector<Vector2Df> betas;
+
+	for (int sIdx = 0 ; sIdx < sourceIndices.size() ; sIdx++)
+	{
+		const float distFrac = sourceDistanceFractions[sIdx];
+		const int src = sourceIndices[sIdx];
+
+		const int groups = pointGroups.getNumberOfGroups(sIdx);
+		for (int g = 0 ; g < groups ; g++)
+		{
+			int numPoints = pointGroups.getNumberOfGroupPoints(sIdx, g);
+			if (numPoints <= 1) // can't do anything with only one point
+				continue;
+
+			float groupRms = 0;
+
+			auto getGroupPointBetaAndDerivs = [distFrac, src, sIdx, g, &pointGroups, &interface](int idx,  
+					                                       float &axx, float &ayy, float &axy,
+														   bool withDerivs = true) -> Vector2Df
+			{
+				int imgNum = 0, ptNum = 0;
+				pointGroups.getGroupPointIndices(sIdx, g, idx, &imgNum, &ptNum);
+
+				assert(imgNum >= 0 && imgNum < interface.getNumberOfImages(src));
+				assert(ptNum >= 0 && ptNum < interface.getNumberOfImagePoints(src, imgNum));
+
+				if (withDerivs)
+				{
+					axx = interface.getDerivativesXX(src, imgNum)[ptNum];
+					ayy = interface.getDerivativesYY(src, imgNum)[ptNum];
+					axy = interface.getDerivativesXY(src, imgNum)[ptNum];
+				}
+
+				return interface.getBetas(src, imgNum)[ptNum];
+			};
+
+			auto getGroupPointBeta = [getGroupPointBetaAndDerivs](int idx) -> Vector2Df
+			{
+				float dummy;
+				return getGroupPointBetaAndDerivs(idx, dummy, dummy, dummy, false);
+			};
+
+			auto getBetas_All = [numPoints, getGroupPointBeta](vector<Vector2Df> &betas)
+			{
+				betas.clear();
+				for (int p = 0 ; p < numPoints ; p++)
+					betas.push_back(getGroupPointBeta(p));
+			};
+
+			auto getBetas_Average = [numPoints, getGroupPointBeta](vector<Vector2Df> &betas)
+			{
+				betas.clear();
+				Vector2Df avgBeta { 0, 0 };
+				for (int p = 0 ; p < numPoints ; p++)
+					avgBeta += getGroupPointBeta(p);
+				avgBeta /= numPoints;
+				betas.push_back(avgBeta);
+			};
+
+			if (t == AllBetas)
+				getBetas_All(betas);
+			else
+			{
+				assert(t == AverageBeta);
+				getBetas_Average(betas);
+			}
+
+			int ptCount = 0;
+			for (int p1 = 0 ; p1 < numPoints ; p1++)
+			{
+				// The point theta0 corresponds to a source plane position beta0
+				float axx0, ayy0, axy0;
+				Vector2Df beta0 = getGroupPointBetaAndDerivs(p1, axx0, ayy0, axy0);
+
+				float det = (1.0f-axx0)*(1.0f-ayy0)-axy0*axy0;
+				const float epsilon = 1e-10; // to avoid division by zero
+				if (ABS(det) < epsilon)
+					det = copysign(epsilon, det);
+				const float invDet = 1.0f/det;
+
+				// inverse of magnification matrix
+				const float AI[2][2] = { { invDet*(1.0f-ayy0), invDet*axy0 },
+					                     { invDet*axy0, (1.0f-axx0)*invDet } };
+
+				for (auto dBeta : betas)
+				{
+					ptCount++;
+
+					dBeta -= beta0;
+
+					// The beta corresponding to this point (if close to beta0),
+					// would correspond to a theta that differs by this much from
+					// theta0
+					Vector2Df dTheta { AI[0][0]*dBeta.getX() + AI[0][1]*dBeta.getY(),
+						               AI[1][0]*dBeta.getX() + AI[1][1]*dBeta.getY() };
+
+					// TODO: optionally use something else here?
+					groupRms += dTheta.getLengthSquared();
+				}
+			}
+
+			groupRms /= ptCount;
+			groupRms = SQRT(groupRms);
+
+			fitness += groupRms;
+			numContribs++;
+		}
+	}
+
+	if (numContribs > 0)
+		fitness /= numContribs;
+	
+	// Let's express this in arcsec, to keep things understandable
+	float s = (float)(interface.getAngularScale()/ANGLE_ARCSEC);
+	return fitness*s;
+}
+
 float calculateOverlapFitness_Extended(const PointGroupStorage &pointGroups, const ProjectedImagesInterface &iface,
 		                               const vector<int> &sourceIndices,
 									   const std::vector<bool> &rectFlags,
@@ -435,7 +564,7 @@ float calculateNullFitness_PointImages(const PointGroupStorage &pointGroups,
 	assert(sourceIndices.size() == nullIndices.size());
 	assert(nullIndices.size() == nullTriangles.size());
 	assert(nullIndices.size() == nullWeights.size());
-	assert(pointGroups.size() == sourceIndices.size());
+	assert(pointGroups.getNumberOfSources() == sourceIndices.size());
 
 	float nullFitness = 0;
 

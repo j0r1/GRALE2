@@ -120,13 +120,14 @@ void removeEmpty(vector<FitnessComponent *> &comp)
 
 #define COMPONENT_POINTOVERLAP_IDX				0
 #define COMPONENT_EXTENDEDOVERLAP_IDX			1
-#define COMPONENT_WEAK_IDX						2
-#define COMPONENT_POINTNULL_IDX					3
-#define COMPONENT_EXTENDEDNULL_IDX				4
-#define COMPONENT_TIMEDELAY_IDX					5
-#define COMPONENT_KAPPATHRESHOLD_IDX			6
-#define COMPONENT_CAUSTICPENALTY_IDX			7
-#define COMPONENT_IDX_MAX						8
+#define COMPONENT_POINTGROUPOVERLAP_IDX			2
+#define COMPONENT_WEAK_IDX						3
+#define COMPONENT_POINTNULL_IDX					4
+#define COMPONENT_EXTENDEDNULL_IDX				5
+#define COMPONENT_TIMEDELAY_IDX					6
+#define COMPONENT_KAPPATHRESHOLD_IDX			7
+#define COMPONENT_CAUSTICPENALTY_IDX			8
+#define COMPONENT_IDX_MAX						9
 
 FitnessComponent *totalToShort(const vector<FitnessComponent *> &total, vector<int> &shortImageIndices)
 {
@@ -138,6 +139,9 @@ FitnessComponent *totalToShort(const vector<FitnessComponent *> &total, vector<i
 	FitnessComponent *pExtOverlap = total[COMPONENT_EXTENDEDOVERLAP_IDX];
 	assert(!pExtOverlap || pExtOverlap->getObjectName() == "extendedimageoverlap");
 
+	FitnessComponent *pPtGrpOverlap = total[COMPONENT_POINTGROUPOVERLAP_IDX];
+	assert(!pPtGrpOverlap || pPtGrpOverlap->getObjectName() == "pointgroupoverlap");
+
 	FitnessComponent *pWeak = total[COMPONENT_WEAK_IDX];
 	assert(!pWeak || pWeak->getObjectName() == "weaklensing");
 
@@ -148,30 +152,31 @@ FitnessComponent *totalToShort(const vector<FitnessComponent *> &total, vector<i
 		pPointOverlap = 0;
 	if (pExtOverlap && pExtOverlap->getNumberOfUsedImages() < 2)
 		pExtOverlap = 0;
+	if (pPtGrpOverlap && pPtGrpOverlap->getNumberOfUsedImages() < 2)
+		pPtGrpOverlap = 0;
 
-	if (pPointOverlap && pExtOverlap)
+	vector<FitnessComponent*> components { pPointOverlap, pExtOverlap, pPtGrpOverlap };
+	sort(components.begin(), components.end(), [](FitnessComponent *c1, FitnessComponent *c2)
 	{
-		if (pPointOverlap->getNumberOfUsedImages() > pExtOverlap->getNumberOfUsedImages())
-		{
-			shortImageIndices = pPointOverlap->getUsedImagesDataIndices();
+		if (c1 == nullptr)
+			return false;
+		if (c2 == nullptr)
+			return true;
+		return c1->getNumberOfUsedImages() > c2->getNumberOfUsedImages();
+	});
+
+	if (components[0] != nullptr)
+	{
+		shortImageIndices = components[0]->getUsedImagesDataIndices();
+		if (components[0] == pPointOverlap)
 			return new FitnessComponent_PointImagesOverlap(nullptr);
-		}
+		if (components[0] == pExtOverlap)
+			return new FitnessComponent_ExtendedImagesOverlap(nullptr);
 
-		shortImageIndices = pExtOverlap->getUsedImagesDataIndices();
-		return new FitnessComponent_ExtendedImagesOverlap(nullptr);
+		assert(components[0] == pPtGrpOverlap);
+		return new FitnessComponent_PointGroupOverlap(nullptr);
 	}
 
-	if (pPointOverlap)
-	{
-		shortImageIndices = pPointOverlap->getUsedImagesDataIndices();
-		return new FitnessComponent_PointImagesOverlap(nullptr);
-	}
-	if (pExtOverlap)
-	{
-		shortImageIndices = pExtOverlap->getUsedImagesDataIndices();
-		return new FitnessComponent_ExtendedImagesOverlap(nullptr);
-	}
-	
 	// As a final resort, use the weak lensing data to base the mass scale on
 	if (pWeak)
 	{
@@ -200,12 +205,7 @@ bool componentSortFunction(const FitnessComponent *pComp1, const FitnessComponen
 	return false;
 }
 
-inline string itos(int i)
-{
-	char cNumStr[256];
-	sprintf(cNumStr, "%d", i);
-	return string(cNumStr);
-}
+inline string itos(int i) { return to_string(i); }
 
 ConfigurationParameters *LensFitnessGeneral::getDefaultParametersInstance() const
 {
@@ -213,12 +213,15 @@ ConfigurationParameters *LensFitnessGeneral::getDefaultParametersInstance() cons
 
 	pParams->setParameter("priority_pointimageoverlap", 300);
 	pParams->setParameter("priority_extendedimageoverlap", 300);
+	pParams->setParameter("priority_pointgroupoverlap", 250);
 	pParams->setParameter("priority_pointimagenull", 200);
 	pParams->setParameter("priority_extendedimagenull", 200);
 	pParams->setParameter("priority_weaklensing", 500);
 	pParams->setParameter("priority_timedelay", 400);
 	pParams->setParameter("priority_kappathreshold", 600);
 	pParams->setParameter("priority_causticpenalty", 100);
+
+	pParams->setParameter("fitness_pointgroupoverlap_rmstype", string("allbetas"));
 
 	pParams->setParameter("fitness_timedelay_type", string("Paper2009"));
 	pParams->setParameter("fitness_timedelay_relative", false);
@@ -253,11 +256,14 @@ bool LensFitnessGeneral::init(double z_d, std::list<ImagesDataExtended *> &image
 		pImg->clearRetrievalMarkers();
 	
 	// Populate m_totalComponents
+	FitnessComponent_PointGroupOverlap *pPtGrpComponent = new FitnessComponent_PointGroupOverlap(pCache);
 	FitnessComponent_TimeDelay *pTDComponent = new FitnessComponent_TimeDelay(pCache);
 	FitnessComponent_WeakLensing *pWLComponent = new FitnessComponent_WeakLensing(pCache);
+
 	/*vector<FitnessComponent *>*/ m_totalComponents = {
 		new FitnessComponent_PointImagesOverlap(pCache),
 		new FitnessComponent_ExtendedImagesOverlap(pCache),
+		pPtGrpComponent,
 		pWLComponent,
 		new FitnessComponent_NullSpacePointImages(pCache),
 		new FitnessComponent_NullSpaceExtendedImages(pCache),
@@ -265,6 +271,8 @@ bool LensFitnessGeneral::init(double z_d, std::list<ImagesDataExtended *> &image
 		new FitnessComponent_KappaThreshold(pCache),
 		new FitnessComponent_CausticPenalty(pCache)
 	};
+	assert(m_totalComponents.size() == COMPONENT_IDX_MAX);
+
 	// Set priorities
 	for (FitnessComponent *pComp : m_totalComponents)
 	{
@@ -359,6 +367,28 @@ bool LensFitnessGeneral::init(double z_d, std::list<ImagesDataExtended *> &image
 			cerr << "Setting WL fitness type to RealReducedShear" << endl;
 			pWLComponent->setFitnessType(RealReducedShear);
 		}
+		else
+		{
+			setErrorString("Invalid type for '" + keyName + "': " + valueStr);
+			return false;
+		}
+	}
+
+	// Point group fitness type
+	{
+		string keyName = "fitness_pointgroupoverlap_rmstype";
+		string valueStr;
+
+		if (!pParams->getParameter(keyName, valueStr))
+		{
+			setErrorString("Can't find (string) parameter '" + keyName + "': " + pParams->getErrorString());
+			return false;
+		}
+
+		if (valueStr == "allbetas")
+			pPtGrpComponent->setFitnessRMSType(AllBetas);
+		else if (valueStr == "averagebeta")
+			pPtGrpComponent->setFitnessRMSType(AverageBeta);
 		else
 		{
 			setErrorString("Invalid type for '" + keyName + "': " + valueStr);

@@ -137,6 +137,16 @@ void FitnessComponent::addToUsedImagesCount(int c)
 	m_usedImagesCount += c;
 }
 
+bool FitnessComponent::isPointImage(const ImagesData &imgDat)
+{
+	for (int i = 0 ; i < imgDat.getNumberOfImages() ; i++)
+	{
+		if (imgDat.getNumberOfImagePoints(i) != 1)
+			return false;
+	}
+	return true;
+}
+
 // FitnessComponent_PointImagesOverlap
 
 FitnessComponent_PointImagesOverlap::FitnessComponent_PointImagesOverlap(FitnessComponentCache *pCache) 
@@ -166,15 +176,10 @@ bool FitnessComponent_PointImagesOverlap::inspectImagesData(int idx, const Image
 		setErrorString("Images data set doesn't contain any images");
 		return false;
 	}
-	for (int i = 0 ; i < numImg ; i++)
+	if (!isPointImage(imgDat))
 	{
-		int numPoints = imgDat.getNumberOfImagePoints(i);
-
-		if (numPoints != 1)
-		{
-			setErrorString("Image is not a point image");
-			return false;
-		}
+		setErrorString("Image is not a point image");
+		return false;
 	}
 
 	double Dds = imgDat.getDds();
@@ -333,6 +338,85 @@ bool FitnessComponent_PointImagesOverlap::calculateFitness(const ProjectedImages
 	return true;
 }
 
+// FitnessComponent_PointGroupOverlap
+
+FitnessComponent_PointGroupOverlap::FitnessComponent_PointGroupOverlap(FitnessComponentCache *pCache) 
+	: FitnessComponent("pointgroupoverlap", pCache)
+{
+	addRecognizedTypeName("pointgroupimages");
+	m_rmsType = AllBetas;
+}
+
+FitnessComponent_PointGroupOverlap::~FitnessComponent_PointGroupOverlap()
+{
+}
+
+bool FitnessComponent_PointGroupOverlap::inspectImagesData(int idx, const ImagesDataExtended &imgDat,
+			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
+			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence,
+								   bool &storeOrigIntens, bool &storeOrigTimeDelay, bool &storeOrigShear)
+{
+	string typeName;
+
+	imgDat.getExtraParameter("type", typeName);
+	if (typeName != "pointgroupimages") // ignore
+		return true;
+	
+	int numImg = imgDat.getNumberOfImages();
+	if (numImg < 1)
+	{
+		setErrorString("Images data set doesn't contain any images");
+		return false;
+	}
+	
+	double Dds = imgDat.getDds();
+	double Ds = imgDat.getDs();
+	if (Dds <= 0 || Ds <= 0)
+	{
+		setErrorString("Source/lens and source/observer distances must be positive");
+		return false;
+	}
+	float distFrac = (float)(Dds/Ds);
+	m_distanceFractions.push_back(distFrac);
+
+	if (imgDat.getNumberOfGroups() > 0)
+		m_pointGroups.add(&imgDat);
+	else // no point groups, is this a point image?
+	{
+		if (!isPointImage(imgDat))
+		{
+			setErrorString("No point groups present, and not a point image");
+			return false;
+		}
+
+		string errStr;
+		auto grpImg = addGroupsToPointImages(imgDat, errStr);
+		if (!grpImg.get())
+		{
+			setErrorString("Couldn't add group info to point image: " + errStr);
+			return false;
+		}
+		m_pointGroups.add(grpImg.get());
+	}
+	
+	// Ok everything checks out
+
+	needCalcDeflections = true;
+	needCalcDeflDeriv = true;
+
+	addImagesDataIndex(idx);
+	addToUsedImagesCount(numImg);
+
+	return true;
+}
+
+bool FitnessComponent_PointGroupOverlap::calculateFitness(const ProjectedImagesInterface &iface, float &fitness)
+{
+	fitness = calculateOverlapFitness_PointGroups(m_pointGroups, iface, getUsedImagesDataIndices(), 
+			                                   m_distanceFractions, m_rmsType);
+	return true;
+}
+
 // FitnessComponent_ExtendedImagesOverlap
 
 FitnessComponent_ExtendedImagesOverlap::FitnessComponent_ExtendedImagesOverlap(FitnessComponentCache *pCache) 
@@ -478,6 +562,7 @@ FitnessComponent_NullSpacePointImages::FitnessComponent_NullSpacePointImages(Fit
 	addRecognizedTypeName("pointnullgrid");
 	addRecognizedTypeName("singlyimagedpoints");
 	addRecognizedTypeName("extendedimages");
+	addRecognizedTypeName("pointgroupimages");
 
 	m_lastImgIdx = -1;
 	m_lastImgDds = -1;
@@ -518,15 +603,11 @@ bool FitnessComponent_NullSpacePointImages::inspectImagesData(int idx, const Ima
 			setErrorString("Images data set doesn't contain any images");
 			return false;
 		}
-		for (int i = 0 ; i < numImg ; i++)
-		{
-			int numPoints = imgDat.getNumberOfImagePoints(i);
 
-			if (numPoints != 1)
-			{
-				setErrorString("Image is not a point image");
-				return false;
-			}
+		if (!isPointImage(imgDat))
+		{
+			setErrorString("Image is not a point image");
+			return false;
 		}
 		
 		string errStr;
@@ -560,7 +641,7 @@ bool FitnessComponent_NullSpacePointImages::inspectImagesData(int idx, const Ima
 		return true;
 	}
 
-	if (typeName == "extendedimages")
+	if (typeName == "extendedimages" || typeName == "pointgroupimages")
 	{
 		if (numImg < 1)
 		{
@@ -575,14 +656,10 @@ bool FitnessComponent_NullSpacePointImages::inspectImagesData(int idx, const Ima
 		}
 		
 		// no point groups, perhaps it's a point image and we can use this
-		for (int i = 0 ; i < numImg ; i++)
+		if (!isPointImage(imgDat))
 		{
-			int numPoints = imgDat.getNumberOfImagePoints(i);
-			if (numPoints != 1)
-			{
-				setErrorString("Image does not contain point groups and is not a point image");
-				return false;
-			}
+			setErrorString("Image does not contain point groups and is not a point image");
+			return false;
 		}
 
 		// Ok, it's a point image, so add group info

@@ -88,6 +88,8 @@ protected:
 	void addRecognizedTypeName(const std::string &n);
 	void addToUsedImagesCount(int c);
 	FitnessComponentCache *getCache()													{ return m_pCache; }
+
+	static bool isPointImage(const ImagesData &imgDat);
 private:
 	int m_priority;
 	int m_usedImagesCount;
@@ -118,6 +120,26 @@ private:
 	std::map<std::string, std::vector<int>> m_groupnameIndices;
 	std::map<int, std::string> m_useScaleNames;
 	std::vector<int> m_nogroupnameIndices;
+};
+
+class FitnessComponent_PointGroupOverlap : public FitnessComponent
+{
+public:
+	FitnessComponent_PointGroupOverlap(FitnessComponentCache *pCache);
+	~FitnessComponent_PointGroupOverlap();
+
+	bool inspectImagesData(int idx, const ImagesDataExtended &imgDat,
+			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
+			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence,
+								   bool &storeOrigIntens, bool &storeOrigTimeDelay, bool &storeOrigShear) override;
+	bool calculateFitness(const ProjectedImagesInterface &iface, float &fitness) override;
+
+	void setFitnessRMSType(PointGroupRMSType t) { m_rmsType = t; }
+private:
+	PointGroupStorage m_pointGroups;
+	std::vector<float> m_distanceFractions;
+
+	PointGroupRMSType m_rmsType;
 };
 
 class FitnessComponent_ExtendedImagesOverlap : public FitnessComponent
