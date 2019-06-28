@@ -153,6 +153,7 @@ FitnessComponent_PointImagesOverlap::FitnessComponent_PointImagesOverlap(Fitness
 	: FitnessComponent("pointimageoverlap", pCache)
 {
 	addRecognizedTypeName("pointimages");
+	m_scaleType = MinMax;
 }
 
 FitnessComponent_PointImagesOverlap::~FitnessComponent_PointImagesOverlap()
@@ -333,7 +334,7 @@ bool FitnessComponent_PointImagesOverlap::calculateFitness(const ProjectedImages
 	assert(m_setScaleGroups.size() == m_distanceFractions.size());
 	assert(m_useScaleGroups.size() == m_distanceFractions.size());
 
-	getScaleFactors_PointImages(iface, getUsedImagesDataIndices(), m_distanceFractions, m_setScaleGroups, m_scaleFactors, m_workspace);
+	getScaleFactors_PointImages(iface, getUsedImagesDataIndices(), m_distanceFractions, m_setScaleGroups, m_scaleFactors, m_workspace, m_scaleType);
 	fitness = calculateOverlapFitness_PointImages(iface, getUsedImagesDataIndices(), m_distanceFractions, m_useScaleGroups, m_scaleFactors);
 	return true;
 }

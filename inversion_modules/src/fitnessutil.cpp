@@ -20,9 +20,11 @@ float getScaleFactor_PointImages(const ProjectedImagesInterface &interface,
 {
 	vector<int> sourceGroup(sourceIndices.size(), 0);
 	vector<float> scaleFactors(1, 0);
-	vector<float> workSpace(4);
 
-	getScaleFactors_PointImages(interface, sourceIndices, sourceDistanceFractions, sourceGroup, scaleFactors, workSpace);
+	ScaleFactorWorkspace ws;
+	ws.m_floats.resize(4);
+
+	getScaleFactors_PointImages(interface, sourceIndices, sourceDistanceFractions, sourceGroup, scaleFactors, ws, MinMax);
 	float scale = scaleFactors[0];
 	assert(scale != 0);
 	return scale;
@@ -33,7 +35,8 @@ void getScaleFactors_PointImages(const ProjectedImagesInterface &interface,
 								 const vector<float> &sourceDistanceFractions,
 								 const vector<int> &sourceGroup,
 								 vector<float> &scaleFactors, // one for each group
-								 vector<float> &workSpace)
+								 ScaleFactorWorkspace &ws,
+								 PointImageScaleType scaleType)
 {
 	float defaultScale = (interface.getAngularScale()*interface.getAngularScale())/(ANGLE_ARCSEC*ANGLE_ARCSEC);
 	for (auto &s : scaleFactors)
@@ -45,68 +48,154 @@ void getScaleFactors_PointImages(const ProjectedImagesInterface &interface,
 
 	if (sourceIndices.size() > 1) // We're assuming that different source indices are present
 	{
-		workSpace.resize(scaleFactors.size()*4);
-		for (int i = 0 ; i < scaleFactors.size() ; i++)
+		if (scaleType == MinMax)
 		{
-			float minx = numeric_limits<float>::max();
-			float maxx = -numeric_limits<float>::max();
-			float miny = numeric_limits<float>::max();
-			float maxy = -numeric_limits<float>::max();
+			vector<float> &workSpace = ws.m_floats;
 
-			workSpace[i*4+0] = minx;
-			workSpace[i*4+1] = maxx;
-			workSpace[i*4+2] = miny;
-			workSpace[i*4+3] = maxy;
-		}
-
-		for (int sIdx = 0 ; sIdx < sourceIndices.size() ; sIdx++)
-		{
-			const int s = sourceIndices[sIdx];
-			const int group = sourceGroup[sIdx];
-			const float distFrac = sourceDistanceFractions[sIdx];
-
-			assert(group >= 0 && group < scaleFactors.size());
-			assert(s < interface.getNumberOfSources());
-			const int numImages = interface.getNumberOfImages(s);
-			const float sqrtDistFrac = SQRT(distFrac);
-
-			if (numImages > 1)
+			workSpace.resize(scaleFactors.size()*4);
+			for (int i = 0 ; i < scaleFactors.size() ; i++)
 			{
-				for (int i = 0 ; i < numImages ; i++)
-				{
-					Vector2D<float> beta = interface.getBetas(s, i)[0];
-					float x = beta.getX()/sqrtDistFrac;
-					float y = beta.getY()/sqrtDistFrac;
-					
-					float &minx = workSpace[group*4+0];
-					float &maxx = workSpace[group*4+1];
-					float &miny = workSpace[group*4+2];
-					float &maxy = workSpace[group*4+3];
+				float minx = numeric_limits<float>::max();
+				float maxx = -numeric_limits<float>::max();
+				float miny = numeric_limits<float>::max();
+				float maxy = -numeric_limits<float>::max();
 
-					maxx = MAX(maxx, x);
-					minx = MIN(minx, x);
-					maxy = MAX(maxy, y);
-					miny = MIN(miny, y);
+				workSpace[i*4+0] = minx;
+				workSpace[i*4+1] = maxx;
+				workSpace[i*4+2] = miny;
+				workSpace[i*4+3] = maxy;
+			}
+
+			for (int sIdx = 0 ; sIdx < sourceIndices.size() ; sIdx++)
+			{
+				const int s = sourceIndices[sIdx];
+				const int group = sourceGroup[sIdx];
+				const float distFrac = sourceDistanceFractions[sIdx];
+
+				assert(group >= 0 && group < scaleFactors.size());
+				assert(s < interface.getNumberOfSources());
+				const int numImages = interface.getNumberOfImages(s);
+				const float sqrtDistFrac = SQRT(distFrac);
+
+				if (numImages > 1)
+				{
+					for (int i = 0 ; i < numImages ; i++)
+					{
+						Vector2D<float> beta = interface.getBetas(s, i)[0];
+						float x = beta.getX()/sqrtDistFrac;
+						float y = beta.getY()/sqrtDistFrac;
+						
+						float &minx = workSpace[group*4+0];
+						float &maxx = workSpace[group*4+1];
+						float &miny = workSpace[group*4+2];
+						float &maxy = workSpace[group*4+3];
+
+						maxx = MAX(maxx, x);
+						minx = MIN(minx, x);
+						maxy = MAX(maxy, y);
+						miny = MIN(miny, y);
+					}
+				}
+			}
+
+			for (int group = 0 ; group < scaleFactors.size() ; group++)
+			{
+				float minx = workSpace[group*4+0];
+				float maxx = workSpace[group*4+1];
+				float miny = workSpace[group*4+2];
+				float maxy = workSpace[group*4+3];
+
+				float dx = maxx-minx;
+				float dy = maxy-miny;
+
+				if (dx > 0 && dy > 0)
+				{
+					float scale = 1.0f/(dx*dx + dy*dy);
+					assert(!isnan(scale));
+
+					scaleFactors[group] = scale;
 				}
 			}
 		}
-
-		for (int group = 0 ; group < scaleFactors.size() ; group++)
+		else // MAD
 		{
-			float minx = workSpace[group*4+0];
-			float maxx = workSpace[group*4+1];
-			float miny = workSpace[group*4+2];
-			float maxy = workSpace[group*4+3];
+			assert(scaleType == MAD);
 
-			float dx = maxx-minx;
-			float dy = maxy-miny;
+			vector<vector<float>> &vecWorkspace = ws.m_vecFloat;
+			const int numGroups = scaleFactors.size();
 
-			if (dx > 0 && dy > 0)
+			vecWorkspace.resize(numGroups*2); // one for x components, one for y
+
+			for (int sIdx = 0 ; sIdx < sourceIndices.size() ; sIdx++)
 			{
-				float scale = 1.0f/(dx*dx + dy*dy);
-				assert(!isnan(scale));
+				const int s = sourceIndices[sIdx];
+				const int group = sourceGroup[sIdx];
+				const float distFrac = sourceDistanceFractions[sIdx];
 
-				scaleFactors[group] = scale;
+				assert(group >= 0 && group < scaleFactors.size());
+				assert(s < interface.getNumberOfSources());
+				const int numImages = interface.getNumberOfImages(s);
+				const float sqrtDistFrac = SQRT(distFrac);
+
+				auto &xPoints = vecWorkspace[group*2+0];
+				auto &yPoints = vecWorkspace[group*2+1];
+				xPoints.resize(0);
+				yPoints.resize(0);
+
+				if (numImages > 1)
+				{
+					for (int i = 0 ; i < numImages ; i++)
+					{
+						Vector2D<float> beta = interface.getBetas(s, i)[0];
+						float x = beta.getX()/sqrtDistFrac;
+						float y = beta.getY()/sqrtDistFrac;
+						
+						xPoints.push_back(x);
+						yPoints.push_back(y);
+					}
+				}
+			}
+
+			for (int group = 0 ; group < scaleFactors.size() ; group++)
+			{
+				auto &xPoints = vecWorkspace[group*2+0];
+				auto &yPoints = vecWorkspace[group*2+1];
+				size_t len = xPoints.size();
+				size_t len2 = len/2;
+
+				float xMed = 0, yMed = 0;
+
+				for (int k = 0 ; k < 2 ; k++)
+				{
+					sort(xPoints.begin(), xPoints.end());
+					sort(yPoints.begin(), yPoints.end());
+
+					if (len % 2 == 1) // odd
+					{
+						xMed = xPoints[len2];
+						yMed = yPoints[len2];
+					}
+					else // even
+					{
+						xMed = 0.5f*(xPoints[len2] + xPoints[len2-1]);
+						yMed = 0.5f*(yPoints[len2] + yPoints[len2-1]);
+					}
+
+					if (k == 0)
+					{
+						for (size_t i = 0 ; i < len ; i++)
+						{
+							xPoints[i] = std::abs(xPoints[i]-xMed);
+							yPoints[i] = std::abs(yPoints[i]-yMed);
+						}
+					}
+				}
+
+				// Actually the square of the scale is used in the other routine
+				float scaleSquared = 1.0f/(xMed*xMed + yMed*yMed);
+				assert(!isnan(scaleSquared));
+
+				scaleFactors[group] = scaleSquared;
 			}
 		}
 	}

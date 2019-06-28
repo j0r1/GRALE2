@@ -21,12 +21,21 @@ float getScaleFactor_PointImages(const ProjectedImagesInterface &interface,
 		                         const std::vector<int> &sourceIndices,
 								 const std::vector<float> &sourceDistanceFractions);
 
+class ScaleFactorWorkspace
+{
+public:
+	std::vector<float> m_floats;
+	std::vector<std::vector<float>> m_vecFloat;
+};
+
+enum PointImageScaleType { MinMax, MAD };
 void getScaleFactors_PointImages(const ProjectedImagesInterface &interface,
 		                         const std::vector<int> &sourceIndices,
 								 const std::vector<float> &sourceDistanceFractions,
 								 const std::vector<int> &sourceGroup,
 								 std::vector<float> &scaleFactors, // one for each group
-								 std::vector<float> &workSpace);
+								 ScaleFactorWorkspace &ws,
+								 PointImageScaleType scaleType);
 
 float calculateOverlapFitness_PointImages(const ProjectedImagesInterface &interface, 
 		                                  const std::vector<int> &sourceIndices,

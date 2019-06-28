@@ -113,8 +113,9 @@ public:
 	bool calculateFitness(const ProjectedImagesInterface &iface, float &fitness) override;
 private:
 	std::vector<float> m_distanceFractions;
-	std::vector<float> m_workspace;
+	ScaleFactorWorkspace m_workspace;
 	std::vector<float> m_scaleFactors;
+	PointImageScaleType m_scaleType;
 	std::vector<int> m_setScaleGroups, m_useScaleGroups;
 
 	std::map<std::string, std::vector<int>> m_groupnameIndices;
