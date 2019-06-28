@@ -10,6 +10,139 @@ class MultiLensPlaneException(Exception):
     """An exception that's generated when something goes wrong in the classes in this module."""
     pass
 
+class _MultiPlaneCache(object):
+    def __init__(self, lz, thetas, renderer, feedbackObject, cosmology, calcDerivs):
+
+        self.thetas = copy.deepcopy(thetas)
+        self.lz = lz
+        self.cosmology = cosmology
+        self.calcDerivs = calcDerivs
+
+        txxShape = thetas.shape[:-1]
+        self.txxShape = txxShape
+
+        # Calculate mappings of deflection angles and derivatives
+        T, Txx, Txy, Tyx, Tyy = [], [], [], [], []
+        alphas = { }
+        derivs = { }
+        alphasAndDerivs = { }
+
+        def getAlphasAndDerivs(j):
+            if j in alphasAndDerivs:
+                ad = alphasAndDerivs[j]
+            else:
+                if renderer is None:
+                    a = lz[j][0].getAlphaVector(T[j])
+                    d = lz[j][0].getAlphaVectorDerivatives(T[j]) if calcDerivs else None
+                else: # TODO: bypass derivatives if not requested?
+                    result = renderer.renderXYVector(lz[j][0].toBytes(), T[j])
+                    result = np.frombuffer(result, "double").reshape([-1,5]) # for each point: ax, ay, axx, ayy, axy
+                    a = result[:,0:2].reshape([numY, numX, 2])
+                    d = result[:,2:5].reshape([numY, numX, 3])
+
+                ad = (a, d)
+                alphasAndDerivs[j] = ad
+
+            return ad
+
+        def getAlphas(j):
+            if j in alphas:
+                return alphas[j]
+            a,d = getAlphasAndDerivs(j)
+            alphas[j] = a
+            return a
+        
+        def getAlphaDeriv(j):
+            if j in derivs:
+                return derivs[j]
+
+            a, tmp = getAlphasAndDerivs(j)
+            d = [ tmp[:,:,0], tmp[:,:,2], tmp[:,:,2], tmp[:,:,1] ] 
+            derivs[j] = d
+            return d
+        
+        N = len(lz)
+        for i in range(0, N):
+            #print("i =", i)
+            feedbackObject.onStatus("Processing lens {} at z = {:.2f}".format(i, lz[i][1]))
+
+            Ti = copy.deepcopy(thetas)
+            Di = cosmology.getAngularDiameterDistance(lz[i][1])
+            
+            if calcDerivs:
+                Tixx = np.ones(txxShape, dtype=np.double)
+                Tixy = np.zeros(txxShape, dtype=np.double)
+                Tiyx = np.zeros(txxShape, dtype=np.double)
+                Tiyy = np.ones(txxShape, dtype=np.double)
+            
+            for j in range(0, i):
+                #print("j =", j)
+                Dji = cosmology.getAngularDiameterDistance(lz[j][1], lz[i][1])
+                Ti -= Dji/Di * getAlphas(j)
+                if calcDerivs:
+                    Tixx -= Dji/Di * ( getAlphaDeriv(j)[0] * Txx[j] + getAlphaDeriv(j)[1]*Tyx[j])
+                    Tixy -= Dji/Di * ( getAlphaDeriv(j)[0] * Txy[j] + getAlphaDeriv(j)[1]*Tyy[j])
+                    Tiyx -= Dji/Di * ( getAlphaDeriv(j)[2] * Txx[j] + getAlphaDeriv(j)[3]*Tyx[j])
+                    Tiyy -= Dji/Di * ( getAlphaDeriv(j)[2] * Txy[j] + getAlphaDeriv(j)[3]*Tyy[j])
+        
+            T.append(Ti)
+            if calcDerivs:
+                Txx.append(Tixx)
+                Txy.append(Tixy)
+                Tyx.append(Tiyx)
+                Tyy.append(Tiyy)
+
+        # Make sure these are cached
+        getAlphas(N-1)
+        if calcDerivs:
+            getAlphaDeriv(N-1)
+
+        self.alphas = alphas
+        self.derivs = derivs
+        self.T = T
+        self.Txx = Txx
+        self.Tyy = Tyy
+        self.Txy = Txy
+        self.Tyx = Tyx
+
+    def addSourcePlane(self, sourceRedshift):
+
+        # Keep only the part that's relevant to us
+        lz = self.lz[:]
+        while lz and sourceRedshift < lz[-1][1]:
+            del lz[-1]
+
+        alphas = self.alphas
+        derivs = self.derivs
+        T = self.T
+        Txx = self.Txx
+        Tyy = self.Tyy
+        Txy = self.Txy
+        Tyx = self.Tyx
+
+        cosmology = self.cosmology
+        Ti = copy.deepcopy(self.thetas)
+        Di = cosmology.getAngularDiameterDistance(sourceRedshift)
+        if self.calcDerivs:
+            Tixx = np.ones(self.txxShape, dtype=np.double)
+            Tixy = np.zeros(self.txxShape, dtype=np.double)
+            Tiyx = np.zeros(self.txxShape, dtype=np.double)
+            Tiyy = np.ones(self.txxShape, dtype=np.double)
+        
+        N = len(lz)
+        for j in range(0, N):
+            Dji = cosmology.getAngularDiameterDistance(lz[j][1], sourceRedshift)
+            Ti -= Dji/Di * alphas[j]
+            if self.calcDerivs:
+                Tixx -= Dji/Di * ( derivs[j][0] * Txx[j] + derivs[j][1]*Tyx[j])
+                Tixy -= Dji/Di * ( derivs[j][0] * Txy[j] + derivs[j][1]*Tyy[j])
+                Tiyx -= Dji/Di * ( derivs[j][2] * Txx[j] + derivs[j][3]*Tyx[j])
+                Tiyy -= Dji/Di * ( derivs[j][2] * Txy[j] + derivs[j][3]*Tyy[j])
+
+        if self.calcDerivs:
+            return Ti, Tixx, Tixy, Tiyx, Tiyy
+        return Ti
+
 class MultiLensPlane(object):
 
     @staticmethod
@@ -73,85 +206,8 @@ class MultiLensPlane(object):
             if lz[i-1][1] == lz[i][1]:
                 raise MultiLensPlaneException("At least two lenses have the same redshift. Combine them in a CompositeLens instance first.")
 
-        # Calculate mappings of deflection angles and derivatives
-        T, Txx, Txy, Tyx, Tyy = [], [], [], [], []
-        alphas = { }
-        derivs = { }
-        alphasAndDerivs = { }
-
-        def getAlphasAndDerivs(j):
-            if j in alphasAndDerivs:
-                ad = alphasAndDerivs[j]
-            else:
-                if renderer is None:
-                    a = lz[j][0].getAlphaVector(T[j])
-                    d = lz[j][0].getAlphaVectorDerivatives(T[j])
-                else:
-                    result = renderer.renderXYVector(lz[j][0].toBytes(), T[j])
-                    result = np.frombuffer(result, "double").reshape([-1,5]) # for each point: ax, ay, axx, ayy, axy
-                    a = result[:,0:2].reshape([numY, numX, 2])
-                    d = result[:,2:5].reshape([numY, numX, 3])
-
-                ad = (a, d)
-                alphasAndDerivs[j] = ad
-
-            return ad
-
-        def getAlphas(j):
-            if j in alphas:
-                return alphas[j]
-            a,d = getAlphasAndDerivs(j)
-            alphas[j] = a
-            return a
-        
-        def getAlphaDeriv(j):
-            if j in derivs:
-                return derivs[j]
-
-            a, tmp = getAlphasAndDerivs(j)
-            d = [ tmp[:,:,0], tmp[:,:,2], tmp[:,:,2], tmp[:,:,1] ] 
-            derivs[j] = d
-            return d
-        
-        for i in range(0, N):
-            #print("i =", i)
-            feedbackObject.onStatus("Processing lens {} at z = {:.2f}".format(i, lz[i][1]))
-
-            Ti = copy.deepcopy(thetas)
-            Di = cosmology.getAngularDiameterDistance(lz[i][1])
-            
-            Tixx = np.ones((numY, numX), dtype=np.double)
-            Tixy = np.zeros((numY, numX), dtype=np.double)
-            Tiyx = np.zeros((numY, numX), dtype=np.double)
-            Tiyy = np.ones((numY, numX), dtype=np.double)
-            
-            for j in range(0, i):
-                #print("j =", j)
-                Dji = cosmology.getAngularDiameterDistance(lz[j][1], lz[i][1])
-                Ti -= Dji/Di * getAlphas(j)
-                Tixx -= Dji/Di * ( getAlphaDeriv(j)[0] * Txx[j] + getAlphaDeriv(j)[1]*Tyx[j])
-                Tixy -= Dji/Di * ( getAlphaDeriv(j)[0] * Txy[j] + getAlphaDeriv(j)[1]*Tyy[j])
-                Tiyx -= Dji/Di * ( getAlphaDeriv(j)[2] * Txx[j] + getAlphaDeriv(j)[3]*Tyx[j])
-                Tiyy -= Dji/Di * ( getAlphaDeriv(j)[2] * Txy[j] + getAlphaDeriv(j)[3]*Tyy[j])
-        
-            T.append(Ti)
-            Txx.append(Tixx)
-            Txy.append(Tixy)
-            Tyx.append(Tiyx)
-            Tyy.append(Tiyy)
-
-        # Make sure these are cached
-        getAlphas(N-1)
-        getAlphaDeriv(N-1)
-    
+        self._caches = _MultiPlaneCache(lz, thetas, renderer, feedbackObject, cosmology, True)
         self._lz = lz
-        self._alphas = alphas
-        self._derivs = derivs
-        self._T = T
-        self._Txx = Txx
-        self._Tyy = Tyy
-        self._Txy = Txy
-        self._Tyx = Tyx
 
     def getLensesAndRedshifts(self):
         """Returns a copy of the lens and redshift tuples that was specified
@@ -191,41 +247,17 @@ class MultiImagePlane(object):
         """
 
         # Keep only the part that's relevant to us
-        lz = multiLensPlane._lz[:]
-        while lz and sourceRedshift < lz[-1][1]:
-            del lz[-1]
-
         self._zs = sourceRedshift
         self._multiLensPlane = multiLensPlane
 
-        alphas = multiLensPlane._alphas
-        derivs = multiLensPlane._derivs
-        T = multiLensPlane._T
-        Txx = multiLensPlane._Txx
-        Tyy = multiLensPlane._Tyy
-        Txy = multiLensPlane._Txy
-        Tyx = multiLensPlane._Tyx
-    
-        cosmology = multiLensPlane._cosmology
-        Ti = copy.deepcopy(multiLensPlane._thetas)
-        Di = cosmology.getAngularDiameterDistance(sourceRedshift)
-        
-        numX, numY = multiLensPlane._numX, multiLensPlane._numY
-        Tixx = np.ones((numY, numX), dtype=np.double)
-        Tixy = np.zeros((numY, numX), dtype=np.double)
-        Tiyx = np.zeros((numY, numX), dtype=np.double)
-        Tiyy = np.ones((numY, numX), dtype=np.double)
-        
-        N = len(lz)
-        for j in range(0, N):
-            Dji = cosmology.getAngularDiameterDistance(lz[j][1], sourceRedshift)
-            Ti -= Dji/Di * alphas[j]
-            Tixx -= Dji/Di * ( derivs[j][0] * Txx[j] + derivs[j][1]*Tyx[j])
-            Tixy -= Dji/Di * ( derivs[j][0] * Txy[j] + derivs[j][1]*Tyy[j])
-            Tiyx -= Dji/Di * ( derivs[j][2] * Txx[j] + derivs[j][3]*Tyx[j])
-            Tiyy -= Dji/Di * ( derivs[j][2] * Txy[j] + derivs[j][3]*Tyy[j])
-    
+        Ti, Tixx, Tixy, Tiyx, Tiyy = multiLensPlane._caches.addSourcePlane(sourceRedshift)
+
+        # Keep only the part that's relevant to us
+        lz = multiLensPlane._lz[:]
+        while lz and sourceRedshift < lz[-1][1]:
+            del lz[-1]
         self._lz = lz
+
         self._zs = sourceRedshift
         self._betas = Ti
         self._betaderivs = [ Tixx, Tixy, Tiyx, Tiyy ]
@@ -234,7 +266,6 @@ class MultiImagePlane(object):
         self._critLines = None
         self._betaGrid = None
         self._caustics = None
-        self._cosmology = cosmology
 
     def getSourceRedshift(self):
         """Returns the source redshift that was specified during initialization."""
@@ -387,47 +418,23 @@ class MultiImagePlane(object):
         #            f.write("{:g} {:g}\n".format(thetas[y,x,0], thetas[y,x,1]))
         return betaApprox
 
+    def getBetaDerivs(self, thetas):
+        raise Exception("TODO")
+    
     def traceTheta(self, thetas):
         """For each theta position in `thetas`, calculate the corresponding position
         in the source plane. Note that this is all calculated using a single processor
         core, no speedup using e.g. OpenMP will be performed."""
 
-        lz = self._lz
-        cosmology = self._cosmology
-        sourceRedshift = self._zs
+        origShape = thetas.shape
+        thetas = thetas.reshape((-1,1,2)) # Number of rows differs from one (I think parallelization was done over rows)
 
-        alphas = { }
-        T = []
+        renderer, feedbackObject = privutil.initRendererAndFeedback(None, "none", "LENSPLANE")
+        cache = _MultiPlaneCache(self._lz, thetas, renderer, feedbackObject, 
+                                 self._multiLensPlane._cosmology, False)
 
-        def getAlphas(j):
-            if j in alphas:
-                return alphas[j]
-            a = lz[j][0].getAlphaVector(T[j])
-            alphas[j] = a
-            return a
-
-        N = len(lz)
-        for i in range(0, N):
-
-            Ti = copy.deepcopy(thetas)
-            Di = cosmology.getAngularDiameterDistance(lz[i][1])
-            
-            for j in range(0, i):
-                Dji = cosmology.getAngularDiameterDistance(lz[j][1], lz[i][1])
-                Ti -= Dji/Di * getAlphas(j)
-        
-            T.append(Ti)
-
-        # Make sure these are cached
-        getAlphas(N-1)
-
-        Ti = copy.deepcopy(thetas)
-        Di = cosmology.getAngularDiameterDistance(sourceRedshift)
-        for j in range(0, N):
-            Dji = cosmology.getAngularDiameterDistance(lz[j][1], sourceRedshift)
-            Ti -= Dji/Di * alphas[j]
-
-        return Ti
+        Ti = cache.addSourcePlane(self._zs)
+        return Ti.reshape(origShape)
 
     def renderSources(self, sourceList, plane = None, subSamples = 9):
         """For the list of :class:`SourceImage` derived classes in `sourceList`, this function
