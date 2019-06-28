@@ -418,8 +418,34 @@ class MultiImagePlane(object):
         #            f.write("{:g} {:g}\n".format(thetas[y,x,0], thetas[y,x,1]))
         return betaApprox
 
-    def getBetaDerivs(self, thetas):
-        raise Exception("TODO")
+    def getBetaAndDerivatives(self, thetas):
+        """For each theta position in `thetas`, calculate the corresponding position
+        in the source plane (beta vector) as well as the derivatives. Note that this is 
+        all calculated using a single processor core, no speedup using e.g. 
+        OpenMP will be performed."""
+
+        origShape = thetas.shape
+        thetas = thetas.reshape((-1,1,2)) # Number of rows differs from one (I think parallelization was done over rows)
+
+        renderer, feedbackObject = privutil.initRendererAndFeedback(None, "none", "LENSPLANE")
+        cache = _MultiPlaneCache(self._lz, thetas, renderer, feedbackObject, 
+                                 self._multiLensPlane._cosmology, True)
+
+        Ti, Tixx, Tixy, Tiyx, Tiyy = cache.addSourcePlane(self._zs)
+
+        betas = Ti.reshape(origShape)
+        Tiall = np.empty((thetas.shape[0], 1, 2, 2))
+        Tiall[:,0,0,0] = Tixx[:,0]
+        Tiall[:,0,0,1] = Tixy[:,0]
+        Tiall[:,0,1,0] = Tiyx[:,0]
+        Tiall[:,0,1,1] = Tiyy[:,0]
+
+        if len(origShape) == 1: # Just a single point
+            Tiall = Tiall.reshape(2,2)
+        else:
+            Tiall = Tiall.reshape(origShape[:-1] + (2,2))
+
+        return Ti.reshape(origShape), Tiall
     
     def traceTheta(self, thetas):
         """For each theta position in `thetas`, calculate the corresponding position
