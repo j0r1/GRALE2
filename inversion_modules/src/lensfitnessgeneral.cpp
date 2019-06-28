@@ -221,6 +221,8 @@ ConfigurationParameters *LensFitnessGeneral::getDefaultParametersInstance() cons
 	pParams->setParameter("priority_kappathreshold", 600);
 	pParams->setParameter("priority_causticpenalty", 100);
 
+	pParams->setParameter("fitness_pointimageoverlap_scaletype", string("MinMax"));
+
 	pParams->setParameter("fitness_pointgroupoverlap_rmstype", string("allbetas"));
 
 	pParams->setParameter("fitness_timedelay_type", string("Paper2009"));
@@ -256,12 +258,13 @@ bool LensFitnessGeneral::init(double z_d, std::list<ImagesDataExtended *> &image
 		pImg->clearRetrievalMarkers();
 	
 	// Populate m_totalComponents
+	FitnessComponent_PointImagesOverlap *pPtComponent = new FitnessComponent_PointImagesOverlap(pCache);
 	FitnessComponent_PointGroupOverlap *pPtGrpComponent = new FitnessComponent_PointGroupOverlap(pCache);
 	FitnessComponent_TimeDelay *pTDComponent = new FitnessComponent_TimeDelay(pCache);
 	FitnessComponent_WeakLensing *pWLComponent = new FitnessComponent_WeakLensing(pCache);
 
 	/*vector<FitnessComponent *>*/ m_totalComponents = {
-		new FitnessComponent_PointImagesOverlap(pCache),
+		pPtComponent,
 		new FitnessComponent_ExtendedImagesOverlap(pCache),
 		pPtGrpComponent,
 		pWLComponent,
@@ -287,6 +290,28 @@ bool LensFitnessGeneral::init(double z_d, std::list<ImagesDataExtended *> &image
 		}
 
 		pComp->setPriority(priority);
+	}
+
+	// Point image scale type
+	{
+		string keyName = "fitness_pointimageoverlap_scaletype";
+		string valueStr;
+
+		if (!pParams->getParameter(keyName, valueStr))
+		{
+			setErrorString("Can't find (string) parameter '" + keyName + "': " + pParams->getErrorString());
+			return false;
+		}
+		
+		if (valueStr == "MinMax")
+			pPtComponent->setScaleType(MinMax);
+		else if (valueStr == "MAD")
+			pPtComponent->setScaleType(MAD);
+		else
+		{
+			setErrorString("Invalid type for '" + keyName + "': " + valueStr);
+			return false;
+		}
 	}
 
 	// Time delay fitness type

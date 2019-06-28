@@ -111,6 +111,8 @@ public:
 								   bool &storeOrigIntens, bool &storeOrigTimeDelay, bool &storeOrigShear) override;
 	bool finalize() override;
 	bool calculateFitness(const ProjectedImagesInterface &iface, float &fitness) override;
+
+	void setScaleType(PointImageScaleType t) { m_scaleType = t; }
 private:
 	std::vector<float> m_distanceFractions;
 	ScaleFactorWorkspace m_workspace;
