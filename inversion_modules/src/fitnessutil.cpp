@@ -126,6 +126,14 @@ void getScaleFactors_PointImages(const ProjectedImagesInterface &interface,
 
 			vecWorkspace.resize(numGroups*2); // one for x components, one for y
 
+			for (int group = 0 ; group < scaleFactors.size() ; group++)
+			{
+				auto &xPoints = vecWorkspace[group*2+0];
+				auto &yPoints = vecWorkspace[group*2+1];
+				xPoints.resize(0);
+				yPoints.resize(0);
+			}
+
 			for (int sIdx = 0 ; sIdx < sourceIndices.size() ; sIdx++)
 			{
 				const int s = sourceIndices[sIdx];
@@ -139,8 +147,6 @@ void getScaleFactors_PointImages(const ProjectedImagesInterface &interface,
 
 				auto &xPoints = vecWorkspace[group*2+0];
 				auto &yPoints = vecWorkspace[group*2+1];
-				xPoints.resize(0);
-				yPoints.resize(0);
 
 				if (numImages > 1)
 				{
