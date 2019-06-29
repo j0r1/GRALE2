@@ -37,8 +37,8 @@ class _MultiPlaneCache(object):
                 else: # TODO: bypass derivatives if not requested?
                     result = renderer.renderXYVector(lz[j][0].toBytes(), T[j])
                     result = np.frombuffer(result, "double").reshape([-1,5]) # for each point: ax, ay, axx, ayy, axy
-                    a = result[:,0:2].reshape([numY, numX, 2])
-                    d = result[:,2:5].reshape([numY, numX, 3])
+                    a = result[:,0:2].reshape(txxShape + (2,))
+                    d = result[:,2:5].reshape(txxShape + (3,))
 
                 ad = (a, d)
                 alphasAndDerivs[j] = ad
@@ -266,6 +266,9 @@ class MultiImagePlane(object):
         self._critLines = None
         self._betaGrid = None
         self._caustics = None
+
+    def getLensPlane(self):
+        return self._multiLensPlane
 
     def getSourceRedshift(self):
         """Returns the source redshift that was specified during initialization."""
