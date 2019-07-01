@@ -1,3 +1,5 @@
+"""Module meant for various utilities, but currently only RMS calculation."""
+
 import numpy as np
 
 def _findBestPermutation(observed, predictions):
@@ -97,6 +99,55 @@ def calculateImagePredictions(imgList, lensModel, cosmology=None,
                      reduceImages="average",
                      useAverageBeta=True,
                      maxPermSize=7):
+    r"""For a set of images and a lens model, the predicted images for
+    each observed image are calculated. The results can subsequently
+    be used in the :func:`calculateRMS` function to obtain the RMS.
+
+    Parameters:
+     - `imgList`: a list of dictionaries with entries
+
+         - ``"imgdata"``: :class:`ImagesData <grale.images.ImagesData>` instance
+           that describes the observed images.
+         - ``"z"``: the redshift for these observed images.
+
+     - `lensModel`: this can be a :class:`MultiLensPlane <grale.multiplane.MultiLensPlane>`
+       instance, a :class:`MultiImagePlane <grale.multiplane.MultiImagePlane>` instance,
+       a list of (:class:`lens model <grale.lenses.GravitationalLens>`, redshift)
+       tuples, or just a single :class:`model<grale.lenses.GravitationalLens>`.
+
+       In case only one or more lens models are specified, the predicted image 
+       positions are estimated by calculating the derivatives of :math:`\vec{\beta}(\vec{\theta})`
+       and using them to compensate for small differences in source plane
+       positions :math:`\vec{\beta}`. On the other hand, if e.g. a MultiLensPlane
+       instance is used, then the :func:`traceBetaApproximately <grale.multiplane.MultiImagePlane.traceBetaApproximately>`
+       function is called to obtain estimates of image plane positions corresponding
+       to a source plane position. This is more computationally demanding, but should
+       yield a more correct result.
+
+     - `cosmology`: must only be specified somehow (e.g. "default" if a default cosmology
+       was set if a (list of) lens models was specified. If e.g. a MultiLensPlane was
+       used, the internally stored cosmological model will be used instead.
+
+     - `reduceimages`: each image in an images data set will be converted to a single
+       point. By default, this is done by averaging the image point positions. If something
+       else needs to be done, you can specify a function here, which will be called with
+       two arguments: the :class:`ImagesData <grale.images.ImagesData>` instance and the
+       image index corresponding to the particular image.
+
+     - `useAverageBeta`: if ``True``, then the back-projected image points are averaged
+       to estimate a single source position. If ``False``, then each back-projected image
+       is used as an estimate of the source position.
+
+     - `maxPermSize`: when a source plane position is used to estimate the corresponding
+       image plane positions, these predicted positions are grouped with the observed
+       positions. If the derivatives-based method is used, then this is automatically
+       possible, but if the more accurate tracing is used, we need to find out which
+       predicted point corresponds to which observed point. As a first attempt, the
+       procedure tries to use the points closest to the observed ones, but this may not
+       be possible and different permutations of the positions will then be explored.
+       Since this can become quite slow, an error is generated if more elements than
+       this would need to be permutated.
+    """
 
     from . import multiplane
     from . import privutil
@@ -192,6 +243,51 @@ def _getPredictions(theta_pred, avgImage):
     return [ np.average([t for t in theta_pred], 0) ]
 
 def calculateRMS(predictions, angularUnit, avgImage = False):
+    r"""Using the output of :func:`calculateImagePredictions`, the RMS value
+    is calculated. 
+    Using the notation from Appendix A of `Williams et al (2018) <https://ui.adsabs.harvard.edu/abs/2018MNRAS.480.3140W/abstract>`_,
+    in general there are :math:`i=1..I` sources, with :math:`j=1..J_i` images each. When using
+    each back-projected observed image position :math:`\vec{\theta}_{i,j}`
+    as a separate estimate of the source position, there will be :math:`k=1..J_i`
+    image predictions :math:`\vec{\theta}_{i,j,k}` for each observed position.
+
+    When treating each predicted-observed difference of all sources equally,
+    the RMS will be given by
+
+    .. math::
+
+        {\rm RMS}_{\rm full}^2 = \frac{1}{K}\sum_{i=1}^I \sum_{j=1}^{J_i} \sum_{k=1}^{J_i} \left|\vec{\theta}_{i,j,k} - \vec{\theta}_{i,j}\right|^2
+
+    where :math:`K = \sum_{i=1}^{I} J_i^2` is the total number of terms in this summation.
+    Alternatively, we could take the average of the right-most sum, thereby averaging
+    the squared differences for each observed image point. Sources with more images
+    will still have more terms in the rest of the summation, but only one per image
+    (and not :math:`J_i` for each image). This results in
+
+    .. math::
+
+        {\rm RMS}_{\rm equalimages}^2 = \frac{1}{J}\sum_{i=1}^I \sum_{j=1}^{J_i} \frac{1}{J_i} \sum_{k=1}^{J_i} \left|\vec{\theta}_{i,j,k} - \vec{\theta}_{i,j}\right|^2
+
+    Here, :math:`J = \sum_{i=1}^I J_i`. We could also average all :math:`J_i^2` terms
+    per source first, and then average over the remaining :math:`I` terms, one for each
+    source:
+
+    .. math::
+
+        {\rm RMS}_{\rm equalsources}^2 = \frac{1}{I}\sum_{i=1}^I \frac{1}{J_i^2} \sum_{j=1}^{J_i} \sum_{k=1}^{J_i} \left|\vec{\theta}_{i,j,k} - \vec{\theta}_{i,j}\right|^2
+
+    This function returns a dictionary with these three RMS values (non-squared),
+    expressed in the specified `angularUnit`. 
+    
+    If `avgImage` is ``True``, then all image predictions for each observed position 
+    are averaged out first. This will only make sense in case `useAverageBeta` was ``False``
+    in the call to :func:`calculateImagePredictions` since otherwise there's only
+    one predicted position.
+
+    Depending on the settings of such flags, and depending on the use of the
+    derivatives-based prediction or the more accurate tracing, some of these results
+    can yield the same value.
+    """
 
     fullRms, equalSourceRMS, equalImageRMS = [], [], []
 
