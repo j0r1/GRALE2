@@ -383,7 +383,6 @@ float calculateOverlapFitness_PointGroups(const PointGroupStorage &pointGroups,
 			}
 
 			groupRms /= ptCount;
-			groupRms = SQRT(groupRms);
 
 			fitness += groupRms;
 			numContribs++;
@@ -391,7 +390,7 @@ float calculateOverlapFitness_PointGroups(const PointGroupStorage &pointGroups,
 	}
 
 	if (numContribs > 0)
-		fitness /= numContribs;
+		fitness = SQRT(fitness/numContribs);
 	
 	// Let's express this in arcsec, to keep things understandable
 	float s = (float)(interface.getAngularScale()/ANGLE_ARCSEC);
