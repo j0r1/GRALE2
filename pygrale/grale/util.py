@@ -233,7 +233,7 @@ def calculateRMS_averageSquaredPerSource(predictions, avgImage = False):
         count = 0
         for imgInfo in sourceInfo:
             theta_obs = imgInfo["theta_obs"]
-            for theta_pred in getPredictions(imgInfo["theta_pred"], avgImage):
+            for theta_pred in _getPredictions(imgInfo["theta_pred"], avgImage):
                 dt = theta_pred-theta_obs
                 sum2 += dt[0]**2 + dt[1]**2
                 count += 1
