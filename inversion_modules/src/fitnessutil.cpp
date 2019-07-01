@@ -70,20 +70,18 @@ void getScaleFactors_PointImages(const ProjectedImagesInterface &interface,
 			{
 				const int s = sourceIndices[sIdx];
 				const int group = sourceGroup[sIdx];
-				const float distFrac = sourceDistanceFractions[sIdx];
 
 				assert(group >= 0 && group < scaleFactors.size());
 				assert(s < interface.getNumberOfSources());
 				const int numImages = interface.getNumberOfImages(s);
-				const float sqrtDistFrac = SQRT(distFrac);
 
 				if (numImages > 1)
 				{
 					for (int i = 0 ; i < numImages ; i++)
 					{
 						Vector2D<float> beta = interface.getBetas(s, i)[0];
-						float x = beta.getX()/sqrtDistFrac;
-						float y = beta.getY()/sqrtDistFrac;
+						float x = beta.getX();
+						float y = beta.getY();
 						
 						float &minx = workSpace[group*4+0];
 						float &maxx = workSpace[group*4+1];
@@ -138,12 +136,10 @@ void getScaleFactors_PointImages(const ProjectedImagesInterface &interface,
 			{
 				const int s = sourceIndices[sIdx];
 				const int group = sourceGroup[sIdx];
-				const float distFrac = sourceDistanceFractions[sIdx];
 
 				assert(group >= 0 && group < scaleFactors.size());
 				assert(s < interface.getNumberOfSources());
 				const int numImages = interface.getNumberOfImages(s);
-				const float sqrtDistFrac = SQRT(distFrac);
 
 				auto &xPoints = vecWorkspace[group*2+0];
 				auto &yPoints = vecWorkspace[group*2+1];
@@ -153,8 +149,8 @@ void getScaleFactors_PointImages(const ProjectedImagesInterface &interface,
 					for (int i = 0 ; i < numImages ; i++)
 					{
 						Vector2D<float> beta = interface.getBetas(s, i)[0];
-						float x = beta.getX()/sqrtDistFrac;
-						float y = beta.getY()/sqrtDistFrac;
+						float x = beta.getX();
+						float y = beta.getY();
 						
 						xPoints.push_back(x);
 						yPoints.push_back(y);
@@ -235,7 +231,6 @@ float calculateOverlapFitness_PointImages(const ProjectedImagesInterface &interf
 	{
 		const int s = sourceIndices[sIdx];
 		const int group = sourceGroups[sIdx];
-		const float distFrac = sourceDistanceFractions[sIdx];
 
 		assert(group >= 0 && group < scaleFactors.size());
 		assert(s < interface.getNumberOfSources());
@@ -255,7 +250,7 @@ float calculateOverlapFitness_PointImages(const ProjectedImagesInterface &interf
 					Vector2D<float> beta2 = interface.getBetas(s, j)[0];
 					Vector2D<float> diff = beta2-beta1;
 
-					sourceFitness += diff.getLengthSquared()/distFrac;
+					sourceFitness += diff.getLengthSquared();
 				}
 			}
 
