@@ -191,54 +191,34 @@ def _getPredictions(theta_pred, avgImage):
         return theta_pred
     return [ np.average([t for t in theta_pred], 0) ]
 
-def calculateRMS_all(predictions, avgImage = False):
-    sum2 = 0
-    count = 0
-    for sourceInfo in predictions:
-        for imgInfo in sourceInfo:
-            theta_obs = imgInfo["theta_obs"]
+def calculateRMS(predictions, angularUnit, avgImage = False):
 
-            for theta_pred in _getPredictions(imgInfo["theta_pred"], avgImage):
-                dt = theta_pred-theta_obs
-                sum2 += dt[0]**2 + dt[1]**2
-                count += 1
-
-    return (sum2/count)**0.5
-
-def calculateRMS_averageRMSPerSource(predictions, avgImage = False):
-
-    sourceSum = 0
+    fullRms, equalSourceRMS, equalImageRMS = [], [], []
 
     for sourceInfo in predictions:
-        sum2 = 0
-        count = 0
+
+        sumImages = [ ]
+
         for imgInfo in sourceInfo:
             theta_obs = imgInfo["theta_obs"]
+            sumPredictedPerObserved =  [ ]
 
-            for theta_pred in _getPredictions(imgInfo["theta_pred"], avgImage):
+            predThetaList = _getPredictions(imgInfo["theta_pred"], avgImage)
+            for theta_pred in predThetaList:
                 dt = theta_pred-theta_obs
-                sum2 += dt[0]**2 + dt[1]**2
-                count += 1
+                dist2 = dt[0]**2 + dt[1]**2
 
-        sourceSum += (sum2/count)**0.5
+                sumPredictedPerObserved.append(dist2)
+                sumImages.append(dist2)
+                fullRms.append(dist2)
 
-    return sourceSum/len(predictions)
+            equalImageRMS.append(np.average(sumPredictedPerObserved))
 
-def calculateRMS_averageSquaredPerSource(predictions, avgImage = False):
+        equalSourceRMS.append(np.average(sumImages))
 
-    sourceSum = 0
-
-    for sourceInfo in predictions:
-        sum2 = 0
-        count = 0
-        for imgInfo in sourceInfo:
-            theta_obs = imgInfo["theta_obs"]
-            for theta_pred in _getPredictions(imgInfo["theta_pred"], avgImage):
-                dt = theta_pred-theta_obs
-                sum2 += dt[0]**2 + dt[1]**2
-                count += 1
-
-        sourceSum += sum2/count
-
-    return (sourceSum/len(predictions))**0.5
+    return {
+        "full": np.average(fullRms)**0.5/angularUnit,
+        "equalsources": np.average(equalSourceRMS)**0.5/angularUnit,
+        "equalimages": np.average(equalImageRMS)**0.5/angularUnit
+    }
 
