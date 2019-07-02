@@ -65,13 +65,14 @@ def createLensFromLenstoolFile(inputData, mirrorX = False):
     from . import lenses
 
     def _ltPIEMDHandler(info, Dd):
-        eps = info["ellipticite"]
+        epsHat = info["ellipticite"]
         a = info["core_radius"]*ANGLE_ARCSEC if "core_radius" in info else info["core_radius_kpc"]/(Dd/DIST_KPC)
         s = info["cut_radius"]*ANGLE_ARCSEC if "cut_radius" in info else info["cut_radius_kpc"]/(Dd/DIST_KPC)
         sigma = info["v_disp"]*1000
 
         centralDensity = (3*sigma**2)/(4*CONST_G*Dd) * (s**2-a**2)/(a*s**2)
-        #eps = 1.0-((1.0-eps)/(1.0+eps))**0.5 # TODO: is this necessary?
+        e = 1.0-((1.0-epsHat)/(1.0+epsHat))**0.5
+        eps = e/(2-e)
         #print("centralDensity", centralDensity)
         #print("e", e)
         #print()
