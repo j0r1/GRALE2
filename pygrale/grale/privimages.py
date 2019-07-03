@@ -947,3 +947,9 @@ def createSourceFromImagesData(imgDat, idx = -1):
     points = points - position
     return PolygonSource(position, points, True)
 
+def createPointImagesData(thetas):
+    from .images import ImagesData
+    imgDat = ImagesData(len(thetas))
+    for tIdx in range(len(thetas)):
+        imgDat.addPoint(tIdx, thetas[tIdx])
+    return imgDat
