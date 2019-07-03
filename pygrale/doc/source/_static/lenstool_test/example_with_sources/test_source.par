@@ -1,0 +1,46 @@
+runmode
+	reference 3 133.69358 -1.36032
+	image     0 image.cat
+	source    1 source_wcs.cat
+	mass      3 100 0.4 mass.fits
+	shearfield  1 2.000 shear.dat
+	end
+grille
+	nombre      100
+	polaire     0
+	nlentille   1
+	end
+source
+	z_source     1.000
+	end
+potentiel 1
+	profil     81
+	x_centre     0.000
+	y_centre     0.000
+	ellipticite     0.65
+	angle_pos     120.
+	core_radius  3.00
+	cut_radius  250.000
+	v_disp     800.
+	z_lens     0.4
+	end
+cline
+	nplan    1 1.000 
+	dmax     50.000
+	pas      1.000
+	end
+grande
+	profil	    0 10
+	contour     0 10
+	large_dist  0.300
+	end
+cosmologie
+	H0        70.000
+	omegaM    0.300
+	omegaX    0.700
+	wX        -1.000
+	end
+champ
+	dmax     50.
+	end
+fini

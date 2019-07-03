@@ -60,7 +60,8 @@ def createLensFromLenstoolFile(inputData, mirrorX = False):
     """Based on a `LensTool <https://projets.lam.fr/projects/lenstool/wiki>`_ model,
     a corresponding :class:`lens model<grale.lenses.GravitationalLens>` is constructed.
     The function returns a tuple consisting of the lens model, the lens redshift and
-    the cosmological model.
+    the cosmological model. An illustration can be found in the notebook
+    `lenstooltest.ipynb <_static/lenstooltest.ipynb>`_
 
     Note that this is preliminary code, and currently only the PIEMD model (LensTool
     model type 81) is handled.

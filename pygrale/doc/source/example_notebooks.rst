@@ -43,5 +43,6 @@ Example Jupyter notebooks
    * Situation in Figure 2: `multisistests2.ipynb <_static/multisistests2.ipynb>`_
    * Situation in Figure 6 (second row): `multisistests3.ipynb <_static/multisistests3.ipynb>`_
  
-
+ * Illustration of loading `LensTool <https://projets.lam.fr/projects/lenstool/wiki>`_
+   models: `lenstooltest.ipynb <_static/lenstooltest.ipynb>`_
 
