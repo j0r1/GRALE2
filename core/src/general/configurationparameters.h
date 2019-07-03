@@ -88,7 +88,7 @@ public:
 	const ConfigurationParameters &operator=(const ConfigurationParameters &cfg);
 
 	size_t getNumberOfParameters() const;
-	void getAllKeys(std::vector<std::string> &keys);
+	void getAllKeys(std::vector<std::string> &keys) const;
 
 	void clearParameters();
 	void setParameter(const std::string &key, bool v);
@@ -104,7 +104,7 @@ public:
 	bool getParameter(const std::string &key, std::string &v) const;
 
 	void clearRetrievalMarkers();
-	void getUnretrievedKeys(std::vector<std::string> &keys);
+	void getUnretrievedKeys(std::vector<std::string> &keys) const;
 private:
 	void copyFrom(const ConfigurationParameters &cfg);
 

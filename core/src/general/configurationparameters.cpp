@@ -373,7 +373,7 @@ void ConfigurationParameters::clearRetrievalMarkers()
 		p.second.setMarker(false);
 }
 
-void ConfigurationParameters::getUnretrievedKeys(std::vector<std::string> &keys)
+void ConfigurationParameters::getUnretrievedKeys(std::vector<std::string> &keys) const
 {
 	keys.clear();
 	for (auto &p : *m_pParameters)
@@ -383,7 +383,7 @@ void ConfigurationParameters::getUnretrievedKeys(std::vector<std::string> &keys)
 	}
 }
 
-void ConfigurationParameters::getAllKeys(std::vector<std::string> &keys)
+void ConfigurationParameters::getAllKeys(std::vector<std::string> &keys) const
 {
 	keys.clear();
 	for (auto &p : *m_pParameters)

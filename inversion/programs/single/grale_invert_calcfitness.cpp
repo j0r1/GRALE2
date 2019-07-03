@@ -7,6 +7,7 @@
 #include "gridlensinversiongafactoryparams.h"
 #include "gravitationallens.h"
 #include "imagesdataextended.h"
+#include "configurationparameters.h"
 #include <errut/booltype.h>
 #include <memory>
 #include <iostream>
@@ -89,6 +90,11 @@ bool_t CalcFitnessCommunicator::runModule(const string &moduleDir, const string 
 	double z_d = factoryParams.getZ_d();
 	if (!f->init(z_d, images, dummyShortList, factoryParams.getFitnessObjectParameters()))
 		return "Unable to initialize fitness object: " + f->getErrorString();
+	      
+	vector<string> unusedKeys;
+	factoryParams.getFitnessObjectParameters()->getUnretrievedKeys(unusedKeys);
+	if (unusedKeys.size() > 0)
+		return "Key '" + unusedKeys[0] + "' in configuration parameters is not used"; 
 
 	string fitnessDesc = f->getFitnessComponentsDescription();
 	WriteLineStdout("FITDESC:" + fitnessDesc);
