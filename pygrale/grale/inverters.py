@@ -27,6 +27,7 @@ import socket
 import sys
 
 debugOutput = False
+debugDirectStderr = False
 
 real_print = print
 def print(*args): # Do a flush afterwards
@@ -49,6 +50,17 @@ class InverterException(Exception):
     """An exception that's generated if something goes wrong in this module."""
     pass
 
+def _getErrorLineFromErrFile(errFile):
+    errFile.flush()
+    errFile.seek(0)
+    errData = errFile.read()
+    errLines = [ l.strip() for l in errData.splitlines() if len(l.strip()) > 0 ]
+    if len(errLines) > 0:
+        errLine = "Last line from error log: " + errLines[-1]
+    else:
+        errLine = "Something went wrong, but don't know what"
+    return errLine
+
 class Inverter(object):
     def __init__(self, args, inversionType, extraEnv = None, feedbackObject = None, readDescriptor = None, 
                  writeDescriptor = None):
@@ -68,7 +80,7 @@ class Inverter(object):
 
     def invert(self, moduleName, populationSize, gaParams, gridLensInversionParameters, returnNds):
 
-        errFile = tempfile.TemporaryFile("w+t")
+        errFile = tempfile.TemporaryFile("w+t") if not debugDirectStderr else None
         proc = None
         try:
             env = None
@@ -81,7 +93,7 @@ class Inverter(object):
                     env[n] = self.extraEnv[n]
 
             #print(self.args)
-            proc = subprocess.Popen(self.args, stdin = subprocess.PIPE, stdout = subprocess.PIPE, env = env)
+            proc = subprocess.Popen(self.args, stdin = subprocess.PIPE, stdout = subprocess.PIPE, env = env, stderr = errFile)
         except Exception as e:
             raise InverterException("Unable to start inversion process: {}".format(e)) 
 
@@ -175,7 +187,11 @@ class Inverter(object):
             #proc.wait()
             privutil._wait(proc, 1)
             print("Done waiting")
-
+        except InverterException:
+            raise
+        except Exception as e:
+            errLine = _getErrorLineFromErrFile(errFile)
+            raise InverterException(errLine)
         finally:
             try:
                 proc.stdin.close()
@@ -213,8 +229,9 @@ class Inverter(object):
 
 def _commonModuleCommunication(moduleName, exeName, callback, **callbackArgs):
 
+    errFile = tempfile.TemporaryFile("w+t") if not debugDirectStderr else None
     try:
-        proc = subprocess.Popen([exeName], stdin = subprocess.PIPE, stdout = subprocess.PIPE)
+        proc = subprocess.Popen([exeName], stdin = subprocess.PIPE, stdout = subprocess.PIPE, stderr=errFile)
     except Exception as e:
         raise InverterException("Unable to start process '{}': {}".format(exeName, e)) 
 
@@ -222,18 +239,22 @@ def _commonModuleCommunication(moduleName, exeName, callback, **callbackArgs):
     outFd = proc.stdout.fileno()
     io = timed_or_untimed_io.IO(outFd, inFd)
 
-    line = io.readLine(30)
-    invId = "GAINVERTER:"
-    if not line.startswith(invId):
-        raise InverterException("Unexpected idenficiation from process '{}': '{}'".format(exeName, line))
+    try:
+        line = io.readLine(30)
+        invId = "GAINVERTER:"
+        if not line.startswith(invId):
+            raise InverterException("Unexpected idenficiation from process '{}': '{}'".format(exeName, line))
 
-    version = line[len(invId):]
+        version = line[len(invId):]
 
-    io.writeLine("MODULE:" + moduleName)
+        io.writeLine("MODULE:" + moduleName)
 
-    retVal = callback(io, **callbackArgs)
+        retVal = callback(io, **callbackArgs)
 
-    io.writeLine("EXIT")
+        io.writeLine("EXIT")
+    except Exception as e:
+        errLine = _getErrorLineFromErrFile(errFile)
+        raise InverterException(errLine)
 
     return retVal
 
