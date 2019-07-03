@@ -10,6 +10,8 @@ Helper functions
 ----------------
 .. autofunction:: getCriticalDensity
 
+.. autofunction:: createLensFromLenstoolFile
+
 GravitationalLens
 -----------------
 .. autoclass:: grale.lenses.GravitationalLens

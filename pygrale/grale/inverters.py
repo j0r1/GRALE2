@@ -8,6 +8,7 @@ a (case insensitive) string, or as an instance of the available inverter
 classes. Available are:
 
  - "SingleCore" or an instance of :class:`SingleProcessInverter`
+ - "GDB" or and instance of :class:`SingleProcessGdbInverter` (for debugging code)
  - "MPI" or an instance of :class:`MPIProcessInverter`
  - "ClientServer" or an instance of :class:`ClientServerProcessInverter`
  - "LocalCS" or an instance of :class:`LocalCSProcessInverter`
@@ -373,7 +374,14 @@ class SingleProcessInverter(Inverter):
         super(SingleProcessInverter, self).__init__([ "grale_invert_single" ], "Single process", feedbackObject=feedbackObject)
 
 class SingleProcessGdbInverter(Inverter):
+    """If this inverter is used, a single process, single core method is used
+    which is started using the debugger `GDB <https://www.gnu.org/software/gdb/>`_.
+    To be able to interact with GDB, it is started in an `xterm <https://en.wikipedia.org/wiki/Xterm>`_
+    process. This is meant to make debugging this multi-process architecure 
+    somewhat easier."""
     def __init__(self, feedbackObject = None):
+        """Initializes an instance of this class; a specific :mod:`feedback <grale.feedback>`
+        object can be specified for status updates."""
         self.pipePair = privutil.PipePair() # Keep it for the lifetime of this object
         pp = self.pipePair
         super(SingleProcessGdbInverter, self).__init__([ "xterm", "-e", 

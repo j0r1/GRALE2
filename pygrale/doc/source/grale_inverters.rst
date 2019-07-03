@@ -21,6 +21,10 @@ Inverters
 
    .. automethod:: __init__
 
+.. autoclass:: SingleProcessGdbInverter
+
+   .. automethod:: __init__
+
 .. autoclass:: MPIProcessInverter
 
    .. automethod:: __init__

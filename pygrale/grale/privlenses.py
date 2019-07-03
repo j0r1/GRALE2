@@ -28,13 +28,15 @@ def _getLenstoolPotentialInfoFromLines(lines):
     return potentialInfo
 
 def _getLenstoolCosmologyFromLines(lines):
+    from .lenses import LensException
+
     idx = None
     for i in range(len(lines)):
         if lines[i].startswith("cosmologie"):
             idx = i
             break
     else:
-        raise Exception("No cosmology settings found in file")
+        raise LensException("No cosmology settings found in file")
 
     settings = { "omegaK": 0 } # Doesn't always seem to be present
     while True:
@@ -55,6 +57,19 @@ def _getLenstoolCosmologyFromLines(lines):
                                settings["wX"])
 
 def createLensFromLenstoolFile(inputData, mirrorX = False):
+    """Based on a `LensTool <https://projets.lam.fr/projects/lenstool/wiki>`_ model,
+    a corresponding :class:`lens model<grale.lenses.GravitationalLens>` is constructed.
+    The function returns a tuple consisting of the lens model, the lens redshift and
+    the cosmological model.
+
+    Note that this is preliminary code, and currently only the PIEMD model (LensTool
+    model type 81) is handled.
+
+    Arguments:
+     - `inputData`: the data from a LensTool file (typically with '.par' extension), either
+       as a file name, a file object or a string.
+     - `mirrorX`: if ``True``, the model will be mirrored along the X-axis.
+    """
     lines = _getLinesFromInputData(inputData)
     potentialInfo = _getLenstoolPotentialInfoFromLines(lines)
     cosm = _getLenstoolCosmologyFromLines(lines)
@@ -63,6 +78,8 @@ def createLensFromLenstoolFile(inputData, mirrorX = False):
 
     from .constants import ANGLE_ARCSEC, CONST_G, DIST_KPC
     from . import lenses
+
+    LensException = lenses.LensException
 
     def _ltPIEMDHandler(info, Dd):
         epsHat = info["ellipticite"]
@@ -86,7 +103,7 @@ def createLensFromLenstoolFile(inputData, mirrorX = False):
     for p in potentialInfo:
         profileId = int(p["profil"])
         if not profileId in _lenstoolPotentialHandlers:
-            raise Exception("No handler for profile {}".format(profileId))
+            raise LensException("No handler for profile {}".format(profileId))
 
         handler = _lenstoolPotentialHandlers[profileId]
         zd = p["z_lens"]
@@ -106,7 +123,7 @@ def createLensFromLenstoolFile(inputData, mirrorX = False):
     Dd_first = subLenses[0]["lens"].getLensDistance()
     for d in subLenses:
         if d["lens"].getLensDistance() != Dd_first:
-            raise Exception("Not all lens components have same lens distance")
+            raise LensException("Not all lens components have same lens distance")
 
     return (lenses.CompositeLens(Dd_first, subLenses), zd, cosm)
 

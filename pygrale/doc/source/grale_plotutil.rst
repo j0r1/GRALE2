@@ -35,6 +35,8 @@ Functions to create matplotlib plots
 
 .. autofunction:: plotDensityContours
 
+.. autofunction:: plotDensitiesAtImagePositions
+
 .. autofunction:: plotImagePlane
 
 .. autofunction:: plotAverageDensityProfile
