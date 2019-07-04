@@ -915,6 +915,16 @@ def createGridTriangles(bottomLeft, topRight, numX, numY, holes = None, enlargeH
                     print("Warning: couldn't remove '{}': {}".format(n, e)) 
 
 def createSourceFromImagesData(imgDat, idx = -1):
+    """For the points in the :class:`ImagesData <grale.images.ImagesData>` instance,
+    a :class:`source shape <grale.images.SourceImage>` will be created. This is
+    useful after obtaining backprojected images using e.g. 
+    :func:`InversionWorkSpace.backProject <grale.inversion.InversionWorkSpace.backProject>`,
+    to get an estimate of the source shape, and re-calculate the image positions.
+    If only one point is available, a :class:`PointSource <grale.images.PointSource>`
+    instance will be created, otherwise a :class:`PolygonSource <grale.images.PolygonSource>`
+    is used. If `idx` is negative, all points are used, otherwise a specific image
+    is selected.
+    """
     if idx < 0:
         points = [ imgDat.getImagePointPosition(i,j) for i in range(imgDat.getNumberOfImages()) for j in range(imgDat.getNumberOfImagePoints(i)) ]
     else:
@@ -948,6 +958,9 @@ def createSourceFromImagesData(imgDat, idx = -1):
     return PolygonSource(position, points, True)
 
 def createPointImagesData(thetas):
+    """This creates an :class:`ImagesData <grale.images.ImagesData>` instance,
+    with one point per image, according to the entries in the `thetas` list
+    of positions."""
     from .images import ImagesData
     imgDat = ImagesData(len(thetas))
     for tIdx in range(len(thetas)):

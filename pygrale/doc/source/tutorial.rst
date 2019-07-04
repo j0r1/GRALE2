@@ -20,10 +20,12 @@ for lensing by a Singular Isothermal Sphere, or :class:`NFWLens <grale.lenses.NF
 lensing by a mass distribution with a spherical Navarro-Frenk-White profile. 
 All available models are shown in the documentation of the :mod:`grale.lenses` module;
 the :class:`GravitationalLens <grale.lenses.GravitationalLens>` class contains the
-methods that you can call for every one of the the available models.
+methods that you can call for every one of the the available models. You can also
+import a `LensTool <https://projets.lam.fr/projects/lenstool/wiki>`_ model using the
+:func:`createLensFromLenstoolFile <grale.lenses.createLensFromLenstoolFile>` function.
 
 The constructor of a specific lens model always takes two arguments. The first is the
-angular diameter distance to the lens, the second describes the parameter for the
+angular diameter distance to the lens, the second describes the parameters for the
 lens model. To convert the redshift of a lens to an angular diameter distance,
 you can use an instance of the :class:`Cosmology <grale.cosmology.Cosmology>`
 class, which destribes a particular cosmological model. Most often, various
@@ -182,9 +184,8 @@ of course nice, but typically we're also interested in an image configuration
 that corresponds to a specific source position. For this, we can create a
 source shape using a class derived from :class:`SourceImage <grale.images.SourceImage>`,
 and pass this to e.g. the :func:`plotImagePlane <grale.plotutil.plotImagePlane>`
-function. Note that actually a list of source shapes needs to be specified; this
-way you could also specify multiple sources (for this simple usage, they need to
-be at the same redshift though). The example below illustrates this:
+function. Note that actually a list of source shapes needs to be specified.
+The example below illustrates this:
 
 .. literalinclude:: ex/example_plot_cl0024_c.py
    :language: python
@@ -206,22 +207,11 @@ source.
 
    <video src="_static/gralesource.mp4" width="50%" controls></video>
 
-Creating plots for multiple sources at different redshifts takes a bit more
-work. The most control is obtained by getting the :class:`ImagePlane <grale.images.ImagePlane>` 
-instance using :func:`LensInfo.getImagePlane <grale.plotutil.LensInfo.getImagePlane>`,
-from which you can obtain the :func:`caustics <grale.images.ImagePlane.getCaustics>`
-and :func:`critical lines <grale.images.ImagePlane.getCriticalLines>`, and you
-can render :func:`sources <grale.images.ImagePlane.renderSources>` and
-:func:`images <grale.images.ImagePlane.renderImages>` which you can combine
-with other sources or images. 
-
-If a matplotlib figure is what you're interested in, the :func:`plotImagePlane <grale.plotutil.plotImagePlane>`
-function also allows for some flexibility to combine the results for
-different sources. The key is to make use of the `processRenderPixels`
-argument, which should then be a function that will receive the NumPy
-array that's about to be rendered as its argument. The return value of
-this function will be what's actually plotted. The code below illustrates
-this approach:
+When creating a plot for a single source, or several sources at the same
+distance/redshift, the last set angular diameter distances (or source 
+redshift) is used. To plot multiple sources, the list of source shapes
+needs to become a list of dictionaries containing the source shapes as
+well as the distance information. The code below illustrates this.
 
 .. literalinclude:: ex/example_plot_cl0024_d.py
    :language: python

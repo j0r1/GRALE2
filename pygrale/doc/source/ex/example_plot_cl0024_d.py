@@ -25,30 +25,13 @@ Ds2 = cosm.getAngularDiameterDistance(zs2)
 Dds2 = cosm.getAngularDiameterDistance(zd, zs2)
 src2 = images.CircularSource(V(0.21,-9.26)*ANGLE_ARCSEC, 0.75*ANGLE_ARCSEC, fade=True)
 
-# The entry in this array will be used to accumulate the pixels of the 
-# different image planes in. Here, the numpy array is wrapped in an array
-# to avoid a 'local variable is referenced before assignment' error
-sumPlane = [ None ]
-
-# This function will intercept the pixels before they're plotted using
-# matplotlib's 'imshow'. What is returned here will be what is actually
-# shown, which is the sum of the individual image planes.
-def f(x):
-    if sumPlane[0] is None: sumPlane[0] = np.zeros(x.shape)
-    sumPlane[0] += x
-    return sumPlane[0]
-
 # Here, we tell the plotImagePlane function to call 'f' right before
 # plotting the image, thereby allowing the pixels to be accumulated
 plt.figure(figsize=(5,5))
-plotutil.plotImagePlane(lensInfo, [src], processRenderPixels=f)
-
-# For the second source, we still need to set different source
-# distances. We'll also plot the caustics and critical lines in a
-# slightly different color.
-lensInfo.setSourceDistances(Ds2, Dds2)
-plotutil.plotImagePlane(lensInfo, [src2], processRenderPixels=f,
-                        caustColor="darkblue", critColor="darkred");
+plotutil.plotImagePlane(lensInfo, [{"shape": src, "Ds": Ds, "Dds": Dds},
+                                   {"shape": src2, "Ds": Ds2, "Dds": Dds2}],
+                        critColor = [ 'red', 'darkred'],
+                        caustColor = [ 'blue', 'darkblue'])
 
 plt.gca().invert_xaxis()
 plt.show()

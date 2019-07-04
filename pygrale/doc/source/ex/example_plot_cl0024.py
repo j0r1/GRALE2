@@ -42,18 +42,24 @@ except Exception as e:
     print(e)
 
 
-plt.figure(figsize=(10,5))
+plt.figure(figsize=(12,4))
 
 # Create a plot of the image plane for the cl0024 model. Since the
 # right ascension axis goes from right to left, we'll invert the
 # X-axis direction.
-plt.subplot(1,2,1)
+plt.subplot(1,3,1)
 plotutil.plotImagePlane(lensInfo)
 plt.gca().invert_xaxis()
 
 # And a plot for the density
-plt.subplot(1,2,2)
+plt.subplot(1,3,2)
 plotutil.plotDensity(lensInfo)
+plt.gca().invert_xaxis()
+
+# Let's also combine the two plots
+plt.subplot(1,3,3)
+plotutil.plotDensity(lensInfo, cmap="gray_r")
+plotutil.plotImagePlane(lensInfo, bgRgb=(0,0,0,0))
 plt.gca().invert_xaxis()
 
 plt.show()

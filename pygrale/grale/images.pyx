@@ -110,7 +110,7 @@ cdef class ImagesData:
         return imageNum
 
     def addPoint(self, int imageNum, point, intensity = None, shear = None, shearWeight = 1):
-        """addPoint(imageNum, point, intensity = None, shear = None)
+        """addPoint(imageNum, point, intensity = None, shear = None, shearWeight = 1)
 
         Add a point to an image.
 
@@ -122,6 +122,8 @@ cdef class ImagesData:
            then this intensity will be specified for the point
          - ``shear``: if shear info was specified in the constructor, then this 2D
            shear info will be stored for the point.
+         - ``shearWeight``: a weight for the shear value, that may ar may not be used
+           by an inversion method.
         """
 
         cdef pointNum = 0
@@ -330,6 +332,7 @@ cdef class ImagesData:
            to the point
          - ``shear`` (optional): contains the two shear components associated to
            the point
+         - ``shearweight`` (optional): contains the weight for the shear values.
         """
         numPoints = self.getNumberOfImagePoints(image)
         intens = self.hasIntensities()
@@ -376,9 +379,9 @@ cdef class ImagesData:
         return self.m_pImgData.getShearComponent2(image, point)
 
     def getShearWeight(self, image, point):
-        """getShearComponent2(image, point)
+        """getShearWeight(image, point)
 
-        Returns the second shear component stored for the point with ID
+        Returns the shear weight stored for the point with ID
         ``point`` inside the image with ID ``image``.
         """
         self._checkImagePointNumber(image, point)

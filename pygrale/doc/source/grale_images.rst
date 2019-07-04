@@ -24,6 +24,10 @@ Functions
 
 .. autofunction:: createGridTriangles
 
+.. autofunction:: createPointImagesData
+
+.. autofunction:: createSourceFromImagesData
+
 ImagesData
 ----------
 
