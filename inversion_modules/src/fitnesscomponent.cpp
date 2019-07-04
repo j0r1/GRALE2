@@ -2,6 +2,7 @@
 #include "fitnessutil.h"
 #include <grale/imagesdataextended.h>
 #include <grale/projectedimagesinterface.h>
+#include <grale/configurationparameters.h>
 #include <limits>
 #include <list>
 #include <sstream>
@@ -111,6 +112,12 @@ bool FitnessComponent::inspectImagesData(int idx, const ImagesDataExtended &imgD
 								   bool &storeOrigIntens, bool &storeOrigTimeDelay, bool &storeOrigShear)
 {
 	setErrorString("FitnessComponent::inspectImagesData needs to be implemented in a subclass");
+	return false;
+}
+
+bool FitnessComponent::processFitnessOption(const std::string &optionName, const TypedParameter &value)
+{
+	setErrorString("Unrecognized option '" + optionName + "'");
 	return false;
 }
 
@@ -325,6 +332,30 @@ bool FitnessComponent_PointImagesOverlap::finalize()
 	return true;
 }
 
+bool FitnessComponent_PointImagesOverlap::processFitnessOption(const std::string &optionName, const TypedParameter &value)
+{
+	if (optionName == "scaletype")
+	{
+		string valueStr = value.getStringValue();
+		if (valueStr == "MinMax")
+		{
+			setScaleType(MinMax);
+			return true;
+		}
+		if (valueStr == "MAD")
+		{
+			setScaleType(MAD);
+			return true;
+		}
+		
+		setErrorString("Invalid value for '" + optionName + "': '" + valueStr + "'");
+		return false;
+	}
+
+	setErrorString("Unknown option");
+	return false;
+}
+
 bool FitnessComponent_PointImagesOverlap::calculateFitness(const ProjectedImagesInterface &iface, float &fitness)
 {
 	//cerr << "In calculateFitness " << (void*)this << endl;
@@ -409,6 +440,32 @@ bool FitnessComponent_PointGroupOverlap::inspectImagesData(int idx, const Images
 	addToUsedImagesCount(numImg);
 
 	return true;
+}
+
+bool FitnessComponent_PointGroupOverlap::processFitnessOption(const std::string &optionName, const TypedParameter &value)
+{
+	if (optionName == "rmstype")
+	{
+		string valueStr = value.getStringValue();
+
+		if (valueStr == "allbetas")
+		{
+			setFitnessRMSType(AllBetas);
+			return true;
+		}
+
+		if (valueStr == "averagebeta")
+		{
+			setFitnessRMSType(AverageBeta);
+			return true;
+		}
+
+		setErrorString("Invalid value for '" + optionName + "': '" + valueStr + "'");
+		return false;
+	}
+
+	setErrorString("Unknown option");
+	return false;
 }
 
 bool FitnessComponent_PointGroupOverlap::calculateFitness(const ProjectedImagesInterface &iface, float &fitness)
@@ -989,6 +1046,41 @@ bool FitnessComponent_WeakLensing::inspectImagesData(int idx, const ImagesDataEx
 	return true;
 }
 
+bool FitnessComponent_WeakLensing::processFitnessOption(const std::string &optionName, const TypedParameter &value)
+{
+	if (optionName == "type")
+	{
+		string valueStr = value.getStringValue();
+
+		if (valueStr == "AveragedEllipticities")
+		{
+			cerr << "Setting WL fitness type to AveragedEllipticities" << endl;
+			setFitnessType(AveragedEllipticities);
+			return true;
+		}
+		
+		if (valueStr == "RealShear")
+		{
+			cerr << "Setting WL fitness type to RealShear" << endl;
+			setFitnessType(RealShear);
+			return true;
+		}
+
+		if (valueStr == "RealReducedShear")
+		{
+			cerr << "Setting WL fitness type to RealReducedShear" << endl;
+			setFitnessType(RealReducedShear);
+			return true;
+		}
+
+		setErrorString("Invalid value for '" + optionName + "': '" + valueStr + "'");
+		return false;
+	}
+
+	setErrorString("Unknown option");
+	return false;
+}
+
 bool FitnessComponent_WeakLensing::calculateFitness(const ProjectedImagesInterface &iface, float &fitness)
 {
 	fitness = calculateWeakLensingFitness(iface, getUsedImagesDataIndices(), m_wlType, m_thresholds);
@@ -1104,6 +1196,52 @@ bool FitnessComponent_TimeDelay::inspectImagesData(int idx, const ImagesDataExte
 	m_tdScaleFactors.push_back(tdScaleFactor);
 
 	return true;
+}
+
+bool FitnessComponent_TimeDelay::processFitnessOption(const std::string &optionName, const TypedParameter &value)
+{
+	if (optionName == "type")
+	{
+		string valueStr = value.getStringValue();
+		if (valueStr == "Paper2009")
+		{
+			cerr << "Regular Time Delay Fitness (from 2009 article)" << endl;
+			setFitnessType(Paper2009);
+			return true;
+		}
+		
+		if (valueStr == "ExperimentalI")
+		{
+			cerr << "EXPERIMENTAL TIME DELAY FITNESS I" << endl;
+			setFitnessType(ExpI);
+			return true;
+		}
+
+		if (valueStr == "ExperimentalII")
+		{
+			cerr << "EXPERIMENTAL TIME DELAY FITNESS II" << endl;
+			setFitnessType(ExpII);
+			return true;
+		}
+
+		setErrorString("Invalid value for '" + optionName + "': '" + valueStr + "'");
+		return false;
+	}
+
+	if (optionName == "relative")
+	{
+		if (!value.isBoolean())
+		{
+			setErrorString("Option requires a boolean value");
+			return false;
+		}
+
+		setUseRelativeDelays(value.getBooleanValue());
+		return true;
+	}
+
+	setErrorString("Unknown option");
+	return false;
 }
 
 bool FitnessComponent_TimeDelay::calculateFitness(const ProjectedImagesInterface &iface, float &fitness)

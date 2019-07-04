@@ -76,6 +76,7 @@ public:
 	// TODO: check that this is actually the case?
 	virtual bool finalize()																{ return true; }
 	virtual bool calculateFitness(const ProjectedImagesInterface &iface, float &fitness);
+	virtual bool processFitnessOption(const std::string &optionName, const TypedParameter &value);
 	
 	const std::vector<int> &getUsedImagesDataIndices() const							{ return m_usedImagesDataIndices; }
 
@@ -111,6 +112,7 @@ public:
 								   bool &storeOrigIntens, bool &storeOrigTimeDelay, bool &storeOrigShear) override;
 	bool finalize() override;
 	bool calculateFitness(const ProjectedImagesInterface &iface, float &fitness) override;
+	bool processFitnessOption(const std::string &optionName, const TypedParameter &value) override;
 
 	void setScaleType(PointImageScaleType t) { m_scaleType = t; }
 private:
@@ -136,6 +138,7 @@ public:
 			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence,
 								   bool &storeOrigIntens, bool &storeOrigTimeDelay, bool &storeOrigShear) override;
 	bool calculateFitness(const ProjectedImagesInterface &iface, float &fitness) override;
+	bool processFitnessOption(const std::string &optionName, const TypedParameter &value) override;
 
 	void setFitnessRMSType(PointGroupRMSType t) { m_rmsType = t; }
 private:
@@ -225,6 +228,7 @@ public:
 			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence,
 								   bool &storeOrigIntens, bool &storeOrigTimeDelay, bool &storeOrigShear) override;
 	bool calculateFitness(const ProjectedImagesInterface &iface, float &fitness) override;
+	bool processFitnessOption(const std::string &optionName, const TypedParameter &value) override;
 
 	void setFitnessType(WeakLensingType t) { m_wlType = t; }
 private:
@@ -245,6 +249,7 @@ public:
 			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence,
 								   bool &storeOrigIntens, bool &storeOrigTimeDelay, bool &storeOrigShear) override;
 	bool calculateFitness(const ProjectedImagesInterface &iface, float &fitness) override;
+	bool processFitnessOption(const std::string &optionName, const TypedParameter &value) override;
 
 	void setFitnessType(TDFitnessType t) { m_fitnessType = t; }
 	void setUseRelativeDelays(bool f = true) { m_relative = f; }

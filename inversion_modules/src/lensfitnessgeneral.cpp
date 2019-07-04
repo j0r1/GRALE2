@@ -222,13 +222,10 @@ ConfigurationParameters *LensFitnessGeneral::getDefaultParametersInstance() cons
 	pParams->setParameter("priority_causticpenalty", 100);
 
 	pParams->setParameter("fitness_pointimageoverlap_scaletype", string("MinMax"));
-
 	pParams->setParameter("fitness_pointgroupoverlap_rmstype", string("allbetas"));
-
 	pParams->setParameter("fitness_timedelay_type", string("Paper2009"));
 	pParams->setParameter("fitness_timedelay_relative", false);
-
-	pParams->setParameter("fitness_shear_type", string("AveragedEllipticities"));
+	pParams->setParameter("fitness_weaklensing_type", string("AveragedEllipticities"));
 	return pParams;
 }
 
@@ -276,6 +273,9 @@ bool LensFitnessGeneral::init(double z_d, std::list<ImagesDataExtended *> &image
 	};
 	assert(m_totalComponents.size() == COMPONENT_IDX_MAX);
 
+	vector<string> allKeys;
+	pParams->getAllKeys(allKeys);
+
 	// Set priorities
 	for (FitnessComponent *pComp : m_totalComponents)
 	{
@@ -290,134 +290,22 @@ bool LensFitnessGeneral::init(double z_d, std::list<ImagesDataExtended *> &image
 		}
 
 		pComp->setPriority(priority);
-	}
 
-	// Point image scale type
-	{
-		string keyName = "fitness_pointimageoverlap_scaletype";
-		string valueStr;
+		string fitnessOptionStart = "fitness_" + pComp->getObjectName() + "_";
+		for (auto &k : allKeys)
+		{
+			if (k.find(fitnessOptionStart) == 0) // key starts with this
+			{
+				string optionName = k.substr(fitnessOptionStart.length());
+				TypedParameter tp;
 
-		if (!pParams->getParameter(keyName, valueStr))
-		{
-			setErrorString("Can't find (string) parameter '" + keyName + "': " + pParams->getErrorString());
-			return false;
-		}
-		
-		if (valueStr == "MinMax")
-			pPtComponent->setScaleType(MinMax);
-		else if (valueStr == "MAD")
-			pPtComponent->setScaleType(MAD);
-		else
-		{
-			setErrorString("Invalid type for '" + keyName + "': " + valueStr);
-			return false;
-		}
-	}
-
-	// Time delay fitness type
-	{
-		string keyName = "fitness_timedelay_type";
-		string valueStr;
-
-		TypedParameter tp;
-		//if (pParams->getParameter(keyName, tp))
-		//{
-		//	cerr << "Type = " << (int)tp.getType() << endl;
-		//}
-
-		if (!pParams->getParameter(keyName, valueStr))
-		{
-			setErrorString("Can't find (string) parameter '" + keyName + "': " + pParams->getErrorString());
-			return false;
-		}
-
-		if (valueStr == "Paper2009")
-		{
-			cerr << "Regular Time Delay Fitness (from 2009 article)" << endl;
-			pTDComponent->setFitnessType(FitnessComponent_TimeDelay::Paper2009);
-		}
-		else if (valueStr == "ExperimentalI")
-		{
-			cerr << "EXPERIMENTAL TIME DELAY FITNESS I" << endl;
-			pTDComponent->setFitnessType(FitnessComponent_TimeDelay::ExpI);
-		}
-		else if (valueStr == "ExperimentalII")
-		{
-			cerr << "EXPERIMENTAL TIME DELAY FITNESS II" << endl;
-			pTDComponent->setFitnessType(FitnessComponent_TimeDelay::ExpII);
-		}
-		else
-		{
-			setErrorString("Invalid type for '" + keyName + "': " + valueStr);
-			return false;
-		}
-	}
-	// Relative TD fitness?
-	{
-		string keyName = "fitness_timedelay_relative";
-		bool value;
-
-		if (!pParams->getParameter(keyName, value))
-		{
-			setErrorString("Can't find (boolean) parameter '" + keyName + "': " + pParams->getErrorString());
-			return false;
-		}
-
-		pTDComponent->setUseRelativeDelays(value);
-	}
-
-	// WL fitness type
-	{
-		string keyName = "fitness_shear_type";
-		string valueStr;
-
-		if (!pParams->getParameter(keyName, valueStr))
-		{
-			setErrorString("Can't find (string) parameter '" + keyName + "': " + pParams->getErrorString());
-			return false;
-		}
-		
-		if (valueStr == "AveragedEllipticities")
-		{
-			cerr << "Setting WL fitness type to AveragedEllipticities" << endl;
-			pWLComponent->setFitnessType(AveragedEllipticities);
-		}
-		else if (valueStr == "RealShear")
-		{
-			cerr << "Setting WL fitness type to RealShear" << endl;
-			pWLComponent->setFitnessType(RealShear);
-		}
-		else if (valueStr == "RealReducedShear")
-		{
-			cerr << "Setting WL fitness type to RealReducedShear" << endl;
-			pWLComponent->setFitnessType(RealReducedShear);
-		}
-		else
-		{
-			setErrorString("Invalid type for '" + keyName + "': " + valueStr);
-			return false;
-		}
-	}
-
-	// Point group fitness type
-	{
-		string keyName = "fitness_pointgroupoverlap_rmstype";
-		string valueStr;
-
-		if (!pParams->getParameter(keyName, valueStr))
-		{
-			setErrorString("Can't find (string) parameter '" + keyName + "': " + pParams->getErrorString());
-			return false;
-		}
-
-		if (valueStr == "allbetas")
-			pPtGrpComponent->setFitnessRMSType(AllBetas);
-		else if (valueStr == "averagebeta")
-			pPtGrpComponent->setFitnessRMSType(AverageBeta);
-		else
-		{
-			setErrorString("Invalid type for '" + keyName + "': " + valueStr);
-			return false;
+				pParams->getParameter(k, tp);
+				if (!pComp->processFitnessOption(optionName, tp))
+				{
+					setErrorString("Unable to process fitness option '" + k + "': " + pComp->getErrorString());
+					return false;
+				}
+			}
 		}
 	}
 
@@ -1017,13 +905,13 @@ and are listed in the following table:
 | priority_kappathreshold       | 600                     |
 | fitness_timedelay_type        | 'Paper2009'             |
 | fitness_timedelay_relative    | `False`                 |
-| fitness_shear_type            | 'AveragedEllipticities' |
+| fitness_weaklensing_type      | 'AveragedEllipticities' |
 
 The `fitness_timedelay_type` can also be 'ExperimentalI' or 'ExperimentalII',
 but as you might guess, these are still experimental. The option
 `fitness_timedelay_relative` is extremely experimental: don't enable this, it
 does not work yet!
-The `fitness_shear_type` can also be 'RealShear' or 'RealReducedShear', mainly
+The `fitness_weaklensing_type` can also be 'RealShear' or 'RealReducedShear', mainly
 for testing purposes.
 
 As the names suggest, the options that start with `priority_` describe priorities 
