@@ -23,10 +23,16 @@ zd1, zd2 = 0.5, 1.0
 lens1 = lenses.CompositeLens(D(zd1), [
     { "factor": 0.7, "x": 1.0*ANGLE_ARCSEC, "y": -0.5*ANGLE_ARCSEC, "angle": 0 ,
       "lens": lenses.PlummerLens(D(zd1), { "mass": 1e14*MASS_SUN, "width": 4*ANGLE_ARCSEC } )},
+    { "factor": 1.0, "x": 0, "y": 0, "angle": 0, "lens": lenses.MassSheetLens(D(zd1), { "density": 1 }) },
     ])
 
-lens2 = lenses.MultiplePlummerLens(D(zd2), [
-    { "mass": 1e14*MASS_SUN, "width": 3*ANGLE_ARCSEC, "x": 0, "y": 2*ANGLE_ARCSEC },
+lens2 = lenses.CompositeLens(D(zd2), [
+    { "factor": 1.0, "x": 0, "y": 0, "angle": 0, "lens":
+            lenses.MultiplePlummerLens(D(zd2), [
+                { "mass": 1e14*MASS_SUN, "width": 3*ANGLE_ARCSEC, "x": 0, "y": 2*ANGLE_ARCSEC },
+            ])
+    },
+    { "factor": 1.0, "x": 0, "y": 0, "angle": 0, "lens": lenses.MassSheetLens(D(zd2), { "density": 0.5 }) },
     ])
 
 lensesAndRedshifts = [
@@ -55,11 +61,18 @@ for zs, src in [ (zs1, src1), (zs2, src2)]:
 mpCuda = multiplanecuda.MultiPlaneCUDA(lensesAndRedshifts, thetasAndSourceRedshifts)
 print("Plummer parameters")
 pprint.pprint(mpCuda.getPlummerParameters())
+print("Initial sheet densities")
+pprint.pprint(mpCuda.getInitialSheetDensities())
 
-for factors in [ [[0.9],[1.1]], [[1],[1]] ]:
-    mpCuda.calculateSourcePositions(factors)
-    print("Showing results for", factors)
-    print("(if not all 1, then the results from the CUDA version and the CPU version will differ,")
+for massFactors, sheetDensities in [ 
+        ([[0.9],[1.1]], [0.5, 0.1]), 
+        ([[1],[1]], [0.1, 0.2]), 
+        ([[1],[1]], [0, 0]),
+        ([[1],[1]], mpCuda.getInitialSheetDensities()) 
+        ]:
+    mpCuda.calculateSourcePositions(massFactors, sheetDensities)
+    print("Showing results for", massFactors, sheetDensities)
+    print("(if not all 1 and {}, then the results from the CUDA version and the CPU version will differ,".format(mpCuda.getInitialSheetDensities()))
     print(" the CPU version does not take any factors into account)")
     print("")
 
@@ -72,7 +85,7 @@ for factors in [ [[0.9],[1.1]], [[1],[1]] ]:
         srcPos = ip.traceTheta(thetas)/ANGLE_ARCSEC
         plt.plot(srcPos[:,0], srcPos[:,1], '+', label='CPU')
     
-        plt.gca().set_title(f"factors = {factors}, source idx = {i}")
+        plt.gca().set_title(f"massFactors = {massFactors}, sheetDensities={sheetDensities}, source idx = {i}")
         plt.gca().legend()
         plt.show()
 

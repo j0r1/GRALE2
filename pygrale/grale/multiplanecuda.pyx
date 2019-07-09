@@ -2,30 +2,17 @@ from libcpp.string cimport string
 from libcpp.vector cimport vector
 from libcpp cimport bool as cbool
 from cython.operator cimport dereference as deref
-#import cython
-#import random
 import os
 import numpy as np
 cimport numpy as np
-#from cpython.array cimport array,clone
 from . import lenses
 from . import privutil
 
 include "stringwrappers.pyx"
 
-#cimport grale.imagesdata as imagesdata
-#cimport grale.imagesdataextended as imagesdataextended
 cimport grale.vector2d as vector2d
-#cimport grale.triangleindices as triangleindices
-#cimport grale.lensplane as lensplane
-#cimport grale.imageplane as imageplane
-#cimport grale.sourceimage as sourceimage
-#cimport grale.polygon2d as polygon2d
-#cimport grale.serut as serut
-#cimport grale.configurationparameters as configurationparameters
 cimport grale.multiplanecudacxx as multiplanecudacxx
 
-#ctypedef triangleindices.TriangleIndices TriangleIndices
 ctypedef vector2d.Vector2Df Vector2Df
 
 class MultiPlaneCUDAException(Exception):
@@ -37,6 +24,7 @@ def _getLensParams(lens):
 
     if type(lens) is lenses.CompositeLens:
         returnParams = [ ]
+        returnDensity = 0
 
         for p in params:
             if p["angle"] != 0:
@@ -44,7 +32,7 @@ def _getLensParams(lens):
 
             offset = np.array([p["x"], p["y"]], dtype=np.double)
             factor = p["factor"]
-            subParams = _getLensParams(p["lens"])
+            subParams, subDensity = _getLensParams(p["lens"])
 
             for s in subParams:
                 returnParams.append({
@@ -53,17 +41,23 @@ def _getLensParams(lens):
                     "mass": s["mass"]*factor
                     })
 
-        return returnParams
+            returnDensity += subDensity*factor
+
+        return returnParams, returnDensity
 
     elif type(lens) is lenses.PlummerLens:
-        return [ { "position": np.zeros((2,), dtype=np.double), "mass": params["mass"], "width": params["width"] }]
+        return [ { "position": np.zeros((2,), dtype=np.double), "mass": params["mass"], "width": params["width"] }], 0
 
     elif type(lens) is lenses.MultiplePlummerLens:
         returnParams = [ ]
         for p in params:
             returnParams.append({ "mass": p["mass"], "width": p["width"], 
                                   "position": np.array([p["x"], p["y"]], dtype=np.double) })
-        return returnParams
+        return returnParams, 0
+
+    elif type(lens) is lenses.MassSheetLens:
+        density = lens.getLensParameters()["density"]
+        return [], density
 
     raise MultiPlaneCUDAException("Can't handle lens (component) of type {}".format(type(lens)))
 
@@ -86,9 +80,11 @@ cdef class MultiPlaneCUDA:
     cdef multiplanecudacxx.MultiPlaneCUDA *m_pMPCuda
     cdef double m_angularUnit
     cdef vector[vector[float]] m_massFactors
+    cdef vector[float] m_sheetDensities
     cdef cbool m_calculated
     cdef int m_numSources
     cdef object m_plummerParameters
+    cdef object m_initialSheetDensities
 
     def __cinit__(self):
         self.m_pMPCuda = new multiplanecudacxx.MultiPlaneCUDA()
@@ -132,14 +128,20 @@ cdef class MultiPlaneCUDA:
         # Need to have angular unit here
         idx = 0
         fixedPlummerParameters.resize(len(lensesAndRedshifts))
-        self.m_massFactors.resize(fixedPlummerParameters.size())
+        self.m_massFactors.resize(len(lensesAndRedshifts))
+        self.m_sheetDensities.resize(len(lensesAndRedshifts))
 
         self.m_plummerParameters = [ ]
+        self.m_initialSheetDensities = [ ]
         for lens, zs in lensesAndRedshifts:
             lensRedshifts.push_back(zs)
 
-            params = _getLensParams(lens)
+            params, dens = _getLensParams(lens)
+            if len(params) == 0:
+                raise MultiPlaneCUDAException("No plummers were specified for lens plane with index {}".format(idx))
+
             self.m_plummerParameters.append(params)
+            self.m_initialSheetDensities.append(dens)
 
             fixedPlummerParameters[idx].resize(len(params))
             for i in range(len(params)):
@@ -172,7 +174,7 @@ cdef class MultiPlaneCUDA:
     
         self.m_numSources = rescaledThetas.size()
 
-    def calculateSourcePositions(self, massFactors):
+    def calculateSourcePositions(self, massFactors, sheetDensities = None):
         cdef int i, j
 
         if len(massFactors) != self.m_massFactors.size():
@@ -185,7 +187,16 @@ cdef class MultiPlaneCUDA:
             for j in range(self.m_massFactors[i].size()):
                 self.m_massFactors[i][j] = massFactors[i][j]
 
-        if not self.m_pMPCuda.calculateSourcePositions(self.m_massFactors):
+        if sheetDensities is None:
+            for i in range(self.m_sheetDensities.size()):
+                self.m_sheetDensities[i] = 0;
+        else:
+            if len(sheetDensities) != self.m_sheetDensities.size():
+                raise MultiPlaneCUDAException("Number of mass sheet densities ({}) must equal the number of lens planes ({})".format(len(sheetDensities), self.m_sheetDensities.size()))
+            for i in range(self.m_sheetDensities.size()):
+                self.m_sheetDensities[i] = sheetDensities[i];
+
+        if not self.m_pMPCuda.calculateSourcePositions(self.m_massFactors, self.m_sheetDensities):
             raise MultiPlaneCUDAException(S(self.m_pMPCuda.getErrorString()))
 
         self.m_calculated = True
@@ -218,3 +229,6 @@ cdef class MultiPlaneCUDA:
 
     def getPlummerParameters(self):
         return self.m_plummerParameters
+
+    def getInitialSheetDensities(self):
+        return self.m_initialSheetDensities

@@ -34,7 +34,8 @@ public:
 		const std::vector<float> &sourceRedshifts,
 		const std::vector<std::vector<Vector2Df>> &theta);
 
-	bool calculateSourcePositions(const std::vector<std::vector<float>> &massFactors);
+	bool calculateSourcePositions(const std::vector<std::vector<float>> &massFactors,
+	                              const std::vector<float> &sheetDensities = std::vector<float>());
 	const std::vector<Vector2Df> *getSourcePositions(int srcIdx);
 private:
 	void zero();
@@ -49,7 +50,8 @@ private:
 		const std::vector<std::vector<Vector2Df>> &theta, 
 		void **pCtx);
 
-	int (*mpcuCalculateSourcePositions)(void *ctx, const std::vector<std::vector<float>> &massFactors);
+	int (*mpcuCalculateSourcePositions)(void *ctx, const std::vector<std::vector<float>> &massFactors,
+	                                    const std::vector<float> &sheetDensities);
 	const std::vector<Vector2Df> & (*mpcuGetSourcePositions)(void *ctx, int srcIdx);
 	void (*mpcuClearContext)(void *ctx);
 

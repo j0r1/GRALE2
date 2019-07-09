@@ -90,14 +90,15 @@ bool MultiPlaneCUDA::init(const std::string &libraryPath,
 	return true;
 }
 
-bool MultiPlaneCUDA::calculateSourcePositions(const std::vector<std::vector<float>> &massFactors)
+bool MultiPlaneCUDA::calculateSourcePositions(const std::vector<std::vector<float>> &massFactors,
+                                              const std::vector<float> &sheetDensities)
 {
 	if (!m_pContext)
 	{
 		setErrorString("Not initialized");
 		return false;
 	}
-	int err = mpcuCalculateSourcePositions(m_pContext, massFactors);
+	int err = mpcuCalculateSourcePositions(m_pContext, massFactors, sheetDensities);
 	if (err)
 	{
 		stringstream ss;

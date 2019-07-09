@@ -25,6 +25,6 @@ cdef extern from "grale/multiplanecuda.h" namespace "grale":
             vector[float] &sourceRedshifts,
             vector[vector[Vector2Df]] &theta)
 
-        bool calculateSourcePositions(vector[vector[float]] &massFactors)
+        bool calculateSourcePositions(vector[vector[float]] &massFactors, vector[float] &sheetDensities)
         const vector[Vector2Df] *getSourcePositions(int srcIdx)
 
