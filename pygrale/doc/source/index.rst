@@ -65,6 +65,7 @@ Indices and tables
    grale_inverters.rst
    grale_lenses.rst
    grale_multiplane.rst
+   grale_multiplanecuda.rst
    grale_plotutil.rst
    grale_renderers.rst
    grale_util.rst

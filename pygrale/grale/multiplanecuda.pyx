@@ -1,8 +1,17 @@
+"""This is a Python wrapper for CUDA based multi-plane code [1]. The
+code itself was written with the inversion algorithm in mind, but this
+Python wrapper can still be used to do basic multiplane calculations
+using your GPU (tracing image plane vectors, but no magnifications 
+at the moment).
+
+[1] `MultiplaneLensing @ Github <https://github.com/darkcores/MultiplaneLensing>`_
+"""
 from libcpp.string cimport string
 from libcpp.vector cimport vector
 from libcpp cimport bool as cbool
 from cython.operator cimport dereference as deref
 import os
+import copy
 import numpy as np
 cimport numpy as np
 from . import lenses
@@ -61,7 +70,7 @@ def _getLensParams(lens):
 
     raise MultiPlaneCUDAException("Can't handle lens (component) of type {}".format(type(lens)))
 
-defaultLibraryName = "liblens_common.so"
+_defaultLibraryName = "liblens_common.so"
 
 def _findLibraryPath():
     envKey = "GRALE2_MPCUDALIB"
@@ -69,11 +78,11 @@ def _findLibraryPath():
         return os.environ[envKey]
 
     for p in os.environ["PATH"].split(os.pathsep):
-        fullName = os.path.join(p, defaultLibraryName)
+        fullName = os.path.join(p, _defaultLibraryName)
         if os.path.exists(fullName):
             return fullName
 
-    raise MultiPlaneCUDAException("Can't find library: environment variable '{}' is not set, and library name '{}' can't be found in PATH".format(envKey, defaultLibraryName))
+    raise MultiPlaneCUDAException("Can't find library: environment variable '{}' is not set, and library name '{}' can't be found in PATH".format(envKey, _defaultLibraryName))
 
 cdef class MultiPlaneCUDA:
     
@@ -97,6 +106,38 @@ cdef class MultiPlaneCUDA:
         del self.m_pMPCuda
 
     def __init__(self, lensesAndRedshifts, thetasAndSourceRedshifts, cosmology="default", libraryPath = None):
+        """__init__(lensesAndRedshifts, thetasAndSourceRedshifts, cosmology="default", libraryPath=None)
+
+        Initialize this instance for multi-plane calculations on the GPU. For a
+        fixed set of image plane positions, this will allow you to calculate the
+        source plane positions for various weights of the specified basis functions.
+
+        Arguments:
+         - `lensesAndRedshifts`: this is an array of (:class:`lens <grale.lenses.GravitationalLens>`, 
+           redshift) tuples, corresponding to the number of lens planes and their
+           distances. The lens model should consist of a number of Plummer basis
+           functions, and optionally a mass-sheet basis function. Using 
+           :func:`calculateSourcePositionsForInitialLens` you can calculate the
+           mapping from image planes to source planes for these specific lenses.
+           Using :func:`calculateSourcePositions` it is possible to change the weights
+           of these Plummer basis functions, as well as the densities of the mass sheets.
+
+         - `thetasAndSourceRedshifts`: an array of tuples (image plane vectors, source redshift),
+           specifying the points in the image plane that can be projected back onto
+           the source plane, as well as the redshifts of these source planes. These
+           positions are fixed for this instance, they can no longer be adjusted
+           afterwards.
+
+         - `cosmology`: either a :class:`Cosmology <grale.cosmology.Cosmology>` instance,
+           or ``"default"`` if a default cosmological model has been specified.
+
+         - `libraryPath`: can be ``None`` if the library of the `MultiplaneLensing <https://github.com/darkcores/MultiplaneLensing>`_
+           project should be located automatically, or the full path to this library.
+           In case of an automatic search, the path stored in environment variable
+           GRALE2_MPCUDALIB is used if available, or else the library name
+           will try to be located in the directories in the PATH environment
+           variable.
+        """
 
         cdef vector[vector[multiplanecudacxx.PlummerInfo]] fixedPlummerParameters
         cdef vector[float] lensRedshifts
@@ -175,6 +216,27 @@ cdef class MultiPlaneCUDA:
         self.m_numSources = rescaledThetas.size()
 
     def calculateSourcePositions(self, massFactors, sheetDensities = None):
+        """calculateSourcePositions(massFactors, sheetDensities=None)
+
+        For the image plane vectors and redshifts specified at construction
+        time, the source plane vectors are calculated. The Plummer basis
+        functions specified during initialization are re-weighted using the
+        mass factors specified here, and for each lens plane a mass sheet
+        density can be specified.
+
+        Arguments:
+         - `massFactors`: the factors with which the initial Plummer basis
+           functions should be weighted. To obtain a list of these initial
+           basis functions for each lens plane, you can use the function
+           :func:`getPlummerParameters`. To use the initial basis functions,
+           you simply need to specify a weight of 1 for each one.
+
+         - `sheetDensities`: for each lens plane, a mass sheet with a 
+           specific density (in kg/m^2) can be specified. If set to ``None``,
+           a value of zero is used for each sheet. The function :func:`getInitialSheetDensities`
+           can be used to obtain the sheet densities specified in the
+           constructor.
+        """
         cdef int i, j
 
         if len(massFactors) != self.m_massFactors.size():
@@ -222,13 +284,45 @@ cdef class MultiPlaneCUDA:
         return self._sourcePositionConversion(deref(pPos))
 
     def getSourcePositions(self, int srcIdx):
+        """getSourcePositions(srcIdx)
+
+        For the image plane vectors with index `srcIdx` that were specified
+        in the constructor, return the source positions that have been
+        calculated. This only makes sense if :func:`calculateSourcePositions`
+        has been called first.
+        """
         if srcIdx < 0 or srcIdx >= self.m_numSources:
             raise MultiPlaneCUDAException("Invalid source index {} specified, should lie between 0 and {}".format(srcIdx, self.m_numSources-1))
 
         return self._getSourcePositions(srcIdx)
 
     def getPlummerParameters(self):
-        return self.m_plummerParameters
+        """getPlummerParameters()
+
+        Returns the Plummer parameters that were derived from the lenses specified
+        in the constructor. This is a list (one entry for each lens plane) of lists (one
+        entry for each Plummer basis function), where each entry is a dictionary with keys
+        ``mass``, ``width`` and ``position``, specifying the mass of the Plummer
+        lens, its angular width, and its position in the lens plane.
+        """
+        return copy.deepcopy(self.m_plummerParameters)
 
     def getInitialSheetDensities(self):
-        return self.m_initialSheetDensities
+        """getInitialSheetDensities()
+
+        Returns the mass sheet densities that were found in the lenses specified
+        in the constructor, one density for each lens plane.
+        """
+        return copy.deepcopy(self.m_initialSheetDensities)
+
+    def calculateSourcePositionsForInitialLens(self):
+        """calculateSourcePositionsForInitialLens()
+
+        This is a convenience function to be able to calculate the image plane to
+        source plane mapping for the lenses specified in the constructor, without
+        changing the weights of the basis functions, and without modifying the
+        mass sheet densities.
+        """
+        massFactors = [ 1 for i in range(len(self.m_massFactors)) ]
+        return self.calculateSourcePositions(massFactors, self.m_initialSheetDensities)
+
