@@ -2,14 +2,15 @@
 
 #define MULTIPLANECUDA_H
 
+#include "graleconfig.h"
+#include "vector2d.h"
 #include <errut/errorbase.h>
 #include <vector>
-#include "vector2d.h"
 
 namespace grale
 {
 
-class MultiPlaneCUDA : public errut::ErrorBase
+class GRALE_IMPORTEXPORT MultiPlaneCUDA : public errut::ErrorBase
 {
 public:
 	struct PlummerInfo
