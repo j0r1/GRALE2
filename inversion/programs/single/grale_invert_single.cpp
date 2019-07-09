@@ -6,7 +6,9 @@
 #include <errut/booltype.h>
 #include <serut/memoryserializer.h>
 #include <mogal/geneticalgorithm.h>
+#ifndef WIN32
 #include <fcntl.h>
+#endif // !WIN32
 
 #include <iostream>
 #include <sstream>
@@ -45,7 +47,10 @@ protected:
 int main(int argc, char *argv[])
 {
 	LOG.init(argv[0]);
-
+#ifndef WIN32
+	// This was added to be able to launch instance in gdb, in which case
+	// stdin/stdout can no longer be used for communication with the
+	// executable (needed to control gdb).
 	if (argc == 3)
 	{
 		string inputPipeName(argv[1]);
@@ -57,6 +62,7 @@ int main(int argc, char *argv[])
 		// Nasty: override the file desc for communication
 		stdInFileDescriptor = open(inputPipeName.c_str(), O_RDWR); 
 	}
+#endif // WIN32
 
 	SingleCoreCommunicator comm;
 
