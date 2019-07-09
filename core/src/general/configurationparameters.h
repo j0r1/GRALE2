@@ -95,6 +95,7 @@ public:
 	void setParameter(const std::string &key, int v);
 	void setParameter(const std::string &key, double v);
 	void setParameter(const std::string &key, const std::string &v);
+	void setParameter(const std::string &key, const char *) = delete;
 
 	bool hasParameter(const std::string &key) const;
 	bool getParameter(const std::string &key, TypedParameter &dst) const;
@@ -102,6 +103,7 @@ public:
 	bool getParameter(const std::string &key, int &v) const;
 	bool getParameter(const std::string &key, double &v) const;
 	bool getParameter(const std::string &key, std::string &v) const;
+	bool getParameter(const std::string &key, const char *) const = delete;
 
 	void clearRetrievalMarkers();
 	void getUnretrievedKeys(std::vector<std::string> &keys) const;
