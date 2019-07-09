@@ -1,3 +1,4 @@
+#ifndef WIN32
 #include "multiplanecuda.h"
 #include <dlfcn.h>
 #include <sstream>
@@ -124,4 +125,56 @@ const std::vector<Vector2Df> *MultiPlaneCUDA::getSourcePositions(int srcIdx)
 	return &(mpcuGetSourcePositions(m_pContext, srcIdx));
 }
 
+} // end namespace
+
+#else 
+
+#include "multiplanecuda.h"
+
+namespace grale
+{
+
+MultiPlaneCUDA::MultiPlaneCUDA()
+{
 }
+
+void MultiPlaneCUDA::zero()
+{
+}
+
+void MultiPlaneCUDA::cleanup()
+{
+}
+
+MultiPlaneCUDA::~MultiPlaneCUDA()
+{
+}
+
+bool MultiPlaneCUDA::init(const std::string &libraryPath,
+	double angularUnit,
+	double h, double W_m, double W_r, double W_v, double w,
+	const std::vector<float> &lensRedshifts,
+	const std::vector<std::vector<PlummerInfo>> &fixedPlummerParameters,
+	const std::vector<float> &sourceRedshifts,
+	const std::vector<std::vector<Vector2Df>> &theta)
+{
+	setErrorString("No Win32 version available");
+	return false;
+}
+
+bool MultiPlaneCUDA::calculateSourcePositions(const std::vector<std::vector<float>> &massFactors,
+	const std::vector<float> &sheetDensities)
+{
+	setErrorString("No Win32 version available");
+	return false;
+}
+
+const std::vector<Vector2Df> *MultiPlaneCUDA::getSourcePositions(int srcIdx)
+{
+	setErrorString("No Win32 version available");
+	return nullptr;
+}
+
+} // end namespace
+
+#endif // !WIN32
