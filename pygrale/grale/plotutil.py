@@ -2125,7 +2125,7 @@ Arguments:
 
 	# Find out if the lens is an average
     if type(lens) != lenses.CompositeLens:
-        print("Not a composite lens, not an average of several individual solutions")
+        #print("Not a composite lens, not an average of several individual solutions")
         return wrapLens(lens)
 
     params = lens.getLensParameters()
@@ -2142,7 +2142,7 @@ Arguments:
             break
 
     if not hasExpectedFactor:
-        print("Is a composite lens, but does not seem to be an average of several individual solutions")
+        #print("Is a composite lens, but does not seem to be an average of several individual solutions")
         return wrapLens(lens)
 
     # Ok, here it's an average of individual ones (perhaps a dummy average of one lens)

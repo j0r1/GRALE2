@@ -279,7 +279,6 @@ class LayerList(QtWidgets.QListWidget):
         raise Exception("Layer with uuid {} not found".format(uuid))
 
     def centerOnImageNumber(self, imageNumber):
-        print("TODO: center on image number", imageNumber)
         idx = 0
         foundItem = None
 

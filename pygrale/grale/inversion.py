@@ -160,7 +160,7 @@ def calculateFitness(inputImages, zd, fitnessObjectParameters, lensOrBackProject
        module that's specified
      - `lensOrBackProjectedImages`: either the gravitational lens model for which the 
        fitness measures should be calculated, or a similar list as `inputImages`,
-       for which the positions has already been mapped onto the source plane.
+       for which the positions have already been mapped onto the source plane.
      - `moduleName`: name of the inversion module for the genetic algorithm.
     """
     n = _getModuleName(moduleName)

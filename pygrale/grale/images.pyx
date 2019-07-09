@@ -122,7 +122,7 @@ cdef class ImagesData:
            then this intensity will be specified for the point
          - ``shear``: if shear info was specified in the constructor, then this 2D
            shear info will be stored for the point.
-         - ``shearWeight``: a weight for the shear value, that may ar may not be used
+         - ``shearWeight``: a weight for the shear value, that may or may not be used
            by an inversion method.
         """
 
