@@ -448,13 +448,13 @@ bool FitnessComponent_PointGroupOverlap::processFitnessOption(const std::string 
 	{
 		string valueStr = value.getStringValue();
 
-		if (valueStr == "allbetas")
+		if (valueStr == "AllBetas")
 		{
 			setFitnessRMSType(AllBetas);
 			return true;
 		}
 
-		if (valueStr == "averagebeta")
+		if (valueStr == "AverageBeta")
 		{
 			setFitnessRMSType(AverageBeta);
 			return true;
@@ -1096,6 +1096,7 @@ FitnessComponent_TimeDelay::FitnessComponent_TimeDelay(FitnessComponentCache *pC
 {
 	addRecognizedTypeName("pointimages");
 	addRecognizedTypeName("extendedimages");
+	addRecognizedTypeName("pointgroupimages");
 }
 
 FitnessComponent_TimeDelay::~FitnessComponent_TimeDelay()
