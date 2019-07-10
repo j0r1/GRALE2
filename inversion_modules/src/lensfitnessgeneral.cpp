@@ -222,7 +222,7 @@ ConfigurationParameters *LensFitnessGeneral::getDefaultParametersInstance() cons
 	pParams->setParameter("priority_causticpenalty", 100);
 
 	pParams->setParameter("fitness_pointimageoverlap_scaletype", string("MinMax"));
-	pParams->setParameter("fitness_pointgroupoverlap_rmstype", string("allbetas"));
+	pParams->setParameter("fitness_pointgroupoverlap_rmstype", string("AllBetas"));
 	pParams->setParameter("fitness_timedelay_type", string("Paper2009"));
 	pParams->setParameter("fitness_timedelay_relative", false);
 	pParams->setParameter("fitness_weaklensing_type", string("AveragedEllipticities"));
@@ -276,7 +276,7 @@ bool LensFitnessGeneral::init(double z_d, std::list<ImagesDataExtended *> &image
 	vector<string> allKeys;
 	pParams->getAllKeys(allKeys);
 
-	// Set priorities
+	// Set priorities and component specific fitness options
 	for (FitnessComponent *pComp : m_totalComponents)
 	{
 		assert(pComp);
@@ -564,7 +564,7 @@ bool LensFitnessGeneral::init(double z_d, std::list<ImagesDataExtended *> &image
 	}
 
 	// Save the order things should be calculated (for possible caching
-	// dependencies) and rder the components according to priority
+	// dependencies) and order the components according to priority
 	m_calculationOrderComponents = m_totalComponents;
 
 	sort(m_totalComponents.begin(), m_totalComponents.end(), componentSortFunction);
@@ -706,11 +706,25 @@ measures are:
 
  - `extendedimageoverlap`: for multiply imaged extended sources, this fitness
    measure calculates the fractional overlap of back-projected images as 
-   described in [Liesenborgs et al (2006)][1].
+   described in [Liesenborgs et al (2006)][1]. Point sources can be included
+   as well, in that case the average size of the extended images is used
+   as the distance scale for determining how well the back-projected points
+   overlap.
 
  - `pointimageoverlap`: for strongly lensed point sources, this is a measure
    for how well the back-projected point images overlap in the source plane,
-   as described in [Zitrin et al (2010)][2].
+   as described in [Zitrin et al (2010)][2]. By default the size of the
+   area encompassing all backprojected points is used as a distance scale
+   in determining the overlap, but the median of absolute deviations
+   [MAD](https://en.wikipedia.org/wiki/Median_absolute_deviation) can be
+   used as well (see the section about *'module parameters'*).
+
+ - `pointgroupoverlap`: an experimental fitness measure, which backprojects
+   specific points and estimates the RMS in the image plane. Either the
+   average source position is used, or each backprojected image is used
+   separately as a source position estimate (see the section about *'module parameters'*).
+   The magnification matrix is used to map differences in the source plane to 
+   differences in the image plane.
 
  - `extendedimagenull`: this fitness measure takes the null space into 
    account, the region where no images should be found, as described in
@@ -733,8 +747,12 @@ measures are:
    also possible to add a fitness measure to try to prevent a caustic from
    intersecting a reconstructed source.
 
- - `weaklensing`: if real or reduced shear information is provided, a 
-   $\chi^2$-like fitness measure will be provided for this.
+ - `weaklensing`: if shear information is provided, a $\chi^2$-like fitness 
+   measure will be provided for this. By default, the shear data will be
+   interpreted as averaged ellipticities, but if desired (for testing
+   purposes for example), real shear, or actual reduced shear can be
+   specified as well (see the section about *'module parameters'*). For
+   each data point, a weight can be specified.
 
  - `kappathreshold`: if it's certain that the convergence ($\kappa$) values
    at certain locations should not exceed a certain threshold, this fitness
@@ -757,7 +775,10 @@ The images data set type name describes what kind of data
 is contained in this entry, and can be one of the following:
 
  - `pointimages`: the images data set describes point images that originate
-   from a single source (also a point of course). In general in a strong
+   from a single source (also a point of course). Alternatively, extended
+   images may be provided as well, but in this case point groups specifying
+   which points are really images of the same source plane point must be
+   present. In general in a strong
    lensing scenario there will be more than one image, but single images are
    allowed as well. If this is the case, the image can't be used directly 
    because it originates from a single point source by definition, but it can
@@ -769,7 +790,7 @@ is contained in this entry, and can be one of the following:
    measured relative to the scale of only these back-projected points. By
    default, the scale of all backprojected points is used. If `usescalefrom`
    is present, then for those points the scale set by another set of points,
-   identified by a specific `groupname`.
+   identified by a specific `groupname`. 
 
     In case time delay information was added to the images data set, by 
    default a time delay fitness measure will be calculated as well. This can
@@ -778,6 +799,20 @@ is contained in this entry, and can be one of the following:
 
     The fitness measures to which this type of data is relevant, are 
    `pointimageoverlap`, `pointimagenull` and `timedelay`.
+
+ - `pointgroupimages`: an image data set with type is used in the
+   `pointgroupoverlap` fitness measure, which calculates the RMS in the
+   image plane. The input should either be point image data, or extended
+   images in which point groups are used to indicate which points belong
+   together.
+
+    In case time delay information was added to the images data set, by 
+   default a time delay fitness measure will be calculated as well. This can
+   still be disabled by specifying a boolean extra parameter `timedelay` that
+   is set to `False`.
+
+    The fitness measures to which this type of data is relevant, are
+   `pointgroupoverlap`, `pointimagenull` and `timedelay`.
 
  - `pointnullgrid`: the images data set should contain only one 'image', a
    triangulated grid, and is interpreted as a null space grid. It refers to 
@@ -796,7 +831,11 @@ is contained in this entry, and can be one of the following:
 
  - `extendedimages`: in this case the images data set describes the extended 
    images originating from a single source. Therefore, in principle each image
-   should consist of at least three points. As an exception, a single image
+   should consist of at least three points. A set of point images may be
+   provided as well, but since each separate point image does not provide
+   a distance scale to measure overlap with, the average size of the other
+   backprojected (extended images) is used as the distance scale instead.
+   A single image
    containing exactly one point is allowed as well. In this case it will not
    be used as a constraint regarding the overlap of back-projected images
    in the source plane, but it can be used as a constraint in the null space,
@@ -816,7 +855,7 @@ is contained in this entry, and can be one of the following:
    is set to `no`.
 
     The fitness measures to which this type of data is relevant, are 
-   `extendedimageoverlap`, `extendedimagenull` and `timedelay`.
+   `extendedimageoverlap`, `extendedimagenull`, `pointimagenull` and `timedelay`.
 
  - `extendednullgrid`: similar to `pointnullgrid`, the images data set should 
    contain only one 'image', a triangulated grid, and is interpreted as a null 
@@ -835,21 +874,13 @@ is contained in this entry, and can be one of the following:
     The only fitness measure to which this type of data is relevant, is 
    `extendedimagenull`.
 
- - `reducedshear`: use this type to provide reduced shear measurements to the
+ - `sheardata`: use this type to provide shear measurements to the
    algorithm. The images data set should contain only one 'image', a set of 
-   points in the image plane for which reduced shear components have been
+   points in the image plane for which shear components have been
    specified. One extra parameter (a real number) called `threshold` must be
    provided: this contains a threshold value for $|1-\kappa|$. Only when at
    a certain point the value for $|1-\kappa|$ exceeds the specified threshold,
    will it be included in the $\chi^2$-like calculation.
-
-    The only fitness measure to which this type of data is relevant, is 
-   `weaklensing`.
-
- - `trueshear`: this is entirely similar to `reducedshear`, but in this case
-   the shear components are treated as the true shear values (which need to
-   be divided by $1-\kappa$ to obtain the reduced shear). Here too the extra
-   parameter `threshold` needs to be specified.
 
     The only fitness measure to which this type of data is relevant, is 
    `weaklensing`.
@@ -888,31 +919,56 @@ Module parameters
 -----------------
 
 Extra parameters for this module can be set using the `fitnessObjectParameters`
-argument in e.g. [`inversion.invert`](http://research.edm.uhasselt.be/~jori/grale2/grale_inversion.html#grale.inversion.InversionWorkSpace.invert)
-or `str`) and the value. The defaults can be obtained using the command
+argument in e.g. [`inversion.invert`](http://research.edm.uhasselt.be/~jori/grale2/grale_inversion.html#grale.inversion.InversionWorkSpace.invert).
+The defaults can be obtained using the command
 [`inversion.getDefaultModuleParameters`](http://research.edm.uhasselt.be/~jori/grale2/grale_inversion.html#grale.inversion.getDefaultModuleParameters), 
 and are listed in the following table:
 
-| Parameter name                | Value                   |
-|-------------------------------|-------------------------|
-| priority_causticpenalty       | 100                     |
-| priority_pointimagenull       | 200                     |
-| priority_extendedimagenull    | 200                     |
-| priority_pointimageoverlap    | 300                     |
-| priority_extendedimageoverlap | 300                     |
-| priority_timedelay            | 400                     |
-| priority_weaklensing          | 500                     |
-| priority_kappathreshold       | 600                     |
-| fitness_timedelay_type        | 'Paper2009'             |
-| fitness_timedelay_relative    | `False`                 |
-| fitness_weaklensing_type      | 'AveragedEllipticities' |
+| Parameter name                      | Value                   |
+|-------------------------------------|-------------------------|
+| priority_causticpenalty             | 100                     |
+| priority_pointimagenull             | 200                     |
+| priority_extendedimagenull          | 200                     |
+| priority_pointgroupoverlap          | 250                     |
+| priority_pointimageoverlap          | 300                     |
+| priority_extendedimageoverlap       | 300                     |
+| priority_timedelay                  | 400                     |
+| priority_weaklensing                | 500                     |
+| priority_kappathreshold             | 600                     |
+| fitness_pointgroupoverlap_rmstype   | 'AllBetas'              |
+| fitness_pointimageoverlap_scaletype | 'MinMax'                |
+| fitness_timedelay_type              | 'Paper2009'             |
+| fitness_timedelay_relative          | `False`                 |
+| fitness_weaklensing_type            | 'AveragedEllipticities' |
+
+In case input is provided with 'pointgroupimages' type, the 'pointgroupoverlap'
+fitness calculation is used, which estimates the RMS in the image plane. It
+does this by projecting the image points onto the source plane, determining
+a source position based on these points, and using the magnification matrix
+to convert differences in the source plane to difference in the image plane.
+By default, each backprojected image point is used as a possible source
+position, corresponding to the value 'AllBetas' of `fitness_pointgroupoverlap_rmstype`.
+To use the averaged source position instead, you can set it to 'AverageBeta'.
+
+If input is provided of 'pointimages' type, the 'pointimageoverlap' fitness
+calculation will be activated. It projects the image points onto the source
+plane, and uses the differences between the backprojected points to base the
+fitness measure on. The distance scale with which these differences are measured
+depends on all backprojected points and by default the size of the entire area
+is used. This corresponds to the setting `fitness_pointimageoverlap_scaletype` 
+to 'MinMax'. In case the [median of absolute deviations](https://en.wikipedia.org/wiki/Median_absolute_deviation)
+should be used instead, this option can be set to 'MAD'.
 
 The `fitness_timedelay_type` can also be 'ExperimentalI' or 'ExperimentalII',
 but as you might guess, these are still experimental. The option
 `fitness_timedelay_relative` is extremely experimental: don't enable this, it
 does not work yet!
-The `fitness_weaklensing_type` can also be 'RealShear' or 'RealReducedShear', mainly
-for testing purposes.
+
+For the weak lensing fitness, the data is by default interpreted as (averaged)
+ellipticity measurements. This corresponds the default value of 'AveragedEllipticities'
+for `fitness_weaklensing_type`. In case true shear is supplied, or the actual
+reduced shear, the value can also be 'RealShear' or 'RealReducedShear' respectively.
+This is mainly meant for testing purposes.
 
 As the names suggest, the options that start with `priority_` describe priorities 
 for fitness measures. These values do **not** have any effect on the way the 
