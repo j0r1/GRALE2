@@ -694,6 +694,7 @@ bool LensFitnessGeneral::calculateOverallFitness(const ProjectedImagesInterface 
 
 string LensFitnessGeneral::getUsage() const
 {
+#ifndef WIN32
 	return R"TEXT(
 Inversion module 'general'
 ==========================
@@ -1009,6 +1010,9 @@ multi-objective genetic algorithm"
 lens inversion of SDSS J1004+4112"
 
 )TEXT";
+#else
+	return "(Stub for Win32 - compiler says 'string too big')";
+#endif // !WIN32
 }
 
 } // end namespace
