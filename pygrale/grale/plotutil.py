@@ -878,7 +878,8 @@ Arguments:
 
     if axes is not False:
         # This allows information from multiple planes to be accumulated
-        plane = processRenderPixels(plane) if processRenderPixels else np.clip(bgPlane+rgbSplane+rgbIplane, 0, 1)
+        plane = bgPlane+rgbSplane+rgbIplane
+        plane = processRenderPixels(plane) if processRenderPixels else np.clip(plane, 0, 1)
         # Note: need to swap Y labeling here because of the way the pixels are ordered in this function
         if plane is not None:
             axImg = axes.imshow(plane, extent = np.array([ bottomLeft[0], topRight[0], topRight[1], bottomLeft[1]])/angularUnit, **kwargs)
