@@ -716,8 +716,8 @@ bool FitnessComponent_NullSpacePointImages::inspectImagesData(int idx, const Ima
 		// no point groups, perhaps it's a point image and we can use this
 		if (!isPointImage(imgDat))
 		{
-			setErrorString("Image does not contain point groups and is not a point image");
-			return false;
+			cerr << "INFO: Image does not contain point groups and is not a point image" << endl;
+			return true; // Just ignore this set
 		}
 
 		// Ok, it's a point image, so add group info
