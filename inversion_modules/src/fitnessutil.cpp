@@ -1263,8 +1263,11 @@ float calculateTimeDelayFitness(const ProjectedImagesInterface &iface, const vec
 	return timeDelayFitness;
 }
 
-float calculateTimeDelayFitnessExperimental(const ProjectedImagesInterface &iface, const vector<int> &sourceIndices)
+float calculateTimeDelayFitnessExperimental(const ProjectedImagesInterface &iface, const vector<int> &sourceIndices,
+                                            const vector<float> &tdScaleFactors)
 {
+	assert(tdScaleFactors.size() == 0 || tdScaleFactors.size() == sourceIndices.size());
+
 	float timeDelayFitness = 0;
 
 	double D_d = iface.getLensDistance();
@@ -1272,9 +1275,13 @@ float calculateTimeDelayFitnessExperimental(const ProjectedImagesInterface &ifac
 	double dFactor = ((D_d*(1.0+z_d)/SPEED_C) * iface.getAngularScale()*iface.getAngularScale())/(60*60*24);
 	float baseFactor = (float)dFactor;
 
-	for (int s : sourceIndices)
+	for (int sIdx = 0 ; sIdx < sourceIndices.size() ; sIdx++)
 	{
+		const int s = sourceIndices[sIdx];
+		const float scaleFactor = (tdScaleFactors.size() == 0)?0:tdScaleFactors[sIdx];
+
 		assert(iface.getOriginalNumberOfTimeDelays(s) > 0);
+		assert(scaleFactor >= 0);
 
 		int numTimeDelays = iface.getOriginalNumberOfTimeDelays(s);
 		float tdfit = 0;
@@ -1314,7 +1321,8 @@ float calculateTimeDelayFitnessExperimental(const ProjectedImagesInterface &ifac
 				float alphaDiff = 0.5*(alpha2.getLengthSquared() - alpha1.getLengthSquared());
 
 				float calculatedDifference = (alphaDiff - phiDiff)*factor;
-				float relativeDiff = (realTimeDelayDifference - calculatedDifference)/realTimeDelayDifference;
+				float denom = (scaleFactor == 0)?realTimeDelayDifference:scaleFactor;
+				float relativeDiff = (realTimeDelayDifference - calculatedDifference)/denom;
 					
 				tdfit += relativeDiff*relativeDiff;
 				count++;
@@ -1332,8 +1340,11 @@ float calculateTimeDelayFitnessExperimental(const ProjectedImagesInterface &ifac
 }
 
 
-float calculateTimeDelayFitnessExperimental2(const ProjectedImagesInterface &iface, const vector<int> &sourceIndices)
+float calculateTimeDelayFitnessExperimental2(const ProjectedImagesInterface &iface, const vector<int> &sourceIndices,
+                                             const vector<float> &tdScaleFactors)
 {
+	assert(tdScaleFactors.size() == 0 || tdScaleFactors.size() == sourceIndices.size());
+
 	float timeDelayFitness = 0;
 
 	double D_d = iface.getLensDistance();
@@ -1341,9 +1352,13 @@ float calculateTimeDelayFitnessExperimental2(const ProjectedImagesInterface &ifa
 	double dFactor = ((D_d*(1.0+z_d)/SPEED_C) * iface.getAngularScale()*iface.getAngularScale())/(60*60*24);
 	float baseFactor = (float)dFactor;
 
-	for (int s : sourceIndices)
+	for (int sIdx = 0 ; sIdx < sourceIndices.size() ; sIdx++)
 	{
+		const int s = sourceIndices[sIdx];
+		const float scaleFactor = (tdScaleFactors.size() == 0)?0:tdScaleFactors[sIdx];
+
 		assert(iface.getOriginalNumberOfTimeDelays(s) > 0);
+		assert(scaleFactor >= 0);
 
 		int numTimeDelays = iface.getOriginalNumberOfTimeDelays(s);
 		float tdfit = 0;
@@ -1396,7 +1411,8 @@ float calculateTimeDelayFitnessExperimental2(const ProjectedImagesInterface &ifa
 						-
 						phiDiff)*factor;
 
-				float relativeDiff = (realTimeDelayDifference - calculatedDifference)/realTimeDelayDifference;
+				float denom = (scaleFactor == 0)?realTimeDelayDifference:scaleFactor;
+				float relativeDiff = (realTimeDelayDifference - calculatedDifference)/denom;
 					
 				tdfit += relativeDiff*relativeDiff;
 				count++;

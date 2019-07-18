@@ -1168,9 +1168,9 @@ bool FitnessComponent_TimeDelay::inspectImagesData(int idx, const ImagesDataExte
 	float tdScaleFactor = 0;
 	if (imgDat.hasExtraParameter("timedelay_scalefactor"))
 	{
-		if (!(m_fitnessType == Paper2009 && m_relative == false))
+		if (m_relative)
 		{
-			setErrorString("'timedelay_scalefactor' was set but is only supported for the Paper2009 method and non-relative version");
+			setErrorString("'timedelay_scalefactor' was set but is only supported for the non-relative version");
 			return false;
 		}
 
@@ -1261,9 +1261,9 @@ bool FitnessComponent_TimeDelay::calculateFitness(const ProjectedImagesInterface
 			fitness = calculateTimeDelayFitness_Relative(iface, getUsedImagesDataIndices(), m_referencePoints);
 	}
 	else if (m_fitnessType == ExpI)
-		fitness = calculateTimeDelayFitnessExperimental(iface, getUsedImagesDataIndices());
+		fitness = calculateTimeDelayFitnessExperimental(iface, getUsedImagesDataIndices(), m_tdScaleFactors);
 	else if (m_fitnessType == ExpII)
-		fitness = calculateTimeDelayFitnessExperimental2(iface, getUsedImagesDataIndices());
+		fitness = calculateTimeDelayFitnessExperimental2(iface, getUsedImagesDataIndices(), m_tdScaleFactors);
 	else
 	{
 		setErrorString("Unknown TD fitness type");

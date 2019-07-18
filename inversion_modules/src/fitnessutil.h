@@ -83,9 +83,11 @@ float calculateWeakLensingFitness(const ProjectedImagesInterface &interface, con
 float calculateTimeDelayFitness(const ProjectedImagesInterface &iface, const std::vector<int> &sourceIndices,
 		                        const std::vector<float> &tdScaleFactors = std::vector<float>());
 
-float calculateTimeDelayFitnessExperimental(const ProjectedImagesInterface &iface, const std::vector<int> &sourceIndices);
+float calculateTimeDelayFitnessExperimental(const ProjectedImagesInterface &iface, const std::vector<int> &sourceIndices,
+                                            const std::vector<float> &tdScaleFactors = std::vector<float>());
 
-float calculateTimeDelayFitnessExperimental2(const ProjectedImagesInterface &iface, const std::vector<int> &sourceIndices);
+float calculateTimeDelayFitnessExperimental2(const ProjectedImagesInterface &iface, const std::vector<int> &sourceIndices,
+                                             const std::vector<float> &tdScaleFactors = std::vector<float>());
 
 float calculateTimeDelayFitness_Relative(const ProjectedImagesInterface &iface, const std::vector<int> &sourceIndices,
 													  std::vector<std::pair<int,int>> &referencePoints);
