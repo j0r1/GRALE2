@@ -95,10 +95,26 @@ def _align(pred, obs, maxPermSize):
     bestDist, bestPerm = _findBestPermutation(obs, pred)
     return bestPerm
 
+def _findRealTheta(imgPlane, beta, theta):
+    from .constants import ANGLE_ARCSEC
+    import scipy.optimize as opt
+
+    startDiff = (imgPlane.traceTheta(theta) - beta)/ANGLE_ARCSEC
+
+    def f(x):
+        return (imgPlane.traceTheta(x) - beta)/ANGLE_ARCSEC
+
+    r = opt.fsolve(f, x0=theta)
+    #endDiff = (imgPlane.traceTheta(r) - beta)/ANGLE_ARCSEC
+    #print("start diff", sum(startDiff**2)**0.5, "arcsec")
+    #print("end diff", sum(endDiff**2)**0.5, "arcsec")
+    return r
+
 def calculateImagePredictions(imgList, lensModel, cosmology=None,
                      reduceImages="average",
                      useAverageBeta=True,
-                     maxPermSize=7):
+                     maxPermSize=7,
+                     useFSolve=True):
     r"""For a set of images and a lens model, the predicted images for
     each observed image are calculated. The results can subsequently
     be used in the :func:`calculateRMS` function to obtain the RMS.
@@ -118,7 +134,10 @@ def calculateImagePredictions(imgList, lensModel, cosmology=None,
        In case only one or more lens models are specified, the predicted image 
        positions are estimated by calculating the derivatives of :math:`\vec{\beta}(\vec{\theta})`
        and using them to compensate for small differences in source plane
-       positions :math:`\vec{\beta}`. On the other hand, if e.g. a MultiLensPlane
+       positions :math:`\vec{\beta}`; or if `useFSolve` is ``True``, several
+       iterations will be used to approximate the true solution.
+
+       On the other hand, if e.g. a MultiLensPlane
        instance is used, then the :func:`traceBetaApproximately <grale.multiplane.MultiImagePlane.traceBetaApproximately>`
        function is called to obtain estimates of image plane positions corresponding
        to a source plane position. This is more computationally demanding, but should
@@ -147,6 +166,10 @@ def calculateImagePredictions(imgList, lensModel, cosmology=None,
        be possible and different permutations of the positions will then be explored.
        Since this can become quite slow, an error is generated if more elements than
        this would need to be permutated.
+
+     - `useFSolve`: if only a lens model is used, this cause SciPy's `fsolve <https://docs.scipy.org/doc/scipy-0.14.0/reference/generated/scipy.optimize.fsolve.html>`_
+       to be used to zoom in on the real image plane vectors. Otherwise, a one-step
+       approach is used based on the deflection angle derivatives.
     """
 
     from . import multiplane
@@ -195,7 +218,7 @@ def calculateImagePredictions(imgList, lensModel, cosmology=None,
                 imgPos.append({ "theta": theta, "beta": beta })
             else:
                 beta, betaDerivs = imgPlane.getBetaAndDerivatives(theta)
-                imgPos.append({ "theta": theta, "beta": beta,
+                imgPos.append({ "theta": theta, "beta": beta, "z": z,
                                 "betaderivs": betaDerivs, "invbetaderivs": inv(betaDerivs)})
 
         allPoints.append((imgPos, z))
@@ -221,18 +244,28 @@ def calculateImagePredictions(imgList, lensModel, cosmology=None,
 
             for i in range(len(observedThetas)):
                 sourceInfo.append({ "theta_obs": observedThetas[i],
-                                    "theta_pred": predictedThetas[i] })
+                                    "theta_pred": predictedThetas[i],
+                                    "beta_est": betas})
         else:
             for x in imgPos:
+                if useFSolve:
+                    imgPlane = multiplane.MultiImagePlane(lensPlane, x["z"])
+
                 thetaPred = [ ]
                 theta0, beta0, invderiv0 = x["theta"], x["beta"], x["invbetaderivs"]
                 for beta1 in betas:
-                    dbeta = beta1-beta0
-                    dtheta = invderiv0.dot(dbeta)
-                    thetaPred.append(theta0 + dtheta)
+                    if useFSolve:
+                        # We're looking for the images of beta1, starting from the
+                        # estimate at observed theta0
+                        thetaPred.append(_findRealTheta(imgPlane, beta1, theta0)) 
+                    else:
+                        dbeta = beta1-beta0
+                        dtheta = invderiv0.dot(dbeta)
+                        thetaPred.append(theta0 + dtheta)
 
                 sourceInfo.append({ "theta_obs": theta0,
-                                    "theta_pred": thetaPred })
+                                    "theta_pred": thetaPred,
+                                    "beta_est": betas })
 
         sources.append(sourceInfo)
     return sources
