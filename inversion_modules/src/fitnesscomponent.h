@@ -5,6 +5,7 @@
 #include "pointgroupstorage.h"
 #include "fitnessutil.h"
 #include <grale/triangleindices.h>
+#include <grale/imagesdataextended.h>
 #include <errut/errorbase.h>
 #include <grale/polygon2d.h>
 #include <vector>
@@ -183,6 +184,7 @@ private:
 	double m_lastImgDds;
 	double m_lastImgDs;
 	int m_lastImgNumImgs;
+	ImagesDataExtended m_lastPointGroupImg;
 
 	PointGroupStorage m_pointGroups;
 	std::vector<int> m_sourceIndices;

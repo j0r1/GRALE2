@@ -649,8 +649,7 @@ bool FitnessComponent_NullSpacePointImages::inspectImagesData(int idx, const Ima
 		m_lastImgDds = imgDat.getDds();
 		m_lastImgDs = imgDat.getDs();
 		m_lastImgNumImgs = numImg;
-
-		m_pointGroups.add(grpDat);
+		m_lastPointGroupImg = grpDat;
 	};
 
 	imgDat.getExtraParameter("type", typeName);
@@ -798,6 +797,7 @@ bool FitnessComponent_NullSpacePointImages::inspectImagesData(int idx, const Ima
 
 	m_sourceIndices.push_back(m_lastImgIdx);
 	m_nullIndices.push_back(idx);
+	m_pointGroups.add(m_lastPointGroupImg);
 
 	addImagesDataIndex(m_lastImgIdx);
 	addImagesDataIndex(idx);
