@@ -129,33 +129,68 @@ void removeEmpty(vector<FitnessComponent *> &comp)
 #define COMPONENT_CAUSTICPENALTY_IDX			8
 #define COMPONENT_IDX_MAX						9
 
-FitnessComponent *totalToShort(const vector<FitnessComponent *> &total, vector<int> &shortImageIndices)
+static const vector<string> componentNames {
+	"pointimageoverlap",
+	"extendedimageoverlap",
+	"pointgroupoverlap",
+	"weaklensing",
+	"pointimagenull",
+	"extendedimagenull",
+	"timedelay",
+	"kappathreshold",
+	"causticpenalty"
+};
+
+FitnessComponent *totalToShort(const vector<FitnessComponent *> &total, vector<int> &shortImageIndices,
+							   const ConfigurationParameters &params, string &errStr)
 {
-	assert(total.size() == COMPONENT_IDX_MAX);
+	assert(componentNames.size() == COMPONENT_IDX_MAX);
+	assert(componentNames.size() == total.size());
 
-	FitnessComponent *pPointOverlap = total[COMPONENT_POINTOVERLAP_IDX];
-	assert(!pPointOverlap || pPointOverlap->getObjectName() == "pointimageoverlap");
+	map<int, vector<FitnessComponent *>> priorityMap;
 
-	FitnessComponent *pExtOverlap = total[COMPONENT_EXTENDEDOVERLAP_IDX];
-	assert(!pExtOverlap || pExtOverlap->getObjectName() == "extendedimageoverlap");
+	// Build a map of the priorities
+	for (int compIdx = 0 ; compIdx < componentNames.size() ; compIdx++)
+	{
+		string compName = componentNames[compIdx];
+		FitnessComponent *pComp = total[compIdx];
+		string keyName = "scalepriority_" + compName;
 
-	FitnessComponent *pPtGrpOverlap = total[COMPONENT_POINTGROUPOVERLAP_IDX];
-	assert(!pPtGrpOverlap || pPtGrpOverlap->getObjectName() == "pointgroupoverlap");
+		int priority = 0;
+		if (!params.getParameter(keyName, priority))
+		{
+			errStr = "Can't find (integer) parameter '" + keyName + "': " + params.getErrorString();
+			return nullptr;
+		}
 
-	FitnessComponent *pWeak = total[COMPONENT_WEAK_IDX];
-	assert(!pWeak || pWeak->getObjectName() == "weaklensing");
+		if (!pComp)
+			continue;
 
-	// More than 1 image needs to be present in these to make them useful
-	// (should also be checked in the components, but checking again for
-	// safety)
-	if (pPointOverlap && pPointOverlap->getNumberOfUsedImages() < 2)
-		pPointOverlap = 0;
-	if (pExtOverlap && pExtOverlap->getNumberOfUsedImages() < 2)
-		pExtOverlap = 0;
-	if (pPtGrpOverlap && pPtGrpOverlap->getNumberOfUsedImages() < 2)
-		pPtGrpOverlap = 0;
+		if (pComp->getObjectName() != compName)
+		{
+			errStr = "Internal error: component name '" + pComp->getObjectName() + "' is not the expected '" + compName + "'";
+			return nullptr;
+		}
+	
+		if (priority < 0) // Skip this
+			continue;
 
-	vector<FitnessComponent*> components { pPointOverlap, pExtOverlap, pPtGrpOverlap };
+		priorityMap[priority].push_back(pComp);
+	}
+
+	// Sort according to lowest priority
+	vector<int> priorityKeys;
+	for (auto it = priorityMap.begin() ; it != priorityMap.end() ; ++it)
+		priorityKeys.push_back(it->first);
+	sort(priorityKeys.begin(), priorityKeys.end());
+
+	if (priorityKeys.size() == 0)
+	{
+		errStr = "No suitable component could be found to use mass scale";
+		return nullptr;
+	}
+
+	auto components = priorityMap[priorityKeys[0]]; // Use the components with the lowest priority
 	sort(components.begin(), components.end(), [](FitnessComponent *c1, FitnessComponent *c2)
 	{
 		if (c1 == nullptr)
@@ -165,27 +200,12 @@ FitnessComponent *totalToShort(const vector<FitnessComponent *> &total, vector<i
 		return c1->getNumberOfUsedImages() > c2->getNumberOfUsedImages();
 	});
 
-	if (components[0] != nullptr)
-	{
-		shortImageIndices = components[0]->getUsedImagesDataIndices();
-		if (components[0] == pPointOverlap)
-			return new FitnessComponent_PointImagesOverlap(nullptr);
-		if (components[0] == pExtOverlap)
-			return new FitnessComponent_ExtendedImagesOverlap(nullptr);
+	assert(components.size() > 0 && components[0] != nullptr);
+	
+	FitnessComponent *pShortComp = components[0];
 
-		assert(components[0] == pPtGrpOverlap);
-		return new FitnessComponent_PointGroupOverlap(nullptr);
-	}
-
-	// As a final resort, use the weak lensing data to base the mass scale on
-	if (pWeak)
-	{
-		shortImageIndices = pWeak->getUsedImagesDataIndices();
-		return new FitnessComponent_WeakLensing(nullptr);
-	}
-
-	// Nothing useful could be found
-	return nullptr;
+	shortImageIndices = pShortComp->getUsedImagesDataIndices();
+	return pShortComp->createShortCopy();
 }
 
 bool componentSortFunction(const FitnessComponent *pComp1, const FitnessComponent *pComp2)
@@ -220,6 +240,16 @@ ConfigurationParameters *LensFitnessGeneral::getDefaultParametersInstance() cons
 	pParams->setParameter("priority_timedelay", 400);
 	pParams->setParameter("priority_kappathreshold", 600);
 	pParams->setParameter("priority_causticpenalty", 100);
+
+	pParams->setParameter("scalepriority_pointimageoverlap", 100);
+	pParams->setParameter("scalepriority_extendedimageoverlap", 100);
+	pParams->setParameter("scalepriority_pointgroupoverlap", 200);
+	pParams->setParameter("scalepriority_pointimagenull", -1);
+	pParams->setParameter("scalepriority_extendedimagenull", -1);
+	pParams->setParameter("scalepriority_weaklensing", 300);
+	pParams->setParameter("scalepriority_timedelay", -1);
+	pParams->setParameter("scalepriority_kappathreshold", -1);
+	pParams->setParameter("scalepriority_causticpenalty", -1);
 
 	pParams->setParameter("fitness_pointimageoverlap_scaletype", string("MinMax"));
 	pParams->setParameter("fitness_pointgroupoverlap_rmstype", string("AllBetas"));
@@ -276,21 +306,8 @@ bool LensFitnessGeneral::init(double z_d, std::list<ImagesDataExtended *> &image
 	vector<string> allKeys;
 	pParams->getAllKeys(allKeys);
 
-	// Set priorities and component specific fitness options
-	for (FitnessComponent *pComp : m_totalComponents)
+	auto setFitnessOptions = [&allKeys, pParams, this](FitnessComponent *pComp)
 	{
-		assert(pComp);
-		string keyName = "priority_" + pComp->getObjectName();
-
-		int priority = 0;
-		if (!pParams->getParameter(keyName, priority))
-		{
-			setErrorString("Can't find (integer) parameter '" + keyName + "': " + pParams->getErrorString());
-			return false;
-		}
-
-		pComp->setPriority(priority);
-
 		string fitnessOptionStart = "fitness_" + pComp->getObjectName() + "_";
 		for (auto &k : allKeys)
 		{
@@ -307,6 +324,23 @@ bool LensFitnessGeneral::init(double z_d, std::list<ImagesDataExtended *> &image
 				}
 			}
 		}
+	};
+
+	// Set priorities and component specific fitness options
+	for (FitnessComponent *pComp : m_totalComponents)
+	{
+		assert(pComp);
+		string keyName = "priority_" + pComp->getObjectName();
+
+		int priority = 0;
+		if (!pParams->getParameter(keyName, priority))
+		{
+			setErrorString("Can't find (integer) parameter '" + keyName + "': " + pParams->getErrorString());
+			return false;
+		}
+
+		pComp->setPriority(priority);
+		setFitnessOptions(pComp);
 	}
 
 	// Get the supported type names
@@ -446,7 +480,19 @@ bool LensFitnessGeneral::init(double z_d, std::list<ImagesDataExtended *> &image
 
 	vector<int> shortIndices;
 	set<int> shortIndicesSet;
-	m_pShortComponent = totalToShort(m_totalComponents, shortIndices);
+	string errStr;
+	m_pShortComponent = totalToShort(m_totalComponents, shortIndices, *pParams, errStr);
+	// Check that we have something to base the mass scale on
+	if (m_pShortComponent == nullptr)
+	{
+		setErrorString(errStr);
+		return false;
+	}
+
+	// TODO: find something better to report
+	cerr << "DBG: shortComponent = " << m_pShortComponent->getObjectName() << endl;
+
+	setFitnessOptions(m_pShortComponent); // Also set the possibly different fitness options
 	
 	// Store the relevant image indices in a set
 	for (auto idx : shortIndices)
@@ -459,16 +505,8 @@ bool LensFitnessGeneral::init(double z_d, std::list<ImagesDataExtended *> &image
 		if (shortIndicesSet.find(imgDatCount) != shortIndicesSet.end()) // This is a useful image
 			shortImages.push_back(*it);
 	}
-	
-	// Check that we have something to base the mass scale on
-	if (m_pShortComponent == 0)
-	{
-		setErrorString("No images data type was present that we can base the mass scale on");
-		return false;
-	}
 
 	// Run the shortImages through the newly created m_pShortComponent
-	assert(m_pShortComponent);
 	assert(shortImages.size() > 0);
 
 	imgDatCount = 0;

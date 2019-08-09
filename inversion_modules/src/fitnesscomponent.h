@@ -60,6 +60,7 @@ protected:
 	FitnessComponent(const std::string &name, FitnessComponentCache *pCache);
 public:
 	~FitnessComponent();
+	virtual FitnessComponent *createShortCopy() const = 0;
 
 	void setPriority(int p)																{ m_priority = p; }
 	int getPriority() const																{ return m_priority; }
@@ -106,6 +107,7 @@ class FitnessComponent_PointImagesOverlap : public FitnessComponent
 public:
 	FitnessComponent_PointImagesOverlap(FitnessComponentCache *pCache);
 	~FitnessComponent_PointImagesOverlap();
+	FitnessComponent *createShortCopy() const override { return new FitnessComponent_PointImagesOverlap(nullptr); }
 
 	bool inspectImagesData(int idx, const ImagesDataExtended &imgDat,
 			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
@@ -133,6 +135,7 @@ class FitnessComponent_PointGroupOverlap : public FitnessComponent
 public:
 	FitnessComponent_PointGroupOverlap(FitnessComponentCache *pCache);
 	~FitnessComponent_PointGroupOverlap();
+	FitnessComponent *createShortCopy() const override { return new FitnessComponent_PointGroupOverlap(nullptr); }
 
 	bool inspectImagesData(int idx, const ImagesDataExtended &imgDat,
 			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
@@ -154,6 +157,7 @@ class FitnessComponent_ExtendedImagesOverlap : public FitnessComponent
 public:
 	FitnessComponent_ExtendedImagesOverlap(FitnessComponentCache *pCache);
 	~FitnessComponent_ExtendedImagesOverlap();
+	FitnessComponent *createShortCopy() const override { return new FitnessComponent_ExtendedImagesOverlap(nullptr); }
 
 	bool inspectImagesData(int idx, const ImagesDataExtended &imgDat,
 			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
@@ -173,6 +177,7 @@ class FitnessComponent_NullSpacePointImages : public FitnessComponent
 public:
 	FitnessComponent_NullSpacePointImages(FitnessComponentCache *pCache);
 	~FitnessComponent_NullSpacePointImages();
+	FitnessComponent *createShortCopy() const override { return new FitnessComponent_NullSpacePointImages(nullptr); }
 
 	bool inspectImagesData(int idx, const ImagesDataExtended &imgDat,
 			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
@@ -200,6 +205,7 @@ class FitnessComponent_NullSpaceExtendedImages : public FitnessComponent
 public:
 	FitnessComponent_NullSpaceExtendedImages(FitnessComponentCache *pCache);
 	~FitnessComponent_NullSpaceExtendedImages();
+	FitnessComponent *createShortCopy() const override { return new FitnessComponent_NullSpaceExtendedImages(nullptr); }
 
 	bool inspectImagesData(int idx, const ImagesDataExtended &imgDat,
 			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
@@ -224,6 +230,7 @@ class FitnessComponent_WeakLensing : public FitnessComponent
 public:
 	FitnessComponent_WeakLensing(FitnessComponentCache *pCache);
 	~FitnessComponent_WeakLensing();
+	FitnessComponent *createShortCopy() const override { return new FitnessComponent_WeakLensing(nullptr); }
 
 	bool inspectImagesData(int idx, const ImagesDataExtended &imgDat,
 			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
@@ -245,6 +252,7 @@ public:
 
 	FitnessComponent_TimeDelay(FitnessComponentCache *pCache);
 	~FitnessComponent_TimeDelay();
+	FitnessComponent *createShortCopy() const override { return new FitnessComponent_TimeDelay(nullptr); }
 
 	bool inspectImagesData(int idx, const ImagesDataExtended &imgDat,
 			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
@@ -267,6 +275,7 @@ class FitnessComponent_KappaThreshold : public FitnessComponent
 public:
 	FitnessComponent_KappaThreshold(FitnessComponentCache *pCache);
 	~FitnessComponent_KappaThreshold();
+	FitnessComponent *createShortCopy() const override { return new FitnessComponent_KappaThreshold(nullptr); }
 
 	bool inspectImagesData(int idx, const ImagesDataExtended &imgDat,
 			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
@@ -282,6 +291,7 @@ class FitnessComponent_CausticPenalty : public FitnessComponent
 public:
 	FitnessComponent_CausticPenalty(FitnessComponentCache *pCache);
 	~FitnessComponent_CausticPenalty();
+	FitnessComponent *createShortCopy() const override { return new FitnessComponent_CausticPenalty(nullptr); }
 
 	bool inspectImagesData(int idx, const ImagesDataExtended &imgDat,
 			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
