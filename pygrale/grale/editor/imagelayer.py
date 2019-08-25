@@ -174,7 +174,7 @@ class RGBImageLayer(Layer):
     # entries. The x,y coords refer to the scene coords for the points
     # in this RGB image, the X, Y points are the corresponding scene
     # coordinates to match
-    def matchToPoints(self, pointsToMatch):
+    def matchToPoints(self, pointsToMatch, isPixels = False):
         if not pointsToMatch:
             raise Exception("No points to match found")
         
@@ -228,8 +228,12 @@ class RGBImageLayer(Layer):
         # Note: used a different convention for index numbering, that's
         #       why m21 and m12 are swapped here
         extraTransform = QtGui.QTransform(m11, m21, m12, m22, DX, DY)
-        origTransform = self.getImageTransform()
-        newTransform = origTransform*extraTransform
+
+        if not isPixels:
+            origTransform = self.getImageTransform()
+            newTransform = origTransform*extraTransform
+        else:
+            newTransform = extraTransform
 
         self.setImageTransform(newTransform)
 

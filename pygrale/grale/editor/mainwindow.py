@@ -17,6 +17,7 @@ import exportareadialog
 import grale.images as images # TODO?
 from grale.constants import ANGLE_ARCSEC
 import numpy as np
+import pickle
 
 JSONDump = lambda s: json.dumps(s, sort_keys=True, indent=4, separators=(',', ': '))
 
@@ -252,6 +253,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.actionPaste.triggered.connect(self._onActionPaste)
         self.ui.actionCut.triggered.connect(self._onActionCut)
         self.ui.actionCreate_null_grid.triggered.connect(self._onNullGrid)
+        self.ui.actionBack_project_retrace.triggered.connect(self._onBackProjectRetrace)
 
         self.ui.m_axisVisibleBox.clicked.connect(self._onGuiSettingChanged)
         self.ui.m_axisRightBox.clicked.connect(self._onGuiSettingChanged)
@@ -1010,6 +1012,132 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def setCheckSaveStateOnExit(self, v):
         self.checkSaveStateOnExit = v
+
+    def _hidePointsLayers(self, visibilities):
+        for l, v in visibilities:
+            if v and type(l) == pointslayer.PointsLayer:
+                uuid = l.getUuid()
+                layerItem = self.scene.getLayerItem(uuid)
+                layerItem.setVisible(False)
+
+
+
+    def _restorePointsLayers(self, visibilities):
+        for l, v in visibilities:
+            if v and type(l) == pointslayer.PointsLayer:
+                uuid = l.getUuid()
+                layerItem = self.scene.getLayerItem(uuid)
+                layerItem.setVisible(True)
+
+    @staticmethod
+    def _maskImage(img, bottomLeft, topRight, border):
+        s = topRight-bottomLeft
+        S = np.array([img.width(), img.height()], dtype=np.double)
+        pixBorder = [ np.round((p-bottomLeft)/s * S + 0.5).astype(int) for p in border ]
+        pixBorder = [ QtCore.QPoint(x, y) for x,y in pixBorder ]
+
+        region = QtGui.QRegion(QtGui.QPolygon(pixBorder))
+        resImg = QtGui.QImage(img.width(), img.height(), QtGui.QImage.Format_ARGB32);
+        resImg.fill(QtCore.Qt.transparent)
+
+        pm = QtGui.QPixmap.fromImage(resImg)
+        painter = QtGui.QPainter(pm)
+        painter.setClipRegion(region)
+        painter.drawImage(0, 0, img)
+        del painter
+
+        return pm.toImage()
+
+    def _onBackProjectRetrace(self, v):
+
+        newLayers = [ ]
+        visibilities = self.ui.m_listWidget.getLayersAndVisibilities()
+        self._hidePointsLayers(visibilities)
+        try:
+            # TODO: dialog to get imageplale/multimageplane
+            ip = pickle.load(open("testimgplane.dat", "rb"))
+            layers = self._getVisiblePointsLayers()
+            if not layers:
+                raise Exception("No visible points layers could be detected")
+
+            splitLayers = True # TODO
+            exportTimeDelays = False
+            exportGroups = False
+            pointsLeftInfo = []
+            imgDat = tools.layersToImagesData(layers, splitLayers, exportGroups, exportTimeDelays, pointsLeftInfo=pointsLeftInfo)
+
+            borders = [ ]
+            for i in range(imgDat.getNumberOfImages()):
+                border = None
+                if imgDat.getNumberOfImagePoints(i) < 3: # Not enough points for triangulation or hull, use first point
+                    border = [ imgDat.getImagePointPosition(i, 0) ]
+                else:
+                    for fn in [ imgDat.getBorder, imgDat.getConvexHull ]:
+                        try:
+                            border = fn(i)
+                        except Exception as e:
+                            print("Warning:", e)
+
+                if not border:
+                    raise Exception("Unable to get a border for image {}".format(i+1))
+                borders.append(border)
+
+            extra = 1*ANGLE_ARCSEC # TODO
+            borders = [ images.enlargePolygon(b, extra) for b in borders ]
+
+            numPix = 512 # TODO
+
+            idx = 0
+            for border in borders:
+                idx += 1
+
+                border = np.array(border)/ANGLE_ARCSEC
+                minx, maxx = min(border[:,0]), max(border[:,0])
+                miny, maxy = min(border[:,1]), max(border[:,1])
+
+                centerX, centerY = (minx+maxx)/2.0, (miny+maxy)/2.0
+                widthArcsec, heightArcsec = abs(maxx-minx), abs(maxy-miny)
+
+                if widthArcsec > heightArcsec:
+                    widthPixels = numPix
+                    heightPixels = round(numPix*heightArcsec/widthArcsec)
+                else:
+                    widthPixels = round(numPix*widthArcsec/heightArcsec)
+                    heightPixels = numPix
+
+                img = self.scene.getSceneRegionImage([ centerX-widthArcsec/2.0, centerY-heightArcsec/2.0 ],
+                                                     [ centerX+widthArcsec/2.0, centerY+heightArcsec/2.0 ], widthPixels, heightPixels)
+
+                img = img.mirrored(self.scene.isAxisLeft(), True)
+                img = MainWindow._maskImage(img, np.array([minx, miny]), np.array([maxx, maxy]), border)
+
+                img.save(f"tmp{idx}_0.png")
+
+                import openglhelper
+                img, bl, tr = openglhelper.backProject(ip, img, [centerX, centerY], 
+                                                  [widthArcsec, heightArcsec], [512,512])
+
+                img = img.mirrored(False, True)
+                img.save(f"tmp{idx}_1.png")
+                l = imagelayer.RGBImageLayer(f"tmp{idx}_1.png")
+
+                mp = [  [ [0, 0], bl], 
+                                   [ [0, img.height()], [ bl[0], tr[1]] ],
+                                   [ [img.width(), 0], [tr[0], bl[1]] ],
+                                   [ [img.width(), img.height()], tr  ] ]
+
+                import pprint
+                pprint.pprint(mp)
+                l.matchToPoints(mp, True)
+                newLayers.append(l)
+        except Exception as e:
+            self.scene.warning("Exception occurred: {}".format(e))
+            return
+        finally:
+            self._restorePointsLayers(visibilities)
+
+        for l in newLayers:
+            self.addLayer(l)
 
 def main():
     checkQtAvailable()

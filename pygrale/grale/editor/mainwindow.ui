@@ -341,7 +341,7 @@
      <x>0</x>
      <y>0</y>
      <width>800</width>
-     <height>22</height>
+     <height>20</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -391,6 +391,7 @@
     <addaction name="actionPaste"/>
     <addaction name="separator"/>
     <addaction name="actionCreate_null_grid"/>
+    <addaction name="actionBack_project_retrace"/>
    </widget>
    <widget class="QMenu" name="menuHelp">
     <property name="title">
@@ -541,6 +542,11 @@
     <string>Save As ...</string>
    </property>
   </action>
+  <action name="actionBack_project_retrace">
+   <property name="text">
+    <string>Back-project/retrace</string>
+   </property>
+  </action>
  </widget>
  <customwidgets>
   <customwidget>
@@ -557,7 +563,7 @@
  <resources/>
  <connections/>
  <buttongroups>
-  <buttongroup name="buttonGroup"/>
   <buttongroup name="buttonGroup_2"/>
+  <buttongroup name="buttonGroup"/>
  </buttongroups>
 </ui>

@@ -219,7 +219,7 @@ def _backProjectInternal(imgPlane, inputImage, center, sizes, outputDimensions, 
     if img.isNull():
         raise Exception("Unable to get image from framebuffer")
 
-    return img
+    return img, [minX, minY], [maxX, maxY]
 
 def main():
 
@@ -245,7 +245,7 @@ def main():
     #img = bp.backProject(ip, img, center, sizes, [800, 600])
     #del bp
 
-    img = backProject(ip, img, center, sizes, [800, 600])
+    img, bl, tr = backProject(ip, img, center, sizes, [800, 600])
     img.save("testimg.png")
 
 
