@@ -1117,21 +1117,20 @@ class MainWindow(QtWidgets.QMainWindow):
                 img, bl, tr = openglhelper.backProject(ip, img, [centerX, centerY], 
                                                   [widthArcsec, heightArcsec], [512,512])
 
-                img = img.mirrored(False, True)
                 img.save(f"tmp{idx}_1.png")
                 l = imagelayer.RGBImageLayer(f"tmp{idx}_1.png", f"Source shape for image {idx}")
 
-                mp = [  [ [0, 0], bl], 
-                                   [ [0, img.height()], [ bl[0], tr[1]] ],
-                                   [ [img.width(), 0], [tr[0], bl[1]] ],
-                                   [ [img.width(), img.height()], tr ] ]
+                mp = [  [ [0, img.height()], bl], 
+                                   [ [0, 0], [ bl[0], tr[1]] ],
+                                   [ [img.width(), img.height()], [tr[0], bl[1]] ],
+                                   [ [img.width(), 0], tr ] ]
 
                 l.matchToPoints(mp, True)
                 newLayers.append(l)
 
                 # TODO retrace using OpenGL
                 
-                arr = qImageToArray(img.mirrored(False, True))
+                arr = qImageToArray(img)
                 img = arrayToQImage(arr)
                 img.save(f"tmp{idx}_2.png")
 
