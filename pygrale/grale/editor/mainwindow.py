@@ -1119,15 +1119,48 @@ class MainWindow(QtWidgets.QMainWindow):
 
                 img = img.mirrored(False, True)
                 img.save(f"tmp{idx}_1.png")
-                l = imagelayer.RGBImageLayer(f"tmp{idx}_1.png")
+                l = imagelayer.RGBImageLayer(f"tmp{idx}_1.png", f"Source shape for image {idx}")
 
                 mp = [  [ [0, 0], bl], 
                                    [ [0, img.height()], [ bl[0], tr[1]] ],
                                    [ [img.width(), 0], [tr[0], bl[1]] ],
-                                   [ [img.width(), img.height()], tr  ] ]
+                                   [ [img.width(), img.height()], tr ] ]
 
-                import pprint
-                pprint.pprint(mp)
+                l.matchToPoints(mp, True)
+                newLayers.append(l)
+
+                # TODO retrace using OpenGL
+                
+                arr = qImageToArray(img.mirrored(False, True))
+                img = arrayToQImage(arr)
+                img.save(f"tmp{idx}_2.png")
+
+                w, h = [(tr[i]-bl[i])*ANGLE_ARCSEC for i in [0,1]]
+                cx, cy = [ (tr[i]+bl[i])*ANGLE_ARCSEC/2 for i in [0,1]]
+
+                totalPlane = None
+                for idx in range(4):
+                    data = arr[:,:,idx].reshape(arr.shape[:2])
+                    src = images.DiscreteSource(data, w, h, [cx, cy])
+
+                    plane = ip.renderImages([src])
+                    if totalPlane is None:
+                        totalPlane = np.empty(plane.shape + (4,))
+                    totalPlane[:,:,idx] = plane
+
+                img = arrayToQImage(totalPlane)
+                img.save(f"tmp{idx}_3.png")
+
+                l = imagelayer.RGBImageLayer(f"tmp{idx}_3.png", f"Relensed source from image {idx}")
+
+                ri = ip.getRenderInfo()
+                tr = np.array(ri["topright"])/ANGLE_ARCSEC
+                bl = np.array(ri["bottomleft"])/ANGLE_ARCSEC
+
+                mp = [  [ [0, 0], bl], 
+                                   [ [0, img.height()], [ bl[0], tr[1]] ],
+                                   [ [img.width(), 0], [tr[0], bl[1]] ],
+                                   [ [img.width(), img.height()], tr ] ]
                 l.matchToPoints(mp, True)
                 newLayers.append(l)
         except Exception as e:
@@ -1138,6 +1171,23 @@ class MainWindow(QtWidgets.QMainWindow):
 
         for l in newLayers:
             self.addLayer(l)
+
+def qImageToArray(img):
+    img = img.convertToFormat(QtGui.QImage.Format_ARGB32);
+    ptr = img.constBits()
+    ptr.setsize(img.byteCount())
+    arr = np.array(ptr).reshape(img.height(), img.bytesPerLine())
+    if img.bytesPerLine() != img.width()*4:
+        arr = arr[:,:img.width()*4]
+    arr = arr.reshape(img.height(), img.width(), 4)
+    arr = arr.astype(np.float)
+    return arr
+
+def arrayToQImage(img):
+    img = img.copy()
+    img = img.astype(np.uint8)
+    destImg = QtGui.QImage(img, img.shape[1], img.shape[0], img.shape[1]*4, QtGui.QImage.Format_ARGB32)
+    return destImg
 
 def main():
     checkQtAvailable()

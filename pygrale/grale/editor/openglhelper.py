@@ -99,6 +99,80 @@ class BackProjectObject(OpenGLObject):
         return _backProjectInternal(imgPlane, inputImage, center, sizes, outputDimensions, self.gl)
 
 @needcontext
+def trace(imgPlane, srcImage, center, sizes, outputDimensions, **kwargs):
+    gl = kwargs["gl"]
+    return _trace(imgPlane, srcImage, center, sizes, outputDimensions, gl)
+
+def _trace(imgPlane, srcImage, center, sizes, outputDimensions, gl):
+
+    from grale.constants import ANGLE_ARCSEC
+
+    def _getImagePlaneRect(imgPlane):
+        ri = imgPlane.getRenderInfo()
+        bl, tr = np.array(ri["bottomleft"]), np.array(ri["topright"])
+        nx, ny = ri["xpoints"], ri["ypoints"]
+        dx = (tr[0]-bl[0])/nx
+        dy = (tr[1]-bl[1])/ny
+        dxdy = np.array([dx, dy])
+
+        # Make sure that the values will be at the center of the pixels
+        bl -= dxdy/2.0;
+        tr += dxdy/2.0;
+
+        bl /= ANGLE_ARCSEC
+        tr /= ANGLE_ARCSEC
+
+        return QtCore.QRectF(QtCore.QPointF(bl[0], bl[1]), QtCore.QPointF(tr[0], tr[1]))
+
+    r = _getImagePlaneRect(imgPlane)
+    import pprint
+    pprint.pprint(r)
+
+
+    prog = QtGui.QOpenGLShaderProgram()
+    prog.addShaderFromSourceCode(QtGui.QOpenGLShader.Vertex,"""
+		precision highp float;
+
+		attribute vec2 a_position;
+		attribute vec2 a_texcoord;
+		varying vec2 v_tpos;
+		uniform vec2 u_xy0, u_xy1;
+
+		void main()
+		{
+			v_tpos = a_texcoord;
+			gl_Position = vec4(a_position.xy, 0, 1);
+		}
+        """)
+
+    prog.addShaderFromSourceCode(QtGui.QOpenGLShader.Fragment,"""
+		precision highp float;
+
+		uniform sampler2D u_mapTexture;
+		uniform sampler2D u_srcTexture;
+		uniform vec2 u_srcBottomLeft;
+		uniform vec2 u_srcTopRight;
+		varying vec2 v_tpos;
+
+		void main()
+		{
+			vec2 srcCoord = texture2D(u_mapTexture, v_tpos).xy;
+			srcCoord -= u_srcBottomLeft;
+			srcCoord /= (u_srcTopRight-u_srcBottomLeft);
+			vec4 c = texture2D(u_srcTexture, srcCoord);
+			vec3 black = vec3(0,0,0);
+
+			if (c.rgb == black)
+				c = vec4(0,0,0,0);
+
+			gl_FragColor = c;
+		}
+    """)
+
+    raise Exception("TODO")
+
+
+@needcontext
 def backProject(imgPlane, inputImage, center, sizes, outputDimensions, **kwargs):
     gl = kwargs["gl"]
     return _backProjectInternal(imgPlane, inputImage, center, sizes, outputDimensions, gl) # gl is set by decorator
@@ -248,6 +322,7 @@ def main():
     img, bl, tr = backProject(ip, img, center, sizes, [800, 600])
     img.save("testimg.png")
 
+    trace(ip, img, [ (bl[0]+tr[0])/2, (bl[1]+tr[1])/2 ], [(-bl[0]+tr[0]), (-bl[1]+tr[1]) ], [1024, 768])
 
 if __name__ == "__main__":
     main()
