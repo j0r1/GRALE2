@@ -1082,7 +1082,7 @@ class MainWindow(QtWidgets.QMainWindow):
                     raise Exception("Unable to get a border for image {}".format(i+1))
                 borders.append(border)
 
-            extra = 1*ANGLE_ARCSEC # TODO
+            extra = .1*ANGLE_ARCSEC # TODO
             borders = [ images.enlargePolygon(b, extra) for b in borders ]
 
             numPix = 512 # TODO
@@ -1115,7 +1115,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
                 import openglhelper
                 img, bl, tr = openglhelper.backProject(ip, img, [centerX, centerY], 
-                                                  [widthArcsec, heightArcsec], [512,512])
+                                                  [widthArcsec, heightArcsec], [512, 512])
 
                 img.save(f"tmp{idx}_1.png")
                 l = imagelayer.RGBImageLayer(f"tmp{idx}_1.png", f"Source shape for image {idx}")
@@ -1128,29 +1128,23 @@ class MainWindow(QtWidgets.QMainWindow):
                 l.matchToPoints(mp, True)
                 newLayers.append(l)
 
-                # TODO retrace using OpenGL
-                
-                arr = qImageToArray(img)
-                img = arrayToQImage(arr)
+                # Recalculate
+
+                w, h = [(tr[i]-bl[i]) for i in [0,1]]
+                cx, cy = [ (tr[i]+bl[i])/2 for i in [0,1]]
+ 
+                useCPU = False # TODO
+                if useCPU:
+                    img = _retraceCPU(ip, img, [cx, cy], [w, h])
+                else:
+                    numXY = 2048 # TODO
+                    img = img.mirrored(False, True)
+                    dims = [ round(numXY*w/h), numXY ] if w < h else [ numXY, round(numXY*h/w) ]
+                    img = openglhelper.trace(ip, img, [cx, cy], [w, h], dims)
+                    img = img.mirrored(False, True)
+
                 img.save(f"tmp{idx}_2.png")
-
-                w, h = [(tr[i]-bl[i])*ANGLE_ARCSEC for i in [0,1]]
-                cx, cy = [ (tr[i]+bl[i])*ANGLE_ARCSEC/2 for i in [0,1]]
-
-                totalPlane = None
-                for idx in range(4):
-                    data = arr[:,:,idx].reshape(arr.shape[:2])
-                    src = images.DiscreteSource(data, w, h, [cx, cy])
-
-                    plane = ip.renderImages([src])
-                    if totalPlane is None:
-                        totalPlane = np.empty(plane.shape + (4,))
-                    totalPlane[:,:,idx] = plane
-
-                img = arrayToQImage(totalPlane)
-                img.save(f"tmp{idx}_3.png")
-
-                l = imagelayer.RGBImageLayer(f"tmp{idx}_3.png", f"Relensed source from image {idx}")
+                l = imagelayer.RGBImageLayer(f"tmp{idx}_2.png", f"Relensed source from image {idx}")
 
                 ri = ip.getRenderInfo()
                 tr = np.array(ri["topright"])/ANGLE_ARCSEC
@@ -1160,6 +1154,7 @@ class MainWindow(QtWidgets.QMainWindow):
                                    [ [0, img.height()], [ bl[0], tr[1]] ],
                                    [ [img.width(), 0], [tr[0], bl[1]] ],
                                    [ [img.width(), img.height()], tr ] ]
+
                 l.matchToPoints(mp, True)
                 newLayers.append(l)
         except Exception as e:
@@ -1187,6 +1182,28 @@ def arrayToQImage(img):
     img = img.astype(np.uint8)
     destImg = QtGui.QImage(img, img.shape[1], img.shape[0], img.shape[1]*4, QtGui.QImage.Format_ARGB32)
     return destImg
+
+def _retraceCPU(ip, img, center, sizes):
+
+    cx, cy = center
+    cx *= ANGLE_ARCSEC
+    cy *= ANGLE_ARCSEC
+    w, h = sizes
+    w *= ANGLE_ARCSEC
+    h *= ANGLE_ARCSEC
+    arr = qImageToArray(img)
+
+    totalPlane = None
+    for idx in range(4):
+        data = arr[:,:,idx].reshape(arr.shape[:2])
+        src = images.DiscreteSource(data, w, h, [cx, cy])
+
+        plane = ip.renderImages([src])
+        if totalPlane is None:
+            totalPlane = np.empty(plane.shape + (4,))
+        totalPlane[:,:,idx] = plane
+
+    return arrayToQImage(totalPlane)
 
 def main():
     checkQtAvailable()

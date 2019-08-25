@@ -105,42 +105,77 @@ def trace(imgPlane, srcImage, center, sizes, outputDimensions, **kwargs):
 
 def _trace(imgPlane, srcImage, center, sizes, outputDimensions, gl):
 
+    print("_trace", center, sizes)
     from grale.constants import ANGLE_ARCSEC
 
-    def _getImagePlaneRect(imgPlane):
-        ri = imgPlane.getRenderInfo()
-        bl, tr = np.array(ri["bottomleft"]), np.array(ri["topright"])
-        nx, ny = ri["xpoints"], ri["ypoints"]
-        dx = (tr[0]-bl[0])/nx
-        dy = (tr[1]-bl[1])/ny
-        dxdy = np.array([dx, dy])
+    ri = imgPlane.getRenderInfo()
+    bl, tr = np.array(ri["bottomleft"]), np.array(ri["topright"])
+    numX, numY = ri["xpoints"], ri["ypoints"]
 
-        # Make sure that the values will be at the center of the pixels
-        bl -= dxdy/2.0;
-        tr += dxdy/2.0;
+    fb = QtGui.QOpenGLFramebufferObject(*outputDimensions)
+    if not fb.bind():
+        raise Exception("Couldn't bind framebuffer")
 
-        bl /= ANGLE_ARCSEC
-        tr /= ANGLE_ARCSEC
 
-        return QtCore.QRectF(QtCore.QPointF(bl[0], bl[1]), QtCore.QPointF(tr[0], tr[1]))
+    #imgPlaneRect = _getImagePlaneRect(imgPlane)
 
-    r = _getImagePlaneRect(imgPlane)
-    import pprint
-    pprint.pprint(r)
+    eps = 0
+    mapTexData = np.empty([numY, numX, 2], dtype=np.double)
+    mapTexData[:,:,0], mapTexData[:,:,1] = np.meshgrid(np.linspace(bl[0]+eps, tr[0]-eps, numX),
+                                                       np.linspace(bl[1]+eps, tr[1]-eps, numY))
 
+    mapTexData = (imgPlane.traceThetaApproximately(mapTexData)/ANGLE_ARCSEC).astype(np.float32).reshape((-1,))
+
+    GL_TEXTURE0 = 0x84C0
+    GL_TEXTURE_2D = 0x0DE1
+    GL_TEXTURE_MAG_FILTER = 0x2800
+    GL_TEXTURE_MIN_FILTER = 0x2801
+    GL_LINEAR = 0x2601
+    GL_TEXTURE_WRAP_S = 0x2802
+    GL_TEXTURE_WRAP_T = 0x2803
+    GL_CLAMP_TO_EDGE = 0x812F
+    GL_RG32F = 0x8230
+    GL_RG = 0x8227
+    GL_FLOAT = 0x1406
+
+    mapTexture = gl.glGenTextures(1)
+    gl.glActiveTexture(GL_TEXTURE0)
+    gl.glBindTexture(GL_TEXTURE_2D, mapTexture);
+    gl.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    gl.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    gl.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    gl.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    b = mapTexData.tobytes()
+    import array
+    a = array.array("f")
+    a.frombytes(b)
+    gl.glTexImage2D(GL_TEXTURE_2D, 0, GL_RG32F, numX, numY, 0, GL_RG, GL_FLOAT, a)
+
+    srcTexture = QtGui.QOpenGLTexture(QtGui.QOpenGLTexture.Target2D)
+    if not srcTexture.create():
+        raise Exception("Unable to create texture")
+
+    srcTexture.bind(1)
+    srcTexture.setWrapMode(QtGui.QOpenGLTexture.ClampToEdge)
+    srcTexture.setData(srcImage)
+
+    print("1 glGetError =", gl.glGetError())
 
     prog = QtGui.QOpenGLShaderProgram()
     prog.addShaderFromSourceCode(QtGui.QOpenGLShader.Vertex,"""
 		precision highp float;
 
 		attribute vec2 a_position;
-		attribute vec2 a_texcoord;
 		varying vec2 v_tpos;
-		uniform vec2 u_xy0, u_xy1;
+        uniform vec2 u_pixSize;
 
 		void main()
 		{
-			v_tpos = a_texcoord;
+            vec2 xy = (a_position+1.0)/2.0;
+            // We need to rescale slightly because the map values 
+            // are at the center of the pixels
+			v_tpos = (1.0-u_pixSize)*xy + 0.5*u_pixSize;
 			gl_Position = vec4(a_position.xy, 0, 1);
 		}
         """)
@@ -159,18 +194,91 @@ def _trace(imgPlane, srcImage, center, sizes, outputDimensions, gl):
 			vec2 srcCoord = texture2D(u_mapTexture, v_tpos).xy;
 			srcCoord -= u_srcBottomLeft;
 			srcCoord /= (u_srcTopRight-u_srcBottomLeft);
-			vec4 c = texture2D(u_srcTexture, srcCoord);
-			vec3 black = vec3(0,0,0);
+			vec4 c = vec4(0,0,0,0);
 
-			if (c.rgb == black)
-				c = vec4(0,0,0,0);
+            if (all(greaterThanEqual(srcCoord, vec2(0.0,0.0))) && all(lessThanEqual(srcCoord, vec2(1.0,1.0))))
+                c = texture2D(u_srcTexture, srcCoord);
 
 			gl_FragColor = c;
 		}
     """)
+    if not prog.link():
+        raise Exception("Unable to link program")
+    prog.bind()
 
-    raise Exception("TODO")
+    print("1 glGetError =", gl.glGetError())
 
+    coords = np.array([-1, -1, 
+                       -1, 1,
+                       1, -1,
+                       1, 1], dtype=np.float32)
+
+    buf = QtGui.QOpenGLBuffer(QtGui.QOpenGLBuffer.VertexBuffer)
+    if not buf.create():
+        raise Exception("Couldn't create buffer")
+
+    buf.bind()
+    buf.setUsagePattern(QtGui.QOpenGLBuffer.StaticDraw)
+    buf.allocate(coords, coords.shape[0]*4)
+
+    posLoc = prog.attributeLocation("a_position")
+    prog.setAttributeBuffer(posLoc, gl.GL_FLOAT, 0, 2)
+    prog.enableAttributeArray(posLoc)
+
+    prog.setUniformValue("u_pixSize", QtCore.QPointF(1.0/numX, 1.0/numY))
+    prog.setUniformValue("u_mapTexture", 0)
+    prog.setUniformValue("u_srcTexture", 1)
+    prog.setUniformValue("u_srcBottomLeft", QtCore.QPointF(center[0]-sizes[0]/2, center[1]-sizes[1]/2))
+    prog.setUniformValue("u_srcTopRight", QtCore.QPointF(center[0]+sizes[0]/2, center[1]+sizes[1]/2))
+
+    gl.glViewport(0, 0, fb.width(), fb.height())
+    gl.glClearColor(0, 0, 0, 0)
+    gl.glClear(gl.GL_COLOR_BUFFER_BIT)
+    gl.glDrawArrays(gl.GL_TRIANGLE_STRIP, 0, coords.shape[0]//2)
+
+    gl.glFinish()
+    gl.glDeleteTextures(1, [mapTexture])
+    print("glGetError =", gl.glGetError())
+
+    img = fb.toImage()
+    if img.isNull():
+        raise Exception("Unable to get image from framebuffer")
+
+    gl.glFinish()
+    print("2 glGetError =", gl.glGetError())
+
+    return img
+
+def _getCoords(w, h, x0, x1, y0, y1, mapFunction):
+    x = np.linspace(x0, x1, w+1)
+    y = np.linspace(y0, y1, h+1)
+    xy = np.empty([h+1, w+1, 2], dtype=np.double)
+    xy[:,:,0], xy[:,:,1] = np.meshgrid(x, y)
+    xy = mapFunction(xy)
+    xy = xy.astype(np.float32)
+
+    c0 = xy[:-1,:-1,:]
+    c1 = xy[1:,:-1,:]
+    c2 = xy[:-1,1:,:]
+    c3 = xy[1:,1:,:]
+
+    coords = np.empty([h, w, 12], dtype=np.float32)
+    coords[:,:,0:2] = c0
+    coords[:,:,2:4] = c1
+    coords[:,:,4:6] = c2
+    coords[:,:,6:8] = c3
+    coords[:,:,8:10] = c2
+    coords[:,:,10:12] = c1
+    coords = coords.reshape((-1,))
+
+    buf = QtGui.QOpenGLBuffer(QtGui.QOpenGLBuffer.VertexBuffer)
+    if not buf.create():
+        raise Exception("Couldn't create buffer")
+
+    buf.bind()
+    buf.setUsagePattern(QtGui.QOpenGLBuffer.StaticDraw)
+    buf.allocate(coords, coords.shape[0]*4)
+    return coords, buf
 
 @needcontext
 def backProject(imgPlane, inputImage, center, sizes, outputDimensions, **kwargs):
@@ -178,37 +286,6 @@ def backProject(imgPlane, inputImage, center, sizes, outputDimensions, **kwargs)
     return _backProjectInternal(imgPlane, inputImage, center, sizes, outputDimensions, gl) # gl is set by decorator
 
 def _backProjectInternal(imgPlane, inputImage, center, sizes, outputDimensions, gl):
-
-    def _getCoords(w, h, x0, x1, y0, y1, mapFunction):
-        x = np.linspace(x0, x1, w+1)
-        y = np.linspace(y0, y1, h+1)
-        xy = np.empty([h+1, w+1, 2], dtype=np.double)
-        xy[:,:,0], xy[:,:,1] = np.meshgrid(x, y)
-        xy = mapFunction(xy)
-        xy = xy.astype(np.float32)
-
-        c0 = xy[:-1,:-1,:]
-        c1 = xy[1:,:-1,:]
-        c2 = xy[:-1,1:,:]
-        c3 = xy[1:,1:,:]
-
-        coords = np.empty([h, w, 12], dtype=np.float32)
-        coords[:,:,0:2] = c0
-        coords[:,:,2:4] = c1
-        coords[:,:,4:6] = c2
-        coords[:,:,6:8] = c3
-        coords[:,:,8:10] = c2
-        coords[:,:,10:12] = c1
-        coords = coords.reshape((-1,))
-
-        buf = QtGui.QOpenGLBuffer(QtGui.QOpenGLBuffer.VertexBuffer)
-        if not buf.create():
-            raise Exception("Couldn't create buffer")
-
-        buf.bind()
-        buf.setUsagePattern(QtGui.QOpenGLBuffer.StaticDraw)
-        buf.allocate(coords, coords.shape[0]*4)
-        return coords, buf
 
     if inputImage.isNull():
         raise Exception("Input image is not valid")
@@ -308,7 +385,7 @@ def main():
     img.load("/tmp/040518_LG_dark-matter-galaxy_feat.jpg")
 
     l = lenses.PlummerLens(1000*DIST_MPC, { "mass": 1e14*MASS_SUN, "width": 5*ANGLE_ARCSEC })
-    li = plotutil.LensInfo(l, size=60*ANGLE_ARCSEC)
+    li = plotutil.LensInfo(l, size=60*ANGLE_ARCSEC,numxy=8)
     ip = images.ImagePlane(li.getLensPlane(), 1800*DIST_MPC, 800*DIST_MPC)
 
     area = li.getArea()
@@ -322,7 +399,8 @@ def main():
     img, bl, tr = backProject(ip, img, center, sizes, [800, 600])
     img.save("testimg.png")
 
-    trace(ip, img, [ (bl[0]+tr[0])/2, (bl[1]+tr[1])/2 ], [(-bl[0]+tr[0]), (-bl[1]+tr[1]) ], [1024, 768])
+    img = trace(ip, img, [ (bl[0]+tr[0])/2, (bl[1]+tr[1])/2 ], [(-bl[0]+tr[0]), (-bl[1]+tr[1]) ], [1024, 768])
+    img.save("testimg2.png")
 
 if __name__ == "__main__":
     main()
