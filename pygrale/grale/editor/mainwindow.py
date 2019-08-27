@@ -1111,38 +1111,23 @@ class MainWindow(QtWidgets.QMainWindow):
                 img = img.mirrored(self.scene.isAxisLeft(), True)
                 img = MainWindow._maskImage(img, np.array([minx, miny]), np.array([maxx, maxy]), border)
 
-                img.save(f"tmp{idx}_0.png")
+                # TODO: config options
+                import backproject
+                imgSrc, bl, tr, imgRelens = backproject.backprojectAndRetrace(ip, img, centerX, centerY, widthArcsec, heightArcsec, 512, 512,
+                                                                  False, 9, 2048) 
 
-                import openglhelper
-                img, bl, tr = openglhelper.backProject(ip, img, [centerX, centerY], 
-                                                  [widthArcsec, heightArcsec], [512, 512])
 
+                img = imgSrc
                 img.save(f"tmp{idx}_1.png")
                 l = imagelayer.RGBImageLayer(f"tmp{idx}_1.png", f"Source shape for image {idx}")
-
                 mp = [  [ [0, img.height()], bl], 
                                    [ [0, 0], [ bl[0], tr[1]] ],
                                    [ [img.width(), img.height()], [tr[0], bl[1]] ],
                                    [ [img.width(), 0], tr ] ]
-
                 l.matchToPoints(mp, True)
                 newLayers.append(l)
 
-                # Recalculate
-
-                w, h = [(tr[i]-bl[i]) for i in [0,1]]
-                cx, cy = [ (tr[i]+bl[i])/2 for i in [0,1]]
- 
-                useCPU = False # TODO
-                if useCPU:
-                    img = _retraceCPU(ip, img, [cx, cy], [w, h])
-                else:
-                    numXY = 2048 # TODO
-                    img = img.mirrored(False, True)
-                    dims = [ round(numXY*w/h), numXY ] if w < h else [ numXY, round(numXY*h/w) ]
-                    img = openglhelper.trace(ip, img, [cx, cy], [w, h], dims)
-                    img = img.mirrored(False, True)
-
+                img = imgRelens
                 img.save(f"tmp{idx}_2.png")
                 l = imagelayer.RGBImageLayer(f"tmp{idx}_2.png", f"Relensed source from image {idx}")
 
@@ -1163,47 +1148,9 @@ class MainWindow(QtWidgets.QMainWindow):
         finally:
             self._restorePointsLayers(visibilities)
 
+        # We need to do this at the end, when the original visibilities have been restored
         for l in newLayers:
             self.addLayer(l)
-
-def qImageToArray(img):
-    img = img.convertToFormat(QtGui.QImage.Format_ARGB32);
-    ptr = img.constBits()
-    ptr.setsize(img.byteCount())
-    arr = np.array(ptr).reshape(img.height(), img.bytesPerLine())
-    if img.bytesPerLine() != img.width()*4:
-        arr = arr[:,:img.width()*4]
-    arr = arr.reshape(img.height(), img.width(), 4)
-    arr = arr.astype(np.float)
-    return arr
-
-def arrayToQImage(img):
-    img = img.copy()
-    img = img.astype(np.uint8)
-    destImg = QtGui.QImage(img, img.shape[1], img.shape[0], img.shape[1]*4, QtGui.QImage.Format_ARGB32)
-    return destImg
-
-def _retraceCPU(ip, img, center, sizes):
-
-    cx, cy = center
-    cx *= ANGLE_ARCSEC
-    cy *= ANGLE_ARCSEC
-    w, h = sizes
-    w *= ANGLE_ARCSEC
-    h *= ANGLE_ARCSEC
-    arr = qImageToArray(img)
-
-    totalPlane = None
-    for idx in range(4):
-        data = arr[:,:,idx].reshape(arr.shape[:2])
-        src = images.DiscreteSource(data, w, h, [cx, cy])
-
-        plane = ip.renderImages([src])
-        if totalPlane is None:
-            totalPlane = np.empty(plane.shape + (4,))
-        totalPlane[:,:,idx] = plane
-
-    return arrayToQImage(totalPlane)
 
 def main():
     checkQtAvailable()

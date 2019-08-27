@@ -251,6 +251,7 @@ if isQtAvailable:
                "grale.editor.scenes",
                "grale.editor.tools",
                "grale.editor.exportareadialog",
+               "grale.editor.backproject"
                ]
 
     for ui in [ "grale/editor/contourleveldialog.ui",

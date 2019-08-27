@@ -99,18 +99,18 @@ class BackProjectObject(OpenGLObject):
         return _backProjectInternal(imgPlane, inputImage, center, sizes, outputDimensions, self.gl)
 
 @needcontext
-def trace(imgPlane, srcImage, center, sizes, outputDimensions, **kwargs):
+def trace(imgPlane, srcImage, center, sizes, outputDimensions, subSample, **kwargs):
     gl = kwargs["gl"]
-    return _trace(imgPlane, srcImage, center, sizes, outputDimensions, gl)
+    return _trace(imgPlane, srcImage, center, sizes, outputDimensions, subSample, gl)
 
-def _trace(imgPlane, srcImage, center, sizes, outputDimensions, gl):
+def _trace(imgPlane, srcImage, center, sizes, outputDimensions, subSample, gl):
 
     print("_trace", center, sizes)
     from grale.constants import ANGLE_ARCSEC
 
     ri = imgPlane.getRenderInfo()
     bl, tr = np.array(ri["bottomleft"]), np.array(ri["topright"])
-    numX, numY = ri["xpoints"], ri["ypoints"]
+    mapNumX, mapNumY = ri["xpoints"], ri["ypoints"]
 
     fb = QtGui.QOpenGLFramebufferObject(*outputDimensions)
     if not fb.bind():
@@ -120,9 +120,9 @@ def _trace(imgPlane, srcImage, center, sizes, outputDimensions, gl):
     #imgPlaneRect = _getImagePlaneRect(imgPlane)
 
     eps = 0
-    mapTexData = np.empty([numY, numX, 2], dtype=np.double)
-    mapTexData[:,:,0], mapTexData[:,:,1] = np.meshgrid(np.linspace(bl[0]+eps, tr[0]-eps, numX),
-                                                       np.linspace(bl[1]+eps, tr[1]-eps, numY))
+    mapTexData = np.empty([mapNumY, mapNumX, 2], dtype=np.double)
+    mapTexData[:,:,0], mapTexData[:,:,1] = np.meshgrid(np.linspace(bl[0]+eps, tr[0]-eps, mapNumX),
+                                                       np.linspace(bl[1]+eps, tr[1]-eps, mapNumY))
 
     mapTexData = (imgPlane.traceThetaApproximately(mapTexData)/ANGLE_ARCSEC).astype(np.float32).reshape((-1,))
 
@@ -150,7 +150,7 @@ def _trace(imgPlane, srcImage, center, sizes, outputDimensions, gl):
     import array
     a = array.array("f")
     a.frombytes(b)
-    gl.glTexImage2D(GL_TEXTURE_2D, 0, GL_RG32F, numX, numY, 0, GL_RG, GL_FLOAT, a)
+    gl.glTexImage2D(GL_TEXTURE_2D, 0, GL_RG32F, mapNumX, mapNumY, 0, GL_RG, GL_FLOAT, a)
 
     srcTexture = QtGui.QOpenGLTexture(QtGui.QOpenGLTexture.Target2D)
     if not srcTexture.create():
@@ -168,14 +168,14 @@ def _trace(imgPlane, srcImage, center, sizes, outputDimensions, gl):
 
 		attribute vec2 a_position;
 		varying vec2 v_tpos;
-        uniform vec2 u_pixSize;
+        uniform vec2 u_mapPixSize;
 
 		void main()
 		{
             vec2 xy = (a_position+1.0)/2.0;
             // We need to rescale slightly because the map values 
             // are at the center of the pixels
-			v_tpos = (1.0-u_pixSize)*xy + 0.5*u_pixSize;
+			v_tpos = (1.0-u_mapPixSize)*xy + 0.5*u_mapPixSize;
 			gl_Position = vec4(a_position.xy, 0, 1);
 		}
         """)
@@ -187,21 +187,36 @@ def _trace(imgPlane, srcImage, center, sizes, outputDimensions, gl):
 		uniform sampler2D u_srcTexture;
 		uniform vec2 u_srcBottomLeft;
 		uniform vec2 u_srcTopRight;
+        uniform vec2 u_dstart;
+        uniform vec2 u_substep;
 		varying vec2 v_tpos;
 
 		void main()
-		{
-			vec2 srcCoord = texture2D(u_mapTexture, v_tpos).xy;
-			srcCoord -= u_srcBottomLeft;
-			srcCoord /= (u_srcTopRight-u_srcBottomLeft);
-			vec4 c = vec4(0,0,0,0);
+		{{
+            vec4 c = vec4(0,0,0,0);
+            float y = v_tpos.y+u_dstart.y;
+            
+            for (int i = 0 ; i < {subSample} ; i++)
+            {{
+                float x = v_tpos.x+u_dstart.x;
 
-            if (all(greaterThanEqual(srcCoord, vec2(0.0,0.0))) && all(lessThanEqual(srcCoord, vec2(1.0,1.0))))
-                c = texture2D(u_srcTexture, srcCoord);
+                y += u_substep.y;
+                
+                for (int j = 0 ; j < {subSample} ; j++)
+                {{
+                    x += u_substep.x;
 
-			gl_FragColor = c;
-		}
-    """)
+                    vec2 srcCoord = texture2D(u_mapTexture, vec2(x,y)).xy;
+                    srcCoord -= u_srcBottomLeft;
+                    srcCoord /= (u_srcTopRight-u_srcBottomLeft);
+
+                    if (all(greaterThanEqual(srcCoord, vec2(0.0,0.0))) && all(lessThanEqual(srcCoord, vec2(1.0,1.0))))
+                        c += texture2D(u_srcTexture, srcCoord);
+                }}
+            }}
+            gl_FragColor = c/({subSample}*{subSample});
+		}}
+    """.format(subSample=subSample))
     if not prog.link():
         raise Exception("Unable to link program")
     prog.bind()
@@ -225,11 +240,16 @@ def _trace(imgPlane, srcImage, center, sizes, outputDimensions, gl):
     prog.setAttributeBuffer(posLoc, gl.GL_FLOAT, 0, 2)
     prog.enableAttributeArray(posLoc)
 
-    prog.setUniformValue("u_pixSize", QtCore.QPointF(1.0/numX, 1.0/numY))
+    subStepWidth, subStepHeight = [ (1.0/subSample)/outputDimensions[i] for i in range(2) ]
+    dStart = [ (0.5/subSample-0.5)/outputDimensions[i] for i in range(2) ] 
+
+    prog.setUniformValue("u_mapPixSize", QtCore.QPointF(1.0/mapNumX, 1.0/mapNumY))
     prog.setUniformValue("u_mapTexture", 0)
     prog.setUniformValue("u_srcTexture", 1)
     prog.setUniformValue("u_srcBottomLeft", QtCore.QPointF(center[0]-sizes[0]/2, center[1]-sizes[1]/2))
     prog.setUniformValue("u_srcTopRight", QtCore.QPointF(center[0]+sizes[0]/2, center[1]+sizes[1]/2))
+    prog.setUniformValue("u_dstart", QtCore.QPointF(dStart[0], dStart[1]))
+    prog.setUniformValue("u_substep", QtCore.QPointF(subStepWidth, subStepHeight))
 
     gl.glViewport(0, 0, fb.width(), fb.height())
     gl.glClearColor(0, 0, 0, 0)
@@ -399,7 +419,7 @@ def main():
     img, bl, tr = backProject(ip, img, center, sizes, [800, 600])
     img.save("testimg.png")
 
-    img = trace(ip, img, [ (bl[0]+tr[0])/2, (bl[1]+tr[1])/2 ], [(-bl[0]+tr[0]), (-bl[1]+tr[1]) ], [1024, 768])
+    img = trace(ip, img, [ (bl[0]+tr[0])/2, (bl[1]+tr[1])/2 ], [(-bl[0]+tr[0]), (-bl[1]+tr[1]) ], [1024, 768], subSample=1)
     img.save("testimg2.png")
 
 if __name__ == "__main__":
