@@ -39,6 +39,8 @@ set(HEADERS
 	lens/pimdlens.h
 	lens/alphapotlens.h
 	lens/harmoniclens.h
+	lens/potentialgridlens.h
+	lens/circularpieceslens.h
 	math/mathfunctions.h
 	math/real1dfunction.h
 	math/real1dfunctionintegrator.h
@@ -132,6 +134,8 @@ set(SOURCES
 	lens/pimdlens.cpp
 	lens/alphapotlens.cpp
 	lens/harmoniclens.cpp
+	lens/potentialgridlens.cpp
+	lens/circularpieceslens.cpp
 	image/imagesdata.cpp
 	image/imagesdataextended.cpp
 	image/lensplane.cpp

@@ -89,6 +89,8 @@ public:
 		PIMD, /** Circularly symmetric version of PIEMD. */
 		AlphaPot, /** Softened power law potential (similar to 'alphapot' in gravlens/lensmodel) */
 		Harmonic, /** 2D harmonic mass density (cfr JPEG lensing paper) */
+		PotentialGrid, /** Based on discrete set of projected potential values */
+		CircularPieces, /** Exact lens potentials within circular regions, interpolated ones in between */
 		MaxLensType
 	};
 protected:
