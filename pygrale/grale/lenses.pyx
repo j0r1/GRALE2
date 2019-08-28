@@ -33,11 +33,14 @@ directly. Instead allocate a class derived from this; currently available are
  * :class:`PIMDLens`
  * :class:`AlphaPotLens`
  * :class:`HarmonicLens`
+ * :class:`PotentialGridLens`
+ * :class:`CircularPiecesLens`
 
 """
 
 from libcpp.string cimport string
 from libcpp.vector cimport vector
+from libcpp.memory cimport shared_ptr
 from libcpp cimport bool
 from libcpp.cast cimport dynamic_cast
 from cython.operator cimport dereference as deref
@@ -578,6 +581,12 @@ cdef class GravitationalLens:
             l = PIMDLens(None, None)
         elif t == gravitationallens.AlphaPot:
             l = AlphaPotLens(None, None)
+        elif t == gravitationallens.Harmonic:
+            l = HarmonicLens(None, None)
+        elif t == gravitationallens.PotentialGrid:
+            l = PotentialGridLens(None, None)
+        elif t == gravitationallens.CircularPieces:
+            l = CircularPiecesLens(None, None)
         else: # Unknown, can still use the interface
             l = GravitationalLens(_gravLensRndId)
 
@@ -2362,6 +2371,115 @@ cdef class HarmonicLens(GravitationalLens):
             "phi_x": pParams.getPhiX(),
             "phi_y": pParams.getPhiY()
         }
+
+cdef class PotentialGridLens(GravitationalLens):
+    """TODO"""
+
+    cdef gravitationallens.GravitationalLens* _allocLens(self) except NULL:
+        return new gravitationallens.PotentialGridLens()
+
+    cdef gravitationallens.GravitationalLensParams* _allocParams(self, params) except NULL:
+        # TODO
+
+        return new gravitationallens.PotentialGridLensParams()
+
+    def __init__(self, Dd, params):
+        r"""__init__(Dd, params)
+
+        Parameters:
+         - Dd is the angular diameter distance to the lens.
+         - params: TODO
+        """
+        super(PotentialGridLens, self).__init__(_gravLensRndId)
+        self._lensInit(Dd, params)
+
+    def getLensParameters(self):
+        cdef gravitationallens.PotentialGridLensParamsPtrConst pParams
+        
+        self._check()
+        pParams = dynamic_cast[gravitationallens.PotentialGridLensParamsPtrConst](GravitationalLens._getLens(self).getLensParameters())
+        if pParams == NULL:
+            raise LensException("Unexpected: parameters are not those of a PotentialGridLens")
+
+        return { # TODO
+        }
+
+cdef class CircularPiecesLens(GravitationalLens):
+    """TODO"""
+
+    cdef gravitationallens.GravitationalLens* _allocLens(self) except NULL:
+        return new gravitationallens.CircularPiecesLens()
+
+    cdef gravitationallens.GravitationalLensParams* _allocParams(self, params) except NULL:
+        cdef vector[gravitationallens.CircularPieceInfo] pieces
+        cdef gravitationallens.GravitationalLens *pLens = NULL
+        cdef shared_ptr[gravitationallens.GravitationalLens] lens;
+
+        if not isinstance(params, list):
+            raise LensException("Circular pieces lens parameters must be a list of individual parameters")
+
+        if len(params) <= 0:
+            raise LensException("Circular pieces lens parameters must be a non-empty list")
+
+        for d in params:
+            d = copy.copy(d)
+            if not "r0" in d: d["r0"] = 0.0
+            if not "r1" in d: d["r1"] = float("inf")
+            if not "potentialScale" in d: d["potentialScale"] = 1.0
+            if not "potentialOffset" in d: d["potentialOffset"] = 0.0
+
+            pLens = GravitationalLens._getLens(d["lens"])
+            lens.reset(pLens.createCopy())
+
+            pieces.push_back(gravitationallens.CircularPieceInfo(lens, d["r0"], d["r1"], d["potentialScale"], d["potentialOffset"]))
+
+        return new gravitationallens.CircularPiecesLensParams(pieces)
+
+    def __init__(self, Dd, params):
+        r"""__init__(Dd, params)
+
+        Parameters:
+         - Dd is the angular diameter distance to the lens.
+         - params: a list of dictionaries with the following entries:
+          
+           * 'lens': lens model
+           * 'r0': start radius (zero if not present)
+           * 'r1': end radius (infinity if not present)
+           * 'potentialOffset': offset to the lens potential for this lens (zero if not present)
+           * 'potentialScale': scale factor for the lens potential for this lens (one if not present)
+        """
+
+        super(CircularPiecesLens, self).__init__(_gravLensRndId)
+        self._lensInit(Dd, params)
+
+    def getLensParameters(self):
+        cdef gravitationallens.CircularPiecesLensParamsPtrConst pParams
+        cdef const gravitationallens.GravitationalLens *pSubLensConst
+        cdef gravitationallens.GravitationalLens *pSubLens
+        
+        self._check()
+        pParams = dynamic_cast[gravitationallens.CircularPiecesLensParamsPtrConst](GravitationalLens._getLens(self).getLensParameters())
+        if pParams == NULL:
+            raise LensException("Unexpected: parameters are not those of a CircularPiecesLens")
+
+        params = [ ]
+        for i in range(pParams.getPiecesInfo().size()):
+            pSubLensConst = pParams.getPiecesInfo()[i].getLens().get()
+            if pSubLensConst == NULL:
+                raise LensException("Unexpected: a piece lens is NULL")
+            pSubLens = pSubLensConst.createCopy()
+            if pSubLens == NULL:
+                raise LensException("Unextected: can't create a copy of a piece lens")
+
+            params.append({
+                "lens": GravitationalLens._finalizeLoadedLens(pSubLens),
+                "r0": pParams.getPiecesInfo()[i].getStartRadius(),
+                "r1": pParams.getPiecesInfo()[i].getEndRadius(),
+                "potentialOffset": pParams.getPiecesInfo()[i].getPotentialOffset(),
+                "potentialScale": pParams.getPiecesInfo()[i].getPotentialScale()
+            })
+        
+        return params
 
 from privlenses import createLensFromLenstoolFile
 

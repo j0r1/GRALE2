@@ -33,20 +33,59 @@
 
 #include "graleconfig.h"
 #include "gravitationallens.h"
+#include <vector>
+#include <memory>
 
 namespace grale
 {
+
+class GRALE_IMPORTEXPORT CircularPieceInfo
+{
+public:
+	CircularPieceInfo(const std::shared_ptr<GravitationalLens> &lens,
+			                 double startRadius, double endRadius,
+							 double potentialScale, double potentialOffset)
+		: m_lens(lens), 
+		  m_startRadius(startRadius),
+		  m_endRadius(endRadius),
+		  m_potentialScale(potentialScale),
+		  m_potentialOffset(potentialOffset)
+	{
+	}
+
+	CircularPieceInfo(const CircularPieceInfo &c)
+		: m_lens(c.m_lens), 
+		  m_startRadius(c.m_startRadius),
+		  m_endRadius(c.m_endRadius),
+		  m_potentialScale(c.m_potentialScale),
+		  m_potentialOffset(c.m_potentialOffset)
+	{
+	}
+
+	const std::shared_ptr<GravitationalLens> &getLens() const								{ return m_lens; }
+	double getStartRadius() const															{ return m_startRadius; }
+	double getEndRadius() const																{ return m_endRadius; }
+	double getPotentialScale() const														{ return m_potentialScale; }
+	double getPotentialOffset() const														{ return m_potentialOffset; }
+private:
+	const std::shared_ptr<GravitationalLens> m_lens;
+	double m_startRadius, m_endRadius;
+	double m_potentialScale, m_potentialOffset;
+};
 
 class GRALE_IMPORTEXPORT CircularPiecesLensParams : public GravitationalLensParams
 {
 public:
 	CircularPiecesLensParams()																{ }
-	//HarmonicLensParams(double sigma0, double k, double l, double phiX = 0, double phiY = 0)	{ m_sigma0 = sigma0; m_k = k; m_l = l; m_phiX = phiX; m_phiY = phiY; }
+	CircularPiecesLensParams(const std::vector<CircularPieceInfo> &pieces);
+
+	const std::vector<CircularPieceInfo> &getPiecesInfo() const								{ return m_pieces; }
 
 	GravitationalLensParams *createCopy() const;
 	bool write(serut::SerializationInterface &si) const;
 	bool read(serut::SerializationInterface &si);
-//private:
+private:
+	std::vector<CircularPieceInfo> m_pieces;
 };
 
 class GRALE_IMPORTEXPORT CircularPiecesLens : public GravitationalLens
@@ -60,7 +99,12 @@ public:
 	bool getProjectedPotential(double D_s, double D_ds, Vector2D<double> theta, double *pPotentialValue) const;
 protected:
 	bool processParameters(const GravitationalLensParams *pLensParams);
-//private:
+private:
+	void getLenses(Vector2D<double> theta, int &idx1, int &idx2, double &f, double &df) const;
+
+	std::vector<std::shared_ptr<GravitationalLens>> m_lenses;
+	std::vector<double> m_startRadius, m_endRadius;
+	std::vector<double> m_scale, m_potentialOffset;
 };
 
 } // end namespace

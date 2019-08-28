@@ -1,5 +1,6 @@
 from libcpp.string cimport string
 from libcpp.vector cimport vector
+from libcpp.memory cimport shared_ptr
 from libcpp cimport bool
 
 cimport grale.vector2d as vector2d
@@ -55,7 +56,10 @@ cdef extern from "grale/gravitationallens.h" namespace "grale::GravitationalLens
         EllipticSersic,
         PIEMD,
         PIMD,
-        AlphaPot
+        AlphaPot,
+        Harmonic,
+        PotentialGrid,
+        CircularPieces
 
 cdef extern from "grale/gravitationallens.h" namespace "grale":
 
@@ -431,4 +435,36 @@ cdef extern from "grale/harmoniclens.h" namespace "grale":
         pass
 
 ctypedef const HarmonicLensParams* HarmonicLensParamsPtrConst
+
+cdef extern from "grale/potentialgridlens.h" namespace "grale":
+
+    cdef cppclass PotentialGridLensParams(GravitationalLensParams):
+        PotentialGridLensParams()
+
+    cdef cppclass PotentialGridLens(GravitationalLens):
+        pass
+
+ctypedef const PotentialGridLensParams* PotentialGridLensParamsPtrConst
+
+cdef extern from "grale/circularpieceslens.h" namespace "grale":
+
+    cdef cppclass CircularPieceInfo:
+        CircularPieceInfo(const shared_ptr[GravitationalLens] &lens,
+			                 double startRadius, double endRadius,
+							 double potentialScale, double potentialOffset)
+
+        const shared_ptr[GravitationalLens] &getLens()
+        double getStartRadius()
+        double getEndRadius()
+        double getPotentialScale()
+        double getPotentialOffset()
+
+    cdef cppclass CircularPiecesLensParams(GravitationalLensParams):
+        CircularPiecesLensParams(const vector[CircularPieceInfo] &pieces)
+        const vector[CircularPieceInfo] &getPiecesInfo()
+
+    cdef cppclass CircularPiecesLens(GravitationalLens):
+        pass
+
+ctypedef const CircularPiecesLensParams* CircularPiecesLensParamsPtrConst
 
