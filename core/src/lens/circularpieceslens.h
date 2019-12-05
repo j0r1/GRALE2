@@ -77,15 +77,18 @@ class GRALE_IMPORTEXPORT CircularPiecesLensParams : public GravitationalLensPara
 {
 public:
 	CircularPiecesLensParams()																{ }
-	CircularPiecesLensParams(const std::vector<CircularPieceInfo> &pieces);
+	CircularPiecesLensParams(const std::vector<CircularPieceInfo> &pieces,
+	                         const std::vector<double> &interpolationFunctionCoeffs);
 
 	const std::vector<CircularPieceInfo> &getPiecesInfo() const								{ return m_pieces; }
+	const std::vector<double> &getInterpolationFunctionCoefficients() const					{ return m_coeffs; }
 
 	GravitationalLensParams *createCopy() const;
 	bool write(serut::SerializationInterface &si) const;
 	bool read(serut::SerializationInterface &si);
 private:
 	std::vector<CircularPieceInfo> m_pieces;
+	std::vector<double> m_coeffs;
 };
 
 class GRALE_IMPORTEXPORT CircularPiecesLens : public GravitationalLens
@@ -109,6 +112,8 @@ private:
 	std::vector<std::shared_ptr<GravitationalLens>> m_lenses;
 	std::vector<double> m_startRadius, m_endRadius;
 	std::vector<double> m_scale, m_potentialOffset;
+
+	std::vector<double> m_fCoeffs, m_fAccCoeffs, m_fAccAccCoeffs;
 };
 
 } // end namespace

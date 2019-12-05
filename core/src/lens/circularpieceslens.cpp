@@ -10,8 +10,9 @@ using namespace std;
 namespace grale
 {
 
-CircularPiecesLensParams::CircularPiecesLensParams(const vector<CircularPieceInfo> &pieces)
-	: m_pieces(pieces)
+CircularPiecesLensParams::CircularPiecesLensParams(const vector<CircularPieceInfo> &pieces, const vector<double> &coeffs)
+	: m_pieces(pieces),
+	  m_coeffs(coeffs)
 {
 }
 
@@ -41,6 +42,7 @@ GravitationalLensParams *CircularPiecesLensParams::createCopy() const
 
 	CircularPiecesLensParams *pNewParams = new CircularPiecesLensParams();
 	std::swap(pieces, pNewParams->m_pieces);
+	pNewParams->m_coeffs = m_coeffs;
 	return pNewParams;
 }
 
@@ -74,6 +76,13 @@ bool CircularPiecesLensParams::write(serut::SerializationInterface &si) const
 			setErrorString(si.getErrorString());
 			return false;
 		}
+	}
+
+	int32_t numCoeffs = m_coeffs.size();
+	if (!si.writeInt32(numCoeffs) || !si.writeDoubles(m_coeffs))
+	{
+		setErrorString(si.getErrorString());
+		return false;
 	}
 
 	return true;
@@ -111,6 +120,20 @@ bool CircularPiecesLensParams::read(serut::SerializationInterface &si)
 		}
 
 		m_pieces.push_back({ lens, v[0], v[1], v[2], v[3] });
+	}
+
+	int32_t numCoeffs;
+	if (!si.readInt32(&numCoeffs))
+	{
+		setErrorString(si.getErrorString());
+		return false;
+	}
+
+	m_coeffs.resize(numCoeffs);
+	if (!si.readDoubles(m_coeffs))
+	{
+		setErrorString(si.getErrorString());
+		return false;
 	}
 
 	return true;
@@ -182,6 +205,18 @@ bool CircularPiecesLens::processParameters(const GravitationalLensParams *pLensP
 		m_scale.push_back(p.getPotentialScale());
 		m_potentialOffset.push_back(p.getPotentialOffset());
 	}
+
+	auto getDerivsCoeffs = [](const vector<double> &coeffs) -> vector<double>
+	{
+		vector<double> result;
+		for (size_t i = 1 ; i < coeffs.size() ; i++)
+			result.push_back((double)i * coeffs[i]);
+		return result;
+	};
+
+	m_fCoeffs = pParams->getInterpolationFunctionCoefficients();
+	m_fAccCoeffs = getDerivsCoeffs(m_fCoeffs);
+	m_fAccAccCoeffs = getDerivsCoeffs(m_fAccCoeffs);
 
 	return true;
 }
@@ -436,29 +471,32 @@ bool CircularPiecesLens::getProjectedPotential(double D_s, double D_ds, Vector2D
 	return true;
 }
 
-// TODO: replace this with more general interpolation
-double CircularPiecesLens::getF(double x) const
+static inline double calcFunction(const vector<double> &coeffs, double x)
 {
 	assert(x >= 0 && x <= 1);
-	double xx = x*x;
-	double xxx = xx*x;
-	return -6.0*xxx*xx + 15.0*xx*xx -10.0*xxx + 1.0;
+	double factor = 1.0;
+	double result = 0;
+	for (auto a : coeffs)
+	{
+		result += a*factor;
+		factor *= x;
+	}
+	return result;
 }
 
-double CircularPiecesLens::getFDeriv(double x) const
+inline double CircularPiecesLens::getF(double x) const
 {
-	assert(x >= 0 && x <= 1);
-	double xx = x*x;
-	double xxx = xx*x;
-	return -30.0*xx*xx + 60.0*xxx - 30.0*xx;
+	return calcFunction(m_fCoeffs, x);
 }
 
-double CircularPiecesLens::getFDerivDeriv(double x) const
+inline double CircularPiecesLens::getFDeriv(double x) const
 {
-	assert(x >= 0 && x <= 1);
-	double xx = x*x;
-	double xxx = xx*x;
-	return -120.0*xxx + 180.0*xx - 60.0*x;
+	return calcFunction(m_fAccCoeffs, x);
+}
+
+inline double CircularPiecesLens::getFDerivDeriv(double x) const
+{
+	return calcFunction(m_fAccAccCoeffs, x);
 }
 
 

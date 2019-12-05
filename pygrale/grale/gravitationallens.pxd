@@ -460,8 +460,9 @@ cdef extern from "grale/circularpieceslens.h" namespace "grale":
         double getPotentialOffset()
 
     cdef cppclass CircularPiecesLensParams(GravitationalLensParams):
-        CircularPiecesLensParams(const vector[CircularPieceInfo] &pieces)
+        CircularPiecesLensParams(const vector[CircularPieceInfo] &pieces, const vector[double] interpolationFunctionCoeffs)
         const vector[CircularPieceInfo] &getPiecesInfo()
+        const vector[double] &getInterpolationFunctionCoefficients()
 
     cdef cppclass CircularPiecesLens(GravitationalLens):
         pass

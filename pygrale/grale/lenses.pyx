@@ -2412,16 +2412,27 @@ cdef class CircularPiecesLens(GravitationalLens):
 
     cdef gravitationallens.GravitationalLensParams* _allocParams(self, params) except NULL:
         cdef vector[gravitationallens.CircularPieceInfo] pieces
+        cdef vector[double] interpolCoeffs
         cdef gravitationallens.GravitationalLens *pLens = NULL
         cdef shared_ptr[gravitationallens.GravitationalLens] lens;
 
-        if not isinstance(params, list):
+        params = copy.deepcopy(params)
+        if isinstance(params, dict) and not "coeffs" in params: # Add a default
+            params["coeffs"] = [ 1, 0, 0, -10, 15, -6 ]
+
+        GravitationalLens._checkParams(params, ["pieces", "coeffs"])
+
+        for x in params["coeffs"]:
+            interpolCoeffs.push_back(x)
+
+        piecesParams = params["pieces"]
+        if not isinstance(piecesParams, list):
             raise LensException("Circular pieces lens parameters must be a list of individual parameters")
 
-        if len(params) <= 0:
+        if len(piecesParams) <= 0:
             raise LensException("Circular pieces lens parameters must be a non-empty list")
 
-        for d in params:
+        for d in piecesParams:
             d = copy.copy(d)
             if not "r0" in d: d["r0"] = 0.0
             if not "r1" in d: d["r1"] = float("inf")
@@ -2438,7 +2449,7 @@ cdef class CircularPiecesLens(GravitationalLens):
 
             pieces.push_back(gravitationallens.CircularPieceInfo(lens, d["r0"], d["r1"], d["potentialScale"], d["potentialOffset"]))
 
-        return new gravitationallens.CircularPiecesLensParams(pieces)
+        return new gravitationallens.CircularPiecesLensParams(pieces, interpolCoeffs)
 
     def __init__(self, Dd, params):
         r"""__init__(Dd, params)
@@ -2467,7 +2478,7 @@ cdef class CircularPiecesLens(GravitationalLens):
         if pParams == NULL:
             raise LensException("Unexpected: parameters are not those of a CircularPiecesLens")
 
-        params = [ ]
+        piecesParams = [ ]
         for i in range(pParams.getPiecesInfo().size()):
             pSubLensConst = pParams.getPiecesInfo()[i].getLens().get()
             if pSubLensConst == NULL:
@@ -2476,7 +2487,7 @@ cdef class CircularPiecesLens(GravitationalLens):
             if pSubLens == NULL:
                 raise LensException("Unextected: can't create a copy of a piece lens")
 
-            params.append({
+            piecesParams.append({
                 "lens": GravitationalLens._finalizeLoadedLens(pSubLens),
                 "r0": pParams.getPiecesInfo()[i].getStartRadius(),
                 "r1": pParams.getPiecesInfo()[i].getEndRadius(),
@@ -2484,7 +2495,11 @@ cdef class CircularPiecesLens(GravitationalLens):
                 "potentialScale": pParams.getPiecesInfo()[i].getPotentialScale()
             })
         
-        return params
+        coeffs = []
+        for i in range(pParams.getInterpolationFunctionCoefficients().size()):
+            coeffs.append(pParams.getInterpolationFunctionCoefficients()[i])
+
+        return { "pieces": piecesParams, "coeffs": coeffs }
 
 from privlenses import createLensFromLenstoolFile
 
