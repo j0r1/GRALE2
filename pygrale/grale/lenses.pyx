@@ -2428,6 +2428,11 @@ cdef class CircularPiecesLens(GravitationalLens):
             if not "potentialScale" in d: d["potentialScale"] = 1.0
             if not "potentialOffset" in d: d["potentialOffset"] = 0.0
 
+            allowedKeys = [ "lens", "r0", "r1", "potentialOffset", "potentialScale" ]
+            for k in d:
+                if not k in allowedKeys:
+                    raise LensException("Encountered unknown key '{}', expecting one of {}".format(k, allowedKeys))
+
             pLens = GravitationalLens._getLens(d["lens"])
             lens.reset(pLens.createCopy())
 
