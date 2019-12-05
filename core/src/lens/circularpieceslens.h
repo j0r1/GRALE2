@@ -100,7 +100,11 @@ public:
 protected:
 	bool processParameters(const GravitationalLensParams *pLensParams);
 private:
-	void getLenses(Vector2D<double> theta, int &idx1, int &idx2, double &f, double &df) const;
+	void getLenses(Vector2D<double> theta, int &idx1, int &idx2, double &x, double &diffTheta) const;
+
+	double getF(double x) const;
+	double getFDeriv(double x) const;
+	double getFDerivDeriv(double x) const;
 
 	std::vector<std::shared_ptr<GravitationalLens>> m_lenses;
 	std::vector<double> m_startRadius, m_endRadius;
