@@ -218,6 +218,20 @@ bool CircularPiecesLens::processParameters(const GravitationalLensParams *pLensP
 	m_fAccCoeffs = getDerivsCoeffs(m_fCoeffs);
 	m_fAccAccCoeffs = getDerivsCoeffs(m_fAccCoeffs);
 
+	double f0 = getF(0);
+	if (std::abs(f0-1.0) > 1e-8)
+	{
+		setErrorString("For the interpolation function, f(0) should be 1, but is " + to_string(f0));
+		return false;
+	}
+
+	double f1 = getF(1);
+	if (std::abs(f1-0) > 1e-8)
+	{
+		setErrorString("For the interpolation function, f(1) should be 0, but is " + to_string(f1));
+		return false;
+	}
+
 	return true;
 }
 

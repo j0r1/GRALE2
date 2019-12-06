@@ -191,3 +191,10 @@ HarmonicLens
 .. autoclass:: grale.lenses.HarmonicLens
 
    .. automethod:: __init__
+
+CircularPiecesLens
+------------------
+.. autoclass:: grale.lenses.CircularPiecesLens
+
+   .. automethod:: __init__
+

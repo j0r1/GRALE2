@@ -2405,7 +2405,32 @@ cdef class PotentialGridLens(GravitationalLens):
         }
 
 cdef class CircularPiecesLens(GravitationalLens):
-    """TODO"""
+    r"""Create a lens based on the projected potentials of existing lenses. These 
+    potentials will be used exactly in ring-shaped regions (possibly with a
+    different offset, and rescaled), and interpolated in between. If :math:`\psi_i`
+    is the projected potential for one such component, the scaled/offset version
+    is
+
+    .. math::
+
+        \psi_i^s = \mathrm{scale}\times(\psi_i + \mathrm{offset})
+
+    In between such regions, the potentials are merged in the following way:
+
+    .. math::
+
+        \psi_i^{\mathrm{interp}}(\vec{\theta}) = f(x) \psi_i^s(\vec{\theta}) + (1-f(x)) \psi_{i+1}^s(\vec{\theta})
+
+    where
+
+    .. math::
+
+        x = \frac{|\vec{\theta}| - \theta_i^{\rm end}}{\theta_{i+1}^{\rm start} - \theta_i^{\rm end}}
+
+    and :math:`\theta_i^{\rm end}` is the outer radius for the ring-like region of
+    potential :math:`i`, and :math:`\theta_{i+1}^{\rm start}` is the inner radius of
+    the next ring-like region.
+    """
 
     cdef gravitationallens.GravitationalLens* _allocLens(self) except NULL:
         return new gravitationallens.CircularPiecesLens()
@@ -2456,13 +2481,26 @@ cdef class CircularPiecesLens(GravitationalLens):
 
         Parameters:
          - Dd is the angular diameter distance to the lens.
-         - params: a list of dictionaries with the following entries:
+         - params: a dictionary with two entries
+
+           * 'coeffs': (optional) a list of numbers that represent the coefficients
+             of the interpolation function 
+             
+                .. math ::
+
+                    f(x) = \sum_k a_k x^k
+
+             The default is ``[ 1, 0, 0, -10, 15, -6  ]``, similar to a 
+             `smoothstep-like <https://en.wikipedia.org/wiki/Smoothstep>`_ function.
+
+           * 'pieces': a list of dictionaries with the following entries, representing
+             the existing lens potentials and their ring-like regions:
           
-           * 'lens': lens model
-           * 'r0': start radius (zero if not present)
-           * 'r1': end radius (infinity if not present)
-           * 'potentialOffset': offset to the lens potential for this lens (zero if not present)
-           * 'potentialScale': scale factor for the lens potential for this lens (one if not present)
+             * 'lens': lens model
+             * 'r0': start radius (zero if not present)
+             * 'r1': end radius (infinity if not present)
+             * 'potentialOffset': offset to the lens potential for this lens (zero if not present)
+             * 'potentialScale': scale factor for the lens potential for this lens (one if not present)
         """
 
         super(CircularPiecesLens, self).__init__(_gravLensRndId)
