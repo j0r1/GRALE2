@@ -115,6 +115,13 @@ bool PotentialGridLens::processParameters(const GravitationalLensParams *pLensPa
 		return false;
 	}
 
+	if (numX < gsl_interp2d_type_min_size(gsl_interp2d_bicubic) ||
+		numY < gsl_interp2d_type_min_size(gsl_interp2d_bicubic))
+	{
+		setErrorString("Not enough points in grid in at least one dimension");
+		return false;
+	}
+
 	m_pInterp = gsl_interp2d_alloc(gsl_interp2d_bicubic, numX, numY);
 	if (!m_pInterp)
 	{
