@@ -267,8 +267,68 @@ testLenses = [
             },
             "direct": True,
             "subpolynomial": False
-        }
+        },
+        {
+            "name": "DeflectionGridLens",
+            "type": DeflectionGridLens,
+            "params": {
+                "bottomleft": [-10*AS, -10*AS], 
+                "topright": [11*AS, 12*AS],
+                "angles": np.array([
+                    [ [ -2*AS, -3*AS ], [ -1*AS, 2*AS] ],
+                    [ [ -3*AS, 5*AS ], [ 2*AS, -3*AS ]],
+                    [ [ 1*AS, 2*AS ], [ 3*AS, -2*AS ]],
+                ], dtype=np.double)
+            },
+            "direct": True,
+            "subpolynomial": False
+        },
+        {
+            "name": "PotentialGridLens",
+            "type": PotentialGridLens,
+            "params": {
+                "topright": [1*ANGLE_ARCSEC, 2*ANGLE_ARCSEC],
+                "bottomleft": [-2*ANGLE_ARCSEC, -1*ANGLE_ARCSEC],
+                "values": np.array([[ 1, 0.61, 0.5, 0.8],
+                                    [ 0.7, 0.5, 0.3, 0.6 ],
+                                    [ 0.75, 0.4, 0.33, 0.62 ],
+                                    [ 0.9, 0.42, 0.5, 0.7 ]], dtype=np.double)
+            },
+            "direct": True,
+            "subpolynomial": False
+        },
 ]
+
+def isNPArray(x):
+    try:
+        y = x.shape
+        return True
+    except:
+        return False
+
+def paramsEqual(p, q):
+    if type(p) != type(q):
+        return False
+
+    if type(p) == dict and type(q) == dict:
+        # Check if they have the same keys
+        if p.keys() != q.keys():
+            return False
+
+        npKeys = set([ k for k in p if isNPArray(p[k]) ])
+        for k in p:
+            if not k in npKeys:
+                if p[k] != q[k]:
+                    return False
+            else:
+                if not isNPArray(q[k]): # p has an nparray, q doesnt
+                    return False
+                if not np.array_equal(p[k], q[k]):
+                    return False
+
+        return True
+    else:
+        return p == q
 
 for lensInfo in testLenses:
     t = lensInfo["type"]
@@ -280,7 +340,7 @@ for lensInfo in testLenses:
     if not lensInfo["subpolynomial"] and lensInfo["direct"]:
         obtainedParams = lens.getLensParameters()
         #pprint.pprint(obtainedParams)
-        if obtainedParams == lensInfo["params"]:
+        if paramsEqual(obtainedParams, lensInfo["params"]):
             print("  Match")
         else:
             print("  NO MATCH")
@@ -294,32 +354,11 @@ for lensInfo in testLenses:
         newLens = t(Dd, obtainedParams)
         newParams = newLens.getLensParameters()
 
-        if newParams == obtainedParams:
+        if paramsEqual(newParams, obtainedParams):
             print("  Match (indirect)")
         else:
             print("  NO MATCH (indirect)")
         
-# DeflectionGridLens separately!
-origParams = { 
-    "bottomleft": [-10*AS, -10*AS], 
-    "topright": [11*AS, 12*AS],
-    "angles": np.array([
-        [ [ -2*AS, -3*AS ], [ -1*AS, 2*AS] ],
-        [ [ -3*AS, 5*AS ], [ 2*AS, -3*AS ]],
-        [ [ 1*AS, 2*AS ], [ 3*AS, -2*AS ]],
-    ], dtype=np.double)
-}
-
-lens = DeflectionGridLens(Dd, copy.deepcopy(origParams))
-print("Checking lens {} ({})".format("DeflectionGridLens", type(lens)))
-obtainedParams = lens.getLensParameters()
-if (np.array_equal(obtainedParams["angles"], origParams["angles"]) and
-   obtainedParams["bottomleft"] == origParams["bottomleft"] and
-   obtainedParams["topright"] == origParams["topright"] and len(obtainedParams) == 3):
-    print("  Match")
-else:
-    print("  NO MATCH")
-
 # CompositeLens separately
 origParams = [
     { "lens": PlummerLens(Dd, { "mass": 2e13*MASS_SUN, "width": 3*AS }),
@@ -378,3 +417,65 @@ if isMatch:
     print("  Match")
 else:
     print("  NO MATCH")
+
+# CircularPiecesLens separately
+origParams = {
+    "coeffs": [ 1, 0, -3, 2],
+    "pieces": [
+        {
+            "lens": PlummerLens(Dd, { "mass": 2e13*MASS_SUN, "width": 3*AS }),
+            "r0": 0,
+            "r1": 2*AS,
+            "potentialOffset": 1e-8,
+            "potentialScale": 1.01,
+        },
+        {
+            "lens": GaussLens(Dd, { "mass": 1e13*MASS_SUN, "width": 4*AS }),
+            "r0": 2.5*AS,
+            "r1": float("inf"),
+            "potentialOffset": -1e-7,
+            "potentialScale": 0.9
+        }
+    ]
+}
+
+lens = CircularPiecesLens(Dd, origParams)
+print("Checking lens {} ({})".format("CircularPiecesLens", type(lens)))
+obtainedParams = lens.getLensParameters()
+isMatch = False
+
+if origParams["coeffs"] != obtainedParams["coeffs"]:
+    print("Expected coefficients {} but got {}".format(origParams["coeffs"], obtainedParams["coeffs"]))
+else:
+    if len(origParams["pieces"]) != len(obtainedParams["pieces"]):
+        print("Different number of circular pieces")
+    else:
+        for i in range(len(origParams["pieces"])):
+            ip = origParams["pieces"][i]
+            op = obtainedParams["pieces"][i]
+
+            if ip.keys() != op.keys():
+                print("Pieces have different keys")
+            else:
+                if ip["lens"].toBytes() != op["lens"].toBytes():
+                    print("Lens models don't match")
+                else:
+                    if ip["r0"] != op["r0"]:
+                        print("Inner range for piece {} doesn't match".format(i))
+                    else:
+                        if ip["r1"] != op["r1"]:
+                            print("Outer range for piece {} doesn't match".format(i))
+                        else:
+                            if ip["potentialScale"] != op["potentialScale"]:
+                                print("Different scales")
+                            else:
+                                if ip["potentialOffset"] != op["potentialOffset"]:
+                                    print("Different offsets")
+                                else:
+                                    isMatch = True
+
+if isMatch:
+    print("  Match")
+else:
+    print("  NO MATCH")
+
