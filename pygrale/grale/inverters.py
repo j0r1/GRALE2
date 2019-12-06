@@ -29,6 +29,7 @@ import sys
 
 debugOutput = False
 debugDirectStderr = False
+communicationTimeout = 300
 
 real_print = print
 def print(*args): # Do a flush afterwards
@@ -142,7 +143,7 @@ class Inverter(object):
             fitId = "FITNESS:"
 
             while True:
-                line = io.readLine(300) # Wait at most five minutes
+                line = io.readLine(communicationTimeout) # Wait at most five minutes
                 #print(line)
                 if line.startswith(statusStr):
                     s = line[len(statusStr):]
