@@ -33,6 +33,7 @@
 
 #include "graleconfig.h"
 #include "gravitationallens.h"
+#include <gsl/gsl_interp2d.h>
 
 namespace grale
 {
@@ -40,13 +41,24 @@ namespace grale
 class GRALE_IMPORTEXPORT PotentialGridLensParams : public GravitationalLensParams
 {
 public:
-	PotentialGridLensParams()																{ }
-	//HarmonicLensParams(double sigma0, double k, double l, double phiX = 0, double phiY = 0)	{ m_sigma0 = sigma0; m_k = k; m_l = l; m_phiX = phiX; m_phiY = phiY; }
+	PotentialGridLensParams();
+	PotentialGridLensParams(Vector2Dd bottomLeft, Vector2Dd topRight, const std::vector<double> &values,
+			int numX, int numY);
+	~PotentialGridLensParams();
+
+	Vector2Dd getBottomLeft() const								{ return m_bottomLeft; }
+	Vector2Dd getTopRight() const								{ return m_topRight; }
+	const std::vector<double> &getValues() const				{ return m_values; }
+	int getNumX() const											{ return m_numX; }
+	int getNumY() const											{ return m_numY; }
 
 	GravitationalLensParams *createCopy() const;
 	bool write(serut::SerializationInterface &si) const;
 	bool read(serut::SerializationInterface &si);
-//private:
+private:
+	Vector2Dd m_bottomLeft, m_topRight;
+	std::vector<double> m_values;
+	int m_numX, m_numY;
 };
 
 class GRALE_IMPORTEXPORT PotentialGridLens : public GravitationalLens
@@ -60,7 +72,11 @@ public:
 	bool getProjectedPotential(double D_s, double D_ds, Vector2D<double> theta, double *pPotentialValue) const;
 protected:
 	bool processParameters(const GravitationalLensParams *pLensParams);
-//private:
+private:
+	gsl_interp2d *m_pInterp;
+	gsl_interp_accel *m_pXAccel, *m_pYAccel;
+
+	std::vector<double> m_x, m_y, m_z;
 };
 
 } // end namespace
