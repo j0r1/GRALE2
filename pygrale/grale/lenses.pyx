@@ -2373,35 +2373,82 @@ cdef class HarmonicLens(GravitationalLens):
         }
 
 cdef class PotentialGridLens(GravitationalLens):
-    """TODO"""
+    """Create a lens based on the values of the projected potential (for :math:`D_{ds}/D_s = 1`)
+    defined on a grid. In between the grid points, bicubic interpolation is used using
+    routines from `GSL <https://www.gnu.org/software/gsl/doc/html/interp.html#id1>`_.
+    """
 
     cdef gravitationallens.GravitationalLens* _allocLens(self) except NULL:
         return new gravitationallens.PotentialGridLens()
 
     cdef gravitationallens.GravitationalLensParams* _allocParams(self, params) except NULL:
-        # TODO
+        cdef int numX, numY, i, x, y
+        cdef np.ndarray[double,ndim=2] values
+        cdef vector[double] valueArray
+        cdef Vector2Dd topRight, bottomLeft
 
-        return new gravitationallens.PotentialGridLensParams()
+        GravitationalLens._checkParams(params, ["values", "topright", "bottomleft"])
+
+        values = params["values"]
+        numY, numX = values.shape[0], values.shape[1]
+        valueArray.resize(numX*numY)
+
+        i = 0
+        for y in range(numY):
+            for x in range(numX):
+                valueArray[i] = values[y,x]
+                i += 1
+        
+        topRight = Vector2Dd(params["topright"][0], params["topright"][1])
+        bottomLeft = Vector2Dd(params["bottomleft"][0], params["bottomleft"][1])
+
+        return new gravitationallens.PotentialGridLensParams(bottomLeft, topRight, valueArray, numX, numY)
 
     def __init__(self, Dd, params):
         r"""__init__(Dd, params)
 
         Parameters:
          - Dd is the angular diameter distance to the lens.
-         - params: TODO
+         - params: a dictionary consisting of the following entries
+
+           * 'bottomleft': the coordinates of the bottom-left corner of the grid
+           * 'topright': the top-right corner of the grid
+           * 'values': 2D numpy array containing the potential values, sampled at the grid 
+             points. If the shape is `(numY, numX)` (first index describes y-direction)
+             then point `[0, 0]` corresponds to the bottom-left corner, and `[numY-1, numX-1]`
+             to the top-right corner.
         """
         super(PotentialGridLens, self).__init__(_gravLensRndId)
         self._lensInit(Dd, params)
 
     def getLensParameters(self):
         cdef gravitationallens.PotentialGridLensParamsPtrConst pParams
-        
+        cdef np.ndarray[double,ndim=1] values
+        cdef int numX, numY, i, n;
+        cdef Vector2Dd bottomLeft, topRight
+
         self._check()
         pParams = dynamic_cast[gravitationallens.PotentialGridLensParamsPtrConst](GravitationalLens._getLens(self).getLensParameters())
         if pParams == NULL:
             raise LensException("Unexpected: parameters are not those of a PotentialGridLens")
 
-        return { # TODO
+        numX = pParams.getNumX()
+        numY = pParams.getNumY()
+        bottomLeft = pParams.getBottomLeft()
+        topRight = pParams.getTopRight()
+
+        values = np.empty([numX*numY], dtype = np.double)
+        n = pParams.getValues().size()
+        if n != numX*numY:
+            raise LensException("Unexpected: number of potential values is not equal to numX*numY")
+
+        for i in range(n):
+            values[i] = pParams.getValues()[i]
+
+        return {
+            "topright": [ topRight.getX(), topRight.getY() ],
+            "bottomleft": [ bottomLeft.getX(), bottomLeft.getY() ],
+            "values": values.reshape(numY, numX)
         }
 
 cdef class CircularPiecesLens(GravitationalLens):

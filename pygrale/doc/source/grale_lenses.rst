@@ -192,6 +192,12 @@ HarmonicLens
 
    .. automethod:: __init__
 
+PotentialGridLens
+-----------------
+.. autoclass:: grale.lenses.PotentialGridLens
+
+   .. automethod:: __init__
+
 CircularPiecesLens
 ------------------
 .. autoclass:: grale.lenses.CircularPiecesLens

@@ -171,19 +171,51 @@ bool PotentialGridLens::getAlphaVector(Vector2D<double> theta,Vector2D<double> *
 
 bool PotentialGridLens::getAlphaVectorDerivatives(Vector2D<double> theta, double &axx, double &ayy, double &axy) const
 {
-	// TODO
+	auto getDerivDeriv = [this, theta](
+			int (*functionName)(const gsl_interp2d * interp, const double xa[], const double ya[], const double za[], const double x, const double y, gsl_interp_accel * xacc, gsl_interp_accel * yacc, double * d),
+			double &result) -> bool
+	{
+		int err = functionName(m_pInterp, m_x.data(), m_y.data(), m_z.data(), 
+				               theta.getX(), theta.getY(), m_pXAccel, m_pYAccel, &result);
+		if (err < 0)
+		{
+			setErrorString("Error getting second derivative of potential: GSL error code " + to_string(err));
+			return false;
+		}
+		return true;
+	};
+
+	if (!getDerivDeriv(gsl_interp2d_eval_deriv_xx_e, axx) ||
+	    !getDerivDeriv(gsl_interp2d_eval_deriv_yy_e, ayy) ||
+		!getDerivDeriv(gsl_interp2d_eval_deriv_xy_e, axy))
+		return false;
+
 	return true;
 }
 
+// TODO: make this the default in GravitationalLens base class?
 double PotentialGridLens::getSurfaceMassDensity(Vector2D<double> theta) const
 {
-	// TODO
-	return 0;
+	double axx, ayy, axy;
+
+	getAlphaVectorDerivatives(theta, axx, ayy, axy);
+	double kappa = 0.5*(axx + ayy);
+	double sigmaCrit = SPEED_C*SPEED_C/(4.0*CONST_PI*CONST_G*getLensDistance());
+	return kappa*sigmaCrit;
 }
 
 bool PotentialGridLens::getProjectedPotential(double D_s, double D_ds, Vector2D<double> theta, double *pPotentialValue) const
 {
-	// TODO
+	double result;
+	int err = gsl_interp2d_eval_e(m_pInterp, m_x.data(), m_y.data(), m_z.data(),
+	                              theta.getX(), theta.getY(), m_pXAccel, m_pYAccel, &result);
+	if (err < 0)
+	{
+		setErrorString("Unable to get projected potential at requested point: GSL error code " + to_string(err));
+		return false;
+	}
+
+	*pPotentialValue = (D_ds/D_s)*result;
 	return true;
 }
 

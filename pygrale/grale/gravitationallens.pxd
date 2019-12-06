@@ -439,7 +439,12 @@ ctypedef const HarmonicLensParams* HarmonicLensParamsPtrConst
 cdef extern from "grale/potentialgridlens.h" namespace "grale":
 
     cdef cppclass PotentialGridLensParams(GravitationalLensParams):
-        PotentialGridLensParams()
+        PotentialGridLensParams(Vector2Dd bottomLeft, Vector2Dd topRight, const vector[double] &values, int numX, int numY)
+        Vector2Dd getBottomLeft()
+        Vector2Dd getTopRight()
+        const vector[double] &getValues()
+        int getNumX()
+        int getNumY()
 
     cdef cppclass PotentialGridLens(GravitationalLens):
         pass
