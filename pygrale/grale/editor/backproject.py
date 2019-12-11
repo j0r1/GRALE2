@@ -22,6 +22,8 @@ def arrayToQImage(img):
 
 def _retraceCPU(ip, img, center, sizes, subSample):
 
+    import grale.images as images
+
     cx, cy = center
     cx *= ANGLE_ARCSEC
     cy *= ANGLE_ARCSEC
@@ -43,12 +45,12 @@ def _retraceCPU(ip, img, center, sizes, subSample):
     return arrayToQImage(totalPlane)
 
 
-def backprojectAndRetrace(imgPlane, img, centerX, centerY, widthArcsec, heightArcsec, srcNumX, srcNumY,
+def backprojectAndRetrace(imgPlane, img, centerX, centerY, widthArcsec, heightArcsec, bpXY,
                           useCPU, subSample, numXYGPU):
 
     ip = imgPlane
     imgSrc, bl, tr = openglhelper.backProject(ip, img, [centerX, centerY], 
-                                      [widthArcsec, heightArcsec], [512, 512])
+                                      [widthArcsec, heightArcsec], [bpXY, bpXY])
 
     # Recalculate
 

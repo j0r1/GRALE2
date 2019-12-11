@@ -1085,7 +1085,10 @@ class MainWindow(QtWidgets.QMainWindow):
             extra = .1*ANGLE_ARCSEC # TODO
             borders = [ images.enlargePolygon(b, extra) for b in borders ]
 
-            numPix = 512 # TODO
+            numPix = 2048 # TODO, number of pixels for input
+            numBPPix = 2048
+            numResample = 1
+            numGPUXY = 2048
 
             idx = 0
             for border in borders:
@@ -1113,10 +1116,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
                 # TODO: config options
                 import backproject
-                imgSrc, bl, tr, imgRelens = backproject.backprojectAndRetrace(ip, img, centerX, centerY, widthArcsec, heightArcsec, 512, 512,
-                                                                  False, 9, 2048) 
-
-
+                imgSrc, bl, tr, imgRelens = backproject.backprojectAndRetrace(ip, img, centerX, centerY, widthArcsec, heightArcsec, numBPPix,
+                                                                  False, numResample, numGPUXY) 
                 img = imgSrc
                 img.save(f"tmp{idx}_1.png")
                 l = imagelayer.RGBImageLayer(f"tmp{idx}_1.png", f"Source shape for image {idx}")

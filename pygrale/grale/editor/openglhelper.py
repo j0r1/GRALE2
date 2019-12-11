@@ -1,6 +1,7 @@
 from PyQt5 import QtWidgets, QtOpenGL, QtGui, QtCore
 import numpy as np
 import sys
+import OpenGL.GL
 
 def needcontext(f):
 
@@ -44,13 +45,14 @@ def needcontext(f):
             if not ctx.makeCurrent(surface):
                 raise Exception("Unable to make context current")
 
-            p = QtGui.QOpenGLVersionProfile()
-            p.setVersion(2, 0)
-            gl = ctx.versionFunctions(p)
-            if not gl:
-                raise Exception("Couldn't get access to OpenGL function")
-
-            return f(*args, **kwargs, gl=gl)
+            #p = QtGui.QOpenGLVersionProfile()
+            #p.setVersion(2, 0)
+            #gl = ctx.versionFunctions(p)
+            #if not gl:
+            #    raise Exception("Couldn't get access to OpenGL function")
+            #
+            #return f(*args, **kwargs, gl=gl)
+            return f(*args, **kwargs, gl=OpenGL.GL)
 
     return wrapper
 
@@ -146,11 +148,12 @@ def _trace(imgPlane, srcImage, center, sizes, outputDimensions, subSample, gl):
     gl.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     gl.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-    b = mapTexData.tobytes()
-    import array
-    a = array.array("f")
-    a.frombytes(b)
-    gl.glTexImage2D(GL_TEXTURE_2D, 0, GL_RG32F, mapNumX, mapNumY, 0, GL_RG, GL_FLOAT, a)
+    #b = mapTexData.tobytes()
+    #import array
+    #a = array.array("f")
+    #a.frombytes(b)
+    #gl.glTexImage2D(GL_TEXTURE_2D, 0, GL_RG32F, mapNumX, mapNumY, 0, GL_RG, GL_FLOAT, a)
+    gl.glTexImage2D(GL_TEXTURE_2D, 0, GL_RG32F, mapNumX, mapNumY, 0, GL_RG, GL_FLOAT, mapTexData)
 
     srcTexture = QtGui.QOpenGLTexture(QtGui.QOpenGLTexture.Target2D)
     if not srcTexture.create():
@@ -167,15 +170,11 @@ def _trace(imgPlane, srcImage, center, sizes, outputDimensions, subSample, gl):
 		precision highp float;
 
 		attribute vec2 a_position;
-		varying vec2 v_tpos;
-        uniform vec2 u_mapPixSize;
+		varying vec2 v_xy;
 
 		void main()
 		{
-            vec2 xy = (a_position+1.0)/2.0;
-            // We need to rescale slightly because the map values 
-            // are at the center of the pixels
-			v_tpos = (1.0-u_mapPixSize)*xy + 0.5*u_mapPixSize;
+            v_xy = (a_position+1.0)/2.0;
 			gl_Position = vec4(a_position.xy, 0, 1);
 		}
         """)
@@ -187,32 +186,51 @@ def _trace(imgPlane, srcImage, center, sizes, outputDimensions, subSample, gl):
 		uniform sampler2D u_srcTexture;
 		uniform vec2 u_srcBottomLeft;
 		uniform vec2 u_srcTopRight;
+		uniform vec2 u_mapBottomLeft;
+		uniform vec2 u_mapTopRight;
         uniform vec2 u_dstart;
         uniform vec2 u_substep;
-		varying vec2 v_tpos;
+        uniform vec2 u_mapNumXY;
+		varying vec2 v_xy;
+
+        vec4 getSrcPixelValue(vec2 xyArcsec)
+        {{
+            vec2 xySrcArea = xyArcsec-u_srcBottomLeft;
+            xySrcArea /= (u_srcTopRight-u_srcBottomLeft);
+
+            if (all(greaterThanEqual(xySrcArea, vec2(0.0,0.0))) && all(lessThanEqual(xySrcArea, vec2(1.0,1.0))))
+                return texture2D(u_srcTexture, xySrcArea);
+
+            return vec4(0.0, 0.0, 0.0, 0.0);
+        }}
+
+        vec2 traceTheta(vec2 xyArcsec)
+        {{
+            vec2 xyRel = (xyArcsec - u_mapBottomLeft)/(u_mapTopRight-u_mapBottomLeft);
+            vec2 xyPt = (xyRel*(u_mapNumXY-1) + 0.5)/u_mapNumXY;
+            return texture2D(u_mapTexture, xyPt).xy;
+        }}
 
 		void main()
 		{{
             vec4 c = vec4(0,0,0,0);
-            float y = v_tpos.y+u_dstart.y;
+            float y = v_xy.y + u_dstart.y;
             
             for (int i = 0 ; i < {subSample} ; i++)
             {{
-                float x = v_tpos.x+u_dstart.x;
-
-                y += u_substep.y;
+                float x = v_xy.x + u_dstart.x;
                 
                 for (int j = 0 ; j < {subSample} ; j++)
                 {{
+                    vec2 xyArcsecImgPlane = vec2(x,y)*(u_mapTopRight-u_mapBottomLeft) + u_mapBottomLeft;
+                    vec2 xyArcsecSrcPlane = traceTheta(xyArcsecImgPlane);
+
+                    c += getSrcPixelValue(xyArcsecSrcPlane);
+
                     x += u_substep.x;
-
-                    vec2 srcCoord = texture2D(u_mapTexture, vec2(x,y)).xy;
-                    srcCoord -= u_srcBottomLeft;
-                    srcCoord /= (u_srcTopRight-u_srcBottomLeft);
-
-                    if (all(greaterThanEqual(srcCoord, vec2(0.0,0.0))) && all(lessThanEqual(srcCoord, vec2(1.0,1.0))))
-                        c += texture2D(u_srcTexture, srcCoord);
                 }}
+
+                y += u_substep.y;
             }}
             gl_FragColor = c/({subSample}*{subSample});
 		}}
@@ -243,8 +261,10 @@ def _trace(imgPlane, srcImage, center, sizes, outputDimensions, subSample, gl):
     subStepWidth, subStepHeight = [ (1.0/subSample)/outputDimensions[i] for i in range(2) ]
     dStart = [ (0.5/subSample-0.5)/outputDimensions[i] for i in range(2) ] 
 
-    prog.setUniformValue("u_mapPixSize", QtCore.QPointF(1.0/mapNumX, 1.0/mapNumY))
     prog.setUniformValue("u_mapTexture", 0)
+    prog.setUniformValue("u_mapBottomLeft", QtCore.QPointF(bl[0]/ANGLE_ARCSEC, bl[1]/ANGLE_ARCSEC))
+    prog.setUniformValue("u_mapTopRight", QtCore.QPointF(tr[0]/ANGLE_ARCSEC, tr[1]/ANGLE_ARCSEC))
+    prog.setUniformValue("u_mapNumXY", QtCore.QPointF(mapNumX, mapNumY))
     prog.setUniformValue("u_srcTexture", 1)
     prog.setUniformValue("u_srcBottomLeft", QtCore.QPointF(center[0]-sizes[0]/2, center[1]-sizes[1]/2))
     prog.setUniformValue("u_srcTopRight", QtCore.QPointF(center[0]+sizes[0]/2, center[1]+sizes[1]/2))
