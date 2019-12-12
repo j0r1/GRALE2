@@ -586,3 +586,61 @@ class GraphicsScene(SceneBase):
             if issubclass(type(i), ImageGraphicsItem):
                 i.setPointsVisible(v)
 
+    @staticmethod
+    def _maskImage(img, bottomLeft, topRight, border):
+        import numpy as np
+
+        s = topRight-bottomLeft
+        S = np.array([img.width(), img.height()], dtype=np.double)
+        pixBorder = [ np.round((p-bottomLeft)/s * S + 0.5).astype(int) for p in border ]
+        pixBorder = [ QtCore.QPoint(x, y) for x,y in pixBorder ]
+
+        region = QtGui.QRegion(QtGui.QPolygon(pixBorder))
+        resImg = QtGui.QImage(img.width(), img.height(), QtGui.QImage.Format_ARGB32);
+        resImg.fill(QtCore.Qt.transparent)
+
+        pm = QtGui.QPixmap.fromImage(resImg)
+        painter = QtGui.QPainter(pm)
+        painter.setClipRegion(region)
+        painter.drawImage(0, 0, img)
+        del painter
+
+        return pm.toImage()
+
+    # if one of the pixels is None, the other will be calculated based on aspect ratio
+    # returns image as it is seen, taking into account the axis direction
+    def getSceneRegionImage_CenterSize(self, centerArcsec, sizeArcsec, widthHeightPixels, border = None):
+        centerX, centerY = centerArcsec
+        widthArcsec, heightArcsec = sizeArcsec
+        widthPixels, heightPixels = widthHeightPixels
+
+        if widthPixels is None or heightPixels is None:
+            numPix = widthPixels if heightPixels is None else heightPixels
+            if widthArcsec > heightArcsec:
+                widthPixels = numPix
+                heightPixels = round(numPix*heightArcsec/widthArcsec)
+            else:
+                widthPixels = round(numPix*widthArcsec/heightArcsec)
+                heightPixels = numPix
+
+        minXY = [ centerX-widthArcsec/2.0, centerY-heightArcsec/2.0 ]
+        maxXY = [ centerX+widthArcsec/2.0, centerY+heightArcsec/2.0 ]
+        img = self.getSceneRegionImage(minXY, maxXY, widthPixels, heightPixels)
+        img = img.mirrored(self.isAxisLeft(), True)
+        
+        if border is not None:
+            import numpy as np
+            img = GraphicsScene._maskImage(img, np.array(minXY), np.array(maxXY), border)
+    
+        return img
+
+    def getSceneRegionImage_minMax(self, minXY, maxXY, widthHeightPixels, border = None):
+        minx, miny = minXY
+        maxx, maxy = maxXY
+
+        centerX, centerY = (minx+maxx)/2.0, (miny+maxy)/2.0
+        widthArcsec, heightArcsec = abs(maxx-minx), abs(maxy-miny)
+
+        return self.getSceneRegionImage_CenterSize([centerX, centerY], [widthArcsec, heightArcsec],
+                                                   widthHeightPixels, border)
+

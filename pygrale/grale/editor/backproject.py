@@ -45,9 +45,10 @@ def _retraceCPU(ip, img, center, sizes, subSample):
     return arrayToQImage(totalPlane)
 
 
-def backprojectAndRetrace(imgPlane, img, centerX, centerY, widthArcsec, heightArcsec, bpXY,
-                          useCPU, subSample, numXYGPU):
+def backprojectAndRetrace(imgPlane, img, minXY, maxXY, bpXY,useCPU, subSample, numXYGPU):
 
+    centerX, centerY = [ (minXY[i] + maxXY[i])*0.5 for i in range(2) ]
+    widthArcsec, heightArcsec = [ (maxXY[i] - minXY[i]) for i in range(2) ]
     ip = imgPlane
     imgSrc, bl, tr = openglhelper.backProject(ip, img, [centerX, centerY], 
                                       [widthArcsec, heightArcsec], [bpXY, bpXY])

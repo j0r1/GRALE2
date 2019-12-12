@@ -314,6 +314,8 @@ class MainWindow(QtWidgets.QMainWindow):
         timer.timeout.connect(self._onStartup)
         timer.start()
 
+        self.lastLoadedImagePlane = None
+
     def _onStartup(self):
         # Starting up, make sure view gets keyboard
         self.view.setFocus()
@@ -1020,8 +1022,6 @@ class MainWindow(QtWidgets.QMainWindow):
                 layerItem = self.scene.getLayerItem(uuid)
                 layerItem.setVisible(False)
 
-
-
     def _restorePointsLayers(self, visibilities):
         for l, v in visibilities:
             if v and type(l) == pointslayer.PointsLayer:
@@ -1030,23 +1030,22 @@ class MainWindow(QtWidgets.QMainWindow):
                 layerItem.setVisible(True)
 
     @staticmethod
-    def _maskImage(img, bottomLeft, topRight, border):
-        s = topRight-bottomLeft
-        S = np.array([img.width(), img.height()], dtype=np.double)
-        pixBorder = [ np.round((p-bottomLeft)/s * S + 0.5).astype(int) for p in border ]
-        pixBorder = [ QtCore.QPoint(x, y) for x,y in pixBorder ]
+    def _createRGBLayerForImage(img, fn, layerName, bl, tr, yMirror):
+        img.save(fn)
+        l = imagelayer.RGBImageLayer(fn, layerName)
+        if yMirror:
+            mp = [  [ [0, img.height()], bl], 
+                    [ [0, 0], [ bl[0], tr[1]] ],
+                    [ [img.width(), img.height()], [tr[0], bl[1]] ],
+                    [ [img.width(), 0], tr ] ]
+        else:
+            mp = [  [ [0, 0], bl], 
+                    [ [0, img.height()], [ bl[0], tr[1]] ],
+                    [ [img.width(), 0], [tr[0], bl[1]] ],
+                    [ [img.width(), img.height()], tr ] ]
 
-        region = QtGui.QRegion(QtGui.QPolygon(pixBorder))
-        resImg = QtGui.QImage(img.width(), img.height(), QtGui.QImage.Format_ARGB32);
-        resImg.fill(QtCore.Qt.transparent)
-
-        pm = QtGui.QPixmap.fromImage(resImg)
-        painter = QtGui.QPainter(pm)
-        painter.setClipRegion(region)
-        painter.drawImage(0, 0, img)
-        del painter
-
-        return pm.toImage()
+        l.matchToPoints(mp, True)
+        return l
 
     def _onBackProjectRetrace(self, v):
 
@@ -1060,7 +1059,21 @@ class MainWindow(QtWidgets.QMainWindow):
             if not layers:
                 raise Exception("No visible points layers could be detected")
 
+            # TODO: image plane
             splitLayers = True # TODO
+            extra = .1*ANGLE_ARCSEC # TODO
+            numPix = 2048 # TODO, number of pixels for input
+            numBPPix = 2048
+            numResample = 1
+            numGPUXY = 2048
+            useCPU = False
+            overWriteFiles = True
+            bpFileNameTemplate = "img_{idx}_backproj.png"
+            bpLayerNameTemplate = "Source shape for image {idx}: {fn}"
+            relensFileNameTemplate = "img_{idx}_relensed.png"
+            relensLayerNameTemplate = "Relensed source from image {idx}: {fn}"
+            newImageDir = os.getcwd() 
+
             exportTimeDelays = False
             exportGroups = False
             pointsLeftInfo = []
@@ -1082,69 +1095,42 @@ class MainWindow(QtWidgets.QMainWindow):
                     raise Exception("Unable to get a border for image {}".format(i+1))
                 borders.append(border)
 
-            extra = .1*ANGLE_ARCSEC # TODO
+            if not overWriteFiles: # Check what would be overwritten
+                filesToOverwrite = [ ]
+                for idx in range(len(borders)):
+                    for tmpl in [ bpFileNameTemplate, relensFileNameTemplate ]:
+                        fn = os.path.join(newImageDir, tmpl.format(idx=idx+1))
+                        if os.path.exists(fn):
+                            filesToOverwrite.append(fn)
+
+                if filesToOverwrite:
+                    raise Exception(f"{len(filesToOverwrite)} files would be overwritten, first are:\n" + "\n".join(filesToOverwrite[:10]))
+
             borders = [ images.enlargePolygon(b, extra) for b in borders ]
 
-            numPix = 2048 # TODO, number of pixels for input
-            numBPPix = 2048
-            numResample = 1
-            numGPUXY = 2048
+            for idx in range(len(borders)):
+                border = np.array(borders[idx])/ANGLE_ARCSEC
+                img = self.scene.getSceneRegionImage_minMax(border.min(0), border.max(0), [ numPix, None], border)
 
-            idx = 0
-            for border in borders:
-                idx += 1
-
-                border = np.array(border)/ANGLE_ARCSEC
-                minx, maxx = min(border[:,0]), max(border[:,0])
-                miny, maxy = min(border[:,1]), max(border[:,1])
-
-                centerX, centerY = (minx+maxx)/2.0, (miny+maxy)/2.0
-                widthArcsec, heightArcsec = abs(maxx-minx), abs(maxy-miny)
-
-                if widthArcsec > heightArcsec:
-                    widthPixels = numPix
-                    heightPixels = round(numPix*heightArcsec/widthArcsec)
-                else:
-                    widthPixels = round(numPix*widthArcsec/heightArcsec)
-                    heightPixels = numPix
-
-                img = self.scene.getSceneRegionImage([ centerX-widthArcsec/2.0, centerY-heightArcsec/2.0 ],
-                                                     [ centerX+widthArcsec/2.0, centerY+heightArcsec/2.0 ], widthPixels, heightPixels)
-
-                img = img.mirrored(self.scene.isAxisLeft(), True)
-                img = MainWindow._maskImage(img, np.array([minx, miny]), np.array([maxx, maxy]), border)
-
-                # TODO: config options
                 import backproject
-                imgSrc, bl, tr, imgRelens = backproject.backprojectAndRetrace(ip, img, centerX, centerY, widthArcsec, heightArcsec, numBPPix,
-                                                                  False, numResample, numGPUXY) 
-                img = imgSrc
-                img.save(f"tmp{idx}_1.png")
-                l = imagelayer.RGBImageLayer(f"tmp{idx}_1.png", f"Source shape for image {idx}")
-                mp = [  [ [0, img.height()], bl], 
-                                   [ [0, 0], [ bl[0], tr[1]] ],
-                                   [ [img.width(), img.height()], [tr[0], bl[1]] ],
-                                   [ [img.width(), 0], tr ] ]
-                l.matchToPoints(mp, True)
-                newLayers.append(l)
+                imgSrc, bl, tr, imgRelens = backproject.backprojectAndRetrace(ip, img, border.min(0), border.max(0), 
+                                                                              numBPPix, useCPU, numResample, numGPUXY) 
 
-                img = imgRelens
-                img.save(f"tmp{idx}_2.png")
-                l = imagelayer.RGBImageLayer(f"tmp{idx}_2.png", f"Relensed source from image {idx}")
+                fn = bpFileNameTemplate.format(idx=idx+1)
+                newLayers.append(MainWindow._createRGBLayerForImage(
+                    imgSrc, fn, bpLayerNameTemplate.format(idx=idx+1, fn=fn),
+                    bl, tr, True))
 
                 ri = ip.getRenderInfo()
-                tr = np.array(ri["topright"])/ANGLE_ARCSEC
-                bl = np.array(ri["bottomleft"])/ANGLE_ARCSEC
+                fn = relensFileNameTemplate.format(idx=idx+1)
+                newLayers.append(MainWindow._createRGBLayerForImage(
+                    imgRelens, fn, relensLayerNameTemplate.format(idx=idx+1, fn=fn),
+                    np.array(ri["bottomleft"])/ANGLE_ARCSEC, np.array(ri["topright"])/ANGLE_ARCSEC, False) )
 
-                mp = [  [ [0, 0], bl], 
-                                   [ [0, img.height()], [ bl[0], tr[1]] ],
-                                   [ [img.width(), 0], [tr[0], bl[1]] ],
-                                   [ [img.width(), img.height()], tr ] ]
-
-                l.matchToPoints(mp, True)
-                newLayers.append(l)
         except Exception as e:
             self.scene.warning("Exception occurred: {}".format(e))
+            import traceback
+            traceback.print_exc()
             return
         finally:
             self._restorePointsLayers(visibilities)
