@@ -1055,9 +1055,9 @@ class MainWindow(QtWidgets.QMainWindow):
             ip = pickle.load(open("testimgplane.dat", "rb"))
             splitLayers = True # TODO
             extra = .1*ANGLE_ARCSEC # TODO
-            numPix = 2048 # TODO, number of pixels for input, scaled according to aspect ratio
-            numBPPix = 2048 # same used in x and y direction, is this ok? perhaps we'd lose information otherwise?
-            numRetracePix = 2048 # Again scaled according to aspect ratio
+            numPix = 4096 # TODO, number of pixels for input, scaled according to aspect ratio
+            numBPPix = 4096 # same used in x and y direction, is this ok? perhaps we'd lose information otherwise?
+            numRetracePix = 4096 # Again scaled according to aspect ratio
             numResample = 1
             relensSeparately = True
 
@@ -1126,7 +1126,6 @@ class MainWindow(QtWidgets.QMainWindow):
         ip = imgPlane
         numPix = numImgPix
         numGPUXY = numRetracePix
-        useCPU = False
 
         if newImageDir is None:
             newImageDir = os.getcwd()
@@ -1198,35 +1197,34 @@ class MainWindow(QtWidgets.QMainWindow):
                     img, fn, layerNameTemplate.format(srcidx=srcidx+1, tgtidx=tgtidx+1, fn=fn),
                     bl, tr, isSrc))
 
+            import openglhelper
+
             for idx in range(len(borders)):
                 border = np.array(borders[idx])/ANGLE_ARCSEC
                 img = self.scene.getSceneRegionImage_minMax(border.min(0), border.max(0), [ numPix, None], border)
 
+                progressCallback(f"Creating source shape from image {idx+1}")
+                centerX, centerY = 0.5*(border.max(0)+border.min(0))
+                widthArcsec, heightArcsec = border.max(0)-border.min(0)
+                imgSrc, srcbl, srctr = openglhelper.backProject(ip, img, [centerX, centerY], 
+                                                  [widthArcsec, heightArcsec], [numBPPix, numBPPix])
+
+                srcbl, srctr = np.array(srcbl), np.array(srctr)
+                srcCtr = (srcbl+srctr)*0.5
+                srcSize = srctr-srcbl
+
+                addImg(imgSrc, idx, -1, srcbl, srctr, True)
+
+                def getDims(tgtBl, tgtTr):
+                    tgtW, tgtH = tgtTr-tgtBl 
+                    return [ round(numGPUXY*tgtW/tgtH), numGPUXY ] if tgtW < tgtH else [ numGPUXY, round(numGPUXY*tgtH/tgtW) ]
+
                 if relensSeparately:
-                    if useCPU:
-                        raise Exception("CPU based separate image re-tracing is not supported at the moment")
-
-                    import openglhelper
-
-                    progressCallback(f"Creating source shape from image {idx+1}")
-                    centerX, centerY = 0.5*(border.max(0)+border.min(0))
-                    widthArcsec, heightArcsec = border.max(0)-border.min(0)
-                    imgSrc, srcbl, srctr = openglhelper.backProject(ip, img, [centerX, centerY], 
-                                                      [widthArcsec, heightArcsec], [numBPPix, numBPPix])
-
-                    srcbl, srctr = np.array(srcbl), np.array(srctr)
-                    srcCtr = (srcbl+srctr)*0.5
-                    srcSize = srctr-srcbl
-
-                    addImg(imgSrc, idx, -1, srcbl, srctr, True)
-
                     for tgtidx in range(len(borders)):
                         tgtBorder = np.array(borders[tgtidx])/ANGLE_ARCSEC
                         tgtBl, tgtTr = tgtBorder.min(0), tgtBorder.max(0)
-                        tgtW, tgtH = tgtTr-tgtBl 
-                        
-                        dims = [ round(numGPUXY*tgtW/tgtH), numGPUXY ] if tgtW < tgtH else [ numGPUXY, round(numGPUXY*tgtH/tgtW) ]
-
+    
+                        dims = getDims(tgtBl, tgtTr)
                         tmpImg = imgSrc.mirrored(False, True)
                         
                         progressCallback(f"Re-tracing image {tgtidx+1} based on source shape from image {idx+1}")
@@ -1234,21 +1232,22 @@ class MainWindow(QtWidgets.QMainWindow):
                         imgRelens = tmpImg.mirrored(False, True)
 
                         addImg(imgRelens, idx, tgtidx, tgtBl, tgtTr, False)
-
                 else:
-                    import backproject
 
                     tgtidx = -1
+
                     ri = ip.getRenderInfo()
-                    imgbl = np.array(ri["bottomleft"])/ANGLE_ARCSEC
-                    imgtr = np.array(ri["topright"])/ANGLE_ARCSEC
+                    tgtBl = np.array(ri["bottomleft"])/ANGLE_ARCSEC
+                    tgtTr = np.array(ri["topright"])/ANGLE_ARCSEC
 
-                    progressCallback(f"Creating source shape and re-tracing entire image plane based on image {idx+1}")
-                    imgSrc, srcbl, srctr, imgRelens = backproject.backprojectAndRetrace(ip, img, border.min(0), border.max(0), 
-                                                                                  numBPPix, useCPU, numResample, numGPUXY) 
+                    dims = getDims(tgtBl, tgtTr)
+                    tmpImg = imgSrc.mirrored(False, True)
+                        
+                    progressCallback(f"Re-tracing entire image plane based on source shape from image {idx+1}")
+                    tmpImg = openglhelper.trace(ip, tmpImg, srcCtr, srcSize, dims, numResample, tgtBl, tgtTr)
+                    imgRelens = tmpImg.mirrored(False, True)
 
-                    addImg(imgSrc, idx, tgtidx, srcbl, srctr, True)
-                    addImg(imgRelens, idx, tgtidx, imgbl, imgtr, False)
+                    addImg(imgRelens, idx, tgtidx, tgtBl, tgtTr, False)
 
         finally:
             self._restorePointsLayers(visibilities)
