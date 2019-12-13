@@ -101,18 +101,21 @@ class BackProjectObject(OpenGLObject):
         return _backProjectInternal(imgPlane, inputImage, center, sizes, outputDimensions, self.gl)
 
 @needcontext
-def trace(imgPlane, srcImage, center, sizes, outputDimensions, subSample, **kwargs):
+def trace(imgPlane, srcImage, srcCenter, srcSizes, outputDimensions, subSample, imgBL = None, imgTR = None, **kwargs):
     gl = kwargs["gl"]
-    return _trace(imgPlane, srcImage, center, sizes, outputDimensions, subSample, gl)
+    return _trace(imgPlane, srcImage, srcCenter, srcSizes, outputDimensions, subSample, imgBL, imgTR, gl)
 
-def _trace(imgPlane, srcImage, center, sizes, outputDimensions, subSample, gl):
+def _trace(imgPlane, srcImage, srcCenter, srcSizes, outputDimensions, subSample, imgBL, imgTR, gl):
 
-    print("_trace", center, sizes)
+    print("_trace", srcCenter, srcSizes)
     from grale.constants import ANGLE_ARCSEC
 
     ri = imgPlane.getRenderInfo()
     bl, tr = np.array(ri["bottomleft"]), np.array(ri["topright"])
     mapNumX, mapNumY = ri["xpoints"], ri["ypoints"]
+
+    imgBL = bl/ANGLE_ARCSEC if imgBL is None else imgBL
+    imgTR = tr/ANGLE_ARCSEC if imgTR is None else imgTR
 
     fb = QtGui.QOpenGLFramebufferObject(*outputDimensions)
     if not fb.bind():
@@ -186,6 +189,8 @@ def _trace(imgPlane, srcImage, center, sizes, outputDimensions, subSample, gl):
 		uniform sampler2D u_srcTexture;
 		uniform vec2 u_srcBottomLeft;
 		uniform vec2 u_srcTopRight;
+		uniform vec2 u_imgBottomLeft;
+		uniform vec2 u_imgTopRight;
 		uniform vec2 u_mapBottomLeft;
 		uniform vec2 u_mapTopRight;
         uniform vec2 u_dstart;
@@ -222,7 +227,7 @@ def _trace(imgPlane, srcImage, center, sizes, outputDimensions, subSample, gl):
                 
                 for (int j = 0 ; j < {subSample} ; j++)
                 {{
-                    vec2 xyArcsecImgPlane = vec2(x,y)*(u_mapTopRight-u_mapBottomLeft) + u_mapBottomLeft;
+                    vec2 xyArcsecImgPlane = vec2(x,y)*(u_imgTopRight-u_imgBottomLeft) + u_imgBottomLeft;
                     vec2 xyArcsecSrcPlane = traceTheta(xyArcsecImgPlane);
 
                     c += getSrcPixelValue(xyArcsecSrcPlane);
@@ -262,12 +267,14 @@ def _trace(imgPlane, srcImage, center, sizes, outputDimensions, subSample, gl):
     dStart = [ (0.5/subSample-0.5)/outputDimensions[i] for i in range(2) ] 
 
     prog.setUniformValue("u_mapTexture", 0)
+    prog.setUniformValue("u_imgBottomLeft", QtCore.QPointF(imgBL[0], imgBL[1]))
+    prog.setUniformValue("u_imgTopRight", QtCore.QPointF(imgTR[0], imgTR[1]))
     prog.setUniformValue("u_mapBottomLeft", QtCore.QPointF(bl[0]/ANGLE_ARCSEC, bl[1]/ANGLE_ARCSEC))
     prog.setUniformValue("u_mapTopRight", QtCore.QPointF(tr[0]/ANGLE_ARCSEC, tr[1]/ANGLE_ARCSEC))
     prog.setUniformValue("u_mapNumXY", QtCore.QPointF(mapNumX, mapNumY))
     prog.setUniformValue("u_srcTexture", 1)
-    prog.setUniformValue("u_srcBottomLeft", QtCore.QPointF(center[0]-sizes[0]/2, center[1]-sizes[1]/2))
-    prog.setUniformValue("u_srcTopRight", QtCore.QPointF(center[0]+sizes[0]/2, center[1]+sizes[1]/2))
+    prog.setUniformValue("u_srcBottomLeft", QtCore.QPointF(srcCenter[0]-srcSizes[0]/2, srcCenter[1]-srcSizes[1]/2))
+    prog.setUniformValue("u_srcTopRight", QtCore.QPointF(srcCenter[0]+srcSizes[0]/2, srcCenter[1]+srcSizes[1]/2))
     prog.setUniformValue("u_dstart", QtCore.QPointF(dStart[0], dStart[1]))
     prog.setUniformValue("u_substep", QtCore.QPointF(subStepWidth, subStepHeight))
 
