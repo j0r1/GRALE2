@@ -19,6 +19,7 @@ from grale.constants import ANGLE_ARCSEC
 import numpy as np
 import pickle
 import backgroundprocessdialog
+import backprojretracedialog
 
 JSONDump = lambda s: json.dumps(s, sort_keys=True, indent=4, separators=(',', ': '))
 
@@ -1051,22 +1052,31 @@ class MainWindow(QtWidgets.QMainWindow):
     def _onBackProjectRetrace(self, v):
 
         try:
-            # TODO: dialog to get imageplane/multimageplane
-            ip = pickle.load(open("testimgplane.dat", "rb"))
-            splitLayers = True # TODO
-            extra = .1*ANGLE_ARCSEC # TODO
-            numPix = 4096 # TODO, number of pixels for input, scaled according to aspect ratio
-            numBPPix = 4096 # same used in x and y direction, is this ok? perhaps we'd lose information otherwise?
-            numRetracePix = 4096 # Again scaled according to aspect ratio
-            numResample = 1
-            relensSeparately = True
+            dlg = backprojretracedialog.BackprojRetraceDialog(self, self.lastLoadedImagePlane)
+            if not dlg.exec_():
+                return
 
-            overWriteFiles = True
-            bpFileNameTemplate = "img_{srcidx}_backproj.png"
-            bpLayerNameTemplate = "Source shape for image {srcidx}: {fn}"
-            relensFileNameTemplate = "img_{srcidx}_to_{tgtidx}_relensed.png"
-            relensLayerNameTemplate = "Relensed source from image {srcidx} to {tgtidx}: {fn}"
-            newImageDir = os.getcwd() 
+            imgPlaneInfo = dlg.getImagePlaneInfo()
+            if imgPlaneInfo is None:
+                self.scene.warning("No image plane", "No image plane was selected")
+                return
+
+            self.lastLoadedImagePlane = imgPlaneInfo
+            ip = imgPlaneInfo["imgplane"]
+
+            splitLayers = dlg.getSplitLayersFlag()
+            extra = ANGLE_ARCSEC*dlg.getExtraBorder()
+            numPix = dlg.getInputImagePixels() # scaled according to aspect ratio
+            numBPPix = dlg.getBackProjPixels() # same used in x and y direction no aspect ratio
+            numRetracePix = dlg.getRelensPixels()  # using aspect ratio
+            numResample = dlg.getResampleParameter()
+            relensSeparately = dlg.getLensSeparateImages()
+            overWriteFiles = dlg.getOverwriteFlag()
+            bpFileNameTemplate = dlg.getBackprojectFileTemplate()
+            bpLayerNameTemplate = dlg.getBackprojectLayerTemplate()
+            relensFileNameTemplate = dlg.getRelensFileTemplate()
+            relensLayerNameTemplate = dlg.getRelensLayerTemplate()
+            newImageDir = dlg.getOutputDirectory()
 
             class Dlg(backgroundprocessdialog.BackgroundProcessDialog):
                 def __init__(self, parent):
@@ -1106,6 +1116,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
         except Exception as e:
             self.scene.warning("Exception occurred: {}".format(e))
+            import traceback
+            traceback.print_exc()
             return
 
     def backprojectRetrace(self, imgPlane, splitLayers=True, extra=0, 
@@ -1164,26 +1176,24 @@ class MainWindow(QtWidgets.QMainWindow):
                 borders.append(border)
 
             if not overWriteFiles: # Check what would be overwritten
-                filesToOverwrite = [ ]
+                filesToWrite = [ ]
                 if relensSeparately:
                     for idx in range(len(borders)):
-                        fn = os.path.join(newImageDir, bpFileNameTemplate.format(srcidx=idx+1, tgtidx=0))
-                        if os.path.exists(fn):
-                            filesToOverwrite.append(fn)
+                        filesToWrite.append(os.path.join(newImageDir, bpFileNameTemplate.format(srcidx=idx+1, tgtidx=0)))
 
                         for tgtidx in range(len(borders)):
-                            fn = os.path.join(newImageDir, relensFileNameTemplate.format(srcidx=idx+1, tgtidx=tgtidx+1))
-                            if os.path.exists(fn):
-                                filesToOverwrite.append(fn)
+                            filesToWrite.append(os.path.join(newImageDir, relensFileNameTemplate.format(srcidx=idx+1, tgtidx=tgtidx+1)))
                 else:
                     for idx in range(len(borders)):
                         for tmpl in [ bpFileNameTemplate, relensFileNameTemplate ]:
-                            fn = os.path.join(newImageDir, tmpl.format(srcidx=idx+1, tgtidx=0))
-                            if os.path.exists(fn):
-                                filesToOverwrite.append(fn)
+                            filesToWrite.append(os.path.join(newImageDir, tmpl.format(srcidx=idx+1, tgtidx=0)))
 
+                filesToOverwrite = [ fn for fn in filesToWrite if os.path.exists(fn) ]
                 if filesToOverwrite:
                     raise Exception(f"{len(filesToOverwrite)} files would be overwritten, first are:\n" + "\n".join(filesToOverwrite[:10]))
+
+                if len(set(filesToWrite)) != len(filesToWrite):
+                    raise Exception("Some output files would overwrite each other")
 
             borders = [ images.enlargePolygon(b, extra) for b in borders ]
 
