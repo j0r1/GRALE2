@@ -263,6 +263,7 @@ if isQtAvailable:
                 "grale/editor/mainwindow.ui",
                 "grale/editor/nullgriddialog.ui",
                 "grale/editor/exportareadialog.ui",
+                "grale/editor/backgroundprocessdialog.ui"
             ]:
         pathParts = os.path.dirname(ui).split("/")
         ui = os.path.join(*ui.split("/"))

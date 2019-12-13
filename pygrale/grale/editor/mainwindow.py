@@ -18,6 +18,7 @@ import grale.images as images # TODO?
 from grale.constants import ANGLE_ARCSEC
 import numpy as np
 import pickle
+import backgroundprocessdialog
 
 JSONDump = lambda s: json.dumps(s, sort_keys=True, indent=4, separators=(',', ': '))
 
@@ -1049,35 +1050,99 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _onBackProjectRetrace(self, v):
 
-        newLayers = [ ]
-        visibilities = self.ui.m_listWidget.getLayersAndVisibilities()
-        self._hidePointsLayers(visibilities)
         try:
-            # TODO: background!
-
-            # TODO: dialog to get imageplale/multimageplane
+            # TODO: dialog to get imageplane/multimageplane
             ip = pickle.load(open("testimgplane.dat", "rb"))
-            layers = self._getVisiblePointsLayers()
-            if not layers:
-                raise Exception("No visible points layers could be detected")
-
-            # TODO: image plane
             splitLayers = True # TODO
             extra = .1*ANGLE_ARCSEC # TODO
             numPix = 2048 # TODO, number of pixels for input, scaled according to aspect ratio
             numBPPix = 2048 # same used in x and y direction, is this ok? perhaps we'd lose information otherwise?
+            numRetracePix = 2048 # Again scaled according to aspect ratio
             numResample = 1
-            numGPUXY = 2048 # Again scaled according to aspect ratio
-            useCPU = False
             relensSeparately = True
 
-            overWriteFiles = False
+            overWriteFiles = True
             bpFileNameTemplate = "img_{srcidx}_backproj.png"
             bpLayerNameTemplate = "Source shape for image {srcidx}: {fn}"
             relensFileNameTemplate = "img_{srcidx}_to_{tgtidx}_relensed.png"
             relensLayerNameTemplate = "Relensed source from image {srcidx} to {tgtidx}: {fn}"
             newImageDir = os.getcwd() 
 
+            class Dlg(backgroundprocessdialog.BackgroundProcessDialog):
+                def __init__(self, parent):
+                    super(Dlg, self).__init__(parent, "Back-projecting and re-tracing", "Back-projecting and re-tracing...")
+                    self.excepts = []
+                    self.parent = parent
+                    self.closed = False
+                    self.newLayers = []
+
+                def closeEvent(self, evt):
+                    super(Dlg, self).closeEvent(evt)
+                    self.closed = True
+                    self.ui.infoLabel.setText("Cancelling...")
+
+                def run(self):
+                    def cb(msg):
+                        if self.closed:
+                            raise Exception("User cancelled")
+                        self.ui.infoLabel.setText(msg)
+
+                    try:
+                        self.newLayers = self.parent.backprojectRetrace(ip, splitLayers, extra, numPix, numBPPix, numRetracePix, numResample,
+                                relensSeparately, overWriteFiles, bpFileNameTemplate, bpLayerNameTemplate,
+                                relensFileNameTemplate, relensLayerNameTemplate, newImageDir, cb, addLayers = False)
+                    except Exception as e:
+                        self.excepts.append(str(e))
+
+            dlg = Dlg(self)
+            dlg.exec_()
+
+            if dlg.excepts:
+                raise Exception(dlg.excepts[0])
+
+            # We need to add the layers from this thread, not from the background thread
+            for l in dlg.newLayers:
+                self.addLayer(l)
+
+        except Exception as e:
+            self.scene.warning("Exception occurred: {}".format(e))
+            return
+
+    def backprojectRetrace(self, imgPlane, splitLayers=True, extra=0, 
+                           numImgPix = 1024, # Uses aspect ratio
+                           numBPPix = 1024, # same used in x and y direction, is this ok? perhaps we'd lose information otherwise?
+                           numRetracePix = 1024, # Again scaled according to aspect ratio
+                           numResample = 1,
+                           relensSeparately = True,
+                           overWriteFiles = False,
+                           bpFileNameTemplate = "img_{srcidx}_backproj.png",
+                           bpLayerNameTemplate = "Source shape for image {srcidx}: {fn}",
+                           relensFileNameTemplate = "img_{srcidx}_to_{tgtidx}_relensed.png",
+                           relensLayerNameTemplate = "Relensed source from image {srcidx} to {tgtidx}: {fn}",
+                           newImageDir = None,
+                           progressCallback = None,
+                           addLayers = True):
+
+        ip = imgPlane
+        numPix = numImgPix
+        numGPUXY = numRetracePix
+        useCPU = False
+
+        if newImageDir is None:
+            newImageDir = os.getcwd()
+        if progressCallback is None:
+            def dummyCb(msg):
+                pass
+            progressCallback = dummyCb
+
+        layers = self._getVisiblePointsLayers()
+        if not layers:
+            raise Exception("No visible points layers could be detected")
+
+        newLayers = [ ]
+        visibilities = self.ui.m_listWidget.getLayersAndVisibilities()
+        self._hidePointsLayers(visibilities)
+        try:
             exportTimeDelays = False
             exportGroups = False
             pointsLeftInfo = []
@@ -1143,6 +1208,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
                     import openglhelper
 
+                    progressCallback(f"Creating source shape from image {idx+1}")
                     centerX, centerY = 0.5*(border.max(0)+border.min(0))
                     widthArcsec, heightArcsec = border.max(0)-border.min(0)
                     imgSrc, srcbl, srctr = openglhelper.backProject(ip, img, [centerX, centerY], 
@@ -1162,6 +1228,8 @@ class MainWindow(QtWidgets.QMainWindow):
                         dims = [ round(numGPUXY*tgtW/tgtH), numGPUXY ] if tgtW < tgtH else [ numGPUXY, round(numGPUXY*tgtH/tgtW) ]
 
                         tmpImg = imgSrc.mirrored(False, True)
+                        
+                        progressCallback(f"Re-tracing image {tgtidx+1} based on source shape from image {idx+1}")
                         tmpImg = openglhelper.trace(ip, tmpImg, srcCtr, srcSize, dims, numResample, tgtBl, tgtTr)
                         imgRelens = tmpImg.mirrored(False, True)
 
@@ -1175,24 +1243,22 @@ class MainWindow(QtWidgets.QMainWindow):
                     imgbl = np.array(ri["bottomleft"])/ANGLE_ARCSEC
                     imgtr = np.array(ri["topright"])/ANGLE_ARCSEC
 
+                    progressCallback(f"Creating source shape and re-tracing entire image plane based on image {idx+1}")
                     imgSrc, srcbl, srctr, imgRelens = backproject.backprojectAndRetrace(ip, img, border.min(0), border.max(0), 
                                                                                   numBPPix, useCPU, numResample, numGPUXY) 
 
                     addImg(imgSrc, idx, tgtidx, srcbl, srctr, True)
                     addImg(imgRelens, idx, tgtidx, imgbl, imgtr, False)
 
-
-        except Exception as e:
-            self.scene.warning("Exception occurred: {}".format(e))
-            import traceback
-            traceback.print_exc()
-            return
         finally:
             self._restorePointsLayers(visibilities)
 
         # We need to do this at the end, when the original visibilities have been restored
-        for l in newLayers:
-            self.addLayer(l)
+        if addLayers:
+            for l in newLayers:
+                self.addLayer(l)
+
+        return newLayers
 
 def main():
     checkQtAvailable()

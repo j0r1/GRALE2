@@ -107,7 +107,7 @@ def trace(imgPlane, srcImage, srcCenter, srcSizes, outputDimensions, subSample, 
 
 def _trace(imgPlane, srcImage, srcCenter, srcSizes, outputDimensions, subSample, imgBL, imgTR, gl):
 
-    print("_trace", srcCenter, srcSizes)
+    #print("_trace", srcCenter, srcSizes)
     from grale.constants import ANGLE_ARCSEC
 
     ri = imgPlane.getRenderInfo()
@@ -166,7 +166,7 @@ def _trace(imgPlane, srcImage, srcCenter, srcSizes, outputDimensions, subSample,
     srcTexture.setWrapMode(QtGui.QOpenGLTexture.ClampToEdge)
     srcTexture.setData(srcImage)
 
-    print("1 glGetError =", gl.glGetError())
+    #print("1 glGetError =", gl.glGetError())
 
     prog = QtGui.QOpenGLShaderProgram()
     prog.addShaderFromSourceCode(QtGui.QOpenGLShader.Vertex,"""
@@ -244,7 +244,7 @@ def _trace(imgPlane, srcImage, srcCenter, srcSizes, outputDimensions, subSample,
         raise Exception("Unable to link program")
     prog.bind()
 
-    print("1 glGetError =", gl.glGetError())
+    #print("1 glGetError =", gl.glGetError())
 
     coords = np.array([-1, -1, 
                        -1, 1,
@@ -285,14 +285,14 @@ def _trace(imgPlane, srcImage, srcCenter, srcSizes, outputDimensions, subSample,
 
     gl.glFinish()
     gl.glDeleteTextures(1, [mapTexture])
-    print("glGetError =", gl.glGetError())
+    #print("glGetError =", gl.glGetError())
 
     img = fb.toImage()
     if img.isNull():
         raise Exception("Unable to get image from framebuffer")
 
     gl.glFinish()
-    print("2 glGetError =", gl.glGetError())
+    #print("2 glGetError =", gl.glGetError())
 
     return img
 
