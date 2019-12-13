@@ -1120,6 +1120,12 @@ class MainWindow(QtWidgets.QMainWindow):
             traceback.print_exc()
             return
 
+    def setImagePlane(self, imgPlane, desc = ""):
+        # Do some checks to verify that it's an image plane
+        imgPlane.getRenderInfo()
+        imgPlane.getCriticalLines()
+        self.lastLoadedImagePlane = { "imgplane": imgPlane, "description": desc }
+
     def backprojectRetrace(self, imgPlane, splitLayers=True, extra=0, 
                            numImgPix = 1024, # Uses aspect ratio
                            numBPPix = 1024, # same used in x and y direction, is this ok? perhaps we'd lose information otherwise?
@@ -1282,6 +1288,7 @@ def main():
     lastImgDataFilePrefix = "--imgdataname:"
     zoomPrefix = "--zoom:"
     nocheckPrefix = "--nocheck"
+    imgplanePrefix = "--imgplane:"
 
     firstArg = True
     try:
@@ -1294,6 +1301,8 @@ def main():
                 w.setZoom(z)
             elif a == nocheckPrefix:
                 w.setCheckSaveStateOnExit(False)
+            elif a.startswith(imgplanePrefix):
+                w.setImagePlane(pickle.load(open(a[len(imgplanePrefix):], "rb")))
             elif a.endswith(".json"):
                 d = json.load(open(a, "rt"))
                 loaded = False

@@ -39,7 +39,7 @@ class BackgroundProcessDialog(QtWidgets.QDialog):
 
     def exec_(self):
         thread = BackgroundProcessThread(self, self.procedure)
-        thread.finished.connect(self.accept)
+        thread.finished.connect(self.accept, QtCore.Qt.QueuedConnection)
         thread.start()
         super(BackgroundProcessDialog, self).exec_()
         thread.finished.disconnect(self.accept)
