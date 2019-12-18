@@ -220,6 +220,7 @@ class MainWindow(QtWidgets.QMainWindow):
         super(MainWindow, self).__init__()
 
         self.checkSaveStateOnExit = True
+        self.backprojectWindow = None
 
         self.ui = ui_mainwindow.Ui_MainWindow()
         self.ui.setupUi(self)
@@ -307,6 +308,8 @@ class MainWindow(QtWidgets.QMainWindow):
         if psa:
             self.ui.m_pointArcsecSize.setValue(float(psa))
 
+        self.lastLoadedImagePlane = None
+
         self._onGuiSettingChanged()
         self.lastSavedState = self.getCurrentStateString()
         self.lastSaveFileName = None
@@ -317,9 +320,6 @@ class MainWindow(QtWidgets.QMainWindow):
         timer.setSingleShot(True)
         timer.timeout.connect(self._onStartup)
         timer.start()
-
-        self.lastLoadedImagePlane = None
-        self.backprojectWindow = None
 
     def _onStartup(self):
         # Starting up, make sure view gets keyboard
@@ -538,16 +538,24 @@ class MainWindow(QtWidgets.QMainWindow):
             "nextmatchpointfits": self.ui.m_nextFITSMatchPoint.value(),
         }
         self.setGlobalSettings(d)
+        if self.backprojectWindow:
+            self.backprojectWindow.updateFromSettings(d)
 
     def _onPointSizePixelChanged(self, s):
         self.scene.setPointSizePixelSize(s)
         self.scene.setPointSizeFixed(self.scene.isPointSizeFixed()) # Causes update
         self.scene.onScaleChanged(self.view.getScale()) # May be needed to recalculate the point size transformation
+        
+        if self.backprojectWindow:
+            self.backprojectWindow.onPointSizeChanged(True, s)
 
     def _onPointSizeArcsecChanged(self, s):
         self.scene.setPointSizeSceneSize(s)
         self.scene.setPointSizeFixed(self.scene.isPointSizeFixed()) # Causes update
         self.scene.onScaleChanged(self.view.getScale()) # May be needed to recalculate the point size transformation
+
+        if self.backprojectWindow:
+            self.backprojectWindow.onPointSizeChanged(False, s)
 
     def getDefaultGlobalSettings(self):
         d = {
@@ -1212,7 +1220,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 if len(set(filesToWrite)) != len(filesToWrite):
                     raise Exception("Some output files would overwrite each other")
 
-            borders = [ images.enlargePolygon(b, extra) for b in borders ]
+            borders = [ np.array(images.enlargePolygon(b, extra))/ANGLE_ARCSEC for b in borders ]
 
             def addImg(img, srcidx, tgtidx, bl, tr, isSrc):
                 yMirror = True if isSrc else False
@@ -1228,7 +1236,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
             srcAreas = []
             for idx in range(len(borders)):
-                border = np.array(borders[idx])/ANGLE_ARCSEC
+                border = borders[idx]
                 img = self.scene.getSceneRegionImage_minMax(border.min(0), border.max(0), [ numPix, None], border)
 
                 progressCallback(f"Creating source shape from image {idx+1}")
@@ -1254,7 +1262,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
                 if relensSeparately:
                     for tgtidx in range(len(borders)):
-                        tgtBorder = np.array(borders[tgtidx])/ANGLE_ARCSEC
+                        tgtBorder = borders[tgtidx]
                         tgtBl, tgtTr = tgtBorder.min(0), tgtBorder.max(0)
     
                         dims = getDims(tgtBl, tgtTr)
@@ -1335,7 +1343,7 @@ class MainWindow(QtWidgets.QMainWindow):
             if self.backprojectWindow:
                 self.backprojectWindow.close()
 
-            self.backprojectWindow = backprojectwidget.BackProjectWidget(ip)
+            self.backprojectWindow = backprojectwidget.BackProjectWidget(ip, self)
 
             bl, tr = srcAreas[0]
             for l, usedPl, border, srcArea in zip(newLayers, usedPointsLayers, borders, srcAreas):
@@ -1343,12 +1351,18 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.backprojectWindow.addBackProjectRegion(l, usedPl, border, srcArea)
 
             self.backprojectWindow.setViewRange(bl, tr)
+            self.backprojectWindow.updateFromSettings(self.getGlobalSettings())
 
         except Exception as e:
             self.scene.warning("Exception occurred: {}".format(e))
             import traceback
             traceback.print_exc()
             return
+
+    def onBackProjectWindowClosed(self, bpWin):
+        print("BP win closed", bpWin)
+        if bpWin == self.backprojectWindow:
+            self.backprojectWindow = None
 
 
 def main():

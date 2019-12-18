@@ -4,19 +4,27 @@ import pointslayer
 import scenes
 import base
 import numpy as np
+from shapely.geometry import Point
+from shapely.geometry.polygon import Polygon
+from grale.constants import ANGLE_ARCSEC
 
 class BackProjectWidget(QtWidgets.QWidget):
-    def __init__(self, imagePlane):
+    def __init__(self, imagePlane, mainWin):
         super(BackProjectWidget, self).__init__()
         self.ui = ui_backprojectwidget.Ui_BackProjectWidget()
         self.ui.setupUi(self)
         self.show()
 
+        self.mainWin = mainWin
         self.imagePlane = imagePlane
         self.bpViews = []
 
         self.previousWidgetIdx = None
         self.ui.tabWidget.currentChanged.connect(self.onCurrentWidgetChanged)
+
+    def closeEvent(self, evt):
+        evt.accept()
+        self.mainWin.onBackProjectWindowClosed(self)
 
     def onCurrentWidgetChanged(self, idx):
         if self.previousWidgetIdx is None or self.previousWidgetIdx == idx:
@@ -30,15 +38,26 @@ class BackProjectWidget(QtWidgets.QWidget):
         cur = self.bpViews[idx]["view"]
         cur.centerOn(ctr)
         cur.setScale(scale)
+        self.bpViews[idx]["scene"].onScaleChanged(scale)
 
         self.previousWidgetIdx = idx
 
     def addBackProjectRegion(self, bgLayer, origPointsLayer, border, srcArea):
         newPointsLayer = pointslayer.PointsLayer()
-        newScene = scenes.PointsSingleLayerScene(newPointsLayer, bgLayer)
 
-        bl, tr = srcArea
-        srcRegion = QtCore.QRectF(QtCore.QPointF(bl[0], bl[1]), QtCore.QPointF(tr[0], tr[1]))
+        origPts = origPointsLayer.getPoints()
+        borderPoly = Polygon(border)
+        for i in origPts:
+            pt = origPts[i]
+            xy = pt["xy"]
+            if borderPoly.contains(Point(*xy)):
+                bpXY = (self.imagePlane.traceThetaApproximately(np.array(xy)*ANGLE_ARCSEC)/ANGLE_ARCSEC).tolist()
+                newPointsLayer.setPoint(i, bpXY, origPts[i]["label"])
+                # TODO: create link between original point and backproj point
+
+        newScene = scenes.PointsSingleLayerScene(newPointsLayer, bgLayer)
+        layerItem, _ = newScene.getCurrentItemAndLayer()
+        layerItem.updatePoints()
         
         newView = base.GraphicsView(newScene, parent=self.ui.tabWidget)
         self.ui.tabWidget.addTab(newView, bgLayer.getName())
@@ -64,13 +83,23 @@ class BackProjectWidget(QtWidgets.QWidget):
 
             w.centerOn(ctr[0], ctr[1])
             w.setScale(scale)
+            s.onScaleChanged(scale)
 
-            p = QtGui.QPen()
-            p.setWidth(2)
-            p.setColor(QtCore.Qt.blue)
-            p.setCosmetic(True)
+    def updateFromSettings(self, d):
+        for x in self.bpViews:
+            scene, view = x["scene"], x["view"]
+            scene.setAxesVisible(d["showaxes"])
+            scene.setAxisLeft(d["axisleft"])
+            scene.setPointSizePixelSize(d["pointsizepixelsize"])
+            scene.setPointSizeSceneSize(d["pointsizearcsecsize"])
+            scene.setPointSizeFixed(d["ispointsizefixed"])
+            scene.onScaleChanged(view.getScale())
 
-            ri = QtWidgets.QGraphicsRectItem(r)
-            ri.setPen(p)
-            s.addItem(ri)
+    def onPointSizeChanged(self, isPixels, s):
+        for x in self.bpViews:
+            scene, view = x["scene"], x["view"]
+
+            scene.setPointSizePixelSize(s) if isPixels else scene.setPointSizeSceneSize(s)
+            scene.setPointSizeFixed(scene.isPointSizeFixed())
+            scene.onScaleChanged(view.getScale())
 
