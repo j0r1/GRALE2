@@ -101,6 +101,7 @@ def layersToImagesData(layers, multipleImagesPerLayer = True, saveGroups = True,
                        pointsLeftInfo = None):
     
     imageInfo = [ ]
+    usedLayers = [ ]
 
     for l in layers:
         if type(l) != PointsLayer:
@@ -111,6 +112,7 @@ def layersToImagesData(layers, multipleImagesPerLayer = True, saveGroups = True,
                 "points": l.getPoints(),
                 "triangles": l.getTriangles()
             })
+            usedLayers.append(l)
         else:
             if pointsLeftInfo is not None:
                 d = { "layer": l.getUuid(), "pointsleft": [] }
@@ -126,6 +128,7 @@ def layersToImagesData(layers, multipleImagesPerLayer = True, saveGroups = True,
                 raise Exception(r["error"])
 
             imageInfo += r
+            usedLayers += [l for i in range(len(r))]
 
     if len(imageInfo) == 0:
         raise Exception("No image information found that can be exported to an images data object")
@@ -197,7 +200,7 @@ def layersToImagesData(layers, multipleImagesPerLayer = True, saveGroups = True,
                     imIdx, ptIdx = pt["indices"]
                     imgDat.addTimeDelayInfo(imIdx, ptIdx, pt["timedelay"])
 
-    return imgDat
+    return imgDat, usedLayers
 
 def main():
     #imgDat = images.ImagesData.load("/tmp/multimages.imgdata")
@@ -206,7 +209,7 @@ def main():
     import json
     layer = PointsLayer.fromSettings(json.load(open("test.json")))
 
-    newImgDat = layersToImagesData([layer])
+    newImgDat, _ = layersToImagesData([layer])
 
     import grale.plotutil as plotutil
     import matplotlib.pyplot as plt

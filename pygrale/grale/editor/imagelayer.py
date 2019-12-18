@@ -151,14 +151,19 @@ class FITSImageLayer(Layer):
         return l
 
 class RGBImageLayer(Layer):
-    def __init__(self, fileName, name = "RGB Image layer"):
+    def __init__(self, fileNameOrQImage, name = "RGB Image layer"):
         super(RGBImageLayer, self).__init__(name)
 
-        img = QtGui.QImage()
-        if not img.load(fileName):
-            raise Exception("Unable to load '{}'".format(fileName))
+        if type(fileNameOrQImage) == QtGui.QImage:
+            img = fileNameOrQImage
+            self.fileName = None
+        else:
+            img = QtGui.QImage()
+            if not img.load(fileNameOrQImage):
+                raise Exception("Unable to load '{}'".format(fileNameOrQImage))
 
-        self.fileName = fileName
+            self.fileName = fileNameOrQImage
+
         self.pixmap = QtGui.QPixmap.fromImage(img)
 
         pixelSize = 0.05

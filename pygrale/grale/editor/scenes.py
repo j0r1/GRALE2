@@ -688,7 +688,8 @@ class PointsSingleLayerScene(SingleLayerScene):
         if bgLayer:
             self.bgItem = bgLayer.createGraphicsItem()
             self.bgItem.setZValue(0)
-            self.bgItem.showPoints(False)
+            #print("Calling showPoints of", type(self.bgItem))
+            #self.bgItem.showPoints(False)
             self.addItem(self.bgItem)
 
 class ImageSingleLayerScene(SingleLayerScene):
@@ -788,9 +789,9 @@ def matchSettingsTest():
 
 def main():
     checkQtAvailable()
-    pointsTest()
+    #pointsTest()
     #matchTest()
-    #bgPointsTest()
+    bgPointsTest()
     
     #matchSettingsTest()
 

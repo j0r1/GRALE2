@@ -392,6 +392,7 @@
     <addaction name="separator"/>
     <addaction name="actionCreate_null_grid"/>
     <addaction name="actionBack_project_retrace"/>
+    <addaction name="actionBack_project_and_point_select"/>
    </widget>
    <widget class="QMenu" name="menuHelp">
     <property name="title">
@@ -544,7 +545,12 @@
   </action>
   <action name="actionBack_project_retrace">
    <property name="text">
-    <string>Back-project/retrace</string>
+    <string>Back-project and retrace</string>
+   </property>
+  </action>
+  <action name="actionBack_project_and_point_select">
+   <property name="text">
+    <string>Back-project and point select</string>
    </property>
   </action>
  </widget>
@@ -563,7 +569,7 @@
  <resources/>
  <connections/>
  <buttongroups>
-  <buttongroup name="buttonGroup_2"/>
   <buttongroup name="buttonGroup"/>
+  <buttongroup name="buttonGroup_2"/>
  </buttongroups>
 </ui>

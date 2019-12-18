@@ -20,6 +20,7 @@ import numpy as np
 import pickle
 import backgroundprocessdialog
 import backprojretracedialog
+import backprojectwidget
 
 JSONDump = lambda s: json.dumps(s, sort_keys=True, indent=4, separators=(',', ': '))
 
@@ -256,6 +257,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.actionCut.triggered.connect(self._onActionCut)
         self.ui.actionCreate_null_grid.triggered.connect(self._onNullGrid)
         self.ui.actionBack_project_retrace.triggered.connect(self._onBackProjectRetrace)
+        self.ui.actionBack_project_and_point_select.triggered.connect(self._onBackProjectPointSelect)
 
         self.ui.m_axisVisibleBox.clicked.connect(self._onGuiSettingChanged)
         self.ui.m_axisRightBox.clicked.connect(self._onGuiSettingChanged)
@@ -317,6 +319,7 @@ class MainWindow(QtWidgets.QMainWindow):
         timer.start()
 
         self.lastLoadedImagePlane = None
+        self.backprojectWindow = None
 
     def _onStartup(self):
         # Starting up, make sure view gets keyboard
@@ -448,6 +451,10 @@ class MainWindow(QtWidgets.QMainWindow):
             settings.setValue("generalview/pointsizefixed", self.ui.m_pointPixelsBox.isChecked())
             settings.setValue("generalview/pointsizepixels", self.ui.m_pointPixelSize.value())
             settings.setValue("generalview/pointsizearcsec", self.ui.m_pointArcsecSize.value())
+
+            if self.backprojectWindow:
+                self.backprojectWindow.close()
+                self.backprojectWindow = None
         else:
             evt.ignore()
 
@@ -817,7 +824,7 @@ class MainWindow(QtWidgets.QMainWindow):
             if not layers:
                 raise Exception("No visible points layers could be detected")
 
-            imgDat = tools.layersToImagesData(layers, splitLayers, exportGroups, exportTimeDelays, pointsLeftInfo=pointsLeftInfo)
+            imgDat, _ = tools.layersToImagesData(layers, splitLayers, exportGroups, exportTimeDelays, pointsLeftInfo=pointsLeftInfo)
         except Exception as e:
             self.scene.warning("Error while exporting", "Encountered a problem while exporting visible points layers: {}".format(e))
             self._markRemainingPoints(pointsLeftInfo)
@@ -918,7 +925,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
             visiblePointLayers = [ l for l,v in self.ui.m_listWidget.getLayersAndVisibilities() if v and type(l) == pointslayer.PointsLayer ]
             pointsLeftInfo = [ ]
-            cutoutImages = [ tools.layersToImagesData([l], splitImages, pointsLeftInfo=pointsLeftInfo) for l in visiblePointLayers ]
+            cutoutImages = [ tools.layersToImagesData([l], splitImages, pointsLeftInfo=pointsLeftInfo)[0] for l in visiblePointLayers ]
 
             nullImg = images.createGridTriangles(bl, tr, numX, numY, cutoutImages, enlargeHoleOffset=extraRadius*ANGLE_ARCSEC)
             self.importImagesData(nullImg, 0, "Null space")
@@ -1033,8 +1040,12 @@ class MainWindow(QtWidgets.QMainWindow):
 
     @staticmethod
     def _createRGBLayerForImage(img, fn, layerName, bl, tr, yMirror):
-        img.save(fn)
-        l = imagelayer.RGBImageLayer(fn, layerName)
+        if fn is not None:
+            img.save(fn)
+            l = imagelayer.RGBImageLayer(fn, layerName)
+        else:
+            l = imagelayer.RGBImageLayer(img, layerName)
+
         if yMirror:
             mp = [  [ [0, img.height()], bl], 
                     [ [0, 0], [ bl[0], tr[1]] ],
@@ -1098,7 +1109,7 @@ class MainWindow(QtWidgets.QMainWindow):
                         self.ui.infoLabel.setText(msg)
 
                     try:
-                        self.newLayers = self.parent.backprojectRetrace(ip, splitLayers, extra, numPix, numBPPix, numRetracePix, numResample,
+                        self.newLayers, _, _, _ = self.parent.backprojectRetrace(ip, splitLayers, extra, numPix, numBPPix, numRetracePix, numResample,
                                 relensSeparately, overWriteFiles, bpFileNameTemplate, bpLayerNameTemplate,
                                 relensFileNameTemplate, relensLayerNameTemplate, newImageDir, cb, addLayers = False)
                     except Exception as e:
@@ -1163,7 +1174,7 @@ class MainWindow(QtWidgets.QMainWindow):
             exportTimeDelays = False
             exportGroups = False
             pointsLeftInfo = []
-            imgDat = tools.layersToImagesData(layers, splitLayers, exportGroups, exportTimeDelays, pointsLeftInfo=pointsLeftInfo)
+            imgDat, usedLayers = tools.layersToImagesData(layers, splitLayers, exportGroups, exportTimeDelays, pointsLeftInfo=pointsLeftInfo)
 
             borders = [ ]
             for i in range(imgDat.getNumberOfImages()):
@@ -1208,13 +1219,14 @@ class MainWindow(QtWidgets.QMainWindow):
                 fnTemplate = bpFileNameTemplate if isSrc else relensFileNameTemplate
                 layerNameTemplate = bpLayerNameTemplate if isSrc else relensLayerNameTemplate
 
-                fn = fnTemplate.format(srcidx=srcidx+1, tgtidx=tgtidx+1)
+                fn = None if fnTemplate is None else fnTemplate.format(srcidx=srcidx+1, tgtidx=tgtidx+1)
                 newLayers.append(MainWindow._createRGBLayerForImage(
                     img, fn, layerNameTemplate.format(srcidx=srcidx+1, tgtidx=tgtidx+1, fn=fn),
                     bl, tr, isSrc))
 
             import openglhelper
 
+            srcAreas = []
             for idx in range(len(borders)):
                 border = np.array(borders[idx])/ANGLE_ARCSEC
                 img = self.scene.getSceneRegionImage_minMax(border.min(0), border.max(0), [ numPix, None], border)
@@ -1229,7 +1241,12 @@ class MainWindow(QtWidgets.QMainWindow):
                 srcCtr = (srcbl+srctr)*0.5
                 srcSize = srctr-srcbl
 
+                srcAreas.append([srcbl, srctr])
+
                 addImg(imgSrc, idx, -1, srcbl, srctr, True)
+
+                if numRetracePix <= 0:
+                    continue
 
                 def getDims(tgtBl, tgtTr):
                     tgtW, tgtH = tgtTr-tgtBl 
@@ -1273,7 +1290,66 @@ class MainWindow(QtWidgets.QMainWindow):
             for l in newLayers:
                 self.addLayer(l)
 
-        return newLayers
+        return newLayers, usedLayers, borders, srcAreas
+
+    def _onBackProjectPointSelect(self):
+        try:
+            # TODO: more appropriate dialog
+            dlg = backprojretracedialog.BackprojRetraceDialog(self, self.lastLoadedImagePlane)
+            if not dlg.exec_():
+                return
+
+            imgPlaneInfo = dlg.getImagePlaneInfo()
+            if imgPlaneInfo is None:
+                self.scene.warning("No image plane", "No image plane was selected")
+                return
+
+            self.lastLoadedImagePlane = imgPlaneInfo
+            ip = imgPlaneInfo["imgplane"]
+
+            splitLayers = dlg.getSplitLayersFlag()
+            extra = ANGLE_ARCSEC*dlg.getExtraBorder()
+            numPix = dlg.getInputImagePixels() # scaled according to aspect ratio
+            numBPPix = dlg.getBackProjPixels() # same used in x and y direction no aspect ratio
+            numRetracePix = -1
+            numResample = -1
+            relensSeparately = False
+            overWriteFiles = True
+            bpFileNameTemplate = None
+            bpLayerNameTemplate = "Back-projected image {srcidx}"
+            relensFileNameTemplate = None
+            relensLayerNameTemplate = None # Note used
+            newImageDir = None # Not used
+
+            def cb(msg):
+                print(msg)
+
+            newLayers, usedPointsLayers, borders, srcAreas = self.backprojectRetrace(ip, splitLayers, extra, numPix, numBPPix, numRetracePix, numResample,
+                    relensSeparately, overWriteFiles, bpFileNameTemplate, bpLayerNameTemplate,
+                    relensFileNameTemplate, relensLayerNameTemplate, newImageDir, cb, addLayers = False)
+
+            maxImgs = 16
+            if len(srcAreas) > maxImgs:
+                raise Exception("Too many back-projected images ({}), limit is ({})".format(len(srcAreas), maxImgs))
+
+            if self.backprojectWindow:
+                self.backprojectWindow.close()
+
+            self.backprojectWindow = backprojectwidget.BackProjectWidget(ip)
+
+            bl, tr = srcAreas[0]
+            for l, usedPl, border, srcArea in zip(newLayers, usedPointsLayers, borders, srcAreas):
+                bl, tr = np.minimum(bl, srcArea[0]), np.maximum(tr, srcArea[1])
+                self.backprojectWindow.addBackProjectRegion(l, usedPl, border, srcArea)
+
+            self.backprojectWindow.setViewRange(bl, tr)
+
+        except Exception as e:
+            self.scene.warning("Exception occurred: {}".format(e))
+            import traceback
+            traceback.print_exc()
+            return
+
 
 def main():
     checkQtAvailable()
