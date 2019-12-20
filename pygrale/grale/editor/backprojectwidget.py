@@ -17,6 +17,8 @@ class BackProjectWidget(QtWidgets.QDialog):
         self.imagePlane = imagePlane
         self.bpViews = []
         self.originalPointInfo = { }
+        self.imgplanePoints = { }
+        self.deletedPoints = { }
 
         self.previousWidgetIdx = None
         self.ui.tabWidget.currentChanged.connect(self.onCurrentWidgetChanged)
@@ -45,8 +47,6 @@ class BackProjectWidget(QtWidgets.QDialog):
         if psa:
             self.ui.m_pointArcsecSize.setValue(float(psa))
         
-        print(pf, psp, psa)
-
     def done(self, r):
         settings = QtCore.QSettings()
         settings.setValue("bpwindow/geometry", self.saveGeometry())
@@ -55,7 +55,8 @@ class BackProjectWidget(QtWidgets.QDialog):
         settings.setValue("bpview/pointsizearcsec", self.ui.m_pointArcsecSize.value())
         
         if r:
-            self._checkPoints()
+            if not self._checkPoints():
+                return
         super(BackProjectWidget, self).done(r)
 
     def onCurrentWidgetChanged(self, idx):
@@ -129,13 +130,15 @@ class BackProjectWidget(QtWidgets.QDialog):
                 for uuid in points:
                     allPointsPerLayer[origLayerUuid].add(uuid)
                     pt = points[uuid]
-                    if uuid in self.originalPointInfo[origLayerUuid] and pt == self.originalPointInfo[origLayerUuid][uuid]: 
-                        # nothing changed, ignore this
-                        print("Nothing changed for", pt)
-                        continue
+                    if uuid in self.originalPointInfo[origLayerUuid]:
+                        if pt == self.originalPointInfo[origLayerUuid][uuid]: 
+                            # nothing changed, ignore this
+                            #print("Nothing changed for", pt)
+                            continue
+                    else:
+                        pt["new"] = True
 
                     xy = pt["xy"]
-                    print("Checking point", uuid, xy)
 
                     if not (xy[0] >= bl[0] and xy[0] <= tr[0] and xy[1] >= bl[1] and xy[1] <= tr[1]):
                         pointsOutsideSrcArea.append({"point": uuid, "newlayer": layer.getUuid()})
@@ -169,22 +172,34 @@ class BackProjectWidget(QtWidgets.QDialog):
                                 deletedPoints[origLayerUuid] = [ ]
                             deletedPoints[origLayerUuid].append(uuid)
                     
-            import pprint
-            print("Points with trace exception:")
-            pprint.pprint(pointsWithTraceException)
-            print("Points outside image border:")
-            pprint.pprint(pointsOutsideImgBorder)
-            print("Points outside src area:")
-            pprint.pprint(pointsOutsideSrcArea)
-            print("Points per layer:")
-            pprint.pprint(pointsPerLayer)
-            print("Deleted points:")
-            pprint.pprint(deletedPoints)
+            if False:
+                import pprint
+                print("Points with trace exception:")
+                pprint.pprint(pointsWithTraceException)
+                print("Points outside image border:")
+                pprint.pprint(pointsOutsideImgBorder)
+                print("Points outside src area:")
+                pprint.pprint(pointsOutsideSrcArea)
+                print("Points per layer:")
+                pprint.pprint(pointsPerLayer)
+                print("Deleted points:")
+                pprint.pprint(deletedPoints)
 
+            # TODO: better messages? mark points that are problematic
+            if pointsWithTraceException:
+                raise Exception("A number of points ({}) could not be traced back to the image plane".format(len(pointsWithTraceException)))
+            if pointsOutsideSrcArea:
+                raise Exception("A number of points ({}) lie outside the back-projected region".format(len(pointsOutsideSrcArea)))
+            if pointsOutsideImgBorder:
+                raise Exception("A number of re-traced points ({}) couldn't be found inside the image region".format(len(pointsOutsideImgBorder)))
+
+            self.deletedPoints = deletedPoints
+            self.imgplanePoints = pointsPerLayer
         except Exception as e:
             QtWidgets.QMessageBox.warning(self, "Error checking points", str(e))
-            import traceback
-            traceback.print_exc()
+            return False
+
+        return True
 
     def setViewRange(self, bl, tr):
         if self.ui.tabWidget.count() == 0:
@@ -240,4 +255,10 @@ class BackProjectWidget(QtWidgets.QDialog):
             scene.setPointSizePixelSize(psp) if isPixels else scene.setPointSizeSceneSize(psa)
             scene.setPointSizeFixed(isPixels)
             scene.onScaleChanged(view.getScale())
+
+    def getImagePlanePoints(self):
+        return self.imgplanePoints
+
+    def getDeletedPoints(self):
+        return self.deletedPoints
 

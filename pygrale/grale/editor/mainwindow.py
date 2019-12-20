@@ -1338,10 +1338,30 @@ class MainWindow(QtWidgets.QMainWindow):
             backprojectWindow.setViewRange(bl, tr)
             backprojectWindow.updateFromSettings(self.getGlobalSettings())
 
-            if backprojectWindow.exec_():
-                # TODO: get modified points etc, change the point coords, names, add new points
-                #       update undostack
-                pass
+            if not backprojectWindow.exec_():
+                return
+            
+            deletedPoints = backprojectWindow.getDeletedPoints()
+            deletedItems = []
+            for layerUuid in deletedPoints:
+                layerItem = self.scene.getLayerItem(layerUuid)
+                for pt in deletedPoints[layerUuid]:
+                    deletedItems.append(layerItem.getPointItem(pt))
+
+            self.scene.deleteItems(deletedItems, [], True, False)
+                    
+            newAndChangedPoints = backprojectWindow.getImagePlanePoints()
+            newPoints, changedPoints = [], []
+            for layerUuid in newAndChangedPoints:
+                for pt in newAndChangedPoints[layerUuid]:
+                    pt["layer"] = layerUuid
+                    pt["xy"] = pt["xy_imgplane"] # change the source plane pos by the imgplane pos
+                    newPoints.append(pt) if "new" in pt else changedPoints.append(pt)
+
+            import pprint
+            pprint.pprint(newPoints)
+
+            self.scene.addNewPoints(newPoints)
 
         except Exception as e:
             self.scene.warning("Exception occurred: {}".format(e))

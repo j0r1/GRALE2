@@ -62,6 +62,19 @@ class LayerScene(GraphicsScene):
     def getNewPointLabel(self):
         return None
 
+    def addNewPoints(self, pts):
+        importPoints = [ ]
+        for pt in pts:
+            layerUuid = pt["layer"]
+            layerItem = self.getLayerItem(layerUuid)
+
+            ptUuid = layerItem.addPoint(*pt["xy"], pt["label"], objectToDouble(pt["timedelay"]))
+            importPoints.append({"layer": layerUuid, "point": ptUuid, "pos": pt["xy"],
+                                 "timedelay": pt["timedelay"], "label": pt["label"]})
+
+        addId = uuid.uuid4()
+        self.getActionStack().recordAddNormalPoints(importPoints, addId)
+
     def _addPoint(self, pos, label = None):
         curItem, curLayer = self.getCurrentItemAndLayer()
         if not curItem or not curLayer:
@@ -278,6 +291,9 @@ class LayerScene(GraphicsScene):
                     triangItems.append(t)
 
         self._deleteItems(pointItems, triangItems, deletePoints, deleteTriangles)
+
+    def deleteItems(self, pointItems, triangItems, deletePointsFlag, deleteTrianglesFlag):
+        return self._deleteItems(pointItems, triangItems, deletePointsFlag, deleteTrianglesFlag)
 
     def _deleteItems(self, pointItems, triangItems, deletePointsFlag, deleteTrianglesFlag):
     
