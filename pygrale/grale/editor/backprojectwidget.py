@@ -16,6 +16,7 @@ class BackProjectWidget(QtWidgets.QDialog):
 
         self.imagePlane = imagePlane
         self.bpViews = []
+        self.originalPointInfo = { }
 
         self.previousWidgetIdx = None
         self.ui.tabWidget.currentChanged.connect(self.onCurrentWidgetChanged)
@@ -52,6 +53,9 @@ class BackProjectWidget(QtWidgets.QDialog):
         settings.setValue("bpview/pointsizefixed", self.ui.m_pointPixelsBox.isChecked())
         settings.setValue("bpview/pointsizepixels", self.ui.m_pointPixelSize.value())
         settings.setValue("bpview/pointsizearcsec", self.ui.m_pointArcsecSize.value())
+        
+        if r:
+            self._checkPoints()
         super(BackProjectWidget, self).done(r)
 
     def onCurrentWidgetChanged(self, idx):
@@ -80,8 +84,12 @@ class BackProjectWidget(QtWidgets.QDialog):
             xy = pt["xy"]
             if borderPoly.contains(Point(*xy)):
                 bpXY = (self.imagePlane.traceThetaApproximately(np.array(xy)*ANGLE_ARCSEC)/ANGLE_ARCSEC).tolist()
-                newPointsLayer.setPoint(i, bpXY, origPts[i]["label"])
-                # TODO: create link between original point and backproj point
+                newPointsLayer.setPoint(i, bpXY, pt["label"])
+        
+                origLayerId = origPointsLayer.getUuid()
+                if not origLayerId in self.originalPointInfo:
+                    self.originalPointInfo[origLayerId] = { }
+                self.originalPointInfo[origLayerId][i] = newPointsLayer.getPoint(i) # Use this to check what to update
 
         newScene = scenes.PointsSingleLayerScene(newPointsLayer, bgLayer)
         layerItem, _ = newScene.getCurrentItemAndLayer()
@@ -89,11 +97,94 @@ class BackProjectWidget(QtWidgets.QDialog):
         
         newView = base.GraphicsView(newScene, parent=self.ui.tabWidget)
         self.ui.tabWidget.addTab(newView, bgLayer.getName())
-        self.bpViews.append({ "view": newView, "scene": newScene})
+        self.bpViews.append({ "view": newView, "scene": newScene, "newlayer": newPointsLayer, 
+                              "origlayer": origPointsLayer, "srcarea": srcArea, "border": border })
 
         isPixels = self.ui.m_pointPixelsBox.isChecked()
         newScene.setPointSizePixelSize(self.ui.m_pointPixelSize.value()) if isPixels else newScene.setPointSizeSceneSize(self.ui.m_pointArcsecSize.value())
         newScene.setPointSizeFixed(self.ui.m_pointPixelsBox.isChecked())
+
+    def _checkPoints(self):
+        try:
+            pointsOutsideSrcArea = [ ]
+            pointsOutsideImgBorder = [ ]
+            pointsWithTraceException = [ ]
+
+            pointsPerLayer = { }
+            allPointsPerLayer = { }
+            deletedPoints = { }
+
+            for x in self.bpViews:
+                layer, origLayer, srcArea, border = x["newlayer"], x["origlayer"], x["srcarea"], x["border"]
+                bl, tr = srcArea
+                borderPoly = Polygon(border)
+
+                origLayerUuid = origLayer.getUuid()
+                if not origLayerUuid in pointsPerLayer:
+                    pointsPerLayer[origLayerUuid] = [ ]
+                if not origLayerUuid in allPointsPerLayer:
+                    allPointsPerLayer[origLayerUuid] = set()
+
+                points = layer.getPoints()
+                for uuid in points:
+                    allPointsPerLayer[origLayerUuid].add(uuid)
+                    pt = points[uuid]
+                    if uuid in self.originalPointInfo[origLayerUuid] and pt == self.originalPointInfo[origLayerUuid][uuid]: 
+                        # nothing changed, ignore this
+                        print("Nothing changed for", pt)
+                        continue
+
+                    xy = pt["xy"]
+                    print("Checking point", uuid, xy)
+
+                    if not (xy[0] >= bl[0] and xy[0] <= tr[0] and xy[1] >= bl[1] and xy[1] <= tr[1]):
+                        pointsOutsideSrcArea.append({"point": uuid, "newlayer": layer.getUuid()})
+                    else:
+                        try:
+                            thetas = self.imagePlane.traceBeta(np.array(xy)*ANGLE_ARCSEC)
+                            for theta in thetas:
+                                theta /= ANGLE_ARCSEC
+                                if borderPoly.contains(Point(theta.tolist())): # Ok, this is the one
+                                    pt["xy_imgplane"] = theta
+                                    pointsPerLayer[origLayerUuid].append(pt)
+                                    break
+
+                            else:
+                                pointsOutsideImgBorder.append({"point": uuid, "newlayer": layer.getUuid()})
+
+                        except Exception as e:
+                            pointsWithTraceException.append({"point": uuid, "newlayer": layer.getUuid()})
+                            print(e)
+
+            for origLayerUuid in self.originalPointInfo:
+                if not origLayerUuid in allPointsPerLayer: # all points in layer are deleted
+                    deletedPoints[origLayerUuid] = self.originalPointInfo[origLayerUuid]
+                else:
+                    allPts = allPointsPerLayer[origLayerUuid]
+                    origPts = self.originalPointInfo[origLayerUuid]
+                    for uuid in origPts:
+                        if not uuid in allPts: # this point was removed from the layer
+
+                            if not origLayerUuid in deletedPoints:
+                                deletedPoints[origLayerUuid] = [ ]
+                            deletedPoints[origLayerUuid].append(uuid)
+                    
+            import pprint
+            print("Points with trace exception:")
+            pprint.pprint(pointsWithTraceException)
+            print("Points outside image border:")
+            pprint.pprint(pointsOutsideImgBorder)
+            print("Points outside src area:")
+            pprint.pprint(pointsOutsideSrcArea)
+            print("Points per layer:")
+            pprint.pprint(pointsPerLayer)
+            print("Deleted points:")
+            pprint.pprint(deletedPoints)
+
+        except Exception as e:
+            QtWidgets.QMessageBox.warning(self, "Error checking points", str(e))
+            import traceback
+            traceback.print_exc()
 
     def setViewRange(self, bl, tr):
         if self.ui.tabWidget.count() == 0:
@@ -141,9 +232,12 @@ class BackProjectWidget(QtWidgets.QDialog):
 
     def _onPointTypeChanged(self):
         isPixels = self.ui.m_pointPixelsBox.isChecked()
+        psa = self.ui.m_pointArcsecSize.value()
+        psp = self.ui.m_pointPixelSize.value()
+        print(isPixels, psp, psa)
         for x in self.bpViews:
             scene, view = x["scene"], x["view"]
+            scene.setPointSizePixelSize(psp) if isPixels else scene.setPointSizeSceneSize(psa)
             scene.setPointSizeFixed(isPixels)
-            scene.setPointSizePixelSize(self.ui.m_pointPixelSize.value()) if isPixels else scene.setPointSizeSceneSize(self.ui.m_pointArcsecSize.value())
             scene.onScaleChanged(view.getScale())
 
