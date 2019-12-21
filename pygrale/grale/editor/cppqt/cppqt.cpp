@@ -1049,6 +1049,19 @@ void LayerGraphicsItemBase::setPoint(const QString &uuid, double x, double y, co
 	{
 		pItem = it.value();
 		pItem->fetchSettings(*pInf);
+
+		// Also update the triangles
+		const QSet<TriangleInfo *> &triangles = pInf->m_triangles;
+		auto pointUuid = pInf->m_uuid;
+		QPointF p(x, y);
+
+		for (auto t : triangles)
+		{
+			QString tUuid = t->m_triangleUuid;
+			assert(m_triangleItems.find(tUuid) != m_triangleItems.end());
+
+			m_triangleItems[tUuid]->updatePointPosition(pointUuid, p);
+		}
 	}
 	QTransform trans(1, 0, 0, 1, 0, 0);
 	SceneBase *pScene = dynamic_cast<SceneBase *>(scene());
