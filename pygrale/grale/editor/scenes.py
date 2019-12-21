@@ -620,14 +620,14 @@ class LayerScene(GraphicsScene):
 
     def _editPointInfo(self, pointItem):
         layer = pointItem.getLayer()
+        layerItem = self.getLayerItem(layer.getUuid())
         ptUuid = pointItem.getUuid()
 
         ptInfo = layer.getPoint(ptUuid)
         dlg = PointInfoDialog(ptInfo, self.getDialogWidget())
         if dlg.exec_():
             ptInfoNew = dlg.getPointInfo()
-            layer.setPoint(ptUuid, ptInfoNew["xy"], ptInfoNew["label"], ptInfoNew["timedelay"])
-            pointItem.fetchSettings() # adjust the QGraphicsItem to match the point settings
+            layerItem.setPoint(ptUuid, ptInfoNew["xy"][0], ptInfoNew["xy"][1], ptInfoNew["label"], objectToDouble(ptInfoNew["timedelay"]))
 
             self.getActionStack().recordSetNormalPoint(layer.getUuid(), ptUuid, ptInfo["xy"], ptInfoNew["xy"],
                                       ptInfo["timedelay"], ptInfoNew["timedelay"], ptInfo["label"], ptInfoNew["label"])
@@ -677,6 +677,19 @@ class LayerScene(GraphicsScene):
 
     def getPointMatchReferenceLayer(self):
         pass
+
+    def changePoints(self, changedPoints):
+
+        # TODO: group this in a single undo/redo
+        for pt in changedPoints:
+            layerUuid = pt["layer"]
+            ptUuid = pt["point"]
+            layerItem = self.getLayerItem(layerUuid)
+
+            layerItem.setPoint(ptUuid, pt["xy"][0], pt["xy"][1], pt["label"], objectToDouble(pt["timedelay"]))
+            self.getActionStack().recordSetNormalPoint(layerUuid, ptUuid, pt["xy_orig"], pt["xy"],
+                                      pt["timedelay_orig"], pt["timedelay"], pt["label_orig"], pt["label"])
+
 
 class SingleLayerScene(LayerScene):
     def __init__(self, layer):

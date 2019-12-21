@@ -1358,10 +1358,8 @@ class MainWindow(QtWidgets.QMainWindow):
                     pt["xy"] = pt["xy_imgplane"] # change the source plane pos by the imgplane pos
                     newPoints.append(pt) if "new" in pt else changedPoints.append(pt)
 
-            import pprint
-            pprint.pprint(newPoints)
-
             self.scene.addNewPoints(newPoints)
+            self.scene.changePoints(changedPoints)
 
         except Exception as e:
             self.scene.warning("Exception occurred: {}".format(e))
