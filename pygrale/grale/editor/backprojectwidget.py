@@ -149,17 +149,18 @@ class BackProjectWidget(QtWidgets.QDialog):
                     if not (xy[0] >= bl[0] and xy[0] <= tr[0] and xy[1] >= bl[1] and xy[1] <= tr[1]):
                         pointsOutsideSrcArea.append({"point": uuid, "newlayer": layer.getUuid()})
                     else:
-                        try:
-                            # Check if src plane positions are still the same
-                            if xy == self.originalPointInfo[origLayerUuid][uuid]["xy"]:
-                                # if so, just use the stored image plane pos
-                                #print("Source plane pos unchanged, using image plane pos")
-                                pt["xy_imgplane"] = self.originalImagePlanePositions[uuid]["xy"]
-                                pointsPerLayer[origLayerUuid].append(pt)
-                            else:
+                        # Check if src plane positions are still the same
+                        if not "new" in pt and xy == self.originalPointInfo[origLayerUuid][uuid]["xy"]:
+                            # if so, just use the stored image plane pos
+                            #print("Source plane pos unchanged, using image plane pos")
+                            pt["xy_imgplane"] = self.originalImagePlanePositions[uuid]["xy"]
+                            pointsPerLayer[origLayerUuid].append(pt)
+                        else:
+                            try:
                                 # Trace it
                                 #print("Tracing src plane pos for", uuid, "pos", xy)
                                 thetas = self.imagePlane.traceBeta(np.array(xy)*ANGLE_ARCSEC)
+                                #print("Thetas", thetas)
                                 for theta in thetas:
                                     theta /= ANGLE_ARCSEC
                                     if borderPoly.contains(Point(theta.tolist())): # Ok, this is the one
@@ -170,9 +171,9 @@ class BackProjectWidget(QtWidgets.QDialog):
                                 else:
                                     pointsOutsideImgBorder.append({"point": uuid, "newlayer": layer.getUuid()})
 
-                        except Exception as e:
-                            pointsWithTraceException.append({"point": uuid, "newlayer": layer.getUuid()})
-                            print(e)
+                            except Exception as e:
+                                pointsWithTraceException.append({"point": uuid, "newlayer": layer.getUuid()})
+                                print(e)
 
             for origLayerUuid in self.originalPointInfo:
                 if not origLayerUuid in allPointsPerLayer: # all points in layer are deleted
@@ -210,6 +211,9 @@ class BackProjectWidget(QtWidgets.QDialog):
 
             for lUuid in pointsPerLayer:
                 for pt in pointsPerLayer[lUuid]:
+                    if "new" in pt:
+                        continue
+
                     orig = self.originalImagePlanePositions[pt["point"]]
                     pt["xy_orig"] = orig["xy"]
                     pt["label_orig"] = orig["label"]
