@@ -21,6 +21,7 @@ import pickle
 import backgroundprocessdialog
 import backprojretracedialog
 import backprojectwidget
+import backprojectsettingsdialog
 
 JSONDump = lambda s: json.dumps(s, sort_keys=True, indent=4, separators=(',', ': '))
 
@@ -1290,8 +1291,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _onBackProjectPointSelect(self):
         try:
-            # TODO: more appropriate dialog
-            dlg = backprojretracedialog.BackprojRetraceDialog(self, self.lastLoadedImagePlane)
+            dlg = backprojectsettingsdialog.BackprojectSettingsDialog(self, self.lastLoadedImagePlane)
             if not dlg.exec_():
                 return
 
@@ -1318,7 +1318,7 @@ class MainWindow(QtWidgets.QMainWindow):
             newImageDir = None # Not used
 
             def cb(msg):
-                print(msg)
+                pass
 
             newLayers, usedPointsLayers, borders, srcAreas = self.backprojectRetrace(ip, splitLayers, extra, numPix, numBPPix, numRetracePix, numResample,
                     relensSeparately, overWriteFiles, bpFileNameTemplate, bpLayerNameTemplate,
