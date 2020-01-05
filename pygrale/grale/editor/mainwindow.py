@@ -1239,7 +1239,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
                     srcbl, srctr = np.array(srcbl), np.array(srctr)
                 else:
-                    imgSrc = img.mirrored(False, self.scene.isAxisLeft())
+                    imgSrc = img.mirrored(False, True)
                     srcbl = border.min(0)
                     srctr = border.max(0)
 
