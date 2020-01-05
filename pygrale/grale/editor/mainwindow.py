@@ -22,6 +22,7 @@ import backgroundprocessdialog
 import backprojretracedialog
 import backprojectwidget
 import backprojectsettingsdialog
+import imgregionsettingsdialog
 
 JSONDump = lambda s: json.dumps(s, sort_keys=True, indent=4, separators=(',', ': '))
 
@@ -1229,13 +1230,19 @@ class MainWindow(QtWidgets.QMainWindow):
                 border = borders[idx]
                 img = self.scene.getSceneRegionImage_minMax(border.min(0), border.max(0), [ numPix, None], border)
 
-                progressCallback(f"Creating source shape from image {idx+1}")
-                centerX, centerY = 0.5*(border.max(0)+border.min(0))
-                widthArcsec, heightArcsec = border.max(0)-border.min(0)
-                imgSrc, srcbl, srctr = openglhelper.backProject(ip, img, [centerX, centerY], 
-                                                  [widthArcsec, heightArcsec], [numBPPix, numBPPix])
+                if ip:
+                    progressCallback(f"Creating source shape from image {idx+1}")
+                    centerX, centerY = 0.5*(border.max(0)+border.min(0))
+                    widthArcsec, heightArcsec = border.max(0)-border.min(0)
+                    imgSrc, srcbl, srctr = openglhelper.backProject(ip, img, [centerX, centerY], 
+                                                      [widthArcsec, heightArcsec], [numBPPix, numBPPix])
 
-                srcbl, srctr = np.array(srcbl), np.array(srctr)
+                    srcbl, srctr = np.array(srcbl), np.array(srctr)
+                else:
+                    imgSrc = img.mirrored(False, self.scene.isAxisLeft())
+                    srcbl = border.min(0)
+                    srctr = border.max(0)
+
                 srcCtr = (srcbl+srctr)*0.5
                 srcSize = srctr-srcbl
 
@@ -1315,25 +1322,18 @@ class MainWindow(QtWidgets.QMainWindow):
         except Exception as e:
             self.scene.warning("Exception occurred: {}".format(e))
 
-    def _createDummyImagePlane(self):
-        import grale.lenses as lenses
-        from grale.constants import DIST_MPC, ANGLE_ARCSEC
-        l = lenses.PlummerLens(1000*DIST_MPC, { "width": 1000*ANGLE_ARCSEC, "mass": 0 })
-        lp = images.LensPlane(l, [-1000*ANGLE_ARCSEC, -1000*ANGLE_ARCSEC], [1000*ANGLE_ARCSEC, 1000*ANGLE_ARCSEC], 16, 16, None, "none")
-        return images.ImagePlane(lp, 1, 0)
-
     def _onPointSelect_NoBackProject(self):
         try:
             # TODO: change dialog
-            dlg = backprojectsettingsdialog.BackprojectSettingsDialog(self, self.lastLoadedImagePlane)
+            dlg = imgregionsettingsdialog.ImageRegionSettingsDialog(self)
             if not dlg.exec_():
                 return
 
-            ip = self._createDummyImagePlane()
+            ip = None
             splitLayers = dlg.getSplitLayersFlag()
             extra = ANGLE_ARCSEC*dlg.getExtraBorder()
             numPix = dlg.getInputImagePixels() # scaled according to aspect ratio
-            numBPPix = dlg.getBackProjPixels() # same used in x and y direction no aspect ratio
+            numBPPix = 1024 # is actually not used in this case
             layerNameTemplate = "Image {srcidx}"
 
             self._onPointSelect(ip, splitLayers, extra, numPix, numBPPix, layerNameTemplate, False)

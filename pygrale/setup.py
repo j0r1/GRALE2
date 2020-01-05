@@ -268,6 +268,7 @@ if isQtAvailable:
                 "grale/editor/helpdialog.ui",
                 "grale/editor/backprojectwidget.ui",
                 "grale/editor/backprojectsettingsdialog.ui",
+                "grale/editor/imgregionsettingsdialog.ui",
             ]:
         pathParts = os.path.dirname(ui).split("/")
         ui = os.path.join(*ui.split("/"))

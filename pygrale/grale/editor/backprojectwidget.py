@@ -50,6 +50,16 @@ class BackProjectWidget(QtWidgets.QDialog):
         if psa:
             self.ui.m_pointArcsecSize.setValue(float(psa))
 
+    def traceThetaApproximately(self, theta):
+        if not self.imagePlane:
+            return theta
+        return self.imagePlane.traceThetaApproximately(theta)
+
+    def traceBeta(self, beta):
+        if not self.imagePlane:
+            return [ beta ]
+        return self.imagePlane.traceBeta(beta)
+
     def done(self, r):
         settings = QtCore.QSettings()
         settings.setValue("bpwindow/geometry", self.saveGeometry())
@@ -90,7 +100,7 @@ class BackProjectWidget(QtWidgets.QDialog):
             self.originalImagePlanePositions[i] = { "xy": [ xy[0], xy[1] ], "label": pt["label"], "timedelay": pt["timedelay"] }
 
             if borderPoly.contains(Point(*xy)):
-                bpXY = (self.imagePlane.traceThetaApproximately(np.array(xy)*ANGLE_ARCSEC)/ANGLE_ARCSEC).tolist()
+                bpXY = (self.traceThetaApproximately(np.array(xy)*ANGLE_ARCSEC)/ANGLE_ARCSEC).tolist()
                 newPointsLayer.setPoint(i, bpXY, pt["label"])
         
                 origLayerId = origPointsLayer.getUuid()
@@ -163,7 +173,7 @@ class BackProjectWidget(QtWidgets.QDialog):
                             try:
                                 # Trace it
                                 #print("Tracing src plane pos for", uuid, "pos", xy)
-                                thetas = self.imagePlane.traceBeta(np.array(xy)*ANGLE_ARCSEC)
+                                thetas = self.traceBeta(np.array(xy)*ANGLE_ARCSEC)
                                 #print("Thetas", thetas)
                                 for theta in thetas:
                                     theta /= ANGLE_ARCSEC
@@ -178,6 +188,8 @@ class BackProjectWidget(QtWidgets.QDialog):
                             except Exception as e:
                                 pointsWithTraceException.append({"point": uuid, "newlayer": layer.getUuid()})
                                 print(e)
+                                import traceback
+                                traceback.print_exc()
 
             for origLayerUuid in self.originalPointInfo:
                 if not origLayerUuid in allPointsPerLayer: # all points in layer are deleted
