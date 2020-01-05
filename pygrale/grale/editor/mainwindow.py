@@ -258,7 +258,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.actionCut.triggered.connect(self._onActionCut)
         self.ui.actionCreate_null_grid.triggered.connect(self._onNullGrid)
         self.ui.actionBack_project_retrace.triggered.connect(self._onBackProjectRetrace)
-        self.ui.actionBack_project_and_point_select.triggered.connect(self._onBackProjectPointSelect)
+        self.ui.actionBack_project_and_point_select.triggered.connect(self._onPointSelect_BackProjected)
+        self.ui.actionPoint_select_no_backprojection.triggered.connect(self._onPointSelect_NoBackProject)
 
         self.ui.m_axisVisibleBox.clicked.connect(self._onGuiSettingChanged)
         self.ui.m_axisRightBox.clicked.connect(self._onGuiSettingChanged)
@@ -1171,7 +1172,7 @@ class MainWindow(QtWidgets.QMainWindow):
             exportTimeDelays = False
             exportGroups = False
             pointsLeftInfo = []
-            imgDat, usedLayers = tools.layersToImagesData(layers, splitLayers, exportGroups, exportTimeDelays, pointsLeftInfo=pointsLeftInfo)
+            imgDat, usedLayers = tools.layersToImagesData(layers, splitLayers, exportGroups, exportTimeDelays, pointsLeftInfo=None, ignoreRemainingPoints=True)
 
             borders = [ ]
             for i in range(imgDat.getNumberOfImages()):
@@ -1289,7 +1290,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         return newLayers, usedLayers, borders, srcAreas
 
-    def _onBackProjectPointSelect(self):
+    def _onPointSelect_BackProjected(self):
         try:
             dlg = backprojectsettingsdialog.BackprojectSettingsDialog(self, self.lastLoadedImagePlane)
             if not dlg.exec_():
@@ -1307,65 +1308,97 @@ class MainWindow(QtWidgets.QMainWindow):
             extra = ANGLE_ARCSEC*dlg.getExtraBorder()
             numPix = dlg.getInputImagePixels() # scaled according to aspect ratio
             numBPPix = dlg.getBackProjPixels() # same used in x and y direction no aspect ratio
-            numRetracePix = -1
-            numResample = -1
-            relensSeparately = False
-            overWriteFiles = True
-            bpFileNameTemplate = None
             bpLayerNameTemplate = "Back-projected image {srcidx}"
-            relensFileNameTemplate = None
-            relensLayerNameTemplate = None # Note used
-            newImageDir = None # Not used
 
-            def cb(msg):
-                pass
+            self._onPointSelect(ip, splitLayers, extra, numPix, numBPPix, bpLayerNameTemplate, True)
 
-            newLayers, usedPointsLayers, borders, srcAreas = self.backprojectRetrace(ip, splitLayers, extra, numPix, numBPPix, numRetracePix, numResample,
-                    relensSeparately, overWriteFiles, bpFileNameTemplate, bpLayerNameTemplate,
-                    relensFileNameTemplate, relensLayerNameTemplate, newImageDir, cb, addLayers = False)
+        except Exception as e:
+            self.scene.warning("Exception occurred: {}".format(e))
 
-            maxImgs = 16
-            if len(srcAreas) > maxImgs:
-                raise Exception("Too many back-projected images ({}), limit is ({})".format(len(srcAreas), maxImgs))
+    def _createDummyImagePlane(self):
+        import grale.lenses as lenses
+        from grale.constants import DIST_MPC, ANGLE_ARCSEC
+        l = lenses.PlummerLens(1000*DIST_MPC, { "width": 1000*ANGLE_ARCSEC, "mass": 0 })
+        lp = images.LensPlane(l, [-1000*ANGLE_ARCSEC, -1000*ANGLE_ARCSEC], [1000*ANGLE_ARCSEC, 1000*ANGLE_ARCSEC], 16, 16, None, "none")
+        return images.ImagePlane(lp, 1, 0)
 
-            backprojectWindow = backprojectwidget.BackProjectWidget(ip, self)
-
-            bl, tr = srcAreas[0]
-            for l, usedPl, border, srcArea in zip(newLayers, usedPointsLayers, borders, srcAreas):
-                bl, tr = np.minimum(bl, srcArea[0]), np.maximum(tr, srcArea[1])
-                backprojectWindow.addBackProjectRegion(l, usedPl, border, srcArea)
-
-            backprojectWindow.setViewRange(bl, tr)
-            backprojectWindow.updateFromSettings(self.getGlobalSettings())
-
-            if not backprojectWindow.exec_():
+    def _onPointSelect_NoBackProject(self):
+        try:
+            # TODO: change dialog
+            dlg = backprojectsettingsdialog.BackprojectSettingsDialog(self, self.lastLoadedImagePlane)
+            if not dlg.exec_():
                 return
-            
-            deletedPoints = backprojectWindow.getDeletedPoints()
-            deletedItems = []
-            for layerUuid in deletedPoints:
-                layerItem = self.scene.getLayerItem(layerUuid)
-                for pt in deletedPoints[layerUuid]:
-                    deletedItems.append(layerItem.getPointItem(pt))
 
-            self.scene.deleteItems(deletedItems, [], True, False)
-                    
-            newAndChangedPoints = backprojectWindow.getImagePlanePoints()
-            newPoints, changedPoints = [], []
-            for layerUuid in newAndChangedPoints:
-                for pt in newAndChangedPoints[layerUuid]:
-                    pt["layer"] = layerUuid
-                    pt["xy"] = pt["xy_imgplane"] # change the source plane pos by the imgplane pos
-                    newPoints.append(pt) if "new" in pt else changedPoints.append(pt)
+            ip = self._createDummyImagePlane()
+            splitLayers = dlg.getSplitLayersFlag()
+            extra = ANGLE_ARCSEC*dlg.getExtraBorder()
+            numPix = dlg.getInputImagePixels() # scaled according to aspect ratio
+            numBPPix = dlg.getBackProjPixels() # same used in x and y direction no aspect ratio
+            layerNameTemplate = "Image {srcidx}"
 
-            self.scene.addNewPoints(newPoints)
-            self.scene.changePoints(changedPoints)
+            self._onPointSelect(ip, splitLayers, extra, numPix, numBPPix, layerNameTemplate, False)
 
         except Exception as e:
             self.scene.warning("Exception occurred: {}".format(e))
             import traceback
             traceback.print_exc()
             return
+
+    def _onPointSelect(self, ip, splitLayers, extra, numPix, numBPPix, bpLayerNameTemplate, sameRegion):
+        numRetracePix = -1
+        numResample = -1
+        relensSeparately = False
+        overWriteFiles = True
+        bpFileNameTemplate = None
+        relensFileNameTemplate = None
+        relensLayerNameTemplate = None # Note used
+        newImageDir = None # Not used
+
+        def cb(msg):
+            pass
+
+        newLayers, usedPointsLayers, borders, srcAreas = self.backprojectRetrace(ip, splitLayers, extra, numPix, numBPPix, numRetracePix, numResample,
+                relensSeparately, overWriteFiles, bpFileNameTemplate, bpLayerNameTemplate,
+                relensFileNameTemplate, relensLayerNameTemplate, newImageDir, cb, addLayers = False)
+
+        maxImgs = 16
+        if len(srcAreas) > maxImgs:
+            raise Exception("Too many image regions ({}), limit is ({})".format(len(srcAreas), maxImgs))
+
+        backprojectWindow = backprojectwidget.BackProjectWidget(ip, self, sameRegion)
+
+        bl, tr = srcAreas[0]
+        for l, usedPl, border, srcArea in zip(newLayers, usedPointsLayers, borders, srcAreas):
+            bl, tr = np.minimum(bl, srcArea[0]), np.maximum(tr, srcArea[1])
+            backprojectWindow.addBackProjectRegion(l, usedPl, border, srcArea)
+
+        if sameRegion:
+            backprojectWindow.setViewRange(bl, tr)
+
+        backprojectWindow.updateFromSettings(self.getGlobalSettings())
+        if not backprojectWindow.exec_():
+            return
+        
+        deletedPoints = backprojectWindow.getDeletedPoints()
+        deletedItems = []
+        for layerUuid in deletedPoints:
+            layerItem = self.scene.getLayerItem(layerUuid)
+            for pt in deletedPoints[layerUuid]:
+                deletedItems.append(layerItem.getPointItem(pt))
+
+        self.scene.deleteItems(deletedItems, [], True, False)
+                
+        newAndChangedPoints = backprojectWindow.getImagePlanePoints()
+        newPoints, changedPoints = [], []
+        for layerUuid in newAndChangedPoints:
+            for pt in newAndChangedPoints[layerUuid]:
+                pt["layer"] = layerUuid
+                pt["xy"] = pt["xy_imgplane"] # change the source plane pos by the imgplane pos
+                newPoints.append(pt) if "new" in pt else changedPoints.append(pt)
+
+        self.scene.addNewPoints(newPoints)
+        self.scene.changePoints(changedPoints)
+
 
 def main():
     checkQtAvailable()

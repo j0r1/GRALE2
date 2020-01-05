@@ -10,12 +10,13 @@ from shapely.geometry.polygon import Polygon
 from grale.constants import ANGLE_ARCSEC
 
 class BackProjectWidget(QtWidgets.QDialog):
-    def __init__(self, imagePlane, parent):
+    def __init__(self, imagePlane, parent, sameRegion):
         super(BackProjectWidget, self).__init__(parent)
         self.ui = ui_backprojectwidget.Ui_BackProjectWidget()
         self.ui.setupUi(self)
 
         self.imagePlane = imagePlane
+        self.sameRegion = sameRegion
         self.bpViews = []
         self.originalPointInfo = { }
         self.imgplanePoints = { }
@@ -48,7 +49,7 @@ class BackProjectWidget(QtWidgets.QDialog):
         psa = settings.value("bpview/pointsizearcsec")
         if psa:
             self.ui.m_pointArcsecSize.setValue(float(psa))
-        
+
     def done(self, r):
         settings = QtCore.QSettings()
         settings.setValue("bpwindow/geometry", self.saveGeometry())
@@ -67,13 +68,14 @@ class BackProjectWidget(QtWidgets.QDialog):
             return
 
         # Get the center and zoom from the previous scene, and apply to the new one
-        prev = self.bpViews[self.previousWidgetIdx]["view"]
-        ctr, scale = prev.getCenter(), prev.getScale()
+        if self.sameRegion:
+            prev = self.bpViews[self.previousWidgetIdx]["view"]
+            ctr, scale = prev.getCenter(), prev.getScale()
 
-        cur = self.bpViews[idx]["view"]
-        cur.centerOn(ctr)
-        cur.setScale(scale)
-        self.bpViews[idx]["scene"].onScaleChanged(scale)
+            cur = self.bpViews[idx]["view"]
+            cur.centerOn(ctr)
+            cur.setScale(scale)
+            self.bpViews[idx]["scene"].onScaleChanged(scale)
 
         self.previousWidgetIdx = idx
 
@@ -108,6 +110,8 @@ class BackProjectWidget(QtWidgets.QDialog):
         isPixels = self.ui.m_pointPixelsBox.isChecked()
         newScene.setPointSizePixelSize(self.ui.m_pointPixelSize.value()) if isPixels else newScene.setPointSizeSceneSize(self.ui.m_pointArcsecSize.value())
         newScene.setPointSizeFixed(self.ui.m_pointPixelsBox.isChecked())
+
+        self._setViewRange(newView, srcArea[0], srcArea[1])
 
     def _checkPoints(self):
         try:
@@ -232,28 +236,26 @@ class BackProjectWidget(QtWidgets.QDialog):
 
         return True
 
+    def _setViewRange(self, w, bl, tr):
+        ctr = (bl+tr)/2
+        diagArcsec = np.sum((tr-bl)**2)**0.5
+
+        whPixels = min(w.width(),w.height())
+        scale = whPixels/diagArcsec
+
+        s = w.scene()
+        w.centerOn(ctr[0], ctr[1])
+        w.setScale(scale)
+
+        s.onScaleChanged(scale)
+
     def setViewRange(self, bl, tr):
         if self.ui.tabWidget.count() == 0:
             return
 
-        ctr = (bl+tr)/2
-        diagArcsec = np.sum((tr-bl)**2)**0.5
-
-        w = self.ui.tabWidget.widget(0)
-        whPixels = min(w.width(),w.height())
-
-        scale = whPixels/diagArcsec
-        #print("whPixels =", whPixels, "diagArcsec =", diagArcsec, "scale=", scale)
-
-        r = QtCore.QRectF(QtCore.QPointF(bl[0], bl[1]), QtCore.QPointF(tr[0], tr[1]))
         for i in range(self.ui.tabWidget.count()):
             w = self.ui.tabWidget.widget(i)
-            s = w.scene()
-
-            w.centerOn(ctr[0], ctr[1])
-            w.setScale(scale)
-
-            s.onScaleChanged(scale)
+            self._setViewRange(w, bl, tr)
 
     def updateFromSettings(self, d):
         for x in self.bpViews:

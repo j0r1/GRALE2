@@ -393,6 +393,7 @@
     <addaction name="actionCreate_null_grid"/>
     <addaction name="actionBack_project_retrace"/>
     <addaction name="actionBack_project_and_point_select"/>
+    <addaction name="actionPoint_select_no_backprojection"/>
    </widget>
    <widget class="QMenu" name="menuHelp">
     <property name="title">
@@ -550,7 +551,12 @@
   </action>
   <action name="actionBack_project_and_point_select">
    <property name="text">
-    <string>Back-project and point select</string>
+    <string>Point select - back-project first</string>
+   </property>
+  </action>
+  <action name="actionPoint_select_no_backprojection">
+   <property name="text">
+    <string>Point select - no back-projection</string>
    </property>
   </action>
  </widget>
