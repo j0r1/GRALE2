@@ -141,7 +141,7 @@ public:
     PointGraphicsItemBase *getPointItem(const QString &uuid);
 };
 
-QVariant splitPointsAndTriangles(Layer &layer);
+QVariant splitPointsAndTriangles(Layer &layer, bool ignoreRemainingPoints = false);
 
 %ModuleCode
 #include "cppqt.h"

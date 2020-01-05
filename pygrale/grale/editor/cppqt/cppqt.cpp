@@ -1142,7 +1142,7 @@ PointGraphicsItemBase *LayerGraphicsItemBase::getPointItem(const QString &uuid)
 	return pIt.value();
 }
 
-QVariant splitPointsAndTriangles(Layer &layer)
+QVariant splitPointsAndTriangles(Layer &layer, bool ignoreRemainingPoints)
 {
 	auto points = layer.getPointInfos();
 	auto triangles = layer.getTriangleInfos();
@@ -1254,7 +1254,7 @@ QVariant splitPointsAndTriangles(Layer &layer)
 		imageInfo.push_back(inf);
 	}
 
-	if (!allPoints.empty())
+	if (!ignoreRemainingPoints && !allPoints.empty())
 	{
 		QList<QVariant> pointsLeft;
 

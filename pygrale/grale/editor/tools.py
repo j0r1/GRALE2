@@ -98,7 +98,7 @@ def valueFromSettings(settings, name, castFunction, defaultValue):
 ###    return imageInfo
 
 def layersToImagesData(layers, multipleImagesPerLayer = True, saveGroups = True, saveTimeDelays = True,
-                       pointsLeftInfo = None):
+                       pointsLeftInfo = None, ignoreRemainingPoints = False):
     
     imageInfo = [ ]
     usedLayers = [ ]
@@ -114,12 +114,11 @@ def layersToImagesData(layers, multipleImagesPerLayer = True, saveGroups = True,
             })
             usedLayers.append(l)
         else:
+            d = { "layer": l.getUuid(), "pointsleft": [] }
             if pointsLeftInfo is not None:
-                d = { "layer": l.getUuid(), "pointsleft": [] }
                 pointsLeftInfo.append(d)
-            #imageInfo += _splitPointsAndTriangles(l.getPoints(), l.getTriangles(), pointsLeft=pl)
 
-            r = cppqt.cppqt.splitPointsAndTriangles(l)
+            r = cppqt.cppqt.splitPointsAndTriangles(l, ignoreRemainingPoints)
             pprint.pprint(r)
             if type(r) == str: # an error message
                 raise Exception(r)
