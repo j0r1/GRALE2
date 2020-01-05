@@ -19,6 +19,8 @@ Is:
 Starts with:
  - ``--zoom:`` : sets zoom level
  - ``--imgdataname:`` : sets latest images data file name, can be useful to set export name
+ - ``--imgplane:`` : pre-loads the following file to be used in the back-projection related
+   tools. This file should be a pickled ImagePlane or MultiImagePlane
 
 Argument ends with 
 
@@ -90,6 +92,8 @@ Shift-Control-Z: redo
 Double click on layer in list widget: make that layer active
 
 Right click on layer in list widget: popup menu with options
+
+Just 'c': center on selected points
 
 Number 0-9:
  - No 'control' or 'alt': set zoom to 2^number
