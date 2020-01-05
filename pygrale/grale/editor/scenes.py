@@ -44,6 +44,11 @@ class LayerScene(GraphicsScene):
 
         self.drawPath = [ ]
 
+        self.allowTriangulation = True
+
+    def setAllowTriangulation(self, v):
+        self.allowTriangulation = v
+
     def allocateActionStackInstance(self):
         return ActionStack()
 
@@ -244,6 +249,10 @@ class LayerScene(GraphicsScene):
             if len(pts) < 3:
                 movableItem.toggleFocus()
                 return
+
+            if not self.allowTriangulation:
+                self.warning("Can't create triangulation", "This layer type does not allow triangulation")
+                return
             
             layer = pts[0].getLayer()
             for i in pts:
@@ -394,13 +403,13 @@ class LayerScene(GraphicsScene):
         
         self.getActionStack().recordAddNormalPoints(importPoints, addId)
 
-        importTriangles = [ ]
-        for p0, p1, p2 in simp:
-            tUuid = item.addTriangle(uuids[p0], uuids[p1], uuids[p2])
-            importTriangles.append({"triangle": tUuid, "layer": layerUuid, "points": [ uuids[p0], uuids[p1], uuids[p2] ] })
-        
-        self.getActionStack().recordAddTriangles(importTriangles, addId)
-        
+        if self.allowTriangulation:
+            importTriangles = [ ]
+            for p0, p1, p2 in simp:
+                tUuid = item.addTriangle(uuids[p0], uuids[p1], uuids[p2])
+                importTriangles.append({"triangle": tUuid, "layer": layerUuid, "points": [ uuids[p0], uuids[p1], uuids[p2] ] })
+            
+            self.getActionStack().recordAddTriangles(importTriangles, addId)
 
     def keyHandler_clicked(self, key, keyStr, modifiers):
 

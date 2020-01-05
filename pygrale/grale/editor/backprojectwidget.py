@@ -109,6 +109,7 @@ class BackProjectWidget(QtWidgets.QDialog):
                 self.originalPointInfo[origLayerId][i] = newPointsLayer.getPoint(i) # Use this to check what to update
 
         newScene = scenes.PointsSingleLayerScene(newPointsLayer, bgLayer)
+        newScene.setAllowTriangulation(False)
         layerItem, _ = newScene.getCurrentItemAndLayer()
         layerItem.updatePoints()
         
