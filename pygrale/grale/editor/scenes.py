@@ -438,6 +438,21 @@ class LayerScene(GraphicsScene):
             view.centerOn(center)
             return
 
+        if view and keyStr == "C" and modifiers["control"] == False and modifiers["shift"] == False and modifiers["alt"] == False:
+            items = self.selectedItems()
+            count = 0
+            ctrX, ctrY = 0, 0
+            for i in items:
+                p = PointGraphicsItemBase.getPointGraphicsItem(i)
+                if p and p.isNormalPoint():
+                    ctrX += p.pos().x()
+                    ctrY += p.pos().y()
+                    count += 1
+
+            if count > 0:
+                view.centerOn(ctrX/count, ctrY/count)
+            return
+
         if view and keyStr in "0123456789":
             self.signalNumberPressed.emit(keyStr, modifiers)
             return
