@@ -308,3 +308,10 @@ class BackProjectWidget(QtWidgets.QDialog):
     def getDeletedPoints(self):
         return self.deletedPoints
 
+    def keyPressEvent(self, evt):
+        if evt.key() == QtCore.Qt.Key_Escape:
+            evt.accept()
+            return
+        
+        super(BackProjectWidget, self).keyPressEvent(evt)
+
