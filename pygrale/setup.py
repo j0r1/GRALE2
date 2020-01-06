@@ -251,7 +251,13 @@ if isQtAvailable:
                "grale.editor.scenes",
                "grale.editor.tools",
                "grale.editor.exportareadialog",
-               "grale.editor.backproject"
+               "grale.editor.backproject",
+               "grale.editor.backgroundprocessdialog",
+               "grale.editor.backprojretracedialog",
+               "grale.editor.helpdialog",
+               "grale.editor.backprojectwidget",
+               "grale.editor.backprojectsettingsdialog",
+               "grale.editor.imgregionsettingsdialog",
                ]
 
     for ui in [ "grale/editor/contourleveldialog.ui",
