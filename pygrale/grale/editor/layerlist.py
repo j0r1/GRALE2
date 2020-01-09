@@ -298,6 +298,10 @@ class LayerList(QtWidgets.QListWidget):
 
         self._onCenterInView(foundItem)
 
+    def markLastLayerVisible(self, visibility):
+        w = self.itemWidget(self.item(self.count()-1))
+        w.markLayerVisible(visibility)
+
 def main():
     import sys
     import grale.images as images

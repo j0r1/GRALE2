@@ -662,6 +662,11 @@ class MainWindow(QtWidgets.QMainWindow):
 
             self.addLayer(l)
 
+            isVisible = visibilities[i] if i < len(visibilities) else True
+            self.ui.m_listWidget.markLastLayerVisible(isVisible)
+            item = self.scene.getLayerItem(l.getUuid())
+            item.setVisible(isVisible)
+
         if activeLayerUuid:
             self.ui.m_listWidget.setActiveLayer(activeLayerUuid)
 
