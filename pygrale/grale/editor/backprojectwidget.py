@@ -92,7 +92,7 @@ class BackProjectWidget(QtWidgets.QDialog):
         self.previousWidgetIdx = idx
 
     def addBackProjectRegion(self, bgLayer, origPointsLayer, border, srcArea):
-        newPointsLayer = pointslayer.PointsLayer()
+        newPointsLayer = pointslayer.PointsLayer(isPointSelect = True)
 
         origPts = origPointsLayer.getPoints()
         borderPoly = Polygon(border)

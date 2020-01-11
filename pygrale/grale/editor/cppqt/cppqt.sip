@@ -119,7 +119,7 @@ class LayerGraphicsItemBase : public EmptyGraphicsItem
 #include "cppqt.h"
 %End
 public:
-	enum PointType { Normal, Circle, Cross };
+	enum PointType { Normal, PointSelect, Circle, Cross };
 
 	LayerGraphicsItemBase(Layer *pLayer, PointType pType, bool childrenBoundingRect, QGraphicsItem *pParent /TransferThis/ = 0);
 	~LayerGraphicsItemBase();

@@ -658,20 +658,20 @@ QBrush SinglePointGraphicsItem::s_normalBrush(QColor(255, 255, 0, 128));
 QBrush SinglePointGraphicsItem::s_selectedBrush(QColor(0, 0, 255, 128));
 QPen SinglePointGraphicsItem::s_normalPen(QBrush(Qt::gray), 0.2);
 QPen SinglePointGraphicsItem::s_selectedPen(QBrush(Qt::darkGray), 0.2);
+QPen SinglePointGraphicsItem::s_pointSelNormalPen(QBrush(Qt::red), 0.5);
+QPen SinglePointGraphicsItem::s_pointSelSelectedPen(QBrush(Qt::blue), 0.5);
+bool SinglePointGraphicsItem::s_init = false;
 
-SinglePointGraphicsItem::SinglePointGraphicsItem(Layer *pLayer, const QString &uuid, const QString &label, double timedelay, QGraphicsItem *pParent)
-    : PointGraphicsItemBase(pLayer, uuid, label, timedelay, pParent)
+SinglePointGraphicsItem::SinglePointGraphicsItem(Layer *pLayer, const QString &uuid, const QString &label, double timedelay, bool isPointSelect, QGraphicsItem *pParent)
+    : PointGraphicsItemBase(pLayer, uuid, label, timedelay, pParent), 
+	  m_isPointSelect(isPointSelect)
 {
-    //setFlag(QGraphicsItem::ItemSendsScenePositionChanges);
-
-	/*
-    m_pCircle = new QGraphicsEllipseItem(-1, -1, 2, 2, this);
-    m_pLine1 = new QGraphicsLineItem(-0.2,-0.2, 0.2, 0.2, this);
-    m_pLine1->setPen(s_normalPen);
-    m_pLine2 = new QGraphicsLineItem(-0.2, 0.2, 0.2, -0.2, this);
-    m_pLine2->setPen(s_normalPen);
-	
-    onSelected(false)*/
+	if (!s_init)
+	{
+		s_init = true;
+		s_pointSelSelectedPen.setCosmetic(true);
+		s_pointSelNormalPen.setCosmetic(true);
+	}
 }
 
 SinglePointGraphicsItem::~SinglePointGraphicsItem()
@@ -689,19 +689,30 @@ void SinglePointGraphicsItem::paint(QPainter *painter, const QStyleOptionGraphic
 {
 	if (isSelected())
 	{
-		painter->setPen(s_selectedPen);
+		auto &pen = (m_isPointSelect)?s_pointSelSelectedPen:s_selectedPen;
+		painter->setPen(pen);
 		painter->setBrush(s_selectedBrush);
 	}
 	else
 	{
-		painter->setPen(s_normalPen);
+		auto &pen = (m_isPointSelect)?s_pointSelNormalPen:s_normalPen;
+		painter->setPen(pen);
 		painter->setBrush(s_normalBrush);
 	}
-	painter->drawEllipse(QRectF(-1, -1, 2, 2));
 
-	painter->setPen(s_normalPen);
-	painter->drawLine(QPointF(-0.2,-0.2), QPointF(0.2, 0.2));
-	painter->drawLine(QPointF(-0.2, 0.2), QPointF(0.2, -0.2));
+	if (!m_isPointSelect)
+	{
+		painter->drawEllipse(QRectF(-1, -1, 2, 2));
+
+		painter->setPen(s_normalPen);
+		painter->drawLine(QPointF(-0.2,-0.2), QPointF(0.2, 0.2));
+		painter->drawLine(QPointF(-0.2, 0.2), QPointF(0.2, -0.2));
+	}
+	else
+	{
+		painter->drawLine(QPointF(-1,-1), QPointF(1, 1));
+		painter->drawLine(QPointF(-1, 1), QPointF(1, -1));
+	}
 }
 
 void SinglePointGraphicsItem::onSelected(bool v)
@@ -824,7 +835,10 @@ PointGraphicsItemBase *LayerGraphicsItemBase::createPoint(const PointInfo &pt)
 	switch(m_pointType)
 	{
 	case Normal:
-		pItem = new SinglePointGraphicsItem(m_pLayer, pt.m_uuid, pt.m_label, pt.m_timedelay, this);
+		pItem = new SinglePointGraphicsItem(m_pLayer, pt.m_uuid, pt.m_label, pt.m_timedelay, false, this);
+		break;
+	case PointSelect:
+		pItem = new SinglePointGraphicsItem(m_pLayer, pt.m_uuid, pt.m_label, pt.m_timedelay, true, this);
 		break;
 	case Cross:
 		pItem = new MatchPointGraphicsItemCross(m_pLayer, pt.m_uuid, pt.m_label, this);

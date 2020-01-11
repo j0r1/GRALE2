@@ -199,7 +199,7 @@ private:
 class SinglePointGraphicsItem : public PointGraphicsItemBase
 {
 public:
-	SinglePointGraphicsItem(Layer *pLayer, const QString &uuid, const QString &label, double timedelay, QGraphicsItem *pParent);
+	SinglePointGraphicsItem(Layer *pLayer, const QString &uuid, const QString &label, double timedelay, bool isPointSelect, QGraphicsItem *pParent);
 	~SinglePointGraphicsItem();
 
 	void onSelected(bool v);
@@ -208,10 +208,10 @@ public:
 	void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget = 0);
 private:
 	static QBrush s_normalBrush, s_selectedBrush;
-	static QPen s_normalPen, s_selectedPen;
+	static QPen s_normalPen, s_selectedPen, s_pointSelNormalPen, s_pointSelSelectedPen;
+	static bool s_init;
 
-	QGraphicsEllipseItem *m_pCircle;
-	QGraphicsLineItem *m_pLine1, *m_pLine2;
+	bool m_isPointSelect;
 };
 
 class MatchPointGraphicsItemBase : public PointGraphicsItemBase
@@ -265,7 +265,7 @@ private:
 class LayerGraphicsItemBase : public EmptyGraphicsItem
 {
 public:
-	enum PointType { Normal, Circle, Cross };
+	enum PointType { Normal, PointSelect, Circle, Cross };
 
 	LayerGraphicsItemBase(Layer *pLayer, PointType pType, bool childrenBoundingRect, QGraphicsItem *pParent = 0);
 	~LayerGraphicsItemBase();

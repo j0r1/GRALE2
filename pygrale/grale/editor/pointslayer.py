@@ -6,11 +6,13 @@ from debug import log
 
 
 class MultiplePointGraphicsItem(LayerGraphicsItemBase):
-    def __init__(self, layer, parent = None):
-        super(MultiplePointGraphicsItem, self).__init__(layer, LayerGraphicsItemBase.Normal, False, parent)
+    def __init__(self, layer, isPointSelect = False, parent = None):
+        ptType = LayerGraphicsItemBase.PointSelect if isPointSelect else LayerGraphicsItemBase.Normal
+        super(MultiplePointGraphicsItem, self).__init__(layer, ptType, False, parent)
 
 class PointsLayer(Layer):
-    def __init__(self, name = "Points layer"):
+    def __init__(self, name = "Points layer", isPointSelect = False):
+        self.isPointSelect = isPointSelect
         super(PointsLayer, self).__init__(name)
 
     def importFromImagesData(self, imgDat, imgIndex, triangles = True, timedelays = True, groups = True):
@@ -69,7 +71,7 @@ class PointsLayer(Layer):
         return pointsAdded, trianglesAdded
 
     def createGraphicsItem(self):
-        return MultiplePointGraphicsItem(self)
+        return MultiplePointGraphicsItem(self, self.isPointSelect)
 
     def toSettings(self):
         pts = self.getPoints()
