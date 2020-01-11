@@ -92,6 +92,8 @@ class LayerScene(GraphicsScene):
         else:
             self.getActionStack().recordAddMatchPoint(curLayer.getUuid(), uuid, ptInfo["xy"], ptInfo["label"], None)
 
+        return uuid
+
     def onPointLabelChanged(self, layerUuid, pointUuid, oldLabel, newLabel):
         self.getActionStack().recordLabelChange(layerUuid, pointUuid, oldLabel, newLabel)
 
@@ -111,7 +113,11 @@ class LayerScene(GraphicsScene):
                 fi = self.focusItem()
                 if not fi:
                     label = self.getNewPointLabel()
-                    self._addPoint(pos, label)
+                    uuid = self._addPoint(pos, label)
+                    if modInfo["control"] == True:
+                        curItem, curLayer = self.getCurrentItemAndLayer()
+                        ptItem = curItem.getPointItem(uuid)
+                        ptItem.toggleFocus()
                 else:
                     fi.clearFocus()
             else: # clear selection and focus
