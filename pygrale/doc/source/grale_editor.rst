@@ -42,7 +42,8 @@ Keyboard and mouse controls
 Single click:
    - mouse on point: toggles point selection
    - adds point if points layer is active, match point if FITS/image 
-     layer is active
+     layer is active. If 'ctrl' is pressed, automatically starts
+     adding a label
    - clears selected points unless ctrl is pressed
 
 If points layer active, and left mouse press and move:

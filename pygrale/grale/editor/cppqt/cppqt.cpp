@@ -5,6 +5,7 @@
 #include <QTextDocument>
 #include <QDebug>
 #include <QGraphicsScene>
+#include <QKeyEvent>
 #include <assert.h>
 
 QString GenerateUuid()
@@ -434,6 +435,9 @@ void SyncTextEditItem::keyReleaseEvent(QKeyEvent *pEvt)
 {
     QGraphicsTextItem::keyReleaseEvent(pEvt);
     syncValueAndCenter();
+
+	if (pEvt->key() == Qt::Key_Escape)
+		clearFocus();
 }
 
 void SyncTextEditItem::inputMethodEvent(QInputMethodEvent *pEvt)
