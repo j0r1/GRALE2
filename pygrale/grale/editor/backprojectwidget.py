@@ -17,7 +17,7 @@ class BackProjectWidget(QtWidgets.QDialog):
 
         self.imagePlane = imagePlane
         self.sameRegion = sameRegion
-        self.bpViews = []
+        self.bpViews = { }
         self.originalPointInfo = { }
         self.imgplanePoints = { }
         self.deletedPoints = { }
@@ -25,6 +25,7 @@ class BackProjectWidget(QtWidgets.QDialog):
 
         self.previousWidgetIdx = None
         self.ui.tabWidget.currentChanged.connect(self.onCurrentWidgetChanged)
+        self.ui.tabWidget.setMovable(True)
 
         self.ui.m_pointArcsecBox.clicked.connect(self._onPointTypeChanged)
         self.ui.m_pointPixelsBox.clicked.connect(self._onPointTypeChanged)
@@ -79,13 +80,14 @@ class BackProjectWidget(QtWidgets.QDialog):
 
         # Get the center and zoom from the previous scene, and apply to the new one
         if self.sameRegion:
-            prev = self.bpViews[self.previousWidgetIdx]["view"]
+            prev = self.ui.tabWidget.widget(self.previousWidgetIdx)
+            cur = self.ui.tabWidget.widget(idx)
+
             ctr, scale = prev.getCenter(), prev.getScale()
 
-            cur = self.bpViews[idx]["view"]
             cur.centerOn(ctr)
             cur.setScale(scale)
-            self.bpViews[idx]["scene"].onScaleChanged(scale)
+            self.bpViews[cur]["scene"].onScaleChanged(scale)
 
         self.previousWidgetIdx = idx
 
@@ -115,8 +117,8 @@ class BackProjectWidget(QtWidgets.QDialog):
         
         newView = base.GraphicsView(newScene, parent=self.ui.tabWidget)
         self.ui.tabWidget.addTab(newView, bgLayer.getName())
-        self.bpViews.append({ "view": newView, "scene": newScene, "newlayer": newPointsLayer, 
-                              "origlayer": origPointsLayer, "srcarea": srcArea, "border": border })
+        self.bpViews[newView] = { "scene": newScene, "newlayer": newPointsLayer, 
+                              "origlayer": origPointsLayer, "srcarea": srcArea, "border": border }
 
         isPixels = self.ui.m_pointPixelsBox.isChecked()
         newScene.setPointSizePixelSize(self.ui.m_pointPixelSize.value()) if isPixels else newScene.setPointSizeSceneSize(self.ui.m_pointArcsecSize.value())
@@ -134,7 +136,9 @@ class BackProjectWidget(QtWidgets.QDialog):
             allPointsPerLayer = { }
             deletedPoints = { }
 
-            for x in self.bpViews:
+            for k in self.bpViews:
+                x = self.bpViews[k]
+
                 layer, origLayer, srcArea, border = x["newlayer"], x["origlayer"], x["srcarea"], x["border"]
                 bl, tr = srcArea
                 borderPoly = Polygon(border)
@@ -271,16 +275,15 @@ class BackProjectWidget(QtWidgets.QDialog):
             self._setViewRange(w, bl, tr)
 
     def updateFromSettings(self, d):
-        for x in self.bpViews:
-            scene, view = x["scene"], x["view"]
+        for view in self.bpViews:
+            scene = self.bpViews[view]["scene"]
             scene.setAxesVisible(d["showaxes"])
             scene.setAxisLeft(d["axisleft"])
             scene.onScaleChanged(view.getScale())
 
     def _onPointSizeChanged(self, isPixels, s):
-        for x in self.bpViews:
-            scene, view = x["scene"], x["view"]
-
+        for view in self.bpViews:
+            scene = self.bpViews[view]["scene"]
             scene.setPointSizePixelSize(s) if isPixels else scene.setPointSizeSceneSize(s)
             scene.setPointSizeFixed(scene.isPointSizeFixed())
             scene.onScaleChanged(view.getScale())
@@ -295,9 +298,8 @@ class BackProjectWidget(QtWidgets.QDialog):
         isPixels = self.ui.m_pointPixelsBox.isChecked()
         psa = self.ui.m_pointArcsecSize.value()
         psp = self.ui.m_pointPixelSize.value()
-        print(isPixels, psp, psa)
-        for x in self.bpViews:
-            scene, view = x["scene"], x["view"]
+        for view in self.bpViews:
+            scene = self.bpViews[view]["scene"]
             scene.setPointSizePixelSize(psp) if isPixels else scene.setPointSizeSceneSize(psa)
             scene.setPointSizeFixed(isPixels)
             scene.onScaleChanged(view.getScale())
