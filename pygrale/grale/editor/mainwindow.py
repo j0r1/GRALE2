@@ -382,6 +382,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.m_listWidget.fetchSettings()
 
     def _onLayerVisibilityChanged(self, layer, isVisible):
+        print("Changing visibility of ", layer, "to", isVisible)
         uuid = layer.getUuid()
         item = self.scene.getLayerItem(uuid)
         item.setVisible(isVisible)
@@ -1093,40 +1094,12 @@ class MainWindow(QtWidgets.QMainWindow):
             relensLayerNameTemplate = dlg.getRelensLayerTemplate()
             newImageDir = dlg.getOutputDirectory()
 
-            class Dlg(backgroundprocessdialog.BackgroundProcessDialog):
-                def __init__(self, parent):
-                    super(Dlg, self).__init__(parent, "Back-projecting and re-tracing", "Back-projecting and re-tracing...")
-                    self.excepts = []
-                    self.parent = parent
-                    self.closed = False
-                    self.newLayers = []
-
-                def closeEvent(self, evt):
-                    super(Dlg, self).closeEvent(evt)
-                    self.closed = True
-                    self.ui.infoLabel.setText("Cancelling...")
-
-                def run(self):
-                    def cb(msg):
-                        if self.closed:
-                            raise Exception("User cancelled")
-                        self.ui.infoLabel.setText(msg)
-
-                    try:
-                        self.newLayers, _, _, _ = self.parent.backprojectRetrace(ip, splitLayers, extra, numPix, numBPPix, numRetracePix, numResample,
-                                relensSeparately, overWriteFiles, bpFileNameTemplate, bpLayerNameTemplate,
-                                relensFileNameTemplate, relensLayerNameTemplate, newImageDir, cb, addLayers = False)
-                    except Exception as e:
-                        self.excepts.append(str(e))
-
-            dlg = Dlg(self)
-            dlg.exec_()
-
-            if dlg.excepts:
-                raise Exception(dlg.excepts[0])
+            newLayers, _, _, _ = self._backprojectRetraceBackground(ip, splitLayers, extra, numPix, numBPPix, numRetracePix, numResample,
+                    relensSeparately, overWriteFiles, bpFileNameTemplate, bpLayerNameTemplate,
+                    relensFileNameTemplate, relensLayerNameTemplate, newImageDir, "Back-projecting and retracing image regions")
 
             # We need to add the layers from this thread, not from the background thread
-            for l in dlg.newLayers:
+            for l in newLayers:
                 self.addLayer(l)
 
         except Exception as e:
@@ -1349,7 +1322,46 @@ class MainWindow(QtWidgets.QMainWindow):
             traceback.print_exc()
             return
 
+    def _backprojectRetraceBackground(self, ip, splitLayers, extra, numPix, numBPPix, numRetracePix, numResample, relensSeparately,
+                                      overWriteFiles, bpFileNameTemplate, bpLayerNameTemplate, relensFileNameTemplate,
+                                      relensLayerNameTemplate, newImageDir, dlgTitle):
+
+        class Dlg(backgroundprocessdialog.BackgroundProcessDialog):
+            def __init__(self, parent):
+                super(Dlg, self).__init__(parent, dlgTitle, dlgTitle)
+                self.excepts = []
+                self.parent = parent
+                self.closed = False
+                self.retVal = None
+
+            def closeEvent(self, evt):
+                super(Dlg, self).closeEvent(evt)
+                self.closed = True
+                self.ui.infoLabel.setText("Cancelling...")
+
+            def run(self):
+                def cb(msg):
+                    if self.closed:
+                        raise Exception("User cancelled")
+                    self.ui.infoLabel.setText(msg)
+
+                try:
+                    self.retVal = self.parent.backprojectRetrace(ip, splitLayers, extra, numPix, numBPPix, numRetracePix, numResample,
+                            relensSeparately, overWriteFiles, bpFileNameTemplate, bpLayerNameTemplate,
+                            relensFileNameTemplate, relensLayerNameTemplate, newImageDir, cb, addLayers = False)
+                except Exception as e:
+                    self.excepts.append(str(e))
+
+        dlg = Dlg(self)
+        dlg.exec_()
+
+        if dlg.excepts:
+            raise Exception(dlg.excepts[0])
+
+        return dlg.retVal
+
     def _onPointSelect(self, ip, splitLayers, extra, numPix, numBPPix, bpLayerNameTemplate, sameRegion):
+
         numRetracePix = -1
         numResample = -1
         relensSeparately = False
@@ -1359,12 +1371,11 @@ class MainWindow(QtWidgets.QMainWindow):
         relensLayerNameTemplate = None # Note used
         newImageDir = None # Not used
 
-        def cb(msg):
-            pass
+        title = "Selecting image regions" if not sameRegion else "Back-projecting image regions"
 
-        newLayers, usedPointsLayers, borders, srcAreas = self.backprojectRetrace(ip, splitLayers, extra, numPix, numBPPix, numRetracePix, numResample,
+        newLayers, usedPointsLayers, borders, srcAreas = self._backprojectRetraceBackground(ip, splitLayers, extra, numPix, numBPPix, numRetracePix, numResample,
                 relensSeparately, overWriteFiles, bpFileNameTemplate, bpLayerNameTemplate,
-                relensFileNameTemplate, relensLayerNameTemplate, newImageDir, cb, addLayers = False)
+                relensFileNameTemplate, relensLayerNameTemplate, newImageDir, title)
 
         maxImgs = 16
         if len(srcAreas) > maxImgs:
