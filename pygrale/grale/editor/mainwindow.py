@@ -98,8 +98,15 @@ class MultipleLayerActionStack(actionstack.ActionStack):
             if add:
                 scene.addItem(x["item"])
                 scene.addLayerItem(x["layer"].getUuid(), x["item"])
-                scene.listWidget.addLayer(x["layer"], x["pos"], x["item"].isVisible())
+                scene.listWidget.addLayer(x["layer"], x["pos"], x["visible"])
+                x["item"].setVisible(x["visible"])
+                x["item"].setOpacity(1)
             else:
+                # NOTE: this is a workaround for a very odd segfault, not sure what precisely
+                #       the cause is, but setting the visibility to True before removeItem seems
+                #       to avoid it
+                x["item"].setOpacity(0)
+                x["item"].setVisible(True)
                 scene.removeItem(x["item"])
                 scene.removeLayerItem(x["layer"].getUuid())
                 pos = scene.listWidget.removeLayer(x["layer"].getUuid())
@@ -129,6 +136,7 @@ class MultipleLayerActionStack(actionstack.ActionStack):
             "cmd": "addlayer",
             "layer": layer,
             "item": layerItem,
+            "visible": layerItem.isVisible(),
             "pos": position
         })
 
@@ -138,6 +146,7 @@ class MultipleLayerActionStack(actionstack.ActionStack):
             "cmd": "dellayer",
             "layer": layer,
             "item": layerItem,
+            "visible": layerItem.isVisible(),
             "pos": position
         })
 
@@ -230,7 +239,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.scene, self.view = None, None
         self._startNewFile() 
 
-        self.ui.m_listWidget.signalLayerDeleted.connect(self._onLayerDeleted)
+        self.ui.m_listWidget.signalLayerDeletionRequested.connect(self.deleteLayer)
         self.ui.m_listWidget.signalSelectedLayersDeleted.connect(self._onSelectedLayersDeleted)
         self.ui.m_listWidget.signalRefreshOrder.connect(self._onCheckLayerOrderingAndVisibilities)
         self.ui.m_listWidget.signalLayerPropertyChanged.connect(self._onLayerPropertyChanged)
@@ -323,6 +332,40 @@ class MainWindow(QtWidgets.QMainWindow):
         timer.timeout.connect(self._onStartup)
         timer.start()
 
+        #TODO: for debugging, delete all this
+        def schedule(x, ival):
+            timer = QtCore.QTimer(self)
+            timer.setSingleShot(True)
+            timer.setInterval(ival)
+            timer.timeout.connect(x)
+            timer.start()
+
+        t0 = 2000
+        dt = 1000
+        schedule(self._onBackProjectRetrace, 1000)
+        schedule(self._tempOnChangeLastLayerVisibility, t0)
+        schedule(self._tempDelete, t0+dt)
+        schedule(self._onActionUndo, t0+dt*2)
+        schedule(self._tempListItems, t0+dt*3)
+        schedule(self._onActionRedo, t0+dt*4)
+        schedule(self._tempListItems, t0+dt*5)
+
+    #TODO: for testing, delete this
+    def _tempOnChangeLastLayerVisibility(self):
+        item, layer = self.scene.getCurrentItemAndLayer()
+        self._onLayerVisibilityChanged(layer, False)
+        self.ui.m_listWidget.markLastLayerVisible(False)
+
+    def _tempDelete(self):
+        layer, isVisible = self.ui.m_listWidget.getActiveLayer()
+        self.deleteLayer(layer.getUuid())
+
+    def _tempListItems(self):
+        print("Listing items")
+        for item in self.scene.items():
+            if type(item) == imagelayer.RGBGraphicsItem:
+                print(item, item.getLayer().getName())
+
     def _onStartup(self):
         # Starting up, make sure view gets keyboard
         self.view.setFocus()
@@ -337,11 +380,28 @@ class MainWindow(QtWidgets.QMainWindow):
     def _onZoomChanged(self, s):
         self.ui.m_zoomEdit.setValue(s)
 
-    def _onLayerDeleted(self, layer, position, delUuid = None):
-        item = self.scene.getLayerItem(layer.getUuid())
-        self.scene.removeItem(item)
+    def deleteLayer(self, layerUuid):
+        item = self.scene.getLayerItem(layerUuid)
+        layer = item.getLayer()
+
+        layers, visibilities, activeLayerIndex = self._getLayersAndVisibilities()
+        for i in range(len(layers)):
+            if layerUuid == layers[i].getUuid():
+                position = i
+                break
+        else:
+            raise Exception("Couldn't find layer uuid {}".format(layerUuid))
+
+        delUuid = uuid.uuid4()
+
         self.scene.getActionStack().recordDeleteLayer(layer, item, position, delUuid)
-        self.scene.removeLayerItem(layer.getUuid())
+
+        item.setOpacity(0)
+        item.setVisible(True)
+        self.scene.removeItem(item)
+        self.scene.removeLayerItem(layerUuid)
+
+        self.ui.m_listWidget.removeLayer(layerUuid)
 
     def _onSelectedLayersDeleted(self, layersAndPositions):
         # TODO: in one action stack call?
@@ -382,7 +442,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.m_listWidget.fetchSettings()
 
     def _onLayerVisibilityChanged(self, layer, isVisible):
-        print("Changing visibility of ", layer, "to", isVisible)
         uuid = layer.getUuid()
         item = self.scene.getLayerItem(uuid)
         item.setVisible(isVisible)
@@ -474,10 +533,10 @@ class MainWindow(QtWidgets.QMainWindow):
         box.setValue(v+1)
         return str(v)
 
-    def _onActionUndo(self, checked):
+    def _onActionUndo(self, checked = True):
         self.scene.undo()
 
-    def _onActionRedo(self, checked):
+    def _onActionRedo(self, checked = True):
         self.scene.redo()
 
     def _onActionCopy(self, checked):
@@ -575,7 +634,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def setCenter(self, x, y):
         self.view.centerOn(x, y)
 
-    def getCurrentState(self):
+    def _getLayersAndVisibilities(self):
         activeLayer, dummy = self.ui.m_listWidget.getActiveLayer()
         layers = [ ]
         visibilities = [ ]
@@ -585,11 +644,16 @@ class MainWindow(QtWidgets.QMainWindow):
             if l == activeLayer:
                 activeLayerIndex = len(layers)
 
-            layers.append(l.toSettings())
+            layers.append(l)
             visibilities.append(v)
 
+        return layers, visibilities, activeLayerIndex
+
+    def getCurrentState(self):
+
+        layers, visibilities, activeLayerIndex = self._getLayersAndVisibilities()
         state = {
-            "layers": layers,
+            "layers": [ l.toSettings() for l in layers],
             "visibilities": visibilities,
             "activelayerindex": activeLayerIndex,
             "globalsettings": self.getGlobalSettings(),
@@ -1065,12 +1129,22 @@ class MainWindow(QtWidgets.QMainWindow):
         l.matchToPoints(mp, True)
         return l
 
-    def _onBackProjectRetrace(self, v):
+    def _onBackProjectRetrace(self, v = True):
+
+        # TODO: for debugging!
+        img = QtGui.QImage()
+        img.load("img_1_backproj.png")
+        l = self._createRGBLayerForImage(img, "img_1_backproj.png", "TestLayer", np.array([-0.095459275, -5.093535]),
+                                    np.array([4.099593, -0.48732916]), True)
+        self.addLayer(l)
+        return
 
         try:
             dlg = backprojretracedialog.BackprojRetraceDialog(self, self.lastLoadedImagePlane)
-            if not dlg.exec_():
-                return
+
+            # TODO: for debugging
+            #if not dlg.exec_():
+            #    return
 
             imgPlaneInfo = dlg.getImagePlaneInfo()
             if imgPlaneInfo is None:
@@ -1093,6 +1167,11 @@ class MainWindow(QtWidgets.QMainWindow):
             relensFileNameTemplate = dlg.getRelensFileTemplate()
             relensLayerNameTemplate = dlg.getRelensLayerTemplate()
             newImageDir = dlg.getOutputDirectory()
+
+
+            # TODO: for testing
+            numRetracePix = 0
+            overWriteFiles = True
 
             newLayers, _, _, _ = self._backprojectRetraceBackground(ip, splitLayers, extra, numPix, numBPPix, numRetracePix, numResample,
                     relensSeparately, overWriteFiles, bpFileNameTemplate, bpLayerNameTemplate,
@@ -1244,6 +1323,7 @@ class MainWindow(QtWidgets.QMainWindow):
                         tmpImg = imgSrc.mirrored(False, True)
                         
                         progressCallback(f"Re-tracing image {tgtidx+1} based on source shape from image {idx+1}")
+
                         tmpImg = openglhelper.trace(ip, tmpImg, srcCtr, srcSize, dims, numResample, tgtBl, tgtTr)
                         imgRelens = tmpImg.mirrored(False, True)
 
@@ -1260,6 +1340,7 @@ class MainWindow(QtWidgets.QMainWindow):
                     tmpImg = imgSrc.mirrored(False, True)
                         
                     progressCallback(f"Re-tracing entire image plane based on source shape from image {idx+1}")
+                    
                     tmpImg = openglhelper.trace(ip, tmpImg, srcCtr, srcSize, dims, numResample, tgtBl, tgtTr)
                     imgRelens = tmpImg.mirrored(False, True)
 
@@ -1325,6 +1406,14 @@ class MainWindow(QtWidgets.QMainWindow):
     def _backprojectRetraceBackground(self, ip, splitLayers, extra, numPix, numBPPix, numRetracePix, numResample, relensSeparately,
                                       overWriteFiles, bpFileNameTemplate, bpLayerNameTemplate, relensFileNameTemplate,
                                       relensLayerNameTemplate, newImageDir, dlgTitle):
+
+        # TODO: when using background, seems that odd things start to happen with visibilities
+        def cb(msg):
+            print(msg)
+
+        return self.backprojectRetrace(ip, splitLayers, extra, numPix, numBPPix, numRetracePix, numResample,
+                relensSeparately, overWriteFiles, bpFileNameTemplate, bpLayerNameTemplate,
+                relensFileNameTemplate, relensLayerNameTemplate, newImageDir, cb, addLayers = False)
 
         class Dlg(backgroundprocessdialog.BackgroundProcessDialog):
             def __init__(self, parent):

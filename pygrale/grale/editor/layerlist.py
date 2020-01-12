@@ -37,7 +37,7 @@ class PopupMenu(QtWidgets.QMenu):
 
 class LayerList(QtWidgets.QListWidget):
 
-    signalLayerDeleted = QtCore.pyqtSignal(object, int)
+    signalLayerDeletionRequested = QtCore.pyqtSignal(str)
     signalSelectedLayersDeleted = QtCore.pyqtSignal(object)
     signalRefreshOrder = QtCore.pyqtSignal(object, object)
     signalLayerPropertyChanged = QtCore.pyqtSignal(object, str, object)
@@ -118,6 +118,7 @@ class LayerList(QtWidgets.QListWidget):
             it = self.item(i)
             w = self.itemWidget(it)
             if w.getLayer().getUuid() == uuid:
+                w.setActive(False) # Make sure it's no longer active in case of undo
                 r = self.row(it)
                 self.takeItem(r)
                 self._updateLayerOrder()
@@ -126,13 +127,11 @@ class LayerList(QtWidgets.QListWidget):
 
     def _onDeleteItem(self, item):
         w = self.itemWidget(item)
-        r = self.row(item)
-        w.setActive(False) # Make sure it's no longer active in case of undo
-        self.takeItem(r)
-        self._updateLayerOrder()
-        self.signalLayerDeleted.emit(w.getLayer(), r)
+        self.signalLayerDeletionRequested.emit(w.getLayer().getUuid())
 
     def _onDeleteSelectedItems(self):
+        raise Exception("TODO: rewrite this so that main window triggers the actual deletion")
+
         layers = [ ]
         for i in range(self.count()):
             it = self.item(i)
@@ -147,8 +146,8 @@ class LayerList(QtWidgets.QListWidget):
                 layers.append( (i, l) )
 
         layers = sorted(layers, key=lambda x: -x[0]) # sort from high to low layer number
-        for r, l in layers:
-            self.takeItem(r)
+        #for r, l in layers:
+        #    self.takeItem(r)
 
         self._updateLayerOrder()
         self.signalSelectedLayersDeleted.emit(layers)
