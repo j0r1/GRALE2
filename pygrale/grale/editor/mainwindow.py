@@ -1357,12 +1357,12 @@ class MainWindow(QtWidgets.QMainWindow):
                                       relensLayerNameTemplate, newImageDir, dlgTitle):
 
         # TODO: when using background, seems that odd things start to happen with visibilities
-        def cb(msg):
-            print(msg)
-
-        return self.backprojectRetrace(ip, splitLayers, extra, numPix, numBPPix, numRetracePix, numResample,
-                relensSeparately, overWriteFiles, bpFileNameTemplate, bpLayerNameTemplate,
-                relensFileNameTemplate, relensLayerNameTemplate, newImageDir, cb, addLayers = False)
+        #def cb(msg):
+        #    print(msg)
+        #
+        #return self.backprojectRetrace(ip, splitLayers, extra, numPix, numBPPix, numRetracePix, numResample,
+        #        relensSeparately, overWriteFiles, bpFileNameTemplate, bpLayerNameTemplate,
+        #        relensFileNameTemplate, relensLayerNameTemplate, newImageDir, cb, addLayers = False)
 
         class Dlg(backgroundprocessdialog.BackgroundProcessDialog):
             def __init__(self, parent):
