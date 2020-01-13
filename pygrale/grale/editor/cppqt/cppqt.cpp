@@ -662,8 +662,8 @@ QBrush SinglePointGraphicsItem::s_normalBrush(QColor(255, 255, 0, 128));
 QBrush SinglePointGraphicsItem::s_selectedBrush(QColor(0, 0, 255, 128));
 QPen SinglePointGraphicsItem::s_normalPen(QBrush(Qt::gray), 0.2);
 QPen SinglePointGraphicsItem::s_selectedPen(QBrush(Qt::darkGray), 0.2);
-QPen SinglePointGraphicsItem::s_pointSelNormalPen(QBrush(Qt::red), 0.5);
-QPen SinglePointGraphicsItem::s_pointSelSelectedPen(QBrush(Qt::blue), 0.5);
+QPen SinglePointGraphicsItem::s_pointSelNormalPen(QBrush(QColor(255, 128, 128, 255)), 1);
+QPen SinglePointGraphicsItem::s_pointSelSelectedPen(QBrush(QColor(128, 128, 255, 255)), 2);
 bool SinglePointGraphicsItem::s_init = false;
 
 SinglePointGraphicsItem::SinglePointGraphicsItem(Layer *pLayer, const QString &uuid, const QString &label, double timedelay, bool isPointSelect, QGraphicsItem *pParent)
