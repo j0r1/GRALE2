@@ -109,7 +109,7 @@ class MultipleLayerActionStack(actionstack.ActionStack):
                 x["item"].setVisible(True)
                 scene.removeItem(x["item"])
                 scene.removeLayerItem(x["layer"].getUuid())
-                pos = scene.listWidget.removeLayer(x["layer"].getUuid())
+                pos = scene.listWidget.removeLayers([x["layer"].getUuid()])[0][0]
                 assert(pos == x["pos"])
         elif x["cmd"] == "order":
             order = x["new"] if isRedo else x["old"]
@@ -239,7 +239,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.scene, self.view = None, None
         self._startNewFile() 
 
-        self.ui.m_listWidget.signalLayerDeletionRequested.connect(self.deleteLayer)
+        self.ui.m_listWidget.signalLayerDeletionRequested.connect(self.deleteLayers)
         self.ui.m_listWidget.signalSelectedLayersDeleted.connect(self._onSelectedLayersDeleted)
         self.ui.m_listWidget.signalRefreshOrder.connect(self._onCheckLayerOrderingAndVisibilities)
         self.ui.m_listWidget.signalLayerPropertyChanged.connect(self._onLayerPropertyChanged)
@@ -347,27 +347,21 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.m_zoomEdit.setValue(s)
 
     def deleteLayer(self, layerUuid):
-        item = self.scene.getLayerItem(layerUuid)
-        layer = item.getLayer()
+        return self.deleteLayers([layerUuid])
 
-        layers, visibilities, activeLayerIndex = self._getLayersAndVisibilities()
-        for i in range(len(layers)):
-            if layerUuid == layers[i].getUuid():
-                position = i
-                break
-        else:
-            raise Exception("Couldn't find layer uuid {}".format(layerUuid))
+    def deleteLayers(self, layerUuids):
+
+        layersAndPositions = self.ui.m_listWidget.removeLayers(layerUuids)
 
         delUuid = uuid.uuid4()
+        for position, layer in layersAndPositions:
+            item = self.scene.getLayerItem(layer.getUuid()) 
+            self.scene.getActionStack().recordDeleteLayer(layer, item, position, delUuid)
 
-        self.scene.getActionStack().recordDeleteLayer(layer, item, position, delUuid)
-
-        item.setOpacity(0)
-        item.setVisible(True)
-        self.scene.removeItem(item)
-        self.scene.removeLayerItem(layerUuid)
-
-        self.ui.m_listWidget.removeLayer(layerUuid)
+            item.setOpacity(0)
+            item.setVisible(True)
+            self.scene.removeItem(item)
+            self.scene.removeLayerItem(layer.getUuid())
 
     def _onSelectedLayersDeleted(self, layersAndPositions):
         # TODO: in one action stack call?
