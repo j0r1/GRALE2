@@ -93,35 +93,10 @@ def _createRGBLayerForImage(img, fn, layerName, bl, tr, yMirror):
     l.matchToPoints(mp, True)
     return l
 
-def backprojectAndRetrace(scene, imgPlane, layers, splitLayers=True, extra=0, 
-                       numImgPix = 1024, # Uses aspect ratio
-                       numBPPix = 1024, # same used in x and y direction, is this ok? perhaps we'd lose information otherwise?
-                       numRetracePix = 1024, # Again scaled according to aspect ratio
-                       numResample = 1,
-                       relensSeparately = True,
-                       overWriteFiles = False,
-                       bpFileNameTemplate = "img_{srcidx}_backproj.png",
-                       bpLayerNameTemplate = "Source shape for image {srcidx}: {fn}",
-                       relensFileNameTemplate = "img_{srcidx}_to_{tgtidx}_relensed.png",
-                       relensLayerNameTemplate = "Relensed source from image {srcidx} to {tgtidx}: {fn}",
-                       newImageDir = None,
-                       progressCallback = None):
+def getImageRegions(scene, layers, splitLayers, extra, numImgPix): # Uses aspect ratio
 
-    ip = imgPlane
-    numPix = numImgPix
-    numGPUXY = numRetracePix
-
-    if newImageDir is None:
-        newImageDir = os.getcwd()
-    if progressCallback is None:
-        def dummyCb(msg):
-            pass
-        progressCallback = dummyCb
-
-    newLayers = [ ]
     exportTimeDelays = False
     exportGroups = False
-    pointsLeftInfo = []
     imgDat, usedLayers = tools.layersToImagesData(layers, splitLayers, exportGroups, exportTimeDelays, pointsLeftInfo=None, ignoreRemainingPoints=True)
 
     borders = [ ]
@@ -140,16 +115,52 @@ def backprojectAndRetrace(scene, imgPlane, layers, splitLayers=True, extra=0,
             raise Exception("Unable to get a border for image {}".format(i+1))
         borders.append(border)
 
+    import grale.images as images
+    borders = [ np.array(images.enlargePolygon(b, extra))/ANGLE_ARCSEC for b in borders ]
+
+    imgs = [ ]
+    for idx in range(len(borders)):
+        border = borders[idx]
+        img = scene.getSceneRegionImage_minMax(border.min(0), border.max(0), [ numImgPix, None], border)
+        imgs.append(img)
+
+    return list(zip(borders, imgs)), usedLayers
+
+def backprojectAndRetrace(imgPlane, bordersAndImages, 
+                       numBPPix = 1024, # same used in x and y direction, is this ok? perhaps we'd lose information otherwise?
+                       numRetracePix = 1024, # Again scaled according to aspect ratio
+                       numResample = 1,
+                       relensSeparately = True,
+                       overWriteFiles = False,
+                       bpFileNameTemplate = "img_{srcidx}_backproj.png",
+                       bpLayerNameTemplate = "Source shape for image {srcidx}: {fn}",
+                       relensFileNameTemplate = "img_{srcidx}_to_{tgtidx}_relensed.png",
+                       relensLayerNameTemplate = "Relensed source from image {srcidx} to {tgtidx}: {fn}",
+                       newImageDir = None,
+                       progressCallback = None):
+
+    ip = imgPlane
+    numGPUXY = numRetracePix
+
+    if newImageDir is None:
+        newImageDir = os.getcwd()
+    if progressCallback is None:
+        def dummyCb(msg):
+            pass
+        progressCallback = dummyCb
+
+    newLayers = [ ]
+
     if not overWriteFiles: # Check what would be overwritten
         filesToWrite = [ ]
         if relensSeparately:
-            for idx in range(len(borders)):
+            for idx in range(len(bordersAndImages)):
                 filesToWrite.append(os.path.join(newImageDir, bpFileNameTemplate.format(srcidx=idx+1, tgtidx=0)))
 
-                for tgtidx in range(len(borders)):
+                for tgtidx in range(len(bordersAndImages)):
                     filesToWrite.append(os.path.join(newImageDir, relensFileNameTemplate.format(srcidx=idx+1, tgtidx=tgtidx+1)))
         else:
-            for idx in range(len(borders)):
+            for idx in range(len(bordersAndImages)):
                 for tmpl in [ bpFileNameTemplate, relensFileNameTemplate ]:
                     filesToWrite.append(os.path.join(newImageDir, tmpl.format(srcidx=idx+1, tgtidx=0)))
 
@@ -159,9 +170,6 @@ def backprojectAndRetrace(scene, imgPlane, layers, splitLayers=True, extra=0,
 
         if len(set(filesToWrite)) != len(filesToWrite):
             raise Exception("Some output files would overwrite each other")
-
-    import grale.images as images
-    borders = [ np.array(images.enlargePolygon(b, extra))/ANGLE_ARCSEC for b in borders ]
 
     def addImg(img, srcidx, tgtidx, bl, tr, isSrc):
         yMirror = True if isSrc else False
@@ -174,9 +182,8 @@ def backprojectAndRetrace(scene, imgPlane, layers, splitLayers=True, extra=0,
             bl, tr, isSrc))
 
     srcAreas = []
-    for idx in range(len(borders)):
-        border = borders[idx]
-        img = scene.getSceneRegionImage_minMax(border.min(0), border.max(0), [ numPix, None], border)
+    for idx in range(len(bordersAndImages)):
+        border, img = bordersAndImages[idx]
 
         if ip:
             progressCallback(f"Creating source shape from image {idx+1}")
@@ -206,8 +213,8 @@ def backprojectAndRetrace(scene, imgPlane, layers, splitLayers=True, extra=0,
             return [ round(numGPUXY*tgtW/tgtH), numGPUXY ] if tgtW < tgtH else [ numGPUXY, round(numGPUXY*tgtH/tgtW) ]
 
         if relensSeparately:
-            for tgtidx in range(len(borders)):
-                tgtBorder = borders[tgtidx]
+            for tgtidx in range(len(bordersAndImages)):
+                tgtBorder = bordersAndImages[tgtidx][0]
                 tgtBl, tgtTr = tgtBorder.min(0), tgtBorder.max(0)
 
                 dims = getDims(tgtBl, tgtTr)
@@ -235,5 +242,5 @@ def backprojectAndRetrace(scene, imgPlane, layers, splitLayers=True, extra=0,
 
             addImg(imgRelens, idx, tgtidx, tgtBl, tgtTr, False)
 
-    return newLayers, usedLayers, borders, srcAreas
+    return newLayers, srcAreas
 

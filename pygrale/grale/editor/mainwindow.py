@@ -1110,42 +1110,6 @@ class MainWindow(QtWidgets.QMainWindow):
         imgPlane.getCriticalLines()
         self.lastLoadedImagePlane = { "imgplane": imgPlane, "description": desc }
 
-    def backprojectRetrace(self, imgPlane, splitLayers=True, extra=0, 
-                           numImgPix = 1024, # Uses aspect ratio
-                           numBPPix = 1024, # same used in x and y direction, is this ok? perhaps we'd lose information otherwise?
-                           numRetracePix = 1024, # Again scaled according to aspect ratio
-                           numResample = 1,
-                           relensSeparately = True,
-                           overWriteFiles = False,
-                           bpFileNameTemplate = "img_{srcidx}_backproj.png",
-                           bpLayerNameTemplate = "Source shape for image {srcidx}: {fn}",
-                           relensFileNameTemplate = "img_{srcidx}_to_{tgtidx}_relensed.png",
-                           relensLayerNameTemplate = "Relensed source from image {srcidx} to {tgtidx}: {fn}",
-                           newImageDir = None,
-                           progressCallback = None):
-
-        layers = self._getVisiblePointsLayers()
-        if not layers:
-            raise Exception("No visible points layers could be detected")
-
-        visibilities = self.ui.m_listWidget.getLayersAndVisibilities()
-        self._hidePointsLayers(visibilities)
-        try:
-            newLayers, usedLayers, borders, srcAreas = backproject.backprojectAndRetrace(self.scene, imgPlane, layers, splitLayers, extra,
-                                                                                         numImgPix, numBPPix, numRetracePix,
-                                                                                         numResample, relensSeparately, overWriteFiles,
-                                                                                         bpFileNameTemplate, bpLayerNameTemplate,
-                                                                                         relensFileNameTemplate, relensLayerNameTemplate,
-                                                                                         newImageDir, progressCallback)
-        except Exception as e:
-            import traceback
-            traceback.print_exc()
-            raise
-        finally:
-            self._restorePointsLayers(visibilities)
-
-        return newLayers, usedLayers, borders, srcAreas
-
     def _onPointSelect_BackProjected(self):
         try:
             dlg = backprojectsettingsdialog.BackprojectSettingsDialog(self, self.lastLoadedImagePlane)
@@ -1197,13 +1161,17 @@ class MainWindow(QtWidgets.QMainWindow):
                                       overWriteFiles, bpFileNameTemplate, bpLayerNameTemplate, relensFileNameTemplate,
                                       relensLayerNameTemplate, newImageDir, dlgTitle):
 
-        # TODO: when using background, seems that odd things start to happen with visibilities
-        #def cb(msg):
-        #    print(msg)
-        #
-        #return self.backprojectRetrace(ip, splitLayers, extra, numPix, numBPPix, numRetracePix, numResample,
-        #        relensSeparately, overWriteFiles, bpFileNameTemplate, bpLayerNameTemplate,
-        #        relensFileNameTemplate, relensLayerNameTemplate, newImageDir, cb, addLayers = False)
+        layers = self._getVisiblePointsLayers()
+        if not layers:
+            raise Exception("No visible points layers could be detected")
+
+        visibilities = self.ui.m_listWidget.getLayersAndVisibilities()
+        try:
+            self._hidePointsLayers(visibilities)
+            bordersAndImages, usedLayers = backproject.getImageRegions(self.scene, layers, splitLayers, extra, numPix)
+            borders = [ bi[0] for bi in bordersAndImages ]
+        finally:
+            self._restorePointsLayers(visibilities)
 
         class Dlg(backgroundprocessdialog.BackgroundProcessDialog):
             def __init__(self, parent):
@@ -1225,10 +1193,12 @@ class MainWindow(QtWidgets.QMainWindow):
                     self.ui.infoLabel.setText(msg)
 
                 try:
-                    self.retVal = self.parent.backprojectRetrace(ip, splitLayers, extra, numPix, numBPPix, numRetracePix, numResample,
+                    dlg.retVal = backproject.backprojectAndRetrace(ip, bordersAndImages, numBPPix, numRetracePix, numResample,
                             relensSeparately, overWriteFiles, bpFileNameTemplate, bpLayerNameTemplate,
                             relensFileNameTemplate, relensLayerNameTemplate, newImageDir, cb)
                 except Exception as e:
+                    import traceback
+                    traceback.print_exc()
                     self.excepts.append(str(e))
 
         dlg = Dlg(self)
@@ -1237,7 +1207,8 @@ class MainWindow(QtWidgets.QMainWindow):
         if dlg.excepts:
             raise Exception(dlg.excepts[0])
 
-        return dlg.retVal
+        newLayers, srcAreas = dlg.retVal
+        return newLayers, usedLayers, borders, srcAreas
 
     def _onPointSelect(self, ip, splitLayers, extra, numPix, numBPPix, bpLayerNameTemplate, sameRegion):
 
