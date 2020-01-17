@@ -38,7 +38,6 @@ class PopupMenu(QtWidgets.QMenu):
 class LayerList(QtWidgets.QListWidget):
 
     signalLayerDeletionRequested = QtCore.pyqtSignal(object)
-    signalSelectedLayersDeleted = QtCore.pyqtSignal(object)
     signalRefreshOrder = QtCore.pyqtSignal(object, object)
     signalLayerPropertyChanged = QtCore.pyqtSignal(object, str, object)
     signalVisibilityChanged = QtCore.pyqtSignal(object, bool)
