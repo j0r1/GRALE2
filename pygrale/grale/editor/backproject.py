@@ -2,6 +2,8 @@ from PyQt5 import QtCore, QtGui
 import numpy as np
 from grale.constants import ANGLE_ARCSEC
 import openglhelper
+import tools
+import os
 
 def qImageToArray(img):
     img = img.convertToFormat(QtGui.QImage.Format_ARGB32);
@@ -45,7 +47,7 @@ def _retraceCPU(ip, img, center, sizes, subSample):
     return arrayToQImage(totalPlane)
 
 
-def backprojectAndRetrace(imgPlane, img, minXY, maxXY, bpXY,useCPU, subSample, numXYGPU):
+def _old_backprojectAndRetrace(imgPlane, img, minXY, maxXY, bpXY,useCPU, subSample, numXYGPU):
 
     centerX, centerY = [ (minXY[i] + maxXY[i])*0.5 for i in range(2) ]
     widthArcsec, heightArcsec = [ (maxXY[i] - minXY[i]) for i in range(2) ]
@@ -67,4 +69,171 @@ def backprojectAndRetrace(imgPlane, img, minXY, maxXY, bpXY,useCPU, subSample, n
         img = img.mirrored(False, True)
 
     return imgSrc, bl, tr, img
+
+def _createRGBLayerForImage(img, fn, layerName, bl, tr, yMirror):
+    import imagelayer
+
+    if fn is not None:
+        img.save(fn)
+        l = imagelayer.RGBImageLayer(fn, layerName)
+    else:
+        l = imagelayer.RGBImageLayer(img, layerName)
+
+    if yMirror:
+        mp = [  [ [0, img.height()], bl], 
+                [ [0, 0], [ bl[0], tr[1]] ],
+                [ [img.width(), img.height()], [tr[0], bl[1]] ],
+                [ [img.width(), 0], tr ] ]
+    else:
+        mp = [  [ [0, 0], bl], 
+                [ [0, img.height()], [ bl[0], tr[1]] ],
+                [ [img.width(), 0], [tr[0], bl[1]] ],
+                [ [img.width(), img.height()], tr ] ]
+
+    l.matchToPoints(mp, True)
+    return l
+
+def backprojectAndRetrace(scene, imgPlane, layers, splitLayers=True, extra=0, 
+                       numImgPix = 1024, # Uses aspect ratio
+                       numBPPix = 1024, # same used in x and y direction, is this ok? perhaps we'd lose information otherwise?
+                       numRetracePix = 1024, # Again scaled according to aspect ratio
+                       numResample = 1,
+                       relensSeparately = True,
+                       overWriteFiles = False,
+                       bpFileNameTemplate = "img_{srcidx}_backproj.png",
+                       bpLayerNameTemplate = "Source shape for image {srcidx}: {fn}",
+                       relensFileNameTemplate = "img_{srcidx}_to_{tgtidx}_relensed.png",
+                       relensLayerNameTemplate = "Relensed source from image {srcidx} to {tgtidx}: {fn}",
+                       newImageDir = None,
+                       progressCallback = None):
+
+    ip = imgPlane
+    numPix = numImgPix
+    numGPUXY = numRetracePix
+
+    if newImageDir is None:
+        newImageDir = os.getcwd()
+    if progressCallback is None:
+        def dummyCb(msg):
+            pass
+        progressCallback = dummyCb
+
+    newLayers = [ ]
+    exportTimeDelays = False
+    exportGroups = False
+    pointsLeftInfo = []
+    imgDat, usedLayers = tools.layersToImagesData(layers, splitLayers, exportGroups, exportTimeDelays, pointsLeftInfo=None, ignoreRemainingPoints=True)
+
+    borders = [ ]
+    for i in range(imgDat.getNumberOfImages()):
+        border = None
+        if imgDat.getNumberOfImagePoints(i) < 3: # Not enough points for triangulation or hull, use first point
+            border = [ imgDat.getImagePointPosition(i, 0) ]
+        else:
+            for fn in [ imgDat.getBorder, imgDat.getConvexHull ]:
+                try:
+                    border = fn(i)
+                except Exception as e:
+                    print("Warning:", e)
+
+        if not border:
+            raise Exception("Unable to get a border for image {}".format(i+1))
+        borders.append(border)
+
+    if not overWriteFiles: # Check what would be overwritten
+        filesToWrite = [ ]
+        if relensSeparately:
+            for idx in range(len(borders)):
+                filesToWrite.append(os.path.join(newImageDir, bpFileNameTemplate.format(srcidx=idx+1, tgtidx=0)))
+
+                for tgtidx in range(len(borders)):
+                    filesToWrite.append(os.path.join(newImageDir, relensFileNameTemplate.format(srcidx=idx+1, tgtidx=tgtidx+1)))
+        else:
+            for idx in range(len(borders)):
+                for tmpl in [ bpFileNameTemplate, relensFileNameTemplate ]:
+                    filesToWrite.append(os.path.join(newImageDir, tmpl.format(srcidx=idx+1, tgtidx=0)))
+
+        filesToOverwrite = [ fn for fn in filesToWrite if os.path.exists(fn) ]
+        if filesToOverwrite:
+            raise Exception(f"{len(filesToOverwrite)} files would be overwritten, first are:\n" + "\n".join(filesToOverwrite[:10]))
+
+        if len(set(filesToWrite)) != len(filesToWrite):
+            raise Exception("Some output files would overwrite each other")
+
+    import grale.images as images
+    borders = [ np.array(images.enlargePolygon(b, extra))/ANGLE_ARCSEC for b in borders ]
+
+    def addImg(img, srcidx, tgtidx, bl, tr, isSrc):
+        yMirror = True if isSrc else False
+        fnTemplate = bpFileNameTemplate if isSrc else relensFileNameTemplate
+        layerNameTemplate = bpLayerNameTemplate if isSrc else relensLayerNameTemplate
+
+        fn = None if fnTemplate is None else fnTemplate.format(srcidx=srcidx+1, tgtidx=tgtidx+1)
+        newLayers.append(_createRGBLayerForImage(
+            img, fn, layerNameTemplate.format(srcidx=srcidx+1, tgtidx=tgtidx+1, fn=fn),
+            bl, tr, isSrc))
+
+    srcAreas = []
+    for idx in range(len(borders)):
+        border = borders[idx]
+        img = scene.getSceneRegionImage_minMax(border.min(0), border.max(0), [ numPix, None], border)
+
+        if ip:
+            progressCallback(f"Creating source shape from image {idx+1}")
+            centerX, centerY = 0.5*(border.max(0)+border.min(0))
+            widthArcsec, heightArcsec = border.max(0)-border.min(0)
+            imgSrc, srcbl, srctr = openglhelper.backProject(ip, img, [centerX, centerY], 
+                                              [widthArcsec, heightArcsec], [numBPPix, numBPPix])
+
+            srcbl, srctr = np.array(srcbl), np.array(srctr)
+        else:
+            imgSrc = img.mirrored(False, True)
+            srcbl = border.min(0)
+            srctr = border.max(0)
+
+        srcCtr = (srcbl+srctr)*0.5
+        srcSize = srctr-srcbl
+
+        srcAreas.append([srcbl, srctr])
+
+        addImg(imgSrc, idx, -1, srcbl, srctr, True)
+
+        if numRetracePix <= 0:
+            continue
+
+        def getDims(tgtBl, tgtTr):
+            tgtW, tgtH = tgtTr-tgtBl 
+            return [ round(numGPUXY*tgtW/tgtH), numGPUXY ] if tgtW < tgtH else [ numGPUXY, round(numGPUXY*tgtH/tgtW) ]
+
+        if relensSeparately:
+            for tgtidx in range(len(borders)):
+                tgtBorder = borders[tgtidx]
+                tgtBl, tgtTr = tgtBorder.min(0), tgtBorder.max(0)
+
+                dims = getDims(tgtBl, tgtTr)
+                tmpImg = imgSrc.mirrored(False, True)
+                
+                progressCallback(f"Re-tracing image {tgtidx+1} based on source shape from image {idx+1}")
+                tmpImg = openglhelper.trace(ip, tmpImg, srcCtr, srcSize, dims, numResample, tgtBl, tgtTr)
+                imgRelens = tmpImg.mirrored(False, True)
+
+                addImg(imgRelens, idx, tgtidx, tgtBl, tgtTr, False)
+        else:
+
+            tgtidx = -1
+
+            ri = ip.getRenderInfo()
+            tgtBl = np.array(ri["bottomleft"])/ANGLE_ARCSEC
+            tgtTr = np.array(ri["topright"])/ANGLE_ARCSEC
+
+            dims = getDims(tgtBl, tgtTr)
+            tmpImg = imgSrc.mirrored(False, True)
+                
+            progressCallback(f"Re-tracing entire image plane based on source shape from image {idx+1}")
+            tmpImg = openglhelper.trace(ip, tmpImg, srcCtr, srcSize, dims, numResample, tgtBl, tgtTr)
+            imgRelens = tmpImg.mirrored(False, True)
+
+            addImg(imgRelens, idx, tgtidx, tgtBl, tgtTr, False)
+
+    return newLayers, usedLayers, borders, srcAreas
 

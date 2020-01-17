@@ -22,6 +22,7 @@ import backgroundprocessdialog
 import backprojretracedialog
 import backprojectwidget
 import backprojectsettingsdialog
+import backproject
 import imgregionsettingsdialog
 
 JSONDump = lambda s: json.dumps(s, sort_keys=True, indent=4, separators=(',', ': '))
@@ -240,7 +241,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self._startNewFile() 
 
         self.ui.m_listWidget.signalLayerDeletionRequested.connect(self.deleteLayers)
-        self.ui.m_listWidget.signalSelectedLayersDeleted.connect(self._onSelectedLayersDeleted)
         self.ui.m_listWidget.signalRefreshOrder.connect(self._onCheckLayerOrderingAndVisibilities)
         self.ui.m_listWidget.signalLayerPropertyChanged.connect(self._onLayerPropertyChanged)
         self.ui.m_listWidget.signalVisibilityChanged.connect(self._onLayerVisibilityChanged)
@@ -362,12 +362,6 @@ class MainWindow(QtWidgets.QMainWindow):
             item.setVisible(True)
             self.scene.removeItem(item)
             self.scene.removeLayerItem(layer.getUuid())
-
-    def _onSelectedLayersDeleted(self, layersAndPositions):
-        # TODO: in one action stack call?
-        delUuid = uuid.uuid4()
-        for position, layer in layersAndPositions:
-            self._onLayerDeleted(layer, position, delUuid)
 
     def _onCheckLayerOrderingAndVisibilities(self, oldOrder = None, newOrder = None):
         self.scene.checkLayerOrderingAndVisibilities()
@@ -1067,28 +1061,6 @@ class MainWindow(QtWidgets.QMainWindow):
                 layerItem = self.scene.getLayerItem(uuid)
                 layerItem.setVisible(True)
 
-    @staticmethod
-    def _createRGBLayerForImage(img, fn, layerName, bl, tr, yMirror):
-        if fn is not None:
-            img.save(fn)
-            l = imagelayer.RGBImageLayer(fn, layerName)
-        else:
-            l = imagelayer.RGBImageLayer(img, layerName)
-
-        if yMirror:
-            mp = [  [ [0, img.height()], bl], 
-                    [ [0, 0], [ bl[0], tr[1]] ],
-                    [ [img.width(), img.height()], [tr[0], bl[1]] ],
-                    [ [img.width(), 0], tr ] ]
-        else:
-            mp = [  [ [0, 0], bl], 
-                    [ [0, img.height()], [ bl[0], tr[1]] ],
-                    [ [img.width(), 0], [tr[0], bl[1]] ],
-                    [ [img.width(), img.height()], tr ] ]
-
-        l.matchToPoints(mp, True)
-        return l
-
     def _onBackProjectRetrace(self, v):
 
         try:
@@ -1150,152 +1122,27 @@ class MainWindow(QtWidgets.QMainWindow):
                            relensFileNameTemplate = "img_{srcidx}_to_{tgtidx}_relensed.png",
                            relensLayerNameTemplate = "Relensed source from image {srcidx} to {tgtidx}: {fn}",
                            newImageDir = None,
-                           progressCallback = None,
-                           addLayers = True):
-
-        ip = imgPlane
-        numPix = numImgPix
-        numGPUXY = numRetracePix
-
-        if newImageDir is None:
-            newImageDir = os.getcwd()
-        if progressCallback is None:
-            def dummyCb(msg):
-                pass
-            progressCallback = dummyCb
+                           progressCallback = None):
 
         layers = self._getVisiblePointsLayers()
         if not layers:
             raise Exception("No visible points layers could be detected")
 
-        newLayers = [ ]
         visibilities = self.ui.m_listWidget.getLayersAndVisibilities()
         self._hidePointsLayers(visibilities)
         try:
-            exportTimeDelays = False
-            exportGroups = False
-            pointsLeftInfo = []
-            imgDat, usedLayers = tools.layersToImagesData(layers, splitLayers, exportGroups, exportTimeDelays, pointsLeftInfo=None, ignoreRemainingPoints=True)
-
-            borders = [ ]
-            for i in range(imgDat.getNumberOfImages()):
-                border = None
-                if imgDat.getNumberOfImagePoints(i) < 3: # Not enough points for triangulation or hull, use first point
-                    border = [ imgDat.getImagePointPosition(i, 0) ]
-                else:
-                    for fn in [ imgDat.getBorder, imgDat.getConvexHull ]:
-                        try:
-                            border = fn(i)
-                        except Exception as e:
-                            print("Warning:", e)
-
-                if not border:
-                    raise Exception("Unable to get a border for image {}".format(i+1))
-                borders.append(border)
-
-            if not overWriteFiles: # Check what would be overwritten
-                filesToWrite = [ ]
-                if relensSeparately:
-                    for idx in range(len(borders)):
-                        filesToWrite.append(os.path.join(newImageDir, bpFileNameTemplate.format(srcidx=idx+1, tgtidx=0)))
-
-                        for tgtidx in range(len(borders)):
-                            filesToWrite.append(os.path.join(newImageDir, relensFileNameTemplate.format(srcidx=idx+1, tgtidx=tgtidx+1)))
-                else:
-                    for idx in range(len(borders)):
-                        for tmpl in [ bpFileNameTemplate, relensFileNameTemplate ]:
-                            filesToWrite.append(os.path.join(newImageDir, tmpl.format(srcidx=idx+1, tgtidx=0)))
-
-                filesToOverwrite = [ fn for fn in filesToWrite if os.path.exists(fn) ]
-                if filesToOverwrite:
-                    raise Exception(f"{len(filesToOverwrite)} files would be overwritten, first are:\n" + "\n".join(filesToOverwrite[:10]))
-
-                if len(set(filesToWrite)) != len(filesToWrite):
-                    raise Exception("Some output files would overwrite each other")
-
-            borders = [ np.array(images.enlargePolygon(b, extra))/ANGLE_ARCSEC for b in borders ]
-
-            def addImg(img, srcidx, tgtidx, bl, tr, isSrc):
-                yMirror = True if isSrc else False
-                fnTemplate = bpFileNameTemplate if isSrc else relensFileNameTemplate
-                layerNameTemplate = bpLayerNameTemplate if isSrc else relensLayerNameTemplate
-
-                fn = None if fnTemplate is None else fnTemplate.format(srcidx=srcidx+1, tgtidx=tgtidx+1)
-                newLayers.append(MainWindow._createRGBLayerForImage(
-                    img, fn, layerNameTemplate.format(srcidx=srcidx+1, tgtidx=tgtidx+1, fn=fn),
-                    bl, tr, isSrc))
-
-            import openglhelper
-
-            srcAreas = []
-            for idx in range(len(borders)):
-                border = borders[idx]
-                img = self.scene.getSceneRegionImage_minMax(border.min(0), border.max(0), [ numPix, None], border)
-
-                if ip:
-                    progressCallback(f"Creating source shape from image {idx+1}")
-                    centerX, centerY = 0.5*(border.max(0)+border.min(0))
-                    widthArcsec, heightArcsec = border.max(0)-border.min(0)
-                    imgSrc, srcbl, srctr = openglhelper.backProject(ip, img, [centerX, centerY], 
-                                                      [widthArcsec, heightArcsec], [numBPPix, numBPPix])
-
-                    srcbl, srctr = np.array(srcbl), np.array(srctr)
-                else:
-                    imgSrc = img.mirrored(False, True)
-                    srcbl = border.min(0)
-                    srctr = border.max(0)
-
-                srcCtr = (srcbl+srctr)*0.5
-                srcSize = srctr-srcbl
-
-                srcAreas.append([srcbl, srctr])
-
-                addImg(imgSrc, idx, -1, srcbl, srctr, True)
-
-                if numRetracePix <= 0:
-                    continue
-
-                def getDims(tgtBl, tgtTr):
-                    tgtW, tgtH = tgtTr-tgtBl 
-                    return [ round(numGPUXY*tgtW/tgtH), numGPUXY ] if tgtW < tgtH else [ numGPUXY, round(numGPUXY*tgtH/tgtW) ]
-
-                if relensSeparately:
-                    for tgtidx in range(len(borders)):
-                        tgtBorder = borders[tgtidx]
-                        tgtBl, tgtTr = tgtBorder.min(0), tgtBorder.max(0)
-    
-                        dims = getDims(tgtBl, tgtTr)
-                        tmpImg = imgSrc.mirrored(False, True)
-                        
-                        progressCallback(f"Re-tracing image {tgtidx+1} based on source shape from image {idx+1}")
-                        tmpImg = openglhelper.trace(ip, tmpImg, srcCtr, srcSize, dims, numResample, tgtBl, tgtTr)
-                        imgRelens = tmpImg.mirrored(False, True)
-
-                        addImg(imgRelens, idx, tgtidx, tgtBl, tgtTr, False)
-                else:
-
-                    tgtidx = -1
-
-                    ri = ip.getRenderInfo()
-                    tgtBl = np.array(ri["bottomleft"])/ANGLE_ARCSEC
-                    tgtTr = np.array(ri["topright"])/ANGLE_ARCSEC
-
-                    dims = getDims(tgtBl, tgtTr)
-                    tmpImg = imgSrc.mirrored(False, True)
-                        
-                    progressCallback(f"Re-tracing entire image plane based on source shape from image {idx+1}")
-                    tmpImg = openglhelper.trace(ip, tmpImg, srcCtr, srcSize, dims, numResample, tgtBl, tgtTr)
-                    imgRelens = tmpImg.mirrored(False, True)
-
-                    addImg(imgRelens, idx, tgtidx, tgtBl, tgtTr, False)
-
+            newLayers, usedLayers, borders, srcAreas = backproject.backprojectAndRetrace(self.scene, imgPlane, layers, splitLayers, extra,
+                                                                                         numImgPix, numBPPix, numRetracePix,
+                                                                                         numResample, relensSeparately, overWriteFiles,
+                                                                                         bpFileNameTemplate, bpLayerNameTemplate,
+                                                                                         relensFileNameTemplate, relensLayerNameTemplate,
+                                                                                         newImageDir, progressCallback)
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            raise
         finally:
             self._restorePointsLayers(visibilities)
-
-        # We need to do this at the end, when the original visibilities have been restored
-        if addLayers:
-            for l in newLayers:
-                self.addLayer(l)
 
         return newLayers, usedLayers, borders, srcAreas
 
@@ -1380,7 +1227,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 try:
                     self.retVal = self.parent.backprojectRetrace(ip, splitLayers, extra, numPix, numBPPix, numRetracePix, numResample,
                             relensSeparately, overWriteFiles, bpFileNameTemplate, bpLayerNameTemplate,
-                            relensFileNameTemplate, relensLayerNameTemplate, newImageDir, cb, addLayers = False)
+                            relensFileNameTemplate, relensLayerNameTemplate, newImageDir, cb)
                 except Exception as e:
                     self.excepts.append(str(e))
 
