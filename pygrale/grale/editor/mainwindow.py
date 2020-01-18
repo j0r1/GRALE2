@@ -270,6 +270,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.actionBack_project_retrace.triggered.connect(self._onBackProjectRetrace)
         self.ui.actionBack_project_and_point_select.triggered.connect(self._onPointSelect_BackProjected)
         self.ui.actionPoint_select_no_backprojection.triggered.connect(self._onPointSelect_NoBackProject)
+        self.ui.actionOn_line_help.triggered.connect(self._onOnLineHelp)
 
         self.ui.m_axisVisibleBox.clicked.connect(self._onGuiSettingChanged)
         self.ui.m_axisRightBox.clicked.connect(self._onGuiSettingChanged)
@@ -1265,6 +1266,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.scene.addNewPoints(newPoints)
         self.scene.changePoints(changedPoints)
 
+    def _onOnLineHelp(self, v):
+        QtGui.QDesktopServices.openUrl(QtCore.QUrl("https://research.edm.uhasselt.be/~jori/grale2/grale_editor.html"))
 
 def main():
     checkQtAvailable()

@@ -341,7 +341,7 @@
      <x>0</x>
      <y>0</y>
      <width>800</width>
-     <height>20</height>
+     <height>19</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -399,6 +399,7 @@
     <property name="title">
      <string>Help</string>
     </property>
+    <addaction name="actionOn_line_help"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuEdit"/>
@@ -557,6 +558,11 @@
   <action name="actionPoint_select_no_backprojection">
    <property name="text">
     <string>Point select - no back-projection</string>
+   </property>
+  </action>
+  <action name="actionOn_line_help">
+   <property name="text">
+    <string>On-line help</string>
    </property>
   </action>
  </widget>
