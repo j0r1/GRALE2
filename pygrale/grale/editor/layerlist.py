@@ -305,6 +305,15 @@ class LayerList(QtWidgets.QListWidget):
         w = self.itemWidget(self.item(self.count()-1))
         w.markLayerVisible(visibility)
 
+    def setLayerVisible(self, uuid, v):
+        for i in range(self.count()):
+            w = self.itemWidget(self.item(i))
+            if w.getLayer().getUuid() == uuid:
+                w.markLayerVisible(v)
+                return
+
+        raise Exception("Layer with UUID {} not found".format(uuid))
+
 def main():
     import sys
     import grale.images as images

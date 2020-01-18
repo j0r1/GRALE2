@@ -112,10 +112,17 @@ class MultipleLayerActionStack(actionstack.ActionStack):
                 scene.removeLayerItem(x["layer"].getUuid())
                 pos = scene.listWidget.removeLayers([x["layer"].getUuid()])[0][0]
                 assert(pos == x["pos"])
+
         elif x["cmd"] == "order":
             order = x["new"] if isRedo else x["old"]
             scene.listWidget.setOrder(order)
             scene.checkLayerOrderingAndVisibilities()
+
+        elif x["cmd"] == "layervis":
+            v = x["visible"] if isRedo else not x["visible"]
+            x["item"].setVisible(v)
+            scene.listWidget.setLayerVisible(x["item"].getLayer().getUuid(), v)
+
         else:
             raise Exception("Unknown command in '{}'".format(x))
 
@@ -156,6 +163,13 @@ class MultipleLayerActionStack(actionstack.ActionStack):
             "cmd": "order",
             "old": oldOrder,
             "new": newOrder
+        })
+
+    def recordLayerVisibilityChanged(self, layerItem):
+        self.appendToStack({
+            "cmd": "layervis",
+            "item": layerItem,
+            "visible": layerItem.isVisible()
         })
 
 class MultipleLayerScene(scenes.LayerScene):
@@ -400,6 +414,8 @@ class MainWindow(QtWidgets.QMainWindow):
         uuid = layer.getUuid()
         item = self.scene.getLayerItem(uuid)
         item.setVisible(isVisible)
+
+        self.scene.getActionStack().recordLayerVisibilityChanged(item)
     
     def _addPointsLayer(self, checked):
         self.addLayer(pointslayer.PointsLayer())
