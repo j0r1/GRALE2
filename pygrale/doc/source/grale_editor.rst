@@ -17,11 +17,72 @@ There are three types of layers:
    describing :class:`images data <grale.images.ImagesData>`, which can
    be used when running a lens inversion.
 
- - FITS layer: for reference, a FITS file can be shown, and 
+ - FITS layer: for reference, FITS files can be shown and the XY-coordinate
+   system can be centered on a specific point in the FITS image. 
 
- - RGB layer:
+ - RGB layer: if a PNG or JPG already exists that, for example, combines 
+   several FITS files, this can be shown as well. This can subsequently be
+   aligned to a FITS layer that's been loaded.
+
+Multiple layers of each type can exist at the same time, but only one layer
+can be specified as the active layer. The active layer will be indicated
+by a green color (see image below) and depending on which layer is active,
+mouse and keyboard controls will have different effects. While there are
+three layers in the example below, the RGB layer is not shown, which is
+indicated by the unchecked box. Different layers are shown on top of each other,
+the one shown first (from top to bottom) in the GUI is the one that's
+drawn first.
 
 .. image:: _static/graleeditor_layers_active.png
+
+General controls
+----------------
+
+When moving the mouse over the part of the GUI in which the layers are
+actually displayed, you'll see the values behind the 'X' and 'Y' fields
+change. Their units are arc seconds. If you enter a different value and
+press enter, that coordinate will be shown in the center of either X or
+Y direction.
+
+To zoom in/out you can either specify a different zoom level in the
+'Zoom' field, or you can press ``Control`` and use the mouse wheel. 
+Pressing the keys 0 to 9 will set the zoom to :math:`2^n`. Without 
+pressing ``Control``, you'll just move the entire area that's displayed
+up or down, and when 'Alt' is displayed the area will move left/right.
+
+Two very useful general controls are:
+
+ - undo: ``Control``-Z
+ - redo: ``Shift``-``Control``-Z
+
+FITS layer
+----------
+
+The XY axes (shown in red when visible) will be aligned with the right ascension
+(RA) and declination (dec) axes from the FITS file, but the point that's used as
+the center can be specified: either by entering the appropriate coordinates in
+the 'Center RA' and 'Center Dec' boxes, or by making sure the layer is active and
+double clicking on the point that should be used as the center.
+The values in the FITS file are shown on a linear (gray)scale, where the boundaries
+can be specified in the 'Min' and 'Max' fields. A right click on a FITS layer will
+show a dialog in which these properties can be changed as well.
+
+If a FITS layer is active, a single mouse click will show a cross with a number
+below it. This label is based on the 'Next group ID for FITS' setting, but can
+always be changed into something else. These points will be used as reference
+points when an RGB layer needs to be transformed to match the FITS layer
+(see next section).
+
+RGB layer
+---------
+
+
+
+Points layer
+^^^^^^^^^^^^
+
+
+
 
 
 TODO: for now these are just some very basic notes, mainly for myself. Needs
