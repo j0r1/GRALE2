@@ -3,6 +3,27 @@
 GRALE Editor
 ============
 
+The GRALE Editor is a Graphical User Interface (GUI) tool to help create
+and visualize input that's going to be used for gravitational lens inversions.
+
+Layers
+------
+
+There are three types of layers:
+
+ - Points layer: various kinds of point-based information can be defined in
+   such a layer, e.g. points of a specific image or null space points and
+   triangles. The information from such layers can be stored in a file
+   describing :class:`images data <grale.images.ImagesData>`, which can
+   be used when running a lens inversion.
+
+ - FITS layer: for reference, a FITS file can be shown, and 
+
+ - RGB layer:
+
+.. image:: _static/graleeditor_layers_active.png
+
+
 TODO: for now these are just some very basic notes, mainly for myself. Needs
 much cleaning up.
 
