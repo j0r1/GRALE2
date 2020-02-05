@@ -2099,8 +2099,13 @@ Arguments:
     return f
 
 def plotDensitiesAtImagePositions(lens, imgList, angularUnit = "default", densityUnit = 1.0,
-                                  horCoordFunction = lambda xy: xy[0], **kwargs):
+                                  horCoordFunction = lambda xy: xy[0], axes = None, densFunction = None, **kwargs):
     """Plots the densities at the image position for the specified lens.
+
+The function returns what is used to create the plot, but _without_ recaling by the
+`angularUnit` or `densityUnit`: coordinates of the images based on `horCoordFunction`,
+average and standard deviation based on `densFunction`, and the number of sub-lenses
+that were used in calculating average and stddev.
 
 Arguments:
  - `lens`: the gravitational lens to use, if this is an average of several sublenses,
@@ -2114,6 +2119,14 @@ Arguments:
  - `horCoordFunction`: the resulting plot will plot the densities on the vertical axis, and
    this function specifies how the 2D coordinates of the points should be converted to a single
    value on the horizontal axis. By default, just the X-coordinate of a point is used.
+ - `axes`: the default will cause a new plot to be created, but you can specify an existing
+   matplotlib axes object as well. The value `False` has a special meaning: in that case,
+   the calculations will be performed as usual, but an actual plot will not be created.
+ - `densFunction`: if not specific, a lens's :function:`getSurfaceMassDensity <grale.lenses.getSurfaceMassDensity>`
+    will get used to obtain the density, but otherwise this function is called with a
+    lens model, position and `imgList` entry as parameters. This can be (ab)used to 
+    create similar plots with different values, like the relative mass density or even 
+    magnification.
  - `kwargs`: these parameters will be passed on to the `plot <https://matplotlib.org/api/_as_gen/matplotlib.pyplot.plot.html#matplotlib.pyplot.plot>`_ 
    or `errorbar <https://matplotlib.org/api/_as_gen/matplotlib.pyplot.errorbar.html#matplotlib.pyplot.errorbar>`_
    functions in matplotlib.
@@ -2121,7 +2134,7 @@ Arguments:
     def wrapLens(lens):
         l = lenses.CompositeLens(lens.getLensDistance(), [ 
             { "factor": 1, "angle": 0, "x": 0, "y": 0, "lens": lens } ])
-        return plotDensitiesAtImagePositions(l, imgList, angularUnit, densityUnit, horCoordFunction,
+        return plotDensitiesAtImagePositions(l, imgList, angularUnit, densityUnit, horCoordFunction, axes, densFunction,
                                              **kwargs)
 
 	# Find out if the lens is an average
@@ -2149,8 +2162,12 @@ Arguments:
     # Ok, here it's an average of individual ones (perhaps a dummy average of one lens)
     subLenses = [ p["lens"] for p in params ]
 
+    if densFunction is None:
+        densFunction = lambda lens, avgPos, imgListEntry: lens.getSurfaceMassDensity(avgPos)
+
     X, Yavg, Ystd  = [], [], []
-    for img in imgList:
+    for i in range(len(imgList)):
+        img = imgList[i]
         if type(img) == dict:
             img = img["imgdata"]
 
@@ -2159,20 +2176,27 @@ Arguments:
             avgPos = np.mean(np.array([p["position"] for p in img.getImagePoints(idx)]), 0)
             X.append(horCoordFunction(avgPos))
 
-            densities = np.array([ l.getSurfaceMassDensity(avgPos) for l in subLenses ])
+            densities = np.array([ densFunction(l, avgPos, imgList[i]) for l in subLenses ])
             Yavg.append(np.mean(densities))
             Ystd.append(np.std(densities))
 
     angularUnit = _getAngularUnit(angularUnit)
-    X = np.array(X)/angularUnit
-    Yavg = np.array(Yavg)/densityUnit
-    Ystd = np.array(Ystd)/densityUnit
+    X = np.array(X)
+    Yavg = np.array(Yavg)
+    Ystd = np.array(Ystd)
 
-    import matplotlib.pyplot as plt
-    if numSubLenses == 1:
-        plt.plot(X, Yavg, '.', **kwargs)
-    else:
-        plt.errorbar(X, Yavg, Ystd, fmt='.k', **kwargs)
+    if axes is not False:
+        import matplotlib.pyplot as plt
+
+        if axes is None:
+            axes = plt.gca()
+
+        if numSubLenses == 1:
+            plt.plot(X/angularUnit, Yavg/densityUnit, '.', **kwargs)
+        else:
+            plt.errorbar(X/angularUnit, Yavg/densityUnit, Ystd/densityUnit, fmt='.k', **kwargs)
+
+    return X, Yavg, Ystd, numSubLenses
 
 def _getAngularUnit(u):
     if u == "default":
