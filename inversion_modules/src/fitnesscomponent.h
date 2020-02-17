@@ -248,7 +248,7 @@ private:
 class FitnessComponent_TimeDelay : public FitnessComponent
 {
 public:
-	enum TDFitnessType { Paper2009, ExpII };
+	enum TDFitnessType { Paper2009, NoSrc };
 
 	FitnessComponent_TimeDelay(FitnessComponentCache *pCache);
 	~FitnessComponent_TimeDelay();
@@ -262,10 +262,8 @@ public:
 	bool processFitnessOption(const std::string &optionName, const TypedParameter &value) override;
 
 	void setFitnessType(TDFitnessType t) { m_fitnessType = t; }
-	void setUseRelativeDelays(bool f = true) { m_relative = f; }
 private:
 	TDFitnessType m_fitnessType;
-	bool m_relative;
 	std::vector<std::pair<int,int>> m_referencePoints; // for relative TD fitness
 	std::vector<float> m_tdScaleFactors;
 };

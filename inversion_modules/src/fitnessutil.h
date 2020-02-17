@@ -80,18 +80,11 @@ enum WeakLensingType { RealShear, RealReducedShear, AveragedEllipticities };
 float calculateWeakLensingFitness(const ProjectedImagesInterface &interface, const std::vector<int> &weakIndices, 
 							      WeakLensingType weakType, const std::vector<float> &oneMinusKappaThreshold);
 
-float calculateTimeDelayFitness(const ProjectedImagesInterface &iface, const std::vector<int> &sourceIndices,
+float calculateTimeDelayFitnessPaper2009(const ProjectedImagesInterface &iface, const std::vector<int> &sourceIndices,
 		                        const std::vector<float> &tdScaleFactors = std::vector<float>());
 
-float calculateTimeDelayFitnessExperimental2(const ProjectedImagesInterface &iface, const std::vector<int> &sourceIndices,
+float calculateTimeDelayFitnessNoSrc(const ProjectedImagesInterface &iface, const std::vector<int> &sourceIndices,
                                              const std::vector<float> &tdScaleFactors = std::vector<float>());
-
-float calculateTimeDelayFitness_Relative(const ProjectedImagesInterface &iface, const std::vector<int> &sourceIndices,
-													  std::vector<std::pair<int,int>> &referencePoints);
-
-float calculateTimeDelayFitnessExperimental2_Relative(const ProjectedImagesInterface &iface, 
-		                                              const std::vector<int> &sourceIndices,
-													  std::vector<std::pair<int,int>> &referencePoints);
 
 float calculateKappaThresholdFitness(const ProjectedImagesInterface &iface, const std::vector<int> &sourceIndices,
 		                             const std::vector<float> &kappaThresholds);

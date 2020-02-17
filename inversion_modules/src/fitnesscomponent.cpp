@@ -1091,8 +1091,7 @@ bool FitnessComponent_WeakLensing::calculateFitness(const ProjectedImagesInterfa
 
 FitnessComponent_TimeDelay::FitnessComponent_TimeDelay(FitnessComponentCache *pCache) 
 	: FitnessComponent("timedelay", pCache),
-	  m_fitnessType(Paper2009),
-	  m_relative(false)
+	  m_fitnessType(NoSrc)
 {
 	addRecognizedTypeName("pointimages");
 	addRecognizedTypeName("extendedimages");
@@ -1168,12 +1167,6 @@ bool FitnessComponent_TimeDelay::inspectImagesData(int idx, const ImagesDataExte
 	float tdScaleFactor = 0;
 	if (imgDat.hasExtraParameter("timedelay_scalefactor"))
 	{
-		if (m_relative)
-		{
-			setErrorString("'timedelay_scalefactor' was set but is only supported for the non-relative version");
-			return false;
-		}
-
 		double v;
 
 		if (!imgDat.getExtraParameter("timedelay_scalefactor", v))
@@ -1211,27 +1204,15 @@ bool FitnessComponent_TimeDelay::processFitnessOption(const std::string &optionN
 			return true;
 		}
 		
-		if (valueStr == "ExperimentalII")
+		if (valueStr == "NoSrc")
 		{
-			cerr << "EXPERIMENTAL TIME DELAY FITNESS II" << endl;
-			setFitnessType(ExpII);
+			cerr << "EXPERIMENTAL TIME DELAY FITNESS II - NoSrc" << endl;
+			setFitnessType(NoSrc);
 			return true;
 		}
 
 		setErrorString("Invalid value for '" + optionName + "': '" + valueStr + "'");
 		return false;
-	}
-
-	if (optionName == "relative")
-	{
-		if (!value.isBoolean())
-		{
-			setErrorString("Option requires a boolean value");
-			return false;
-		}
-
-		setUseRelativeDelays(value.getBooleanValue());
-		return true;
 	}
 
 	setErrorString("Unknown option");
@@ -1240,21 +1221,10 @@ bool FitnessComponent_TimeDelay::processFitnessOption(const std::string &optionN
 
 bool FitnessComponent_TimeDelay::calculateFitness(const ProjectedImagesInterface &iface, float &fitness)
 {
-	if (m_relative && m_fitnessType != Paper2009)
-	{
-		setErrorString("Currently only the Paper2009 algorithm is supported for relative time delays");
-		return false;
-	}
-
 	if (m_fitnessType == Paper2009)
-	{
-		if (!m_relative)
-			fitness = calculateTimeDelayFitness(iface, getUsedImagesDataIndices(), m_tdScaleFactors);
-		else
-			fitness = calculateTimeDelayFitness_Relative(iface, getUsedImagesDataIndices(), m_referencePoints);
-	}
-	else if (m_fitnessType == ExpII)
-		fitness = calculateTimeDelayFitnessExperimental2(iface, getUsedImagesDataIndices(), m_tdScaleFactors);
+		fitness = calculateTimeDelayFitnessPaper2009(iface, getUsedImagesDataIndices(), m_tdScaleFactors);
+	else if (m_fitnessType == NoSrc)
+		fitness = calculateTimeDelayFitnessNoSrc(iface, getUsedImagesDataIndices(), m_tdScaleFactors);
 	else
 	{
 		setErrorString("Unknown TD fitness type");

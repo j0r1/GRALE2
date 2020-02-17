@@ -374,7 +374,7 @@ bool LensFitnessJ1004Test::calculateOverallFitness(const ProjectedImagesInterfac
 			                                               m_nullTriangles, m_nullTriangleAreas,
 														   m_nullWeights,
 														   m_pCache);
-	fitnessvalues[3] = calculateTimeDelayFitness(iface, m_tdIndices);
+	fitnessvalues[3] = calculateTimeDelayFitnessPaper2009(iface, m_tdIndices);
 
 	return true;
 }

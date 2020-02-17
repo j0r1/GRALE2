@@ -253,8 +253,7 @@ ConfigurationParameters *LensFitnessGeneral::getDefaultParametersInstance() cons
 
 	pParams->setParameter("fitness_pointimageoverlap_scaletype", string("MinMax"));
 	pParams->setParameter("fitness_pointgroupoverlap_rmstype", string("AllBetas"));
-	pParams->setParameter("fitness_timedelay_type", string("Paper2009"));
-	pParams->setParameter("fitness_timedelay_relative", false);
+	pParams->setParameter("fitness_timedelay_type", string("NoSrc"));
 	pParams->setParameter("fitness_weaklensing_type", string("AveragedEllipticities"));
 	return pParams;
 }
@@ -976,8 +975,7 @@ and are listed in the following table:
 | priority_kappathreshold             | 600                     |
 | fitness_pointgroupoverlap_rmstype   | 'AllBetas'              |
 | fitness_pointimageoverlap_scaletype | 'MinMax'                |
-| fitness_timedelay_type              | 'Paper2009'             |
-| fitness_timedelay_relative          | `False`                 |
+| fitness_timedelay_type              | 'NoSrc'                 |
 | fitness_weaklensing_type            | 'AveragedEllipticities' |
 
 In case input is provided with 'pointgroupimages' type, the 'pointgroupoverlap'
@@ -998,10 +996,8 @@ is used. This corresponds to the setting `fitness_pointimageoverlap_scaletype`
 to 'MinMax'. In case the [median of absolute deviations](https://en.wikipedia.org/wiki/Median_absolute_deviation)
 should be used instead, this option can be set to 'MAD'.
 
-The `fitness_timedelay_type` can also be 'ExperimentalI' or 'ExperimentalII',
-but as you might guess, these are still experimental. The option
-`fitness_timedelay_relative` is extremely experimental: don't enable this, it
-does not work yet!
+The `fitness_timedelay_type` can also be 'Paper2009', to use the older one from
+the [2009 article](https://ui.adsabs.harvard.edu/abs/2009MNRAS.397..341L/abstract).
 
 For the weak lensing fitness, the data is by default interpreted as (averaged)
 ellipticity measurements. This corresponds the default value of 'AveragedEllipticities'
