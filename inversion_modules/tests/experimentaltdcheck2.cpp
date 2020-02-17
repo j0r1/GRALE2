@@ -101,7 +101,6 @@ int main(void)
 	vector<pair<int,int>> refPoints;
 
 	cerr << "calculateTimeDelayFitness: " << calculateTimeDelayFitness(bpReal, { 0 }) << std::endl;
-	cerr << "calculateTimeDelayFitnessExperimental: " << calculateTimeDelayFitnessExperimental(bpReal, { 0 }) << std::endl;
 	cerr << "calculateTimeDelayFitnessExperimental2: " << calculateTimeDelayFitnessExperimental2(bpReal, { 0 }) << std::endl;
 	cerr << endl;
 
@@ -121,7 +120,6 @@ int main(void)
 
 		ImagesBackProjector bp(lens, { &imgDat }, zd, false);
 		cout << calculateTimeDelayFitness(bp, { 0 }) << " ";
-		cout << calculateTimeDelayFitnessExperimental(bp, { 0 }) << " ";
 		cout << calculateTimeDelayFitnessExperimental2(bp, { 0 }) << std::endl;
 	}
 

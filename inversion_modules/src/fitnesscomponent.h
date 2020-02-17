@@ -248,7 +248,7 @@ private:
 class FitnessComponent_TimeDelay : public FitnessComponent
 {
 public:
-	enum TDFitnessType { Paper2009, ExpI, ExpII };
+	enum TDFitnessType { Paper2009, ExpII };
 
 	FitnessComponent_TimeDelay(FitnessComponentCache *pCache);
 	~FitnessComponent_TimeDelay();

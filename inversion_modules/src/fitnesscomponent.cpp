@@ -1211,13 +1211,6 @@ bool FitnessComponent_TimeDelay::processFitnessOption(const std::string &optionN
 			return true;
 		}
 		
-		if (valueStr == "ExperimentalI")
-		{
-			cerr << "EXPERIMENTAL TIME DELAY FITNESS I" << endl;
-			setFitnessType(ExpI);
-			return true;
-		}
-
 		if (valueStr == "ExperimentalII")
 		{
 			cerr << "EXPERIMENTAL TIME DELAY FITNESS II" << endl;
@@ -1260,8 +1253,6 @@ bool FitnessComponent_TimeDelay::calculateFitness(const ProjectedImagesInterface
 		else
 			fitness = calculateTimeDelayFitness_Relative(iface, getUsedImagesDataIndices(), m_referencePoints);
 	}
-	else if (m_fitnessType == ExpI)
-		fitness = calculateTimeDelayFitnessExperimental(iface, getUsedImagesDataIndices(), m_tdScaleFactors);
 	else if (m_fitnessType == ExpII)
 		fitness = calculateTimeDelayFitnessExperimental2(iface, getUsedImagesDataIndices(), m_tdScaleFactors);
 	else
