@@ -2122,7 +2122,7 @@ Arguments:
  - `axes`: the default will cause a new plot to be created, but you can specify an existing
    matplotlib axes object as well. The value `False` has a special meaning: in that case,
    the calculations will be performed as usual, but an actual plot will not be created.
- - `densFunction`: if not specific, a lens's :function:`getSurfaceMassDensity <grale.lenses.getSurfaceMassDensity>`
+ - `densFunction`: if not specific, a lens's :func:`getSurfaceMassDensity <grale.lenses.getSurfaceMassDensity>`
     will get used to obtain the density, but otherwise this function is called with a
     lens model, position and `imgList` entry as parameters. This can be (ab)used to 
     create similar plots with different values, like the relative mass density or even 
