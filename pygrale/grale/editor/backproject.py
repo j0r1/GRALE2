@@ -6,7 +6,7 @@ import tools
 import os
 
 def qImageToArray(img):
-    img = img.convertToFormat(QtGui.QImage.Format_ARGB32);
+    img = img.convertToFormat(QtGui.QImage.Format_ARGB32)
     ptr = img.constBits()
     ptr.setsize(img.byteCount())
     arr = np.array(ptr).reshape(img.height(), img.bytesPerLine())
@@ -172,7 +172,8 @@ def backprojectAndRetrace(imgPlane, bordersAndImages,
             raise Exception("Some output files would overwrite each other")
 
     def addImg(img, srcidx, tgtidx, bl, tr, isSrc):
-        yMirror = True if isSrc else False
+        # TODO: yMirror is unused; did I forget something or was this not needed after all?
+        #yMirror = True if isSrc else False
         fnTemplate = bpFileNameTemplate if isSrc else relensFileNameTemplate
         layerNameTemplate = bpLayerNameTemplate if isSrc else relensLayerNameTemplate
 

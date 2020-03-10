@@ -104,7 +104,6 @@ class LayerList(QtWidgets.QListWidget):
     def _getLayerOrder(self):
         order = [ ]
         for i in range(self.count()):
-            it = self.item(i)
             w = self.itemWidget(self.item(i))
             order.append(w.getLayer().getUuid())
         return order
@@ -184,7 +183,6 @@ class LayerList(QtWidgets.QListWidget):
 
     def setActiveLayer(self, uuid):
         for i in range(self.count()):
-            it = self.item(i)
             w = self.itemWidget(self.item(i))
             if w.getLayer().getUuid() == uuid:
                 w.setActive(True)

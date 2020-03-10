@@ -95,7 +95,7 @@ class GraphicsView(QtWidgets.QGraphicsView):
             diffScene = self.mapToScene(diff) - self.mapToScene(QtCore.QPoint(0,0))
             currentCenter = self.getCenter()
 
-            self.centerOn(currentCenter+diffScene);
+            self.centerOn(currentCenter+diffScene)
         else:
             super(GraphicsView, self).wheelEvent(event)
 
@@ -230,7 +230,7 @@ class GraphicsScene(SceneBase):
 
     def _updatePointScale(self):
         t = self._getPointTransform()
-        self.setPointTransform(t);
+        self.setPointTransform(t)
 
     def setPointSizeFixed(self, v):
         self.pointSizeFixed = True if v else False
@@ -596,7 +596,7 @@ class GraphicsScene(SceneBase):
         pixBorder = [ QtCore.QPoint(x, y) for x,y in pixBorder ]
 
         region = QtGui.QRegion(QtGui.QPolygon(pixBorder))
-        resImg = QtGui.QImage(img.width(), img.height(), QtGui.QImage.Format_ARGB32);
+        resImg = QtGui.QImage(img.width(), img.height(), QtGui.QImage.Format_ARGB32)
         resImg.fill(QtCore.Qt.transparent)
 
         pm = QtGui.QPixmap.fromImage(resImg)

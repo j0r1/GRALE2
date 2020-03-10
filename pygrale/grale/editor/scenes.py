@@ -312,14 +312,14 @@ class LayerScene(GraphicsScene):
 
     def _deleteItems(self, pointItems, triangItems, deletePointsFlag, deleteTrianglesFlag):
     
-        affectedLayerItems = set()
+        #affectedLayerItems = set()
         deleteId = uuid.uuid4()
 
         deleteNormalPoints = [ ]
         deleteTriangles = [ ]
         deleteMatchPoints = [ ]
 
-        needUpdate = False
+        #needUpdate = False
         if triangItems and deleteTrianglesFlag:
             for t in triangItems:
                 tUuid = t.getUuid()
@@ -611,7 +611,7 @@ class LayerScene(GraphicsScene):
             if type(layer) == PointsLayer:
                 ptMap = { }
                 for pIdx in range(len(copyInfo["normalpoints"])):
-                    added = True
+                    #added = True
                     
                     ptInfo = copyInfo["normalpoints"][pIdx]
                     pos = ptInfo["xy"]

@@ -95,7 +95,7 @@ class ContourLevelDialog(QtWidgets.QDialog):
         try:
             return self.levels[self.selectedContour]
         except Exception as e:
-            print("WARNING: {}".format())
+            print("WARNING: {}".format(e))
             return None
 
     def _getLevels(self):

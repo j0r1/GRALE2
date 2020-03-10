@@ -81,7 +81,7 @@ class PointsLayer(Layer):
             ptKeyIdx[k] = ptIdx
             ptIdx += 1
 
-        triangles = self.getTriangles();
+        triangles = self.getTriangles()
 
         settings = {
                 "name": self.getName(),
