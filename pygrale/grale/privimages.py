@@ -338,7 +338,7 @@ def readInputImagesFile(inputData, isPointImagesFile, lineAnalyzer = "default", 
             if "z" in info:
                 if "z" in imagesData:
                     if info["z"] != imagesData["z"]:
-                        raise Exception("Error in line '{}': redshift '{}' is not the same as previous recorded redshift '{}'".format(info["z"],imagesData["z"]))
+                        raise Exception("Error in line '{}': redshift '{}' is not the same as previous recorded redshift '{}'".format(l, info["z"], imagesData["z"]))
                 
                 imagesData["z"] = info["z"]
             

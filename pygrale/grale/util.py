@@ -99,7 +99,7 @@ def _findRealTheta(imgPlane, beta, theta):
     from .constants import ANGLE_ARCSEC
     import scipy.optimize as opt
 
-    startDiff = (imgPlane.traceTheta(theta) - beta)/ANGLE_ARCSEC
+    #startDiff = (imgPlane.traceTheta(theta) - beta)/ANGLE_ARCSEC
 
     def f(x):
         return (imgPlane.traceTheta(x) - beta)/ANGLE_ARCSEC

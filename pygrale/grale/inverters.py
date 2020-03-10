@@ -423,7 +423,7 @@ class ClientServerProcessInverter(Inverter):
     have several ``gahelper`` instances connected to it. The calculations
     will be divided over the available helpers."""
 
-    def __init__(self, ipString, portNumber, feedbackObject = None):
+    def __init__(self, ipString = "127.0.0.1", portNumber = 9999, feedbackObject = None):
         """Initializes an instance of this class, where you must specify the
         IP address and port number at which the ``gaserver`` process can be
         reached.  A specific :mod:`feedback <grale.feedback>`

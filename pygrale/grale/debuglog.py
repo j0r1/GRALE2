@@ -14,7 +14,7 @@ if os.environ.get("DEBUGLOG_VERBOSE") is not None:
         intT = int(t)
         fracT = t - intT
         pref = "%s.%03d" % (time.strftime("%H:%M:%S", time.gmtime(t)), int(fracT*1000.0))
-        pref += " [ %s ] " % currentNodeName
+        pref += " "
         spcs = " " * len(pref)
 
         sys.stderr.write(pref + lines[0] + "\n")

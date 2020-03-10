@@ -412,7 +412,7 @@ def plot3DInteractive(X, Y, Z, height=600, xlabel = "X", ylabel = "Y", zlabel = 
             if (s == "0")
                 return s;
             return "-" + s; 
-        };""";
+        };"""
 
     if initialCamera:
         options["cameraPosition"] = initialCamera
@@ -1653,7 +1653,7 @@ Example::
     corner0 = images.centerOnPosition(np.array(w.all_pix2world(0.5,0.5, 0))*ANGLE_DEGREE, [centerRA, centerDec])
     corner1 = images.centerOnPosition(np.array(w.all_pix2world(numX-0.5,numY-0.5, 0))*ANGLE_DEGREE, [centerRA, centerDec])
 
-    diff = corner0-corner1
+    #diff = corner0-corner1
     #print(diff/ANGLE_ARCSEC)
 
     bottomLeft = [min(corner0[0], corner1[0]), min(corner0[1], corner1[1])]
