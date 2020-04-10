@@ -9,6 +9,44 @@ an MPI implementation.
 
 Of course: use at your own risk
 
+Environment variables that are used:
+
+ - NUMCORES: if set, 'make' will be started to use this amount of
+   cores for the build (with '-j' option). If not set, the number
+   of cores will be detected using the python multiprocessing module
+
+ - NOPULL: skip git pull to update used repositories
+
+ - NOQT: do not attempt to detect if Qt is available, no PyQt will
+   be installed
+
+ - CMAKE_EXTRA_OPTS: extra options that are passed to each 'cmake'
+   command. I use it to set 'ADDITIONAL_LIBRARIES_CORE' for GRALE2
+   to be able to use the correct GSL libraries, with something like
+
+    CMAKE_EXTRA_OPTS=-DADDITIONAL_LIBRARIES_CORE=-L\`gsl-config --prefix\`/lib
+
+   (a newer GSL library needs to be used, enabled using a 'module load'
+   command, but the system-wide one is used in the linking process. Seems
+   similar as in e.g. https://cmake.org/pipermail/cmake/2011-June/044790.html,
+   where the library's path is removed from the link command because it
+   is also set in \$LIBRARY_PATH)
+
+It may also be useful to set CC and CXX (C and C++) compiler environment
+variables: cmake might detect the wrong one if more are available. I.e.
+on one cluster I need to set
+
+    export CC=icc
+    export CXX=icc
+
+to use the Intel compiler, while on another I need to set
+
+    export CC=gcc
+    export CXX=g++
+
+to use the correct GNU compiler enabled with a 'module load' command
+(cmake seems to prefer e.g. /usr/bin/cc otherwise).
+
 EOF
 }
 
@@ -46,7 +84,9 @@ if ! [ -e pipcache ] ; then
 fi
 
 PREFIX=`pwd`
-NUMCORES=`python -c "import multiprocessing;print(multiprocessing.cpu_count())"`
+if [ -z "$NUMCORES" ] ; then
+	NUMCORES=`python -c "import multiprocessing;print(multiprocessing.cpu_count())"`
+fi
 
 export PATH="$PREFIX/bin:$PATH"
 
@@ -88,7 +128,11 @@ for p in ErrUt SerUt ENUt MOGAL GRALE2 ; do
 	else
 		echo "Updating $p"
 		cd $p
-		git pull
+		if [ -z "$NOPULL" ] ; then
+			git pull
+		else
+			echo "Environment variable NOPULL was set, skipping git pull"
+		fi
 	fi
 
 	echo "Building $p"
@@ -96,7 +140,7 @@ for p in ErrUt SerUt ENUt MOGAL GRALE2 ; do
 		mkdir build
 	fi
 	cd build
-	cmake .. -DCMAKE_BUILD_TYPE=release -DCMAKE_INSTALL_PREFIX="$PREFIX" -DCMAKE_FIND_ROOT_PATH="$PREFIX" -DLIBRARY_INSTALL_DIR="$PREFIX/lib"
+	cmake .. -DCMAKE_BUILD_TYPE=release -DCMAKE_INSTALL_PREFIX="$PREFIX" -DCMAKE_FIND_ROOT_PATH="$PREFIX" -DLIBRARY_INSTALL_DIR="$PREFIX/lib" $CMAKE_EXTRA_OPTS
 	make -j $NUMCORES
 	make install
 done
@@ -107,29 +151,33 @@ if ! [ -e "build" ] ; then
 	mkdir build
 fi
 cd build
-cmake .. -DCMAKE_BUILD_TYPE=release -DCMAKE_INSTALL_PREFIX="$PREFIX" -DCMAKE_FIND_ROOT_PATH="$PREFIX" -DLIBRARY_INSTALL_DIR="$PREFIX/lib"
+cmake .. -DCMAKE_BUILD_TYPE=release -DCMAKE_INSTALL_PREFIX="$PREFIX" -DCMAKE_FIND_ROOT_PATH="$PREFIX" -DLIBRARY_INSTALL_DIR="$PREFIX/lib" $CMAKE_EXTRA_OPTS
 make -j $NUMCORES
 make install
 
 BUILDPYQT="no"
-PYVER=`python --version 2>&1|cut -f 2 -d " "|cut -f 1 -d .`
-if [ "$PYVER" = "3" ] ; then
-	X=`which qmake|cat`
-	if ! [ -z "$X" ] ; then
-		X=`qmake --version | grep "Using Qt version 5" | cat`
+if [ -z "$NOQT" ] ; then
+	PYVER=`python --version 2>&1|cut -f 2 -d " "|cut -f 1 -d .`
+	if [ "$PYVER" = "3" ] ; then
+		X=`which qmake|cat`
 		if ! [ -z "$X" ] ; then
-			BUILDPYQT="yes"
-			QTBASE=`which qmake|cat|rev|cut -f 3- -d /|rev`
-			echo "Qt5 detected, will build PyQt5"
-			echo "QTBASE=$QTBASE"
+			X=`qmake --version | grep "Using Qt version 5" | cat`
+			if ! [ -z "$X" ] ; then
+				BUILDPYQT="yes"
+				QTBASE=`which qmake|cat|rev|cut -f 3- -d /|rev`
+				echo "Qt5 detected, will build PyQt5"
+				echo "QTBASE=$QTBASE"
+			else
+				echo "Not building PyQt5, qmake found, but is not for Qt5"
+			fi
 		else
-			echo "Not building PyQt5, qmake found, but is not for Qt5"
+			echo "Not building PyQt5, qmake not found in PATH"
 		fi
 	else
-		echo "Not building PyQt5, qmake not found in PATH"
+		echo "Not building PyQt5, not python 3"
 	fi
 else
-	echo "Not building PyQt5, not python 3"
+	echo "Environment variable NOQT was set, skipping Qt detection and PyQt configuration"
 fi
 
 function download_and_extract {
