@@ -323,6 +323,7 @@ bool LensFitnessGeneral::init(double z_d, std::list<ImagesDataExtended *> &image
 				}
 			}
 		}
+		return true;
 	};
 
 	// Set priorities and component specific fitness options
@@ -339,7 +340,8 @@ bool LensFitnessGeneral::init(double z_d, std::list<ImagesDataExtended *> &image
 		}
 
 		pComp->setPriority(priority);
-		setFitnessOptions(pComp);
+		if (!setFitnessOptions(pComp))
+			return false;
 	}
 
 	// Get the supported type names
