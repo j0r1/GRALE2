@@ -62,13 +62,23 @@ public:
 	{
 	}
 
+	CircularPieceInfo &operator=(const CircularPieceInfo &p)
+	{
+		m_lens = p.m_lens;
+		m_startRadius = p.m_startRadius;
+		m_endRadius = p.m_endRadius;
+		m_potentialScale = p.m_potentialScale;
+		m_potentialOffset = p.m_potentialOffset;
+		return *this;
+	}
+
 	const std::shared_ptr<GravitationalLens> &getLens() const								{ return m_lens; }
 	double getStartRadius() const															{ return m_startRadius; }
 	double getEndRadius() const																{ return m_endRadius; }
 	double getPotentialScale() const														{ return m_potentialScale; }
 	double getPotentialOffset() const														{ return m_potentialOffset; }
 private:
-	const std::shared_ptr<GravitationalLens> m_lens;
+	std::shared_ptr<GravitationalLens> m_lens;
 	double m_startRadius, m_endRadius;
 	double m_potentialScale, m_potentialOffset;
 };
