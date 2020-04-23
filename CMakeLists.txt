@@ -49,4 +49,8 @@ option(GRALE_SUPPORT_MPI "Enable MPI support" ${TMP})
 
 add_subdirectory(core)
 add_subdirectory(inversion)
-add_subdirectory(tests)
+
+option(GRALE_COMPILE_TESTS "Compile tests (doesn't link on Windows)" YES)
+if (GRALE_COMPILE_TESTS)
+	add_subdirectory(tests)
+endif()
