@@ -56,6 +56,10 @@ def _getErrorLineFromErrFile(errFile):
     errFile.flush()
     errFile.seek(0)
     errData = errFile.read()
+    if debugOutput:
+        print("DEBUG: full contents of error log:")
+        print(errData)
+
     errLines = [ l.strip() for l in errData.splitlines() if len(l.strip()) > 0 ]
     if len(errLines) > 0:
         errLine = "Last line from error log: " + errLines[-1]
