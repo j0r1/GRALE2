@@ -1286,7 +1286,7 @@ class MainWindow(QtWidgets.QMainWindow):
         QtGui.QDesktopServices.openUrl(QtCore.QUrl("https://research.edm.uhasselt.be/~jori/grale2/grale_editor.html"))
 
 def main():
-    checkQtAvailable()
+    #checkQtAvailable()
 
     app = QtWidgets.QApplication(sys.argv)
     QtCore.QCoreApplication.setOrganizationDomain("grale2")
