@@ -46,3 +46,6 @@ Example Jupyter notebooks
  * Illustration of loading `LensTool <https://projets.lam.fr/projects/lenstool/wiki>`_
    models: `lenstooltest.ipynb <_static/lenstooltest.ipynb>`_
 
+ * An example of generating fake weak lensing measurements: 
+   `generatefakewldata.ipynb <_static/generatefakewldata.ipynb>`_
+
