@@ -3,7 +3,17 @@
 usage() {
 cat << EOF
 
-This script attempts to compile PyGrale in an existing conda environment,
+./BuildInCondaEnvironment.sh [-builddir] path
+
+This script attempts to compile PyGrale in an existing conda environment.
+
+If '-builddir' is not specified, the path will be used as a parent directory
+in which the GRALE2 repository will be cloned.
+
+If '-builddir' is specified, the path is interpreted as an existing empty
+subdirectory of a GRALE2 repository clone, so that one directory above this
+contains the main CMakeLists.txt. No git update will be performed.
+
 where the specified directory stores the source code and build files.
 
 Start with creating a new conda environment, and activate it:
@@ -52,11 +62,46 @@ Environment variables that are used:
    where the library's path is removed from the link command because it
    is also set in \$LIBRARY_PATH)
 
+ - NOEMPTYDIRCHECK: in case '-builddir' is used, the specified directory
+   is expected to be empty. You can set this environment variable to
+   skip this check.
+
 EOF
 }
 
-if [ "$#" != 1 ] ; then
-	echo "Please specify a directory to store the build files"
+if [ "$#" -lt 1 ] || [ "$#" -gt 2 ] ; then
+	echo "Invalid number of arguments"
+	usage
+	exit -1
+fi
+
+if [ "$1" == "-h" ] || [ "$1" == "-help" ] || [ "$1" == "--h" ] || [ "$1" == "--help" ] ; then
+	usage
+	exit -1
+fi
+
+if [ "$1" == "-builddir" ] ; then
+	if [ "$#" != 2 ] ; then
+		echo "'-builddir' specified but no path given"
+		usage
+		exit -1
+	fi
+
+	D="$2"
+	BUILDDIR="yes"
+else
+	if [ "$#" = 2 ] ; then
+		echo "Too many arguments"
+		usage
+		exit -1
+	fi
+
+	D="$1"
+	BUILDDIR="no"
+fi
+
+if [ -z "$D" ] ; then
+	echo "Specified path is empty"
 	usage
 	exit -1
 fi
@@ -93,11 +138,28 @@ if [ -z "$NOENVCHECK" ] ; then
 fi
 
 STARTDIR=`pwd`
-D="$1"
-if ! [ -e "$D" ] ; then
-	mkdir "$D"
+
+if [ "$BUILDDIR" = "yes" ] ; then
+	if ! [ -e "$D" ] ; then
+		echo "Specified path $D does not exist"
+		exit -1
+	fi
+
+	cd "$D"
+
+	if [ -z "$NOEMPTYDIRCHECK" ] ; then
+		if ! [ -z "`ls -A`" ] ; then # Check directory empty
+			echo "Specified build directory is not empty"
+			exit -1
+		fi
+	fi
+else
+	if ! [ -e "$D" ] ; then
+		mkdir "$D"
+	fi
+
+	cd "$D"
 fi
-cd "$D"
 D=`pwd`
 
 if [ -z "$NUMCORES" ] ; then
@@ -115,13 +177,14 @@ fi
 if [ -z "$NOCONDAINSTALL" ] ; then
 	
 	OWNPACKS="errut serut enut mogal triangle"
-	if [ -z "NOGSL" ] ; then
+	if [ -z "$NOGSL" ] ; then
 		OWNPACKS="$OWNPACKS gsl"
 	fi
-	if [ -z "NOMPI" ] ; then
+	if [ -z "$NOMPI" ] ; then
 		OWNPACKS="$OWNPACKS openmpi"
 	fi
 
+	echo "OWNPACKS=$OWNPACKS"
 	conda install -y -c jori $OWNPACKS
 
 	CONDAPACKS="python$PYVER ipython jupyter astropy sip pyqt cython numpy scipy matplotlib shapely PyOpenGL ipywidgets cmake"
@@ -139,8 +202,9 @@ if [ -z "$NOCONDAINSTALL" ] ; then
 
 fi
 
-for p in GRALE2 ; do
-	cd "$D"
+if [ "$BUILDDIR" != "yes" ] ; then
+
+	p="GRALE2"
 	if ! [ -e $p ] ; then
 		echo "Cloning $p"
 		git clone https://github.com/j0r1/$p
@@ -160,13 +224,19 @@ for p in GRALE2 ; do
 		mkdir build
 	fi
 	cd build
-	cmake .. -DCMAKE_BUILD_TYPE=release -DCMAKE_INSTALL_PREFIX="$CONDA_PREFIX" -DCMAKE_INSTALL_RPATH="$CONDA_PREFIX/lib" -DCMAKE_FIND_ROOT_PATH="$CONDA_PREFIX" -DLIBRARY_INSTALL_DIR="$CONDA_PREFIX/lib" $CMAKE_EXTRA_OPTS
-	make -j $NUMCORES
-	make install
-done
+fi
+
+echo "CXX=$CXX"
+# Reactivate current environment, otherwise $CC/$CXX may not get set correctly
+source ${CONDA_EXE::-5}activate "$CONDA_DEFAULT_ENV"
+echo "CXX=$CXX"
+
+cmake .. -DCMAKE_BUILD_TYPE=release -DCMAKE_INSTALL_PREFIX="$CONDA_PREFIX" -DCMAKE_INSTALL_RPATH="$CONDA_PREFIX/lib" -DCMAKE_FIND_ROOT_PATH="$CONDA_PREFIX" -DLIBRARY_INSTALL_DIR="$CONDA_PREFIX/lib" $CMAKE_EXTRA_OPTS
+make -j $NUMCORES
+make install
 
 echo "Building inversion modules"
-cd "$D/GRALE2/inversion_modules"
+cd "../inversion_modules"
 if ! [ -e "build" ] ; then
 	mkdir build
 fi
@@ -175,6 +245,5 @@ cmake .. -DCMAKE_BUILD_TYPE=release -DCMAKE_INSTALL_PREFIX="$CONDA_PREFIX" -DCMA
 make -j $NUMCORES
 make install
 
-cd "$D/GRALE2/pygrale"
+cd "../../pygrale/"
 CXXFLAGS="-O3 -std=c++11" ./setup.py build install
-
