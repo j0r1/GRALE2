@@ -87,7 +87,14 @@ public:
 	{
 		if (generation == 0)
 		{
-			m_useSmallMutation = false;
+			if (getenv("GRALE_DEBUG_INSTANTSMALLMUTATION"))
+			{
+				m_useSmallMutation = true;
+				sendMessage("DEBUG: Forcing small mutation from start");
+			}
+			else
+				m_useSmallMutation = false;
+	
 			m_mutationSize = MAXMUT;
 		}
 
