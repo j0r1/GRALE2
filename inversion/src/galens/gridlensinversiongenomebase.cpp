@@ -222,47 +222,39 @@ mogal::Genome *GridLensInversionGenomeBase::reproduce(const mogal::Genome *g) co
 {
 	int nummasses = m_masses.size();
 	std::vector<float> newmasses(nummasses);
-	const GridLensInversionGenomeBase *g2 = (const GridLensInversionGenomeBase *)g;
 	SimpleUniformDistribution uniDist(m_pFactory->getRandomNumberGenerator());
 
-	if (m_pFactory->allowNegativeValues())
-	{
-		for (int i = 0 ; i < nummasses ; i++)
-		{
-			float x = (float)uniDist.pickNumber();
+	const GridLensInversionGenomeBase *pParents[] = { 
+		(const GridLensInversionGenomeBase *)g, 
+		this 
+	};
 
-			if (x < 0.5f)
-				newmasses[i] = m_scaleFactor*m_masses[i];
-			else
-				newmasses[i] = (g2->m_scaleFactor)*(g2->m_masses[i]);
-		}
-	}
-	else
-	{
-		for (int i = 0 ; i < nummasses ; i++)
-		{
-			float x = (float)uniDist.pickNumber();
-
-			if (x < 0.5f)
-				newmasses[i] = m_scaleFactor*m_masses[i];
-			else
-				newmasses[i] = (g2->m_scaleFactor)*(g2->m_masses[i]);
-			if (newmasses[i] < 0)
-				newmasses[i] = 0;
-		}
-	}
-
-	float newSheetValue = -1;
-
-	if (m_sheetValue >= 0)
+	auto pickParent = [pParents, &uniDist]()
 	{
 		float x = (float)uniDist.pickNumber();
+		const GridLensInversionGenomeBase *pParent = pParents[(x < 0.5f)?1:0];
+		return pParent;
+	};
 
-		if (x < 0.5f)
-			newSheetValue = m_sheetValue;
-		else
-			newSheetValue = g2->m_sheetValue;
-	}
+	auto genomeUniformCrossover = [&newmasses, nummasses, pickParent](auto check)
+	{
+		for (int i = 0 ; i < nummasses ; i++)
+		{
+			const GridLensInversionGenomeBase *pParent = pickParent();
+			newmasses[i] = pParent->m_scaleFactor*pParent->m_masses[i];
+			check(newmasses[i]);
+		}
+	};
+
+	auto noChange = [](float &x) { };
+	auto clamp = [](float &x) { if (x < 0) x = 0; };
+	auto changeFunction = (m_pFactory->allowNegativeValues())?noChange:clamp;
+
+	genomeUniformCrossover(changeFunction);
+
+	float newSheetValue = -1;
+	if (m_sheetValue >= 0)
+		newSheetValue = pickParent()->m_sheetValue;
 
 	return new GridLensInversionGenomeBase(m_pFactory, newmasses, newSheetValue);
 }
@@ -280,118 +272,68 @@ mogal::Genome *GridLensInversionGenomeBase::clone() const
 void GridLensInversionGenomeBase::mutate()
 {
 	int nummasses = m_masses.size();
+	float chanceMultiplier = m_pFactory->getChanceMultiplier();
+	float chance = chanceMultiplier/((float)nummasses);
+	SimpleUniformDistribution uniDist(m_pFactory->getRandomNumberGenerator());
+	float mutationAmplitude = m_pFactory->getMutationAmplitude();
 
+	auto chanceSetUniform = [chance, &uniDist](float &x, float mult, float offset)
+	{
+		if ((float)uniDist.pickNumber() < chance)
+			x = (float)uniDist.pickNumber()*mult - offset;
+	};
+
+	auto chanceSetUniformAllMasses = [this, chance, &uniDist, nummasses, chanceSetUniform](float mult, float offset)
+	{
+		for (int i = 0 ; i < nummasses ; i++)
+			chanceSetUniform(m_masses[i], mult, offset);
+	};
+
+	auto chanceSetSmallDiff = [chance, &uniDist, mutationAmplitude](float &target, float yMin, float yMax)
+	{
+		if ((float)uniDist.pickNumber() < chance)
+		{
+			// allow larger mutations with smaller probablility
+			// p(x) = (2/Pi)*1/(x^2+1)
+			// cfr anomalous diffusion
+			float p = (float)uniDist.pickNumber()*2.0f-1.0f;
+			float x = TAN(p*(float)(CONST_PI/4.0))*mutationAmplitude;
+			float y = x+target;
+
+			if (y < yMin)
+				y = yMin;
+			else if (y > yMax)
+				y = yMax;
+			
+			target = y;
+		}
+	};
+
+	auto chanceSetSmallDiffAllMasses = [this, chance, &uniDist, nummasses, chanceSetSmallDiff](float yMin, float yMax)
+	{
+		for (int i = 0 ; i < nummasses ; i++)
+			chanceSetSmallDiff(m_masses[i], yMin, yMax);
+	};
+
+	float mult = 1.0f, offset = 0.0f, yMin = 0.0f, yMax = 1.0f;
 	if (m_pFactory->allowNegativeValues())
 	{
-		float chanceMultiplier = m_pFactory->getChanceMultiplier();
-		float chance = chanceMultiplier/((float)nummasses);
-		SimpleUniformDistribution uniDist(m_pFactory->getRandomNumberGenerator());
-		
-		if (m_pFactory->useAbsoluteMutation())
-		{
-			for (int i = 0 ; i < nummasses ; i++)
-			{
-				if ((float)uniDist.pickNumber() < chance)
-					m_masses[i] = (float)uniDist.pickNumber()*2.0f-1.0f;
-			}
-		}
-		else
-		{
-			float mutationAmplitude = m_pFactory->getMutationAmplitude();
-
-			for (int i = 0 ; i < nummasses ; i++)
-			{
-				if ((float)uniDist.pickNumber() < chance)
-				{
-					// allow larger mutations with smaller probablility
-					// p(x) = (2/Pi)*1/(x^2+1)
-					// cfr anomalous diffusion
-					float p = (float)uniDist.pickNumber()*2.0f-1.0f;
-					float x = TAN(p*(float)(CONST_PI/4.0))*mutationAmplitude;
-					float y = x+m_masses[i];
-
-					if (y < -1.0f)
-						y = -1.0f;
-					else if (y > 1.0f)
-						y = 1.0f;
-					
-					m_masses[i] = y;
-				}
-			}
-		}
+		mult = 2.0f;
+		offset = 1.0f;
+		yMin = -1.0f;
 	}
+
+	if (m_pFactory->useAbsoluteMutation())
+		chanceSetUniformAllMasses(mult, offset);
 	else
-	{
-		float chanceMultiplier = m_pFactory->getChanceMultiplier();
-		float chance = chanceMultiplier/((float)nummasses);
-		SimpleUniformDistribution uniDist(m_pFactory->getRandomNumberGenerator());
-		
-		if (m_pFactory->useAbsoluteMutation())
-		{
-			for (int i = 0 ; i < nummasses ; i++)
-			{
-				if ((float)uniDist.pickNumber() < chance)
-					m_masses[i] = (float)uniDist.pickNumber();
-			}
-		}
-		else
-		{
-			float mutationAmplitude = m_pFactory->getMutationAmplitude();
-
-			for (int i = 0 ; i < nummasses ; i++)
-			{
-				if ((float)uniDist.pickNumber() < chance)
-				{
-					// allow larger mutations with smaller probablility
-					// p(x) = (2/Pi)*1/(x^2+1)
-					// cfr anomalous diffusion
-					float p = (float)uniDist.pickNumber()*2.0f-1.0f;
-					float x = TAN(p*(float)(CONST_PI/4.0))*mutationAmplitude;
-					float y = x+m_masses[i];
-
-					if (y < 0)
-						y = 0;
-					else if (y > 1.0)
-						y = 1.0;
-					
-					m_masses[i] = y;
-				}
-			}
-		}
-	}
+		chanceSetSmallDiffAllMasses(yMin, yMax);
 
 	if (m_sheetValue >= 0)
 	{
-		float chanceMultiplier = m_pFactory->getChanceMultiplier();
-		float chance = chanceMultiplier/((float)nummasses);
-		SimpleUniformDistribution uniDist(m_pFactory->getRandomNumberGenerator());
-		
 		if (m_pFactory->useAbsoluteMutation())
-		{
-			if ((float)uniDist.pickNumber() < chance)
-				m_sheetValue = (float)uniDist.pickNumber();
-		}
+			chanceSetUniform(m_sheetValue, 1.0f, 0.0f);
 		else
-		{
-			float mutationAmplitude = m_pFactory->getMutationAmplitude();
-
-			if ((float)uniDist.pickNumber() < chance)
-			{
-				// allow larger mutations with smaller probablility
-				// p(x) = (2/Pi)*1/(x^2+1)
-				// cfr anomalous diffusion
-				float p = (float)uniDist.pickNumber()*2.0f - 1.0f;
-				float x = TAN(p*(float)(CONST_PI/4.0))*mutationAmplitude;
-				float y = x+m_sheetValue;
-
-				if (y < 0)
-					y = 0;
-				else if (y > 1.0f)
-					y = 1.0f;
-				
-				m_sheetValue = y;
-			}
-		}
+			chanceSetSmallDiff(m_sheetValue, 0.0f, 1.0f);
 	}
 
 	rescale();
@@ -415,40 +357,37 @@ void GridLensInversionGenomeBase::rescale()
 {
 	int nummasses = m_masses.size();
 
-	if (m_pFactory->allowNegativeValues())
-	{
-		float maxval = 0;
-		
-		for (int i = 0 ; i < nummasses ; i++)
-		{
-			if (ABS(maxval) < ABS(m_masses[i]))
-				maxval = ABS(m_masses[i]);
-		}
+	auto absVal = [](auto x) { return ABS(x); };
+	auto noChange = [](auto x) { return x; };
+	auto clamp = [](auto x) { return (x < 0)?0:x; };
 
-		if (maxval > 0)
-		{
-			float f = 0.5f/maxval;
-			for (int i = 0 ; i < nummasses ; i++)
-				m_masses[i] *= f;
-		}
-	}
-	else
+	auto getMaxVal = [this, nummasses](auto fn)
 	{
-		float maxval = 0;
-		for (int i = 0 ; i < nummasses ; i++)
-			maxval = MAX(maxval, m_masses[i]);
+		float maxVal = 0;
 		
+		for (int i = 0 ; i < nummasses ; i++)
+		{
+			if (fn(maxVal) < fn(m_masses[i]))
+				maxVal = fn(m_masses[i]);
+		}
+		return maxVal;
+	};
+
+	auto scaleIt = [this, nummasses, getMaxVal](auto fnForMax, auto fnForNeg)
+	{
+		float maxval = getMaxVal(fnForMax);
 		if (maxval > 0)
 		{
 			float f = 0.5f/maxval;
 			for (int i = 0 ; i < nummasses ; i++)
-			{
-				m_masses[i] *= f;
-				if (m_masses[i] < 0)
-					m_masses[i] = 0;
-			}
+				m_masses[i] = fnForNeg(m_masses[i]*f);
 		}
-	}
+	};
+
+	if (m_pFactory->allowNegativeValues())
+		scaleIt(absVal, noChange);
+	else
+		scaleIt(noChange, clamp);
 }
 
 GravitationalLens *GridLensInversionGenomeBase::createLens(double *totalmass, std::string &errstr) const
