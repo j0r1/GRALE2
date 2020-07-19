@@ -12,6 +12,18 @@ cimport grale.configurationparameters as configurationparameters
 cimport grale.vector2d as vector2d
 cimport grale.gravitationallens as gravitationallens
 
+cdef extern from "grale/gridlensinversionparameters.h" namespace "grale":
+    cdef cppclass ScaleSearchParameters(errut.ErrorBase):
+        ScaleSearchParameters(float startFactor, float stopFactor, int numIt, int firstItSteps, int subseqItSteps)
+        ScaleSearchParameters(bool wideSearch)
+        ScaleSearchParameters()
+
+        float getStartFactor()
+        float getStopFactor()
+        int getNumberOfIterations()
+        int getStepsOnFirstIteration()
+        int getStepsOnSubsequentIterations()
+
 cdef extern from "grale/gridlensinversionparameters.h" namespace "grale::GridLensInversionParameters":
     cdef enum BasisFunctionType:
         PlummerBasis,
@@ -41,7 +53,8 @@ cdef extern from "grale/gridlensinversionparameters.h" namespace "grale":
                      const gravitationallens.GravitationalLens *pBaseLens,
                      const gravitationallens.GravitationalLens *pSheetLens,
                      const configurationparameters.ConfigurationParameters *pFitnessObjectParams,
-                     bool wideSearch)
+                     ScaleSearchParameters &scaleSearchParams)
+
         GridLensInversionParameters(int maxgenerations,
                      const vector[shared_ptr[imagesdataextended.ImagesDataExtended]] &images, 
                      const vector[grid.GridSquare] &gridsquares, 
@@ -54,7 +67,7 @@ cdef extern from "grale/gridlensinversionparameters.h" namespace "grale":
                      const gravitationallens.GravitationalLens *pBaseLens,
                      const gravitationallens.GravitationalLens *pSheetLens,
                      const configurationparameters.ConfigurationParameters *pFitnessObjectParams,
-                     bool wideSearch)
+                     ScaleSearchParameters &scaleSearchParams)
 
         bool read(serut.SerializationInterface &si)
         bool write(serut.SerializationInterface &si)

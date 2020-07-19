@@ -77,7 +77,6 @@ GridLensInversionGAFactoryBase::GridLensInversionGAFactoryBase()
 	m_pShortBPMatrix = 0;
 	m_pTotalBPMatrix = 0;
 	m_pFitnessObject = 0;
-	m_wideSearch = false;
 }
 
 GridLensInversionGAFactoryBase::~GridLensInversionGAFactoryBase()
@@ -208,12 +207,16 @@ bool GridLensInversionGAFactoryBase::init(const mogal::GAFactoryParams *p)
 	
 	m_maxGenerations = m_pCurrentParams->getMaximumNumberOfGenerations();
 	m_allowNegativeValues = p2->allowNegativeValues();
-	m_wideSearch = p2->useWideSearch();
+	m_massScaleSearchParams = p2->getMassScaleSearchParameters();
 
-	if (m_wideSearch)
+	if (m_massScaleSearchParams == ScaleSearchParameters(true))
 		sendMessage("Using wide scale factor search");
-	else
+	else if (m_massScaleSearchParams == ScaleSearchParameters(false))
 		sendMessage("Using normal scale factor search");
+	else if (m_massScaleSearchParams.getNumberOfIterations() <= 0)
+		sendMessage("Not using any extra mass scale search");
+	else
+		sendMessage("Using custom scaling parameters: " + m_massScaleSearchParams.toString());
 
 	return true;
 }
@@ -553,23 +556,12 @@ bool GridLensInversionGAFactoryBase::localSubInit(double z_d, const vector<share
 }
 
 void GridLensInversionGAFactoryBase::getGenomeCalculationParameters(float &startfactor, float &stopfactor, int &numiterationsteps, int &numiterations, int &numiterationsteps2) const
-{ 
-	if (!m_wideSearch)
-	{
-		startfactor = 0.2;
-		stopfactor = 5.0;
-		numiterationsteps = 20;
-		numiterationsteps2 = 20;
-		numiterations = 5;
-	}
-	else
-	{
-		startfactor = 0.01;
-		stopfactor = 100.0;
-		numiterationsteps = 50;
-		numiterationsteps2 = 5;
-		numiterations = 11;
-	}
+{
+	startfactor = m_massScaleSearchParams.getStartFactor();
+	stopfactor = m_massScaleSearchParams.getStopFactor();
+	numiterationsteps = m_massScaleSearchParams.getStepsOnFirstIteration();
+	numiterations = m_massScaleSearchParams.getNumberOfIterations();
+	numiterationsteps2 = m_massScaleSearchParams.getStepsOnSubsequentIterations();
 }
 
 void GridLensInversionGAFactoryBase::getGenomeSheetCalculationParameters(float &startfactor, float &stopfactor) const

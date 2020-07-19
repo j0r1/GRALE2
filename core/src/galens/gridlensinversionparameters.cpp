@@ -35,6 +35,7 @@
 #include <errut/booltype.h>
 #include <assert.h>
 #include <vector>
+#include <sstream>
 
 #include "debugnew.h"
 
@@ -43,6 +44,97 @@ using namespace errut;
 
 namespace grale
 {
+
+ScaleSearchParameters::ScaleSearchParameters(float startFactor, float stopFactor, int numIt, int firstItSteps, int subseqItSteps)
+{
+	m_startFactor = startFactor;
+	m_stopFactor = stopFactor;
+	m_numIterations = numIt;
+	m_firstIterationsSteps = firstItSteps;
+	m_subseqIterationSteps = subseqItSteps;
+}
+
+ScaleSearchParameters::ScaleSearchParameters(bool wideSearch)
+{
+	if (!wideSearch)
+	{
+		m_numIterations = 5;
+		m_firstIterationsSteps = 20;
+		m_subseqIterationSteps = 20;
+		m_startFactor = 0.2;
+		m_stopFactor = 5.0;
+	}
+	else
+	{
+		m_numIterations = 11;
+		m_firstIterationsSteps = 50;
+		m_subseqIterationSteps = 5;
+		m_startFactor = 0.01;
+		m_stopFactor = 100.0;
+	}
+}
+
+ScaleSearchParameters::ScaleSearchParameters() // No search
+{
+	m_numIterations = 0;
+	m_firstIterationsSteps = 0;
+	m_subseqIterationSteps = 0;
+	m_startFactor = 1.0;
+	m_stopFactor = 1.0;
+}
+
+ScaleSearchParameters::~ScaleSearchParameters()
+{
+}
+
+bool ScaleSearchParameters::write(serut::SerializationInterface &si) const
+{
+	int32_t iVals[] = { m_numIterations, m_firstIterationsSteps, m_subseqIterationSteps };
+	float fVals[] = { m_startFactor, m_stopFactor };
+
+	if (!si.writeInt32s(iVals, 3) || !si.writeFloats(fVals, 2))
+	{
+		setErrorString(si.getErrorString());
+		return false;
+	}
+	return true;
+}
+
+bool ScaleSearchParameters::read(serut::SerializationInterface &si)
+{
+	int32_t iVals[3];
+	float fVals[2];
+
+	if (!si.readInt32s(iVals, 3) || !si.readFloats(fVals, 2))
+	{
+		setErrorString(si.getErrorString());
+		return false;
+	}
+
+	m_numIterations = iVals[0];
+	m_firstIterationsSteps = iVals[1];
+	m_subseqIterationSteps = iVals[2];
+	m_startFactor = fVals[0];
+	m_stopFactor = fVals[1];
+	return true;
+}
+
+std::string ScaleSearchParameters::toString() const
+{
+	stringstream ss;
+	ss << "f0=" << m_startFactor << " f1=" << m_stopFactor
+	   << " ni=" << m_numIterations << " steps1=" << m_firstIterationsSteps
+	   << " steps2=" << m_subseqIterationSteps;
+	return ss.str();
+}
+
+bool ScaleSearchParameters::operator==(const ScaleSearchParameters &src) const
+{
+	return (m_startFactor == src.m_startFactor) && (m_stopFactor == src.m_stopFactor) &&
+	       (m_numIterations == src.m_numIterations) &&
+		   (m_firstIterationsSteps == src.m_firstIterationsSteps) &&
+		   (m_subseqIterationSteps == src.m_subseqIterationSteps);
+}
 
 GridLensInversionParameters::GridLensInversionParameters()
 {
@@ -58,7 +150,7 @@ void GridLensInversionParameters::commonConstructor(int maxGenerations,
 			const GravitationalLens *pBaseLens,
 			const GravitationalLens *pSheetLens,
 			const ConfigurationParameters *pFitnessObjectParams,
-			bool wideSearch)
+			const ScaleSearchParameters &massScaleSearchParams)
 {
 	zero();
 
@@ -81,7 +173,7 @@ void GridLensInversionParameters::commonConstructor(int maxGenerations,
 	if (pFitnessObjectParams)
 		m_pParams = new ConfigurationParameters(*pFitnessObjectParams);
 
-	m_wideSearch = wideSearch;
+	m_scaleSearchParams = massScaleSearchParams;
 }
 
 GridLensInversionParameters::GridLensInversionParameters(int maxGenerations,
@@ -94,10 +186,10 @@ GridLensInversionParameters::GridLensInversionParameters(int maxGenerations,
 			const GravitationalLens *pBaseLens,
 			const GravitationalLens *pSheetLens,
 			const ConfigurationParameters *pFitnessObjectParams,
-			bool wideSearch)
+			const ScaleSearchParameters &massScaleSearchParams)
 {
 	commonConstructor(maxGenerations, images, D_d, z_d, massScale, allowNegativeValues, pBaseLens,
-			          pSheetLens, pFitnessObjectParams, wideSearch);
+			          pSheetLens, pFitnessObjectParams, massScaleSearchParams);
 
 	m_basisLenses = basisLenses;
 }
@@ -111,10 +203,10 @@ GridLensInversionParameters::GridLensInversionParameters(int maxGenerations,
 		const GravitationalLens *pBaseLens,
 		const GravitationalLens *pSheetLens,
 		const ConfigurationParameters *pFitnessObjectParams,
-		bool wideSearch) 
+		const ScaleSearchParameters &massScaleSearchParams)
 {
 	commonConstructor(maxGenerations, images, D_d, z_d, massScale, allowNegativeValues, pBaseLens,
-			          pSheetLens, pFitnessObjectParams, wideSearch);
+			          pSheetLens, pFitnessObjectParams, massScaleSearchParams);
 
 	buildBasisLenses(gridsquares, b, useweights);
 }
@@ -236,10 +328,9 @@ bool GridLensInversionParameters::write(serut::SerializationInterface &si) const
 		}
 	}
 
-	int32_t searchType = (m_wideSearch)?1:0;
-	if (!si.writeInt32(searchType))
+	if (!m_scaleSearchParams.write(si))
 	{
-		setErrorString(si.getErrorString());
+		setErrorString(m_scaleSearchParams.getErrorString());
 		return false;
 	}
 
@@ -400,17 +491,11 @@ bool GridLensInversionParameters::read(serut::SerializationInterface &si)
 		}
 	}
 
-	int32_t searchType;
-	if (!si.readInt32(&searchType))
+	if (!m_scaleSearchParams.read(si))
 	{
-		setErrorString(si.getErrorString());
+		setErrorString(m_scaleSearchParams.getErrorString());
 		return false;
 	}
-	if (searchType == 0)
-		m_wideSearch = false;
-	else
-		m_wideSearch = true;
-
 	return true;
 }
 	
@@ -448,7 +533,7 @@ GridLensInversionParameters *GridLensInversionParameters::createCopy() const
 	return new GridLensInversionParameters(m_maxGenerations, imagesCopy, copiedBasisLenses,
 			                               m_Dd, m_zd, m_massScale, m_allowNegative,
 										   m_pBaseLens, m_pSheetLens, m_pParams,
-										   m_wideSearch);
+										   m_scaleSearchParams);
 }
 
 

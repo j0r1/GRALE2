@@ -175,7 +175,7 @@ bool GridLensInversionGenomeBase::calculateFitness()
 	startValue0 = startValue;
 	stopValue0 = stopValue;
 
-	if (1) // (!loopSheet)
+	if (numiterations > 0)
 	{
 		float currentBestFitness = std::numeric_limits<float>::max();
 		float currentBestScaleFactor = 1.0f;
@@ -215,6 +215,10 @@ bool GridLensInversionGenomeBase::calculateFitness()
 		}
 
 		m_scaleFactor = IT(currentBestScaleFactor);
+	}
+	else // numiterations <= 0, no further scale factor determination requested
+	{
+		m_scaleFactor = 1.0f;
 	}
 
 	// Do the final (possibly multi-component) fitness evaluation

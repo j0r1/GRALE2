@@ -41,6 +41,31 @@ class ImagesDataExtended;
 class GravitationalLens;
 class ConfigurationParameters;
 
+class GRALE_IMPORTEXPORT ScaleSearchParameters : public errut::ErrorBase
+{
+public:
+	ScaleSearchParameters(float startFactor, float stopFactor, int numIt, int firstItSteps, int subseqItSteps);
+	ScaleSearchParameters(bool wideSearch);
+	ScaleSearchParameters(); // No search
+	~ScaleSearchParameters();
+
+	bool operator==(const ScaleSearchParameters &src) const;
+
+	float getStartFactor() const 									{ return m_startFactor; }
+	float getStopFactor() const 									{ return m_stopFactor; }
+	int getNumberOfIterations() const 								{ return m_numIterations; }
+	int getStepsOnFirstIteration() const 							{ return m_firstIterationsSteps; }
+	int getStepsOnSubsequentIterations() const 						{ return m_subseqIterationSteps; }
+
+	bool write(serut::SerializationInterface &si) const;
+	bool read(serut::SerializationInterface &si);
+	std::string toString() const;
+private:
+	float m_startFactor, m_stopFactor;
+	int m_firstIterationsSteps, m_subseqIterationSteps;
+	int m_numIterations;
+};
+
 class GRALE_IMPORTEXPORT GridLensInversionParameters : public errut::ErrorBase
 {
 public:
@@ -86,7 +111,7 @@ public:
 			const GravitationalLens *pBaseLens = nullptr,
 			const GravitationalLens *pSheetLens = nullptr,
 			const ConfigurationParameters *pFitnessObjectParams = nullptr,
-			bool wideSearch = false);
+			const ScaleSearchParameters &massScaleSearchParams = ScaleSearchParameters(false));
 
 	GridLensInversionParameters(int maxgenerations,
 					 const std::vector<std::shared_ptr<ImagesDataExtended>> &images, 
@@ -100,7 +125,7 @@ public:
 					 const GravitationalLens *pBaseLens = nullptr,
 					 const GravitationalLens *pSheetLens = nullptr,
 					 const ConfigurationParameters *pFitnessObjectParams = nullptr,
-					 bool wideSearch = false
+					 const ScaleSearchParameters &massScaleSearchParams = ScaleSearchParameters(false)
 					 );
 
 	~GridLensInversionParameters();
@@ -115,7 +140,7 @@ public:
 	const GravitationalLens *getBaseLens() const									{ return m_pBaseLens; }
 	const GravitationalLens *getSheetLens() const									{ return m_pSheetLens; }
 	const ConfigurationParameters *getFitnessObjectParameters() const				{ return m_pParams; }
-	bool useWideSearch() const														{ return m_wideSearch; }
+	const ScaleSearchParameters &getMassScaleSearchParameters() const				{ return m_scaleSearchParams; }
 	
 	bool write(serut::SerializationInterface &si) const;
 	bool read(serut::SerializationInterface &si);
@@ -135,7 +160,7 @@ private:
 			const GravitationalLens *pBaseLens,
 			const GravitationalLens *pSheetLens,
 			const ConfigurationParameters *pFitnessObjectParams,
-			bool wideSearch);
+			const ScaleSearchParameters &massScaleSearchParams);
 
 	void buildBasisLenses(const std::vector<GridSquare> &squares, BasisFunctionType basisFunctionType, bool useMassWeights);
 	void zero();
@@ -148,7 +173,7 @@ private:
 	GravitationalLens *m_pBaseLens;
 	GravitationalLens *m_pSheetLens;
 	ConfigurationParameters *m_pParams;
-	bool m_wideSearch;
+	ScaleSearchParameters m_scaleSearchParams;
 
 	std::vector<BasisLensInfo> m_basisLenses;
 };

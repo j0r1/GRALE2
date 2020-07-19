@@ -189,7 +189,7 @@ def calculateFitness(inputImages, zd, fitnessObjectParameters, lensOrBackProject
 
 def invert(inputImages, gridInfoOrBasisFunctions, zd, Dd, popSize, moduleName = "general", massScale = "auto",
            allowNegativeValues = False, baseLens = None, 
-           sheetSearch = "nosheet", fitnessObjectParameters = None, wideSearch = False, maximumGenerations = 16384,
+           sheetSearch = "nosheet", fitnessObjectParameters = None, massScaleSearchType = "regular", maximumGenerations = 16384,
            geneticAlgorithmParameters = { }, returnNds = False, inverter = "default", feedbackObject = "default"):
     """Start the genetic algorithm to look for a gravitational lens model that's
     compatible with the specified input images. This is a rather low-level function,
@@ -288,10 +288,19 @@ def invert(inputImages, gridInfoOrBasisFunctions, zd, Dd, popSize, moduleName = 
        generic algorithm. For the ``"general"`` module, more information can be
        found in the `usage <./usage_general.html>`_ documentation.
 
-     - `wideSearch`: by default, a relatively narrow mass range around the provided
-       mass estimate will be explored. To make this search wider (which can be useful
-       if you're less certain of the total mass, e.g. when including weak lensing
-       measurements over a larger area), you can set this parameter to ``True``.
+     - `massScaleSearchType`: by default (``"regular"``), a relatively narrow mass 
+       range around the provided mass estimate will be explored. To make this search 
+       wider (which can be useful if you're less certain of the total mass, e.g. 
+       when including weak lensing measurements over a larger area), you can set this
+       parameter to ``"wide"``. It can also be set to ``"nosearch"`` to disable the
+       mass scale search completely. Finally, mainly for testing purposes, it can also
+       be set to a dictionary with the following entries:
+
+        - `startFactor`
+        - `stopFactor`
+        - `numIterations`
+        - `firstIterationSteps`
+        - `nextIterationSteps`
 
      - `maximumGenerations`: if the genetic algorithm didn't stop by itself after
        this many generations, stop it anyway. To test an inversion script completely,
@@ -378,7 +387,7 @@ def invert(inputImages, gridInfoOrBasisFunctions, zd, Dd, popSize, moduleName = 
 
     params = inversionparams.GridLensInversionParameters(maximumGenerations, inputImages, basisInfo,
                                                          Dd, zd, massScale, allowNegativeValues, baseLens, 
-                                                         sheetSearch, fullFitnessObjParams, wideSearch)
+                                                         sheetSearch, fullFitnessObjParams, massScaleSearchType)
 
     # TODO: for now, we're getting the component description in a separate way as it
     #       is not yet integrated in mogal. Once it is, this should be removed

@@ -109,7 +109,7 @@ int main(int argc, char *argv[])
 							massScale,
 							useWeights, basisFunction, allowNeg, nullptr, // pBaseLens
 							sheetSearchType, pFitnessObjectParams,
-							wideSearch);
+							ScaleSearchParameters(wideSearch));
 
 						unique_ptr<GridLensInversionGAFactoryParams> pParamsCopy(origParams.createCopy());
 						serut::VectorSerializer ser;

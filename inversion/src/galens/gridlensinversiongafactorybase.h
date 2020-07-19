@@ -31,6 +31,7 @@
 #include "randomnumbergenerator.h"
 #include "backprojectmatrixnew.h"
 #include "vector2d.h"
+#include "gridlensinversiongafactoryparams.h"
 #include <mogal/gafactorydefaults.h>
 #include <vector>
 #include <memory>
@@ -116,7 +117,7 @@ private:
 	int m_numMasses, m_maxGenerations;
 	bool m_allowNegativeValues;
 	bool m_useGenomeSheet;
-	bool m_wideSearch;
+	ScaleSearchParameters m_massScaleSearchParams;
 
 	std::vector<float> m_massWeights;
 

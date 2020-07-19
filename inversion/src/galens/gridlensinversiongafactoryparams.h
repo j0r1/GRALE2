@@ -54,7 +54,7 @@ public:
 					 const GravitationalLens *pBaseLens = nullptr,
 					 GridLensInversionParameters::MassSheetSearchType sheetSearchType = GridLensInversionParameters::NoSheet,
 					 const ConfigurationParameters *pFitnessObjectParams = nullptr,
-					 bool wideSearch = false
+					 const ScaleSearchParameters &massScaleSearchParams = ScaleSearchParameters(false)
 					 );
 	~GridLensInversionGAFactoryParams();
 
@@ -67,7 +67,7 @@ public:
 	const GravitationalLens *getBaseLens() const									{ return m_pParams->getBaseLens(); }
 	const GravitationalLens *getSheetLens() const									{ return m_pParams->getSheetLens(); }
 	const ConfigurationParameters *getFitnessObjectParameters() const				{ return m_pParams->getFitnessObjectParameters(); }
-	bool useWideSearch() const														{ return m_pParams->useWideSearch(); }
+	const ScaleSearchParameters &getMassScaleSearchParameters() const				{ return m_pParams->getMassScaleSearchParameters(); }
 	const std::vector<GridLensInversionParameters::BasisLensInfo> &getBasisLenses() const { return m_pParams->getBasisLenses(); }
 	
 	bool write(serut::SerializationInterface &si) const;

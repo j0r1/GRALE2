@@ -54,13 +54,13 @@ GridLensInversionGAFactoryParams::GridLensInversionGAFactoryParams(int maxgen,
 		const GravitationalLens *pBaseLens,
 		GridLensInversionParameters::MassSheetSearchType sheetSearchType,
 		const ConfigurationParameters *pFitnessObjectParams,
-		bool wideSearch) 
+		const ScaleSearchParameters &massScaleSearchParams)
 	: LensInversionGAFactoryParams(LensInversionGAFactoryParams::GridInversion)
 {
 	shared_ptr<GravitationalLens> sheetLens = GridLensInversionParameters::createDefaultSheetLens(sheetSearchType, D_d);
 	m_pParams = new GridLensInversionParameters(maxgen, images, gridsquares, D_d, z_d, massscale,
 			                                    useweights, b, allowNegativeValues, pBaseLens, sheetLens.get(),
-												pFitnessObjectParams, wideSearch);
+												pFitnessObjectParams, massScaleSearchParams);
 }
 
 GridLensInversionGAFactoryParams::~GridLensInversionGAFactoryParams()

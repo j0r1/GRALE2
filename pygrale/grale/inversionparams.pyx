@@ -163,8 +163,8 @@ cdef class GridLensInversionParameters(object):
     #   or a list of basisfunction info [ { "lens": lens model, "mass": relevant lensing mass, "center": center }, ... ]
     def __init__(self, maxGen, imageList, gridInfoOrBasisFunctions, Dd, zd, massScale,
                  allowNegativeValues = False, baseLens = None, sheetSearch = "nosheet",
-                 fitnessObjectParameters = None, wideSearch = False):
-        """__init__(maxGen, imageList, gridInfoOrBasisFunctions, Dd, zd, massScale, allowNegativeValues = False, baseLens = None, sheetSearch = "nosheet", fitnessObjectParameters = None, wideSearch = False)
+                 fitnessObjectParameters = None, massScaleSearchType = "regular"):
+        """__init__(maxGen, imageList, gridInfoOrBasisFunctions, Dd, zd, massScale, allowNegativeValues = False, baseLens = None, sheetSearch = "nosheet", fitnessObjectParameters = None,  massScaleSearchType = "regular")
         
         Creates an instance containing the input for the lens inversion method.
 
@@ -211,7 +211,7 @@ cdef class GridLensInversionParameters(object):
          - `zd`: the redshift of the lens, important when using time delay information
          - `massScale`: a mass scale for the optimization to use. The weights of the
            basis functions will be adjusted to lie in a certain range around this
-           scale (the width of the range depends on `wideSearch`)
+           scale (the width of the range depends on `massScaleSearchType`)
          - `allowNegativeValues`: by default, only positive weights will be assigned to
            the basis functions used in the optimization. If negative weights are allowed
            as well (can be useful when starting from a certain `baseLens`), this can be
@@ -222,14 +222,24 @@ cdef class GridLensInversionParameters(object):
            basis function should be present in the lens inversion method.
          - `fitnessObjectParameters`: parameters that should be passed to the inversion 
            module that will be used.
-         - `wideSearch`: if set to ``True``, a wider range of masses will be probed around
-           the specified `massScale` argument. In typical cases, this is not needed, but
-           may be useful when trying to combine strong and weak lensing information.
+         - `massScaleSearchType`: default is ``"regular"``, but if set to ``"wide"``, a 
+            wider range of masses will be  probed around the specified `massScale` argument. 
+            In typical cases, this is not needed, but may be useful when trying to combine 
+            strong and weak lensing information. It can also be set to ``"nosearch"`` to
+            disable the search for an appropriate scaling of the basis functions. It is also
+            possible to set to a dictionary with the following entries, mainly for testing
+            purposes:
+
+              - `startFactor`
+              - `stopFactor`
+              - `numIterations`
+              - `firstIterationSteps`
+              - `nextIterationSteps`
         """
 
         cdef vector[shared_ptr[imagesdataextended.ImagesDataExtended]] imgVector
         cdef vector[grid.GridSquare] gridSquares
-        cdef serut.MemorySerializer *mSer
+        cdef serut.MemorySerializer *mSer = NULL
         cdef array[char] buf
         cdef shared_ptr[imagesdataextended.ImagesDataExtended] pImgDat
         cdef string errorString
@@ -242,8 +252,11 @@ cdef class GridLensInversionParameters(object):
         cdef shared_ptr[gravitationallens.GravitationalLens] sheetLensModel
         cdef configurationparameters.ConfigurationParameters *pFitnessObjectParameters = NULL
         cdef vector[gridlensinversionparameters.BasisLensInfo] basisLensInfo
-
-        mSer = NULL
+        cdef gridlensinversionparameters.ScaleSearchParameters regSearchParams = gridlensinversionparameters.ScaleSearchParameters(False)
+        cdef gridlensinversionparameters.ScaleSearchParameters wideSearchParams = gridlensinversionparameters.ScaleSearchParameters(True)
+        cdef gridlensinversionparameters.ScaleSearchParameters noSearchParams
+        cdef gridlensinversionparameters.ScaleSearchParameters *pCustomSearchParams = NULL
+        cdef gridlensinversionparameters.ScaleSearchParameters *pScaleSearchParams = NULL
 
         try:
             # Build the list of extended images
@@ -322,6 +335,21 @@ cdef class GridLensInversionParameters(object):
                 fitnessObjectParametersObj = ConfigurationParameters(fitnessObjectParameters)
                 pFitnessObjectParameters = ConfigurationParameters._getConfigurationParameters(fitnessObjectParametersObj)
 
+            if massScaleSearchType == "regular":
+                pScaleSearchParams = cython.address(regSearchParams)
+            elif massScaleSearchType == "wide":
+                pScaleSearchParams = cython.address(wideSearchParams)
+            elif massScaleSearchType == "nosearch":
+                pScaleSearchParams = cython.address(noSearchParams)
+            else:
+                pCustomSearchParams = new gridlensinversionparameters.ScaleSearchParameters(
+                    massScaleSearchType["startFactor"],
+                    massScaleSearchType["stopFactor"],
+                    massScaleSearchType["numIterations"],
+                    massScaleSearchType["firstIterationSteps"],
+                    massScaleSearchType["nextIterationSteps"])
+                pScaleSearchParams = pCustomSearchParams
+
             if type(gridInfoOrBasisFunctions) == dict:
                 gridSquareList = gridInfoOrBasisFunctions["gridSquares"]
                 basisFunction = gridInfoOrBasisFunctions["basisFunction"] if "basisFunction" in gridInfoOrBasisFunctions else "plummer"
@@ -347,7 +375,7 @@ cdef class GridLensInversionParameters(object):
 
                 self.m_pParams = new gridlensinversionparameters.GridLensInversionParameters(maxGen, imgVector, gridSquares,
                                                 Dd, zd, massScale, useWeights, basisFunctionType, allowNegativeValues,
-                                                pBaseLens, sheetLensModel.get(), pFitnessObjectParameters, wideSearch)
+                                                pBaseLens, sheetLensModel.get(), pFitnessObjectParameters, deref(pScaleSearchParams))
 
             elif type(gridInfoOrBasisFunctions) == list:
 
@@ -370,7 +398,7 @@ cdef class GridLensInversionParameters(object):
 
                 self.m_pParams = new gridlensinversionparameters.GridLensInversionParameters(maxGen, imgVector, basisLensInfo,
                                                 Dd, zd, massScale, allowNegativeValues, pBaseLens, sheetLensModel.get(), 
-                                                pFitnessObjectParameters, wideSearch)
+                                                pFitnessObjectParameters, deref(pScaleSearchParams))
             else:
                 raise InversionParametersException("Unsupported type for gridInfoOrBasisFunctions parameter, should be dict or list")
 
@@ -378,6 +406,7 @@ cdef class GridLensInversionParameters(object):
             # Clean up
             del mSer
             del pBaseLens
+            del pCustomSearchParams
 
     @staticmethod
     cdef _appendHelper(vector[gridlensinversionparameters.BasisLensInfo] &basisLensInfo,
