@@ -73,7 +73,6 @@ private:
 	void initializeNewCalculation();
 	bool calculateMassScaleFitness(float scalefactor, float sheetScale, float &fitness);
 	bool calculateTotalFitness(float scalefactor, float sheetScale, float *fitnessvalues);
-	void rescale();
 	
 	int m_fitnessComp;
 	float m_fitnessValues[GRIDLENSINVERSIONGENOMEBASE_MAXFITNESSCOMP];	

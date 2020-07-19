@@ -36,6 +36,7 @@
 #include "backprojectmatrixnew.h"
 #include <iostream>
 #include <limits>
+#include <assert.h>
 
 #include "debugnew.h"
 
@@ -70,8 +71,6 @@ GridLensInversionGenomeBase::GridLensInversionGenomeBase(GridLensInversionGAFact
 		m_sheetValue = uniDist.pickNumber();
 	else
 		m_sheetValue = -1;
-
-	rescale();
 }
 
 GridLensInversionGenomeBase::GridLensInversionGenomeBase(GridLensInversionGAFactoryBase *f, const std::vector<float> &masses, float sheetValue)
@@ -87,7 +86,13 @@ GridLensInversionGenomeBase::GridLensInversionGenomeBase(GridLensInversionGAFact
 
 	m_scaleFactor = 1.0;
 
-	rescale();
+#ifndef NDEBUG
+	if (!m_pFactory->allowNegativeValues())
+	{
+		for (auto x : m_masses)
+			assert(x >= 0);
+	}
+#endif // NDEBUG
 }
 
 GridLensInversionGenomeBase::~GridLensInversionGenomeBase()
@@ -275,12 +280,33 @@ void GridLensInversionGenomeBase::mutate()
 	float chanceMultiplier = m_pFactory->getChanceMultiplier();
 	float chance = chanceMultiplier/((float)nummasses);
 	SimpleUniformDistribution uniDist(m_pFactory->getRandomNumberGenerator());
-	float mutationAmplitude = m_pFactory->getMutationAmplitude();
 
-	auto chanceSetUniform = [chance, &uniDist](float &x, float mult, float offset)
+	auto absVal = [](auto x) { return ABS(x); };
+	auto noChange = [](auto x) { return x; };
+	auto getMaxVal = [this, nummasses](auto fn)
+	{
+		float maxVal = 0;
+
+		for (int i = 0 ; i < nummasses ; i++)
+		{
+			float x = fn(m_masses[i]);
+			if (maxVal < x)
+				maxVal = x;
+		}
+		return maxVal;
+	};
+
+	float maxVal = (m_pFactory->allowNegativeValues())?getMaxVal(absVal):getMaxVal(noChange);
+	// In the past, this 'maxVal' value was rescaled to 0.5, the unit range then 
+	// corresponds to twice this. This means that the unit based mutation amplitude
+	// needs to be scaled by 2*maxVal
+	float rescale = 2.0f*maxVal;
+	float mutationAmplitude = m_pFactory->getMutationAmplitude() * rescale;
+
+	auto chanceSetUniform = [chance, &uniDist, rescale](float &x, float mult, float offset)
 	{
 		if ((float)uniDist.pickNumber() < chance)
-			x = (float)uniDist.pickNumber()*mult - offset;
+			x = ((float)uniDist.pickNumber()*mult - offset)*rescale;
 	};
 
 	auto chanceSetUniformAllMasses = [this, chance, &uniDist, nummasses, chanceSetUniform](float mult, float offset)
@@ -315,18 +341,20 @@ void GridLensInversionGenomeBase::mutate()
 			chanceSetSmallDiff(m_masses[i], yMin, yMax);
 	};
 
-	float mult = 1.0f, offset = 0.0f, yMin = 0.0f, yMax = 1.0f;
-	if (m_pFactory->allowNegativeValues())
-	{
-		mult = 2.0f;
-		offset = 1.0f;
-		yMin = -1.0f;
-	}
-
 	if (m_pFactory->useAbsoluteMutation())
-		chanceSetUniformAllMasses(mult, offset);
+	{
+		if (m_pFactory->allowNegativeValues())
+			chanceSetUniformAllMasses(2.0f, 1.0f);
+		else
+			chanceSetUniformAllMasses(1.0f, 0.0f);
+	}
 	else
-		chanceSetSmallDiffAllMasses(yMin, yMax);
+	{
+		if (m_pFactory->allowNegativeValues())
+			chanceSetSmallDiffAllMasses(-rescale, rescale);
+		else
+			chanceSetSmallDiffAllMasses(0.0f, rescale);
+	}
 
 	if (m_sheetValue >= 0)
 	{
@@ -335,8 +363,6 @@ void GridLensInversionGenomeBase::mutate()
 		else
 			chanceSetSmallDiff(m_sheetValue, 0.0f, 1.0f);
 	}
-
-	rescale();
 }
 
 std::string GridLensInversionGenomeBase::getFitnessDescription() const
@@ -351,43 +377,6 @@ std::string GridLensInversionGenomeBase::getFitnessDescription() const
 		p += strlen(p);
 	}
 	return std::string(str);
-}
-	
-void GridLensInversionGenomeBase::rescale()
-{
-	int nummasses = m_masses.size();
-
-	auto absVal = [](auto x) { return ABS(x); };
-	auto noChange = [](auto x) { return x; };
-	auto clamp = [](auto x) { return (x < 0)?0:x; };
-
-	auto getMaxVal = [this, nummasses](auto fn)
-	{
-		float maxVal = 0;
-		
-		for (int i = 0 ; i < nummasses ; i++)
-		{
-			if (fn(maxVal) < fn(m_masses[i]))
-				maxVal = fn(m_masses[i]);
-		}
-		return maxVal;
-	};
-
-	auto scaleIt = [this, nummasses, getMaxVal](auto fnForMax, auto fnForNeg)
-	{
-		float maxval = getMaxVal(fnForMax);
-		if (maxval > 0)
-		{
-			float f = 0.5f/maxval;
-			for (int i = 0 ; i < nummasses ; i++)
-				m_masses[i] = fnForNeg(m_masses[i]*f);
-		}
-	};
-
-	if (m_pFactory->allowNegativeValues())
-		scaleIt(absVal, noChange);
-	else
-		scaleIt(noChange, clamp);
 }
 
 GravitationalLens *GridLensInversionGenomeBase::createLens(double *totalmass, std::string &errstr) const
