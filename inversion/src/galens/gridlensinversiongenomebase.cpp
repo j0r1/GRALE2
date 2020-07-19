@@ -509,6 +509,11 @@ bool GridLensInversionGenomeBase::calculateTotalFitness(float scaleFactor, float
 		cerr << "ERROR: Unable to calculate full fitness: " << fitnessFunction.getErrorString() << endl;
 		return false;
 	}
+
+#ifndef NDEBUG
+	if (getenv("GRALE_DEBUG_DUMPFITNESS"))
+		m_pFactory->sendMessage("DEBUG: fitness = " + getFitnessDescription());
+#endif // !NDEBUG
 	return true;
 }
 
