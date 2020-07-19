@@ -380,7 +380,7 @@ void GridLensInversionGenomeBase::mutate()
 				// allow larger mutations with smaller probablility
 				// p(x) = (2/Pi)*1/(x^2+1)
 				// cfr anomalous diffusion
-				float p = (float)uniDist.pickNumber();
+				float p = (float)uniDist.pickNumber()*2.0f - 1.0f;
 				float x = TAN(p*(float)(CONST_PI/4.0))*mutationAmplitude;
 				float y = x+m_sheetValue;
 
