@@ -29,8 +29,6 @@ iws.setUniformGrid(15)
 lens1, fitness, fitdesc = iws.invert(512)
 lens1.save("inv1.lensdata")
 
-sys.exit(-1)
-
 iws.setSubdivisionGrid(lens1, 300, 400)
 lens2, fitness, fitdesc = iws.invert(512)
 lens2.save("inv2.lensdata")
