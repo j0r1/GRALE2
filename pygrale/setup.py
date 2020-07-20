@@ -305,7 +305,8 @@ if isQtAvailable:
     extraSetupArgs["scripts"] += [ startScript ]
 
 # Run the actual setup command
-setup(name = "grale", version = versionStr, ext_modules = cythonize(extensions), py_modules = pyMods, **extraSetupArgs)
+setup(name = "grale", version = versionStr, ext_modules = cythonize(extensions, language_level="3"), 
+      py_modules = pyMods, **extraSetupArgs)
 
 # Build and install SIP bindings for PyQt5 based Grale editor
 if isQtAvailable:
