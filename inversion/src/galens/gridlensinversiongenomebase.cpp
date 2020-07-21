@@ -45,7 +45,7 @@ using namespace std;
 namespace grale
 {
 
-GridLensInversionGenomeBase::GridLensInversionGenomeBase(GridLensInversionGAFactoryBase *f, int nummasses, bool useGenomeMassSheet)
+GridLensInversionGenomeBase::GridLensInversionGenomeBase(GridLensInversionGAFactoryBase *f, int nummasses, int numSheets)
 {
 	m_pFactory = f;
 	m_fitnessComp = 0;
@@ -67,17 +67,16 @@ GridLensInversionGenomeBase::GridLensInversionGenomeBase(GridLensInversionGAFact
 			m_masses[i] -= 0.5;
 	}
 
-	if (useGenomeMassSheet)
-		m_sheetValue = uniDist.pickNumber();
-	else
-		m_sheetValue = -1;
+	m_sheetValues.resize(numSheets);
+	for (auto &s : m_sheetValues)
+		s = uniDist.pickNumber();
 }
 
-GridLensInversionGenomeBase::GridLensInversionGenomeBase(GridLensInversionGAFactoryBase *f, const std::vector<float> &masses, float sheetValue)
+GridLensInversionGenomeBase::GridLensInversionGenomeBase(GridLensInversionGAFactoryBase *f, const vector<float> &masses, const vector<float> &sheetValues)
 {
 	m_pFactory = f;
 	m_masses = masses;
-	m_sheetValue = sheetValue;
+	m_sheetValues = sheetValues;
 	
 	m_fitnessComp = 0;
 	
@@ -113,7 +112,8 @@ bool GridLensInversionGenomeBase::calculateFitness()
 	int numiterationsteps;
 	int numiterationsteps2;
 
-	m_pFactory->initializeNewCalculation(m_masses);
+	if (!m_pFactory->initializeNewCalculation(m_masses, m_sheetValues))
+		return false;
 
 	// TODO: adjust mass scale depending on sheet value?
 
@@ -186,7 +186,7 @@ bool GridLensInversionGenomeBase::calculateFitness()
 				float realScale = IT(s);
 				float f;
 				
-				if (!m_pFactory->calculateMassScaleFitness(realScale, m_sheetValue, f))
+				if (!m_pFactory->calculateMassScaleFitness(realScale, f))
 					return false;
 
 				if (f < currentBestFitness)
@@ -218,7 +218,7 @@ bool GridLensInversionGenomeBase::calculateFitness()
 	}
 
 	// Do the final (possibly multi-component) fitness evaluation
-	if (!m_pFactory->calculateTotalFitness(m_scaleFactor, m_sheetValue, m_fitnessValues))
+	if (!m_pFactory->calculateTotalFitness(m_scaleFactor, m_fitnessValues))
 		return false;
 
 #ifndef NDEBUG
@@ -265,16 +265,16 @@ mogal::Genome *GridLensInversionGenomeBase::reproduce(const mogal::Genome *g) co
 	else
 		genomeUniformCrossover(clamp);
 
-	float newSheetValue = -1;
-	if (m_sheetValue >= 0)
-		newSheetValue = pickParent()->m_sheetValue;
+	vector<float> newSheetValues(m_sheetValues.size());
+	for (int i = 0 ; i < newSheetValues.size() ; i++)
+		newSheetValues[i] = pickParent()->m_sheetValues[i];
 
-	return new GridLensInversionGenomeBase(m_pFactory, newmasses, newSheetValue);
+	return new GridLensInversionGenomeBase(m_pFactory, newmasses, newSheetValues);
 }
 
 mogal::Genome *GridLensInversionGenomeBase::clone() const
 {
-	GridLensInversionGenomeBase *g = new GridLensInversionGenomeBase(m_pFactory, m_masses, m_sheetValue);
+	GridLensInversionGenomeBase *g = new GridLensInversionGenomeBase(m_pFactory, m_masses, m_sheetValues);
 
 	g->setFitnessValues(m_fitnessValues);
 	g->setScaleFactor(m_scaleFactor);
@@ -364,12 +364,15 @@ void GridLensInversionGenomeBase::mutate()
 			chanceSetSmallDiffAllMasses(0.0f, rescale);
 	}
 
-	if (m_sheetValue >= 0)
+	if (m_pFactory->useAbsoluteMutation())
 	{
-		if (m_pFactory->useAbsoluteMutation())
-			chanceSetUniform(m_sheetValue, 1.0f, 0.0f);
-		else
-			chanceSetSmallDiff(m_sheetValue, 0.0f, 1.0f);
+		for (auto &v : m_sheetValues)
+			chanceSetUniform(v, 1.0f, 0.0f);
+	}
+	else
+	{
+		for (auto &v : m_sheetValues)
+			chanceSetSmallDiff(v, 0.0f, 1.0f);
 	}
 }
 

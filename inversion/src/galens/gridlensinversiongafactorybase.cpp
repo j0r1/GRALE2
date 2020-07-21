@@ -232,7 +232,7 @@ bool GridLensInversionGAFactoryBase::init(const mogal::GAFactoryParams *p)
 
 mogal::Genome *GridLensInversionGAFactoryBase::createNewGenome() const
 {
-	return new GridLensInversionGenomeBase(const_cast<GridLensInversionGAFactoryBase*>(this), m_numMasses, m_useGenomeSheet);
+	return new GridLensInversionGenomeBase(const_cast<GridLensInversionGAFactoryBase*>(this), getNumberOfMasses(), getNumberOfSheetValues());
 }
 
 bool GridLensInversionGAFactoryBase::writeGenome(serut::SerializationInterface &si, const mogal::Genome *g) const
@@ -244,7 +244,7 @@ bool GridLensInversionGAFactoryBase::writeGenome(serut::SerializationInterface &
 		setErrorString(si.getErrorString());
 		return false;
 	}
-	if (!si.writeFloat(g2->getSheetValue()))
+	if (!si.writeFloats(g2->getSheetValues()))
 	{
 		setErrorString(si.getErrorString());
 		return false;
@@ -254,20 +254,20 @@ bool GridLensInversionGAFactoryBase::writeGenome(serut::SerializationInterface &
 
 bool GridLensInversionGAFactoryBase::readGenome(serut::SerializationInterface &si, mogal::Genome **g) const
 {
-	std::vector<float> masses(m_numMasses);
-	float sheetValue;
+	std::vector<float> masses(getNumberOfMasses());
+	std::vector<float> sheetValues(getNumberOfSheetValues());
 
 	if (!si.readFloats(masses))
 	{
 		setErrorString(si.getErrorString());
 		return false;
 	}
-	if (!si.readFloat(&sheetValue))
+	if (!si.readFloats(sheetValues))
 	{
 		setErrorString(si.getErrorString());
 		return false;
 	}
-	*g = new GridLensInversionGenomeBase(const_cast<GridLensInversionGAFactoryBase*>(this), masses, sheetValue);
+	*g = new GridLensInversionGenomeBase(const_cast<GridLensInversionGAFactoryBase*>(this), masses, sheetValues);
 	return true;
 }
 
@@ -324,7 +324,18 @@ GravitationalLens *GridLensInversionGAFactoryBase::createLens(const GridLensInve
 
 	const vector<float> &masses = genome.getMasses();
 	const float scaleFactor = genome.getScaleFactor();
-	const float sheetValue = genome.getSheetValue();
+	const vector<float> &sheetValues = genome.getSheetValues();
+
+	float sheetValue = 0;
+	if (sheetValues.size() > 0)
+	{
+		sheetValue = sheetValues[0];
+		if (sheetValues.size() > 1)
+		{
+			errStr = "Unexpected error: more than one (" + to_string(sheetValues.size()) +") sheet value";
+			return nullptr;
+		}
+	}
 
 	for (int i = 0 ; i < m_basisLenses.size() ; i++)
 		lensParams.addLens((double)masses[i]*(double)scaleFactor, m_basisLenses[i].second, 0, *m_basisLenses[i].first.get());
@@ -548,18 +559,29 @@ void GridLensInversionGAFactoryBase::onCurrentBest(const list<mogal::Genome *> &
 	sendMessage(ss.str());
 }
 
-void GridLensInversionGAFactoryBase::initializeNewCalculation(const std::vector<float> &masses)
+bool GridLensInversionGAFactoryBase::initializeNewCalculation(const vector<float> &masses, const vector<float> &sheetValues)
 {
+	if (sheetValues.size() == 0)
+		m_sheetScale = 0;
+	else if (sheetValues.size() == 1)
+		m_sheetScale = sheetValues[0];
+	else
+	{
+		cerr << "Unexpected: got more (" << sheetValues.size() << ") mass sheet contributions than expected" << endl;
+		return false;
+	}
+	
 	m_pDeflectionMatrix->calculateBasisMatrixProducts(masses, true, true, true);
 	m_pTotalBPMatrix->storeDeflectionMatrixResults();
 	m_pShortBPMatrix->storeDeflectionMatrixResults();
+	return true;
 }
 
-bool GridLensInversionGAFactoryBase::calculateMassScaleFitness(float scaleFactor, float sheetScale, float &fitness)
+bool GridLensInversionGAFactoryBase::calculateMassScaleFitness(float scaleFactor, float &fitness)
 {
 	LensFitnessObject &fitnessFunction = *m_pFitnessObject;
 
-	m_pShortBPMatrix->calculate(scaleFactor, sheetScale);
+	m_pShortBPMatrix->calculate(scaleFactor, m_sheetScale);
 	if (fitnessFunction.shortNeedInverseMagnifications())
 		m_pShortBPMatrix->calculateInverseMagnifications(*(fitnessFunction.getShortInverseMagnificationFlags()));
 	if (fitnessFunction.shortNeedShearComponents())
@@ -575,11 +597,11 @@ bool GridLensInversionGAFactoryBase::calculateMassScaleFitness(float scaleFactor
 	return true;
 }
 
-bool GridLensInversionGAFactoryBase::calculateTotalFitness(float scaleFactor, float sheetScale, float *pFitnessValues)
+bool GridLensInversionGAFactoryBase::calculateTotalFitness(float scaleFactor, float *pFitnessValues)
 {
 	LensFitnessObject &fitnessFunction = *m_pFitnessObject;
 
-	m_pTotalBPMatrix->calculate(scaleFactor, sheetScale);
+	m_pTotalBPMatrix->calculate(scaleFactor, m_sheetScale);
 	if (fitnessFunction.totalNeedInverseMagnifications())
 		m_pTotalBPMatrix->calculateInverseMagnifications(*(fitnessFunction.getTotalInverseMagnificationFlags()));
 	if (fitnessFunction.totalNeedShearComponents())

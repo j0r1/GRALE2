@@ -45,8 +45,8 @@ class GravitationalLens;
 class GRALE_IMPORTEXPORT GridLensInversionGenomeBase : public mogal::Genome
 {
 public:
-	GridLensInversionGenomeBase(GridLensInversionGAFactoryBase *f, int nummasses, bool useGenomeSheet);
-	GridLensInversionGenomeBase(GridLensInversionGAFactoryBase *f, const std::vector<float> &masses, float sheetValue);
+	GridLensInversionGenomeBase(GridLensInversionGAFactoryBase *f, int nummasses, int numSheets);
+	GridLensInversionGenomeBase(GridLensInversionGAFactoryBase *f, const std::vector<float> &masses, const std::vector<float> &sheetValues);
 	~GridLensInversionGenomeBase();
 	
 	void setActiveFitnessComponent(int i)								{ m_fitnessComp = i; }
@@ -63,21 +63,17 @@ public:
 	void setScaleFactor(float s)									{ m_scaleFactor = s; }
 	
 	const std::vector<float> &getMasses() const							{ return m_masses; }
-	float getSheetValue() const									{ return m_sheetValue; }
+	const std::vector<float> &getSheetValues() const					{ return m_sheetValues; }
 
 	void copyFitnessValuesTo(float *pDestination, int amount) const					{ memcpy(pDestination, m_fitnessValues, sizeof(float)*amount); }
 protected:
 	GridLensInversionGAFactoryBase *getFactory() const						{ return m_pFactory; }
 private:
-	void initializeNewCalculation();
-	bool calculateMassScaleFitness(float scalefactor, float sheetScale, float &fitness);
-	bool calculateTotalFitness(float scalefactor, float sheetScale, float *fitnessvalues);
-	
 	int m_fitnessComp;
 	float m_fitnessValues[GRIDLENSINVERSIONGENOMEBASE_MAXFITNESSCOMP];	
 	float m_scaleFactor;
 	std::vector<float> m_masses;
-	float m_sheetValue;
+	std::vector<float> m_sheetValues;
 
 	GridLensInversionGAFactoryBase *m_pFactory;
 };

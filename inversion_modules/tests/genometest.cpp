@@ -135,7 +135,10 @@ int main(int argc, char *argv[])
 						for (auto &m : pGenome->getMasses())
 							cout << " " << m;
 						cout << endl;
-						cout << "sheet: " << pGenome->getSheetValue() << endl;
+						cout << "sheet:";
+						for (auto &s : pGenome->getSheetValues())
+							cout << " " << s;
+						cout << endl;
 						cout << "scale: " << pGenome->getScaleFactor() << endl;
 					}
 				}

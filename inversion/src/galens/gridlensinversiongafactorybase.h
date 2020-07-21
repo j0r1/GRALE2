@@ -87,9 +87,9 @@ public:
 
 	void sendMessage(const std::string &s);
 
-	void initializeNewCalculation(const std::vector<float> &masses);
-	bool calculateMassScaleFitness(float scaleFactor, float sheetScale, float &fitness);
-	bool calculateTotalFitness(float scaleFactor, float sheetScale, float *pFitnessValues);
+	bool initializeNewCalculation(const std::vector<float> &masses, const std::vector<float> &sheetValues);
+	bool calculateMassScaleFitness(float scaleFactor, float &fitness);
+	bool calculateTotalFitness(float scaleFactor, float *pFitnessValues);
 protected:
 	int getMaximumNumberOfGenerations() const						{ return m_maxGenerations; }
 
@@ -104,6 +104,9 @@ protected:
 	void onCurrentBest(const std::list<mogal::Genome *> &bestGenomes) override;
 	void onGeneticAlgorithmStart() override;
 private:
+	virtual int getNumberOfMasses() const { return m_numMasses; }
+	virtual int getNumberOfSheetValues() const { return (m_useGenomeSheet)?1:0; }
+
 	void zero();
 	void clear();
 	bool localSubInit(double z_d, const std::vector<std::shared_ptr<ImagesDataExtended>> &images, 
@@ -129,6 +132,8 @@ private:
 	BackProjectMatrixNew *m_pShortBPMatrix, *m_pTotalBPMatrix;
 
 	std::vector<std::string> m_queuedMessages;
+
+	float m_sheetScale; // Stored when initializeNewCalculation is called
 };
 
 } // end namespace
