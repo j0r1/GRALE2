@@ -72,11 +72,11 @@ GridLensInversionGenomeBase::GridLensInversionGenomeBase(GridLensInversionGAFact
 		s = uniDist.pickNumber();
 }
 
-GridLensInversionGenomeBase::GridLensInversionGenomeBase(GridLensInversionGAFactoryBase *f, const vector<float> &masses, const vector<float> &sheetValues)
+GridLensInversionGenomeBase::GridLensInversionGenomeBase(GridLensInversionGAFactoryBase *f, vector<float> &masses, vector<float> &sheetValues)
 {
 	m_pFactory = f;
-	m_masses = masses;
-	m_sheetValues = sheetValues;
+	m_masses = std::move(masses);
+	m_sheetValues = std::move(sheetValues);
 	
 	m_fitnessComp = 0;
 	
@@ -269,12 +269,16 @@ mogal::Genome *GridLensInversionGenomeBase::reproduce(const mogal::Genome *g) co
 	for (int i = 0 ; i < newSheetValues.size() ; i++)
 		newSheetValues[i] = pickParent()->m_sheetValues[i];
 
+	// This moves newmasses and newSheetValues
 	return new GridLensInversionGenomeBase(m_pFactory, newmasses, newSheetValues);
 }
 
 mogal::Genome *GridLensInversionGenomeBase::clone() const
 {
-	GridLensInversionGenomeBase *g = new GridLensInversionGenomeBase(m_pFactory, m_masses, m_sheetValues);
+	// We need a copy, as the constructor we're going to use will std::move the contents
+	vector<float> massesCopy { m_masses };
+	vector<float> sheetValuesCopy { m_sheetValues };
+	GridLensInversionGenomeBase *g = new GridLensInversionGenomeBase(m_pFactory, massesCopy, sheetValuesCopy);
 
 	g->setFitnessValues(m_fitnessValues);
 	g->setScaleFactor(m_scaleFactor);

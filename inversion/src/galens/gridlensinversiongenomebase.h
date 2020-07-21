@@ -46,7 +46,8 @@ class GRALE_IMPORTEXPORT GridLensInversionGenomeBase : public mogal::Genome
 {
 public:
 	GridLensInversionGenomeBase(GridLensInversionGAFactoryBase *f, int nummasses, int numSheets);
-	GridLensInversionGenomeBase(GridLensInversionGAFactoryBase *f, const std::vector<float> &masses, const std::vector<float> &sheetValues);
+	// This will move the contents of masses and sheetValues!
+	GridLensInversionGenomeBase(GridLensInversionGAFactoryBase *f, std::vector<float> &masses, std::vector<float> &sheetValues);
 	~GridLensInversionGenomeBase();
 	
 	void setActiveFitnessComponent(int i)								{ m_fitnessComp = i; }

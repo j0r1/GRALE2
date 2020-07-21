@@ -267,6 +267,7 @@ bool GridLensInversionGAFactoryBase::readGenome(serut::SerializationInterface &s
 		setErrorString(si.getErrorString());
 		return false;
 	}
+	// This moves masses and sheetValues
 	*g = new GridLensInversionGenomeBase(const_cast<GridLensInversionGAFactoryBase*>(this), masses, sheetValues);
 	return true;
 }
