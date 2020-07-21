@@ -108,8 +108,6 @@ bool GridLensInversionGenomeBase::calculateFitness()
 	int nummasses = m_masses.size();
 	float startValue, startValue0;
 	float stopValue, stopValue0;
-	float sheetStartValue, sheetStartValue0;
-	float sheetStopValue, sheetStopValue0;
 
 	int numiterations;
 	int numiterationsteps;
@@ -131,7 +129,6 @@ bool GridLensInversionGenomeBase::calculateFitness()
 			massum += ABS(m_masses[i]*weights[i]);
 
 		m_pFactory->getGenomeCalculationParameters(startValue, stopValue, numiterationsteps, numiterations, numiterationsteps2);
-		m_pFactory->getGenomeSheetCalculationParameters(sheetStartValue, sheetStopValue);
 
 		// we want a scale factor of 1 to correspond to the total mass specified by the
 		// massscale used in the BackProjectMatrix
@@ -148,7 +145,6 @@ bool GridLensInversionGenomeBase::calculateFitness()
 			massum += m_masses[i]*weights[i];
 
 		m_pFactory->getGenomeCalculationParameters(startValue, stopValue, numiterationsteps, numiterations, numiterationsteps2);
-		m_pFactory->getGenomeSheetCalculationParameters(sheetStartValue, sheetStopValue);
 
 		// we want a scale factor of 1 to correspond to the total mass specified by the
 		// massscale used in the BackProjectMatrix

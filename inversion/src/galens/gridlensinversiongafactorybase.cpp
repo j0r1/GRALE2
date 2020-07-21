@@ -71,29 +71,41 @@ private:
 
 GridLensInversionGAFactoryBase::GridLensInversionGAFactoryBase()
 {
-	m_pCurrentParams = 0;
+	zero();
+}
+
+void GridLensInversionGAFactoryBase::zero()
+{
+	m_pCurrentParams = nullptr;
+	m_pDeflectionMatrix = nullptr;
+	m_pShortBPMatrix = nullptr;
+	m_pTotalBPMatrix = nullptr;
+	m_pFitnessObject = nullptr;
+
 	m_maxGenerations = 0;
-	m_pDeflectionMatrix = 0;
-	m_pShortBPMatrix = 0;
-	m_pTotalBPMatrix = 0;
-	m_pFitnessObject = 0;
+}
+
+void GridLensInversionGAFactoryBase::clear()
+{
+	delete m_pCurrentParams;
+	delete m_pDeflectionMatrix;
+	if (m_pShortBPMatrix == m_pTotalBPMatrix)
+		m_pShortBPMatrix = nullptr; // Avoid double deletion
+	delete m_pShortBPMatrix;
+	delete m_pTotalBPMatrix;
+	delete m_pFitnessObject;
+
+	m_massWeights.clear();
+	m_basisLenses.clear();
+	m_sheetLens = nullptr;
+	m_queuedMessages.clear();
+
+	zero();
 }
 
 GridLensInversionGAFactoryBase::~GridLensInversionGAFactoryBase()
 {
-	if (m_pCurrentParams)
-		delete m_pCurrentParams;
-	if (m_pDeflectionMatrix)
-			delete m_pDeflectionMatrix;
-	if (m_pShortBPMatrix)
-	{
-		if (m_pShortBPMatrix != m_pTotalBPMatrix)
-			delete m_pShortBPMatrix;
-	}
-	if (m_pTotalBPMatrix)
-		delete m_pTotalBPMatrix;
-	if (m_pFitnessObject)
-		delete m_pFitnessObject;
+	clear();
 }
 
 mogal::GAFactoryParams *GridLensInversionGAFactoryBase::createParamsInstance() const
@@ -170,9 +182,10 @@ bool GridLensInversionGAFactoryBase::init(const mogal::GAFactoryParams *p)
 		m_basisLenses.push_back( { bl.m_pLens, bl.m_center });
 		
 		double m = bl.m_relevantLensingMass;
-		if (m <= 0)
+		if (m <= 0) // TODO: allow this to be overridden
 		{
 			setErrorString("A basis lens has a negative lensing mass");
+			clear();
 			return false;
 		}
 	}
@@ -197,9 +210,7 @@ bool GridLensInversionGAFactoryBase::init(const mogal::GAFactoryParams *p)
 				m_pCurrentParams->getFitnessObjectParameters()))
 	{
 		// Error string is set in subInit
-		m_basisLenses.clear();
-		delete m_pCurrentParams;
-		m_pCurrentParams = 0;
+		clear();
 		return false;
 	}
 	
@@ -221,7 +232,7 @@ bool GridLensInversionGAFactoryBase::init(const mogal::GAFactoryParams *p)
 
 mogal::Genome *GridLensInversionGAFactoryBase::createNewGenome() const
 {
-	return new GridLensInversionGenomeBase((GridLensInversionGAFactoryBase *)this, m_numMasses, m_useGenomeSheet);
+	return new GridLensInversionGenomeBase(const_cast<GridLensInversionGAFactoryBase*>(this), m_numMasses, m_useGenomeSheet);
 }
 
 bool GridLensInversionGAFactoryBase::writeGenome(serut::SerializationInterface &si, const mogal::Genome *g) const
@@ -256,7 +267,7 @@ bool GridLensInversionGAFactoryBase::readGenome(serut::SerializationInterface &s
 		setErrorString(si.getErrorString());
 		return false;
 	}
-	*g = new GridLensInversionGenomeBase((GridLensInversionGAFactoryBase *)this, masses, sheetValue);
+	*g = new GridLensInversionGenomeBase(const_cast<GridLensInversionGAFactoryBase*>(this), masses, sheetValue);
 	return true;
 }
 
@@ -328,6 +339,8 @@ GravitationalLens *GridLensInversionGAFactoryBase::createLens(const GridLensInve
 	return pLens;
 }
 
+// This is some very old code, haven't used this for a long time. I'm just leaving this
+// in here in case I'd like to do something similar in the future.
 #ifdef SHOWEVOLUTION
 
 void GridLensInversionGAFactoryBase::onSortedPopulation(const std::vector<mogal::GenomeWrapper> &population)
@@ -388,7 +401,10 @@ bool GridLensInversionGAFactoryBase::localSubInit(double z_d, const vector<share
 
 	m_pFitnessObject = createFitnessObject();
 	if (m_pFitnessObject == 0)
+	{
+		clear();
 		return false; // error string should be set in the createFitnessObject function
+	}
 
 	ConfigurationParameters fitnesObjectParams;
 	if (pFitnessObjectParams)
@@ -399,11 +415,11 @@ bool GridLensInversionGAFactoryBase::localSubInit(double z_d, const vector<share
 	if (!m_pFitnessObject->init(z_d, reducedImages, shortImages, &fitnesObjectParams))
 	{
 		setErrorString(m_pFitnessObject->getErrorString());
-		delete m_pFitnessObject;
-		m_pFitnessObject = 0;
+		clear();
 		return false;
 	}
 
+	// Check that all keys in the fitness object parameters are actually used
 	vector<string> unusedKeys;
 	fitnesObjectParams.getUnretrievedKeys(unusedKeys);
 
@@ -416,19 +432,13 @@ bool GridLensInversionGAFactoryBase::localSubInit(double z_d, const vector<share
 			ss << " " << k;
 		setErrorString(ss.str());
 
-		delete m_pFitnessObject;
-		m_pFitnessObject = 0;
+		clear();
 		return false;
 	}
 
-	std::vector<ImagesDataExtended *> reducedImagesVector, shortImagesVector;
-	std::list<ImagesDataExtended *>::const_iterator it;
-
-	for (it = reducedImages.begin() ; it != reducedImages.end() ; it++)
-		reducedImagesVector.push_back(*it);
-
-	for (it = shortImages.begin() ; it != shortImages.end() ; it++)
-		shortImagesVector.push_back(*it);
+	// Transform from list to vector
+	std::vector<ImagesDataExtended *> reducedImagesVector { reducedImages.begin(), reducedImages.end() };
+	std::vector<ImagesDataExtended *> shortImagesVector { shortImages.begin(), shortImages.end() };
 	
 	// TODO: this has to be done in a subclass!
 	//setNumberOfFitnessComponents(m_pFitnessObject->getNumberOfFitnessComponents());
@@ -436,8 +446,7 @@ bool GridLensInversionGAFactoryBase::localSubInit(double z_d, const vector<share
 	// This should at least perform the setNumberOfFitnessComponents call
 	if (!subInit(m_pFitnessObject))
 	{
-		delete m_pFitnessObject;
-		m_pFitnessObject = 0;
+		clear();
 		return false;
 	}
 
@@ -445,10 +454,7 @@ bool GridLensInversionGAFactoryBase::localSubInit(double z_d, const vector<share
 	if (!m_pDeflectionMatrix->startInit())
 	{
 		setErrorString(m_pDeflectionMatrix->getErrorString());
-		delete m_pDeflectionMatrix;
-		delete m_pFitnessObject;
-		m_pDeflectionMatrix = 0;
-		m_pFitnessObject = 0;
+		clear();
 		return false;
 	}
 
@@ -466,12 +472,7 @@ bool GridLensInversionGAFactoryBase::localSubInit(double z_d, const vector<share
 					 pSheetLens))
 	{
 		setErrorString(m_pTotalBPMatrix->getErrorString());
-		delete m_pTotalBPMatrix;
-		delete m_pDeflectionMatrix;
-		delete m_pFitnessObject;
-		m_pDeflectionMatrix = 0;
-		m_pFitnessObject = 0;
-		m_pTotalBPMatrix = 0;
+		clear();
 		return false;
 	}
 
@@ -491,17 +492,9 @@ bool GridLensInversionGAFactoryBase::localSubInit(double z_d, const vector<share
 						 pSheetLens))
 		{
 			setErrorString(m_pShortBPMatrix->getErrorString());
-			delete m_pShortBPMatrix;
-			delete m_pTotalBPMatrix;
-			delete m_pDeflectionMatrix;
-			delete m_pFitnessObject;
-			m_pDeflectionMatrix = 0;
-			m_pFitnessObject = 0;
-			m_pTotalBPMatrix = 0;
-			m_pShortBPMatrix = 0;
+			clear();
 			return false;
 		}
-
 	}
 	else
 		m_pShortBPMatrix = m_pTotalBPMatrix;
@@ -511,46 +504,28 @@ bool GridLensInversionGAFactoryBase::localSubInit(double z_d, const vector<share
 	if (!m_pDeflectionMatrix->endInit(basisLenses))
 	{
 		setErrorString(m_pDeflectionMatrix->getErrorString());
-		err = true;
-	}
-	if (!err)
-	{
-		if (!m_pTotalBPMatrix->endInit())
-		{
-			setErrorString(m_pTotalBPMatrix->getErrorString());
-			err = true;
-		}
-	}
-	if (!err)
-	{
-		if (m_pShortBPMatrix != m_pTotalBPMatrix)
-		{
-			if (!m_pShortBPMatrix->endInit())
-			{
-				setErrorString(m_pShortBPMatrix->getErrorString());
-				err = true;
-			}
-		}
-	}
-
-	if (err)
-	{
-		if (m_pShortBPMatrix != m_pTotalBPMatrix)
-		{
-			delete m_pShortBPMatrix;
-			m_pShortBPMatrix = 0;
-		}
-		delete m_pTotalBPMatrix;
-		delete m_pDeflectionMatrix;
-		delete m_pFitnessObject;
-		m_pDeflectionMatrix = 0;
-		m_pFitnessObject = 0;
-		m_pTotalBPMatrix = 0;
+		clear();
 		return false;
 	}
 
-	m_pFitnessObject->postInit(reducedImages, shortImages, m_pDeflectionMatrix->getAngularScale());
+	if (!m_pTotalBPMatrix->endInit())
+	{
+		setErrorString(m_pTotalBPMatrix->getErrorString());
+		clear();
+		return false;
+	}
 
+	if (m_pShortBPMatrix != m_pTotalBPMatrix)
+	{
+		if (!m_pShortBPMatrix->endInit())
+		{
+			setErrorString(m_pShortBPMatrix->getErrorString());
+			clear();
+			return false;
+		}
+	}
+
+	m_pFitnessObject->postInit(reducedImages, shortImages, m_pDeflectionMatrix->getAngularScale());
 	return true;
 }
 
@@ -561,12 +536,6 @@ void GridLensInversionGAFactoryBase::getGenomeCalculationParameters(float &start
 	numiterationsteps = m_massScaleSearchParams.getStepsOnFirstIteration();
 	numiterations = m_massScaleSearchParams.getNumberOfIterations();
 	numiterationsteps2 = m_massScaleSearchParams.getStepsOnSubsequentIterations();
-}
-
-void GridLensInversionGAFactoryBase::getGenomeSheetCalculationParameters(float &startfactor, float &stopfactor) const
-{ 
-	startfactor = 0;
-	stopfactor = 2.0;
 }
 
 void GridLensInversionGAFactoryBase::onCurrentBest(const list<mogal::Genome *> &bestGenomes)

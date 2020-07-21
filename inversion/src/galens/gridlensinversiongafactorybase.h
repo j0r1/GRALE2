@@ -77,7 +77,6 @@ public:
 	const float *getMassWeights() const							{ return &(m_massWeights[0]); }
 	
 	void getGenomeCalculationParameters(float &startfactor, float &stopfactor, int &numiterationsteps, int &numiterations, int &numiterationsteps2) const;
-	void getGenomeSheetCalculationParameters(float &startfactor, float &stopfactor) const;
 	bool useLogarithmicScaleSearch() const { return true; }
 
 	virtual float getChanceMultiplier() = 0;
@@ -106,6 +105,8 @@ protected:
 	void onCurrentBest(const std::list<mogal::Genome *> &bestGenomes) override;
 	void onGeneticAlgorithmStart() override;
 private:
+	void zero();
+	void clear();
 	bool localSubInit(double z_d, const std::vector<std::shared_ptr<ImagesDataExtended>> &images, 
 	                  const std::vector<std::pair<std::shared_ptr<GravitationalLens>, Vector2D<double> > > &basisLenses,
 					  const GravitationalLens *pBaseLens, const GravitationalLens *pSheetLens, 
