@@ -85,12 +85,11 @@ public:
 
 	GravitationalLens *createLens(const GridLensInversionGenomeBase &genome, std::string &errStr) const;
 
-	DeflectionMatrix *getDeflectionMatrix()							{ return m_pDeflectionMatrix; }
-	BackProjectMatrixNew *getShortBackProjectMatrix()					{ return m_pShortBPMatrix; }
-	BackProjectMatrixNew *getTotalBackProjectMatrix()					{ return m_pTotalBPMatrix; }
-	LensFitnessObject *getFitnessObject()							{ return m_pFitnessObject; }
-
 	void sendMessage(const std::string &s);
+
+	void initializeNewCalculation(const std::vector<float> &masses);
+	bool calculateMassScaleFitness(float scaleFactor, float sheetScale, float &fitness);
+	bool calculateTotalFitness(float scaleFactor, float sheetScale, float *pFitnessValues);
 protected:
 	int getMaximumNumberOfGenerations() const						{ return m_maxGenerations; }
 

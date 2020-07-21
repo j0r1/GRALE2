@@ -113,7 +113,7 @@ bool GridLensInversionGenomeBase::calculateFitness()
 	int numiterationsteps;
 	int numiterationsteps2;
 
-	initializeNewCalculation();
+	m_pFactory->initializeNewCalculation(m_masses);
 
 	// TODO: adjust mass scale depending on sheet value?
 
@@ -186,8 +186,8 @@ bool GridLensInversionGenomeBase::calculateFitness()
 				float realScale = IT(s);
 				float f;
 				
-				if (!calculateMassScaleFitness(realScale, m_sheetValue, f))
-					return false; // error should already have been set
+				if (!m_pFactory->calculateMassScaleFitness(realScale, m_sheetValue, f))
+					return false;
 
 				if (f < currentBestFitness)
 				{
@@ -218,7 +218,13 @@ bool GridLensInversionGenomeBase::calculateFitness()
 	}
 
 	// Do the final (possibly multi-component) fitness evaluation
-	calculateTotalFitness(m_scaleFactor, m_sheetValue, m_fitnessValues);
+	if (!m_pFactory->calculateTotalFitness(m_scaleFactor, m_sheetValue, m_fitnessValues))
+		return false;
+
+#ifndef NDEBUG
+	if (getenv("GRALE_DEBUG_DUMPFITNESS"))
+		m_pFactory->sendMessage("DEBUG: fitness = " + getFitnessDescription());
+#endif // !NDEBUG
 
 	return true;
 }
@@ -381,67 +387,4 @@ std::string GridLensInversionGenomeBase::getFitnessDescription() const
 	return std::string(str);
 }
 
-void GridLensInversionGenomeBase::initializeNewCalculation()
-{
-	GridLensInversionGAFactoryBase *pFactory = getFactory();
-	DeflectionMatrix *pDeflectionMatrix = pFactory->getDeflectionMatrix();
-	BackProjectMatrixNew *pTotalBackProjectMatrix = pFactory->getTotalBackProjectMatrix();
-	BackProjectMatrixNew *pShortBackProjectMatrix = pFactory->getShortBackProjectMatrix();
-
-	pDeflectionMatrix->calculateBasisMatrixProducts(getMasses(), true, true, true);
-	pTotalBackProjectMatrix->storeDeflectionMatrixResults();
-	pShortBackProjectMatrix->storeDeflectionMatrixResults();
-}
-
-bool GridLensInversionGenomeBase::calculateMassScaleFitness(float scaleFactor, float sheetScale, float &fitness)
-{
-	GridLensInversionGAFactoryBase *pFactory = getFactory();
-	BackProjectMatrixNew *pShortBackProjectMatrix = pFactory->getShortBackProjectMatrix();
-	LensFitnessObject &fitnessFunction = *(pFactory->getFitnessObject());
-
-	pShortBackProjectMatrix->calculate(scaleFactor, sheetScale);
-	if (fitnessFunction.shortNeedInverseMagnifications())
-		pShortBackProjectMatrix->calculateInverseMagnifications(*(fitnessFunction.getShortInverseMagnificationFlags()));
-	if (fitnessFunction.shortNeedShearComponents())
-		pShortBackProjectMatrix->calculateShearComponents(*(fitnessFunction.getShortShearComponentFlags()));
-	if (fitnessFunction.shortNeedConvergence())
-		pShortBackProjectMatrix->calculateConvergence(*(fitnessFunction.getShortConvergenceFlags()));
-
-	if (!fitnessFunction.calculateMassScaleFitness(*pShortBackProjectMatrix, fitness))
-	{
-		cerr << "ERROR: Unable to calculate mass scale fitness: " << fitnessFunction.getErrorString() << endl;
-		return false;
-	}
-	return true;
-}
-
-bool GridLensInversionGenomeBase::calculateTotalFitness(float scaleFactor, float sheetScale, float *pFitnessValues)
-{
-	GridLensInversionGAFactoryBase *pFactory = getFactory();
-	BackProjectMatrixNew *pTotalBackProjectMatrix = pFactory->getTotalBackProjectMatrix();
-	LensFitnessObject &fitnessFunction = *(pFactory->getFitnessObject());
-	
-	pTotalBackProjectMatrix->calculate(scaleFactor, sheetScale);
-	if (fitnessFunction.totalNeedInverseMagnifications())
-		pTotalBackProjectMatrix->calculateInverseMagnifications(*(fitnessFunction.getTotalInverseMagnificationFlags()));
-	if (fitnessFunction.totalNeedShearComponents())
-		pTotalBackProjectMatrix->calculateShearComponents(*(fitnessFunction.getTotalShearComponentFlags()));
-	if (fitnessFunction.totalNeedConvergence())
-		pTotalBackProjectMatrix->calculateConvergence(*(fitnessFunction.getTotalConvergenceFlags()));
-
-	if (!fitnessFunction.calculateOverallFitness(*pTotalBackProjectMatrix, pFitnessValues))
-	{
-		cerr << "ERROR: Unable to calculate full fitness: " << fitnessFunction.getErrorString() << endl;
-		return false;
-	}
-
-#ifndef NDEBUG
-	if (getenv("GRALE_DEBUG_DUMPFITNESS"))
-		m_pFactory->sendMessage("DEBUG: fitness = " + getFitnessDescription());
-#endif // !NDEBUG
-	return true;
-}
-
 } // end namespace
-
-

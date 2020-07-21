@@ -548,4 +548,52 @@ void GridLensInversionGAFactoryBase::onCurrentBest(const list<mogal::Genome *> &
 	sendMessage(ss.str());
 }
 
+void GridLensInversionGAFactoryBase::initializeNewCalculation(const std::vector<float> &masses)
+{
+	m_pDeflectionMatrix->calculateBasisMatrixProducts(masses, true, true, true);
+	m_pTotalBPMatrix->storeDeflectionMatrixResults();
+	m_pShortBPMatrix->storeDeflectionMatrixResults();
+}
+
+bool GridLensInversionGAFactoryBase::calculateMassScaleFitness(float scaleFactor, float sheetScale, float &fitness)
+{
+	LensFitnessObject &fitnessFunction = *m_pFitnessObject;
+
+	m_pShortBPMatrix->calculate(scaleFactor, sheetScale);
+	if (fitnessFunction.shortNeedInverseMagnifications())
+		m_pShortBPMatrix->calculateInverseMagnifications(*(fitnessFunction.getShortInverseMagnificationFlags()));
+	if (fitnessFunction.shortNeedShearComponents())
+		m_pShortBPMatrix->calculateShearComponents(*(fitnessFunction.getShortShearComponentFlags()));
+	if (fitnessFunction.shortNeedConvergence())
+		m_pShortBPMatrix->calculateConvergence(*(fitnessFunction.getShortConvergenceFlags()));
+
+	if (!fitnessFunction.calculateMassScaleFitness(*m_pShortBPMatrix, fitness))
+	{
+		cerr << "ERROR: Unable to calculate mass scale fitness: " << fitnessFunction.getErrorString() << endl;
+		return false;
+	}
+	return true;
+}
+
+bool GridLensInversionGAFactoryBase::calculateTotalFitness(float scaleFactor, float sheetScale, float *pFitnessValues)
+{
+	LensFitnessObject &fitnessFunction = *m_pFitnessObject;
+
+	m_pTotalBPMatrix->calculate(scaleFactor, sheetScale);
+	if (fitnessFunction.totalNeedInverseMagnifications())
+		m_pTotalBPMatrix->calculateInverseMagnifications(*(fitnessFunction.getTotalInverseMagnificationFlags()));
+	if (fitnessFunction.totalNeedShearComponents())
+		m_pTotalBPMatrix->calculateShearComponents(*(fitnessFunction.getTotalShearComponentFlags()));
+	if (fitnessFunction.totalNeedConvergence())
+		m_pTotalBPMatrix->calculateConvergence(*(fitnessFunction.getTotalConvergenceFlags()));
+
+	if (!fitnessFunction.calculateOverallFitness(*m_pTotalBPMatrix, pFitnessValues))
+	{
+		cerr << "ERROR: Unable to calculate full fitness: " << fitnessFunction.getErrorString() << endl;
+		return false;
+	}
+
+	return true;
+}
+
 } // end namespace
