@@ -257,9 +257,11 @@ mogal::Genome *GridLensInversionGenomeBase::reproduce(const mogal::Genome *g) co
 
 	auto noChange = [](float &x) { };
 	auto clamp = [](float &x) { if (x < 0) x = 0; };
-	auto changeFunction = (m_pFactory->allowNegativeValues())?noChange:clamp;
 
-	genomeUniformCrossover(changeFunction);
+	if (m_pFactory->allowNegativeValues())
+		genomeUniformCrossover(noChange);
+	else
+		genomeUniformCrossover(clamp);
 
 	float newSheetValue = -1;
 	if (m_sheetValue >= 0)
