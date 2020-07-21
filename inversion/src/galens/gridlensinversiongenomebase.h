@@ -28,8 +28,8 @@
 #define GRALE_GRIDLENSINVERSIONGENOMEBASE_H
 
 #include "graleconfig.h"
-#include "lensinversiongenomebase.h"
 #include "mathfunctions.h"
+#include <mogal/genome.h>
 #include <string.h>
 #include <string>
 #include <vector>
@@ -42,7 +42,7 @@ namespace grale
 class GridLensInversionGAFactoryBase;
 class GravitationalLens;	
 
-class GRALE_IMPORTEXPORT GridLensInversionGenomeBase : public LensInversionGenomeBase
+class GRALE_IMPORTEXPORT GridLensInversionGenomeBase : public mogal::Genome
 {
 public:
 	GridLensInversionGenomeBase(GridLensInversionGAFactoryBase *f, int nummasses, bool useGenomeSheet);
@@ -65,7 +65,6 @@ public:
 	const std::vector<float> &getMasses() const							{ return m_masses; }
 	float getSheetValue() const									{ return m_sheetValue; }
 
-	GravitationalLens *createLens(double *totalmass, std::string &errstr) const;
 	void copyFitnessValuesTo(float *pDestination, int amount) const					{ memcpy(pDestination, m_fitnessValues, sizeof(float)*amount); }
 protected:
 	GridLensInversionGAFactoryBase *getFactory() const						{ return m_pFactory; }

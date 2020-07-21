@@ -11,6 +11,7 @@
 namespace grale
 {
 	class GridLensInversionGAFactoryParams;
+	class GridLensInversionGAFactoryBase;
 	class GALensModule;
 }
 namespace mogal
@@ -35,13 +36,14 @@ protected:
 	virtual bool_t runGA(int popSize, mogal::GAFactory &factory, mogal::GeneticAlgorithmParams &params,
 	                     const std::string &moduleDir, const std::string &moduleFile,
 						 const std::vector<uint8_t> &factoryParamBytes);
+	virtual const mogal::GeneticAlgorithm *getGeneticAlgorithm() const { return nullptr; }
 
 	bool_t readLineWithPrefix(const std::string &prefix, std::string &value, int timeoutMSec);
 	bool_t readLineWithPrefix(const std::string &prefix, int &value, int timeoutMSec);
 	bool_t readLineAndBytesWithPrefix(const std::string &prefix, std::vector<uint8_t> &bytes, int timeoutMSec);
 	template<class T> bool_t loadFromBytes(T &x, std::vector<uint8_t> &bytes);
 
-	bool_t onGAFinished(mogal::GeneticAlgorithm &ga);
+	bool_t onGAFinished(const grale::GridLensInversionGAFactoryBase &factory, const mogal::GeneticAlgorithm &ga);
 	bool m_nds;
 };
 

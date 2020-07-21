@@ -40,7 +40,7 @@ using namespace std;
 namespace grale
 {
 
-GridLensInversionGAFactoryParams::GridLensInversionGAFactoryParams() : LensInversionGAFactoryParams(LensInversionGAFactoryParams::GridInversion)
+GridLensInversionGAFactoryParams::GridLensInversionGAFactoryParams()
 {
 	m_pParams = new GridLensInversionParameters();
 }
@@ -55,7 +55,6 @@ GridLensInversionGAFactoryParams::GridLensInversionGAFactoryParams(int maxgen,
 		GridLensInversionParameters::MassSheetSearchType sheetSearchType,
 		const ConfigurationParameters *pFitnessObjectParams,
 		const ScaleSearchParameters &massScaleSearchParams)
-	: LensInversionGAFactoryParams(LensInversionGAFactoryParams::GridInversion)
 {
 	shared_ptr<GravitationalLens> sheetLens = GridLensInversionParameters::createDefaultSheetLens(sheetSearchType, D_d);
 	m_pParams = new GridLensInversionParameters(maxgen, images, gridsquares, D_d, z_d, massscale,

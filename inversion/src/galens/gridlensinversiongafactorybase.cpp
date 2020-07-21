@@ -140,17 +140,15 @@ bool GridLensInversionGAFactoryBase::init(const mogal::GAFactoryParams *p)
 		return false;
 	}
 	
-	const LensInversionGAFactoryParams *p0 = (const LensInversionGAFactoryParams *)p;
-	if (p0->getInversionType() != LensInversionGAFactoryParams::GridInversion)
+	const GridLensInversionGAFactoryParams *p2 = dynamic_cast<const GridLensInversionGAFactoryParams *>(p);
+	if (!p2)
 	{
-		setErrorString("This algorithm is not a grid based one");
+		setErrorString("Invalid type of GA factory parameters");
 		return false;
 	}
 
 	sendMessage("RNG SEED: " + std::to_string(m_rndGen.getSeed()));
 
-	const GridLensInversionGAFactoryParams *p2 = (const GridLensInversionGAFactoryParams *)p;
-	
 	m_pCurrentParams = p2->createCopy();
 	assert(m_pCurrentParams);
 
@@ -307,11 +305,15 @@ bool GridLensInversionGAFactoryBase::readCommonGenerationInfo(serut::Serializati
 	return true;
 }
 
-GravitationalLens *GridLensInversionGAFactoryBase::createLens(const std::vector<float> &masses, float sheetValue, float scaleFactor, 
-                                                              double *pTotalMass, std::string &errStr) const
+GravitationalLens *GridLensInversionGAFactoryBase::createLens(const GridLensInversionGenomeBase &genome,
+                                                              std::string &errStr) const
 {
 	CompositeLensParams lensParams;
 	CompositeLens *pLens;
+
+	const vector<float> &masses = genome.getMasses();
+	const float scaleFactor = genome.getScaleFactor();
+	const float sheetValue = genome.getSheetValue();
 
 	for (int i = 0 ; i < m_basisLenses.size() ; i++)
 		lensParams.addLens((double)masses[i]*(double)scaleFactor, m_basisLenses[i].second, 0, *m_basisLenses[i].first.get());
@@ -322,10 +324,7 @@ GravitationalLens *GridLensInversionGAFactoryBase::createLens(const std::vector<
 	pLens = new CompositeLens();
 	pLens->init(m_basisLenses[0].first->getLensDistance(), &lensParams);
 
-	// TODO
-	*pTotalMass = 0;
-
-	// TODO: base lens!?
+	// Note that this lens does not include any base lens that might be set
 	return pLens;
 }
 

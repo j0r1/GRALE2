@@ -10,8 +10,6 @@ set(HEADERS
 	galens/gridlensinversiongenomebase.h
 	galens/imagesbackprojector.h
 	galens/lensfitnessobject.h
-	galens/lensinversiongafactoryparams.h
-	galens/lensinversiongenomebase.h
 	galens/multifitnesshistory.h
 	galens/projectedimagesinterface.h
 	galens/precalculatedbackprojector.h

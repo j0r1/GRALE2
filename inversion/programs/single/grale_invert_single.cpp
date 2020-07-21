@@ -21,7 +21,6 @@ using namespace mogal;
 using namespace errut;
 
 #include "commonga.h"
-typedef CommonGA<GeneticAlgorithm> MyGA;
 
 class SingleCoreCommunicator : public InversionCommunicator
 {
@@ -35,13 +34,15 @@ protected:
 	             const std::string &moduleDir, const std::string &moduleFile,
 	             const std::vector<uint8_t> &factoryParamBytes) override
 	{
-		MyGA ga;
+		if (!m_ga.run(factory, popSize,&params))
+			return "Error running GA: " + m_ga.getErrorString();
 
-		if (!ga.run(factory, popSize,&params))
-			return "Error running GA: " + ga.getErrorString();
-
-		return onGAFinished(ga);
+		return true;
 	}
+
+	const mogal::GeneticAlgorithm *getGeneticAlgorithm() const override { return &m_ga; }
+private:
+	CommonGA<GeneticAlgorithm> m_ga;
 };
 
 int main(int argc, char *argv[])

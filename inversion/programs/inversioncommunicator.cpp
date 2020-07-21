@@ -7,8 +7,9 @@
 #include "inputoutput.h"
 #include "gaparameters.h"
 #include "gridlensinversiongafactoryparams.h"
+#include "gridlensinversiongafactorybase.h"
+#include "gridlensinversiongenomebase.h"
 #include "galensmodule.h"
-#include "lensinversiongenomebase.h"
 #include "gravitationallens.h"
 #include <serut/memoryserializer.h>
 #include <serut/vectorserializer.h>
@@ -160,11 +161,14 @@ bool_t InversionCommunicator::runModule(const string &moduleDir, const string &m
 	GeneticAlgorithmParams params(gaParams.getSelectionPressure(), gaParams.getUseElitism(),
 	                              gaParams.getAlwaysIncludeBest(), gaParams.getCrossOverRate());
 
-	auto pFactory = pModule->createFactoryInstance();
-	if (!pFactory)
+	auto pBaseFactory = pModule->createFactoryInstance();
+	if (!pBaseFactory)
 		return "Unable to create GA factory instance";
+	unique_ptr<GAFactory> baseFactory(pBaseFactory); // just to make memory management easier
 
-	unique_ptr<GAFactory> factory(pFactory); // just to make memory management easier
+	auto pFactory = dynamic_cast<GridLensInversionGAFactoryBase*>(pBaseFactory);
+	if (!pFactory)
+		return "GA factory instance could be created from module, but is not of expected type";
 
 	if (!pFactory->init(&factoryParams))
 		return "Unable to initialize the GA factory: " + pFactory->getErrorString();
@@ -172,8 +176,15 @@ bool_t InversionCommunicator::runModule(const string &moduleDir, const string &m
 	if (!(r = runGA(popSize, *pFactory, params, moduleDir, moduleFile, factoryParamBytes)))
 		return r;
 
-	LOG(Log::DBG, "Finished runGA, end of runModule");
+	LOG(Log::DBG, "Finished runGA");
 
+	const GeneticAlgorithm *pGA = getGeneticAlgorithm();
+	if (pGA)
+	{
+		if (!(r = onGAFinished(*pFactory, *pGA)))
+			return r;
+	}
+	LOG(Log::DBG, "Called 'onGAFinished', end of runModule");
 	return true;
 }
 
@@ -184,7 +195,8 @@ bool_t InversionCommunicator::runGA(int popSize, GAFactory &factory, GeneticAlgo
 	return "Not implemented in base class";
 }
 
-bool_t InversionCommunicator::onGAFinished(mogal::GeneticAlgorithm &ga)
+bool_t InversionCommunicator::onGAFinished(const GridLensInversionGAFactoryBase &factory, 
+                                           const mogal::GeneticAlgorithm &ga)
 {
 	vector<Genome *> bestGenomes;
 
@@ -208,15 +220,17 @@ bool_t InversionCommunicator::onGAFinished(mogal::GeneticAlgorithm &ga)
 	WriteLineStdout(strprintf("NUMSOLS:%d", (int)bestGenomes.size()));
 	for (size_t i = 0 ; i < bestGenomes.size() ; i++)
 	{
-		const LensInversionGenomeBase *pGenome = static_cast<const LensInversionGenomeBase *>(bestGenomes[i]);
+		const GridLensInversionGenomeBase *pGenome = dynamic_cast<const GridLensInversionGenomeBase *>(bestGenomes[i]);
+		if (!pGenome)
+			return "A genome in the best genomes set is not of expected type";
+
 		string fitnessValues = pGenome->getFitnessDescription();
 		LOG(Log::DBG, "Selected genome has fitness: " + fitnessValues);
 
 		string errStr;
-		double totalmass; // This isn't really used anymore
 
 		LOG(Log::DBG, "Getting lens for genome");
-		unique_ptr<GravitationalLens> lens(pGenome->createLens(&totalmass, errStr));
+		unique_ptr<GravitationalLens> lens(factory.createLens(*pGenome, errStr));
 		if (!lens.get())
 			return "Unable to create lens from genome: " + errStr;
 
@@ -237,4 +251,3 @@ bool_t InversionCommunicator::onGAFinished(mogal::GeneticAlgorithm &ga)
 	LOG(Log::DBG, "End of onGAFinished");
 	return true;
 }
-

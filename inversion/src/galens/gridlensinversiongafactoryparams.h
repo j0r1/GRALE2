@@ -28,8 +28,8 @@
 #define GRALE_GRIDLENSINVERSIONGAFACTORYPARAMS_H
 
 #include "graleconfig.h"
-#include "lensinversiongafactoryparams.h"
 #include "gridlensinversionparameters.h"
+#include <mogal/gafactory.h>
 
 namespace grale
 {
@@ -38,7 +38,7 @@ class ImagesDataExtended;
 class GravitationalLens;
 class ConfigurationParameters;
 
-class GRALE_IMPORTEXPORT GridLensInversionGAFactoryParams : public LensInversionGAFactoryParams
+class GRALE_IMPORTEXPORT GridLensInversionGAFactoryParams : public mogal::GAFactoryParams
 {
 public:
 	GridLensInversionGAFactoryParams();

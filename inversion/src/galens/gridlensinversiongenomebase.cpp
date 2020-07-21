@@ -385,11 +385,6 @@ std::string GridLensInversionGenomeBase::getFitnessDescription() const
 	return std::string(str);
 }
 
-GravitationalLens *GridLensInversionGenomeBase::createLens(double *totalmass, std::string &errstr) const
-{
-	return m_pFactory->createLens(m_masses, m_sheetValue, m_scaleFactor, totalmass, errstr);
-}
-
 void GridLensInversionGenomeBase::initializeNewCalculation()
 {
 	GridLensInversionGAFactoryBase *pFactory = getFactory();

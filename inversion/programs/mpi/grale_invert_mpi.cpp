@@ -32,7 +32,6 @@ using namespace errut;
 #define MPIABORT(errMsg) do { LOG(Log::ERR, (errMsg)); cerr << errMsg << std::endl; cerr.flush(); sleep(10); MPI_Abort(MPI_COMM_WORLD, -1); } while(0)
 
 #include "commonga.h"
-typedef CommonGA<MPIGeneticAlgorithm> MyGA;
 
 class MultiCoreCommunicator : public InversionCommunicator
 {
@@ -65,13 +64,15 @@ protected:
 		MPI_Bcast(&paramSize, 1, MPI_INT, 0, MPI_COMM_WORLD);
 		MPI_Bcast(&(buffer[0]), paramSize, MPI_BYTE, 0, MPI_COMM_WORLD);
 
-		MyGA ga;
-		if (!ga.runMPI(factory, popSize, &params))
-			return "Unable to run MPI based GA: " + ga.getErrorString();
+		if (!m_ga.runMPI(factory, popSize, &params))
+			return "Unable to run MPI based GA: " + m_ga.getErrorString();
 
-		return onGAFinished(ga);
+		return true;
 	}
+
+	const mogal::GeneticAlgorithm *getGeneticAlgorithm() const override { return &m_ga; }
 private:
+	CommonGA<MPIGeneticAlgorithm> m_ga;
 	int m_worldSize;
 };
 

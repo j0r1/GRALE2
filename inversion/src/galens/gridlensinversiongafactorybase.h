@@ -84,7 +84,7 @@ public:
 	virtual bool useAbsoluteMutation() = 0;
 	virtual float getMutationAmplitude() = 0;
 
-	GravitationalLens *createLens(const std::vector<float> &masses, float sheetValue, float scaleFactor, double *pTotalMass, std::string &errStr) const;
+	GravitationalLens *createLens(const GridLensInversionGenomeBase &genome, std::string &errStr) const;
 
 	DeflectionMatrix *getDeflectionMatrix()							{ return m_pDeflectionMatrix; }
 	BackProjectMatrixNew *getShortBackProjectMatrix()					{ return m_pShortBPMatrix; }
