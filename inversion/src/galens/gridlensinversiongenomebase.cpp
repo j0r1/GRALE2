@@ -24,16 +24,10 @@
 */
 
 #include "gridlensinversiongenomebase.h"
-#include "gridlensinversiongafactorybase.h"
-#include "gridlensinversiongafactoryparams.h"
-#include "multipleplummerlens.h"
-#include "multiplesquarelens.h"
-#include "multiplegausslens.h"
+#include "lensinversiongafactorycommon.h"
 #include "simpleuniformdistribution.h"
 #include "constants.h"
 #include "lensfitnessobject.h"
-#include "deflectionmatrix.h"
-#include "backprojectmatrixnew.h"
 #include <iostream>
 #include <limits>
 #include <assert.h>
@@ -45,7 +39,7 @@ using namespace std;
 namespace grale
 {
 
-GridLensInversionGenomeBase::GridLensInversionGenomeBase(GridLensInversionGAFactoryBase *f, int nummasses, int numSheets)
+GridLensInversionGenomeBase::GridLensInversionGenomeBase(LensInversionGAFactoryCommon *f, int nummasses, int numSheets)
 {
 	m_pFactory = f;
 	m_fitnessComp = 0;
@@ -72,7 +66,7 @@ GridLensInversionGenomeBase::GridLensInversionGenomeBase(GridLensInversionGAFact
 		s = uniDist.pickNumber();
 }
 
-GridLensInversionGenomeBase::GridLensInversionGenomeBase(GridLensInversionGAFactoryBase *f, vector<float> &masses, vector<float> &sheetValues)
+GridLensInversionGenomeBase::GridLensInversionGenomeBase(LensInversionGAFactoryCommon *f, vector<float> &masses, vector<float> &sheetValues)
 {
 	m_pFactory = f;
 	m_masses = std::move(masses);

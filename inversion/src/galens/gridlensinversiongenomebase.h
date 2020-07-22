@@ -39,15 +39,15 @@
 namespace grale
 {
 	
-class GridLensInversionGAFactoryBase;
+class LensInversionGAFactoryCommon;
 class GravitationalLens;	
 
 class GRALE_IMPORTEXPORT GridLensInversionGenomeBase : public mogal::Genome
 {
 public:
-	GridLensInversionGenomeBase(GridLensInversionGAFactoryBase *f, int nummasses, int numSheets);
+	GridLensInversionGenomeBase(LensInversionGAFactoryCommon *f, int nummasses, int numSheets);
 	// This will move the contents of masses and sheetValues!
-	GridLensInversionGenomeBase(GridLensInversionGAFactoryBase *f, std::vector<float> &masses, std::vector<float> &sheetValues);
+	GridLensInversionGenomeBase(LensInversionGAFactoryCommon *f, std::vector<float> &masses, std::vector<float> &sheetValues);
 	~GridLensInversionGenomeBase();
 	
 	void setActiveFitnessComponent(int i)								{ m_fitnessComp = i; }
@@ -68,7 +68,7 @@ public:
 
 	void copyFitnessValuesTo(float *pDestination, int amount) const					{ memcpy(pDestination, m_fitnessValues, sizeof(float)*amount); }
 protected:
-	GridLensInversionGAFactoryBase *getFactory() const						{ return m_pFactory; }
+	LensInversionGAFactoryCommon *getFactory() const						{ return m_pFactory; }
 private:
 	int m_fitnessComp;
 	float m_fitnessValues[GRIDLENSINVERSIONGENOMEBASE_MAXFITNESSCOMP];	
@@ -76,7 +76,7 @@ private:
 	std::vector<float> m_masses;
 	std::vector<float> m_sheetValues;
 
-	GridLensInversionGAFactoryBase *m_pFactory;
+	LensInversionGAFactoryCommon *m_pFactory;
 };
 
 } // end namespace

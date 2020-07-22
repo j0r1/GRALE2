@@ -28,11 +28,11 @@
 #define GRALE_GRIDLENSINVERSIONGAFACTORYBASE_H
 
 #include "graleconfig.h"
+#include "lensinversiongafactorycommon.h"
 #include "randomnumbergenerator.h"
 #include "backprojectmatrixnew.h"
 #include "vector2d.h"
 #include "gridlensinversiongafactoryparams.h"
-#include <mogal/gafactorydefaults.h>
 #include <vector>
 #include <memory>
 
@@ -47,7 +47,7 @@ class LensFitnessObject;
 class ConfigurationParameters;
 
 // NOTE: the virtual inheritance is again very important!
-class GRALE_IMPORTEXPORT GridLensInversionGAFactoryBase : public virtual mogal::GAFactory
+class GRALE_IMPORTEXPORT GridLensInversionGAFactoryBase : public virtual LensInversionGAFactoryCommon
 {
 public:
 	GridLensInversionGAFactoryBase();
@@ -58,71 +58,24 @@ public:
 
 	bool init(const mogal::GAFactoryParams *p);
 
-	mogal::Genome *createNewGenome() const;
+	GravitationalLens *createLens(const GridLensInversionGenomeBase &genome, std::string &errStr) const override;
 
-	size_t getMaximalFitnessSize() const							{ return sizeof(float)*(2+getNumberOfFitnessComponents()); } // one for scale factor, one for sheet scale factor some for fitness
-	size_t getMaximalGenomeSize() const							{ return (m_numMasses+1)*sizeof(float); } // one extra for the mass sheet value
-
-	bool writeGenome(serut::SerializationInterface &si, const mogal::Genome *g) const;
-	bool readGenome(serut::SerializationInterface &si, mogal::Genome **g) const;
-	bool writeGenomeFitness(serut::SerializationInterface &si, const mogal::Genome *g) const;
-	bool readGenomeFitness(serut::SerializationInterface &si, mogal::Genome *g) const;
-	bool writeCommonGenerationInfo(serut::SerializationInterface &si) const;
-	bool readCommonGenerationInfo(serut::SerializationInterface &si);
-
-	bool hasFloatingPointFitnessValues() const 						{ return true; }
-
-	const mogal::RandomNumberGenerator *getRandomNumberGenerator() const			{ return &m_rndGen; }
-	bool allowNegativeValues() const							{ return m_allowNegativeValues; }
-	const float *getMassWeights() const							{ return &(m_massWeights[0]); }
-	
-	void getGenomeCalculationParameters(float &startfactor, float &stopfactor, int &numiterationsteps, int &numiterations, int &numiterationsteps2) const;
-	bool useLogarithmicScaleSearch() const { return true; }
-
-	virtual float getChanceMultiplier() = 0;
-	virtual bool useAbsoluteMutation() = 0;
-	virtual float getMutationAmplitude() = 0;
-
-	GravitationalLens *createLens(const GridLensInversionGenomeBase &genome, std::string &errStr) const;
-
-	void sendMessage(const std::string &s);
-
-	bool initializeNewCalculation(const std::vector<float> &masses, const std::vector<float> &sheetValues);
-	bool calculateMassScaleFitness(float scaleFactor, float &fitness);
-	bool calculateTotalFitness(float scaleFactor, float *pFitnessValues);
+	bool initializeNewCalculation(const std::vector<float> &masses, const std::vector<float> &sheetValues) override;
+	bool calculateMassScaleFitness(float scaleFactor, float &fitness) override;
+	bool calculateTotalFitness(float scaleFactor, float *pFitnessValues) override;
 protected:
-	int getMaximumNumberOfGenerations() const						{ return m_maxGenerations; }
-
-	virtual LensFitnessObject *createFitnessObject() = 0;
-
-	// This should at least set the number of fitness components
-	virtual bool subInit(LensFitnessObject *pFitnessObject) = 0;
 #ifdef SHOWEVOLUTION
 	void onSortedPopulation(const std::vector<mogal::GenomeWrapper> &population);
 #endif // SHOWEVOLUTION
-
-	void onCurrentBest(const std::list<mogal::Genome *> &bestGenomes) override;
-	void onGeneticAlgorithmStart() override;
 private:
-	virtual int getNumberOfMasses() const { return m_numMasses; }
-	virtual int getNumberOfSheetValues() const { return (m_useGenomeSheet)?1:0; }
-
 	void zero();
 	void clear();
 	bool localSubInit(double z_d, const std::vector<std::shared_ptr<ImagesDataExtended>> &images, 
 	                  const std::vector<std::pair<std::shared_ptr<GravitationalLens>, Vector2D<double> > > &basisLenses,
 					  const GravitationalLens *pBaseLens, const GravitationalLens *pSheetLens, 
 					  const ConfigurationParameters *pFitnessObjectParams);
-	double getAngularScale() const								{ return m_pShortBPMatrix->getAngularScale(); }
 
-	RandomNumberGenerator m_rndGen;
 	GridLensInversionGAFactoryParams *m_pCurrentParams;
-	int m_numMasses, m_maxGenerations;
-	bool m_allowNegativeValues;
-	bool m_useGenomeSheet;
-	ScaleSearchParameters m_massScaleSearchParams;
-
-	std::vector<float> m_massWeights;
 
 	std::vector<std::pair<std::shared_ptr<GravitationalLens>, Vector2D<double> > > m_basisLenses;
 	std::shared_ptr<GravitationalLens> m_sheetLens;

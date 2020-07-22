@@ -81,8 +81,6 @@ void GridLensInversionGAFactoryBase::zero()
 	m_pShortBPMatrix = nullptr;
 	m_pTotalBPMatrix = nullptr;
 	m_pFitnessObject = nullptr;
-
-	m_maxGenerations = 0;
 }
 
 void GridLensInversionGAFactoryBase::clear()
@@ -95,7 +93,6 @@ void GridLensInversionGAFactoryBase::clear()
 	delete m_pTotalBPMatrix;
 	delete m_pFitnessObject;
 
-	m_massWeights.clear();
 	m_basisLenses.clear();
 	m_sheetLens = nullptr;
 	m_queuedMessages.clear();
@@ -116,26 +113,6 @@ mogal::GAFactoryParams *GridLensInversionGAFactoryBase::createParamsInstance() c
 const mogal::GAFactoryParams *GridLensInversionGAFactoryBase::getCurrentParameters() const
 {
 	return m_pCurrentParams;
-}
-
-void GridLensInversionGAFactoryBase::sendMessage(const std::string &s)
-{
-	if (getCurrentAlgorithm())
-		GAFactory::sendMessage(s);
-	else // queue for later
-	{
-		cerr << "Queue: " << s << endl;
-		m_queuedMessages.push_back(s);
-	}
-}
-
-void GridLensInversionGAFactoryBase::onGeneticAlgorithmStart()
-{
-	// Send the messages that were previously queued
-	for (auto &s : m_queuedMessages)
-		GAFactory::sendMessage(s);
-
-	m_queuedMessages.clear();
 }
 
 bool GridLensInversionGAFactoryBase::init(const mogal::GAFactoryParams *p)
@@ -159,8 +136,6 @@ bool GridLensInversionGAFactoryBase::init(const mogal::GAFactoryParams *p)
 		return false;
 	}
 
-	sendMessage("RNG SEED: " + std::to_string(m_rndGen.getSeed()));
-
 	m_pCurrentParams = p2->createCopy();
 	assert(m_pCurrentParams);
 
@@ -173,7 +148,7 @@ bool GridLensInversionGAFactoryBase::init(const mogal::GAFactoryParams *p)
 		return false;
 	}
 
-	m_numMasses = basisLenses.size();
+	int numMasses = basisLenses.size();
 
 	double massScale = m_pCurrentParams->getMassScale();
 	double totalRelevantLensingMass = 0;
@@ -190,20 +165,19 @@ bool GridLensInversionGAFactoryBase::init(const mogal::GAFactoryParams *p)
 		}
 	}
 
+	vector<float> massWeights; // masses expressed in units of massScale
 	for (const auto &bl : basisLenses)
-		m_massWeights.push_back((float)(bl.m_relevantLensingMass/massScale));
+		massWeights.push_back((float)(bl.m_relevantLensingMass/massScale));
 
 	const GravitationalLens *pSheetLens = p2->getSheetLens();
+	int numSheetValues = 0;
 	if (pSheetLens)
 	{
 		m_sheetLens = shared_ptr<GravitationalLens>(pSheetLens->createCopy());
-		m_useGenomeSheet = true;
+		numSheetValues = 1;
 	}
 	else // no sheet
-	{
 		m_sheetLens = nullptr;
-		m_useGenomeSheet = false;
-	}
 
 	// perform sub-initialization
 	if (!localSubInit(p2->getZ_d(), p2->getImages(), m_basisLenses, p2->getBaseLens(), pSheetLens, 
@@ -214,106 +188,28 @@ bool GridLensInversionGAFactoryBase::init(const mogal::GAFactoryParams *p)
 		return false;
 	}
 	
-	m_maxGenerations = m_pCurrentParams->getMaximumNumberOfGenerations();
-	m_allowNegativeValues = p2->allowNegativeValues();
-	m_massScaleSearchParams = p2->getMassScaleSearchParameters();
+	int maxGenerations = m_pCurrentParams->getMaximumNumberOfGenerations();
+	bool allowNegativeValues = p2->allowNegativeValues();
+	auto massScaleSearchParams = p2->getMassScaleSearchParameters();
 
-	if (m_massScaleSearchParams == ScaleSearchParameters(true))
+	if (!setCommonParameters(numMasses, numSheetValues, maxGenerations, allowNegativeValues,
+	                         m_pDeflectionMatrix->getAngularScale(), massWeights,
+							 massScaleSearchParams))
+	{
+		clear();
+		// Error string was already set
+		return false;
+	}
+
+	if (massScaleSearchParams == ScaleSearchParameters(true))
 		sendMessage("Using wide scale factor search");
-	else if (m_massScaleSearchParams == ScaleSearchParameters(false))
+	else if (massScaleSearchParams == ScaleSearchParameters(false))
 		sendMessage("Using normal scale factor search");
-	else if (m_massScaleSearchParams.getNumberOfIterations() <= 0)
+	else if (massScaleSearchParams.getNumberOfIterations() <= 0)
 		sendMessage("Not using any extra mass scale search");
 	else
-		sendMessage("Using custom scaling parameters: " + m_massScaleSearchParams.toString());
+		sendMessage("Using custom scaling parameters: " + massScaleSearchParams.toString());
 
-	return true;
-}
-
-mogal::Genome *GridLensInversionGAFactoryBase::createNewGenome() const
-{
-	return new GridLensInversionGenomeBase(const_cast<GridLensInversionGAFactoryBase*>(this), getNumberOfMasses(), getNumberOfSheetValues());
-}
-
-bool GridLensInversionGAFactoryBase::writeGenome(serut::SerializationInterface &si, const mogal::Genome *g) const
-{
-	const GridLensInversionGenomeBase *g2 = (const GridLensInversionGenomeBase *)g;
-
-	if (!si.writeFloats(g2->getMasses()))
-	{
-		setErrorString(si.getErrorString());
-		return false;
-	}
-	if (!si.writeFloats(g2->getSheetValues()))
-	{
-		setErrorString(si.getErrorString());
-		return false;
-	}
-	return true;
-}
-
-bool GridLensInversionGAFactoryBase::readGenome(serut::SerializationInterface &si, mogal::Genome **g) const
-{
-	std::vector<float> masses(getNumberOfMasses());
-	std::vector<float> sheetValues(getNumberOfSheetValues());
-
-	if (!si.readFloats(masses))
-	{
-		setErrorString(si.getErrorString());
-		return false;
-	}
-	if (!si.readFloats(sheetValues))
-	{
-		setErrorString(si.getErrorString());
-		return false;
-	}
-	// This moves masses and sheetValues
-	*g = new GridLensInversionGenomeBase(const_cast<GridLensInversionGAFactoryBase*>(this), masses, sheetValues);
-	return true;
-}
-
-bool GridLensInversionGAFactoryBase::writeGenomeFitness(serut::SerializationInterface &si, const mogal::Genome *g) const
-{
-	const GridLensInversionGenomeBase *g2 = (const GridLensInversionGenomeBase *)g;
-	int num = getNumberOfFitnessComponents();
-	const float *f = g2->getFitnessValues();
-
-	if (!si.writeFloats(f, num))
-	{
-		setErrorString(si.getErrorString());
-		return false;
-	}
-	if (!si.writeFloat(g2->getScaleFactor()))
-	{
-		setErrorString(si.getErrorString());
-		return false;
-	}
-	return true;
-}
-
-bool GridLensInversionGAFactoryBase::readGenomeFitness(serut::SerializationInterface &si, mogal::Genome *g) const
-{
-	GridLensInversionGenomeBase *g2 = (GridLensInversionGenomeBase *)g;
-	int num = getNumberOfFitnessComponents();
-	float x[GRIDLENSINVERSIONGENOMEBASE_MAXFITNESSCOMP+1];
-
-	if (!si.readFloats(x, num+1))
-	{
-		setErrorString(si.getErrorString());
-		return false;
-	}
-	g2->setFitnessValues(x);
-	g2->setScaleFactor(x[num]);
-	return true;
-}
-
-bool GridLensInversionGAFactoryBase::writeCommonGenerationInfo(serut::SerializationInterface &si) const
-{
-	return true;
-}
-
-bool GridLensInversionGAFactoryBase::readCommonGenerationInfo(serut::SerializationInterface &si)
-{
 	return true;
 }
 
@@ -539,25 +435,6 @@ bool GridLensInversionGAFactoryBase::localSubInit(double z_d, const vector<share
 
 	m_pFitnessObject->postInit(reducedImages, shortImages, m_pDeflectionMatrix->getAngularScale());
 	return true;
-}
-
-void GridLensInversionGAFactoryBase::getGenomeCalculationParameters(float &startfactor, float &stopfactor, int &numiterationsteps, int &numiterations, int &numiterationsteps2) const
-{
-	startfactor = m_massScaleSearchParams.getStartFactor();
-	stopfactor = m_massScaleSearchParams.getStopFactor();
-	numiterationsteps = m_massScaleSearchParams.getStepsOnFirstIteration();
-	numiterations = m_massScaleSearchParams.getNumberOfIterations();
-	numiterationsteps2 = m_massScaleSearchParams.getStepsOnSubsequentIterations();
-}
-
-void GridLensInversionGAFactoryBase::onCurrentBest(const list<mogal::Genome *> &bestGenomes)
-{
-	stringstream ss;
-	ss << "Current best:";
-	for (auto g : bestGenomes)
-		ss << "( " << g->getFitnessDescription() << ")";
-
-	sendMessage(ss.str());
 }
 
 bool GridLensInversionGAFactoryBase::initializeNewCalculation(const vector<float> &masses, const vector<float> &sheetValues)
