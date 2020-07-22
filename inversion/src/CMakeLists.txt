@@ -13,6 +13,7 @@ set(HEADERS
 	galens/multifitnesshistory.h
 	galens/projectedimagesinterface.h
 	galens/precalculatedbackprojector.h
+	galens/mpcudabackprojector.h
 	prob/randomnumbergenerator.h
 	prob/probabilitydistribution.h
 	prob/simpleuniformdistribution.h
@@ -30,6 +31,7 @@ set(SOURCES
 	galens/multifitnesshistory.cpp
 	galens/projectedimagesinterface.cpp
 	galens/precalculatedbackprojector.cpp
+	galens/mpcudabackprojector.cpp
 	prob/randomnumbergenerator.cpp
 	prob/probabilitydistribution.cpp
 	)
