@@ -711,7 +711,6 @@ cdef class ImagesDataExtended:
         bvalue = False
         ivalue = 0
         dvalue = 0.0
-        svalue = ""
 
         if type(value) == bool:
             bvalue = value
@@ -1846,5 +1845,5 @@ cdef class PointSource(SourceImage):
 
 # import some things from a pure python module, to avoid recompilation if something
 # changes there.
-from privimages import getDefaultLineAnalyzer, setDefaultLineAnalyzer, readInputImagesFile, hoursMinutesSecondsToDegrees, degreesMinutesSecondsToDegrees, createGridTriangles, enlargePolygon, createSourceFromImagesData, createPointImagesData
+from .privimages import getDefaultLineAnalyzer, setDefaultLineAnalyzer, readInputImagesFile, hoursMinutesSecondsToDegrees, degreesMinutesSecondsToDegrees, createGridTriangles, enlargePolygon, createSourceFromImagesData, createPointImagesData
 

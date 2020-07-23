@@ -53,8 +53,8 @@ cdef class ConfigurationParameters(object):
         cdef int intValue = 0
         cdef cbool boolValue = False
         cdef double doubleValue = 0.0
-        cdef string strValue = ""
-        cdef string keyValue = ""
+        cdef string strValue
+        cdef string keyValue
 
         if parameterDict:
             for key in parameterDict:
@@ -90,8 +90,8 @@ cdef class ConfigurationParameters(object):
         cdef configurationparameters.TypedParameter param
         cdef cbool boolValue = False
         cdef double doubleValue = 0.0
-        cdef string strValue = ""
-        cdef string keyValue = ""
+        cdef string strValue
+        cdef string keyValue
 
         d = { }
         self.m_pParams.getAllKeys(keys)
