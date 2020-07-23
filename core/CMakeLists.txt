@@ -40,6 +40,7 @@ configure_file("${PROJECT_SOURCE_DIR}/core/src/general/graleconfig.h.in" "${PROJ
 
 list(APPEND GRALE_INTERNAL_INCLUDES "${PROJECT_BINARY_DIR}/core/src/general")
 list(APPEND GRALE_INTERNAL_INCLUDES "${PROJECT_SOURCE_DIR}/core/src/general")
+list(APPEND GRALE_INTERNAL_INCLUDES "${PROJECT_SOURCE_DIR}/core/src/cosmology")
 list(APPEND GRALE_INTERNAL_INCLUDES "${PROJECT_SOURCE_DIR}/core/src/image")
 list(APPEND GRALE_INTERNAL_INCLUDES "${PROJECT_SOURCE_DIR}/core/src/lens")
 list(APPEND GRALE_INTERNAL_INCLUDES "${PROJECT_SOURCE_DIR}/core/src/math")

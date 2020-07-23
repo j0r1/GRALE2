@@ -5,6 +5,7 @@ set(HEADERS
 	general/constants.h 
 	general/configurationparameters.h
 	general/log.h
+	cosmology/cosmology.h
 	lens/gravitationallens.h 
 	lens/multipleplummerlens.h 
 	lens/gausslens.h 
@@ -102,6 +103,7 @@ set(SOURCES
 	general/debugnew.cpp 
 	general/configurationparameters.cpp
 	general/gslcblasdummy.cpp
+	cosmology/cosmology.cpp
 	general/log.cpp
 	math/real1dfunctionintegrator.cpp
 	math/gridfunction.cpp

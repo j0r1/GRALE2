@@ -23,6 +23,7 @@ list(APPEND GRALE_LINK_LIBS "${MOGAL_LIBRARIES}")
 
 list(APPEND GRALE_INTERNAL_INCLUDES "${PROJECT_BINARY_DIR}/core/src/general")
 list(APPEND GRALE_INTERNAL_INCLUDES "${PROJECT_SOURCE_DIR}/core/src/general")
+list(APPEND GRALE_INTERNAL_INCLUDES "${PROJECT_SOURCE_DIR}/core/src/cosmology")
 list(APPEND GRALE_INTERNAL_INCLUDES "${PROJECT_SOURCE_DIR}/core/src/image")
 list(APPEND GRALE_INTERNAL_INCLUDES "${PROJECT_SOURCE_DIR}/core/src/lens")
 list(APPEND GRALE_INTERNAL_INCLUDES "${PROJECT_SOURCE_DIR}/core/src/math")
@@ -46,3 +47,6 @@ target_link_libraries(precalcbackproj graleinv-static gralecore-static ${GRALE_L
 
 add_executable(mpcu mpcu.cpp)
 target_link_libraries(mpcu gralecore-static ${GRALE_LINK_LIBS})
+
+add_executable(cosmcheck cosmcheck.cpp)
+target_link_libraries(cosmcheck gralecore-static ${GRALE_LINK_LIBS})
