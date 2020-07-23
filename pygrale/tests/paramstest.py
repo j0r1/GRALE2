@@ -479,3 +479,39 @@ if isMatch:
 else:
     print("  NO MATCH")
 
+# MultiPlaneContainer separately
+origParams = [
+    { "lens": PlummerLens(Dd, { "mass": 2e13*MASS_SUN, "width": 3*AS }),
+      "z": 1.0
+    },
+    { "lens": GaussLens(Dd, { "mass": 1e13*MASS_SUN, "width": 4*AS }),
+      "z": 2.0
+    },
+    { "lens": SquareLens(Dd, { "mass": 4e13*MASS_SUN, "width": 1*AS }),
+      "z": 3*0
+    },
+]
+
+lens = MultiPlaneContainer(0, origParams)
+print("Checking lens {} ({})".format("MultiPlaneContainer", type(lens)))
+obtainedParams = lens.getLensParameters()
+isMatch = False
+if len(obtainedParams) == len(origParams):
+    for i in range(len(origParams)):
+        if obtainedParams[i]["lens"].toBytes() == origParams[i]["lens"].toBytes():
+            if obtainedParams[i]["z"] == origParams[i]["z"]:
+                if len(obtainedParams[i]) == 2:
+                    isMatch = True
+                else:
+                    print("Param component length error")
+            else:
+                print("Mismatch in z")
+        else:
+            print("Mismatch in sublens bytes")
+else:
+    print("Param length error")
+
+if isMatch:
+    print("  Match")
+else:
+    print("  NO MATCH")

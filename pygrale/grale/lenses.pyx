@@ -35,6 +35,7 @@ directly. Instead allocate a class derived from this; currently available are
  * :class:`HarmonicLens`
  * :class:`PotentialGridLens`
  * :class:`CircularPiecesLens`
+ * :class:`MultiPlaneContainer`
 
 """
 
@@ -587,6 +588,8 @@ cdef class GravitationalLens:
             l = PotentialGridLens(None, None)
         elif t == gravitationallens.CircularPieces:
             l = CircularPiecesLens(None, None)
+        elif t == gravitationallens.MPContainer:
+            l = MultiPlaneContainer(None, None)
         else: # Unknown, can still use the interface
             l = GravitationalLens(_gravLensRndId)
 
@@ -2586,5 +2589,75 @@ cdef class CircularPiecesLens(GravitationalLens):
 
         return { "pieces": piecesParams, "coeffs": coeffs }
 
-from privlenses import createLensFromLenstoolFile
+cdef class MultiPlaneContainer(GravitationalLens):
+    """This 'lens' can be used as a container for multiple lenses as different redshifts"""
+
+    cdef gravitationallens.GravitationalLens* _allocLens(self) except NULL:
+        return new gravitationallens.MultiPlaneContainer()
+
+    cdef gravitationallens.GravitationalLensParams* _allocParams(self, params) except NULL:
+        cdef gravitationallens.MultiPlaneContainerParams *pParams = new gravitationallens.MultiPlaneContainerParams()
+        cdef gravitationallens.GravitationalLens *pLens = NULL
+
+        try:
+            if not isinstance(params, list):
+                raise LensException("Multi-plane container parameters must be a list of (lens, redshift) pairs")
+
+            if len(params) <= 0:
+                raise LensException("The parameter list does not seem to contain any entries")
+
+            for p in params:
+                GravitationalLens._checkParams(p, [ "lens", "z" ])
+                pLens = GravitationalLens._getLens(p["lens"])
+
+                if not pParams.add(pLens, p["z"]):
+                    raise LensException(S(pParams.getErrorString()))
+        except Exception as e:
+            del pParams
+            raise
+
+        return pParams
+
+    def __init__(self, Dd, params):
+        """__init__(Dd, params)
+
+        Parameters:
+         - Dd is not used in this container, must be set to 0
+         - params is a list of which each entry is a dictionary with the following entries:
+
+           * 'lens':  the gravitational lens object at this redshift
+           * 'z':     the redshift for this lens
+
+        **Warning!** 
+        No check is done to make sure that the lens distance parameter matches with the
+        specified redshift (there's no notion of a cosmological model here)
+        """
+        super(MultiPlaneContainer, self).__init__(_gravLensRndId)
+        self._lensInit(Dd, params)
+
+    def getLensParameters(self):
+        cdef gravitationallens.MultiPlaneContainerParamsPtrConst pParams
+        cdef gravitationallens.GravitationalLens *pSubLens
+        cdef double z
+        
+        self._check()
+        pParams = dynamic_cast[gravitationallens.MultiPlaneContainerParamsPtrConst](GravitationalLens._getLens(self).getLensParameters())
+        if pParams == NULL:
+            raise LensException("Unexpected: parameters are not those of a MultiPlaneContainer")
+
+        params = [ ]
+        for i in range(pParams.getNumberOfLenses()):
+            z = pParams.getRedshift(i)
+            pSubLens = pParams.getLens(i).createCopy()
+            if pSubLens == NULL:
+                raise LensException("Unexpected: can't create a copy of a contained lens")
+
+            params.append({
+                "lens": GravitationalLens._finalizeLoadedLens(pSubLens),
+                "z": z
+            })
+        
+        return params
+
+from .privlenses import createLensFromLenstoolFile
 

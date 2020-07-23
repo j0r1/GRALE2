@@ -41,6 +41,7 @@ set(HEADERS
 	lens/harmoniclens.h
 	lens/potentialgridlens.h
 	lens/circularpieceslens.h
+	lens/multiplanecontainer.h
 	math/mathfunctions.h
 	math/real1dfunction.h
 	math/real1dfunctionintegrator.h
@@ -136,6 +137,7 @@ set(SOURCES
 	lens/harmoniclens.cpp
 	lens/potentialgridlens.cpp
 	lens/circularpieceslens.cpp
+	lens/multiplanecontainer.cpp
 	image/imagesdata.cpp
 	image/imagesdataextended.cpp
 	image/lensplane.cpp

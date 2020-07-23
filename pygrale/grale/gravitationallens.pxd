@@ -59,7 +59,8 @@ cdef extern from "grale/gravitationallens.h" namespace "grale::GravitationalLens
         AlphaPot,
         Harmonic,
         PotentialGrid,
-        CircularPieces
+        CircularPieces,
+        MPContainer
 
 cdef extern from "grale/gravitationallens.h" namespace "grale":
 
@@ -473,4 +474,18 @@ cdef extern from "grale/circularpieceslens.h" namespace "grale":
         pass
 
 ctypedef const CircularPiecesLensParams* CircularPiecesLensParamsPtrConst
+
+cdef extern from "grale/multiplanecontainer.h" namespace "grale":
+
+    cdef cppclass MultiPlaneContainerParams(GravitationalLensParams):
+        MultiPlaneContainerParams()
+        bool add(const GravitationalLens *pLens, double z)
+        int getNumberOfLenses() const
+        const GravitationalLens &getLens(int idx) const
+        int getRedshift(int idx) const
+
+    cdef cppclass MultiPlaneContainer(GravitationalLens):
+        pass
+
+ctypedef const MultiPlaneContainerParams* MultiPlaneContainerParamsPtrConst
 

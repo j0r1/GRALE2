@@ -53,6 +53,7 @@
 #include "harmoniclens.h"
 #include "potentialgridlens.h"
 #include "circularpieceslens.h"
+#include "multiplanecontainer.h"
 #include "constants.h"
 #include <serut/fileserializer.h>
 #include <serut/memoryserializer.h>
@@ -213,6 +214,7 @@ double GravitationalLens::getInverseMagnification(double D_s, double D_ds, Vecto
 #define LENSNUMBER_HARMONIC								25
 #define LENSNUMBER_POTENTIALGRID						26
 #define LENSNUMBER_CIRCULARPIECES						27
+#define LENSNUMBER_MULTIPLANECONTAINER					28
 //#define LENSNUMBER_TESTLENS						234	
 
 bool GravitationalLens::write(serut::SerializationInterface &si) const
@@ -311,6 +313,9 @@ bool GravitationalLens::write(serut::SerializationInterface &si) const
 		break;
 	case CircularPieces:
 		lensNumber = LENSNUMBER_CIRCULARPIECES;
+		break;
+	case MPContainer:
+		lensNumber = LENSNUMBER_MULTIPLANECONTAINER;
 		break;
 	default:
 		setErrorString("Lens type not recognized");
@@ -512,6 +517,10 @@ bool GravitationalLens::read(serut::SerializationInterface &si, GravitationalLen
 	case LENSNUMBER_CIRCULARPIECES:
 		pTmpLens = new CircularPiecesLens();
 		pParams = new CircularPiecesLensParams();
+		break;
+	case LENSNUMBER_MULTIPLANECONTAINER:
+		pTmpLens = new MultiPlaneContainer();
+		pParams = new MultiPlaneContainerParams();
 		break;
 	default:
 		errorString = std::string("Can't recognize lens type");

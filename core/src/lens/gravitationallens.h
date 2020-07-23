@@ -91,6 +91,7 @@ public:
 		Harmonic, /** 2D harmonic mass density (cfr JPEG lensing paper) */
 		PotentialGrid, /** Based on discrete set of projected potential values */
 		CircularPieces, /** Exact lens potentials within circular regions, interpolated ones in between */
+		MPContainer, /** Container for multiple lenses at different redshifts. */
 		MaxLensType
 	};
 protected:
