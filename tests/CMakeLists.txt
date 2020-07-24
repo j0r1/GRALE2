@@ -50,3 +50,6 @@ target_link_libraries(mpcu gralecore-static ${GRALE_LINK_LIBS})
 
 add_executable(cosmcheck cosmcheck.cpp)
 target_link_libraries(cosmcheck gralecore-static ${GRALE_LINK_LIBS})
+
+add_executable(mpcubp mpcubp.cpp)
+target_link_libraries(mpcubp graleinv-static gralecore-static ${GRALE_LINK_LIBS})
