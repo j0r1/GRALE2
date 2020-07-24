@@ -20,6 +20,7 @@ namespace grale
 {
 
 class MultiPlaneCUDA;
+class Cosmology;
 
 class GRALE_IMPORTEXPORT MPCUDABackProjector : public ProjectedImagesInterface, public errut::ErrorBase
 {
@@ -28,7 +29,7 @@ public:
 	~MPCUDABackProjector();
 
     bool init(const std::string &libraryPath,
-		double h, double W_m, double W_r, double W_v, double w,
+		const Cosmology &cosmology,
 		const std::vector<float> &lensRedshifts,
 		const std::vector<std::vector<PlummerLensInfo>> &lenses, 
 		const std::vector<float> &sourceRedshifts,

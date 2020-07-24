@@ -1,5 +1,6 @@
 #include "mpcudabackprojector.h"
 #include "multiplanecuda.h"
+#include "cosmology.h"
 
 using namespace std;
 
@@ -17,7 +18,7 @@ MPCUDABackProjector::~MPCUDABackProjector()
 }
 
 bool MPCUDABackProjector::init(const string &libraryPath,
-		double h, double W_m, double W_r, double W_v, double w,
+		const Cosmology &cosmology,
 		const vector<float> &lensRedshifts,
 		const vector<vector<PlummerLensInfo>> &lenses, 
 		const vector<float> &sourceRedshifts,
@@ -94,7 +95,9 @@ bool MPCUDABackProjector::init(const string &libraryPath,
     }
 
     m_pMPCU = new MultiPlaneCUDA();
-    if (!m_pMPCU->init(libraryPath, m_angularScale, h, W_m, W_r, W_v, w,
+    if (!m_pMPCU->init(libraryPath, m_angularScale, cosmology.getH(),
+                       cosmology.getOmegaM(), cosmology.getOmegaR(),
+                       cosmology.getOmegaV(), cosmology.getW(),
                        lensRedshifts, fixedPlummerParams, sourceRedshifts, m_thetas))
     {
         setErrorString("Unable to initialize multi-plane CUDA based calculator: " + m_pMPCU->getErrorString());
