@@ -56,6 +56,18 @@ bool MultiPlaneCUDA::init(const std::string &libraryPath,
 	const std::vector<float> &sourceRedshifts,
 	const std::vector<std::vector<Vector2Df>> &theta)
 {
+	// The helper library that is used appears to need the lens redshifts to
+	// be provided in an ordered fashion, otherwise incorrect results are
+	// generated
+	for (size_t i = 1 ; i < lensRedshifts.size() ; i++)
+	{
+		if (lensRedshifts[i] <= lensRedshifts[i-1])
+		{
+			setErrorString("The lenses need to be provided with strictly increasing redshifts");
+			return false;
+		}
+	}
+
 	if (m_pLibrary)
 	{
 		setErrorString("Already initialized");
