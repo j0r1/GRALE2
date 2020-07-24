@@ -101,7 +101,7 @@ lensPlane = multiplane.MultiLensPlane(lensesAndRedshifts, V(-50,-50)*ANGLE_ARCSE
 numSources = np.random.randint(10, 20)
 sourceRedshifts = np.random.uniform(min(lensRedShifts)+0.1, 5.0, numSources)
 # TODO: this doesn't seem to work if not sorted!
-sourceRedshifts = sorted(sourceRedshifts)
+# sourceRedshifts = sorted(sourceRedshifts)
 
 print("const vector<pair<double,vector<pair<Vector2Dd, Vector2Dd>>>> thetaBetaMappings {")
 for zs in sourceRedshifts:
