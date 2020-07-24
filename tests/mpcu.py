@@ -34,6 +34,6 @@ for factor in [ 0.5, 1.0, 2.0 ]:
         print("Positions for source", idx)
 
         imgPlane = multiplane.MultiImagePlane(lensPlane, zs)
-        betas = imgPlane.traceTheta(thetas)
+        betas = imgPlane.traceTheta(np.array(thetas))
         for bx, by in betas/ANGLE_ARCSEC:
             print(f"{bx:.6f} {by:.6f}")
