@@ -95,7 +95,6 @@ void GridLensInversionGAFactoryBase::clear()
 
 	m_basisLenses.clear();
 	m_sheetLens = nullptr;
-	m_queuedMessages.clear();
 
 	zero();
 }

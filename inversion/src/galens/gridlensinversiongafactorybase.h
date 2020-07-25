@@ -84,8 +84,6 @@ private:
 	DeflectionMatrix *m_pDeflectionMatrix;
 	BackProjectMatrixNew *m_pShortBPMatrix, *m_pTotalBPMatrix;
 
-	std::vector<std::string> m_queuedMessages;
-
 	float m_sheetScale; // Stored when initializeNewCalculation is called
 };
 
