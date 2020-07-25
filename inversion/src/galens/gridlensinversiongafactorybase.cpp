@@ -139,8 +139,6 @@ bool GridLensInversionGAFactoryBase::init(const mogal::GAFactoryParams *p)
 	m_pCurrentParams = p2->createCopy();
 	assert(m_pCurrentParams);
 
-	// Determine mass weights
-
 	auto basisLenses = m_pCurrentParams->getBasisLenses();
 	if (basisLenses.size() == 0)
 	{
@@ -148,10 +146,6 @@ bool GridLensInversionGAFactoryBase::init(const mogal::GAFactoryParams *p)
 		return false;
 	}
 
-	int numMasses = basisLenses.size();
-
-	double massScale = m_pCurrentParams->getMassScale();
-	double totalRelevantLensingMass = 0;
 	for (const auto &bl : basisLenses)
 	{
 		m_basisLenses.push_back( { bl.m_pLens, bl.m_center });
@@ -164,10 +158,6 @@ bool GridLensInversionGAFactoryBase::init(const mogal::GAFactoryParams *p)
 			return false;
 		}
 	}
-
-	vector<float> massWeights; // masses expressed in units of massScale
-	for (const auto &bl : basisLenses)
-		massWeights.push_back((float)(bl.m_relevantLensingMass/massScale));
 
 	const GravitationalLens *pSheetLens = p2->getSheetLens();
 	int numSheetValues = 0;
@@ -191,9 +181,15 @@ bool GridLensInversionGAFactoryBase::init(const mogal::GAFactoryParams *p)
 	int maxGenerations = m_pCurrentParams->getMaximumNumberOfGenerations();
 	bool allowNegativeValues = p2->allowNegativeValues();
 	auto massScaleSearchParams = p2->getMassScaleSearchParameters();
+	double massScale = m_pCurrentParams->getMassScale();
 
-	if (!setCommonParameters(numMasses, numSheetValues, maxGenerations, allowNegativeValues,
-	                         m_pDeflectionMatrix->getAngularScale(), massWeights,
+	vector<double> basisFunctionMasses;
+	for (const auto &bl : basisLenses)
+		basisFunctionMasses.push_back(bl.m_relevantLensingMass);
+
+	if (!setCommonParameters(numSheetValues, maxGenerations, allowNegativeValues,
+	                         m_pDeflectionMatrix->getAngularScale(), basisFunctionMasses,
+							 massScale, massScale,
 							 massScaleSearchParams))
 	{
 		clear();
@@ -219,7 +215,7 @@ GravitationalLens *GridLensInversionGAFactoryBase::createLens(const GridLensInve
 	CompositeLensParams lensParams;
 	CompositeLens *pLens;
 
-	const vector<float> &masses = genome.getBasisFunctionWeights();
+	const vector<float> &basisFunctionWeights = genome.getBasisFunctionWeights();
 	const float scaleFactor = genome.getScaleFactor();
 	const vector<float> &sheetValues = genome.getSheetValues();
 
@@ -235,7 +231,7 @@ GravitationalLens *GridLensInversionGAFactoryBase::createLens(const GridLensInve
 	}
 
 	for (int i = 0 ; i < m_basisLenses.size() ; i++)
-		lensParams.addLens((double)masses[i]*(double)scaleFactor, m_basisLenses[i].second, 0, *m_basisLenses[i].first.get());
+		lensParams.addLens((double)basisFunctionWeights[i]*(double)scaleFactor, m_basisLenses[i].second, 0, *m_basisLenses[i].first.get());
 
 	if (m_sheetLens.get())
 		lensParams.addLens(sheetValue, Vector2D<double>(0,0), 0, *m_sheetLens.get());
@@ -437,7 +433,7 @@ bool GridLensInversionGAFactoryBase::localSubInit(double z_d, const vector<share
 	return true;
 }
 
-bool GridLensInversionGAFactoryBase::initializeNewCalculation(const vector<float> &masses, const vector<float> &sheetValues)
+bool GridLensInversionGAFactoryBase::initializeNewCalculation(const vector<float> &basisFunctionWeights, const vector<float> &sheetValues)
 {
 	if (sheetValues.size() == 0)
 		m_sheetScale = 0;
@@ -449,7 +445,7 @@ bool GridLensInversionGAFactoryBase::initializeNewCalculation(const vector<float
 		return false;
 	}
 	
-	m_pDeflectionMatrix->calculateBasisMatrixProducts(masses, true, true, true);
+	m_pDeflectionMatrix->calculateBasisMatrixProducts(basisFunctionWeights, true, true, true);
 	m_pTotalBPMatrix->storeDeflectionMatrixResults();
 	m_pShortBPMatrix->storeDeflectionMatrixResults();
 	return true;

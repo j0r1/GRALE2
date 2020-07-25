@@ -132,7 +132,7 @@ int main(int argc, char *argv[])
 						pGenome->calculateFitness();
 
 						cout << "masses:";
-						for (auto &m : pGenome->getMasses())
+						for (auto &m : pGenome->getBasisFunctionWeights())
 							cout << " " << m;
 						cout << endl;
 						cout << "sheet:";

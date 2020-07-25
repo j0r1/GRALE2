@@ -28,7 +28,7 @@ public:
 	mogal::Genome *createNewGenome() const;
 
 	size_t getMaximalFitnessSize() const							{ return sizeof(float)*(1+GRIDLENSINVERSIONGENOMEBASE_MAXFITNESSCOMP); }
-	size_t getMaximalGenomeSize() const							    { return (m_numMasses+m_numSheetValues)*sizeof(float); }
+	size_t getMaximalGenomeSize() const							    { return (m_numBasisFunctions+m_numSheetValues)*sizeof(float); }
 
 	bool writeGenome(serut::SerializationInterface &si, const mogal::Genome *g) const;
 	bool readGenome(serut::SerializationInterface &si, mogal::Genome **g) const;
@@ -41,9 +41,6 @@ public:
 
 	const mogal::RandomNumberGenerator *getRandomNumberGenerator() const { return &m_rndGen; }
 	bool allowNegativeValues() const							    { return m_allowNegativeValues; }
-    const float *getMassWeights() const							    { return &(m_massWeights[0]); }
-	
-	void getGenomeCalculationParameters(float &startfactor, float &stopfactor, int &numiterationsteps, int &numiterations, int &numiterationsteps2) const;
 	bool useLogarithmicScaleSearch() const { return true; }
 
 	virtual float getChanceMultiplier() = 0;
@@ -55,7 +52,12 @@ public:
 
 	void sendMessage(const std::string &s);
 
-	virtual bool initializeNewCalculation(const std::vector<float> &masses, const std::vector<float> &sheetValues) = 0;
+	bool calculateFitness(const std::vector<float> &basisFunctionWeights,
+                          const std::vector<float> &sheetValues,
+	                      float &scaleFactor,
+						  float *pFitnessValues);
+
+	virtual bool initializeNewCalculation(const std::vector<float> &basisFunctionWeights, const std::vector<float> &sheetValues) = 0;
 	virtual bool calculateMassScaleFitness(float scaleFactor, float &fitness) = 0;
 	virtual bool calculateTotalFitness(float scaleFactor, float *pFitnessValues) = 0;
 protected:
@@ -63,26 +65,27 @@ protected:
 	// This should at least set the number of fitness components
 	virtual bool subInit(LensFitnessObject *pFitnessObject) = 0;
 
-	// The massWeights are the masses of the basis lenses in units of the total mass
-    bool setCommonParameters(int numMasses, int numSheetValues, int maxGenerations,
+    bool setCommonParameters(int numSheetValues, int maxGenerations,
                              bool allowNeg, double angularScale,
-                             const std::vector<float> &massWeights,
+                             const std::vector<double> &basisFunctionMasses,
+							 double massUnit, double targetMass,
                              const ScaleSearchParameters &searchParams);
 
 	int getMaximumNumberOfGenerations() const						{ return m_maxGenerations; }
-	int getNumberOfMasses() const                                   { return m_numMasses; }
-	int getNumberOfSheetValues() const                              { return m_numSheetValues; }
 	double getAngularScale() const                                  { return m_angularScale; }
 private:
 	void onCurrentBest(const std::list<mogal::Genome *> &bestGenomes) override;
 	void onGeneticAlgorithmStart() override;
 
 	RandomNumberGenerator m_rndGen;
-	int m_numMasses, m_numSheetValues, m_maxGenerations;
+	int m_numBasisFunctions, m_numSheetValues, m_maxGenerations;
 	bool m_allowNegativeValues;
     double m_angularScale;
 	ScaleSearchParameters m_massScaleSearchParams;
-	std::vector<float> m_massWeights;
+
+	// In units of the specified mass unit
+	std::vector<float> m_basisFunctionMasses;
+	float m_targetMass;
 
 	std::vector<std::string> m_queuedMessages;
 };
