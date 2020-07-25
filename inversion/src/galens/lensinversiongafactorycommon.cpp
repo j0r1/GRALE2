@@ -1,5 +1,5 @@
 #include "lensinversiongafactorycommon.h"
-#include "gridlensinversiongenomebase.h"
+#include "lensinversiongenome.h"
 #include <limits>
 #include <iostream>
 #include <sstream>
@@ -79,12 +79,12 @@ void LensInversionGAFactoryCommon::onGeneticAlgorithmStart()
 mogal::Genome *LensInversionGAFactoryCommon::createNewGenome() const
 {
     assert(m_numBasisFunctions > 0);
-	return new GridLensInversionGenomeBase(const_cast<LensInversionGAFactoryCommon*>(this), m_numBasisFunctions, m_numSheetValues);
+	return new LensInversionGenome(const_cast<LensInversionGAFactoryCommon*>(this), m_numBasisFunctions, m_numSheetValues);
 }
 
 bool LensInversionGAFactoryCommon::writeGenome(serut::SerializationInterface &si, const mogal::Genome *g) const
 {
-	const GridLensInversionGenomeBase *g2 = (const GridLensInversionGenomeBase *)g;
+	const LensInversionGenome *g2 = (const LensInversionGenome *)g;
 
 	if (!si.writeFloats(g2->getBasisFunctionWeights()))
 	{
@@ -116,13 +116,13 @@ bool LensInversionGAFactoryCommon::readGenome(serut::SerializationInterface &si,
 		return false;
 	}
 	// This moves weights and sheetValues
-	*g = new GridLensInversionGenomeBase(const_cast<LensInversionGAFactoryCommon*>(this), basisFunctionWeights, sheetValues);
+	*g = new LensInversionGenome(const_cast<LensInversionGAFactoryCommon*>(this), basisFunctionWeights, sheetValues);
 	return true;
 }
 
 bool LensInversionGAFactoryCommon::writeGenomeFitness(serut::SerializationInterface &si, const mogal::Genome *g) const
 {
-	const GridLensInversionGenomeBase *g2 = (const GridLensInversionGenomeBase *)g;
+	const LensInversionGenome *g2 = (const LensInversionGenome *)g;
 	int num = getNumberOfFitnessComponents();
 	const float *f = g2->getFitnessValues();
 
@@ -141,7 +141,7 @@ bool LensInversionGAFactoryCommon::writeGenomeFitness(serut::SerializationInterf
 
 bool LensInversionGAFactoryCommon::readGenomeFitness(serut::SerializationInterface &si, mogal::Genome *g) const
 {
-	GridLensInversionGenomeBase *g2 = (GridLensInversionGenomeBase *)g;
+	LensInversionGenome *g2 = (LensInversionGenome *)g;
 	int num = getNumberOfFitnessComponents();
 	float x[GRIDLENSINVERSIONGENOMEBASE_MAXFITNESSCOMP+1];
 

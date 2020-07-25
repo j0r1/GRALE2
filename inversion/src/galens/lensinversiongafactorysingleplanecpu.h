@@ -23,42 +23,40 @@
   
 */
 
-#ifndef GRALE_GRIDLENSINVERSIONGAFACTORYBASE_H
-
-#define GRALE_GRIDLENSINVERSIONGAFACTORYBASE_H
+#pragma once
 
 #include "graleconfig.h"
 #include "lensinversiongafactorycommon.h"
 #include "randomnumbergenerator.h"
 #include "backprojectmatrixnew.h"
 #include "vector2d.h"
-#include "gridlensinversiongafactoryparams.h"
+#include "lensinversiongafactoryparamssingleplanecpu.h"
 #include <vector>
 #include <memory>
 
 namespace grale
 {
 
-class GridLensInversionGAFactoryParams;
-class GridLensInversionGenomeBase;
+class LensInversionGAFactoryParamsSinglePlaneCPU;
+class LensInversionGenome;
 class ImagesDataExtended;
 class GravitationalLens;
 class LensFitnessObject;
 class ConfigurationParameters;
 
 // NOTE: the virtual inheritance is again very important!
-class GRALE_IMPORTEXPORT GridLensInversionGAFactoryBase : public virtual LensInversionGAFactoryCommon
+class GRALE_IMPORTEXPORT LensInversionGAFactorySinglePlaneCPU : public virtual LensInversionGAFactoryCommon
 {
 public:
-	GridLensInversionGAFactoryBase();
-	~GridLensInversionGAFactoryBase();
+	LensInversionGAFactorySinglePlaneCPU();
+	~LensInversionGAFactorySinglePlaneCPU();
 
 	mogal::GAFactoryParams *createParamsInstance() const;
 	const mogal::GAFactoryParams *getCurrentParameters() const;
 
 	bool init(const mogal::GAFactoryParams *p);
 
-	GravitationalLens *createLens(const GridLensInversionGenomeBase &genome, std::string &errStr) const override;
+	GravitationalLens *createLens(const LensInversionGenome &genome, std::string &errStr) const override;
 
 	bool initializeNewCalculation(const std::vector<float> &masses, const std::vector<float> &sheetValues) override;
 	bool calculateMassScaleFitness(float scaleFactor, float &fitness) override;
@@ -75,7 +73,7 @@ private:
 					  const GravitationalLens *pBaseLens, const GravitationalLens *pSheetLens, 
 					  const ConfigurationParameters *pFitnessObjectParams);
 
-	GridLensInversionGAFactoryParams *m_pCurrentParams;
+	LensInversionGAFactoryParamsSinglePlaneCPU *m_pCurrentParams;
 
 	std::vector<std::pair<std::shared_ptr<GravitationalLens>, Vector2D<double> > > m_basisLenses;
 	std::shared_ptr<GravitationalLens> m_sheetLens;
@@ -88,6 +86,4 @@ private:
 };
 
 } // end namespace
-
-#endif // GRALE_GRIDLENSINVERSIONGAFACTORYBASE_H
 

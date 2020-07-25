@@ -81,13 +81,27 @@ public:
 		}
 
 		BasisLensInfo(const BasisLensInfo &src)
-			: m_pLens(src.m_pLens), m_center(src.m_center), m_relevantLensingMass(src.m_relevantLensingMass)
 		{
+			copyFrom(src);
+		}
+
+		BasisLensInfo &operator=(const BasisLensInfo &src)
+		{
+			copyFrom(src);
+			return *this;
 		}
 
 		std::shared_ptr<GravitationalLens> m_pLens;
 		Vector2Dd m_center;
 		double m_relevantLensingMass;
+
+	private:
+		void copyFrom(const BasisLensInfo &src)
+		{
+			m_pLens = src.m_pLens;
+			m_center = src.m_center;
+			m_relevantLensingMass = src.m_relevantLensingMass;
+		}
 	};
 
 	GridLensInversionParameters();
@@ -128,8 +142,10 @@ public:
 					 const ScaleSearchParameters &massScaleSearchParams = ScaleSearchParameters(false)
 					 );
 
+	GridLensInversionParameters(const GridLensInversionParameters &src)				{ copyFrom(src); }
 	~GridLensInversionParameters();
 
+	GridLensInversionParameters &operator=(const GridLensInversionParameters &src)	{ copyFrom(src); return *this;}
 	int getMaximumNumberOfGenerations() const										{ return m_maxGenerations; }
 	double getD_d() const															{ return m_Dd; }
 	double getZ_d() const															{ return m_zd; }
@@ -137,9 +153,9 @@ public:
 	const std::vector<std::shared_ptr<ImagesDataExtended>> &getImages() const		{ return m_images; }
 	bool allowNegativeValues() const												{ return m_allowNegative; }
 
-	const GravitationalLens *getBaseLens() const									{ return m_pBaseLens; }
-	const GravitationalLens *getSheetLens() const									{ return m_pSheetLens; }
-	const ConfigurationParameters *getFitnessObjectParameters() const				{ return m_pParams; }
+	const GravitationalLens *getBaseLens() const									{ return m_pBaseLens.get(); }
+	const GravitationalLens *getSheetLens() const									{ return m_pSheetLens.get(); }
+	const ConfigurationParameters *getFitnessObjectParameters() const				{ return m_pParams.get(); }
 	const ScaleSearchParameters &getMassScaleSearchParameters() const				{ return m_scaleSearchParams; }
 	
 	bool write(serut::SerializationInterface &si) const;
@@ -151,6 +167,7 @@ public:
 
 	static std::shared_ptr<GravitationalLens> createDefaultSheetLens(MassSheetSearchType t, double Dd);
 private:
+	void copyFrom(const GridLensInversionParameters &src);
 	void commonConstructor(int maxGenerations,
 			const std::vector<std::shared_ptr<ImagesDataExtended>> &images,
 			double D_d,
@@ -170,9 +187,9 @@ private:
 	double m_Dd, m_massScale, m_zd;
 	std::vector<std::shared_ptr<ImagesDataExtended>> m_images;
 	bool m_allowNegative;
-	GravitationalLens *m_pBaseLens;
-	GravitationalLens *m_pSheetLens;
-	ConfigurationParameters *m_pParams;
+	std::shared_ptr<GravitationalLens> m_pBaseLens;
+	std::shared_ptr<GravitationalLens> m_pSheetLens;
+	std::shared_ptr<ConfigurationParameters> m_pParams;
 	ScaleSearchParameters m_scaleSearchParams;
 
 	std::vector<BasisLensInfo> m_basisLenses;

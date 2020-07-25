@@ -38,25 +38,12 @@ class ImagesDataExtended;
 class GravitationalLens;
 class ConfigurationParameters;
 
-class GRALE_IMPORTEXPORT GridLensInversionGAFactoryParams : public mogal::GAFactoryParams
+class GRALE_IMPORTEXPORT LensInversionGAFactoryParamsSinglePlaneCPU : public mogal::GAFactoryParams
 {
 public:
-	GridLensInversionGAFactoryParams();
-	GridLensInversionGAFactoryParams(int maxgenerations,
-					 const std::vector<std::shared_ptr<ImagesDataExtended>> &images, 
-	                 const std::vector<GridSquare> &gridsquares, 
-					 double D_d,
-					 double z_d,
-					 double massscale,
-					 bool useweights = false,
-					 GridLensInversionParameters::BasisFunctionType basisFunction = GridLensInversionParameters::PlummerBasis,
-					 bool allowNegativeValues = false,
-					 const GravitationalLens *pBaseLens = nullptr,
-					 GridLensInversionParameters::MassSheetSearchType sheetSearchType = GridLensInversionParameters::NoSheet,
-					 const ConfigurationParameters *pFitnessObjectParams = nullptr,
-					 const ScaleSearchParameters &massScaleSearchParams = ScaleSearchParameters(false)
-					 );
-	~GridLensInversionGAFactoryParams();
+	LensInversionGAFactoryParamsSinglePlaneCPU();
+	LensInversionGAFactoryParamsSinglePlaneCPU(const GridLensInversionParameters &params);
+	~LensInversionGAFactoryParamsSinglePlaneCPU();
 
 	int getMaximumNumberOfGenerations() const										{ return m_pParams->getMaximumNumberOfGenerations(); }
 	double getD_d() const															{ return m_pParams->getD_d(); }
@@ -73,7 +60,7 @@ public:
 	bool write(serut::SerializationInterface &si) const;
 	bool read(serut::SerializationInterface &si);
 
-	GridLensInversionGAFactoryParams *createCopy() const;
+	LensInversionGAFactoryParamsSinglePlaneCPU *createCopy() const;
 private:
 	GridLensInversionParameters *m_pParams;
 };

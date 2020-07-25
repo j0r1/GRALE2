@@ -25,8 +25,8 @@
 */
 
 #include "lensfitnesspointoverlap.h"
-#include <grale/gridlensinversiongafactorybase.h>
-#include <grale/gridlensinversiongenomebase.h>
+#include <grale/lensinversiongafactorysingleplanecpu.h>
+#include <grale/lensinversiongenome.h>
 #include <grale/vector2d.h>
 #include <mogal/gafactorymultiobjective.h>
 #include <grale/multifitnesshistory.h>
@@ -37,16 +37,16 @@ namespace grale
 {
 
 // A multi-objective lens inversion module must inherit:
-//  - GridLensInversionGAFactoryBase
+//  - LensInversionGAFactorySinglePlaneCPU
 //  - mogal::GAFactoryMultiObjective
-class GridLensInversionGAFactory_Template_MultiObjective : public GridLensInversionGAFactoryBase, public mogal::GAFactoryMultiObjective
+class LensInversionGAFactorySinglePlaneCPU_Template_MultiObjective : public LensInversionGAFactorySinglePlaneCPU, public mogal::GAFactoryMultiObjective
 {
 public:
-	GridLensInversionGAFactory_Template_MultiObjective()
+	LensInversionGAFactorySinglePlaneCPU_Template_MultiObjective()
 	{
 	}
 
-	~GridLensInversionGAFactory_Template_MultiObjective()
+	~LensInversionGAFactorySinglePlaneCPU_Template_MultiObjective()
 	{
 	}
 
@@ -130,7 +130,7 @@ extern "C"
 	// has mogal::GAFactory as a parent.
 	GAMODS_EXPORT mogal::GAFactory *CreateFactoryInstance()
 	{
-		return new grale::GridLensInversionGAFactory_Template_MultiObjective();
+		return new grale::LensInversionGAFactorySinglePlaneCPU_Template_MultiObjective();
 	}
 
 	// This function must create a new instance of the LensFitnessObject derived

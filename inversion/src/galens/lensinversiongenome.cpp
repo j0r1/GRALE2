@@ -23,7 +23,7 @@
   
 */
 
-#include "gridlensinversiongenomebase.h"
+#include "lensinversiongenome.h"
 #include "lensinversiongafactorycommon.h"
 #include "simpleuniformdistribution.h"
 #include "constants.h"
@@ -39,7 +39,7 @@ using namespace std;
 namespace grale
 {
 
-GridLensInversionGenomeBase::GridLensInversionGenomeBase(LensInversionGAFactoryCommon *f, int numBasisFunctions, int numSheets)
+LensInversionGenome::LensInversionGenome(LensInversionGAFactoryCommon *f, int numBasisFunctions, int numSheets)
 {
 	m_pFactory = f;
 	m_fitnessComp = 0;
@@ -66,7 +66,7 @@ GridLensInversionGenomeBase::GridLensInversionGenomeBase(LensInversionGAFactoryC
 		s = uniDist.pickNumber();
 }
 
-GridLensInversionGenomeBase::GridLensInversionGenomeBase(LensInversionGAFactoryCommon *f, vector<float> &basisFunctionWeights, vector<float> &sheetValues)
+LensInversionGenome::LensInversionGenome(LensInversionGAFactoryCommon *f, vector<float> &basisFunctionWeights, vector<float> &sheetValues)
 {
 	m_pFactory = f;
 	m_basisFunctionWeights = std::move(basisFunctionWeights);
@@ -88,11 +88,11 @@ GridLensInversionGenomeBase::GridLensInversionGenomeBase(LensInversionGAFactoryC
 #endif // NDEBUG
 }
 
-GridLensInversionGenomeBase::~GridLensInversionGenomeBase()
+LensInversionGenome::~LensInversionGenome()
 {
 }
 	
-bool GridLensInversionGenomeBase::calculateFitness()
+bool LensInversionGenome::calculateFitness()
 {
 	if (!m_pFactory->calculateFitness(m_basisFunctionWeights, m_sheetValues,
 	                                  m_scaleFactor, m_fitnessValues))
@@ -106,21 +106,21 @@ bool GridLensInversionGenomeBase::calculateFitness()
 	return true;
 }
 
-mogal::Genome *GridLensInversionGenomeBase::reproduce(const mogal::Genome *g) const
+mogal::Genome *LensInversionGenome::reproduce(const mogal::Genome *g) const
 {
 	int numBasisFunctions = m_basisFunctionWeights.size();
 	std::vector<float> newBasisFunctionsWeights(numBasisFunctions);
 	SimpleUniformDistribution uniDist(m_pFactory->getRandomNumberGenerator());
 
-	const GridLensInversionGenomeBase *pParents[] = { 
-		(const GridLensInversionGenomeBase *)g, 
+	const LensInversionGenome *pParents[] = { 
+		(const LensInversionGenome *)g, 
 		this 
 	};
 
 	auto pickParent = [pParents, &uniDist]()
 	{
 		float x = (float)uniDist.pickNumber();
-		const GridLensInversionGenomeBase *pParent = pParents[(x < 0.5f)?1:0];
+		const LensInversionGenome *pParent = pParents[(x < 0.5f)?1:0];
 		return pParent;
 	};
 
@@ -128,7 +128,7 @@ mogal::Genome *GridLensInversionGenomeBase::reproduce(const mogal::Genome *g) co
 	{
 		for (int i = 0 ; i < numBasisFunctions ; i++)
 		{
-			const GridLensInversionGenomeBase *pParent = pickParent();
+			const LensInversionGenome *pParent = pickParent();
 			newBasisFunctionsWeights[i] = pParent->m_scaleFactor*pParent->m_basisFunctionWeights[i];
 			check(newBasisFunctionsWeights[i]);
 		}
@@ -147,15 +147,15 @@ mogal::Genome *GridLensInversionGenomeBase::reproduce(const mogal::Genome *g) co
 		newSheetValues[i] = pickParent()->m_sheetValues[i];
 
 	// This moves newBasisFunctionsWeights and newSheetValues
-	return new GridLensInversionGenomeBase(m_pFactory, newBasisFunctionsWeights, newSheetValues);
+	return new LensInversionGenome(m_pFactory, newBasisFunctionsWeights, newSheetValues);
 }
 
-mogal::Genome *GridLensInversionGenomeBase::clone() const
+mogal::Genome *LensInversionGenome::clone() const
 {
 	// We need a copy, as the constructor we're going to use will std::move the contents
 	vector<float> basisFunctionWeightsCopy { m_basisFunctionWeights };
 	vector<float> sheetValuesCopy { m_sheetValues };
-	GridLensInversionGenomeBase *g = new GridLensInversionGenomeBase(m_pFactory, basisFunctionWeightsCopy, sheetValuesCopy);
+	LensInversionGenome *g = new LensInversionGenome(m_pFactory, basisFunctionWeightsCopy, sheetValuesCopy);
 
 	g->setFitnessValues(m_fitnessValues);
 	g->setScaleFactor(m_scaleFactor);
@@ -163,7 +163,7 @@ mogal::Genome *GridLensInversionGenomeBase::clone() const
 	return g;
 }
 
-void GridLensInversionGenomeBase::mutate()
+void LensInversionGenome::mutate()
 {
 	int numBasisFunctions = m_basisFunctionWeights.size();
 	float chanceMultiplier = m_pFactory->getChanceMultiplier();
@@ -257,7 +257,7 @@ void GridLensInversionGenomeBase::mutate()
 	}
 }
 
-std::string GridLensInversionGenomeBase::getFitnessDescription() const
+std::string LensInversionGenome::getFitnessDescription() const
 {
 	char str[1024];
 	char *p = str;

@@ -6,9 +6,9 @@
 #include "inversioncommunicator.h"
 #include "inputoutput.h"
 #include "gaparameters.h"
-#include "gridlensinversiongafactoryparams.h"
-#include "gridlensinversiongafactorybase.h"
-#include "gridlensinversiongenomebase.h"
+#include "lensinversiongafactoryparamssingleplanecpu.h"
+#include "lensinversiongafactorysingleplanecpu.h"
+#include "lensinversiongenome.h"
 #include "galensmodule.h"
 #include "gravitationallens.h"
 #include <serut/memoryserializer.h>
@@ -142,7 +142,7 @@ bool_t InversionCommunicator::runModule(const string &moduleDir, const string &m
 		return "Error reading GA factory parameters: " + r.getErrorString();
 
 	GAParameters gaParams;
-	GridLensInversionGAFactoryParams factoryParams;
+	LensInversionGAFactoryParamsSinglePlaneCPU factoryParams;
 	if (!(r = loadFromBytes(gaParams, gaParamBytes)))
 		return "Unable to load GA parameters from received data: " + r.getErrorString();
 	if (!(r = loadFromBytes(factoryParams, factoryParamBytes)))
@@ -166,7 +166,7 @@ bool_t InversionCommunicator::runModule(const string &moduleDir, const string &m
 		return "Unable to create GA factory instance";
 	unique_ptr<GAFactory> baseFactory(pBaseFactory); // just to make memory management easier
 
-	auto pFactory = dynamic_cast<GridLensInversionGAFactoryBase*>(pBaseFactory);
+	auto pFactory = dynamic_cast<LensInversionGAFactorySinglePlaneCPU*>(pBaseFactory);
 	if (!pFactory)
 		return "GA factory instance could be created from module, but is not of expected type";
 
@@ -195,7 +195,7 @@ bool_t InversionCommunicator::runGA(int popSize, GAFactory &factory, GeneticAlgo
 	return "Not implemented in base class";
 }
 
-bool_t InversionCommunicator::onGAFinished(const GridLensInversionGAFactoryBase &factory, 
+bool_t InversionCommunicator::onGAFinished(const LensInversionGAFactorySinglePlaneCPU &factory, 
                                            const mogal::GeneticAlgorithm &ga)
 {
 	vector<Genome *> bestGenomes;
@@ -220,7 +220,7 @@ bool_t InversionCommunicator::onGAFinished(const GridLensInversionGAFactoryBase 
 	WriteLineStdout(strprintf("NUMSOLS:%d", (int)bestGenomes.size()));
 	for (size_t i = 0 ; i < bestGenomes.size() ; i++)
 	{
-		const GridLensInversionGenomeBase *pGenome = dynamic_cast<const GridLensInversionGenomeBase *>(bestGenomes[i]);
+		const LensInversionGenome *pGenome = dynamic_cast<const LensInversionGenome *>(bestGenomes[i]);
 		if (!pGenome)
 			return "A genome in the best genomes set is not of expected type";
 

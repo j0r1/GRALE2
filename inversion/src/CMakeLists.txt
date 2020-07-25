@@ -5,9 +5,9 @@ set(HEADERS
 	galens/deflectionmatrix.h
 	galens/fitnesshistory.h
 	galens/galensmodule.h
-	galens/gridlensinversiongafactorybase.h
-	galens/gridlensinversiongafactoryparams.h
-	galens/gridlensinversiongenomebase.h
+	galens/lensinversiongafactorysingleplanecpu.h
+	galens/lensinversiongafactoryparamssingleplanecpu.h
+	galens/lensinversiongenome.h
 	galens/imagesbackprojector.h
 	galens/lensfitnessobject.h
 	galens/multifitnesshistory.h
@@ -25,9 +25,9 @@ set(SOURCES
 	galens/deflectionmatrix.cpp
 	galens/fitnesshistory.cpp
 	galens/galensmodule.cpp
-	galens/gridlensinversiongafactorybase.cpp
-	galens/gridlensinversiongafactoryparams.cpp
-	galens/gridlensinversiongenomebase.cpp
+	galens/lensinversiongafactorysingleplanecpu.cpp
+	galens/lensinversiongafactoryparamssingleplanecpu.cpp
+	galens/lensinversiongenome.cpp
 	galens/imagesbackprojector.cpp
 	galens/multifitnesshistory.cpp
 	galens/projectedimagesinterface.cpp

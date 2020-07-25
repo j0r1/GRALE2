@@ -25,8 +25,8 @@
 */
 
 #include "lensfitnessj1004.h"
-#include <grale/gridlensinversiongafactorybase.h>
-#include <grale/gridlensinversiongenomebase.h>
+#include <grale/lensinversiongafactorysingleplanecpu.h>
+#include <grale/lensinversiongenome.h>
 #include <grale/vector2d.h>
 #include <grale/imagesdata.h>
 #include <mogal/gafactorymultiobjective.h>
@@ -40,13 +40,13 @@
 namespace grale
 {
 
-class GridLensInversionGAFactory_J1004Test : public GridLensInversionGAFactoryBase, public mogal::GAFactoryMultiObjective
+class LensInversionGAFactorySinglePlaneCPU_J1004Test : public LensInversionGAFactorySinglePlaneCPU, public mogal::GAFactoryMultiObjective
 {
 public:
 #define HISTORYSIZE 150
 #define MAXMUT 0.1f
 
-	GridLensInversionGAFactory_J1004Test() : m_fitnessHistory(4, HISTORYSIZE, 0.1)
+	LensInversionGAFactorySinglePlaneCPU_J1004Test() : m_fitnessHistory(4, HISTORYSIZE, 0.1)
 	{
 		usesmallmutation = false;
 		m_fitnessConvergenceFactors.push_back(0.05);
@@ -54,7 +54,7 @@ public:
 		m_convergenceFactorPos = 0;
 	}
 
-	~GridLensInversionGAFactory_J1004Test()
+	~LensInversionGAFactorySinglePlaneCPU_J1004Test()
 	{
 	}
 
@@ -87,7 +87,7 @@ public:
 		{
 			for (int j = 0 ; j < bestGenomes.size() ; j++)
 			{
-				GridLensInversionGenomeBase *pGenome = (GridLensInversionGenomeBase *)bestGenomes[j];
+				LensInversionGenome *pGenome = (LensInversionGenome *)bestGenomes[j];
 
 				m_fitnessHistory.processValue(i, pGenome->getFitnessValues()[i]);
 			}
@@ -136,11 +136,11 @@ public:
 		// First select the genomes with the lowest critical line crossings
 		std::list<mogal::Genome *> genomes, genomes2;
 		std::list<mogal::Genome *>::const_iterator it;
-		grale::GridLensInversionGenomeBase *bestgenome = 0;
+		grale::LensInversionGenome *bestgenome = 0;
 
 		for (it = nonDominatedSet.begin() ; it != nonDominatedSet.end() ; ++it)
 		{
-			grale::GridLensInversionGenomeBase *g = (grale::GridLensInversionGenomeBase *)(*it);
+			grale::LensInversionGenome *g = (grale::LensInversionGenome *)(*it);
 
 			g->setActiveFitnessComponent(1);
 			if (bestgenome == 0)
@@ -156,7 +156,7 @@ public:
 		{
 			for (it = nonDominatedSet.begin() ; it != nonDominatedSet.end() ; ++it)
 			{
-				grale::GridLensInversionGenomeBase *g = (grale::GridLensInversionGenomeBase *)(*it);
+				grale::LensInversionGenome *g = (grale::LensInversionGenome *)(*it);
 
 				if (!bestgenome->isFitterThan(g))
 					genomes.push_back(g);
@@ -167,7 +167,7 @@ public:
 		bestgenome = 0;
 		for (it = genomes.begin() ; it != genomes.end() ; ++it)
 		{
-			grale::GridLensInversionGenomeBase *g = (grale::GridLensInversionGenomeBase *)(*it);
+			grale::LensInversionGenome *g = (grale::LensInversionGenome *)(*it);
 
 			g->setActiveFitnessComponent(2);
 			if (bestgenome == 0)
@@ -183,7 +183,7 @@ public:
 		{
 			for (it = genomes.begin() ; it != genomes.end() ; ++it)
 			{
-				grale::GridLensInversionGenomeBase *g = (grale::GridLensInversionGenomeBase *)(*it);
+				grale::LensInversionGenome *g = (grale::LensInversionGenome *)(*it);
 
 				if (!bestgenome->isFitterThan(g))
 					genomes2.push_back(g);
@@ -194,7 +194,7 @@ public:
 		bestgenome = 0;
 		for (it = genomes2.begin() ; it != genomes2.end() ; ++it)
 		{
-			grale::GridLensInversionGenomeBase *g = (grale::GridLensInversionGenomeBase *)(*it);
+			grale::LensInversionGenome *g = (grale::LensInversionGenome *)(*it);
 
 			g->setActiveFitnessComponent(0);
 			if (bestgenome == 0)
@@ -226,7 +226,7 @@ extern "C"
 {
 	GAMODS_EXPORT mogal::GAFactory *CreateFactoryInstance()
 	{
-		return new grale::GridLensInversionGAFactory_J1004Test();
+		return new grale::LensInversionGAFactorySinglePlaneCPU_J1004Test();
 	}
 
 	GAMODS_EXPORT grale::LensFitnessObject *CreateFitnessObject()

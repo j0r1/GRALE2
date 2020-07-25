@@ -25,8 +25,8 @@
 */
 
 #include "lensfitnessweak.h"
-#include <grale/gridlensinversiongafactorybase.h>
-#include <grale/gridlensinversiongenomebase.h>
+#include <grale/lensinversiongafactorysingleplanecpu.h>
+#include <grale/lensinversiongenome.h>
 #include <grale/vector2d.h>
 #include <grale/backprojectmatrixnew.h>
 #include <grale/deflectionmatrix.h>
@@ -40,10 +40,10 @@
 namespace grale
 {
 
-class GridLensInversionGAFactory_Weak : public GridLensInversionGAFactoryBase, public mogal::GAFactorySingleObjective
+class LensInversionGAFactorySinglePlaneCPU_Weak : public LensInversionGAFactorySinglePlaneCPU, public mogal::GAFactorySingleObjective
 {
 public:
-	GridLensInversionGAFactory_Weak()
+	LensInversionGAFactorySinglePlaneCPU_Weak()
 	{
 		fitnessobject = 0;
 		generationcount = 0;
@@ -51,7 +51,7 @@ public:
 		m_smallestSet = false;
 	}
 
-	~GridLensInversionGAFactory_Weak()
+	~LensInversionGAFactorySinglePlaneCPU_Weak()
 	{
 		if (fitnessobject)
 			delete fitnessobject;
@@ -80,7 +80,7 @@ public:
 		std::vector<mogal::Genome *> bestGenomes;
 		getCurrentAlgorithm()->getBestGenomes(bestGenomes);
 		mogal::Genome *overallBest = bestGenomes[0];
-		GridLensInversionGenomeBase *g = (GridLensInversionGenomeBase *)overallBest;
+		LensInversionGenome *g = (LensInversionGenome *)overallBest;
 
 		int pos = generation%HISTORYSIZE;
 
@@ -162,7 +162,7 @@ extern "C"
 {
 	GAMODS_EXPORT mogal::GAFactory *CreateFactoryInstance()
 	{
-		return new grale::GridLensInversionGAFactory_Weak();
+		return new grale::LensInversionGAFactorySinglePlaneCPU_Weak();
 	}
 
 	GAMODS_EXPORT grale::LensFitnessObject *CreateFitnessObject()

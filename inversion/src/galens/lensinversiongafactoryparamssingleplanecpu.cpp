@@ -24,7 +24,7 @@
 */
 
 #include "graleconfig.h"
-#include "gridlensinversiongafactoryparams.h"
+#include "lensinversiongafactoryparamssingleplanecpu.h"
 #include "imagesdataextended.h"
 #include "gravitationallens.h"
 #include "configurationparameters.h"
@@ -40,34 +40,22 @@ using namespace std;
 namespace grale
 {
 
-GridLensInversionGAFactoryParams::GridLensInversionGAFactoryParams()
+LensInversionGAFactoryParamsSinglePlaneCPU::LensInversionGAFactoryParamsSinglePlaneCPU()
 {
 	m_pParams = new GridLensInversionParameters();
 }
 
-GridLensInversionGAFactoryParams::GridLensInversionGAFactoryParams(int maxgen, 
-		const vector<shared_ptr<ImagesDataExtended>> &images, 
-		const vector<GridSquare> &gridsquares,
-		double D_d, double z_d, double massscale, 
-		bool useweights,
-		GridLensInversionParameters::BasisFunctionType b, bool allowNegativeValues,
-		const GravitationalLens *pBaseLens,
-		GridLensInversionParameters::MassSheetSearchType sheetSearchType,
-		const ConfigurationParameters *pFitnessObjectParams,
-		const ScaleSearchParameters &massScaleSearchParams)
+LensInversionGAFactoryParamsSinglePlaneCPU::LensInversionGAFactoryParamsSinglePlaneCPU(const GridLensInversionParameters &params)
 {
-	shared_ptr<GravitationalLens> sheetLens = GridLensInversionParameters::createDefaultSheetLens(sheetSearchType, D_d);
-	m_pParams = new GridLensInversionParameters(maxgen, images, gridsquares, D_d, z_d, massscale,
-			                                    useweights, b, allowNegativeValues, pBaseLens, sheetLens.get(),
-												pFitnessObjectParams, massScaleSearchParams);
+	m_pParams = new GridLensInversionParameters(params);
 }
 
-GridLensInversionGAFactoryParams::~GridLensInversionGAFactoryParams()
+LensInversionGAFactoryParamsSinglePlaneCPU::~LensInversionGAFactoryParamsSinglePlaneCPU()
 {
 	delete m_pParams;
 }
 	
-bool GridLensInversionGAFactoryParams::write(serut::SerializationInterface &si) const
+bool LensInversionGAFactoryParamsSinglePlaneCPU::write(serut::SerializationInterface &si) const
 { 
 	if (m_pParams->write(si))
 		return true;
@@ -75,7 +63,7 @@ bool GridLensInversionGAFactoryParams::write(serut::SerializationInterface &si) 
 	return false;
 }
 
-bool GridLensInversionGAFactoryParams::read(serut::SerializationInterface &si)
+bool LensInversionGAFactoryParamsSinglePlaneCPU::read(serut::SerializationInterface &si)
 { 
 	if (m_pParams->read(si))
 		return true;
@@ -83,11 +71,11 @@ bool GridLensInversionGAFactoryParams::read(serut::SerializationInterface &si)
 	return false;
 }
 
-GridLensInversionGAFactoryParams *GridLensInversionGAFactoryParams::createCopy() const
+LensInversionGAFactoryParamsSinglePlaneCPU *LensInversionGAFactoryParamsSinglePlaneCPU::createCopy() const
 {
 	auto pParams = m_pParams->createCopy();
 
-	GridLensInversionGAFactoryParams *pRetVal = new GridLensInversionGAFactoryParams();
+	LensInversionGAFactoryParamsSinglePlaneCPU *pRetVal = new LensInversionGAFactoryParamsSinglePlaneCPU();
 	delete pRetVal->m_pParams;
 	pRetVal->m_pParams = pParams;
 	return pRetVal;

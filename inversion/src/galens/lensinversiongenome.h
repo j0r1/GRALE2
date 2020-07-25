@@ -42,17 +42,17 @@ namespace grale
 class LensInversionGAFactoryCommon;
 class GravitationalLens;	
 
-class GRALE_IMPORTEXPORT GridLensInversionGenomeBase : public mogal::Genome
+class GRALE_IMPORTEXPORT LensInversionGenome : public mogal::Genome
 {
 public:
-	GridLensInversionGenomeBase(LensInversionGAFactoryCommon *f, int numBasisFunctions, int numSheets);
+	LensInversionGenome(LensInversionGAFactoryCommon *f, int numBasisFunctions, int numSheets);
 	// This will move the contents of basis function weights and sheetValues!
-	GridLensInversionGenomeBase(LensInversionGAFactoryCommon *f, std::vector<float> &basisFunctionWeights, std::vector<float> &sheetValues);
-	~GridLensInversionGenomeBase();
+	LensInversionGenome(LensInversionGAFactoryCommon *f, std::vector<float> &basisFunctionWeights, std::vector<float> &sheetValues);
+	~LensInversionGenome();
 	
 	void setActiveFitnessComponent(int i)								{ m_fitnessComp = i; }
 	bool calculateFitness();
-	bool isFitterThan(const mogal::Genome *g) const							{ const GridLensInversionGenomeBase *g2 = (const GridLensInversionGenomeBase *)g; if (m_fitnessValues[m_fitnessComp] < g2->getFitnessValues()[m_fitnessComp]) return true; return false; }
+	bool isFitterThan(const mogal::Genome *g) const							{ const LensInversionGenome *g2 = (const LensInversionGenome *)g; if (m_fitnessValues[m_fitnessComp] < g2->getFitnessValues()[m_fitnessComp]) return true; return false; }
 	mogal::Genome *reproduce(const mogal::Genome *g) const;
 	Genome *clone() const;
 	void mutate();

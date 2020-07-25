@@ -3,7 +3,7 @@
 #include "graleconfig.h"
 #include "randomnumbergenerator.h"
 #include "gridlensinversionparameters.h"
-#include "gridlensinversiongenomebase.h"
+#include "lensinversiongenome.h"
 #include "vector2d.h"
 #include <mogal/gafactorydefaults.h>
 #include <vector>
@@ -12,7 +12,7 @@
 namespace grale
 {
 
-class GridLensInversionGAFactoryParams;
+class LensInversionGAFactoryParamsSinglePlaneCPU;
 class ImagesDataExtended;
 class GravitationalLens;
 class LensFitnessObject;
@@ -48,7 +48,7 @@ public:
 	virtual float getMutationAmplitude() = 0;
 
     // TODO: vector<shared_prt<GravitationalLens>>, createLenses
-	virtual GravitationalLens *createLens(const GridLensInversionGenomeBase &genome, std::string &errStr) const = 0;
+	virtual GravitationalLens *createLens(const LensInversionGenome &genome, std::string &errStr) const = 0;
 
 	void sendMessage(const std::string &s);
 

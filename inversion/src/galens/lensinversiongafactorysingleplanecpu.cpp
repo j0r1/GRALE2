@@ -23,9 +23,9 @@
   
 */
 
-#include "gridlensinversiongafactorybase.h"
-#include "gridlensinversiongafactoryparams.h"
-#include "gridlensinversiongenomebase.h"
+#include "lensinversiongafactorysingleplanecpu.h"
+#include "lensinversiongafactoryparamssingleplanecpu.h"
+#include "lensinversiongenome.h"
 #include "compositelens.h"
 #include "masssheetlens.h"
 #include "lensfitnessobject.h"
@@ -52,7 +52,7 @@ namespace grale
 class GADeflectionMatrix : public DeflectionMatrix
 {
 public:
-	GADeflectionMatrix(GridLensInversionGAFactoryBase *pFactory) : m_pFactory(pFactory)
+	GADeflectionMatrix(LensInversionGAFactorySinglePlaneCPU *pFactory) : m_pFactory(pFactory)
 	{
 		assert(pFactory != nullptr);
 	}
@@ -66,15 +66,15 @@ private:
 		m_pFactory->sendMessage(s);
 	}
 
-	GridLensInversionGAFactoryBase *m_pFactory;
+	LensInversionGAFactorySinglePlaneCPU *m_pFactory;
 };
 
-GridLensInversionGAFactoryBase::GridLensInversionGAFactoryBase()
+LensInversionGAFactorySinglePlaneCPU::LensInversionGAFactorySinglePlaneCPU()
 {
 	zero();
 }
 
-void GridLensInversionGAFactoryBase::zero()
+void LensInversionGAFactorySinglePlaneCPU::zero()
 {
 	m_pCurrentParams = nullptr;
 	m_pDeflectionMatrix = nullptr;
@@ -83,7 +83,7 @@ void GridLensInversionGAFactoryBase::zero()
 	m_pFitnessObject = nullptr;
 }
 
-void GridLensInversionGAFactoryBase::clear()
+void LensInversionGAFactorySinglePlaneCPU::clear()
 {
 	delete m_pCurrentParams;
 	delete m_pDeflectionMatrix;
@@ -99,22 +99,22 @@ void GridLensInversionGAFactoryBase::clear()
 	zero();
 }
 
-GridLensInversionGAFactoryBase::~GridLensInversionGAFactoryBase()
+LensInversionGAFactorySinglePlaneCPU::~LensInversionGAFactorySinglePlaneCPU()
 {
 	clear();
 }
 
-mogal::GAFactoryParams *GridLensInversionGAFactoryBase::createParamsInstance() const
+mogal::GAFactoryParams *LensInversionGAFactorySinglePlaneCPU::createParamsInstance() const
 {
-	return new GridLensInversionGAFactoryParams();
+	return new LensInversionGAFactoryParamsSinglePlaneCPU();
 }
 
-const mogal::GAFactoryParams *GridLensInversionGAFactoryBase::getCurrentParameters() const
+const mogal::GAFactoryParams *LensInversionGAFactorySinglePlaneCPU::getCurrentParameters() const
 {
 	return m_pCurrentParams;
 }
 
-bool GridLensInversionGAFactoryBase::init(const mogal::GAFactoryParams *p)
+bool LensInversionGAFactorySinglePlaneCPU::init(const mogal::GAFactoryParams *p)
 {
 	if (m_pCurrentParams != 0)
 	{
@@ -128,7 +128,7 @@ bool GridLensInversionGAFactoryBase::init(const mogal::GAFactoryParams *p)
 		return false;
 	}
 	
-	const GridLensInversionGAFactoryParams *p2 = dynamic_cast<const GridLensInversionGAFactoryParams *>(p);
+	const LensInversionGAFactoryParamsSinglePlaneCPU *p2 = dynamic_cast<const LensInversionGAFactoryParamsSinglePlaneCPU *>(p);
 	if (!p2)
 	{
 		setErrorString("Invalid type of GA factory parameters");
@@ -208,7 +208,7 @@ bool GridLensInversionGAFactoryBase::init(const mogal::GAFactoryParams *p)
 	return true;
 }
 
-GravitationalLens *GridLensInversionGAFactoryBase::createLens(const GridLensInversionGenomeBase &genome,
+GravitationalLens *LensInversionGAFactorySinglePlaneCPU::createLens(const LensInversionGenome &genome,
                                                               std::string &errStr) const
 {
 	CompositeLensParams lensParams;
@@ -290,7 +290,7 @@ void GridLensInversionGAFactoryBase::onSortedPopulation(const std::vector<mogal:
 
 #endif // SHOWEVOLUTION
 
-bool GridLensInversionGAFactoryBase::localSubInit(double z_d, const vector<shared_ptr<ImagesDataExtended>> &images, 
+bool LensInversionGAFactorySinglePlaneCPU::localSubInit(double z_d, const vector<shared_ptr<ImagesDataExtended>> &images, 
 	                  const vector<pair<shared_ptr<GravitationalLens>, Vector2D<double> > > &basisLenses,
                       const GravitationalLens *pBaseLens, const GravitationalLens *pSheetLens, 
 					  const ConfigurationParameters *pFitnessObjectParams)
@@ -432,7 +432,7 @@ bool GridLensInversionGAFactoryBase::localSubInit(double z_d, const vector<share
 	return true;
 }
 
-bool GridLensInversionGAFactoryBase::initializeNewCalculation(const vector<float> &basisFunctionWeights, const vector<float> &sheetValues)
+bool LensInversionGAFactorySinglePlaneCPU::initializeNewCalculation(const vector<float> &basisFunctionWeights, const vector<float> &sheetValues)
 {
 	if (sheetValues.size() == 0)
 		m_sheetScale = 0;
@@ -450,7 +450,7 @@ bool GridLensInversionGAFactoryBase::initializeNewCalculation(const vector<float
 	return true;
 }
 
-bool GridLensInversionGAFactoryBase::calculateMassScaleFitness(float scaleFactor, float &fitness)
+bool LensInversionGAFactorySinglePlaneCPU::calculateMassScaleFitness(float scaleFactor, float &fitness)
 {
 	LensFitnessObject &fitnessFunction = *m_pFitnessObject;
 
@@ -470,7 +470,7 @@ bool GridLensInversionGAFactoryBase::calculateMassScaleFitness(float scaleFactor
 	return true;
 }
 
-bool GridLensInversionGAFactoryBase::calculateTotalFitness(float scaleFactor, float *pFitnessValues)
+bool LensInversionGAFactorySinglePlaneCPU::calculateTotalFitness(float scaleFactor, float *pFitnessValues)
 {
 	LensFitnessObject &fitnessFunction = *m_pFitnessObject;
 

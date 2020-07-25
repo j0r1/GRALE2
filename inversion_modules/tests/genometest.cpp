@@ -1,8 +1,9 @@
-#include <grale/gridlensinversiongafactorybase.h>
-#include <grale/gridlensinversiongafactoryparams.h>
-#include <grale/gridlensinversiongenomebase.h>
+#include <grale/lensinversiongafactorysingleplanecpu.h>
+#include <grale/lensinversiongafactoryparamssingleplanecpu.h>
+#include <grale/lensinversiongenome.h>
 #include <grale/imagesdataextended.h>
 #include <grale/constants.h>
+#include <grale/gridlensinversionparameters.h>
 #include <grale/grid.h>
 #include "lensfitnesssimplerectangles.h"
 #include <mogal/gafactorymultiobjective.h>
@@ -15,11 +16,11 @@ using namespace grale;
 using namespace std;
 using namespace mogal;
 
-class GridLensInversionGAFactory_Test : public GridLensInversionGAFactoryBase, public GAFactorySingleObjective
+class LensInversionGAFactorySinglePlaneCPU_Test : public LensInversionGAFactorySinglePlaneCPU, public GAFactorySingleObjective
 {
 public:
-	GridLensInversionGAFactory_Test() { }
-	~GridLensInversionGAFactory_Test() { }
+	LensInversionGAFactorySinglePlaneCPU_Test() { }
+	~LensInversionGAFactorySinglePlaneCPU_Test() { }
 	LensFitnessObject *createFitnessObject() { return new LensFitnessSimpleRectangles(); }
 	bool subInit(LensFitnessObject *pFitnessObject) { return true; }
 	
@@ -103,32 +104,34 @@ int main(int argc, char *argv[])
 						cout << "-------------------------------------------------------------------------------------------------" << endl;
 						cout << "useWeights: " << useWeights << " allowNeg: " << allowNeg << " basisFunction: " << (int)basisFunction
 							 << " sheetSearchType: " << (int)sheetSearchType << " wideSearch: " << wideSearch << endl;
-
-						GridLensInversionGAFactoryParams origParams(1, // maxgenerations
+						
+						shared_ptr<GravitationalLens> sheetLens = GridLensInversionParameters::createDefaultSheetLens(sheetSearchType, D_d);
+						LensInversionGAFactoryParamsSinglePlaneCPU origParams(GridLensInversionParameters(
+							1, // maxgenerations
 							{ imgExt }, gridSquares, D_d, 0, // z_d
 							massScale,
 							useWeights, basisFunction, allowNeg, nullptr, // pBaseLens
-							sheetSearchType, pFitnessObjectParams,
-							ScaleSearchParameters(wideSearch));
+							sheetLens.get(), pFitnessObjectParams,
+							ScaleSearchParameters(wideSearch)));
 
-						unique_ptr<GridLensInversionGAFactoryParams> pParamsCopy(origParams.createCopy());
+						unique_ptr<LensInversionGAFactoryParamsSinglePlaneCPU> pParamsCopy(origParams.createCopy());
 						serut::VectorSerializer ser;
 
-						GridLensInversionGAFactoryParams params;
+						LensInversionGAFactoryParamsSinglePlaneCPU params;
 						if (!pParamsCopy->write(ser) || !params.read(ser))
 						{
 							cerr << "Unable to serialize/deserialize inversion parameters" << endl;
 							return -1;
 						}
 
-						GridLensInversionGAFactory_Test factory;
+						LensInversionGAFactorySinglePlaneCPU_Test factory;
 						if (!factory.init(&params))
 						{
 							cerr << "Couldn't init factory: " << factory.getErrorString() << endl;
 							return -1;
 						}
 
-						auto pGenome = unique_ptr<GridLensInversionGenomeBase>(static_cast<GridLensInversionGenomeBase*>(factory.createNewGenome()));
+						auto pGenome = unique_ptr<LensInversionGenome>(static_cast<LensInversionGenome*>(factory.createNewGenome()));
 						pGenome->calculateFitness();
 
 						cout << "masses:";

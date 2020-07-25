@@ -3,7 +3,7 @@
 #include "log.h"
 #include "inputoutput.h"
 #include "gaparameters.h"
-#include "gridlensinversiongafactoryparams.h"
+#include "lensinversiongafactoryparamssingleplanecpu.h"
 #include "inversioncommunicator.h"
 #include <serut/memoryserializer.h>
 #include <mogal/geneticalgorithm.h>

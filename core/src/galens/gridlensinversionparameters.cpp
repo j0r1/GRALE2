@@ -36,6 +36,7 @@
 #include <assert.h>
 #include <vector>
 #include <sstream>
+#include <memory>
 
 #include "debugnew.h"
 
@@ -162,16 +163,17 @@ void GridLensInversionParameters::commonConstructor(int maxGenerations,
 	m_massScale = massScale; 
 	m_images = images;
 	
-	m_pBaseLens = nullptr;
+	m_pBaseLens.reset();
 	if (pBaseLens)
-		m_pBaseLens = pBaseLens->createCopy();
+		m_pBaseLens = shared_ptr<GravitationalLens>(pBaseLens->createCopy());
 
-	m_pSheetLens = nullptr;
+	m_pSheetLens.reset();
 	if (pSheetLens)
-		m_pSheetLens = pSheetLens->createCopy();
+		m_pSheetLens = shared_ptr<GravitationalLens>(pSheetLens->createCopy());
 
+	m_pParams.reset();
 	if (pFitnessObjectParams)
-		m_pParams = new ConfigurationParameters(*pFitnessObjectParams);
+		m_pParams = make_shared<ConfigurationParameters>(*pFitnessObjectParams);
 
 	m_scaleSearchParams = massScaleSearchParams;
 }
@@ -286,13 +288,13 @@ bool GridLensInversionParameters::write(serut::SerializationInterface &si) const
 		return false;
 	}
 
-	auto writeLens = [](GravitationalLens *pLens, serut::SerializationInterface &si) -> bool_t
+	auto writeLens = [](const shared_ptr<GravitationalLens> pLens, serut::SerializationInterface &si) -> bool_t
 	{
-		int32_t val = (pLens != nullptr)?1:0;
+		int32_t val = (pLens.get() != nullptr)?1:0;
 		if (!si.writeInt32(val))
 			return "Couldn't write lens flag: " + si.getErrorString();
 
-		if (pLens)
+		if (pLens.get())
 		{
 			if (!pLens->write(si))
 				return "Couldn't write lens: " + pLens->getErrorString();
@@ -312,14 +314,14 @@ bool GridLensInversionParameters::write(serut::SerializationInterface &si) const
 		return false;
 	}
 
-	int32_t val = (m_pParams == nullptr)?0:1;
+	int32_t val = (m_pParams.get() == nullptr)?0:1;
 	if (!si.writeInt32(val)) // write marker for additional parameters
 	{
 		setErrorString(si.getErrorString());
 		return false;
 	}
 
-	if (m_pParams)
+	if (m_pParams.get())
 	{
 		if (!m_pParams->write(si))
 		{
@@ -342,9 +344,9 @@ void GridLensInversionParameters::clear()
 	m_images.clear();
 	m_basisLenses.clear();
 
-	delete m_pBaseLens;
-	delete m_pSheetLens;
-	delete m_pParams;
+	m_pBaseLens.reset();
+	m_pSheetLens.reset();
+	m_pParams.reset();
 
 	zero();
 }
@@ -356,9 +358,9 @@ void GridLensInversionParameters::zero()
 	m_massScale = 0;
 	m_zd = 0;
 	m_allowNegative = false;
-	m_pBaseLens = nullptr;
-	m_pSheetLens = nullptr;
-	m_pParams = nullptr;
+	m_pBaseLens.reset();
+	m_pSheetLens.reset();
+	m_pParams.reset();
 }
 
 bool GridLensInversionParameters::read(serut::SerializationInterface &si)
@@ -443,7 +445,7 @@ bool GridLensInversionParameters::read(serut::SerializationInterface &si)
 
 	m_allowNegative = (n == 0)?false:true;
 
-	auto readLens = [](GravitationalLens **pLens, serut::SerializationInterface &si) -> bool_t
+	auto readLens = [](shared_ptr<GravitationalLens> &pLens, serut::SerializationInterface &si) -> bool_t
 	{
 		int32_t val;
 
@@ -453,20 +455,22 @@ bool GridLensInversionParameters::read(serut::SerializationInterface &si)
 		if (val != 0)
 		{
 			string errStr;
+			GravitationalLens *pTmpLens = nullptr;
 
-			if (!GravitationalLens::read(si, pLens, errStr))
-				return "Coudln't read lens: " + errStr; 
+			if (!GravitationalLens::read(si, &pTmpLens, errStr))
+				return "Couldn't read lens: " + errStr; 
+			pLens = shared_ptr<GravitationalLens>(pTmpLens);
 		}
 		return true;
 	};
 
 	bool_t r;
-	if (!(r = readLens(&m_pBaseLens, si)))
+	if (!(r = readLens(m_pBaseLens, si)))
 	{
 		setErrorString("Couldn't read base lens: " + r.getErrorString());
 		return false;
 	}
-	if (!(r = readLens(&m_pSheetLens, si)))
+	if (!(r = readLens(m_pSheetLens, si)))
 	{
 		setErrorString("Couldn't read sheet lens: " + r.getErrorString());
 		return false;
@@ -481,12 +485,10 @@ bool GridLensInversionParameters::read(serut::SerializationInterface &si)
 
 	if (val != 0)
 	{
-		m_pParams = new ConfigurationParameters();
+		m_pParams = make_shared<ConfigurationParameters>();
 		if (!m_pParams->read(si))
 		{
 			setErrorString(m_pParams->getErrorString());
-			delete m_pParams;
-			m_pParams = nullptr;
 			return false;
 		}
 	}
@@ -532,7 +534,7 @@ GridLensInversionParameters *GridLensInversionParameters::createCopy() const
 
 	return new GridLensInversionParameters(m_maxGenerations, imagesCopy, copiedBasisLenses,
 			                               m_Dd, m_zd, m_massScale, m_allowNegative,
-										   m_pBaseLens, m_pSheetLens, m_pParams,
+										   m_pBaseLens.get(), m_pSheetLens.get(), m_pParams.get(),
 										   m_scaleSearchParams);
 }
 
@@ -549,7 +551,7 @@ void GridLensInversionParameters::buildBasisLenses(const vector<GridSquare> &squ
 
 	if (useMassWeights)
 	{
-		cerr << "Using mass weights" << endl;
+		// cerr << "Using mass weights" << endl;
 		
 		double sum = 0;
 
@@ -641,6 +643,21 @@ shared_ptr<GravitationalLens> GridLensInversionParameters::createDefaultSheetLen
 	}
 
 	return lens;
+}
+
+void GridLensInversionParameters::copyFrom(const GridLensInversionParameters &src)
+{
+	m_maxGenerations = src.m_maxGenerations;
+	m_Dd = src.m_Dd;
+	m_massScale = src.m_massScale;
+	m_zd = src.m_zd;
+	m_images = src.m_images;
+	m_allowNegative = src.m_allowNegative;
+	m_pBaseLens = src.m_pBaseLens;
+	m_pSheetLens = src.m_pSheetLens;
+	m_pParams = src.m_pParams;
+	m_scaleSearchParams = src.m_scaleSearchParams;
+	m_basisLenses = src.m_basisLenses;
 }
 
 } // end namespace

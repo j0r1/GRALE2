@@ -25,8 +25,8 @@
 */
 
 #include "lensfitnessgeneral.h"
-#include <grale/gridlensinversiongafactorybase.h>
-#include <grale/gridlensinversiongenomebase.h>
+#include <grale/lensinversiongafactorysingleplanecpu.h>
+#include <grale/lensinversiongenome.h>
 #include <grale/vector2d.h>
 #include <grale/imagesdata.h>
 #include <mogal/gafactorymultiobjective.h>
@@ -43,13 +43,13 @@ using namespace mogal;
 namespace grale
 {
 
-class GridLensInversionGAFactory_General : public GridLensInversionGAFactoryBase, public GAFactoryMultiObjective
+class LensInversionGAFactorySinglePlaneCPU_General : public LensInversionGAFactorySinglePlaneCPU, public GAFactoryMultiObjective
 {
 public:
 #define HISTORYSIZE 250
 #define MAXMUT 0.1f
 
-	GridLensInversionGAFactory_General() 
+	LensInversionGAFactorySinglePlaneCPU_General() 
 	{
 		m_numFitness = 0;
 		m_pFitnessHistory = 0;
@@ -59,7 +59,7 @@ public:
 		m_convergenceFactorPos = 0;
 	}
 
-	~GridLensInversionGAFactory_General()
+	~LensInversionGAFactorySinglePlaneCPU_General()
 	{
 		delete m_pFitnessHistory;
 
@@ -105,7 +105,7 @@ public:
 		{
 			for (int j = 0 ; j < bestGenomes.size() ; j++)
 			{
-				GridLensInversionGenomeBase *pGenome = (GridLensInversionGenomeBase *)bestGenomes[j];
+				LensInversionGenome *pGenome = (LensInversionGenome *)bestGenomes[j];
 
 				assert(m_pFitnessHistory);
 				m_pFitnessHistory->processValue(i, pGenome->getFitnessValues()[i]);
@@ -157,7 +157,7 @@ public:
 		// Respect the ordering of the fitness components
 		list<Genome *> genomes = nonDominatedSet;
 		list<Genome *> genomes2;
-		GridLensInversionGenomeBase *bestgenome = 0;
+		LensInversionGenome *bestgenome = 0;
 
 		for (int comp = 0 ; comp < m_numFitness ; comp++)
 		{
@@ -165,7 +165,7 @@ public:
 
 			for (auto it = genomes.begin() ; it != genomes.end() ; ++it)
 			{
-				GridLensInversionGenomeBase *g = static_cast<GridLensInversionGenomeBase *>(*it);
+				LensInversionGenome *g = static_cast<LensInversionGenome *>(*it);
 
 				g->setActiveFitnessComponent(comp);
 				if (bestgenome == 0)
@@ -183,7 +183,7 @@ public:
 			// are others which perfom equally well
 			for (auto it = genomes.begin() ; it != genomes.end() ; ++it)
 			{
-				GridLensInversionGenomeBase *g = static_cast<GridLensInversionGenomeBase *>(*it);
+				LensInversionGenome *g = static_cast<LensInversionGenome *>(*it);
 
 				g->setActiveFitnessComponent(comp);
 				// if 'bestgenome' is not fitter than 'g' it must have the same fitness with respect to this component
@@ -214,7 +214,7 @@ extern "C"
 {
 	GAMODS_EXPORT GAFactory *CreateFactoryInstance()
 	{
-		return new grale::GridLensInversionGAFactory_General();
+		return new grale::LensInversionGAFactorySinglePlaneCPU_General();
 	}
 
 	GAMODS_EXPORT grale::LensFitnessObject *CreateFitnessObject()

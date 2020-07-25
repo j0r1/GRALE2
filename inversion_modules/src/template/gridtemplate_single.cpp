@@ -26,8 +26,8 @@
 
 // TODO: include what you need
 #include "lensfitnessobject.h"
-#include <grale/gridlensinversiongafactorybase.h>
-#include <grale/gridlensinversiongenomebase.h>
+#include <grale/lensinversiongafactorysingleplanecpu.h>
+#include <grale/lensinversiongenome.h>
 #include <grale/vector2d.h>
 #include <mogal/gafactorysingleobjective.h>
 #include <vector>
@@ -37,16 +37,16 @@ namespace grale
 {
 
 // A single objective lens inversion module must inherit:
-//  - GridLensInversionGAFactoryBase
+//  - LensInversionGAFactorySinglePlaneCPU
 //  - mogal::GAFactorySingleObjective
-class GridLensInversionGAFactory_Template_SingleObjective : public GridLensInversionGAFactoryBase, public mogal::GAFactorySingleObjective
+class LensInversionGAFactorySinglePlaneCPU_Template_SingleObjective : public LensInversionGAFactorySinglePlaneCPU, public mogal::GAFactorySingleObjective
 {
 public:
-	GridLensInversionGAFactory_Template_SingleObjective()
+	LensInversionGAFactorySinglePlaneCPU_Template_SingleObjective()
 	{
 	}
 
-	~GridLensInversionGAFactory_Template_SingleObjective()
+	~LensInversionGAFactorySinglePlaneCPU_Template_SingleObjective()
 	{
 	}
 
@@ -120,7 +120,7 @@ extern "C"
 	// has mogal::GAFactory as a parent.
 	GAMODS_EXPORT mogal::GAFactory *CreateFactoryInstance()
 	{
-		return new grale::GridLensInversionGAFactory_Template_SingleObjective();
+		return new grale::LensInversionGAFactorySinglePlaneCPU_Template_SingleObjective();
 	}
 
 	// This function must create a new instance of the LensFitnessObject derived
