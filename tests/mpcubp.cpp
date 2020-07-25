@@ -60,8 +60,6 @@ int main(int argc, char const *argv[])
 {
     vector<float> redshifts;
     vector<vector<PlummerLensInfo>> plummers;
-    vector<vector<float>> massFactors;
-    vector<float> sheetDensities;
 
     for (auto &zAndPlummers : redshiftsAndPlummers)
     {
@@ -70,9 +68,6 @@ int main(int argc, char const *argv[])
         
         cout << "Lensplane redshift: " << zAndPlummers.first << endl;
         cout << "  #plummers = " << zAndPlummers.second.size() << endl;
-        // Set all mass scale factors to the necessary factor
-        massFactors.push_back(vector<float>(zAndPlummers.second.size(), (float)scaleFactor));
-        sheetDensities.push_back(0); // no sheet at the moment
     }
     // cout << "massFactors.size() == " << massFactors.size() << endl;
     // for (auto &m : massFactors)
@@ -102,7 +97,7 @@ int main(int argc, char const *argv[])
         return -1;
     }
 
-    if (!bp.calculateSourcePositions(massFactors, sheetDensities))
+    if (!bp.calculateSourcePositions(massFactors, sheetValues))
     {
         cerr << "Error calculating source positions: " << bp.getErrorString() << endl;
         return -1;

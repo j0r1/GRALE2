@@ -49,16 +49,19 @@ def getNextTheta():
 
 print("const vector<pair<double, vector<PlummerLensInfo>>> redshiftsAndPlummers = {");
 totalMass = 0
+massFactors = []
 for zd in lensRedShifts:
     print(f"  {{ {zd}, {{ ")
     Dd = D(zd)
     numPlummers = np.random.randint(5, 10)
 
     params = []
+    massFactors.append([])
     for i in range(numPlummers):
         mass, width, x, y = getNextPlummerParams()
         totalMass += mass
 
+        massFactors[-1].append(mass/(1e13*MASS_SUN))
         props = {
             "lens": lenses.PlummerLens(Dd, {
                 "mass": mass,
@@ -70,7 +73,7 @@ for zd in lensRedShifts:
             "factor": 1
         }
         params.append(props)
-        print(f"    {{ {mass}, {width}, {{ {x}, {y} }} }},")
+        print(f"    {{ {1e13*MASS_SUN}, {width}, {{ {x}, {y} }} }},")
 
     print("  } },")
     # Just store the parameters at this point, we'll set the factor below
@@ -86,13 +89,34 @@ print(f"// massForImgSep: {massForImgSep/MASS_SUN:g}")
 print(f"// currentTotalMass: {totalMass/MASS_SUN:g}")
 extraFactor = massForImgSep*np.random.uniform(0.95, 1.05)/totalMass
 
-print(f"const double scaleFactor = {extraFactor}; // This is the scale factor for which we should find a match")
-
 # Adjust individual plummer factors
 for x in lensplanes:
     params = x["params"]
     for p in params:
         p["factor"] = extraFactor
+
+print("const vector<vector<float>> massFactors { ")
+for mfs in massFactors:
+    print("  { ", end='')
+    for m in mfs:
+        print(f"{m*extraFactor}, ", end='')
+    print(" },")
+print("};")
+
+# Add some mass sheets
+print("const vector<float> sheetValues = { ", end='')
+for x in lensplanes:
+    factor = np.random.uniform(0,0.05)
+    lens = lenses.MassSheetLens(x["Dd"], { "Ds": 1, "Dds": 1})
+    x["params"].append({
+        "lens": lens,
+        "factor": factor,
+        "x": 0, "y": 0, "angle": 0
+    })
+    density = lens.getLensParameters()["density"]
+    print(f"{factor*density}, ", end='')
+
+print("};")
 
 lensesAndRedshifts = [ (lenses.CompositeLens(x["Dd"], x["params"]), x["zd"]) for x in lensplanes ]
 # The grid dimensions are not used for this test
