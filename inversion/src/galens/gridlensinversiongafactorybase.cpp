@@ -219,7 +219,7 @@ GravitationalLens *GridLensInversionGAFactoryBase::createLens(const GridLensInve
 	CompositeLensParams lensParams;
 	CompositeLens *pLens;
 
-	const vector<float> &masses = genome.getMasses();
+	const vector<float> &masses = genome.getBasisFunctionWeights();
 	const float scaleFactor = genome.getScaleFactor();
 	const vector<float> &sheetValues = genome.getSheetValues();
 

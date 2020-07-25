@@ -39,7 +39,7 @@ using namespace std;
 namespace grale
 {
 
-GridLensInversionGenomeBase::GridLensInversionGenomeBase(LensInversionGAFactoryCommon *f, int nummasses, int numSheets)
+GridLensInversionGenomeBase::GridLensInversionGenomeBase(LensInversionGAFactoryCommon *f, int numBasisFunctions, int numSheets)
 {
 	m_pFactory = f;
 	m_fitnessComp = 0;
@@ -48,17 +48,17 @@ GridLensInversionGenomeBase::GridLensInversionGenomeBase(LensInversionGAFactoryC
 		m_fitnessValues[i] = 0;
 	
 	m_scaleFactor = 1.0;
-	m_masses.resize(nummasses);
+	m_basisFunctionWeights.resize(numBasisFunctions);
 
 	SimpleUniformDistribution uniDist(m_pFactory->getRandomNumberGenerator());
 
-	for (int i = 0 ; i < nummasses ; i++)
-		m_masses[i] = (float)uniDist.pickNumber();
+	for (int i = 0 ; i < numBasisFunctions ; i++)
+		m_basisFunctionWeights[i] = (float)uniDist.pickNumber();
 
 	if (m_pFactory->allowNegativeValues())
 	{
-		for (int i = 0 ; i < nummasses ; i++)
-			m_masses[i] -= 0.5;
+		for (int i = 0 ; i < numBasisFunctions ; i++)
+			m_basisFunctionWeights[i] -= 0.5;
 	}
 
 	m_sheetValues.resize(numSheets);
@@ -66,10 +66,10 @@ GridLensInversionGenomeBase::GridLensInversionGenomeBase(LensInversionGAFactoryC
 		s = uniDist.pickNumber();
 }
 
-GridLensInversionGenomeBase::GridLensInversionGenomeBase(LensInversionGAFactoryCommon *f, vector<float> &masses, vector<float> &sheetValues)
+GridLensInversionGenomeBase::GridLensInversionGenomeBase(LensInversionGAFactoryCommon *f, vector<float> &basisFunctionWeights, vector<float> &sheetValues)
 {
 	m_pFactory = f;
-	m_masses = std::move(masses);
+	m_basisFunctionWeights = std::move(basisFunctionWeights);
 	m_sheetValues = std::move(sheetValues);
 	
 	m_fitnessComp = 0;
@@ -82,7 +82,7 @@ GridLensInversionGenomeBase::GridLensInversionGenomeBase(LensInversionGAFactoryC
 #ifndef NDEBUG
 	if (!m_pFactory->allowNegativeValues())
 	{
-		for (auto x : m_masses)
+		for (auto x : m_basisFunctionWeights)
 			assert(x >= 0);
 	}
 #endif // NDEBUG
@@ -98,7 +98,7 @@ static float IdentityTrans(float x) { return x; }
 
 bool GridLensInversionGenomeBase::calculateFitness()
 {
-	int nummasses = m_masses.size();
+	int numBasisFunctions = m_basisFunctionWeights.size();
 	float startValue, startValue0;
 	float stopValue, stopValue0;
 
@@ -106,7 +106,7 @@ bool GridLensInversionGenomeBase::calculateFitness()
 	int numiterationsteps;
 	int numiterationsteps2;
 
-	if (!m_pFactory->initializeNewCalculation(m_masses, m_sheetValues))
+	if (!m_pFactory->initializeNewCalculation(m_basisFunctionWeights, m_sheetValues))
 		return false;
 
 	// TODO: adjust mass scale depending on sheet value?
@@ -119,8 +119,8 @@ bool GridLensInversionGenomeBase::calculateFitness()
 		const float *weights = m_pFactory->getMassWeights();
 		
 		// TODO: should find something better!!
-		for (int i = 0 ; i < nummasses ; i++)
-			massum += ABS(m_masses[i]*weights[i]);
+		for (int i = 0 ; i < numBasisFunctions ; i++)
+			massum += ABS(m_basisFunctionWeights[i]*weights[i]);
 
 		m_pFactory->getGenomeCalculationParameters(startValue, stopValue, numiterationsteps, numiterations, numiterationsteps2);
 
@@ -135,8 +135,8 @@ bool GridLensInversionGenomeBase::calculateFitness()
 		float massum = 0;
 		const float *weights = m_pFactory->getMassWeights();
 
-		for (int i = 0 ; i < nummasses ; i++)
-			massum += m_masses[i]*weights[i];
+		for (int i = 0 ; i < numBasisFunctions ; i++)
+			massum += m_basisFunctionWeights[i]*weights[i];
 
 		m_pFactory->getGenomeCalculationParameters(startValue, stopValue, numiterationsteps, numiterations, numiterationsteps2);
 
@@ -225,8 +225,8 @@ bool GridLensInversionGenomeBase::calculateFitness()
 
 mogal::Genome *GridLensInversionGenomeBase::reproduce(const mogal::Genome *g) const
 {
-	int nummasses = m_masses.size();
-	std::vector<float> newmasses(nummasses);
+	int numBasisFunctions = m_basisFunctionWeights.size();
+	std::vector<float> newBasisFunctionsWeights(numBasisFunctions);
 	SimpleUniformDistribution uniDist(m_pFactory->getRandomNumberGenerator());
 
 	const GridLensInversionGenomeBase *pParents[] = { 
@@ -241,13 +241,13 @@ mogal::Genome *GridLensInversionGenomeBase::reproduce(const mogal::Genome *g) co
 		return pParent;
 	};
 
-	auto genomeUniformCrossover = [&newmasses, nummasses, pickParent](auto check)
+	auto genomeUniformCrossover = [&newBasisFunctionsWeights, numBasisFunctions, pickParent](auto check)
 	{
-		for (int i = 0 ; i < nummasses ; i++)
+		for (int i = 0 ; i < numBasisFunctions ; i++)
 		{
 			const GridLensInversionGenomeBase *pParent = pickParent();
-			newmasses[i] = pParent->m_scaleFactor*pParent->m_masses[i];
-			check(newmasses[i]);
+			newBasisFunctionsWeights[i] = pParent->m_scaleFactor*pParent->m_basisFunctionWeights[i];
+			check(newBasisFunctionsWeights[i]);
 		}
 	};
 
@@ -263,16 +263,16 @@ mogal::Genome *GridLensInversionGenomeBase::reproduce(const mogal::Genome *g) co
 	for (int i = 0 ; i < newSheetValues.size() ; i++)
 		newSheetValues[i] = pickParent()->m_sheetValues[i];
 
-	// This moves newmasses and newSheetValues
-	return new GridLensInversionGenomeBase(m_pFactory, newmasses, newSheetValues);
+	// This moves newBasisFunctionsWeights and newSheetValues
+	return new GridLensInversionGenomeBase(m_pFactory, newBasisFunctionsWeights, newSheetValues);
 }
 
 mogal::Genome *GridLensInversionGenomeBase::clone() const
 {
 	// We need a copy, as the constructor we're going to use will std::move the contents
-	vector<float> massesCopy { m_masses };
+	vector<float> basisFunctionWeightsCopy { m_basisFunctionWeights };
 	vector<float> sheetValuesCopy { m_sheetValues };
-	GridLensInversionGenomeBase *g = new GridLensInversionGenomeBase(m_pFactory, massesCopy, sheetValuesCopy);
+	GridLensInversionGenomeBase *g = new GridLensInversionGenomeBase(m_pFactory, basisFunctionWeightsCopy, sheetValuesCopy);
 
 	g->setFitnessValues(m_fitnessValues);
 	g->setScaleFactor(m_scaleFactor);
@@ -282,20 +282,20 @@ mogal::Genome *GridLensInversionGenomeBase::clone() const
 
 void GridLensInversionGenomeBase::mutate()
 {
-	int nummasses = m_masses.size();
+	int numBasisFunctions = m_basisFunctionWeights.size();
 	float chanceMultiplier = m_pFactory->getChanceMultiplier();
-	float chance = chanceMultiplier/((float)nummasses);
+	float chance = chanceMultiplier/((float)numBasisFunctions);
 	SimpleUniformDistribution uniDist(m_pFactory->getRandomNumberGenerator());
 
 	auto absVal = [](auto x) { return ABS(x); };
 	auto noChange = [](auto x) { return x; };
-	auto getMaxVal = [this, nummasses](auto fn)
+	auto getMaxVal = [this, numBasisFunctions](auto fn)
 	{
 		float maxVal = 0;
 
-		for (int i = 0 ; i < nummasses ; i++)
+		for (int i = 0 ; i < numBasisFunctions ; i++)
 		{
-			float x = fn(m_masses[i]);
+			float x = fn(m_basisFunctionWeights[i]);
 			if (maxVal < x)
 				maxVal = x;
 		}
@@ -315,10 +315,10 @@ void GridLensInversionGenomeBase::mutate()
 			x = ((float)uniDist.pickNumber()*mult - offset)*rescale;
 	};
 
-	auto chanceSetUniformAllMasses = [this, chance, &uniDist, nummasses, chanceSetUniform](float mult, float offset)
+	auto chanceSetUniformAllScalableBasisFunctions = [this, chance, &uniDist, numBasisFunctions, chanceSetUniform](float mult, float offset)
 	{
-		for (int i = 0 ; i < nummasses ; i++)
-			chanceSetUniform(m_masses[i], mult, offset);
+		for (int i = 0 ; i < numBasisFunctions ; i++)
+			chanceSetUniform(m_basisFunctionWeights[i], mult, offset);
 	};
 
 	auto chanceSetSmallDiff = [chance, &uniDist, mutationAmplitude](float &target, float yMin, float yMax)
@@ -341,25 +341,25 @@ void GridLensInversionGenomeBase::mutate()
 		}
 	};
 
-	auto chanceSetSmallDiffAllMasses = [this, chance, &uniDist, nummasses, chanceSetSmallDiff](float yMin, float yMax)
+	auto chanceSetSmallDiffAllScalableBasisFunctions = [this, chance, &uniDist, numBasisFunctions, chanceSetSmallDiff](float yMin, float yMax)
 	{
-		for (int i = 0 ; i < nummasses ; i++)
-			chanceSetSmallDiff(m_masses[i], yMin, yMax);
+		for (int i = 0 ; i < numBasisFunctions ; i++)
+			chanceSetSmallDiff(m_basisFunctionWeights[i], yMin, yMax);
 	};
 
 	if (m_pFactory->useAbsoluteMutation())
 	{
 		if (m_pFactory->allowNegativeValues())
-			chanceSetUniformAllMasses(2.0f, 1.0f);
+			chanceSetUniformAllScalableBasisFunctions(2.0f, 1.0f);
 		else
-			chanceSetUniformAllMasses(1.0f, 0.0f);
+			chanceSetUniformAllScalableBasisFunctions(1.0f, 0.0f);
 	}
 	else
 	{
 		if (m_pFactory->allowNegativeValues())
-			chanceSetSmallDiffAllMasses(-rescale, rescale);
+			chanceSetSmallDiffAllScalableBasisFunctions(-rescale, rescale);
 		else
-			chanceSetSmallDiffAllMasses(0.0f, rescale);
+			chanceSetSmallDiffAllScalableBasisFunctions(0.0f, rescale);
 	}
 
 	if (m_pFactory->useAbsoluteMutation())

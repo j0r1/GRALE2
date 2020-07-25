@@ -80,7 +80,7 @@ bool LensInversionGAFactoryCommon::writeGenome(serut::SerializationInterface &si
 {
 	const GridLensInversionGenomeBase *g2 = (const GridLensInversionGenomeBase *)g;
 
-	if (!si.writeFloats(g2->getMasses()))
+	if (!si.writeFloats(g2->getBasisFunctionWeights()))
 	{
 		setErrorString(si.getErrorString());
 		return false;
