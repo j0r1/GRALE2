@@ -7,6 +7,7 @@ set(HEADERS
 	galens/galensmodule.h
 	galens/lensinversiongafactorysingleplanecpu.h
 	galens/lensinversiongafactoryparamssingleplanecpu.h
+	galens/lensinversiongafactorymultiplanegpu.h
 	galens/lensinversiongenome.h
 	galens/imagesbackprojector.h
 	galens/lensfitnessobject.h
@@ -27,6 +28,7 @@ set(SOURCES
 	galens/galensmodule.cpp
 	galens/lensinversiongafactorysingleplanecpu.cpp
 	galens/lensinversiongafactoryparamssingleplanecpu.cpp
+	galens/lensinversiongafactorymultiplanegpu.cpp
 	galens/lensinversiongenome.cpp
 	galens/imagesbackprojector.cpp
 	galens/multifitnesshistory.cpp
