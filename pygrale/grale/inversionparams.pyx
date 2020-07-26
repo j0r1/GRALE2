@@ -13,7 +13,7 @@ from . import images
 from . import lenses
 
 cimport grale.configurationparameters as configurationparameters
-cimport grale.gridlensinversionparameters as gridlensinversionparameters
+cimport grale.lensinversionparameterssingleplanecpu as lensinversionparameterssingleplanecpu
 cimport grale.serut as serut
 cimport grale.imagesdataextended as imagesdataextended
 cimport grale.cppgrid as grid
@@ -141,11 +141,11 @@ class InversionParametersException(Exception):
     parameters."""
     pass
 
-cdef class GridLensInversionParameters(object):
+cdef class LensInversionParametersSinglePlaneCPU(object):
     """An internal representation of the parameters for the lens inversion
     procedure, needed to communicate with the C++ based inversion code."""
     
-    cdef gridlensinversionparameters.GridLensInversionParameters *m_pParams
+    cdef lensinversionparameterssingleplanecpu.LensInversionParametersSinglePlaneCPU *m_pParams
 
     def __cinit__(self):
         self.m_pParams = NULL
@@ -244,19 +244,19 @@ cdef class GridLensInversionParameters(object):
         cdef shared_ptr[imagesdataextended.ImagesDataExtended] pImgDat
         cdef string errorString
         cdef vector2d.Vector2Dd centerVector
-        cdef gridlensinversionparameters.BasisFunctionType basisFunctionType
-        cdef gridlensinversionparameters.MassSheetSearchType sheetSearchType
+        cdef lensinversionparameterssingleplanecpu.BasisFunctionType basisFunctionType
+        cdef lensinversionparameterssingleplanecpu.MassSheetSearchType sheetSearchType
         cdef gravitationallens.GravitationalLens *pBaseLens = NULL
         cdef gravitationallens.GravitationalLens *pBasisLensModel = NULL
         cdef gravitationallens.GravitationalLens *pSheetLensModel = NULL
         cdef shared_ptr[gravitationallens.GravitationalLens] sheetLensModel
         cdef configurationparameters.ConfigurationParameters *pFitnessObjectParameters = NULL
-        cdef vector[gridlensinversionparameters.BasisLensInfo] basisLensInfo
-        cdef gridlensinversionparameters.ScaleSearchParameters regSearchParams = gridlensinversionparameters.ScaleSearchParameters(False)
-        cdef gridlensinversionparameters.ScaleSearchParameters wideSearchParams = gridlensinversionparameters.ScaleSearchParameters(True)
-        cdef gridlensinversionparameters.ScaleSearchParameters noSearchParams
-        cdef gridlensinversionparameters.ScaleSearchParameters *pCustomSearchParams = NULL
-        cdef gridlensinversionparameters.ScaleSearchParameters *pScaleSearchParams = NULL
+        cdef vector[lensinversionparameterssingleplanecpu.BasisLensInfo] basisLensInfo
+        cdef lensinversionparameterssingleplanecpu.ScaleSearchParameters regSearchParams = lensinversionparameterssingleplanecpu.ScaleSearchParameters(False)
+        cdef lensinversionparameterssingleplanecpu.ScaleSearchParameters wideSearchParams = lensinversionparameterssingleplanecpu.ScaleSearchParameters(True)
+        cdef lensinversionparameterssingleplanecpu.ScaleSearchParameters noSearchParams
+        cdef lensinversionparameterssingleplanecpu.ScaleSearchParameters *pCustomSearchParams = NULL
+        cdef lensinversionparameterssingleplanecpu.ScaleSearchParameters *pScaleSearchParams = NULL
 
         try:
             # Build the list of extended images
@@ -312,10 +312,10 @@ cdef class GridLensInversionParameters(object):
 
             # Check the sheet search type
             if sheetSearch == "nosheet":
-                sheetSearchType = gridlensinversionparameters.NoSheet
+                sheetSearchType = lensinversionparameterssingleplanecpu.NoSheet
             elif sheetSearch == "genome":
-                sheetSearchType = gridlensinversionparameters.Genome
-                sheetLensModel = gridlensinversionparameters.GridLensInversionParameters.createDefaultSheetLens(sheetSearchType, Dd)
+                sheetSearchType = lensinversionparameterssingleplanecpu.Genome
+                sheetLensModel = lensinversionparameterssingleplanecpu.LensInversionParametersSinglePlaneCPU.createDefaultSheetLens(sheetSearchType, Dd)
             elif isinstance(sheetSearch, lenses.GravitationalLens):
                 lensBytes = sheetSearch.toBytes()
                 buf = chararrayfrombytes(lensBytes)
@@ -342,7 +342,7 @@ cdef class GridLensInversionParameters(object):
             elif massScaleSearchType == "nosearch":
                 pScaleSearchParams = cython.address(noSearchParams)
             else:
-                pCustomSearchParams = new gridlensinversionparameters.ScaleSearchParameters(
+                pCustomSearchParams = new lensinversionparameterssingleplanecpu.ScaleSearchParameters(
                     massScaleSearchType["startFactor"],
                     massScaleSearchType["stopFactor"],
                     massScaleSearchType["numIterations"],
@@ -365,15 +365,15 @@ cdef class GridLensInversionParameters(object):
 
                 # Check the basis function type
                 if basisFunction == "plummer": 
-                    basisFunctionType = gridlensinversionparameters.PlummerBasis
+                    basisFunctionType = lensinversionparameterssingleplanecpu.PlummerBasis
                 elif basisFunction == "gaussian": 
-                    basisFunctionType = gridlensinversionparameters.GaussBasis
+                    basisFunctionType = lensinversionparameterssingleplanecpu.GaussBasis
                 elif basisFunction == "square":
-                    basisFunctionType = gridlensinversionparameters.SquareBasis
+                    basisFunctionType = lensinversionparameterssingleplanecpu.SquareBasis
                 else:
                     raise InversionParametersException("Unknown basis function type '{}', should be 'plummer', 'gaussian' or 'square'".format(basisFunction))
 
-                self.m_pParams = new gridlensinversionparameters.GridLensInversionParameters(maxGen, imgVector, gridSquares,
+                self.m_pParams = new lensinversionparameterssingleplanecpu.LensInversionParametersSinglePlaneCPU(maxGen, imgVector, gridSquares,
                                                 Dd, zd, massScale, useWeights, basisFunctionType, allowNegativeValues,
                                                 pBaseLens, sheetLensModel.get(), pFitnessObjectParameters, deref(pScaleSearchParams))
 
@@ -394,9 +394,9 @@ cdef class GridLensInversionParameters(object):
                     del mSer
                     mSer = NULL
 
-                    GridLensInversionParameters._appendHelper(basisLensInfo, pBasisLensModel, cx, cy, relevantLensingMass)
+                    LensInversionParametersSinglePlaneCPU._appendHelper(basisLensInfo, pBasisLensModel, cx, cy, relevantLensingMass)
 
-                self.m_pParams = new gridlensinversionparameters.GridLensInversionParameters(maxGen, imgVector, basisLensInfo,
+                self.m_pParams = new lensinversionparameterssingleplanecpu.LensInversionParametersSinglePlaneCPU(maxGen, imgVector, basisLensInfo,
                                                 Dd, zd, massScale, allowNegativeValues, pBaseLens, sheetLensModel.get(), 
                                                 pFitnessObjectParameters, deref(pScaleSearchParams))
             else:
@@ -409,16 +409,16 @@ cdef class GridLensInversionParameters(object):
             del pCustomSearchParams
 
     @staticmethod
-    cdef _appendHelper(vector[gridlensinversionparameters.BasisLensInfo] &basisLensInfo,
+    cdef _appendHelper(vector[lensinversionparameterssingleplanecpu.BasisLensInfo] &basisLensInfo,
                        gravitationallens.GravitationalLens *pLensModel, double cx, double cy, double relevantLensingMass):
         cdef shared_ptr[gravitationallens.GravitationalLens] lensModel
         
         lensModel.reset(pLensModel)
-        basisLensInfo.push_back(gridlensinversionparameters.BasisLensInfo(lensModel, vector2d.Vector2Dd(cx, cy), relevantLensingMass))
+        basisLensInfo.push_back(lensinversionparameterssingleplanecpu.BasisLensInfo(lensModel, vector2d.Vector2Dd(cx, cy), relevantLensingMass))
 
     cdef _check(self):
         if self.m_pParams == NULL:
-            raise InversionParametersException("Internal error: GridLensInversionParameters instance has not been set")
+            raise InversionParametersException("Internal error: LensInversionParametersSinglePlaneCPU instance has not been set")
 
     @staticmethod
     def fromBytes(bytes b):
@@ -429,16 +429,16 @@ cdef class GridLensInversionParameters(object):
         """
         cdef array[char] buf = chararrayfrombytes(b)
         cdef serut.MemorySerializer *m = new serut.MemorySerializer(buf.data.as_voidptr, len(b), NULL, 0)
-        cdef gridlensinversionparameters.GridLensInversionParameters *pParams = NULL
+        cdef lensinversionparameterssingleplanecpu.LensInversionParametersSinglePlaneCPU *pParams = NULL
         
         try:
-            pParams = new gridlensinversionparameters.GridLensInversionParameters()
+            pParams = new lensinversionparameterssingleplanecpu.LensInversionParametersSinglePlaneCPU()
             if not pParams.read(deref(m)):
                 errStr = S(pParams.getErrorString())
                 del pParams
                 raise InversionParametersException(errStr)
 
-            r = GridLensInversionParameters()
+            r = LensInversionParametersSinglePlaneCPU()
             r.m_pParams = pParams
 
             return r

@@ -23,9 +23,7 @@
   
 */
 
-#ifndef GRALE_GRIDLENSINVERSIONPARAMETERS_H
-
-#define GRALE_GRIDLENSINVERSIONPARAMETERS_H
+#pragma once
 
 #include "graleconfig.h"
 #include "grid.h"
@@ -66,7 +64,7 @@ private:
 	int m_numIterations;
 };
 
-class GRALE_IMPORTEXPORT GridLensInversionParameters : public errut::ErrorBase
+class GRALE_IMPORTEXPORT LensInversionParametersSinglePlaneCPU : public errut::ErrorBase
 {
 public:
 	enum BasisFunctionType { PlummerBasis, SquareBasis, GaussBasis };
@@ -104,7 +102,7 @@ public:
 		}
 	};
 
-	GridLensInversionParameters();
+	LensInversionParametersSinglePlaneCPU();
 
 	// The idea is to supply a vector of basis functions, which basically 
 	// corresponds to the contribution when the value in the genome is 1.
@@ -115,7 +113,7 @@ public:
 	// be rescaled so that the total mass corresponds to the mass scale, and
 	// then a search is done for another scale factor that provides the best
 	// fitness value
-	GridLensInversionParameters(int maxGenerations,
+	LensInversionParametersSinglePlaneCPU(int maxGenerations,
 			const std::vector<std::shared_ptr<ImagesDataExtended>> &images,
 			const std::vector<BasisLensInfo> &basisLenses,
 			double D_d,
@@ -127,7 +125,7 @@ public:
 			const ConfigurationParameters *pFitnessObjectParams = nullptr,
 			const ScaleSearchParameters &massScaleSearchParams = ScaleSearchParameters(false));
 
-	GridLensInversionParameters(int maxgenerations,
+	LensInversionParametersSinglePlaneCPU(int maxgenerations,
 					 const std::vector<std::shared_ptr<ImagesDataExtended>> &images, 
 	                 const std::vector<GridSquare> &gridsquares, 
 					 double D_d,
@@ -142,10 +140,10 @@ public:
 					 const ScaleSearchParameters &massScaleSearchParams = ScaleSearchParameters(false)
 					 );
 
-	GridLensInversionParameters(const GridLensInversionParameters &src)				{ copyFrom(src); }
-	~GridLensInversionParameters();
+	LensInversionParametersSinglePlaneCPU(const LensInversionParametersSinglePlaneCPU &src)				{ copyFrom(src); }
+	~LensInversionParametersSinglePlaneCPU();
 
-	GridLensInversionParameters &operator=(const GridLensInversionParameters &src)	{ copyFrom(src); return *this;}
+	LensInversionParametersSinglePlaneCPU &operator=(const LensInversionParametersSinglePlaneCPU &src)	{ copyFrom(src); return *this;}
 	int getMaximumNumberOfGenerations() const										{ return m_maxGenerations; }
 	double getD_d() const															{ return m_Dd; }
 	double getZ_d() const															{ return m_zd; }
@@ -163,11 +161,11 @@ public:
 
 	const std::vector<BasisLensInfo> &getBasisLenses() const						{ return m_basisLenses; }
 
-	GridLensInversionParameters *createCopy() const;
+	LensInversionParametersSinglePlaneCPU *createCopy() const;
 
 	static std::shared_ptr<GravitationalLens> createDefaultSheetLens(MassSheetSearchType t, double Dd);
 private:
-	void copyFrom(const GridLensInversionParameters &src);
+	void copyFrom(const LensInversionParametersSinglePlaneCPU &src);
 	void commonConstructor(int maxGenerations,
 			const std::vector<std::shared_ptr<ImagesDataExtended>> &images,
 			double D_d,
@@ -196,5 +194,3 @@ private:
 };
 	
 } // end namespace
-
-#endif // GRALE_GRIDLENSINVERSIONPARAMETERS_H

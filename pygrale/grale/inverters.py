@@ -84,7 +84,7 @@ class Inverter(object):
     def getFeedbackObject(self):
         return self.feedback
 
-    def invert(self, moduleName, populationSize, gaParams, gridLensInversionParameters, returnNds):
+    def invert(self, moduleName, populationSize, gaParams, lensInversionParameters, returnNds):
 
         errFile = tempfile.TemporaryFile("w+t") if not debugDirectStderr else None
         proc = None
@@ -129,7 +129,7 @@ class Inverter(object):
             io.writeLine("GAPARAMS:{}".format(gaParamsSize))
             io.writeBytes(gaParamsBytes)
 
-            factoryParams = gridLensInversionParameters.toBytes()
+            factoryParams = lensInversionParameters.toBytes()
             factoryParamsLen = len(factoryParams)
             io.writeLine("GAFACTORYPARAMS:{}".format(factoryParamsLen))
             io.writeBytes(factoryParams)
@@ -320,12 +320,12 @@ def calculateFitness(moduleName, inputImages, zd, fitnessObjectParameters, lens 
 
         io.writeLine("TYPE:" + typeStr)
 
-        # Abusing the GridLensInversionParameters for this
+        # Abusing the LensInversionParametersSinglePlaneCPU for this
         from . import grid
         g = grid.createUniformGrid(1, [0,0], 1) # Just a dummy grid
         g = grid._fractionalGridToRealGrid(g)
         Dd = 1.0 if not lens else lens.getLensDistance()
-        params = inversionparams.GridLensInversionParameters(1, inputImages, { "gridSquares": g },
+        params = inversionparams.LensInversionParametersSinglePlaneCPU(1, inputImages, { "gridSquares": g },
                                                              Dd, zd, 1.0, baseLens = None, 
                                                              fitnessObjectParameters=fitnessObjectParameters)
 

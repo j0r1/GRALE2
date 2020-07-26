@@ -23,12 +23,10 @@
   
 */
 
-#ifndef GRALE_GRIDLENSINVERSIONGAFACTORYPARAMS_H
-
-#define GRALE_GRIDLENSINVERSIONGAFACTORYPARAMS_H
+#pragma once
 
 #include "graleconfig.h"
-#include "gridlensinversionparameters.h"
+#include "lensinversionparameterssingleplanecpu.h"
 #include <mogal/gafactory.h>
 
 namespace grale
@@ -42,7 +40,7 @@ class GRALE_IMPORTEXPORT LensInversionGAFactoryParamsSinglePlaneCPU : public mog
 {
 public:
 	LensInversionGAFactoryParamsSinglePlaneCPU();
-	LensInversionGAFactoryParamsSinglePlaneCPU(const GridLensInversionParameters &params);
+	LensInversionGAFactoryParamsSinglePlaneCPU(const LensInversionParametersSinglePlaneCPU &params);
 	~LensInversionGAFactoryParamsSinglePlaneCPU();
 
 	int getMaximumNumberOfGenerations() const										{ return m_pParams->getMaximumNumberOfGenerations(); }
@@ -55,16 +53,14 @@ public:
 	const GravitationalLens *getSheetLens() const									{ return m_pParams->getSheetLens(); }
 	const ConfigurationParameters *getFitnessObjectParameters() const				{ return m_pParams->getFitnessObjectParameters(); }
 	const ScaleSearchParameters &getMassScaleSearchParameters() const				{ return m_pParams->getMassScaleSearchParameters(); }
-	const std::vector<GridLensInversionParameters::BasisLensInfo> &getBasisLenses() const { return m_pParams->getBasisLenses(); }
+	const std::vector<LensInversionParametersSinglePlaneCPU::BasisLensInfo> &getBasisLenses() const { return m_pParams->getBasisLenses(); }
 	
 	bool write(serut::SerializationInterface &si) const;
 	bool read(serut::SerializationInterface &si);
 
 	LensInversionGAFactoryParamsSinglePlaneCPU *createCopy() const;
 private:
-	GridLensInversionParameters *m_pParams;
+	LensInversionParametersSinglePlaneCPU *m_pParams;
 };
 	
 } // end namespace
-
-#endif // GRALE_GRIDLENSINVERSIONGAFACTORYPARAMS_H

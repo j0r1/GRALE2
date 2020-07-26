@@ -385,7 +385,7 @@ def invert(inputImages, gridInfoOrBasisFunctions, zd, Dd, popSize, moduleName = 
     else:
         raise InversionException("Unexpected type for 'gridInfoOrBasisFunctions', not a list and not a dictionary")
 
-    params = inversionparams.GridLensInversionParameters(maximumGenerations, inputImages, basisInfo,
+    params = inversionparams.LensInversionParametersSinglePlaneCPU(maximumGenerations, inputImages, basisInfo,
                                                          Dd, zd, massScale, allowNegativeValues, baseLens, 
                                                          sheetSearch, fullFitnessObjParams, massScaleSearchType)
 

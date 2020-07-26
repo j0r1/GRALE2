@@ -3,7 +3,7 @@
 #include <grale/lensinversiongenome.h>
 #include <grale/imagesdataextended.h>
 #include <grale/constants.h>
-#include <grale/gridlensinversionparameters.h>
+#include <grale/lensinversionparameterssingleplanecpu.h>
 #include <grale/grid.h>
 #include "lensfitnesssimplerectangles.h"
 #include <mogal/gafactorymultiobjective.h>
@@ -92,11 +92,11 @@ int main(int argc, char *argv[])
 	{
 		for (auto allowNeg : vector<bool> { false, true })
 		{
-			for (auto basisFunction : vector<GridLensInversionParameters::BasisFunctionType> { GridLensInversionParameters::PlummerBasis,
-					GridLensInversionParameters::GaussBasis, GridLensInversionParameters::SquareBasis })
+			for (auto basisFunction : vector<LensInversionParametersSinglePlaneCPU::BasisFunctionType> { LensInversionParametersSinglePlaneCPU::PlummerBasis,
+					LensInversionParametersSinglePlaneCPU::GaussBasis, LensInversionParametersSinglePlaneCPU::SquareBasis })
 			{
-				for (auto sheetSearchType : vector<GridLensInversionParameters::MassSheetSearchType> { GridLensInversionParameters::NoSheet,
-						GridLensInversionParameters::Genome })
+				for (auto sheetSearchType : vector<LensInversionParametersSinglePlaneCPU::MassSheetSearchType> { LensInversionParametersSinglePlaneCPU::NoSheet,
+						LensInversionParametersSinglePlaneCPU::Genome })
 				{
 					for (auto wideSearch : vector<bool> { false, true })
 					{
@@ -105,8 +105,8 @@ int main(int argc, char *argv[])
 						cout << "useWeights: " << useWeights << " allowNeg: " << allowNeg << " basisFunction: " << (int)basisFunction
 							 << " sheetSearchType: " << (int)sheetSearchType << " wideSearch: " << wideSearch << endl;
 						
-						shared_ptr<GravitationalLens> sheetLens = GridLensInversionParameters::createDefaultSheetLens(sheetSearchType, D_d);
-						LensInversionGAFactoryParamsSinglePlaneCPU origParams(GridLensInversionParameters(
+						shared_ptr<GravitationalLens> sheetLens = LensInversionParametersSinglePlaneCPU::createDefaultSheetLens(sheetSearchType, D_d);
+						LensInversionGAFactoryParamsSinglePlaneCPU origParams(LensInversionParametersSinglePlaneCPU(
 							1, // maxgenerations
 							{ imgExt }, gridSquares, D_d, 0, // z_d
 							massScale,

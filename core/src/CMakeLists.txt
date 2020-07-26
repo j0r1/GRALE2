@@ -68,7 +68,7 @@ set(HEADERS
 	source/polygonsource.h
 	source/discretesource.h
 	galens/grid.h
-	galens/gridlensinversionparameters.h
+	galens/lensinversionparameterssingleplanecpu.h
 	galens/gaparameters.h
 	thirdparty/WildMagic5/Wm5Assert.h
 	thirdparty/WildMagic5/Wm5Box2.h
@@ -152,7 +152,7 @@ set(SOURCES
 	source/polygonsource.cpp
 	source/discretesource.cpp
 	galens/grid.cpp
-	galens/gridlensinversionparameters.cpp
+	galens/lensinversionparameterssingleplanecpu.cpp
 	galens/gaparameters.cpp
 	thirdparty/WildMagic5/Wm5Assert.cpp
 	thirdparty/WildMagic5/Wm5ConvexHull.cpp

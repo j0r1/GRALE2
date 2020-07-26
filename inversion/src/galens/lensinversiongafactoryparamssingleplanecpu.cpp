@@ -42,12 +42,12 @@ namespace grale
 
 LensInversionGAFactoryParamsSinglePlaneCPU::LensInversionGAFactoryParamsSinglePlaneCPU()
 {
-	m_pParams = new GridLensInversionParameters();
+	m_pParams = new LensInversionParametersSinglePlaneCPU();
 }
 
-LensInversionGAFactoryParamsSinglePlaneCPU::LensInversionGAFactoryParamsSinglePlaneCPU(const GridLensInversionParameters &params)
+LensInversionGAFactoryParamsSinglePlaneCPU::LensInversionGAFactoryParamsSinglePlaneCPU(const LensInversionParametersSinglePlaneCPU &params)
 {
-	m_pParams = new GridLensInversionParameters(params);
+	m_pParams = new LensInversionParametersSinglePlaneCPU(params);
 }
 
 LensInversionGAFactoryParamsSinglePlaneCPU::~LensInversionGAFactoryParamsSinglePlaneCPU()

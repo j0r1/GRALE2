@@ -2,7 +2,7 @@
 
 #include "graleconfig.h"
 #include "randomnumbergenerator.h"
-#include "gridlensinversionparameters.h"
+#include "lensinversionparameterssingleplanecpu.h"
 #include "lensinversiongenome.h"
 #include "vector2d.h"
 #include <mogal/gafactorydefaults.h>

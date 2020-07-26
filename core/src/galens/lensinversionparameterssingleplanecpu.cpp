@@ -24,7 +24,7 @@
 */
 
 #include "graleconfig.h"
-#include "gridlensinversionparameters.h"
+#include "lensinversionparameterssingleplanecpu.h"
 #include "imagesdataextended.h"
 #include "gravitationallens.h"
 #include "configurationparameters.h"
@@ -137,12 +137,12 @@ bool ScaleSearchParameters::operator==(const ScaleSearchParameters &src) const
 		   (m_subseqIterationSteps == src.m_subseqIterationSteps);
 }
 
-GridLensInversionParameters::GridLensInversionParameters()
+LensInversionParametersSinglePlaneCPU::LensInversionParametersSinglePlaneCPU()
 {
 	zero();
 }
 
-void GridLensInversionParameters::commonConstructor(int maxGenerations,
+void LensInversionParametersSinglePlaneCPU::commonConstructor(int maxGenerations,
 			const vector<shared_ptr<ImagesDataExtended>> &images,
 			double D_d,
 			double z_d,
@@ -178,7 +178,7 @@ void GridLensInversionParameters::commonConstructor(int maxGenerations,
 	m_scaleSearchParams = massScaleSearchParams;
 }
 
-GridLensInversionParameters::GridLensInversionParameters(int maxGenerations,
+LensInversionParametersSinglePlaneCPU::LensInversionParametersSinglePlaneCPU(int maxGenerations,
 			const vector<shared_ptr<ImagesDataExtended>> &images,
 			const vector<BasisLensInfo> &basisLenses,
 			double D_d,
@@ -196,7 +196,7 @@ GridLensInversionParameters::GridLensInversionParameters(int maxGenerations,
 	m_basisLenses = basisLenses;
 }
 
-GridLensInversionParameters::GridLensInversionParameters(int maxGenerations,
+LensInversionParametersSinglePlaneCPU::LensInversionParametersSinglePlaneCPU(int maxGenerations,
 		const vector<shared_ptr<ImagesDataExtended>> &images,
 		const vector<GridSquare> &gridsquares,
 		double D_d, double z_d, double massScale,
@@ -213,12 +213,12 @@ GridLensInversionParameters::GridLensInversionParameters(int maxGenerations,
 	buildBasisLenses(gridsquares, b, useweights);
 }
 
-GridLensInversionParameters::~GridLensInversionParameters()
+LensInversionParametersSinglePlaneCPU::~LensInversionParametersSinglePlaneCPU()
 {
 	clear();
 }
 
-bool GridLensInversionParameters::write(serut::SerializationInterface &si) const
+bool LensInversionParametersSinglePlaneCPU::write(serut::SerializationInterface &si) const
 {
 	if (!si.writeInt32(m_maxGenerations))
 	{
@@ -339,7 +339,7 @@ bool GridLensInversionParameters::write(serut::SerializationInterface &si) const
 	return true;
 }
 
-void GridLensInversionParameters::clear()
+void LensInversionParametersSinglePlaneCPU::clear()
 {
 	m_images.clear();
 	m_basisLenses.clear();
@@ -351,7 +351,7 @@ void GridLensInversionParameters::clear()
 	zero();
 }
 
-void GridLensInversionParameters::zero()
+void LensInversionParametersSinglePlaneCPU::zero()
 {
 	m_maxGenerations = 0;
 	m_Dd = 0;
@@ -363,7 +363,7 @@ void GridLensInversionParameters::zero()
 	m_pParams.reset();
 }
 
-bool GridLensInversionParameters::read(serut::SerializationInterface &si)
+bool LensInversionParametersSinglePlaneCPU::read(serut::SerializationInterface &si)
 {
 	clear();
 
@@ -501,7 +501,7 @@ bool GridLensInversionParameters::read(serut::SerializationInterface &si)
 	return true;
 }
 	
-GridLensInversionParameters *GridLensInversionParameters::createCopy() const
+LensInversionParametersSinglePlaneCPU *LensInversionParametersSinglePlaneCPU::createCopy() const
 {
 	vector<BasisLensInfo> copiedBasisLenses;
 
@@ -532,14 +532,14 @@ GridLensInversionParameters *GridLensInversionParameters::createCopy() const
 		imagesCopy.push_back(imgCopy);
 	}
 
-	return new GridLensInversionParameters(m_maxGenerations, imagesCopy, copiedBasisLenses,
+	return new LensInversionParametersSinglePlaneCPU(m_maxGenerations, imagesCopy, copiedBasisLenses,
 			                               m_Dd, m_zd, m_massScale, m_allowNegative,
 										   m_pBaseLens.get(), m_pSheetLens.get(), m_pParams.get(),
 										   m_scaleSearchParams);
 }
 
 
-void GridLensInversionParameters::buildBasisLenses(const vector<GridSquare> &squares,
+void LensInversionParametersSinglePlaneCPU::buildBasisLenses(const vector<GridSquare> &squares,
                                                    BasisFunctionType basisFunctionType,
 												   bool useMassWeights)
 {
@@ -596,14 +596,14 @@ void GridLensInversionParameters::buildBasisLenses(const vector<GridSquare> &squ
 		bool returnValue;
 		shared_ptr<GravitationalLens> pLens;
 	
-		if (basisFunctionType == GridLensInversionParameters::PlummerBasis)
+		if (basisFunctionType == LensInversionParametersSinglePlaneCPU::PlummerBasis)
 		{
 			PlummerLensParams lensParams(massScale * massWeights[squareNumber], gridSize);
 
 			pLens = shared_ptr<GravitationalLens>(new PlummerLens());
 			returnValue = pLens->init(D_d, &lensParams);
 		}
-		else if (basisFunctionType == GridLensInversionParameters::GaussBasis)
+		else if (basisFunctionType == LensInversionParametersSinglePlaneCPU::GaussBasis)
 		{
 			GaussLensParams lensParams(massScale * massWeights[squareNumber], gridSize);
 
@@ -612,7 +612,7 @@ void GridLensInversionParameters::buildBasisLenses(const vector<GridSquare> &squ
 		}
 		else // Squares
 		{
-			assert(basisFunctionType == GridLensInversionParameters::SquareBasis);
+			assert(basisFunctionType == LensInversionParametersSinglePlaneCPU::SquareBasis);
 
 			SquareLensParams lensParams(massScale * massWeights[squareNumber], gridSize);
 
@@ -632,7 +632,7 @@ void GridLensInversionParameters::buildBasisLenses(const vector<GridSquare> &squ
 	m_basisLenses = basisLenses;
 }
 
-shared_ptr<GravitationalLens> GridLensInversionParameters::createDefaultSheetLens(MassSheetSearchType t, double Dd)
+shared_ptr<GravitationalLens> LensInversionParametersSinglePlaneCPU::createDefaultSheetLens(MassSheetSearchType t, double Dd)
 {
 	shared_ptr<GravitationalLens> lens(nullptr);
 	if (t == Genome)
@@ -645,7 +645,7 @@ shared_ptr<GravitationalLens> GridLensInversionParameters::createDefaultSheetLen
 	return lens;
 }
 
-void GridLensInversionParameters::copyFrom(const GridLensInversionParameters &src)
+void LensInversionParametersSinglePlaneCPU::copyFrom(const LensInversionParametersSinglePlaneCPU &src)
 {
 	m_maxGenerations = src.m_maxGenerations;
 	m_Dd = src.m_Dd;

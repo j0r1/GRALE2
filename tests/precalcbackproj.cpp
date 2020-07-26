@@ -10,7 +10,7 @@
 #include "masssheetlens.h"
 #include "galensmodule.h"
 #include "lensfitnessobject.h"
-#include "gridlensinversionparameters.h"
+#include "lensinversionparameterssingleplanecpu.h"
 #include <vector>
 #include <iostream>
 #include <memory>
@@ -123,7 +123,7 @@ int main(int argc, char *argv[])
 	if (useMassSheet)
 	{
 		cerr << "Using mass sheet" << endl;
-		sheetLens = GridLensInversionParameters::createDefaultSheetLens(GridLensInversionParameters::Genome, D_d); 
+		sheetLens = LensInversionParametersSinglePlaneCPU::createDefaultSheetLens(LensInversionParametersSinglePlaneCPU::Genome, D_d); 
 	}
 	else
 		cerr << "Not using mass sheet" << endl;

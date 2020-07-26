@@ -12,7 +12,7 @@ cimport grale.configurationparameters as configurationparameters
 cimport grale.vector2d as vector2d
 cimport grale.gravitationallens as gravitationallens
 
-cdef extern from "grale/gridlensinversionparameters.h" namespace "grale":
+cdef extern from "grale/lensinversionparameterssingleplanecpu.h" namespace "grale":
     cdef cppclass ScaleSearchParameters(errut.ErrorBase):
         ScaleSearchParameters(float startFactor, float stopFactor, int numIt, int firstItSteps, int subseqItSteps)
         ScaleSearchParameters(bool wideSearch)
@@ -24,7 +24,7 @@ cdef extern from "grale/gridlensinversionparameters.h" namespace "grale":
         int getStepsOnFirstIteration()
         int getStepsOnSubsequentIterations()
 
-cdef extern from "grale/gridlensinversionparameters.h" namespace "grale::GridLensInversionParameters":
+cdef extern from "grale/lensinversionparameterssingleplanecpu.h" namespace "grale::LensInversionParametersSinglePlaneCPU":
     cdef enum BasisFunctionType:
         PlummerBasis,
         SquareBasis,
@@ -34,16 +34,16 @@ cdef extern from "grale/gridlensinversionparameters.h" namespace "grale::GridLen
         NoSheet,
         Genome
 
-cdef extern from "grale/gridlensinversionparameters.h" namespace "grale::GridLensInversionParameters":
+cdef extern from "grale/lensinversionparameterssingleplanecpu.h" namespace "grale::LensInversionParametersSinglePlaneCPU":
     cdef cppclass BasisLensInfo:
         BasisLensInfo(shared_ptr[gravitationallens.GravitationalLens] &lens,
                       vector2d.Vector2Dd center,
                       double relevantLensingMass)
 
-cdef extern from "grale/gridlensinversionparameters.h" namespace "grale":
-    cdef cppclass GridLensInversionParameters(errut.ErrorBase):
-        GridLensInversionParameters()
-        GridLensInversionParameters(int maxgenerations,
+cdef extern from "grale/lensinversionparameterssingleplanecpu.h" namespace "grale":
+    cdef cppclass LensInversionParametersSinglePlaneCPU(errut.ErrorBase):
+        LensInversionParametersSinglePlaneCPU()
+        LensInversionParametersSinglePlaneCPU(int maxgenerations,
                      const vector[shared_ptr[imagesdataextended.ImagesDataExtended]] &images, 
                      const vector[BasisLensInfo] &basisLenses, 
                      double D_d,
@@ -55,7 +55,7 @@ cdef extern from "grale/gridlensinversionparameters.h" namespace "grale":
                      const configurationparameters.ConfigurationParameters *pFitnessObjectParams,
                      ScaleSearchParameters &scaleSearchParams)
 
-        GridLensInversionParameters(int maxgenerations,
+        LensInversionParametersSinglePlaneCPU(int maxgenerations,
                      const vector[shared_ptr[imagesdataextended.ImagesDataExtended]] &images, 
                      const vector[grid.GridSquare] &gridsquares, 
                      double D_d,
