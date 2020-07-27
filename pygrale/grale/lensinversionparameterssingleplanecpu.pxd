@@ -10,7 +10,7 @@ cimport grale.cppgrid as grid
 cimport grale.gravitationallens as gravitationallens
 cimport grale.configurationparameters as configurationparameters
 cimport grale.vector2d as vector2d
-cimport grale.gravitationallens as gravitationallens
+cimport grale.lensinversionbasislensinfo as lensinversionbasislensinfo
 
 cdef extern from "grale/lensinversionparameterssingleplanecpu.h" namespace "grale":
     cdef cppclass ScaleSearchParameters(errut.ErrorBase):
@@ -34,18 +34,12 @@ cdef extern from "grale/lensinversionparameterssingleplanecpu.h" namespace "gral
         NoSheet,
         Genome
 
-cdef extern from "grale/lensinversionparameterssingleplanecpu.h" namespace "grale::LensInversionParametersSinglePlaneCPU":
-    cdef cppclass BasisLensInfo:
-        BasisLensInfo(shared_ptr[gravitationallens.GravitationalLens] &lens,
-                      vector2d.Vector2Dd center,
-                      double relevantLensingMass)
-
 cdef extern from "grale/lensinversionparameterssingleplanecpu.h" namespace "grale":
     cdef cppclass LensInversionParametersSinglePlaneCPU(errut.ErrorBase):
         LensInversionParametersSinglePlaneCPU()
         LensInversionParametersSinglePlaneCPU(int maxgenerations,
                      const vector[shared_ptr[imagesdataextended.ImagesDataExtended]] &images, 
-                     const vector[BasisLensInfo] &basisLenses, 
+                     const vector[lensinversionbasislensinfo.LensInversionBasisLensInfo] &basisLenses, 
                      double D_d,
                      double z_d,
                      double massscale,

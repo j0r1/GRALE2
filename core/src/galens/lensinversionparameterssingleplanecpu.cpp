@@ -180,7 +180,7 @@ void LensInversionParametersSinglePlaneCPU::commonConstructor(int maxGenerations
 
 LensInversionParametersSinglePlaneCPU::LensInversionParametersSinglePlaneCPU(int maxGenerations,
 			const vector<shared_ptr<ImagesDataExtended>> &images,
-			const vector<BasisLensInfo> &basisLenses,
+			const vector<LensInversionBasisLensInfo> &basisLenses,
 			double D_d,
 			double z_d,
 			double massScale,
@@ -503,7 +503,7 @@ bool LensInversionParametersSinglePlaneCPU::read(serut::SerializationInterface &
 	
 LensInversionParametersSinglePlaneCPU *LensInversionParametersSinglePlaneCPU::createCopy() const
 {
-	vector<BasisLensInfo> copiedBasisLenses;
+	vector<LensInversionBasisLensInfo> copiedBasisLenses;
 
 	for (const auto &bl : m_basisLenses)
 	{
@@ -587,7 +587,7 @@ void LensInversionParametersSinglePlaneCPU::buildBasisLenses(const vector<GridSq
 	double massScale = getMassScale();
 	double D_d = getD_d();
 	int squareNumber = 0;
-	vector<BasisLensInfo> basisLenses;
+	vector<LensInversionBasisLensInfo> basisLenses;
 
 	for (auto squareIt = squares.begin() ; squareIt != squares.end() ; squareIt++, squareNumber++)
 	{

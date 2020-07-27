@@ -21,6 +21,7 @@ cimport grale.vector2d as vector2d
 cimport grale.gravitationallens as gravitationallens
 cimport grale.configurationparameters as configurationparameters
 cimport grale.gaparameters as gaparameters
+cimport grale.lensinversionbasislensinfo as lensinversionbasislensinfo
 
 include "stringwrappers.pyx"
 
@@ -251,7 +252,7 @@ cdef class LensInversionParametersSinglePlaneCPU(object):
         cdef gravitationallens.GravitationalLens *pSheetLensModel = NULL
         cdef shared_ptr[gravitationallens.GravitationalLens] sheetLensModel
         cdef configurationparameters.ConfigurationParameters *pFitnessObjectParameters = NULL
-        cdef vector[lensinversionparameterssingleplanecpu.BasisLensInfo] basisLensInfo
+        cdef vector[lensinversionbasislensinfo.LensInversionBasisLensInfo] basisLensInfo
         cdef lensinversionparameterssingleplanecpu.ScaleSearchParameters regSearchParams = lensinversionparameterssingleplanecpu.ScaleSearchParameters(False)
         cdef lensinversionparameterssingleplanecpu.ScaleSearchParameters wideSearchParams = lensinversionparameterssingleplanecpu.ScaleSearchParameters(True)
         cdef lensinversionparameterssingleplanecpu.ScaleSearchParameters noSearchParams
@@ -409,12 +410,12 @@ cdef class LensInversionParametersSinglePlaneCPU(object):
             del pCustomSearchParams
 
     @staticmethod
-    cdef _appendHelper(vector[lensinversionparameterssingleplanecpu.BasisLensInfo] &basisLensInfo,
+    cdef _appendHelper(vector[lensinversionbasislensinfo.LensInversionBasisLensInfo] &basisLensInfo,
                        gravitationallens.GravitationalLens *pLensModel, double cx, double cy, double relevantLensingMass):
         cdef shared_ptr[gravitationallens.GravitationalLens] lensModel
         
         lensModel.reset(pLensModel)
-        basisLensInfo.push_back(lensinversionparameterssingleplanecpu.BasisLensInfo(lensModel, vector2d.Vector2Dd(cx, cy), relevantLensingMass))
+        basisLensInfo.push_back(lensinversionbasislensinfo.LensInversionBasisLensInfo(lensModel, vector2d.Vector2Dd(cx, cy), relevantLensingMass))
 
     cdef _check(self):
         if self.m_pParams == NULL:

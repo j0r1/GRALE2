@@ -27,6 +27,7 @@
 
 #include "graleconfig.h"
 #include "grid.h"
+#include "lensinversionbasislensinfo.h"
 #include <serut/serializationinterface.h>
 #include <errut/errorbase.h>
 #include <vector>
@@ -70,38 +71,6 @@ public:
 	enum BasisFunctionType { PlummerBasis, SquareBasis, GaussBasis };
 	enum MassSheetSearchType { NoSheet, Genome };
 	
-	class BasisLensInfo
-	{
-	public:
-		BasisLensInfo(std::shared_ptr<GravitationalLens> &lens, Vector2Dd center, double relevantLensingMass)
-			: m_pLens(lens), m_center(center), m_relevantLensingMass(relevantLensingMass)
-		{
-		}
-
-		BasisLensInfo(const BasisLensInfo &src)
-		{
-			copyFrom(src);
-		}
-
-		BasisLensInfo &operator=(const BasisLensInfo &src)
-		{
-			copyFrom(src);
-			return *this;
-		}
-
-		std::shared_ptr<GravitationalLens> m_pLens;
-		Vector2Dd m_center;
-		double m_relevantLensingMass;
-
-	private:
-		void copyFrom(const BasisLensInfo &src)
-		{
-			m_pLens = src.m_pLens;
-			m_center = src.m_center;
-			m_relevantLensingMass = src.m_relevantLensingMass;
-		}
-	};
-
 	LensInversionParametersSinglePlaneCPU();
 
 	// The idea is to supply a vector of basis functions, which basically 
@@ -115,7 +84,7 @@ public:
 	// fitness value
 	LensInversionParametersSinglePlaneCPU(int maxGenerations,
 			const std::vector<std::shared_ptr<ImagesDataExtended>> &images,
-			const std::vector<BasisLensInfo> &basisLenses,
+			const std::vector<LensInversionBasisLensInfo> &basisLenses,
 			double D_d,
 			double z_d,
 			double massScale,
@@ -159,7 +128,7 @@ public:
 	bool write(serut::SerializationInterface &si) const;
 	bool read(serut::SerializationInterface &si);
 
-	const std::vector<BasisLensInfo> &getBasisLenses() const						{ return m_basisLenses; }
+	const std::vector<LensInversionBasisLensInfo> &getBasisLenses() const			{ return m_basisLenses; }
 
 	LensInversionParametersSinglePlaneCPU *createCopy() const;
 
@@ -190,7 +159,7 @@ private:
 	std::shared_ptr<ConfigurationParameters> m_pParams;
 	ScaleSearchParameters m_scaleSearchParams;
 
-	std::vector<BasisLensInfo> m_basisLenses;
+	std::vector<LensInversionBasisLensInfo> m_basisLenses;
 };
 	
 } // end namespace

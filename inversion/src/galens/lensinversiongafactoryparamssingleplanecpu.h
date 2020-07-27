@@ -53,7 +53,7 @@ public:
 	const GravitationalLens *getSheetLens() const									{ return m_pParams->getSheetLens(); }
 	const ConfigurationParameters *getFitnessObjectParameters() const				{ return m_pParams->getFitnessObjectParameters(); }
 	const ScaleSearchParameters &getMassScaleSearchParameters() const				{ return m_pParams->getMassScaleSearchParameters(); }
-	const std::vector<LensInversionParametersSinglePlaneCPU::BasisLensInfo> &getBasisLenses() const { return m_pParams->getBasisLenses(); }
+	const std::vector<LensInversionBasisLensInfo> &getBasisLenses() const 			{ return m_pParams->getBasisLenses(); }
 	
 	bool write(serut::SerializationInterface &si) const;
 	bool read(serut::SerializationInterface &si);
