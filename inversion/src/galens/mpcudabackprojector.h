@@ -33,7 +33,7 @@ public:
 		const std::vector<float> &lensRedshifts,
 		const std::vector<std::vector<PlummerLensInfo>> &lenses, 
 		const std::vector<float> &sourceRedshifts,
-		const std::vector<std::shared_ptr<ImagesData>> &images);
+		const std::vector<ImagesDataExtended *> &images);
 
 	bool calculateSourcePositions(const std::vector<std::vector<float>> &massFactors,
 	                              const std::vector<float> &sheetDensities);
@@ -69,7 +69,7 @@ public:
 	const float *getLensPotential(int sourceNumber, int imageNumber) const				{ return nullptr; }
 	float getTimeDelay(int sourceNumber, int imageNumber, int pointNumber, Vector2D<float> beta) const { return std::numeric_limits<float>::quiet_NaN(); }
 private:
-    static double getAngularScale(const std::vector<std::shared_ptr<ImagesData>> &images);
+    static double getAngularScale(const std::vector<ImagesDataExtended*> &images);
 
     MultiPlaneCUDA *m_pMPCU;
 	std::vector<std::vector<Vector2D<float>>> m_thetas;

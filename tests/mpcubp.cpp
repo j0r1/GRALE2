@@ -2,7 +2,7 @@
 #include "plummerlensinfo.h"
 #include "cosmology.h"
 #include "mpcudabackprojector.h"
-#include "imagesdata.h"
+#include "imagesdataextended.h"
 #include <vector>
 #include <iostream>
 #include <sstream>
@@ -43,9 +43,9 @@ Vector2Dd V(Vector2Df x)
     return Vector2Dd(x.getX(), x.getY());
 }
 
-shared_ptr<ImagesData> toImage(const vector<pair<Vector2Dd, Vector2Dd>> &thetasAndBetas)
+shared_ptr<ImagesDataExtended> toImage(const vector<pair<Vector2Dd, Vector2Dd>> &thetasAndBetas)
 {
-    auto imgDat = make_shared<ImagesData>();
+    auto imgDat = make_shared<ImagesDataExtended>();
     for (int img = 0 ; img < thetasAndBetas.size() ; img++)
     {
         imgDat->addImage();
@@ -74,7 +74,7 @@ int main(int argc, char const *argv[])
     //     cout << "  lenses: " << m.size() << endl;
     
     vector<float> sourceRedshifts;
-    vector<shared_ptr<ImagesData>> images;
+    vector<shared_ptr<ImagesDataExtended>> images;
     
     for (auto &zsAndThetaBeta : thetaBetaMappings)
     {
@@ -91,7 +91,11 @@ int main(int argc, char const *argv[])
     }
     string libPath(getenv(libKey.c_str()));
 
-    if (!bp.init(libPath, cosm, redshifts, plummers, sourceRedshifts, images))
+    vector<ImagesDataExtended*> imgs;
+    for (auto &i : images)
+        imgs.push_back(i.get());
+
+    if (!bp.init(libPath, cosm, redshifts, plummers, sourceRedshifts, imgs))
     {
         cerr << "Unable to initialize MPCUDABackProjector: " << bp.getErrorString() << endl;
         return -1;

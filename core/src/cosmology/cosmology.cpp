@@ -44,7 +44,7 @@ struct CosmParams
 	double h, Wm, Wr, Wv, Wk, w;
 };
 
-double Cosmology::getAngularDiameterDistance(double z1, double z2)
+double Cosmology::getAngularDiameterDistance(double z1, double z2) const
 {
     if (z1 < 0 || z2 < 0)
     {
@@ -89,6 +89,33 @@ double Cosmology::integrationFunction(double R, void *params)
 	CosmParams *pInst = reinterpret_cast<CosmParams*>(params);
 	double R2 = R*R;
 	return 1.0/std::sqrt(pInst->Wm*R + pInst->Wr + pInst->Wv*std::pow(R, 1.0-3.0*pInst->w) + pInst->Wk*R2);
+}
+
+bool Cosmology::write(serut::SerializationInterface &si) const
+{
+	double values[5] = { m_h, m_Wm, m_Wr, m_Wv, m_w };
+	if (!si.writeDoubles(values, 5))
+	{
+		setErrorString(si.getErrorString());
+		return false;
+	}
+	return true;
+}
+
+bool Cosmology::read(serut::SerializationInterface &si)
+{
+	double values[5];
+	if (!si.readDoubles(values, 5))
+	{
+		setErrorString(si.getErrorString());
+		return false;
+	}
+	m_h = values[0];
+	m_Wm = values[1];
+	m_Wr = values[2];
+	m_Wv = values[3];
+	m_w = values[4];
+	return true;
 }
 
 } // end namespace

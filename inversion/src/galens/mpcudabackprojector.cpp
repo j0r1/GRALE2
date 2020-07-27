@@ -22,24 +22,9 @@ bool MPCUDABackProjector::init(const string &libraryPath,
 		const vector<float> &lensRedshifts,
 		const vector<vector<PlummerLensInfo>> &lenses, 
 		const vector<float> &sourceRedshifts,
-		const vector<shared_ptr<ImagesData>> &images)
+		const vector<ImagesDataExtended *> &images)
 {
-    // Keep namespace clean
-    {
-		vector<ImagesDataExtended *> imagesVector;
-		vector<unique_ptr<ImagesDataExtended>> imagesVectorAutoDelete;
-
-		for (auto it : images)
-		{
-			unique_ptr<ImagesDataExtended> img { new ImagesDataExtended(*it) };
-			imagesVectorAutoDelete.push_back(move(img));
-		}
-
-		for (auto &it : imagesVectorAutoDelete)
-			imagesVector.push_back(it.get());
-
-		storeOriginalData(imagesVector, false, false, false);
-	}
+	storeOriginalData(images, false, false, false);
 
     m_angularScale = getAngularScale(images);
     m_thetas.clear();
@@ -109,7 +94,7 @@ bool MPCUDABackProjector::init(const string &libraryPath,
     return true;
 }
 
-double MPCUDABackProjector::getAngularScale(const vector<shared_ptr<ImagesData>> &images)
+double MPCUDABackProjector::getAngularScale(const vector<ImagesDataExtended*> &images)
 {
     double dx = 0, dy = 0;
 
