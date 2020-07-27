@@ -4,9 +4,11 @@
 #include "randomnumbergenerator.h"
 #include "lensinversionparameterssingleplanecpu.h"
 #include "lensinversiongenome.h"
+#include "lensfitnessobject.h"
 #include "vector2d.h"
 #include <mogal/gafactorydefaults.h>
 #include <vector>
+#include <list>
 #include <memory>
 
 namespace grale
@@ -61,9 +63,16 @@ public:
 	virtual bool calculateMassScaleFitness(float scaleFactor, float &fitness) = 0;
 	virtual bool calculateTotalFitness(float scaleFactor, float *pFitnessValues) = 0;
 protected:
-	virtual LensFitnessObject *createFitnessObject() = 0;
+	LensFitnessObject &getFitnessObject() { return *(m_fitnessObject.get()); }
+	virtual LensFitnessObject *createFitnessObject() = 0; // implemented in module
 	// This should at least set the number of fitness components
 	virtual bool subInit(LensFitnessObject *pFitnessObject) = 0;
+
+	bool initializeLensFitnessObject(double z_d,
+	    const std::vector<std::shared_ptr<ImagesDataExtended>> &images,
+		const ConfigurationParameters *pFitnessObjectParameters,
+		std::list<ImagesDataExtended*> &reducedImages,
+		std::list<ImagesDataExtended*> &shortImages);
 
     bool setCommonParameters(int numSheetValues, int maxGenerations,
                              bool allowNeg, double angularScale,
@@ -88,6 +97,8 @@ private:
 	float m_targetMass;
 
 	std::vector<std::string> m_queuedMessages;
+
+	std::unique_ptr<LensFitnessObject> m_fitnessObject;
 };
 
 } // end namespace

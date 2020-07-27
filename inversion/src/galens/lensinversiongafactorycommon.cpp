@@ -1,5 +1,6 @@
 #include "lensinversiongafactorycommon.h"
 #include "lensinversiongenome.h"
+#include "configurationparameters.h"
 #include <limits>
 #include <iostream>
 #include <sstream>
@@ -55,6 +56,52 @@ bool LensInversionGAFactoryCommon::setCommonParameters(int numSheetValues,
     m_massScaleSearchParams = searchParams;
     return true;
 }
+
+bool LensInversionGAFactoryCommon::initializeLensFitnessObject(double z_d,
+    const std::vector<std::shared_ptr<ImagesDataExtended>> &images,
+	const ConfigurationParameters *pFitnessObjectParams,
+	list<ImagesDataExtended*> &reducedImages,
+	list<ImagesDataExtended*> &shortImages)
+{
+	shortImages.clear();
+	reducedImages.clear();
+	for (auto i : images)
+		reducedImages.push_back(i.get());
+
+	auto pFitnessObject = createFitnessObject();
+	if (pFitnessObject == 0)
+		return false; // error string should be set in the createFitnessObject function
+	m_fitnessObject.reset(pFitnessObject);
+
+	ConfigurationParameters fitnesObjectParams;
+	if (pFitnessObjectParams)
+		fitnesObjectParams = *pFitnessObjectParams;
+
+	fitnesObjectParams.clearRetrievalMarkers();
+	if (!m_fitnessObject->init(z_d, reducedImages, shortImages, &fitnesObjectParams))
+	{
+		setErrorString(m_fitnessObject->getErrorString());
+		return false;
+	}
+
+	// Check that all keys in the fitness object parameters are actually used
+	vector<string> unusedKeys;
+	fitnesObjectParams.getUnretrievedKeys(unusedKeys);
+
+	if (unusedKeys.size() > 0)
+	{
+		stringstream ss;
+
+		ss << "Some parameters that were specified for the lens fitness object were not used:";
+		for (auto &k : unusedKeys)
+			ss << " " << k;
+		setErrorString(ss.str());
+		return false;
+	}
+
+	return true;
+}
+
 
 void LensInversionGAFactoryCommon::sendMessage(const std::string &s)
 {

@@ -78,7 +78,6 @@ private:
 	std::vector<std::pair<std::shared_ptr<GravitationalLens>, Vector2D<double> > > m_basisLenses;
 	std::shared_ptr<GravitationalLens> m_sheetLens;
 
-	LensFitnessObject *m_pFitnessObject;
 	DeflectionMatrix *m_pDeflectionMatrix;
 	BackProjectMatrixNew *m_pShortBPMatrix, *m_pTotalBPMatrix;
 

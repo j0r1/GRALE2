@@ -80,7 +80,6 @@ void LensInversionGAFactorySinglePlaneCPU::zero()
 	m_pDeflectionMatrix = nullptr;
 	m_pShortBPMatrix = nullptr;
 	m_pTotalBPMatrix = nullptr;
-	m_pFitnessObject = nullptr;
 }
 
 void LensInversionGAFactorySinglePlaneCPU::clear()
@@ -91,7 +90,6 @@ void LensInversionGAFactorySinglePlaneCPU::clear()
 		m_pShortBPMatrix = nullptr; // Avoid double deletion
 	delete m_pShortBPMatrix;
 	delete m_pTotalBPMatrix;
-	delete m_pFitnessObject;
 
 	m_basisLenses.clear();
 	m_sheetLens = nullptr;
@@ -296,58 +294,20 @@ bool LensInversionGAFactorySinglePlaneCPU::localSubInit(double z_d, const vector
 					  const ConfigurationParameters *pFitnessObjectParams)
 {
 	std::list<ImagesDataExtended *> reducedImages;
-	
-	for (auto i :images)
-		reducedImages.push_back(i.get());
-
 	std::list<ImagesDataExtended *> shortImages;
 
-	m_pFitnessObject = createFitnessObject();
-	if (m_pFitnessObject == 0)
+	if (!initializeLensFitnessObject(z_d, images, pFitnessObjectParams, reducedImages, shortImages))
 	{
-		clear();
-		return false; // error string should be set in the createFitnessObject function
-	}
-
-	ConfigurationParameters fitnesObjectParams;
-	if (pFitnessObjectParams)
-		fitnesObjectParams = *pFitnessObjectParams;
-
-	fitnesObjectParams.clearRetrievalMarkers();
-
-	if (!m_pFitnessObject->init(z_d, reducedImages, shortImages, &fitnesObjectParams))
-	{
-		setErrorString(m_pFitnessObject->getErrorString());
 		clear();
 		return false;
 	}
 
-	// Check that all keys in the fitness object parameters are actually used
-	vector<string> unusedKeys;
-	fitnesObjectParams.getUnretrievedKeys(unusedKeys);
-
-	if (unusedKeys.size() > 0)
-	{
-		stringstream ss;
-
-		ss << "Some parameters that were specified for the lens fitness object were not used:";
-		for (auto &k : unusedKeys)
-			ss << " " << k;
-		setErrorString(ss.str());
-
-		clear();
-		return false;
-	}
-
-	// Transform from list to vector
-	std::vector<ImagesDataExtended *> reducedImagesVector { reducedImages.begin(), reducedImages.end() };
-	std::vector<ImagesDataExtended *> shortImagesVector { shortImages.begin(), shortImages.end() };
-	
 	// TODO: this has to be done in a subclass!
 	//setNumberOfFitnessComponents(m_pFitnessObject->getNumberOfFitnessComponents());
 
+	LensFitnessObject &fitnessObject = getFitnessObject();
 	// This should at least perform the setNumberOfFitnessComponents call
-	if (!subInit(m_pFitnessObject))
+	if (!subInit(&fitnessObject))
 	{
 		clear();
 		return false;
@@ -364,9 +324,13 @@ bool LensInversionGAFactorySinglePlaneCPU::localSubInit(double z_d, const vector
 	bool totalStoreIntens, totalStoreTimeDelay, totalStoreShearInfo;
 	std::vector<bool> totalDeflectionFlags, totalDerivativeFlags, totalPotentialFlags;
 
-	m_pFitnessObject->getTotalCalcFlags(totalDeflectionFlags, totalDerivativeFlags, totalPotentialFlags);
-	m_pFitnessObject->getTotalStoreFlags(&totalStoreIntens, &totalStoreTimeDelay, &totalStoreShearInfo);
+	fitnessObject.getTotalCalcFlags(totalDeflectionFlags, totalDerivativeFlags, totalPotentialFlags);
+	fitnessObject.getTotalStoreFlags(&totalStoreIntens, &totalStoreTimeDelay, &totalStoreShearInfo);
 
+	// Transform from list to vector
+	std::vector<ImagesDataExtended *> reducedImagesVector { reducedImages.begin(), reducedImages.end() };
+	std::vector<ImagesDataExtended *> shortImagesVector { shortImages.begin(), shortImages.end() };
+	
 	m_pTotalBPMatrix = new BackProjectMatrixNew();
 	if (!m_pTotalBPMatrix->startInit(z_d, basisLenses[0].first->getLensDistance(), m_pDeflectionMatrix,
 				         reducedImagesVector, totalDeflectionFlags, totalDerivativeFlags, 
@@ -384,8 +348,8 @@ bool LensInversionGAFactorySinglePlaneCPU::localSubInit(double z_d, const vector
 		bool shortStoreIntens, shortStoreTimeDelay, shortStoreShearInfo;
 		std::vector<bool> shortDeflectionFlags, shortDerivativeFlags, shortPotentialFlags;
 
-		m_pFitnessObject->getShortCalcFlags(shortDeflectionFlags, shortDerivativeFlags, shortPotentialFlags);
-		m_pFitnessObject->getShortStoreFlags(&shortStoreIntens, &shortStoreTimeDelay, &shortStoreShearInfo);
+		fitnessObject.getShortCalcFlags(shortDeflectionFlags, shortDerivativeFlags, shortPotentialFlags);
+		fitnessObject.getShortStoreFlags(&shortStoreIntens, &shortStoreTimeDelay, &shortStoreShearInfo);
 
 		m_pShortBPMatrix = new BackProjectMatrixNew();
 		if (!m_pShortBPMatrix->startInit(z_d, basisLenses[0].first->getLensDistance(), m_pDeflectionMatrix,
@@ -428,7 +392,7 @@ bool LensInversionGAFactorySinglePlaneCPU::localSubInit(double z_d, const vector
 		}
 	}
 
-	m_pFitnessObject->postInit(reducedImages, shortImages, m_pDeflectionMatrix->getAngularScale());
+	fitnessObject.postInit(reducedImages, shortImages, m_pDeflectionMatrix->getAngularScale());
 	return true;
 }
 
@@ -452,7 +416,7 @@ bool LensInversionGAFactorySinglePlaneCPU::initializeNewCalculation(const vector
 
 bool LensInversionGAFactorySinglePlaneCPU::calculateMassScaleFitness(float scaleFactor, float &fitness)
 {
-	LensFitnessObject &fitnessFunction = *m_pFitnessObject;
+	LensFitnessObject &fitnessFunction = getFitnessObject();
 
 	m_pShortBPMatrix->calculate(scaleFactor, m_sheetScale);
 	if (fitnessFunction.shortNeedInverseMagnifications())
@@ -472,7 +436,7 @@ bool LensInversionGAFactorySinglePlaneCPU::calculateMassScaleFitness(float scale
 
 bool LensInversionGAFactorySinglePlaneCPU::calculateTotalFitness(float scaleFactor, float *pFitnessValues)
 {
-	LensFitnessObject &fitnessFunction = *m_pFitnessObject;
+	LensFitnessObject &fitnessFunction = getFitnessObject();
 
 	m_pTotalBPMatrix->calculate(scaleFactor, m_sheetScale);
 	if (fitnessFunction.totalNeedInverseMagnifications())
