@@ -22,6 +22,7 @@ cimport grale.gravitationallens as gravitationallens
 cimport grale.configurationparameters as configurationparameters
 cimport grale.gaparameters as gaparameters
 cimport grale.lensinversionbasislensinfo as lensinversionbasislensinfo
+cimport grale.scalesearchparameters as scalesearchparameters
 
 include "stringwrappers.pyx"
 
@@ -253,11 +254,11 @@ cdef class LensInversionParametersSinglePlaneCPU(object):
         cdef shared_ptr[gravitationallens.GravitationalLens] sheetLensModel
         cdef configurationparameters.ConfigurationParameters *pFitnessObjectParameters = NULL
         cdef vector[lensinversionbasislensinfo.LensInversionBasisLensInfo] basisLensInfo
-        cdef lensinversionparameterssingleplanecpu.ScaleSearchParameters regSearchParams = lensinversionparameterssingleplanecpu.ScaleSearchParameters(False)
-        cdef lensinversionparameterssingleplanecpu.ScaleSearchParameters wideSearchParams = lensinversionparameterssingleplanecpu.ScaleSearchParameters(True)
-        cdef lensinversionparameterssingleplanecpu.ScaleSearchParameters noSearchParams
-        cdef lensinversionparameterssingleplanecpu.ScaleSearchParameters *pCustomSearchParams = NULL
-        cdef lensinversionparameterssingleplanecpu.ScaleSearchParameters *pScaleSearchParams = NULL
+        cdef scalesearchparameters.ScaleSearchParameters regSearchParams = scalesearchparameters.ScaleSearchParameters(False)
+        cdef scalesearchparameters.ScaleSearchParameters wideSearchParams = scalesearchparameters.ScaleSearchParameters(True)
+        cdef scalesearchparameters.ScaleSearchParameters noSearchParams
+        cdef scalesearchparameters.ScaleSearchParameters *pCustomSearchParams = NULL
+        cdef scalesearchparameters.ScaleSearchParameters *pScaleSearchParams = NULL
 
         try:
             # Build the list of extended images
@@ -343,7 +344,7 @@ cdef class LensInversionParametersSinglePlaneCPU(object):
             elif massScaleSearchType == "nosearch":
                 pScaleSearchParams = cython.address(noSearchParams)
             else:
-                pCustomSearchParams = new lensinversionparameterssingleplanecpu.ScaleSearchParameters(
+                pCustomSearchParams = new scalesearchparameters.ScaleSearchParameters(
                     massScaleSearchType["startFactor"],
                     massScaleSearchType["stopFactor"],
                     massScaleSearchType["numIterations"],

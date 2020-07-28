@@ -11,18 +11,7 @@ cimport grale.gravitationallens as gravitationallens
 cimport grale.configurationparameters as configurationparameters
 cimport grale.vector2d as vector2d
 cimport grale.lensinversionbasislensinfo as lensinversionbasislensinfo
-
-cdef extern from "grale/lensinversionparameterssingleplanecpu.h" namespace "grale":
-    cdef cppclass ScaleSearchParameters(errut.ErrorBase):
-        ScaleSearchParameters(float startFactor, float stopFactor, int numIt, int firstItSteps, int subseqItSteps)
-        ScaleSearchParameters(bool wideSearch)
-        ScaleSearchParameters()
-
-        float getStartFactor()
-        float getStopFactor()
-        int getNumberOfIterations()
-        int getStepsOnFirstIteration()
-        int getStepsOnSubsequentIterations()
+cimport grale.scalesearchparameters as scalesearchparameters
 
 cdef extern from "grale/lensinversionparameterssingleplanecpu.h" namespace "grale::LensInversionParametersSinglePlaneCPU":
     cdef enum BasisFunctionType:
@@ -47,7 +36,7 @@ cdef extern from "grale/lensinversionparameterssingleplanecpu.h" namespace "gral
                      const gravitationallens.GravitationalLens *pBaseLens,
                      const gravitationallens.GravitationalLens *pSheetLens,
                      const configurationparameters.ConfigurationParameters *pFitnessObjectParams,
-                     ScaleSearchParameters &scaleSearchParams)
+                     scalesearchparameters.ScaleSearchParameters &scaleSearchParams)
 
         LensInversionParametersSinglePlaneCPU(int maxgenerations,
                      const vector[shared_ptr[imagesdataextended.ImagesDataExtended]] &images, 
@@ -61,7 +50,7 @@ cdef extern from "grale/lensinversionparameterssingleplanecpu.h" namespace "gral
                      const gravitationallens.GravitationalLens *pBaseLens,
                      const gravitationallens.GravitationalLens *pSheetLens,
                      const configurationparameters.ConfigurationParameters *pFitnessObjectParams,
-                     ScaleSearchParameters &scaleSearchParams)
+                     scalesearchparameters.ScaleSearchParameters &scaleSearchParams)
 
         bool read(serut.SerializationInterface &si)
         bool write(serut.SerializationInterface &si)

@@ -71,6 +71,7 @@ set(HEADERS
 	galens/lensinversionparameterssingleplanecpu.h
 	galens/lensinversionparametersmultiplanegpu.h
 	galens/lensinversionbasislensinfo.h
+	galens/scalesearchparameters.h
 	galens/gaparameters.h
 	thirdparty/WildMagic5/Wm5Assert.h
 	thirdparty/WildMagic5/Wm5Box2.h
@@ -157,6 +158,7 @@ set(SOURCES
 	galens/lensinversionparameterssingleplanecpu.cpp
 	galens/lensinversionparametersmultiplanegpu.cpp
 	galens/lensinversionbasislensinfo.cpp
+	galens/scalesearchparameters.cpp
 	galens/gaparameters.cpp
 	thirdparty/WildMagic5/Wm5Assert.cpp
 	thirdparty/WildMagic5/Wm5ConvexHull.cpp
