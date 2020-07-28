@@ -113,7 +113,7 @@ public:
 	// information should be store
 	/** @name Basic calculation flags
 	 *
-	 *  The following functions provide information to the BackProjectMatrixNew instances in the genetic
+	 *  The following functions provide information to the BackProjectMatrix instances in the genetic
 	 *  algorithm about what information should be calculated and stored.
 	 **/
 	///@{
@@ -156,7 +156,7 @@ public:
 	// These functions then use these derivatives to calculate other properties
 	/** @name Derived calculation flags
 	 *  
-	 *  The following functions provide information to the BackProjectMatrixNew instances in the genetic
+	 *  The following functions provide information to the BackProjectMatrix instances in the genetic
 	 *  algorithm about what information should be calculated based on the deflection angle derivatives.
 	 *  You'll need to enable calculation of the derivatives of the deflection angles for a source to be able
 	 *  to calculate these properties.

@@ -24,7 +24,7 @@
 */
 
 #include "graleconfig.h"
-#include "backprojectmatrixnew.h"
+#include "backprojectmatrix.h"
 #include "gravitationallens.h"
 #include "imagesdataextended.h"
 #include "constants.h"
@@ -41,17 +41,17 @@ using namespace errut;
 namespace grale
 {
 
-BackProjectMatrixNew::BackProjectMatrixNew()
+BackProjectMatrix::BackProjectMatrix()
 {
 	m_init = false;
 	m_initializing = false;
 }
 
-BackProjectMatrixNew::~BackProjectMatrixNew()
+BackProjectMatrix::~BackProjectMatrix()
 {
 }
 
-bool BackProjectMatrixNew::startInit(double z_d, double D_d, DeflectionMatrix *pDeflectionMatrix, 
+bool BackProjectMatrix::startInit(double z_d, double D_d, DeflectionMatrix *pDeflectionMatrix, 
 		                     const std::vector<ImagesDataExtended *> &images,
 		                     const std::vector<bool> &useDeflections, 
 				     const std::vector<bool> &useDerivatives, 
@@ -372,7 +372,7 @@ bool BackProjectMatrixNew::startInit(double z_d, double D_d, DeflectionMatrix *p
 	return true;
 }
 
-bool BackProjectMatrixNew::endInit() // m_pDeflectionMatrix->endInit() must be called before this is called (to know the angular scale)
+bool BackProjectMatrix::endInit() // m_pDeflectionMatrix->endInit() must be called before this is called (to know the angular scale)
 {
 	if (m_init)
 	{
@@ -443,7 +443,7 @@ bool BackProjectMatrixNew::endInit() // m_pDeflectionMatrix->endInit() must be c
 	return true;
 }
 
-void BackProjectMatrixNew::storeDeflectionMatrixResults()
+void BackProjectMatrix::storeDeflectionMatrixResults()
 {
 	int numSources = m_offsets.size();
 
@@ -488,7 +488,7 @@ void BackProjectMatrixNew::storeDeflectionMatrixResults()
 	}
 }
 
-void BackProjectMatrixNew::calculate(float scaleFactor, float massSheetFactor)
+void BackProjectMatrix::calculate(float scaleFactor, float massSheetFactor)
 {
 	int numSources = m_offsets.size();
 
@@ -542,7 +542,7 @@ void BackProjectMatrixNew::calculate(float scaleFactor, float massSheetFactor)
 	}
 }
 
-void BackProjectMatrixNew::calculateInverseMagnifications(const std::vector<bool> &sourceMask)
+void BackProjectMatrix::calculateInverseMagnifications(const std::vector<bool> &sourceMask)
 {
 	int numSources = m_offsets.size();
 
@@ -562,7 +562,7 @@ void BackProjectMatrixNew::calculateInverseMagnifications(const std::vector<bool
 	}
 }
 
-void BackProjectMatrixNew::calculateShearComponents(const std::vector<bool> &sourceMask)
+void BackProjectMatrix::calculateShearComponents(const std::vector<bool> &sourceMask)
 {
 	int numSources = m_offsets.size();
 
@@ -578,7 +578,7 @@ void BackProjectMatrixNew::calculateShearComponents(const std::vector<bool> &sou
 	}
 }
 
-void BackProjectMatrixNew::calculateConvergence(const std::vector<bool> &sourceMask)
+void BackProjectMatrix::calculateConvergence(const std::vector<bool> &sourceMask)
 {
 	int numSources = m_offsets.size();
 

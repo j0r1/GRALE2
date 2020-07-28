@@ -57,13 +57,13 @@ class ImagesDataExtended;
  *  others (measured shear for example). It is this implementation
  *  that is used by the GRALESHELL command \c 'imgdata/fitness'.
  *
- *  The second implementation, BackProjectMatrixNew, is somewhat more
+ *  The second implementation, BackProjectMatrix, is somewhat more
  *  advanced, but is only meant to be used inside the genetic algorithm.
  *  It is more advanced in the sense that it used information provided
  *  by the LensFitnessObject to make sure that the calculations are done
  *  in an efficient way, only calculating those things that are necessary.
  *  This also means that your program will crash if you try to access 
- *  information that the BackProjectMatrixNew instance believed was
+ *  information that the BackProjectMatrix instance believed was
  *  not necessary to calculate.
  */
 class GRALE_IMPORTEXPORT ProjectedImagesInterface

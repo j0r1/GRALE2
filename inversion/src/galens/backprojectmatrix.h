@@ -23,12 +23,10 @@
   
 */
 
-#ifndef GRALE_BACKPROJECTMATRIXNEW_H
-
-#define GRALE_BACKPROJECTMATRIXNEW_H
+#pragma once
 
 /**
- * \file backprojectmatrixnew.h
+ * \file backprojectmatrix.h
  */
 
 #include "graleconfig.h"
@@ -43,11 +41,11 @@ class GravitationalLens;
 
 /** Implements the ProjectedImagesInterface interface, is only meant to be used inside
  *  the genetic algorithm for lens inversion. */
-class GRALE_IMPORTEXPORT BackProjectMatrixNew : public ProjectedImagesInterface, public errut::ErrorBase
+class GRALE_IMPORTEXPORT BackProjectMatrix : public ProjectedImagesInterface, public errut::ErrorBase
 {
 public:
-	BackProjectMatrixNew();
-	~BackProjectMatrixNew();
+	BackProjectMatrix();
+	~BackProjectMatrix();
 
 	bool startInit(double z_d, double D_d, DeflectionMatrix *pDeflectionMatrix, 
 	               const std::vector<ImagesDataExtended *> &images,
@@ -146,7 +144,7 @@ private:
 	std::vector<bool> m_trueFlags;
 };
 
-inline float BackProjectMatrixNew::getTimeDelay(int sourceNumber, int imageNumber, int pointNumber, Vector2D<float> beta) const
+inline float BackProjectMatrix::getTimeDelay(int sourceNumber, int imageNumber, int pointNumber, Vector2D<float> beta) const
 {
 	Vector2D<float> diff = beta - m_thetas[sourceNumber][m_offsets[sourceNumber][imageNumber]+pointNumber];
 	
@@ -154,6 +152,3 @@ inline float BackProjectMatrixNew::getTimeDelay(int sourceNumber, int imageNumbe
 }
 
 } // end namespace
-
-#endif // GRALE_BACKPROJECTMATRIXNEW_H
-

@@ -292,7 +292,7 @@ bool LensInversionGAFactorySinglePlaneCPU::localSubInit(double z_d, const vector
 	fitnessObject.getTotalCalcFlags(totalDeflectionFlags, totalDerivativeFlags, totalPotentialFlags);
 	fitnessObject.getTotalStoreFlags(&totalStoreIntens, &totalStoreTimeDelay, &totalStoreShearInfo);
 	
-	m_pTotalBPMatrix = make_shared<BackProjectMatrixNew>();
+	m_pTotalBPMatrix = make_shared<BackProjectMatrix>();
 	if (!m_pTotalBPMatrix->startInit(z_d, basisLenses[0].first->getLensDistance(), m_pDeflectionMatrix.get(),
 				         reducedImagesVector, totalDeflectionFlags, totalDerivativeFlags, 
 					 totalPotentialFlags, pBaseLens, totalStoreIntens, totalStoreTimeDelay,
@@ -311,7 +311,7 @@ bool LensInversionGAFactorySinglePlaneCPU::localSubInit(double z_d, const vector
 		fitnessObject.getShortCalcFlags(shortDeflectionFlags, shortDerivativeFlags, shortPotentialFlags);
 		fitnessObject.getShortStoreFlags(&shortStoreIntens, &shortStoreTimeDelay, &shortStoreShearInfo);
 
-		m_pShortBPMatrix = make_shared<BackProjectMatrixNew>();
+		m_pShortBPMatrix = make_shared<BackProjectMatrix>();
 		if (!m_pShortBPMatrix->startInit(z_d, basisLenses[0].first->getLensDistance(), m_pDeflectionMatrix.get(),
 						 shortImagesVector, shortDeflectionFlags, shortDerivativeFlags, 
 						 shortPotentialFlags, pBaseLens, shortStoreIntens, shortStoreTimeDelay,

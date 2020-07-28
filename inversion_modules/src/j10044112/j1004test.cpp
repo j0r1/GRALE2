@@ -30,7 +30,7 @@
 #include <grale/vector2d.h>
 #include <grale/imagesdata.h>
 #include <mogal/gafactorymultiobjective.h>
-#include <grale/backprojectmatrixnew.h>
+#include <grale/backprojectmatrix.h>
 #include <grale/deflectionmatrix.h>
 #include <grale/gravitationallens.h>
 #include <grale/multifitnesshistory.h>

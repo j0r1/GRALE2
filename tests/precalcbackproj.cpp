@@ -1,4 +1,4 @@
-#include "backprojectmatrixnew.h"
+#include "backprojectmatrix.h"
 #include "imagesbackprojector.h"
 #include "precalculatedbackprojector.h"
 #include "randomnumbergenerator.h"
@@ -128,7 +128,7 @@ int main(int argc, char *argv[])
 	else
 		cerr << "Not using mass sheet" << endl;
 
-	BackProjectMatrixNew bpMatrix;
+	BackProjectMatrix bpMatrix;
 	
 	if (!bpMatrix.startInit(z_d, D_d, &matrix, images, ones, ones, ones, pBaseLens, true, true, true, sheetLens.get()))
 		cerr << "Couldn't init BackProjectMatrixNew" << endl;

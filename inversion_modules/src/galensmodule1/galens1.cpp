@@ -28,7 +28,7 @@
 #include <grale/lensinversiongafactorysingleplanecpu.h>
 #include <grale/lensinversiongenome.h>
 #include <grale/vector2d.h>
-#include <grale/backprojectmatrixnew.h>
+#include <grale/backprojectmatrix.h>
 #include <grale/deflectionmatrix.h>
 #include <grale/gravitationallens.h>
 #include <mogal/gafactorysingleobjective.h>

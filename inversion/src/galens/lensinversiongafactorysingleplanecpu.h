@@ -28,7 +28,7 @@
 #include "graleconfig.h"
 #include "lensinversiongafactorycommon.h"
 #include "randomnumbergenerator.h"
-#include "backprojectmatrixnew.h"
+#include "backprojectmatrix.h"
 #include "vector2d.h"
 #include "lensinversiongafactoryparamssingleplanecpu.h"
 #include <vector>
@@ -78,7 +78,7 @@ private:
 	std::shared_ptr<GravitationalLens> m_sheetLens;
 
 	std::unique_ptr<DeflectionMatrix> m_pDeflectionMatrix;
-	std::shared_ptr<BackProjectMatrixNew> m_pShortBPMatrix, m_pTotalBPMatrix;
+	std::shared_ptr<BackProjectMatrix> m_pShortBPMatrix, m_pTotalBPMatrix;
 
 	float m_sheetScale; // Stored when initializeNewCalculation is called
 };

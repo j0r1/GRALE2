@@ -1,7 +1,7 @@
 add_definitions(-DGRALE_COMPILING)
 
 set(HEADERS
-	galens/backprojectmatrixnew.h
+	galens/backprojectmatrix.h
 	galens/deflectionmatrix.h
 	galens/fitnesshistory.h
 	galens/galensmodule.h
@@ -22,7 +22,7 @@ set(HEADERS
 	)
 
 set(SOURCES
-	galens/backprojectmatrixnew.cpp
+	galens/backprojectmatrix.cpp
 	galens/deflectionmatrix.cpp
 	galens/fitnesshistory.cpp
 	galens/galensmodule.cpp
