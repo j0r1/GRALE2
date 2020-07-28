@@ -71,30 +71,17 @@ private:
 
 LensInversionGAFactorySinglePlaneCPU::LensInversionGAFactorySinglePlaneCPU()
 {
-	zero();
-}
-
-void LensInversionGAFactorySinglePlaneCPU::zero()
-{
-	m_pCurrentParams = nullptr;
-	m_pDeflectionMatrix = nullptr;
-	m_pShortBPMatrix = nullptr;
-	m_pTotalBPMatrix = nullptr;
 }
 
 void LensInversionGAFactorySinglePlaneCPU::clear()
 {
-	delete m_pCurrentParams;
-	delete m_pDeflectionMatrix;
-	if (m_pShortBPMatrix == m_pTotalBPMatrix)
-		m_pShortBPMatrix = nullptr; // Avoid double deletion
-	delete m_pShortBPMatrix;
-	delete m_pTotalBPMatrix;
+	m_pCurrentParams.reset();
+	m_pDeflectionMatrix.reset();
+	m_pShortBPMatrix.reset();
+	m_pTotalBPMatrix.reset();
 
 	m_basisLenses.clear();
-	m_sheetLens = nullptr;
-
-	zero();
+	m_sheetLens.reset();
 }
 
 LensInversionGAFactorySinglePlaneCPU::~LensInversionGAFactorySinglePlaneCPU()
@@ -109,12 +96,12 @@ mogal::GAFactoryParams *LensInversionGAFactorySinglePlaneCPU::createParamsInstan
 
 const mogal::GAFactoryParams *LensInversionGAFactorySinglePlaneCPU::getCurrentParameters() const
 {
-	return m_pCurrentParams;
+	return m_pCurrentParams.get();
 }
 
 bool LensInversionGAFactorySinglePlaneCPU::init(const mogal::GAFactoryParams *p)
 {
-	if (m_pCurrentParams != 0)
+	if (m_pCurrentParams.get() != 0)
 	{
 		setErrorString("Already initialized");
 		return false;
@@ -133,13 +120,14 @@ bool LensInversionGAFactorySinglePlaneCPU::init(const mogal::GAFactoryParams *p)
 		return false;
 	}
 
-	m_pCurrentParams = p2->createCopy();
-	assert(m_pCurrentParams);
+	m_pCurrentParams.reset(p2->createCopy());
+	assert(m_pCurrentParams.get());
 
 	auto basisLenses = m_pCurrentParams->getBasisLenses();
 	if (basisLenses.size() == 0)
 	{
 		setErrorString("Unable to get basis lenses: " + m_pCurrentParams->getErrorString());
+		clear();
 		return false;
 	}
 
@@ -164,20 +152,20 @@ bool LensInversionGAFactorySinglePlaneCPU::init(const mogal::GAFactoryParams *p)
 		numSheetValues = 1;
 	}
 	else // no sheet
-		m_sheetLens = nullptr;
+		m_sheetLens.reset();
 
 	// perform sub-initialization
 	if (!localSubInit(p2->getZ_d(), p2->getImages(), m_basisLenses, p2->getBaseLens(), pSheetLens, 
 				m_pCurrentParams->getFitnessObjectParameters()))
 	{
-		// Error string is set in subInit
+		// Error string is already set
 		clear();
 		return false;
 	}
 	
 	int maxGenerations = m_pCurrentParams->getMaximumNumberOfGenerations();
-	bool allowNegativeValues = p2->allowNegativeValues();
-	auto massScaleSearchParams = p2->getMassScaleSearchParameters();
+	bool allowNegativeValues = m_pCurrentParams->allowNegativeValues();
+	auto massScaleSearchParams = m_pCurrentParams->getMassScaleSearchParameters();
 	double massScale = m_pCurrentParams->getMassScale();
 
 	vector<double> basisFunctionMasses;
@@ -288,16 +276,12 @@ bool LensInversionGAFactorySinglePlaneCPU::localSubInit(double z_d, const vector
 	vector<ImagesDataExtended*> shortImagesVector;
 
 	if (!initializeLensFitnessObject(z_d, images, pFitnessObjectParams, reducedImagesVector, shortImagesVector))
-	{
-		clear();
 		return false;
-	}
 
-	m_pDeflectionMatrix = new GADeflectionMatrix(this);
+	m_pDeflectionMatrix = make_unique<GADeflectionMatrix>(this);
 	if (!m_pDeflectionMatrix->startInit())
 	{
 		setErrorString(m_pDeflectionMatrix->getErrorString());
-		clear();
 		return false;
 	}
 
@@ -308,15 +292,14 @@ bool LensInversionGAFactorySinglePlaneCPU::localSubInit(double z_d, const vector
 	fitnessObject.getTotalCalcFlags(totalDeflectionFlags, totalDerivativeFlags, totalPotentialFlags);
 	fitnessObject.getTotalStoreFlags(&totalStoreIntens, &totalStoreTimeDelay, &totalStoreShearInfo);
 	
-	m_pTotalBPMatrix = new BackProjectMatrixNew();
-	if (!m_pTotalBPMatrix->startInit(z_d, basisLenses[0].first->getLensDistance(), m_pDeflectionMatrix,
+	m_pTotalBPMatrix = make_shared<BackProjectMatrixNew>();
+	if (!m_pTotalBPMatrix->startInit(z_d, basisLenses[0].first->getLensDistance(), m_pDeflectionMatrix.get(),
 				         reducedImagesVector, totalDeflectionFlags, totalDerivativeFlags, 
 					 totalPotentialFlags, pBaseLens, totalStoreIntens, totalStoreTimeDelay,
 					 totalStoreShearInfo,
 					 pSheetLens))
 	{
 		setErrorString(m_pTotalBPMatrix->getErrorString());
-		clear();
 		return false;
 	}
 
@@ -328,15 +311,14 @@ bool LensInversionGAFactorySinglePlaneCPU::localSubInit(double z_d, const vector
 		fitnessObject.getShortCalcFlags(shortDeflectionFlags, shortDerivativeFlags, shortPotentialFlags);
 		fitnessObject.getShortStoreFlags(&shortStoreIntens, &shortStoreTimeDelay, &shortStoreShearInfo);
 
-		m_pShortBPMatrix = new BackProjectMatrixNew();
-		if (!m_pShortBPMatrix->startInit(z_d, basisLenses[0].first->getLensDistance(), m_pDeflectionMatrix,
+		m_pShortBPMatrix = make_shared<BackProjectMatrixNew>();
+		if (!m_pShortBPMatrix->startInit(z_d, basisLenses[0].first->getLensDistance(), m_pDeflectionMatrix.get(),
 						 shortImagesVector, shortDeflectionFlags, shortDerivativeFlags, 
 						 shortPotentialFlags, pBaseLens, shortStoreIntens, shortStoreTimeDelay,
 						 shortStoreShearInfo,
 						 pSheetLens))
 		{
 			setErrorString(m_pShortBPMatrix->getErrorString());
-			clear();
 			return false;
 		}
 	}
@@ -348,23 +330,20 @@ bool LensInversionGAFactorySinglePlaneCPU::localSubInit(double z_d, const vector
 	if (!m_pDeflectionMatrix->endInit(basisLenses))
 	{
 		setErrorString(m_pDeflectionMatrix->getErrorString());
-		clear();
 		return false;
 	}
 
 	if (!m_pTotalBPMatrix->endInit())
 	{
 		setErrorString(m_pTotalBPMatrix->getErrorString());
-		clear();
 		return false;
 	}
 
-	if (m_pShortBPMatrix != m_pTotalBPMatrix)
+	if (m_pShortBPMatrix.get() != m_pTotalBPMatrix.get())
 	{
 		if (!m_pShortBPMatrix->endInit())
 		{
 			setErrorString(m_pShortBPMatrix->getErrorString());
-			clear();
 			return false;
 		}
 	}

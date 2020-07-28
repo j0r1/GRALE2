@@ -66,20 +66,19 @@ protected:
 	void onSortedPopulation(const std::vector<mogal::GenomeWrapper> &population);
 #endif // SHOWEVOLUTION
 private:
-	void zero();
 	void clear();
 	bool localSubInit(double z_d, const std::vector<std::shared_ptr<ImagesDataExtended>> &images, 
 	                  const std::vector<std::pair<std::shared_ptr<GravitationalLens>, Vector2D<double> > > &basisLenses,
 					  const GravitationalLens *pBaseLens, const GravitationalLens *pSheetLens, 
 					  const ConfigurationParameters *pFitnessObjectParams);
 
-	LensInversionGAFactoryParamsSinglePlaneCPU *m_pCurrentParams;
+	std::unique_ptr<LensInversionGAFactoryParamsSinglePlaneCPU> m_pCurrentParams;
 
 	std::vector<std::pair<std::shared_ptr<GravitationalLens>, Vector2D<double> > > m_basisLenses;
 	std::shared_ptr<GravitationalLens> m_sheetLens;
 
-	DeflectionMatrix *m_pDeflectionMatrix;
-	BackProjectMatrixNew *m_pShortBPMatrix, *m_pTotalBPMatrix;
+	std::unique_ptr<DeflectionMatrix> m_pDeflectionMatrix;
+	std::shared_ptr<BackProjectMatrixNew> m_pShortBPMatrix, m_pTotalBPMatrix;
 
 	float m_sheetScale; // Stored when initializeNewCalculation is called
 };
