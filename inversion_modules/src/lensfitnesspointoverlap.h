@@ -80,7 +80,6 @@ private:
 	bool m_initialized;
 	std::vector<int> m_sourceIndices;
 	std::vector<bool> m_deflectionFlags, m_derivativeFlags, m_potentialFlags;
-	std::vector<float> m_distanceFractions;
 };
 
 class LensFitnessPointOverlapNull : public LensFitnessObject
@@ -127,7 +126,6 @@ private:
 	std::vector<std::vector<TriangleIndices> > m_nullTriangles;
 	std::vector<bool> m_deflectionFlags, m_derivativeFlags, m_potentialFlags;
 	std::vector<bool> m_shortDeflectionFlags, m_shortDerivativeFlags, m_shortPotentialFlags;
-	std::vector<float> m_distanceFractions;
 	std::vector<float> m_nullWeights;
 	PointGroupStorage m_pointGroups;
 };

@@ -15,8 +15,7 @@ namespace grale
 {
 
 float getScaleFactor_PointImages(const ProjectedImagesInterface &interface,
-		                         const std::vector<int> &sourceIndices,
-								 const std::vector<float> &sourceDistanceFractions)
+		                         const std::vector<int> &sourceIndices)
 {
 	vector<int> sourceGroup(sourceIndices.size(), 0);
 	vector<float> scaleFactors(1, 0);
@@ -24,7 +23,7 @@ float getScaleFactor_PointImages(const ProjectedImagesInterface &interface,
 	ScaleFactorWorkspace ws;
 	ws.m_floats.resize(4);
 
-	getScaleFactors_PointImages(interface, sourceIndices, sourceDistanceFractions, sourceGroup, scaleFactors, ws, MinMax);
+	getScaleFactors_PointImages(interface, sourceIndices, sourceGroup, scaleFactors, ws, MinMax);
 	float scale = scaleFactors[0];
 	assert(scale != 0);
 	return scale;
@@ -32,7 +31,6 @@ float getScaleFactor_PointImages(const ProjectedImagesInterface &interface,
 
 void getScaleFactors_PointImages(const ProjectedImagesInterface &interface,
 		                         const vector<int> &sourceIndices,
-								 const vector<float> &sourceDistanceFractions,
 								 const vector<int> &sourceGroup,
 								 vector<float> &scaleFactors, // one for each group
 								 ScaleFactorWorkspace &ws,
@@ -44,7 +42,6 @@ void getScaleFactors_PointImages(const ProjectedImagesInterface &interface,
 
 	assert(scaleFactors.size() > 0);
 	assert(sourceGroup.size() == sourceIndices.size());
-	assert(sourceIndices.size() == sourceDistanceFractions.size());
 
 	if (sourceIndices.size() > 1) // We're assuming that different source indices are present
 	{
@@ -205,25 +202,22 @@ void getScaleFactors_PointImages(const ProjectedImagesInterface &interface,
 
 float calculateOverlapFitness_PointImages(const ProjectedImagesInterface &interface, 
 		                                  const std::vector<int> &sourceIndices,
-										  const std::vector<float> &sourceDistanceFractions,
 										  float scale)
 {
 	vector<int> sourceGroup(sourceIndices.size(), 0);
 	vector<float> scaleFactors(1, scale);
 
-	return calculateOverlapFitness_PointImages(interface, sourceIndices, sourceDistanceFractions, sourceGroup, scaleFactors);
+	return calculateOverlapFitness_PointImages(interface, sourceIndices, sourceGroup, scaleFactors);
 }
 
 float calculateOverlapFitness_PointImages(const ProjectedImagesInterface &interface, 
 		                                  const vector<int> &sourceIndices,
-								          const vector<float> &sourceDistanceFractions,
 										  const vector<int> &sourceGroups,
 										  const vector<float> &scaleFactors)
 {
 	float fitness = 0;
 	int sourceCount = 0;
 
-	assert(sourceIndices.size() == sourceDistanceFractions.size());
 	assert(sourceGroups.size() == sourceIndices.size());
 	assert(scaleFactors.size() > 0);
 
@@ -272,11 +266,9 @@ float calculateOverlapFitness_PointImages(const ProjectedImagesInterface &interf
 float calculateOverlapFitness_PointGroups(const PointGroupStorage &pointGroups,
 		                                  const ProjectedImagesInterface &interface,
 										  const std::vector<int> &sourceIndices,
-										  const std::vector<float> &sourceDistanceFractions,
 										  PointGroupRMSType t)
 {
 	assert(sourceIndices.size() == pointGroups.getNumberOfSources());
-	assert(sourceDistanceFractions.size() == sourceIndices.size());
 	
 	int numContribs = 0;
 	float fitness = 0;
@@ -285,7 +277,6 @@ float calculateOverlapFitness_PointGroups(const PointGroupStorage &pointGroups,
 
 	for (int sIdx = 0 ; sIdx < sourceIndices.size() ; sIdx++)
 	{
-		const float distFrac = sourceDistanceFractions[sIdx];
 		const int src = sourceIndices[sIdx];
 
 		const int groups = pointGroups.getNumberOfGroups(sIdx);
@@ -297,7 +288,7 @@ float calculateOverlapFitness_PointGroups(const PointGroupStorage &pointGroups,
 
 			float groupRms = 0;
 
-			auto getGroupPointBetaAndDerivs = [distFrac, src, sIdx, g, &pointGroups, &interface](int idx,  
+			auto getGroupPointBetaAndDerivs = [src, sIdx, g, &pointGroups, &interface](int idx,  
 					                                       float &axx, float &ayy, float &axy,
 														   bool withDerivs = true) -> Vector2Df
 			{

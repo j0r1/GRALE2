@@ -161,6 +161,8 @@ FitnessComponent_PointImagesOverlap::FitnessComponent_PointImagesOverlap(Fitness
 {
 	addRecognizedTypeName("pointimages");
 	m_scaleType = MinMax;
+	m_numSources = 0;
+	m_isFinalized = false;
 }
 
 FitnessComponent_PointImagesOverlap::~FitnessComponent_PointImagesOverlap()
@@ -190,14 +192,13 @@ bool FitnessComponent_PointImagesOverlap::inspectImagesData(int idx, const Image
 		return false;
 	}
 
-	double Dds = imgDat.getDds();
-	double Ds = imgDat.getDs();
-
-	if (Dds <= 0 || Ds <= 0)
+	if (imgDat.getDds() < 0 || imgDat.getDs() < 0)
 	{
 		setErrorString("Source/lens and source/observer distances must be positive");
 		return false;
 	}
+
+	m_numSources++;
 
 	// If there's only a single point, it's not a constraint for this fitness component
 	// (but can still be used as a null space constraint)
@@ -205,9 +206,6 @@ bool FitnessComponent_PointImagesOverlap::inspectImagesData(int idx, const Image
 		return true;
 
 	needCalcDeflections = true;
-
-	float distFrac = (float)(Dds/Ds);
-	m_distanceFractions.push_back(distFrac);
 
 	addImagesDataIndex(idx);
 	addToUsedImagesCount(numImg);
@@ -257,13 +255,13 @@ bool FitnessComponent_PointImagesOverlap::inspectImagesData(int idx, const Image
 
 bool FitnessComponent_PointImagesOverlap::finalize()
 {
-	if (m_setScaleGroups.size() == m_distanceFractions.size())
+	if (m_isFinalized) // TODO: can this be called more than once?
 		return true;
 
 	//cerr << "DEBUG: finalize in FitnessComponent_PointImagesOverlap, for " << (void*)this << endl;
 
 	// Need to build the group indices from the map
-	m_setScaleGroups.resize(m_distanceFractions.size(), -1);
+	m_setScaleGroups.resize(m_numSources, -1);
 
 	const auto &imageIndices = getUsedImagesDataIndices();
 	map<int,int> imgIndexToArrayIndex;
@@ -328,7 +326,7 @@ bool FitnessComponent_PointImagesOverlap::finalize()
 
 	//cerr << "m_setScaleGroups: " << m_setScaleGroups.size() << endl;
 	//cerr << "m_useScaleGroups: " << m_useScaleGroups.size() << endl;
-	//cerr << "m_distanceFractions: " << m_distanceFractions.size() << endl;
+	m_isFinalized = true;
 	return true;
 }
 
@@ -361,12 +359,10 @@ bool FitnessComponent_PointImagesOverlap::calculateFitness(const ProjectedImages
 	//cerr << "In calculateFitness " << (void*)this << endl;
 	//cerr << "m_setScaleGroups: " << m_setScaleGroups.size() << endl;
 	//cerr << "m_useScaleGroups: " << m_useScaleGroups.size() << endl;
-	//cerr << "m_distanceFractions: " << m_distanceFractions.size() << endl;
-	assert(m_setScaleGroups.size() == m_distanceFractions.size());
-	assert(m_useScaleGroups.size() == m_distanceFractions.size());
+	assert(m_setScaleGroups.size() == m_useScaleGroups.size());
 
-	getScaleFactors_PointImages(iface, getUsedImagesDataIndices(), m_distanceFractions, m_setScaleGroups, m_scaleFactors, m_workspace, m_scaleType);
-	fitness = calculateOverlapFitness_PointImages(iface, getUsedImagesDataIndices(), m_distanceFractions, m_useScaleGroups, m_scaleFactors);
+	getScaleFactors_PointImages(iface, getUsedImagesDataIndices(), m_setScaleGroups, m_scaleFactors, m_workspace, m_scaleType);
+	fitness = calculateOverlapFitness_PointImages(iface, getUsedImagesDataIndices(), m_useScaleGroups, m_scaleFactors);
 	return true;
 }
 
@@ -401,16 +397,6 @@ bool FitnessComponent_PointGroupOverlap::inspectImagesData(int idx, const Images
 		return false;
 	}
 	
-	double Dds = imgDat.getDds();
-	double Ds = imgDat.getDs();
-	if (Dds <= 0 || Ds <= 0)
-	{
-		setErrorString("Source/lens and source/observer distances must be positive");
-		return false;
-	}
-	float distFrac = (float)(Dds/Ds);
-	m_distanceFractions.push_back(distFrac);
-
 	if (imgDat.getNumberOfGroups() > 0)
 		m_pointGroups.add(&imgDat);
 	else // no point groups, is this a point image?
@@ -470,8 +456,8 @@ bool FitnessComponent_PointGroupOverlap::processFitnessOption(const std::string 
 
 bool FitnessComponent_PointGroupOverlap::calculateFitness(const ProjectedImagesInterface &iface, float &fitness)
 {
-	fitness = calculateOverlapFitness_PointGroups(m_pointGroups, iface, getUsedImagesDataIndices(), 
-			                                   m_distanceFractions, m_rmsType);
+	fitness = calculateOverlapFitness_PointGroups(m_pointGroups, iface, getUsedImagesDataIndices(),
+			                                      m_rmsType);
 	return true;
 }
 
@@ -533,10 +519,7 @@ bool FitnessComponent_ExtendedImagesOverlap::inspectImagesData(int idx, const Im
 			m_extendedSourceCount++;
 	}
 
-	double Dds = imgDat.getDds();
-	double Ds = imgDat.getDs();
-
-	if (Dds <= 0 || Ds <= 0)
+	if (imgDat.getDds() < 0 || imgDat.getDs() < 0)
 	{
 		setErrorString("Source/lens and source/observer distances must be positive");
 		return false;
@@ -741,6 +724,7 @@ bool FitnessComponent_NullSpacePointImages::inspectImagesData(int idx, const Ima
 		return false;
 	}
 
+	// TODO: use another check? Dds doesn't make much sense in a multi-plane scenario
 	if (m_lastImgDds != imgDat.getDds() || m_lastImgDs != imgDat.getDs())
 	{
 		setErrorString("Null space grid distances are not the same as the ones from the last recorded point images");
@@ -894,6 +878,7 @@ bool FitnessComponent_NullSpaceExtendedImages::inspectImagesData(int idx, const 
 		return false;
 	}
 
+	// TODO: use another check? Dds doesn't make much sense in a multi-plane scenario
 	if (m_lastImgDds != imgDat.getDds() || m_lastImgDs != imgDat.getDs())
 	{
 		setErrorString("Null space grid distances are not the same as the ones from the last recorded extended images");
@@ -1360,6 +1345,7 @@ bool FitnessComponent_CausticPenalty::inspectImagesData(int idx, const ImagesDat
 		return false;
 	}
 
+	// TODO: use another check? Dds doesn't make much sense in a multi-plane scenario
 	if (m_lastImgDds != imgDat.getDds() || m_lastImgDs != imgDat.getDs())
 	{
 		setErrorString("Caustic grid distances are not the same as the ones from the last recorded extended images");

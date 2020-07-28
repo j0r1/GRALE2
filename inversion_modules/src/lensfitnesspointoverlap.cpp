@@ -70,7 +70,6 @@ bool LensFitnessPointOverlap::init(double z_d, std::list<ImagesDataExtended *> &
 	m_deflectionFlags.resize(0);
 	m_derivativeFlags.resize(0);
 	m_potentialFlags.resize(0);
-	m_distanceFractions.resize(0);
 	m_sourceIndices.resize(0);
 	
 	std::list<ImagesDataExtended *>::const_iterator it;
@@ -101,10 +100,6 @@ bool LensFitnessPointOverlap::init(double z_d, std::list<ImagesDataExtended *> &
 		m_potentialFlags.push_back(false);
 
 		m_sourceIndices.push_back(imgIdx);
-
-		double distFrac = pImgDat->getDds()/pImgDat->getDs();
-
-		m_distanceFractions.push_back((float)distFrac);
 	}
 
 	m_initialized = true;
@@ -121,8 +116,8 @@ bool LensFitnessPointOverlap::calculateOverallFitness(const ProjectedImagesInter
 	}
 	
 	int numSources = interface.getNumberOfSources();
-	float scale = getScaleFactor_PointImages(interface, m_sourceIndices, m_distanceFractions);
-	float fitness = calculateOverlapFitness_PointImages(interface, m_sourceIndices, m_distanceFractions, scale);
+	float scale = getScaleFactor_PointImages(interface, m_sourceIndices);
+	float fitness = calculateOverlapFitness_PointImages(interface, m_sourceIndices, scale);
 
 	pFitnessValues[0] = fitness;
 	return true;
@@ -177,7 +172,6 @@ bool LensFitnessPointOverlapNull::init(double z_d, std::list<ImagesDataExtended 
 	m_shortDeflectionFlags.resize(0);
 	m_shortDerivativeFlags.resize(0);
 	m_shortPotentialFlags.resize(0);
-	m_distanceFractions.resize(0);
 	m_nullWeights.resize(0);
 	m_sourceIndices.resize(0);
 	m_nullIndices.resize(0);
@@ -228,10 +222,6 @@ bool LensFitnessPointOverlapNull::init(double z_d, std::list<ImagesDataExtended 
 			m_sourceIndices.push_back(count);
 
 			shortImages.push_back(pImgDat);
-
-			double distFrac = pImgDat->getDds()/pImgDat->getDs();
-
-			m_distanceFractions.push_back((float)distFrac);
 	
 			string errStr;
 			shared_ptr<ImagesDataExtended> grpImg = addGroupsToPointImages(*pImgDat, errStr);
@@ -339,8 +329,8 @@ bool LensFitnessPointOverlapNull::calculateMassScaleFitness(const ProjectedImage
 	}
 	
 	int numSources = interface.getNumberOfSources();
-	float scale = getScaleFactor_PointImages(interface, m_shortSourceIndices, m_distanceFractions);
-	fitness = calculateOverlapFitness_PointImages(interface, m_shortSourceIndices, m_distanceFractions, scale);
+	float scale = getScaleFactor_PointImages(interface, m_shortSourceIndices);
+	fitness = calculateOverlapFitness_PointImages(interface, m_shortSourceIndices, scale);
 
 	return true;
 }
@@ -354,9 +344,9 @@ bool LensFitnessPointOverlapNull::calculateOverallFitness(const ProjectedImagesI
 	}
 
 	int numSources = interface.getNumberOfSources();
-	float scale = getScaleFactor_PointImages(interface, m_sourceIndices, m_distanceFractions);
+	float scale = getScaleFactor_PointImages(interface, m_sourceIndices);
 
-	pFitnessValues[0] = calculateOverlapFitness_PointImages(interface, m_sourceIndices, m_distanceFractions, scale);
+	pFitnessValues[0] = calculateOverlapFitness_PointImages(interface, m_sourceIndices, scale);
 	pFitnessValues[1] = calculateNullFitness_PointImages(m_pointGroups, interface, m_sourceIndices, m_nullIndices, m_nullTriangles, m_nullWeights);
 
 	return true;

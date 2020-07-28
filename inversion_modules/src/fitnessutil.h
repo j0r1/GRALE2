@@ -18,8 +18,7 @@ class FitnessComponentCache;
 std::shared_ptr<ImagesDataExtended> addGroupsToPointImages(const ImagesDataExtended &imgDat, std::string &errStr);
 
 float getScaleFactor_PointImages(const ProjectedImagesInterface &interface,
-		                         const std::vector<int> &sourceIndices,
-								 const std::vector<float> &sourceDistanceFractions);
+		                         const std::vector<int> &sourceIndices);
 
 class ScaleFactorWorkspace
 {
@@ -31,7 +30,6 @@ public:
 enum PointImageScaleType { MinMax, MAD };
 void getScaleFactors_PointImages(const ProjectedImagesInterface &interface,
 		                         const std::vector<int> &sourceIndices,
-								 const std::vector<float> &sourceDistanceFractions,
 								 const std::vector<int> &sourceGroup,
 								 std::vector<float> &scaleFactors, // one for each group
 								 ScaleFactorWorkspace &ws,
@@ -39,12 +37,10 @@ void getScaleFactors_PointImages(const ProjectedImagesInterface &interface,
 
 float calculateOverlapFitness_PointImages(const ProjectedImagesInterface &interface, 
 		                                  const std::vector<int> &sourceIndices,
-										  const std::vector<float> &sourceDistanceFractions,
 										  float scale);
 
 float calculateOverlapFitness_PointImages(const ProjectedImagesInterface &interface, 
 		                                  const std::vector<int> &sourceIndices,
-										  const std::vector<float> &sourceDistanceFractions,
 										  const std::vector<int> &sourceGroups,
 										  const std::vector<float> &scaleFactors);
 
@@ -52,7 +48,6 @@ enum PointGroupRMSType { AllBetas, AverageBeta };
 float calculateOverlapFitness_PointGroups(const PointGroupStorage &pointGroups,
 		                                  const ProjectedImagesInterface &interface,
 										  const std::vector<int> &sourceIndices,
-										  const std::vector<float> &sourceDistanceFractions,
 										  PointGroupRMSType t);
 
 float calculateOverlapFitness_Extended(const PointGroupStorage &pointGroups, const ProjectedImagesInterface &iface,

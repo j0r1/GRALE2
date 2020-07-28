@@ -119,7 +119,6 @@ public:
 
 	void setScaleType(PointImageScaleType t) { m_scaleType = t; }
 private:
-	std::vector<float> m_distanceFractions;
 	ScaleFactorWorkspace m_workspace;
 	std::vector<float> m_scaleFactors;
 	PointImageScaleType m_scaleType;
@@ -128,6 +127,9 @@ private:
 	std::map<std::string, std::vector<int>> m_groupnameIndices;
 	std::map<int, std::string> m_useScaleNames;
 	std::vector<int> m_nogroupnameIndices;
+
+	int m_numSources;
+	bool m_isFinalized;
 };
 
 class FitnessComponent_PointGroupOverlap : public FitnessComponent
@@ -147,8 +149,6 @@ public:
 	void setFitnessRMSType(PointGroupRMSType t) { m_rmsType = t; }
 private:
 	PointGroupStorage m_pointGroups;
-	std::vector<float> m_distanceFractions;
-
 	PointGroupRMSType m_rmsType;
 };
 
