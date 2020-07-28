@@ -194,15 +194,6 @@ bool LensInversionGAFactorySinglePlaneCPU::init(const mogal::GAFactoryParams *p)
 		return false;
 	}
 
-	if (massScaleSearchParams == ScaleSearchParameters(true))
-		sendMessage("Using wide scale factor search");
-	else if (massScaleSearchParams == ScaleSearchParameters(false))
-		sendMessage("Using normal scale factor search");
-	else if (massScaleSearchParams.getNumberOfIterations() <= 0)
-		sendMessage("Not using any extra mass scale search");
-	else
-		sendMessage("Using custom scaling parameters: " + massScaleSearchParams.toString());
-
 	return true;
 }
 
@@ -293,21 +284,10 @@ bool LensInversionGAFactorySinglePlaneCPU::localSubInit(double z_d, const vector
                       const GravitationalLens *pBaseLens, const GravitationalLens *pSheetLens, 
 					  const ConfigurationParameters *pFitnessObjectParams)
 {
-	std::list<ImagesDataExtended *> reducedImages;
-	std::list<ImagesDataExtended *> shortImages;
+	vector<ImagesDataExtended*> reducedImagesVector;
+	vector<ImagesDataExtended*> shortImagesVector;
 
-	if (!initializeLensFitnessObject(z_d, images, pFitnessObjectParams, reducedImages, shortImages))
-	{
-		clear();
-		return false;
-	}
-
-	// TODO: this has to be done in a subclass!
-	//setNumberOfFitnessComponents(m_pFitnessObject->getNumberOfFitnessComponents());
-
-	LensFitnessObject &fitnessObject = getFitnessObject();
-	// This should at least perform the setNumberOfFitnessComponents call
-	if (!subInit(&fitnessObject))
+	if (!initializeLensFitnessObject(z_d, images, pFitnessObjectParams, reducedImagesVector, shortImagesVector))
 	{
 		clear();
 		return false;
@@ -324,12 +304,9 @@ bool LensInversionGAFactorySinglePlaneCPU::localSubInit(double z_d, const vector
 	bool totalStoreIntens, totalStoreTimeDelay, totalStoreShearInfo;
 	std::vector<bool> totalDeflectionFlags, totalDerivativeFlags, totalPotentialFlags;
 
+	LensFitnessObject &fitnessObject = getFitnessObject();
 	fitnessObject.getTotalCalcFlags(totalDeflectionFlags, totalDerivativeFlags, totalPotentialFlags);
 	fitnessObject.getTotalStoreFlags(&totalStoreIntens, &totalStoreTimeDelay, &totalStoreShearInfo);
-
-	// Transform from list to vector
-	std::vector<ImagesDataExtended *> reducedImagesVector { reducedImages.begin(), reducedImages.end() };
-	std::vector<ImagesDataExtended *> shortImagesVector { shortImages.begin(), shortImages.end() };
 	
 	m_pTotalBPMatrix = new BackProjectMatrixNew();
 	if (!m_pTotalBPMatrix->startInit(z_d, basisLenses[0].first->getLensDistance(), m_pDeflectionMatrix,

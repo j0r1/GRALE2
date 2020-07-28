@@ -71,8 +71,8 @@ protected:
 	bool initializeLensFitnessObject(double z_d,
 	    const std::vector<std::shared_ptr<ImagesDataExtended>> &images,
 		const ConfigurationParameters *pFitnessObjectParameters,
-		std::list<ImagesDataExtended*> &reducedImages,
-		std::list<ImagesDataExtended*> &shortImages);
+		std::vector<ImagesDataExtended*> &reducedImages,
+		std::vector<ImagesDataExtended*> &shortImages);
 
     bool setCommonParameters(int numSheetValues, int maxGenerations,
                              bool allowNeg, double angularScale,

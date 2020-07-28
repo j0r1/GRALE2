@@ -54,17 +54,27 @@ bool LensInversionGAFactoryCommon::setCommonParameters(int numSheetValues,
 	m_targetMass = (float)(targetMass/massUnit);
 
     m_massScaleSearchParams = searchParams;
+	if (m_massScaleSearchParams == ScaleSearchParameters(true))
+		sendMessage("Using wide scale factor search");
+	else if (m_massScaleSearchParams == ScaleSearchParameters(false))
+		sendMessage("Using normal scale factor search");
+	else if (m_massScaleSearchParams.getNumberOfIterations() <= 0)
+		sendMessage("Not using any extra mass scale search");
+	else
+		sendMessage("Using custom scaling parameters: " + m_massScaleSearchParams.toString());
+
     return true;
 }
 
 bool LensInversionGAFactoryCommon::initializeLensFitnessObject(double z_d,
     const std::vector<std::shared_ptr<ImagesDataExtended>> &images,
 	const ConfigurationParameters *pFitnessObjectParams,
-	list<ImagesDataExtended*> &reducedImages,
-	list<ImagesDataExtended*> &shortImages)
+	vector<ImagesDataExtended*> &reducedImagesVector,
+	vector<ImagesDataExtended*> &shortImagesVector)
 {
-	shortImages.clear();
-	reducedImages.clear();
+	list<ImagesDataExtended *> reducedImages;
+	list<ImagesDataExtended *> shortImages;
+
 	for (auto i : images)
 		reducedImages.push_back(i.get());
 
@@ -98,6 +108,23 @@ bool LensInversionGAFactoryCommon::initializeLensFitnessObject(double z_d,
 		setErrorString(ss.str());
 		return false;
 	}
+
+	shortImagesVector.clear();
+	reducedImagesVector.clear();
+
+	// Transform from list to vector
+	reducedImagesVector.insert(reducedImagesVector.end(), reducedImages.begin(), reducedImages.end());
+	shortImagesVector.insert(shortImagesVector.end(), shortImages.begin(), shortImages.end());
+
+	// TODO: for now this has to be done in a subclass, as the actual factory
+	//       may have either a single objective GA as parent, or a multi-objective
+	//       one. The single objecive factory doesn't have the member function to
+	//       set the number of fitness components
+	//setNumberOfFitnessComponents(m_pFitnessObject->getNumberOfFitnessComponents());
+
+	// This should at least perform the setNumberOfFitnessComponents call
+	if (!subInit(m_fitnessObject.get()))
+		return false;
 
 	return true;
 }
