@@ -80,20 +80,6 @@ public:
 	 *  an instance containing the defaults can be created this way. */
 	virtual ConfigurationParameters *getDefaultParametersInstance() const { return nullptr; }
 
-	/** This function is called after the LensFitnessObject::init function, before finishing the
-	 *  initialization of the genetic algorithm.
-	 *  This function is called after the LensFitnessObject::init function, before finishing the
-	 *  initialization of the genetic algorithm. Since the images data (after modification) from
-	 *  the LensFitnessObject::init function are used to calculate a relevant angular scale,
-	 *  the LensFitnessObject::init function itself cannot know this angular scale yet. This
-	 *  function could be used to inform your module of said angular scale for example.
-	 *  \param images The list you specified upon completion of the LensFitnessObject::init function
-	 *  \param massScaleImages The corresponding list from the LensFitnessObject::init function
-	 *  \param angularScale Based on the images, the algorithm has calculated this angular scale.
-	 */
-	virtual void postInit(const std::list<ImagesDataExtended *> &images, const std::list<ImagesDataExtended *> &massScaleImages, 
-			      double angularScale)					{ }
-
 	/** Obtain a usage description for this LensFitnessObject implementation. */
 	virtual std::string getUsage() const = 0;
 

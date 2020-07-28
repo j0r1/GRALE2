@@ -392,7 +392,6 @@ bool LensInversionGAFactorySinglePlaneCPU::localSubInit(double z_d, const vector
 		}
 	}
 
-	fitnessObject.postInit(reducedImages, shortImages, m_pDeflectionMatrix->getAngularScale());
 	return true;
 }
 

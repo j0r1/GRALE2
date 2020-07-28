@@ -147,8 +147,6 @@ bool_t CalcFitnessCommunicator::runModule(const string &moduleDir, const string 
 				return "Couldn't initialize pre-calculated backprojector interface: " + pBp->getErrorString();
 		}
 
-		f->postInit(images, dummyShortList, iface->getAngularScale());
-
 		vector<float> fitnessComp(f->getNumberOfFitnessComponents());
 		f->calculateOverallFitness(*iface.get(), &fitnessComp[0]); // TODO: do this in background thread and write PING/PONG stuff?
 
