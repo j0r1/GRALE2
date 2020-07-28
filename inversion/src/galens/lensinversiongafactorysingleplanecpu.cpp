@@ -173,7 +173,7 @@ bool LensInversionGAFactorySinglePlaneCPU::init(const mogal::GAFactoryParams *p)
 		basisFunctionMasses.push_back(bl.m_relevantLensingMass);
 
 	if (!setCommonParameters(numSheetValues, maxGenerations, allowNegativeValues,
-	                         m_pDeflectionMatrix->getAngularScale(), basisFunctionMasses,
+	                         basisFunctionMasses,
 							 massScale, massScale,
 							 massScaleSearchParams))
 	{

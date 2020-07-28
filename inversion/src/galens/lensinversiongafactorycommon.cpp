@@ -18,7 +18,6 @@ LensInversionGAFactoryCommon::LensInversionGAFactoryCommon()
     m_numSheetValues = 0;
     m_maxGenerations = 0;
 	m_allowNegativeValues = false;
-    m_angularScale = numeric_limits<double>::quiet_NaN();
 }
 
 LensInversionGAFactoryCommon::~LensInversionGAFactoryCommon()
@@ -28,7 +27,7 @@ LensInversionGAFactoryCommon::~LensInversionGAFactoryCommon()
 
 bool LensInversionGAFactoryCommon::setCommonParameters(int numSheetValues, 
                             int maxGenerations,
-                            bool allowNeg, double angularScale,
+                            bool allowNeg,
                             const std::vector<double> &basisFunctionMasses,
 							double massUnit, double targetMass,
                             const ScaleSearchParameters &searchParams)
@@ -45,7 +44,6 @@ bool LensInversionGAFactoryCommon::setCommonParameters(int numSheetValues,
     m_numSheetValues = numSheetValues;
     m_maxGenerations = maxGenerations;
     m_allowNegativeValues = allowNeg;
-    m_angularScale = angularScale;
 
     m_basisFunctionMasses.clear();
 	for (auto m : basisFunctionMasses)

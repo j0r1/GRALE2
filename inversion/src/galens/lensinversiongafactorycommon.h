@@ -75,13 +75,12 @@ protected:
 		std::vector<ImagesDataExtended*> &shortImages);
 
     bool setCommonParameters(int numSheetValues, int maxGenerations,
-                             bool allowNeg, double angularScale,
+                             bool allowNeg,
                              const std::vector<double> &basisFunctionMasses,
 							 double massUnit, double targetMass,
                              const ScaleSearchParameters &searchParams);
 
 	int getMaximumNumberOfGenerations() const						{ return m_maxGenerations; }
-	double getAngularScale() const                                  { return m_angularScale; }
 private:
 	void onCurrentBest(const std::list<mogal::Genome *> &bestGenomes) override;
 	void onGeneticAlgorithmStart() override;
@@ -89,7 +88,6 @@ private:
 	RandomNumberGenerator m_rndGen;
 	int m_numBasisFunctions, m_numSheetValues, m_maxGenerations;
 	bool m_allowNegativeValues;
-    double m_angularScale;
 	ScaleSearchParameters m_massScaleSearchParams;
 
 	// In units of the specified mass unit
