@@ -4,7 +4,7 @@ side of the code, and the C++ one.
 """
 from libcpp.string cimport string
 from libcpp.vector cimport vector
-from libcpp.memory cimport shared_ptr
+from libcpp.memory cimport shared_ptr, make_shared
 from libcpp cimport bool as cbool
 from cpython.array cimport array,clone
 import cython
@@ -14,6 +14,7 @@ from . import lenses
 
 cimport grale.configurationparameters as configurationparameters
 cimport grale.lensinversionparameterssingleplanecpu as lensinversionparameterssingleplanecpu
+cimport grale.lensinversionparametersmultiplanegpu as lensinversionparametersmultiplanegpu
 cimport grale.serut as serut
 cimport grale.imagesdataextended as imagesdataextended
 cimport grale.cppgrid as grid
@@ -23,6 +24,7 @@ cimport grale.configurationparameters as configurationparameters
 cimport grale.gaparameters as gaparameters
 cimport grale.lensinversionbasislensinfo as lensinversionbasislensinfo
 cimport grale.scalesearchparameters as scalesearchparameters
+cimport grale.cppcosmology as cppcosmology
 
 include "stringwrappers.pyx"
 
@@ -143,6 +145,25 @@ class InversionParametersException(Exception):
     parameters."""
     pass
 
+cdef shared_ptr[scalesearchparameters.ScaleSearchParameters] _getMassScaleSearchParameters(massScaleSearchType):
+    cdef shared_ptr[scalesearchparameters.ScaleSearchParameters] params
+
+    if massScaleSearchType == "regular":
+        params.reset(new scalesearchparameters.ScaleSearchParameters(False))
+    elif massScaleSearchType == "wide":
+        params.reset(new scalesearchparameters.ScaleSearchParameters(True))
+    elif massScaleSearchType == "nosearch":
+        params.reset(new scalesearchparameters.ScaleSearchParameters())
+    else:
+        params.reset(new scalesearchparameters.ScaleSearchParameters(
+            massScaleSearchType["startFactor"],
+            massScaleSearchType["stopFactor"],
+            massScaleSearchType["numIterations"],
+            massScaleSearchType["firstIterationSteps"],
+            massScaleSearchType["nextIterationSteps"]))
+
+    return params
+
 cdef class LensInversionParametersSinglePlaneCPU(object):
     """An internal representation of the parameters for the lens inversion
     procedure, needed to communicate with the C++ based inversion code."""
@@ -254,11 +275,7 @@ cdef class LensInversionParametersSinglePlaneCPU(object):
         cdef shared_ptr[gravitationallens.GravitationalLens] sheetLensModel
         cdef configurationparameters.ConfigurationParameters *pFitnessObjectParameters = NULL
         cdef vector[lensinversionbasislensinfo.LensInversionBasisLensInfo] basisLensInfo
-        cdef scalesearchparameters.ScaleSearchParameters regSearchParams = scalesearchparameters.ScaleSearchParameters(False)
-        cdef scalesearchparameters.ScaleSearchParameters wideSearchParams = scalesearchparameters.ScaleSearchParameters(True)
-        cdef scalesearchparameters.ScaleSearchParameters noSearchParams
-        cdef scalesearchparameters.ScaleSearchParameters *pCustomSearchParams = NULL
-        cdef scalesearchparameters.ScaleSearchParameters *pScaleSearchParams = NULL
+        cdef shared_ptr[scalesearchparameters.ScaleSearchParameters] scaleSearchParams
 
         try:
             # Build the list of extended images
@@ -337,20 +354,7 @@ cdef class LensInversionParametersSinglePlaneCPU(object):
                 fitnessObjectParametersObj = ConfigurationParameters(fitnessObjectParameters)
                 pFitnessObjectParameters = ConfigurationParameters._getConfigurationParameters(fitnessObjectParametersObj)
 
-            if massScaleSearchType == "regular":
-                pScaleSearchParams = cython.address(regSearchParams)
-            elif massScaleSearchType == "wide":
-                pScaleSearchParams = cython.address(wideSearchParams)
-            elif massScaleSearchType == "nosearch":
-                pScaleSearchParams = cython.address(noSearchParams)
-            else:
-                pCustomSearchParams = new scalesearchparameters.ScaleSearchParameters(
-                    massScaleSearchType["startFactor"],
-                    massScaleSearchType["stopFactor"],
-                    massScaleSearchType["numIterations"],
-                    massScaleSearchType["firstIterationSteps"],
-                    massScaleSearchType["nextIterationSteps"])
-                pScaleSearchParams = pCustomSearchParams
+            scaleSearchParams = _getMassScaleSearchParameters(massScaleSearchType)
 
             if type(gridInfoOrBasisFunctions) == dict:
                 gridSquareList = gridInfoOrBasisFunctions["gridSquares"]
@@ -377,7 +381,7 @@ cdef class LensInversionParametersSinglePlaneCPU(object):
 
                 self.m_pParams = new lensinversionparameterssingleplanecpu.LensInversionParametersSinglePlaneCPU(maxGen, imgVector, gridSquares,
                                                 Dd, zd, massScale, useWeights, basisFunctionType, allowNegativeValues,
-                                                pBaseLens, sheetLensModel.get(), pFitnessObjectParameters, deref(pScaleSearchParams))
+                                                pBaseLens, sheetLensModel.get(), pFitnessObjectParameters, deref(scaleSearchParams.get()))
 
             elif type(gridInfoOrBasisFunctions) == list:
 
@@ -400,7 +404,7 @@ cdef class LensInversionParametersSinglePlaneCPU(object):
 
                 self.m_pParams = new lensinversionparameterssingleplanecpu.LensInversionParametersSinglePlaneCPU(maxGen, imgVector, basisLensInfo,
                                                 Dd, zd, massScale, allowNegativeValues, pBaseLens, sheetLensModel.get(), 
-                                                pFitnessObjectParameters, deref(pScaleSearchParams))
+                                                pFitnessObjectParameters, deref(scaleSearchParams.get()))
             else:
                 raise InversionParametersException("Unsupported type for gridInfoOrBasisFunctions parameter, should be dict or list")
 
@@ -408,7 +412,6 @@ cdef class LensInversionParametersSinglePlaneCPU(object):
             # Clean up
             del mSer
             del pBaseLens
-            del pCustomSearchParams
 
     @staticmethod
     cdef _appendHelper(vector[lensinversionbasislensinfo.LensInversionBasisLensInfo] &basisLensInfo,
@@ -515,3 +518,120 @@ cdef class GAParameters(object):
 
         return <bytes>vSer.getBufferPointer()[0:vSer.getBufferSize()]
 
+cdef class LensInversionParametersMultiPlaneGPU(object):
+    """An internal representation of the parameters for the lens multi-plane inversion
+    procedure, needed to communicate with the C++ based inversion code."""
+    
+    cdef lensinversionparametersmultiplanegpu.LensInversionParametersMultiPlaneGPU *m_pParams
+
+    def __cinit__(self):
+        self.m_pParams = NULL
+
+    def __dealloc__(self):
+        del self.m_pParams
+
+    def __init__(self, cosmology, basisLensesAndRedshifts, imagesAndRedshifts, massEstimate,
+                 sheetSearch, fitnessObjectParameters, maxGen, allowNegativeWeights,
+                 massScaleSearchType):
+        
+        cdef cppcosmology.Cosmology cosm
+        cdef vector[double] lensRedshifts
+        cdef vector[vector[shared_ptr[lensinversionbasislensinfo.LensInversionBasisLensInfo]]] basisLenses
+        cdef vector[shared_ptr[lensinversionbasislensinfo.LensInversionBasisLensInfo]] *curPlaneBasisLenses
+        cdef shared_ptr[serut.MemorySerializer] mSer
+        cdef array[char] buf
+        cdef string errorString
+        cdef gravitationallens.GravitationalLens *pBasisLensModel = NULL
+        cdef shared_ptr[gravitationallens.GravitationalLens] basisLensModel
+        cdef shared_ptr[imagesdataextended.ImagesDataExtended] imgDat
+        cdef vector[shared_ptr[imagesdataextended.ImagesDataExtended]] sourceImages
+        cdef cbool useSheet
+        cdef configurationparameters.ConfigurationParameters *pFitnessObjectParameters = NULL
+        cdef shared_ptr[scalesearchparameters.ScaleSearchParameters] scaleSearchParams
+
+        if type(cosmology) != dict:
+            cosmology = cosmology.getParameters()
+
+        cosm = cppcosmology.Cosmology(cosmology["h"], cosmology["Omega_m"], cosmology["Omega_r"],
+                                      cosmology["Omega_v"], cosmology["w"])
+    
+        if len(basisLensesAndRedshifts) == 0:
+            raise InversionParametersException("No lens planes were specified")
+
+        prevZ = 0
+        for planeInfo in basisLensesAndRedshifts:
+            z = planeInfo["z"]
+            if z <= prevZ:
+                raise InversionParametersException("Lens planes should be ordered with stricly increasing redshift")
+
+            prevZ = z
+
+            plane = planeInfo["lenses"]
+            if len(plane) == 0:
+                raise InversionParametersException("No basis functions in lens plane")
+
+            basisLenses.push_back(vector[shared_ptr[lensinversionbasislensinfo.LensInversionBasisLensInfo]]())
+            curPlaneBasisLenses = cython.address(basisLenses.back())
+
+            for entry in plane:
+                cx, cy = entry["center"]
+                relevantLensingMass = entry["mass"]
+
+                lensBytes = entry["lens"].toBytes()
+                buf = chararrayfrombytes(lensBytes)
+                mSer.reset(new serut.MemorySerializer(buf.data.as_voidptr, len(lensBytes), NULL, 0))
+
+                if not gravitationallens.GravitationalLens.read(deref(mSer.get()), cython.address(pBasisLensModel), errorString):
+                    raise InversionParametersException(S(errorString))
+                basisLensModel.reset(pBasisLensModel)
+
+                curPlaneBasisLenses.push_back(
+                    shared_ptr[lensinversionbasislensinfo.LensInversionBasisLensInfo](
+                        new lensinversionbasislensinfo.LensInversionBasisLensInfo(
+                            basisLensModel,
+                            vector2d.Vector2Dd(cx, cy), relevantLensingMass)))
+
+        if len(imagesAndRedshifts) == 0:
+            raise InversionParametersException("No images specified")
+        
+        for entry in imagesAndRedshifts:
+            img = images.ImagesDataExtended(entry["imgdata"])
+            img.setDs(0)  # This distances will be set by the inversion
+            img.setDds(0) # This needs to be set to 0
+            img.setExtraParameter(entry["z"])
+
+            imgBytes = img.toBytes()
+            buf = chararrayfrombytes(imgBytes)
+            mSer.reset(new serut.MemorySerializer(buf.data.as_voidptr, len(imgBytes), NULL, 0))
+
+            imgDat.reset(new imagesdataextended.ImagesDataExtended())
+            if not imgDat.get().read(deref(mSer)):
+                errorString = imgDat.get().getErrorString()
+                raise InversionParametersException(S(errorString))
+
+            sourceImages.push_back(imgDat)
+
+        if sheetSearch == "genome":
+            useSheet = True
+        elif sheetSearch == "nosheet":
+            useSheet = False
+        else:
+            raise InversionParametersException("Bad 'sheetSearch' value, should be 'genome' or 'nosheet'")
+        
+        if fitnessObjectParameters:
+            fitnessObjectParametersObj = ConfigurationParameters(fitnessObjectParameters)
+            pFitnessObjectParameters = ConfigurationParameters._getConfigurationParameters(fitnessObjectParametersObj)
+
+        scaleSearchParams = _getMassScaleSearchParameters(massScaleSearchType)
+
+        self.m_pParams = new lensinversionparametersmultiplanegpu.LensInversionParametersMultiPlaneGPU(
+            cosm,
+            lensRedshifts,
+            basisLenses,
+            sourceImages,
+            massEstimate,
+            useSheet,
+            pFitnessObjectParameters,
+            maxGen,
+            allowNegativeWeights,
+            deref(scaleSearchParams.get()))
