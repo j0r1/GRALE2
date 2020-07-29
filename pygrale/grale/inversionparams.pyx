@@ -11,6 +11,7 @@ import cython
 from cython.operator cimport dereference as deref
 from . import images
 from . import lenses
+from . import cosmology
 
 cimport grale.configurationparameters as configurationparameters
 cimport grale.lensinversionparameterssingleplanecpu as lensinversionparameterssingleplanecpu
@@ -530,9 +531,10 @@ cdef class LensInversionParametersMultiPlaneGPU(object):
     def __dealloc__(self):
         del self.m_pParams
 
-    def __init__(self, cosmology, basisLensesAndRedshifts, imagesAndRedshifts, massEstimate,
-                 sheetSearch, fitnessObjectParameters, maxGen, allowNegativeWeights,
-                 massScaleSearchType):
+    def __init__(self, cosmology = cosmology.Cosmology(0.7, 0.3, 0, 0.7),
+                 basisLensesAndRedshifts = [], imagesAndRedshifts = [],
+                 massEstimate = 0, sheetSearch = "nosheet", fitnessObjectParameters = None, maxGen = 0,
+                 allowNegativeWeights = False, massScaleSearchType = "regular"):
         
         cdef cppcosmology.Cosmology cosm
         cdef vector[double] lensRedshifts
@@ -555,9 +557,6 @@ cdef class LensInversionParametersMultiPlaneGPU(object):
         cosm = cppcosmology.Cosmology(cosmology["h"], cosmology["Omega_m"], cosmology["Omega_r"],
                                       cosmology["Omega_v"], cosmology["w"])
     
-        if len(basisLensesAndRedshifts) == 0:
-            raise InversionParametersException("No lens planes were specified")
-
         prevZ = 0
         for planeInfo in basisLensesAndRedshifts:
             z = planeInfo["z"]
@@ -591,9 +590,6 @@ cdef class LensInversionParametersMultiPlaneGPU(object):
                             basisLensModel,
                             vector2d.Vector2Dd(cx, cy), relevantLensingMass)))
 
-        if len(imagesAndRedshifts) == 0:
-            raise InversionParametersException("No images specified")
-        
         for entry in imagesAndRedshifts:
             img = images.ImagesDataExtended(entry["imgdata"])
             img.setDs(0)  # This distances will be set by the inversion
@@ -635,3 +631,32 @@ cdef class LensInversionParametersMultiPlaneGPU(object):
             maxGen,
             allowNegativeWeights,
             deref(scaleSearchParams.get()))
+
+    @staticmethod
+    def fromBytes(bytes b):
+        """fromBytes(bytes b)
+
+        Creates an instance of this class based on a binary representation. This is
+        the inverse function of :func:`toBytes`.
+        """
+        cdef array[char] buf = chararrayfrombytes(b)
+        cdef shared_ptr[serut.MemorySerializer] m = shared_ptr[serut.MemorySerializer](new serut.MemorySerializer(buf.data.as_voidptr, len(b), NULL, 0))
+
+        r = LensInversionParametersMultiPlaneGPU()
+        if not r.m_pParams.read(deref(m)):
+            raise InversionParametersException(S(r.m_pParams.getErrorString()))
+
+        return r
+
+    def toBytes(self):
+        """toBytes()
+
+        Returns a byte array that stores the settings contained in this instance. This
+        could be processed again by :func:`fromBytes`.
+        """
+        cdef serut.VectorSerializer vSer
+
+        if not self.m_pParams.write(vSer):
+            raise InversionParametersException(S(self.m_pParams.getErrorString()))
+
+        return <bytes>vSer.getBufferPointer()[0:vSer.getBufferSize()]
