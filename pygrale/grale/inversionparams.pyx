@@ -443,7 +443,7 @@ cdef class LensInversionParametersSinglePlaneCPU(object):
                 del pParams
                 raise InversionParametersException(errStr)
 
-            r = LensInversionParametersSinglePlaneCPU()
+            r = LensInversionParametersSinglePlaneCPU(0, [], [], 0, 0, 0)
             r.m_pParams = pParams
 
             return r
