@@ -481,6 +481,7 @@ void LensInversionParametersSinglePlaneCPU::buildBasisLenses(const vector<GridSq
 			double w2 = (w*w);
 
 			massWeights[i] = ((((double)numMasses)*w2)/sum);
+			massWeights[i] /= squares.size();
 		}
 	}
 	else
@@ -488,7 +489,7 @@ void LensInversionParametersSinglePlaneCPU::buildBasisLenses(const vector<GridSq
 		int i = 0;
 
 		for (auto it = squares.begin(); it != squares.end() ; it++, i++)
-			massWeights[i] = 1;
+			massWeights[i] = 1.0/squares.size();
 	}
 
 	// Create the basis functions
