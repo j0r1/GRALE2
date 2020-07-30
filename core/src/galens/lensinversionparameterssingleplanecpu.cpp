@@ -36,6 +36,7 @@
 #include <assert.h>
 #include <vector>
 #include <sstream>
+#include <iostream>
 #include <memory>
 
 #include "debugnew.h"
@@ -45,6 +46,36 @@ using namespace errut;
 
 namespace grale
 {
+
+void LensInversionParametersSinglePlaneCPU::printBasisLenses()
+{
+	if (!getenv("GRALE_DEBUG_PRINTSINGLEPLANEBASISLENSES"))
+		return;
+
+	auto oldPrec = cerr.precision();
+	cerr.precision(10);
+	cerr << "DEBUG: " << m_basisLenses.size() << " basis lenses, mass scale is " << m_massScale/MASS_SOLAR << " M_sun" << endl;
+
+	for (size_t i = 0 ; i < m_basisLenses.size() ; i++)
+	{
+		cerr << "  Lens " << i << " is ";
+		auto &bl = m_basisLenses[i];
+
+		const PlummerLensParams *pPlummerParams = dynamic_cast<const PlummerLensParams *>(bl.m_pLens->getLensParameters());
+		if (pPlummerParams)
+		{
+			cerr << "Plummer lens with parameters:" << endl;
+			cerr << "     mass:  " << pPlummerParams->getLensMass()/MASS_SOLAR << " M_sun" << endl;
+			cerr << "     width: " << pPlummerParams->getAngularWidth()/ANGLE_ARCSEC << " arcsec" << endl;
+		}
+		else
+			cerr << "not a plummer lens" << endl;
+
+		cerr << "   Center:        " << bl.m_center.getX()/ANGLE_ARCSEC << ", " << bl.m_center.getY()/ANGLE_ARCSEC << " arcsec" << endl;
+		cerr << "   Relevant mass: " << bl.m_relevantLensingMass/MASS_SOLAR << " M_sun" << endl;
+	}
+	cerr.precision(oldPrec);
+}
 
 LensInversionParametersSinglePlaneCPU::LensInversionParametersSinglePlaneCPU()
 {
@@ -103,6 +134,7 @@ LensInversionParametersSinglePlaneCPU::LensInversionParametersSinglePlaneCPU(int
 			          pSheetLens, pFitnessObjectParams, massScaleSearchParams);
 
 	m_basisLenses = basisLenses;
+	printBasisLenses();
 }
 
 LensInversionParametersSinglePlaneCPU::LensInversionParametersSinglePlaneCPU(int maxGenerations,
@@ -120,6 +152,7 @@ LensInversionParametersSinglePlaneCPU::LensInversionParametersSinglePlaneCPU(int
 			          pSheetLens, pFitnessObjectParams, massScaleSearchParams);
 
 	buildBasisLenses(gridsquares, b, useweights);
+	printBasisLenses();
 }
 
 LensInversionParametersSinglePlaneCPU::~LensInversionParametersSinglePlaneCPU()

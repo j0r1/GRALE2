@@ -125,6 +125,7 @@ private:
 	void buildBasisLenses(const std::vector<GridSquare> &squares, BasisFunctionType basisFunctionType, bool useMassWeights);
 	void zero();
 	void clear();
+	void printBasisLenses();
 
 	int m_maxGenerations;
 	double m_Dd, m_massScale, m_zd;
