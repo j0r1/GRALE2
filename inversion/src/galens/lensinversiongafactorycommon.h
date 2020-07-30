@@ -10,6 +10,8 @@
 #include <vector>
 #include <list>
 #include <memory>
+#include <fstream>
+#include <sstream>
 
 namespace grale
 {
@@ -97,6 +99,13 @@ private:
 	std::vector<std::string> m_queuedMessages;
 
 	std::unique_ptr<LensFitnessObject> m_fitnessObject;
+
+#ifndef NDEBUG
+	void onSortedPopulation(const std::vector<mogal::GenomeWrapper> &population) override;
+	std::fstream m_scaleSearchFileStream;
+	std::stringstream m_scaleSearchStringStream;
+	std::vector<std::pair<float,float>> m_searchedPoints;
+#endif // !NDEBUG
 };
 
 } // end namespace

@@ -61,10 +61,6 @@ public:
 	bool initializeNewCalculation(const std::vector<float> &masses, const std::vector<float> &sheetValues) override;
 	bool calculateMassScaleFitness(float scaleFactor, float &fitness) override;
 	bool calculateTotalFitness(float scaleFactor, float *pFitnessValues) override;
-protected:
-#ifdef SHOWEVOLUTION
-	void onSortedPopulation(const std::vector<mogal::GenomeWrapper> &population);
-#endif // SHOWEVOLUTION
 private:
 	void clear();
 	bool localSubInit(double z_d, const std::vector<std::shared_ptr<ImagesDataExtended>> &images, 

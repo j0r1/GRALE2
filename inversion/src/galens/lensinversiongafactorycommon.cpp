@@ -146,6 +146,18 @@ void LensInversionGAFactoryCommon::onGeneticAlgorithmStart()
 		GAFactory::sendMessage(s);
 
 	m_queuedMessages.clear();
+#ifndef NDEBUG
+	string key { "GRALE_DEBUG_MASSCALESEARCH" };
+	if (getenv(key.c_str()))
+	{
+		string fileName { getenv(key.c_str()) };
+		m_scaleSearchFileStream.open(fileName, ios_base::out);
+		if (!m_scaleSearchFileStream.is_open())
+			cerr << "WARNING: couldn't open " << key << " debug file " << fileName << endl;
+		m_scaleSearchFileStream.precision(10);
+		m_scaleSearchFileStream << "# " << m_massScaleSearchParams.toString() << endl;
+	}
+#endif // !NDEBUG
 }
 
 mogal::Genome *LensInversionGAFactoryCommon::createNewGenome() const
@@ -257,6 +269,11 @@ bool LensInversionGAFactoryCommon::calculateFitness(const vector<float> &basisFu
 													float *pFitnessValues
 													)
 {
+#ifndef NDEBUG
+	m_scaleSearchStringStream.clear();
+	m_scaleSearchStringStream.precision(10);
+	m_searchedPoints.clear();
+#endif // !NDEBUG
 	int numBasisFunctions = basisFunctionWeights.size();
 
 	if (!initializeNewCalculation(basisFunctionWeights, sheetValues))
@@ -331,6 +348,10 @@ bool LensInversionGAFactoryCommon::calculateFitness(const vector<float> &basisFu
 					currentBestFitness = f;
 					currentBestScaleFactor = s;
 				}
+#ifndef NDEBUG
+				if (m_scaleSearchFileStream.is_open())
+					m_searchedPoints.push_back({ realScale, f});
+#endif // !NDEBUG
 			}
 
 			startValue = currentBestScaleFactor-stepsize;
@@ -358,7 +379,36 @@ bool LensInversionGAFactoryCommon::calculateFitness(const vector<float> &basisFu
 	if (!calculateTotalFitness(scaleFactor, pFitnessValues))
 		return false;
 
+#ifndef NDEBUG
+	if (m_scaleSearchFileStream.is_open())
+	{
+		std::sort(m_searchedPoints.begin(), m_searchedPoints.end(), [](auto x, auto y) { return x.first < y.first; });
+		m_scaleSearchStringStream << "{" << endl;
+		m_scaleSearchStringStream << " 'scaleFactor': " << scaleFactor << "," << endl;
+		m_scaleSearchStringStream << " 'startValue0': " << IT(startValue0) << "," << endl;
+		m_scaleSearchStringStream << " 'stopValue0': " << IT(stopValue0) << "," << endl;
+		m_scaleSearchStringStream << " 'startFactor': " << m_massScaleSearchParams.getStartFactor() << "," << endl;
+		m_scaleSearchStringStream << " 'stopFactor': " << m_massScaleSearchParams.getStopFactor() << "," << endl;
+		m_scaleSearchStringStream << " 'scaleSearch': [ " << endl;
+		for (auto x : m_searchedPoints)
+			m_scaleSearchStringStream << "[ " << x.first << ", " << x.second << " ]," << endl;
+		m_scaleSearchStringStream << " ]" << endl;
+		m_scaleSearchStringStream << "}," << endl;
+	}
+#endif // !NDEBUG
 	return true;
 }
+
+#ifndef NDEBUG
+void LensInversionGAFactoryCommon::onSortedPopulation(const std::vector<mogal::GenomeWrapper> &population)
+{
+	if (m_scaleSearchFileStream.is_open())
+	{
+		m_scaleSearchFileStream << "[" << endl;
+		m_scaleSearchFileStream << m_scaleSearchStringStream.str() << endl;
+		m_scaleSearchFileStream << "]," << endl;
+	}
+}
+#endif // !NDEBUG
 
 } // end namespace
