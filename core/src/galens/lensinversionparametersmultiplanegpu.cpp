@@ -74,7 +74,8 @@ bool LensInversionParametersMultiPlaneGPU::write(serut::SerializationInterface &
 {
     if (m_lensRedshifts.size() != m_basisLenses.size())
     {
-        setErrorString("Invalid configuration: the number of lens redshifts does not equal the number of lens planes with basis lenses");
+        setErrorString("Invalid configuration: the number of lens redshifts (" + to_string(m_lensRedshifts.size()) +
+                       ") does not equal the number of lens planes with basis lenses (" + to_string(m_basisLenses.size()) + ")");
         return false;
     }
     if (!si.writeInt32((int32_t)m_lensRedshifts.size()) || !si.writeDoubles(m_lensRedshifts))

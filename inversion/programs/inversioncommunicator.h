@@ -10,8 +10,7 @@
 
 namespace grale
 {
-	class LensInversionGAFactoryParamsSinglePlaneCPU;
-	class LensInversionGAFactorySinglePlaneCPU;
+	class LensInversionGAFactoryCommon;
 	class GALensModule;
 }
 namespace mogal
@@ -43,7 +42,7 @@ protected:
 	bool_t readLineAndBytesWithPrefix(const std::string &prefix, std::vector<uint8_t> &bytes, int timeoutMSec);
 	template<class T> bool_t loadFromBytes(T &x, std::vector<uint8_t> &bytes);
 
-	bool_t onGAFinished(const grale::LensInversionGAFactorySinglePlaneCPU &factory, const mogal::GeneticAlgorithm &ga);
+	bool_t onGAFinished(const grale::LensInversionGAFactoryCommon &factory, const mogal::GeneticAlgorithm &ga);
 	bool m_nds;
 };
 

@@ -6,8 +6,7 @@
 #include "inversioncommunicator.h"
 #include "inputoutput.h"
 #include "gaparameters.h"
-#include "lensinversiongafactoryparamssingleplanecpu.h"
-#include "lensinversiongafactorysingleplanecpu.h"
+#include "lensinversiongafactorycommon.h"
 #include "lensinversiongenome.h"
 #include "galensmodule.h"
 #include "gravitationallens.h"
@@ -128,6 +127,15 @@ bool_t InversionCommunicator::runModule(const string &moduleDir, const string &m
 	bool_t r;
 	int popSize = 0;
 
+	auto pBaseFactory = pModule->createFactoryInstance();
+	if (!pBaseFactory)
+		return "Unable to create GA factory instance";
+	unique_ptr<GAFactory> baseFactory(pBaseFactory); // just to make memory management easier
+
+	auto pFactory = dynamic_cast<LensInversionGAFactoryCommon*>(pBaseFactory);
+	if (!pFactory)
+		return "GA factory instance could be created from module, but is not of expected type";
+
 	if (!(r = readLineWithPrefix("POPULATIONSIZE", popSize, 10000)))
 		return "Error reading population size: " + r.getErrorString();
 	if (popSize < 1)
@@ -142,10 +150,16 @@ bool_t InversionCommunicator::runModule(const string &moduleDir, const string &m
 		return "Error reading GA factory parameters: " + r.getErrorString();
 
 	GAParameters gaParams;
-	LensInversionGAFactoryParamsSinglePlaneCPU factoryParams;
+	GAFactoryParams *pFactoryParams = pFactory->createParamsInstance();
+	if (!pFactoryParams)
+		return "Unable to create factory parameters instance: " + pFactory->getErrorString();
+
+	unique_ptr<GAFactoryParams> factoryParamsAutoDelete(pFactoryParams);
+
 	if (!(r = loadFromBytes(gaParams, gaParamBytes)))
 		return "Unable to load GA parameters from received data: " + r.getErrorString();
-	if (!(r = loadFromBytes(factoryParams, factoryParamBytes)))
+
+	if (!(r = loadFromBytes(*pFactoryParams, factoryParamBytes)))
 		return "Unable to load GA factory parameters from received data: " + r.getErrorString();
 
 	string runStr;
@@ -161,16 +175,7 @@ bool_t InversionCommunicator::runModule(const string &moduleDir, const string &m
 	GeneticAlgorithmParams params(gaParams.getSelectionPressure(), gaParams.getUseElitism(),
 	                              gaParams.getAlwaysIncludeBest(), gaParams.getCrossOverRate());
 
-	auto pBaseFactory = pModule->createFactoryInstance();
-	if (!pBaseFactory)
-		return "Unable to create GA factory instance";
-	unique_ptr<GAFactory> baseFactory(pBaseFactory); // just to make memory management easier
-
-	auto pFactory = dynamic_cast<LensInversionGAFactorySinglePlaneCPU*>(pBaseFactory);
-	if (!pFactory)
-		return "GA factory instance could be created from module, but is not of expected type";
-
-	if (!pFactory->init(&factoryParams))
+	if (!pFactory->init(pFactoryParams))
 		return "Unable to initialize the GA factory: " + pFactory->getErrorString();
 
 	if (!(r = runGA(popSize, *pFactory, params, moduleDir, moduleFile, factoryParamBytes)))
@@ -195,7 +200,7 @@ bool_t InversionCommunicator::runGA(int popSize, GAFactory &factory, GeneticAlgo
 	return "Not implemented in base class";
 }
 
-bool_t InversionCommunicator::onGAFinished(const LensInversionGAFactorySinglePlaneCPU &factory, 
+bool_t InversionCommunicator::onGAFinished(const LensInversionGAFactoryCommon &factory, 
                                            const mogal::GeneticAlgorithm &ga)
 {
 	vector<Genome *> bestGenomes;
