@@ -100,12 +100,11 @@ private:
 
 	std::unique_ptr<LensFitnessObject> m_fitnessObject;
 
-#ifndef NDEBUG
+	// To be able to debug the scale factor search
 	void onSortedPopulation(const std::vector<mogal::GenomeWrapper> &population) override;
 	std::fstream m_scaleSearchFileStream;
 	std::stringstream m_scaleSearchStringStream;
 	std::vector<std::pair<float,float>> m_searchedPoints;
-#endif // !NDEBUG
 };
 
 } // end namespace
