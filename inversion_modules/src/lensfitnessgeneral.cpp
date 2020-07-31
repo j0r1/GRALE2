@@ -366,18 +366,31 @@ bool LensFitnessGeneral::init(double z_d, std::list<ImagesDataExtended *> &image
 	int imgDatCount = 0;
 	for (auto it = images.begin() ; it != images.end() ; ++it, imgDatCount++)
 	{
-		string numStr(itos(imgDatCount+1));
+		string numStr = to_string(imgDatCount+1);
 
 		ImagesDataExtended *pImgDat = *it;
 		assert(pImgDat);
 	
-		double Dds = pImgDat->getDds();
-		double Ds = pImgDat->getDs();
-
-		if (Dds <= 0 || Ds <= 0)
+		// Note that Dds is set to zero for multi-plane case
+		if (pImgDat->getDds() < 0 || pImgDat->getDs() <= 0)
 		{
 			setErrorString("Source/lens and source/observer distances must be positive for images data set " + numStr);
 			return false;
+		}
+		if (pImgDat->getDds() == 0) // Probably multi-plane case, we need a 'z'
+		{
+			if (!pImgDat->hasExtraParameter("z"))
+			{
+				setErrorString("Dds is set to zero for images data " + numStr + ", which indicates a multi-plane scenario, but 'z' is not specified");
+				return false;
+			}
+
+			double z;
+			if (!pImgDat->getExtraParameter("z", z) || z <= 0)
+			{
+				setErrorString("Redshift parameter 'z' is present for images data set " + numStr + ", but is not positive, or of wrong type");
+				return false;
+			}
 		}
 
 		// Check the type name
