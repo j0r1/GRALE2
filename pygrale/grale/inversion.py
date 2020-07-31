@@ -187,7 +187,7 @@ def calculateFitness(inputImages, zd, fitnessObjectParameters, lensOrBackProject
 
     return inverters.calculateFitness(n, inputImages, zd, fullFitnessObjParams, lens=lens, bpImages=bpImages)
 
-def invert(inputImages, gridInfoOrBasisFunctions, zd, Dd, popSize, moduleName = "general", massScale = "auto",
+def invert(inputImages, basisFunctions, zd, Dd, popSize, moduleName = "general", massScale = "auto",
            allowNegativeValues = False, baseLens = None, 
            sheetSearch = "nosheet", fitnessObjectParameters = None, massScaleSearchType = "regular", maximumGenerations = 16384,
            geneticAlgorithmParameters = { }, returnNds = False, inverter = "default", feedbackObject = "default"):
@@ -209,36 +209,8 @@ def invert(inputImages, gridInfoOrBasisFunctions, zd, Dd, popSize, moduleName = 
           ``timedelay`` to ``False`` to ignore the time delay information in
           a particular images data instance.
 
-     - `gridInfoOrBasisFunctions`: can be either a dictionary containing a grid
-       and options from which basis functions are derived, or a list of entries
-       containing basis function info. In the first case, the dict should have
-       the following entries:
-
-         - `grid`: a grid of cells which will be used to base the layout of the
-           basis functions on.
-         - `rescaleBasisFunctions` (optional, default is ``False``): by default, 
-           the weight of a basis function is a
-           measure of its total mass. This implies that smaller grid cells will correspond
-           to larger densities, i.e. if you set all weights of the basis functions to the
-           same value, the regions with smaller grid cells will have a considerably larger
-           density. Since the usual approach will be to subdivide the regions that contain
-           more mass into smaller grid cells, this does make sense and appears to produce
-           very good results in most cases. To make this effect less
-           pronounced, you can set this parameter to ``True``, and the basis functions will
-           be rescaled. The smaller grid cells will still have higher densities, but not
-           as much as before (in case square basis functions were used, equal weights would
-           generate equal densities irrespective of the grid size).
-         - `basisFunctionType` (optional, default is ``"plummer"``): can be ``"plummer"``, 
-           ``"gaussian"`` or ``"square"``, and specifies the basis function to use for each 
-           grid cell.
-         - `gridSizeFactor` (optional, default depends on basis function type): when assigning 
-           a basis function to a grid cell, the width will
-           be proportional to the cell size and this factor specifies this. For a ``"plummer"``
-           basis function, the default is 1.7, for the ``"gaussian"`` and ``"square"`` basis
-           functions, the default is 1.0.
-
-       It is also possible to specify a list of basis functions to be used directly. In that
-       case, this parameter should be a list of dictionaries with the following entries:
+     - `basisFunctions`: a list of entries containing basis function info.
+       This parameter should be a list of dictionaries with the following entries:
 
          - `lens`: the lens model for this basis function.
          - `center`: the x,y position at which this lens model should be placed.
@@ -356,36 +328,7 @@ def invert(inputImages, gridInfoOrBasisFunctions, zd, Dd, popSize, moduleName = 
 
     feedbackObject.onStatus("Mass scale is: {:g} solar masses".format(massScale/CT.MASS_SUN))
 
-    if type(gridInfoOrBasisFunctions) == dict:
-        grid = gridInfoOrBasisFunctions["grid"]
-        rescaleBasisFunctions = gridInfoOrBasisFunctions["rescaleBasisFunctions"] if "rescaleBasisFunctions" in gridInfoOrBasisFunctions else False
-        basisFunctionType = gridInfoOrBasisFunctions["basisFunctionType"] if "basisFunctionType" in gridInfoOrBasisFunctions else "plummer"
-        gridSizeFactor = gridInfoOrBasisFunctions["gridSizeFactor"] if "gridSizeFactor" in gridInfoOrBasisFunctions else "default"
-
-        # Check if we need to convert fractional grid to real grid
-        if type(grid) == dict:
-            grid = gridModule._fractionalGridToRealGrid(grid)
-
-        # Resize the grid cells if necessary
-        if gridSizeFactor == "default":
-            cellFactor = _cellSizeFactorDefaults[basisFunctionType]
-        else:
-            cellFactor = gridSizeFactor
-
-        grid = copy.deepcopy(grid) # Make sure we don't modify the input
-        for cell in grid:
-            cell["size"] *= cellFactor
-
-        basisInfo = { "gridSquares": grid, "useWeights": rescaleBasisFunctions, "basisFunction": basisFunctionType }
-
-    elif type(gridInfoOrBasisFunctions) == list:
-
-        basisInfo = gridInfoOrBasisFunctions
-
-    else:
-        raise InversionException("Unexpected type for 'gridInfoOrBasisFunctions', not a list and not a dictionary")
-
-    params = inversionparams.LensInversionParametersSinglePlaneCPU(maximumGenerations, inputImages, basisInfo,
+    params = inversionparams.LensInversionParametersSinglePlaneCPU(maximumGenerations, inputImages, basisFunctions,
                                                          Dd, zd, massScale, allowNegativeValues, baseLens, 
                                                          sheetSearch, fullFitnessObjParams, massScaleSearchType)
 
@@ -689,11 +632,21 @@ class InversionWorkSpace(object):
         in this module, which you can consult for other arguments that you can specify
         using keywords. In addition to the keyword arguments specified there, you can
         also specify `gridSizeFactor`, `rescaleBasisFunctions` and `basisFunctionType`
-        which will be filled in in the `gridInfoOrBasisFunctions` dictionary.
+        which will be used to set the `sizefactor`, `rescale` and `basistype` parameters
+        in the `initialParameters` of the
+        :func:`addBasisFunctionsBasedOnCurrentGrid <grale.inversion.InversionWorkSpace.addBasisFunctionsBasedOnCurrentGrid>`
+        call that's used internally.
 
         If the same arguments need to be set for each call of this method, you can use
         :func:`setDefaultInversionArguments` to set them. Note that the options passed
         in ``kwargs`` will override the settings stored by that function.
+
+        This function is now a convenience function, it first calls
+        :func:`clearBasisFunctions <grale.inversion.InversionWorkSpace.clearBasisFunction>`,
+        then
+        :func:`addBasisFunctionsBasedOnCurrentGrid <grale.inversion.InversionWorkSpace.addBasisFunctionsBasedOnCurrentGrid>`,
+        and finally
+        :func:`invertBasisFunctions <grale.inversion.InversionWorkSpace.invertBasisFunctions>`.
         """
         newKwargs = { }
         newKwargs["inverter"] = self.inverter
@@ -704,15 +657,23 @@ class InversionWorkSpace(object):
         for a in kwargs:
             newKwargs[a] = kwargs[a]
 
-        gridInfo = { "grid": self.grid }
-        # Move some arguments to the gridInfo dict
-        for k in [ "gridSizeFactor", "rescaleBasisFunctions", "basisFunctionType" ]:
-            if k in newKwargs:
-                gridInfo[k] = newKwargs[k]
-                del newKwargs[k]
+        self.clearBasisFunctions()
 
-        lens = invert(self.imgDataList, gridInfo, self.zd, self.Dd, populationSize, **newKwargs)
-        return lens
+        initialParameters = { }
+        if "basisFunctionType" in newKwargs:
+            initialParameters["basistype"] = newKwargs["basisFunctionType"]
+            del newKwargs["basisFunctionType"]
+
+        if "rescaleBasisFunctions" in newKwargs:
+            initialParameters["rescale"] = newKwargs["rescaleBasisFunctions"]
+            del newKwargs["rescaleBasisFunctions"]
+
+        if "gridSizeFactor" in kwargs:
+            initialParameters["sizefactor"] = newKwargs["gridSizeFactor"]
+            del newKwargs["gridSizeFactor"]
+
+        self.addBasisFunctionsBasedOnCurrentGrid(initialParameters=initialParameters)
+        return self.invertBasisFunctions(populationSize, **newKwargs)
 
     def clearBasisFunctions(self):
         """Clears the list of basis functions that will be used in
