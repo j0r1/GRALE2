@@ -564,6 +564,7 @@ cdef class LensInversionParametersMultiPlaneGPU(object):
                 raise InversionParametersException("Lens planes should be ordered with stricly increasing redshift")
 
             prevZ = z
+            lensRedshifts.push_back(z)
 
             plane = planeInfo["lenses"]
             if len(plane) == 0:
@@ -591,10 +592,15 @@ cdef class LensInversionParametersMultiPlaneGPU(object):
                             vector2d.Vector2Dd(cx, cy), relevantLensingMass)))
 
         for entry in imagesAndRedshifts:
-            img = images.ImagesDataExtended(entry["imgdata"])
+            img = images.ImagesDataExtended(entry["images"])
             img.setDs(0)  # This distances will be set by the inversion
             img.setDds(0) # This needs to be set to 0
-            img.setExtraParameter(entry["z"])
+            if "params" in entry:
+                params = entry["params"]
+                for key in params:
+                    img.setExtraParameter(key, params[key])
+
+            img.setExtraParameter("z", entry["z"])
 
             imgBytes = img.toBytes()
             buf = chararrayfrombytes(imgBytes)

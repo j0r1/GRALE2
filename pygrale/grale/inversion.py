@@ -187,6 +187,86 @@ def calculateFitness(inputImages, zd, fitnessObjectParameters, lensOrBackProject
 
     return inverters.calculateFitness(n, inputImages, zd, fullFitnessObjParams, lens=lens, bpImages=bpImages)
 
+def _invertCommon(inverter, feedbackObject, moduleName, fitnessObjectParameters,
+                  massScale, DdAndZd, inputImages, getParamsFunction,
+                  popSize, geneticAlgorithmParameters, returnNds, cosmology):
+
+    # Set to some bad values as they don't make sense for a multi-plane inversion
+    Dd, zd = DdAndZd if DdAndZd else (None, float("NaN"))
+
+    inverter, feedbackObject = privutil.initInverterAndFeedback(inverter, feedbackObject)
+
+    n = _getModuleName(moduleName)
+    _getModuleDirectory(n) # So that GRALE2_MODULEPATH gets set
+    feedbackObject.onStatus("Full module name is: " + n)
+    feedbackObject.onStatus("Detected module path is: " + _getModuleDirectory(n))
+
+    # Merge fitnessObjectParameters with defaults
+    fullFitnessObjParams = getDefaultModuleParameters(moduleName)
+    if fitnessObjectParameters:
+        for k in fitnessObjectParameters:
+            fullFitnessObjParams[k] = fitnessObjectParameters[k]
+
+    # Get massscale
+    if massScale == "auto":
+        massScale = estimateStrongLensingMass(Dd, inputImages, False)
+    elif massScale == "auto_nocheck":
+        massScale = estimateStrongLensingMass(Dd, inputImages, True)
+    else:
+        # Assume the mass scale is a value that needs to be used
+        pass
+
+    feedbackObject.onStatus("Mass scale is: {:g} solar masses".format(massScale/CT.MASS_SUN))
+
+    params = getParamsFunction(fullFitnessObjParams, massScale)
+
+    # TODO: for now, we're getting the component description in a separate way as it
+    #       is not yet integrated in mogal. Once it is, this should be removed
+    # By setting the last parameter to None, no calculation is performed and only the
+    # fitness components are returned.
+    dummyFitness, fitnessComponentDescription = inverters.calculateFitness(n, inputImages, zd, fullFitnessObjParams, None) 
+
+    result = inverter.invert(n, popSize, geneticAlgorithmParameters, params, returnNds)
+
+    # TODO: this should be removed when the TODO above is fixed
+    if not returnNds:
+        result = (result[0], result[1], fitnessComponentDescription)
+    else:
+        result = (result[0], fitnessComponentDescription)
+
+    return result
+
+def invertMultiPlane(cosmology, inputImages, basisLensesAndRedshifts, popSize, moduleName="general_gpu",
+                     massScale="auto", allowNegativeValues=False, sheetSearch="nosheet",
+                     fitnessObjectParameters=None, massScaleSearchType="regular",
+                     maximumGenerations=16384, geneticAlgorithmParameters={ },
+                     returnNds=False, inverter="default", feedbackObject="default"):
+        
+    if massScale == "auto" or massScale == "auto_nocheck":
+        minZd = min([entry["z"] for entry in basisLensesAndRedshifts])
+        minDd = cosmology.getAngularDiameterDistance(minZd)
+
+        # We're going to use a list with Dds entries based on the first lens plane,
+        # for mass determination
+        newImages = []
+        for entry in inputImages:
+            entry = entry.copy()
+            entry["Ds"] = cosmology.getAngularDiameterDistance(entry["z"])
+            entry["Dds"] = cosmology.getAngularDiameterDistance(minZd, entry["z"])
+            newImages.append(entry)
+
+        massScale = estimateStrongLensingMass(minDd, newImages, False if massScale == "auto" else True)
+
+    def getParamsFunction(fullFitnessObjParams, massScale):
+        return inversionparams.LensInversionParametersMultiPlaneGPU(cosmology,
+                basisLensesAndRedshifts, inputImages, massScale, sheetSearch,
+                fullFitnessObjParams, maximumGenerations, allowNegativeValues,
+                massScaleSearchType)
+
+    return _invertCommon(inverter, feedbackObject, moduleName, fitnessObjectParameters,
+                  massScale, None, inputImages, getParamsFunction, popSize,
+                  geneticAlgorithmParameters, returnNds, cosmology)
+
 def invert(inputImages, basisFunctions, zd, Dd, popSize, moduleName = "general", massScale = "auto",
            allowNegativeValues = False, baseLens = None, 
            sheetSearch = "nosheet", fitnessObjectParameters = None, massScaleSearchType = "regular", maximumGenerations = 16384,
@@ -302,51 +382,14 @@ def invert(inputImages, basisFunctions, zd, Dd, popSize, moduleName = "general",
      - `feedbackObject`: can be used to specify a particular :ref:`feedback mechanism <feedback>`.
     """
 
-    #print("FeedbackObject1", feedbackObject)
-    inverter, feedbackObject = privutil.initInverterAndFeedback(inverter, feedbackObject)
-    #print("FeedbackObject2", feedbackObject)
-
-    n = _getModuleName(moduleName)
-    _getModuleDirectory(n) # So that GRALE2_MODULEPATH gets set
-    feedbackObject.onStatus("Full module name is: " + n)
-    feedbackObject.onStatus("Detected module path is: " + _getModuleDirectory(n))
-
-    # Merge fitnessObjectParameters with defaults
-    fullFitnessObjParams = getDefaultModuleParameters(moduleName)
-    if fitnessObjectParameters:
-        for k in fitnessObjectParameters:
-            fullFitnessObjParams[k] = fitnessObjectParameters[k]
-
-    # Get massscale
-    if massScale == "auto":
-        massScale = estimateStrongLensingMass(Dd, inputImages, False)
-    elif massScale == "auto_nocheck":
-        massScale = estimateStrongLensingMass(Dd, inputImages, True)
-    else:
-        # Assume the mass scale is a value that needs to be used
-        pass
-
-    feedbackObject.onStatus("Mass scale is: {:g} solar masses".format(massScale/CT.MASS_SUN))
-
-    params = inversionparams.LensInversionParametersSinglePlaneCPU(maximumGenerations, inputImages, basisFunctions,
+    def getParamsFunction(fullFitnessObjParams, massScale):
+        return inversionparams.LensInversionParametersSinglePlaneCPU(maximumGenerations, inputImages, basisFunctions,
                                                          Dd, zd, massScale, allowNegativeValues, baseLens, 
                                                          sheetSearch, fullFitnessObjParams, massScaleSearchType)
 
-    # TODO: for now, we're getting the component description in a separate way as it
-    #       is not yet integrated in mogal. Once it is, this should be removed
-    # By setting the last parameter to None, no calculation is performed and only the
-    # fitness components are returned.
-    dummyFitness, fitnessComponentDescription = inverters.calculateFitness(n, inputImages, zd, fullFitnessObjParams, None) 
-
-    result = inverter.invert(n, popSize, geneticAlgorithmParameters, params, returnNds)
-
-    # TODO: this should be removed when the TODO above is fixed
-    if not returnNds:
-        result = (result[0], result[1], fitnessComponentDescription)
-    else:
-        result = (result[0], fitnessComponentDescription)
-
-    return result
+    return _invertCommon(inverter, feedbackObject, moduleName, fitnessObjectParameters,
+                  massScale, [Dd, zd], inputImages, getParamsFunction, popSize,
+                  geneticAlgorithmParameters, returnNds, None) # cosmology is not used here
 
 def defaultLensModelFunction(operation, operationInfo, parameters):
     """This is the default `lensModelFunction` that's used in 
@@ -536,6 +579,7 @@ class InversionWorkSpace(object):
             "images": imgDat,
             "Ds": self.cosm.getAngularDiameterDistance(zs),
             "Dds": self.cosm.getAngularDiameterDistance(self.zd, zs),
+            "z": zs,
             "params": params
         }
         self.imgDataList.append(entry)
