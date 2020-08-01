@@ -3,6 +3,7 @@ from . import images
 from . import contourfinder
 from . import gridfunction
 from . import privutil
+from . import lenses
 import copy
 import numpy as np
 
@@ -155,8 +156,9 @@ class MultiLensPlane(object):
     def __init__(self, lensesAndRedshifts, bottomLeft, topRight, numX, numY, renderer = "default", feedbackObject = None, cosmology = "default"):
         """This creates a MultiLensPlane instance that covers the area specified by the `bottomLeft` and
         `topRight` corners. It calculates and stores the deflection angles for the lenses
-        in `lensesAndRedshifts`, which should be a list of 
-        (:class:`gravitational lens <grale.lenses.GravitationalLens>`, redshift) tuples.
+        in `lensesAndRedshifts`, which should either be a list of 
+        (:class:`gravitational lens <grale.lenses.GravitationalLens>`, redshift) tuples,
+        or a :class:`multi-plane container 'lens'<grale.lenses.MultiPlaneContainer>`.
         The deflection angles for the first lens plane are arranges on a grid of `numX` points 
         wide by `numY` points high. The `cosmology` parameter specifies how the redshifts
         should be mapped to angular diameter distances, using a :class:`Cosmology <grale.cosmology.Cosmology>`
@@ -172,6 +174,11 @@ class MultiLensPlane(object):
         """
         if not lensesAndRedshifts:
             raise MultiLensPlaneException("No lenses and redshifts were specified")
+
+        # If it's a multi-plane container, transform to a list that can be used below
+        if type(lensesAndRedshifts) == lenses.MultiPlaneContainer:
+            params = lensesAndRedshifts.getLensParameters()
+            lensesAndRedshifts = [ ( x["lens"], x["z"] ) for x in params ]
 
         cosmology = privutil.initCosmology(cosmology)
         if not cosmology:
