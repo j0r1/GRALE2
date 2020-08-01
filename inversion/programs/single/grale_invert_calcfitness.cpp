@@ -148,7 +148,8 @@ bool_t CalcFitnessCommunicator::runModule(const string &moduleDir, const string 
 		}
 
 		vector<float> fitnessComp(f->getNumberOfFitnessComponents());
-		f->calculateOverallFitness(*iface.get(), &fitnessComp[0]); // TODO: do this in background thread and write PING/PONG stuff?
+		if (!f->calculateOverallFitness(*iface.get(), &fitnessComp[0])) // TODO: do this in background thread and write PING/PONG stuff?
+			return "Error calculating fitness: " + f->getErrorString();
 
 		stringstream ss;
 		ss << fitnessComp[0];

@@ -128,7 +128,7 @@ bool GravitationalLens::traceTheta(double D_s, double D_ds, Vector2D<double> the
 		return false;
 	}
 	
-	Vector2D<double> alphaVector;
+	Vector2D<double> alphaVector { numeric_limits<double>::quiet_NaN(), numeric_limits<double>::quiet_NaN() };
 	
 	if (!getAlphaVector(theta, &alphaVector))
 		return false;

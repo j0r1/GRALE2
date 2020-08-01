@@ -183,6 +183,7 @@ bool MultiPlaneContainer::processParameters(const GravitationalLensParams *pLens
 
 bool MultiPlaneContainer::getAlphaVector(Vector2D<double> theta, Vector2D<double> *pAlpha) const
 {
+    *pAlpha = Vector2Dd { numeric_limits<double>::quiet_NaN(), numeric_limits<double>::quiet_NaN() };
     setErrorString(s_onlyContainerError);
     return false;
 }
@@ -195,12 +196,16 @@ double MultiPlaneContainer::getSurfaceMassDensity(Vector2D<double> theta) const
 
 bool MultiPlaneContainer::getAlphaVectorDerivatives(Vector2D<double> theta, double &axx, double &ayy, double &axy) const
 {
+    axx = numeric_limits<double>::quiet_NaN();
+    ayy = numeric_limits<double>::quiet_NaN();
+    axy = numeric_limits<double>::quiet_NaN();
     setErrorString(s_onlyContainerError);
     return false;
 }
 
 bool MultiPlaneContainer::getProjectedPotential(double D_s, double D_ds, Vector2D<double> theta, double *pPotentialValue) const
 {
+    *pPotentialValue = numeric_limits<double>::quiet_NaN();
     setErrorString(s_onlyContainerError);
     return false;
 }

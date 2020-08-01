@@ -31,6 +31,7 @@
 #include "lensfitnessobject.h"
 #include <serut/dummyserializer.h>
 #include <serut/memoryserializer.h>
+#include <limits>
 
 #define NOMINMAX
 #include "galensmodule.h" // includes windows.h, causes problems with std::min and std::max
@@ -38,6 +39,8 @@
 #include <iostream>
 
 #include "debugnew.h"
+
+using namespace std;
 
 namespace grale
 {
@@ -219,7 +222,7 @@ void ImagesBackProjector::checkBetas(int sourceNumber) const
 
 	for (int i = 0 ; i < numPoints ; i++)
 	{
-		Vector2D<double> beta;
+		Vector2D<double> beta { numeric_limits<double>::quiet_NaN(), numeric_limits<double>::quiet_NaN() };
 
 		m_pLens->traceTheta(1.0, m_distanceFractions[sourceNumber], m_originalThetas[sourceNumber][i], &beta);
 
@@ -239,7 +242,7 @@ void ImagesBackProjector::checkAlphas(int sourceNumber) const
 
 	for (int i = 0 ; i < numPoints ; i++)
 	{
-		Vector2D<double> alpha(0,0);
+		Vector2D<double> alpha { numeric_limits<double>::quiet_NaN(), numeric_limits<double>::quiet_NaN() };
 
 		m_pLens->getAlphaVector(m_originalThetas[sourceNumber][i], &alpha);
 		alpha *= m_distanceFractions[sourceNumber];
@@ -261,7 +264,9 @@ void ImagesBackProjector::checkDerivatives(int sourceNumber) const
 
 	for (int i = 0 ; i < numPoints ; i++)
 	{
-		double axx, ayy, axy;
+		double axx = numeric_limits<double>::quiet_NaN();
+		double ayy = numeric_limits<double>::quiet_NaN();
+		double axy = numeric_limits<double>::quiet_NaN();
 
 		m_pLens->getAlphaVectorDerivatives(m_originalThetas[sourceNumber][i], axx, ayy, axy);
 
