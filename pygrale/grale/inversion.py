@@ -16,6 +16,7 @@ from . import privutil
 from . import grid as gridModule
 from . import plotutil
 from . import lenses
+from . import multiplane
 import platform
 import os
 import copy
@@ -909,7 +910,26 @@ class InversionWorkSpace(object):
         if "moduleName" in self.inversionArgs:
             moduleName = self.inversionArgs["moduleName"]
 
-        return calculateFitness(self.imgDataList, self.zd, fitnessObjectParameters, lensOrBackProjectedImages, moduleName)
+        # For a multi-plane lens, we'll back-project the images and use the
+        # fitness calculation based on this.
+        # Changing the image list is not really required, but it helps test
+        # some multi-plane code paths
+        if type(lensOrBackProjectedImages) == lenses.MultiPlaneContainer:
+            newImgList = [ ]
+            for i in self.imgDataList:
+                params = dict(i["params"])
+                params["z"] = i["z"] # TODO: this is a bit messy, clean this
+
+                entry = dict(i) # copy
+                entry["Dds"] = 0 # Set this to zero to indicate multi-plane scenario
+                entry["params"] = params # use changed parameters
+                newImgList.append(entry)
+
+            lensOrBackProjectedImages = self.backProject(lensOrBackProjectedImages)
+        else:
+            newImgList = self.imgDataList
+
+        return calculateFitness(newImgList, self.zd, fitnessObjectParameters, lensOrBackProjectedImages, moduleName)
 
     def backProject(self, lens, typeFilter = [ "pointimages", "extendedimages", "pointgroupimages" ]):
         """Takes the information of the images that were added using :func:`addImageDataToList`,
@@ -943,6 +963,18 @@ class InversionWorkSpace(object):
         else:
             filterFunction = typeFilter
 
+        if type(lens) == lenses.MultiPlaneContainer:
+            # We don't actually need the grid params
+            lensPlane = multiplane.MultiLensPlane(lens, [-0.001,-0.001], [0.001, 0.001], 4, 4, 
+                                                  self.renderer, self.feedbackObject, self.cosm)
+
+            def traceFunction(imgInfo, thetas):
+                imgPlane = multiplane.MultiImagePlane(lensPlane, imgInfo["z"])
+                return imgPlane.traceTheta(thetas)
+        else:
+            def traceFunction(imgInfo, thetas):
+                return lens.traceTheta(imgInfo["Ds"], imgInfo["Dds"], thetas)
+
         bpImages = [ ]
         for i in range(len(self.imgDataList)):
             imgInfo = self.imgDataList[i]
@@ -954,7 +986,7 @@ class InversionWorkSpace(object):
                 # Gather all coordinates so that the traceTheta call will be
                 # somewhat more efficient
                 allPoints = np.array([ img.getImagePointPosition(i, j) for i in range(img.getNumberOfImages()) for j in range(img.getNumberOfImagePoints(i)) ], dtype=np.double)
-                allPoints = lens.traceTheta(imgInfo["Ds"], imgInfo["Dds"], allPoints)
+                allPoints = traceFunction(imgInfo, allPoints)
 
                 # Save the traced points in the 'img' instance again
 
