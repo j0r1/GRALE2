@@ -344,11 +344,9 @@ def createSubdivisionGrid(size, center, lensInfo, minSquares, maxSquares, startS
        in :func:`createSubdivisionGridForFunction`
      - `center`: the center of the grid in the re-centered coordinates. Will be used
        as the `center` parameter in :func:`createSubdivisionGridForFunction`.
-     - `lensInfo`: information about the gravitational lens. As a first step, the
-       :func:`plotDensity<grale.plotutil.plotDensity>` function is called (without actually
-       plotting anything) so that the density of the lens is already evaluated on a grid.
-       See the documentation of that function for more information about the format of
-       this dictionary.
+     - `lensInfo`: information about the gravitational lens, see
+       :class:`LensInfo<grale.plotutil.LensInfo>` (or
+       :class:`DensInfo<grale.plotutil.DensInfo>`).
      - `minSquares`, `maxSquares`, `startSubDiv`, `excludeFunction`, `maxIntegrationSubDiv`,
        `keepLarger`: see :func:`createSubdivisionGridForFunction`
      - `ignoreOffset`: adds or subtracts a value from the data so that the minimum value
@@ -357,10 +355,11 @@ def createSubdivisionGrid(size, center, lensInfo, minSquares, maxSquares, startS
        idea).
     """
 
-    from . import plotutil
+    #from . import plotutil
 
     # Will use existing result if already calculated
-    lensInfo = plotutil.plotDensity(lensInfo, axes=False) 
+    # TODO: is this still needed?
+    #lensInfo = plotutil.plotDensity(lensInfo, axes=False) 
 
     densPoints = lensInfo.getDensityPoints()
     if useAbsoluteValues:
@@ -500,14 +499,17 @@ def main():
     import grale.lenses as lenses
     import grale.plotutil as plotutil
     from grale.constants import ANGLE_ARCSEC
+    import matplotlib.pyplot as plt
+
 
     U = ANGLE_ARCSEC
-    lensInfo = {
-        "lens": lenses.GravitationalLens.load("/home/jori/projects/gamods-hg/examples/reallens_nosheet.lensdata"),
+    lensInfo = plotutil.LensInfo(**{
+        "lens": lenses.GravitationalLens.load("/home/jori/projects/grale-lensmodels-git/2012MNRAS.425.1772L/reallens.lensdata"),
         "bottomleft": [-100*U, -100*U],
         "topright": [100*U, 100*U],
-    }
+        })
     plotutil.plotDensity(lensInfo, feedbackObject = "none")
+    plt.show()
     #pprint.pprint(lensInfo)
 
     grid = createSubdivisionGrid(190*U, [0,0], lensInfo, 900, 1000, startSubDiv=7)
@@ -516,6 +518,8 @@ def main():
 
     g = _fractionalGridToRealGrid(grid)
     _debugPlot(g)
+    plotutil.plotSubdivisionGrid(grid)
+    plt.show()
 
 if __name__ == "__main__":
     main()

@@ -422,6 +422,7 @@ def defaultLensModelFunction(operation, operationInfo, parameters):
                 usedParams[k] = parameters[k]
 
         iws = operationInfo["workspace"]
+        lpIdx = operationInfo["lensplaneindex"]
         totalMass = iws.estimateStrongLensingMass() if usedParams["totalmass"] == "auto" else usedParams["totalmass"]
 
         if usedParams["sizefactor"] == "default":
@@ -437,7 +438,7 @@ def defaultLensModelFunction(operation, operationInfo, parameters):
                 totalRescale += (cell["size"]*usedParams["sizefactor"]/CT.ANGLE_ARCSEC)**2
             usedParams["cellmass"] = totalMass/totalRescale
 
-        usedParams["Dd"] = iws.getLensDistance()
+        usedParams["Dd"] = iws.getLensDistance(lpIdx)
         return usedParams
 
     if operation != "add":
@@ -505,15 +506,29 @@ class InversionWorkSpace(object):
          - `cosmology`: an instance of :class:`Cosmology <grale.cosmology.Cosmology>`, describing
            the cosmological model that should be used throughout these inversions.
         """
-        if zLens <= 0 or zLens > 10:
-            raise InversionException("Invalid lens redshift")
+
+        if type(zLens) == list:
+            prevZ = zLens[0]
+            for z in zLens[1:]:
+                if z <= prevZ:
+                    raise InversionException("Lens plane redshifts need to be strictly increasing")
+                prevZ = z
+
+            self.isMultiPlane = True
+        else:
+            self.isMultiPlane = False
+            zLens = [ zLens ]
+
+        for z in zLens:
+            if z <= 0 or z > 10:
+                raise InversionException("Invalid lens redshift {}".format(z))
 
         cosmology = privutil.initCosmology(cosmology)
         if not cosmology:
             raise InversionException("No cosmological model was specified")
             
         self.zd = zLens
-        self.Dd = cosmology.getAngularDiameterDistance(zLens)
+        self.Dd = [ cosmology.getAngularDiameterDistance(z) for z in zLens ]
         self.imgDataList = []
         self.cosm = cosmology
         self.inversionArgs = { } 
@@ -525,16 +540,33 @@ class InversionWorkSpace(object):
         # may be added unless specified otherwise
         self.regionSize = regionSize
         self.regionCenter = copy.deepcopy(regionCenter)
-        self.grid = None
-        self.basisFunctions = None
+        self.grid = [ None for z in zLens ]
+        self.clearBasisFunctions() # initializes self.basisFunctions
         
         self.renderer = renderer
         self.inverter = inverter
         self.feedbackObject = feedbackObject
 
-    def getLensDistance(self):
+    def _checkLensPlaneIndex(self, lpIdx):
+        if self.isMultiPlane:
+            if lpIdx is None:
+                raise InversionException("For a multi-plane scenario, a lens plane index is required")
+            if lpIdx < 0 or lpIdx >= len(self.zd):
+                raise InversionException("Invalid index {} for lens plane".format(lpIdx))
+
+            return lpIdx
+
+        # Single plane
+        if lpIdx is None:
+            return 0
+        if lpIdx != 0:
+            raise InversionException("Only lens plane index 0 is allowed in single lens plane scenario")
+        return lpIdx
+
+    def getLensDistance(self, lpIdx = None):
         """Returns the angular diameter distance to the lens."""
-        return self.Dd
+        lpIdx = self._checkLensPlaneIndex(lpIdx)
+        return self.Dd[lpIdx]
 
     def setRegionSize(self, regionSize, regionCenter = [0, 0]):
         """Set the inversion region, same as in the constructor: `regionSize` and 
@@ -569,8 +601,8 @@ class InversionWorkSpace(object):
         # check that imgDat exists
         num = imgDat.getNumberOfImages()
         
-        if zs < self.zd:
-            raise InversionException("Can't add a source with a smaller redshift than the lens")
+        if zs < self.zd[0]:
+            raise InversionException("Can't add a source with a smaller redshift than the closest lens")
         
         params = copy.deepcopy(otherParameters)
         if imgType:
@@ -579,25 +611,29 @@ class InversionWorkSpace(object):
         entry = {
             "images": imgDat,
             "Ds": self.cosm.getAngularDiameterDistance(zs),
-            "Dds": self.cosm.getAngularDiameterDistance(self.zd, zs),
+            # TODO: for backward compatibility, we'll use the first lens plane here
+            # TODO: clean this so that at this point only the redshifts are stored
+            "Dds": self.cosm.getAngularDiameterDistance(self.zd[0], zs),
             "z": zs,
             "params": params
         }
         self.imgDataList.append(entry)
         
     # Overrides the grid
-    def setGrid(self, grid):
+    def setGrid(self, grid, lpIdx = None):
         """Usually, the functions :func:`setUniformGrid` and :func:`setSubdivisionGrid`
         will be used to control the grid (which in turn controls the layout of the
         basis functions). If this doesn't suffice, you can provide a specific grid
         obtained by one of the functions in :mod:`grid <grale.grid>` yourself using 
         this function."""
-        self.grid = grid
+        lpIdx = self._checkLensPlaneIndex(lpIdx)
+        self.grid[lpIdx] = grid
 
-    def getGrid(self):
+    def getGrid(self, lpIdx = None):
         """Retrieves the currently set grid, e.g. for plotting using 
         :func:`plotSubdivisionGrid <grale.plotutil.plotSubdivisionGrid>`."""
-        return self.grid
+        lpIdx = self._checkLensPlaneIndex(lpIdx)
+        return self.grid[lpIdx]
 
     def _getGridDimensions(self, randomFraction, regionSize, regionCenter):
         if regionSize is None:
@@ -615,7 +651,8 @@ class InversionWorkSpace(object):
 
         return w, c
     
-    def setUniformGrid(self, subDiv, randomFraction = 0.05, regionSize = None, regionCenter = None):
+    def setUniformGrid(self, subDiv, randomFraction = 0.05, regionSize = None, regionCenter = None,
+                       lpIdx = "all"):
         """Based on the size and center provided during initialization, create
         a uniform grid with `subDiv` subdivisions along each axis, resulting
         in `subDiv`x`subDiv` cells. 
@@ -632,9 +669,29 @@ class InversionWorkSpace(object):
         dimensions.
         """
         w, c = self._getGridDimensions(randomFraction, regionSize, regionCenter)
-        self.grid = gridModule.createUniformGrid(w, c, subDiv)
+        if lpIdx == "all":
+            for i in range(len(self.grid)):
+                self.grid[i] = gridModule.createUniformGrid(w, c, subDiv)
+        else:
+            lpIdx = self._checkLensPlaneIndex(lpIdx)
+            self.grid[lpIdx] = gridModule.createUniformGrid(w, c, subDiv)
+
+    def _getSinglePlaneSubDivGrid(self, lensOrLensInfo,  minSquares, maxSquares, startSubDiv, randomFraction, regionSize, regionCenter):
+        w, c = self._getGridDimensions(randomFraction, regionSize, regionCenter)
+        if isinstance(lensOrLensInfo, plotutil.DensInfo):
+            lensInfo = lensOrLensInfo
+        else:
+            extraFrac = 1.0001
+            lensInfo = plotutil.LensInfo(lensOrLensInfo, 
+                                         bottomleft=[ c[0] - (w*extraFrac)/2, c[1] - (w*extraFrac)/2 ],
+                                         topright=[ c[0] + (w*extraFrac)/2, c[1] + (w*extraFrac)/2 ])
+            # Run this here already, since we know the renderer and feedbackobject here
+            lensInfo.getDensityPoints(self.renderer, self.feedbackObject)
         
-    def setSubdivisionGrid(self, lensOrLensInfo, minSquares, maxSquares, startSubDiv = 1, randomFraction = 0.05, regionSize = None, regionCenter = None):
+        return gridModule.createSubdivisionGrid(w, c, lensInfo, minSquares, maxSquares, startSubDiv)
+
+    def setSubdivisionGrid(self, lensOrLensInfo, minSquares, maxSquares, startSubDiv = 1, randomFraction = 0.05, regionSize = None, regionCenter = None,
+                           lpIdx = None):
         """Based on the lens that's provided as input, create a subdivision grid
         where regions with more mass are subdivided further, such that the number
         of resulting grid cells lies between `minSquares` and `maxSquares`. For
@@ -645,23 +702,26 @@ class InversionWorkSpace(object):
         If specified, `regionSize` and `regionCenter` override the internally stored
         dimensions.
         """
-        w, c = self._getGridDimensions(randomFraction, regionSize, regionCenter)
-        if type(lensOrLensInfo) == dict:
-            lensInfo = lensOrLensInfo
-        else:
-            extraFrac = 1.0001
-            lensInfo = { 
-                "lens": lensOrLensInfo,
-                # Make it slightly wider to avoid going out of bounds
-                "bottomleft": [ c[0] - (w*extraFrac)/2, c[1] - (w*extraFrac)/2 ],
-                "topright": [ c[0] + (w*extraFrac)/2, c[1] + (w*extraFrac)/2 ],
-            }
-            
-        # Make sure we have the density points calculated, abuse one of the plot functions
-        # for this
-        plotutil.plotDensity(lensInfo, axes = False)
         
-        self.grid = gridModule.createSubdivisionGrid(w, c, lensInfo, minSquares, maxSquares, startSubDiv)
+        if ( (not self.isMultiPlane) or
+             (self.isMultiPlane and (
+                isinstance(lensOrLensInfo, plotutil.DensInfo) or type(lensOrLensInfo) != lenses.MultiPlaneContainer
+             ))):
+            lpIdx = self._checkLensPlaneIndex(lpIdx)
+            self.grid[lpIdx] = self._getSinglePlaneSubDivGrid(lensOrLensInfo, minSquares, maxSquares, startSubDiv, randomFraction, regionSize, regionCenter)
+            return
+
+        # Here, we have a multi-plane container, go a similar subdivision
+        # step for each lens plane
+        lensesAndRedshifts = lensOrLensInfo.getLensParameters()
+        if len(lensesAndRedshifts) != len(self.zd):
+            raise InversionException("The multi plane contain does not have the same amount of lens planes as specified for the inversion")
+
+        for i in range(len(self.zd)):
+            if not np.isclose(lensesAndRedshifts[i]["z"], self.zd[i]):
+                raise InversionException("Redshift {:g} in multi plane container lens {} does not appear to match the expected redshift {:g}".format(lensesAndRedshifts[i]["z"], i+1, self.zd[i]))
+
+            self.grid[i] = self._getSinglePlaneSubDivGrid(lensesAndRedshifts[i]["lens"], minSquares, maxSquares, startSubDiv, randomFraction, regionSize, regionCenter)
        
     def setDefaultInversionArguments(self, **kwargs):
         """In case you want to pass the same keyword arguments to the :func:`invert <grale.inversion.InversionWorkSpace.invert>`
@@ -717,19 +777,25 @@ class InversionWorkSpace(object):
             initialParameters["sizefactor"] = newKwargs["gridSizeFactor"]
             del newKwargs["gridSizeFactor"]
 
-        self.addBasisFunctionsBasedOnCurrentGrid(initialParameters=initialParameters)
+        for i in range(len(self.zd)): # For each grid
+            self.addBasisFunctionsBasedOnCurrentGrid(initialParameters=initialParameters, lpIdx=i)
         return self.invertBasisFunctions(populationSize, **newKwargs)
 
-    def clearBasisFunctions(self):
+    def clearBasisFunctions(self, lpIdx = "all"):
         """Clears the list of basis functions that will be used in
         :func:`invertBasisFunctions`"""
-        self.basisFunctions = [ ]
+        if lpIdx == "all":
+            self.basisFunctions = [ [] for i in range(len(self.zd)) ]
+        else:
+            lpIdx = self._checkLensPlaneIndex(lpIdx)
+            self.basisFunctions[lpIdx] = [ ]
 
-    def getBasisFunctions(self):
+    def getBasisFunctions(self, lpIdx = None):
         """Returns the basis functions that have currently been stored, and
         of which the weights will be optimized when :func:`invertBasisFunctions`
         is called."""
-        return self.basisFunctions
+        lpIdx = self._checkLensPlaneIndex(lpIdx)
+        return self.basisFunctions[lpIdx]
 
     def _getImageSize(self):
 
@@ -761,13 +827,14 @@ class InversionWorkSpace(object):
 
         return ((xMax-xMin)**2 + (yMax-yMin)**2)**0.5
 
-    def setBasisFunctions(self, basisFunctions):
+    def setBasisFunctions(self, basisFunctions, lpIdx=None):
         """Convenience method, just calls :func:`clearBasisFunctions` followed
         by :func:`addBasisFunctions`."""
-        self.clearBasisFunctions()
-        self.addBasisFunctions(basisFunctions)
+        lpIdx = self._checkLensPlaneIndex(lpIdx)
+        self.clearBasisFunctions(lpIdx)
+        self.addBasisFunctions(basisFunctions, lpIdx)
 
-    def addBasisFunctions(self, basisFunctions):
+    def addBasisFunctions(self, basisFunctions, lpIdx=None):
         """Add basis functions that will be used in :func:`invertBasisFunctions`.
         Each entry in this list should be a dictionary with at least entries
         ``lens`` and ``center`` containing the lens model and position at which
@@ -780,6 +847,7 @@ class InversionWorkSpace(object):
         the complete list is then passed as the `gridInfoOrBasisFunctions`
         argument. You may look there for some additional information.
         """
+        lpIdx = self._checkLensPlaneIndex(lpIdx)
 
         imgSize = None
 
@@ -821,10 +889,10 @@ class InversionWorkSpace(object):
                 # TODO: for debugging
                 print("Estimated mass for basis function is: {:g} solar masses".format(mass/CT.MASS_SUN))
 
-            self.basisFunctions.append(d)
+            self.basisFunctions[lpIdx].append(d)
 
     def addBasisFunctionsBasedOnCurrentGrid(self, lensModelFunction = defaultLensModelFunction,
-                                            initialParameters = None):
+                                            initialParameters = None, lpIdx = None):
         """The goal of this function is to add basis functions based on the
         grid that's currently stored. The conversion of grid cells to basis
         functions is done using the function specified in
@@ -854,10 +922,15 @@ class InversionWorkSpace(object):
         added to a list, which is eventually processed by the :func:`addBasisFunctions`
         procedure.
         """
+        lpIdx = self._checkLensPlaneIndex(lpIdx)
 
         tmpBasisFunctions = [ ]
-        lensModelFunctionParameters = lensModelFunction("start", { "grid": self.grid, "workspace": self }, initialParameters)
-        grid = gridModule._fractionalGridToRealGrid(self.grid) if type(self.grid) == dict else copy.deepcopy(self.grid)
+        lensModelFunctionParameters = lensModelFunction("start", { 
+            "grid": self.grid[lpIdx], 
+            "lensplaneindex": lpIdx,
+            "workspace": self }, initialParameters)
+
+        grid = gridModule._fractionalGridToRealGrid(self.grid[lpIdx]) if type(self.grid[lpIdx]) == dict else copy.deepcopy(self.grid[lpIdx])
         for cell in grid:
             center, size = cell["center"], cell["size"]
             lens, mass = lensModelFunction("add", { "center": center, "size": size }, lensModelFunctionParameters)
@@ -867,12 +940,16 @@ class InversionWorkSpace(object):
 
             tmpBasisFunctions.append(entry)
 
-        self.addBasisFunctions(tmpBasisFunctions)
+        self.addBasisFunctions(tmpBasisFunctions, lpIdx)
 
     def estimateStrongLensingMass(self, skipParamCheck = False):
         """Calls :func:`estimateStrongLensingMass <grale.inversion.estimateStrongLensingMass>`
         with the images and lens distance that have been set for this inversion work space."""
-        return estimateStrongLensingMass(self.Dd, self.imgDataList, skipParamCheck)
+
+        # This just uses the Dd for the closest lens plane, for backward
+        # compatibility
+        # TODO: clean this, make this use z's only
+        return estimateStrongLensingMass(self.Dd[0], self.imgDataList, skipParamCheck)
 
     def invertBasisFunctions(self, populationSize, **kwargs):
         """For the lensing scenario specified in this :class:`InversionWorkSpace` instance,
@@ -890,7 +967,11 @@ class InversionWorkSpace(object):
         for a in kwargs:
             newKwargs[a] = kwargs[a]
 
-        lens = invert(self.imgDataList, self.basisFunctions, self.zd, self.Dd, populationSize, **newKwargs)
+        if not self.isMultiPlane:
+            lens = invert(self.imgDataList, self.basisFunctions[0], self.zd[0], self.Dd[0], populationSize, **newKwargs)
+        else:
+            bfAndZs = [ { "lenses": x[0], "z": x[1] } for x in zip(self.basisFunctions, self.zd) ]
+            lens = invertMultiPlane(self.cosm, self.imgDataList, bfAndZs, populationSize, **newKwargs)
         return lens
 
     def calculateFitness(self, lensOrBackProjectedImages):
@@ -1000,8 +1081,6 @@ class InversionWorkSpace(object):
                 bpImages.append(img)
 
         return bpImages
-
-            
 
 def getDefaultInverter():
     """Convenience function in this module, just calls 
