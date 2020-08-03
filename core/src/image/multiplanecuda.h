@@ -27,7 +27,8 @@ public:
 	MultiPlaneCUDA();
 	~MultiPlaneCUDA();
 
-	bool init(const std::string &libraryPath,
+	// Device idx -1 means get next device
+	bool init(const std::string &libraryPath, int deviceIdx,
 		double angularUnit,
 		double h, double W_m, double W_r, double W_v, double w,
 		const std::vector<float> &lensRedshifts,
@@ -49,12 +50,14 @@ private:
 		const std::vector<std::vector<PlummerInfo>> &fixedPlummerParameters, 
 		const std::vector<float> &sourceRedshifts,
 		const std::vector<std::vector<Vector2Df>> &theta, 
-		void **pCtx);
+		void **pCtx,
+		int deviceIdx);
 
 	int (*mpcuCalculateSourcePositions)(void *ctx, const std::vector<std::vector<float>> &massFactors,
 	                                    const std::vector<float> &sheetDensities);
 	const std::vector<Vector2Df> & (*mpcuGetSourcePositions)(void *ctx, int srcIdx);
 	void (*mpcuClearContext)(void *ctx);
+	int (*mpcuGetNumberOfDevices)(void);
 
 	void *m_pLibrary;
 	void *m_pContext;

@@ -5,6 +5,7 @@ set(HEADERS
 	general/constants.h 
 	general/configurationparameters.h
 	general/log.h
+	general/pernodecounter.h
 	cosmology/cosmology.h
 	lens/gravitationallens.h 
 	lens/multipleplummerlens.h 
@@ -106,6 +107,7 @@ set(SOURCES
 	general/debugnew.cpp 
 	general/configurationparameters.cpp
 	general/gslcblasdummy.cpp
+	general/pernodecounter.cpp
 	cosmology/cosmology.cpp
 	general/log.cpp
 	math/real1dfunctionintegrator.cpp

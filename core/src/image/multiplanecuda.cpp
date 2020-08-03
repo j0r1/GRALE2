@@ -1,7 +1,10 @@
 #ifndef WIN32
 #include "multiplanecuda.h"
+#include "pernodecounter.h"
 #include <dlfcn.h>
+#include <sys/time.h>
 #include <sstream>
+#include <iostream>
 
 using namespace std;
 
@@ -48,7 +51,7 @@ MultiPlaneCUDA::~MultiPlaneCUDA()
 		} \
     } while(0)
 
-bool MultiPlaneCUDA::init(const std::string &libraryPath,
+bool MultiPlaneCUDA::init(const std::string &libraryPath, int devIdx,
 	double angularUnit,
 	double h, double W_m, double W_r, double W_v, double w,
 	const std::vector<float> &lensRedshifts,
@@ -85,10 +88,43 @@ bool MultiPlaneCUDA::init(const std::string &libraryPath,
 	GETFUNCTION(mpcuCalculateSourcePositions);
 	GETFUNCTION(mpcuGetSourcePositions);
 	GETFUNCTION(mpcuClearContext);
+	GETFUNCTION(mpcuGetNumberOfDevices);
+
+	int numDevices = mpcuGetNumberOfDevices();
+	if (numDevices <= 0)
+	{
+		setErrorString("No CUDA devices appear to be available");
+		return false;
+	}
+
+	if (devIdx < 0)
+	{
+		string key = "GRALE_MPCUDA_AUTODEVICEFILE";
+		string fileName = "/dev/shm/grale_mpcuda_nextdevice.dat";
+		if (getenv(key.c_str()))
+			fileName = string(getenv(key.c_str()));
+
+		PerNodeCounter pnc(fileName);
+
+		int idx = pnc.getCount();
+		if (idx < 0)
+		{
+			setErrorString("Couldn't read per-node device index from file '" + fileName + "': " + pnc.getErrorString());
+			return false;
+		}
+
+		auto GetTimeStamp = []() {
+			struct timeval tv;
+			gettimeofday(&tv,NULL);
+			return tv.tv_sec*(uint64_t)1000000+tv.tv_usec;
+		};
+		devIdx = idx%numDevices;
+		cerr << "DEBUG (" << GetTimeStamp() << "): Automatically using new device index " << devIdx << endl;
+	}
 
 	int err = mpcuInitMultiPlaneCalculation(angularUnit, h, W_m, W_r, W_v, w,
 	                                        lensRedshifts, fixedPlummerParameters, sourceRedshifts, theta,
-	                                        &m_pContext);
+	                                        &m_pContext, devIdx);
 	if (err)
 	{
 		stringstream ss;

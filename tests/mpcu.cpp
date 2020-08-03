@@ -15,7 +15,8 @@ int main(int argc, char *argv[])
 	MultiPlaneCUDA mpcu;
 	vector<float> sourceRedshifts = { 1.25f, 2.0f };
 
-	if (!mpcu.init(argv[1], ANGLE_ARCSEC,
+	if (!mpcu.init(argv[1], 0, // device id
+	            ANGLE_ARCSEC,
 				0.7f, 0.3f, 0.f, 0.7f, -1.f, // Cosmological model
 				{ 0.5f, 1.5f }, // lens redshifts
 				{ { { { 0.f, 0.f }, 5.f, 1e14*MASS_SOLAR } },

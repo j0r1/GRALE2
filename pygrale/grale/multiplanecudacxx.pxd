@@ -17,7 +17,7 @@ cdef extern from "grale/multiplanecuda.h" namespace "grale::MultiPlaneCUDA":
 cdef extern from "grale/multiplanecuda.h" namespace "grale":
    
     cdef cppclass MultiPlaneCUDA(errut.ErrorBase):
-        bool init(string &libraryPath,
+        bool init(string &libraryPath, int deviceIdx,
             double angularUnit,
             double h, double W_m, double W_r, double W_v, double w,
             vector[float] &lensRedshifts,

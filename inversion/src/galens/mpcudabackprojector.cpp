@@ -80,7 +80,7 @@ bool MPCUDABackProjector::init(const string &libraryPath,
     }
 
     m_pMPCU = new MultiPlaneCUDA();
-    if (!m_pMPCU->init(libraryPath, m_angularScale, cosmology.getH(),
+    if (!m_pMPCU->init(libraryPath, -1, m_angularScale, cosmology.getH(),
                        cosmology.getOmegaM(), cosmology.getOmegaR(),
                        cosmology.getOmegaV(), cosmology.getW(),
                        lensRedshifts, fixedPlummerParams, sourceRedshifts, m_thetas))

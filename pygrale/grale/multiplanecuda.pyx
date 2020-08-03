@@ -73,7 +73,7 @@ def _getLensParams(lens):
 _defaultLibraryName = "liblens_common.so"
 
 def _findLibraryPath():
-    envKey = "GRALE2_MPCUDALIB"
+    envKey = "GRALE_MPCUDA_LIBRARY"
     if envKey in os.environ:
         return os.environ[envKey]
 
@@ -105,7 +105,7 @@ cdef class MultiPlaneCUDA:
     def __dealloc__(self):
         del self.m_pMPCuda
 
-    def __init__(self, lensesAndRedshifts, thetasAndSourceRedshifts, cosmology="default", libraryPath = None):
+    def __init__(self, lensesAndRedshifts, thetasAndSourceRedshifts, cosmology="default", libraryPath = None, deviceIdx = -1):
         """__init__(lensesAndRedshifts, thetasAndSourceRedshifts, cosmology="default", libraryPath=None)
 
         Initialize this instance for multi-plane calculations on the GPU. For a
@@ -134,9 +134,12 @@ cdef class MultiPlaneCUDA:
          - `libraryPath`: can be ``None`` if the library of the `MultiplaneLensing <https://github.com/darkcores/MultiplaneLensing>`_
            project should be located automatically, or the full path to this library.
            In case of an automatic search, the path stored in environment variable
-           GRALE2_MPCUDALIB is used if available, or else the library name
+           GRALE_MPCUDA_LIBRARY is used if available, or else the library name
            will try to be located in the directories in the PATH environment
            variable.
+
+        - `deviceIdx`: specify a specific device, or set to -1 to let the next device
+          be chosen automatically each time.
         """
 
         cdef vector[vector[multiplanecudacxx.PlummerInfo]] fixedPlummerParameters
@@ -207,7 +210,7 @@ cdef class MultiPlaneCUDA:
                 rescaledThetas[idx][i] = Vector2Df(thetas[i][0], thetas[i][1])
 
         cp = cosmology.getParameters()
-        if not self.m_pMPCuda.init(B(libraryPath), self.m_angularUnit, 
+        if not self.m_pMPCuda.init(B(libraryPath), deviceIdx, self.m_angularUnit, 
                                    cp["h"], cp["Omega_m"], cp["Omega_r"], cp["Omega_v"], cp["w"],
                                    lensRedshifts, fixedPlummerParameters,
                                    sourceRedshifts, rescaledThetas):

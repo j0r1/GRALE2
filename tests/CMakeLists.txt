@@ -53,3 +53,8 @@ target_link_libraries(cosmcheck gralecore-static ${GRALE_LINK_LIBS})
 
 add_executable(mpcubp mpcubp.cpp)
 target_link_libraries(mpcubp graleinv-static gralecore-static ${GRALE_LINK_LIBS})
+
+add_executable(pernodecounttest pernodecounttest.cpp)
+target_link_libraries(pernodecounttest gralecore-static ${GRALE_LINK_LIBS})
+
+
