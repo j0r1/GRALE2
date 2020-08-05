@@ -53,6 +53,9 @@ class InverterException(Exception):
     pass
 
 def _getErrorLineFromErrFile(errFile):
+    if not errFile:
+        return "No error file was opened, can't get more specific error line"
+
     errFile.flush()
     errFile.seek(0)
     errData = errFile.read()

@@ -95,7 +95,7 @@ int main(int argc, char const *argv[])
     for (auto &i : images)
         imgs.push_back(i.get());
 
-    if (!bp.init(libPath, cosm, redshifts, plummers, sourceRedshifts, imgs))
+    if (!bp.init(libPath, 0, cosm, redshifts, plummers, sourceRedshifts, imgs))
     {
         cerr << "Unable to initialize MPCUDABackProjector: " << bp.getErrorString() << endl;
         return -1;

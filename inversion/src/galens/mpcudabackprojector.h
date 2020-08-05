@@ -28,7 +28,7 @@ public:
 	MPCUDABackProjector();
 	~MPCUDABackProjector();
 
-    bool init(const std::string &libraryPath,
+    bool init(const std::string &libraryPath, int deviceIndex,
 		const Cosmology &cosmology,
 		const std::vector<float> &lensRedshifts,
 		const std::vector<std::vector<PlummerLensInfo>> &lenses, 

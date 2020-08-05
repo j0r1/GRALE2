@@ -38,6 +38,7 @@ public:
 	int getMaximumNumberOfGenerations() const												{ return m_params.getMaximumNumberOfGenerations(); }
 	bool getAllowNegativeWeights() const													{ return m_params.getAllowNegativeWeights(); }
     const ScaleSearchParameters &getMassScaleSearchParameters() const               		{ return m_params.getMassScaleSearchParameters(); }
+	int getDeviceIndex() const																{ return m_params.getDeviceIndex(); }
 
 	bool write(serut::SerializationInterface &si) const override;
 	bool read(serut::SerializationInterface &si) override;

@@ -17,7 +17,7 @@ MPCUDABackProjector::~MPCUDABackProjector()
     delete m_pMPCU;
 }
 
-bool MPCUDABackProjector::init(const string &libraryPath,
+bool MPCUDABackProjector::init(const string &libraryPath, int deviceIndex,
 		const Cosmology &cosmology,
 		const vector<float> &lensRedshifts,
 		const vector<vector<PlummerLensInfo>> &lenses, 
@@ -80,7 +80,7 @@ bool MPCUDABackProjector::init(const string &libraryPath,
     }
 
     m_pMPCU = new MultiPlaneCUDA();
-    if (!m_pMPCU->init(libraryPath, -1, m_angularScale, cosmology.getH(),
+    if (!m_pMPCU->init(libraryPath, deviceIndex, m_angularScale, cosmology.getH(),
                        cosmology.getOmegaM(), cosmology.getOmegaR(),
                        cosmology.getOmegaV(), cosmology.getW(),
                        lensRedshifts, fixedPlummerParams, sourceRedshifts, m_thetas))

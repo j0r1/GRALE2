@@ -534,7 +534,8 @@ cdef class LensInversionParametersMultiPlaneGPU(object):
     def __init__(self, cosmology = cosmology.Cosmology(0.7, 0.3, 0, 0.7),
                  basisLensesAndRedshifts = [], imagesAndRedshifts = [],
                  massEstimate = 0, sheetSearch = "nosheet", fitnessObjectParameters = None, maxGen = 0,
-                 allowNegativeWeights = False, massScaleSearchType = "regular"):
+                 allowNegativeWeights = False, massScaleSearchType = "regular",
+                 deviceIndex = "rotate"):
         
         cdef cppcosmology.Cosmology cosm
         cdef vector[double] lensRedshifts
@@ -550,6 +551,7 @@ cdef class LensInversionParametersMultiPlaneGPU(object):
         cdef cbool useSheet
         cdef configurationparameters.ConfigurationParameters *pFitnessObjectParameters = NULL
         cdef shared_ptr[scalesearchparameters.ScaleSearchParameters] scaleSearchParams
+        cdef int devIdx
 
         if type(cosmology) != dict:
             cosmology = cosmology.getParameters()
@@ -626,6 +628,13 @@ cdef class LensInversionParametersMultiPlaneGPU(object):
 
         scaleSearchParams = _getMassScaleSearchParameters(massScaleSearchType)
 
+        if deviceIndex == "rotate":
+            devIdx = -1
+        else:
+            if deviceIndex < 0:
+                raise InversionParametersException("Device index can't be negative")
+            devIdx = deviceIndex
+
         self.m_pParams = new lensinversionparametersmultiplanegpu.LensInversionParametersMultiPlaneGPU(
             cosm,
             lensRedshifts,
@@ -636,7 +645,8 @@ cdef class LensInversionParametersMultiPlaneGPU(object):
             pFitnessObjectParameters,
             maxGen,
             allowNegativeWeights,
-            deref(scaleSearchParams.get()))
+            deref(scaleSearchParams.get()),
+            devIdx)
 
     @staticmethod
     def fromBytes(bytes b):

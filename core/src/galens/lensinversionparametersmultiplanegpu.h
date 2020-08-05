@@ -25,7 +25,8 @@ public:
         const ConfigurationParameters *pFitnessObjectParameters,
         int maxGenerations,
         bool allowNegativeWeights,
-        const ScaleSearchParameters &massScaleSearchParams);
+        const ScaleSearchParameters &massScaleSearchParams,
+        int deviceIndex);
     ~LensInversionParametersMultiPlaneGPU();
 
    	const Cosmology &getCosmology() const                                           { return m_cosmology; }
@@ -38,6 +39,7 @@ public:
     int getMaximumNumberOfGenerations() const                                       { return m_maxGenerations; }
     bool getAllowNegativeWeights() const                                            { return m_allowNeg; }
     const ScaleSearchParameters &getMassScaleSearchParameters() const               { return m_scaleSearchParams; }
+    int getDeviceIndex() const                                                      { return m_deviceIdx; }
 
  	bool write(serut::SerializationInterface &si) const;
 	bool read(serut::SerializationInterface &si);
@@ -53,6 +55,7 @@ private:
     int m_maxGenerations;
     bool m_allowNeg;
     ScaleSearchParameters m_scaleSearchParams;
+    int m_deviceIdx;
 };
 
 } // end namespace

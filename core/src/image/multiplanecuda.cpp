@@ -120,6 +120,11 @@ bool MultiPlaneCUDA::init(const std::string &libraryPath, int devIdx,
 		devIdx = idx%numDevices;
 		cerr << "DEBUG (" << GetTimeStamp() << "): Automatically using new device index " << devIdx << endl;
 	}
+	else if (devIdx >= numDevices)
+	{
+		setErrorString("Invalid device index " + to_string(devIdx) + ", must be in 0..." + to_string(numDevices-1));
+		return false;
+	}
 
 	int err = mpcuInitMultiPlaneCalculation(angularUnit, h, W_m, W_r, W_v, w,
 	                                        lensRedshifts, fixedPlummerParameters, sourceRedshifts, theta,

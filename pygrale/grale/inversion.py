@@ -241,7 +241,8 @@ def invertMultiPlane(cosmology, inputImages, basisLensesAndRedshifts, popSize, m
                      massScale="auto", allowNegativeValues=False, sheetSearch="nosheet",
                      fitnessObjectParameters=None, massScaleSearchType="regular",
                      maximumGenerations=16384, geneticAlgorithmParameters={ },
-                     returnNds=False, inverter="default", feedbackObject="default"):
+                     returnNds=False, deviceIndex = "rotate",
+                     inverter="default", feedbackObject="default"):
         
     if massScale == "auto" or massScale == "auto_nocheck":
         minZd = min([entry["z"] for entry in basisLensesAndRedshifts])
@@ -262,7 +263,7 @@ def invertMultiPlane(cosmology, inputImages, basisLensesAndRedshifts, popSize, m
         return inversionparams.LensInversionParametersMultiPlaneGPU(cosmology,
                 basisLensesAndRedshifts, inputImages, massScale, sheetSearch,
                 fullFitnessObjParams, maximumGenerations, allowNegativeValues,
-                massScaleSearchType)
+                massScaleSearchType, deviceIndex)
 
     return _invertCommon(inverter, feedbackObject, moduleName, fitnessObjectParameters,
                   massScale, None, inputImages, getParamsFunction, popSize,

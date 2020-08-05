@@ -112,7 +112,8 @@ bool LensInversionGAFactoryMultiPlaneGPU::init(const mogal::GAFactoryParams *p)
         }
 
         auto bp = make_shared<MPCUDABackProjector>();
-        if (!bp->init(libraryPath, pParams->getCosmology(), m_lensRedshifts, m_basisLenses, sourceRedshifts, imgs))
+        if (!bp->init(libraryPath, pParams->getDeviceIndex(), pParams->getCosmology(), 
+                      m_lensRedshifts, m_basisLenses, sourceRedshifts, imgs))
         {
             setErrorString("Unable to initialize CUDA based backprojector: " + bp->getErrorString());
             return nullptr;

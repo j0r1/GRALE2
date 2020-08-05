@@ -9,7 +9,8 @@ LensInversionParametersMultiPlaneGPU::LensInversionParametersMultiPlaneGPU()
     : m_massEstimate(0),
       m_useSheets(false),
       m_maxGenerations(0),
-      m_allowNeg(false)
+      m_allowNeg(false),
+      m_deviceIdx(0)
 {
 
 }
@@ -23,7 +24,8 @@ LensInversionParametersMultiPlaneGPU::LensInversionParametersMultiPlaneGPU(const
         const ConfigurationParameters *pFitnessObjectParameters,
         int maxGenerations,
         bool allowNegativeWeights,
-        const ScaleSearchParameters &massScaleSearchParams)
+        const ScaleSearchParameters &massScaleSearchParams,
+        int deviceIndex)
 {
     m_cosmology = cosmology;
     m_lensRedshifts = lensRedshifts;
@@ -62,6 +64,7 @@ LensInversionParametersMultiPlaneGPU::LensInversionParametersMultiPlaneGPU(const
     m_maxGenerations = maxGenerations;
     m_allowNeg = allowNegativeWeights;
     m_scaleSearchParams = massScaleSearchParams;
+    m_deviceIdx = deviceIndex;
 }
 
 
@@ -148,6 +151,12 @@ bool LensInversionParametersMultiPlaneGPU::write(serut::SerializationInterface &
     if (!m_scaleSearchParams.write(si))
     {
         setErrorString("Unable to write the mass scale search parameters: " + si.getErrorString());
+        return false;
+    }
+
+    if (!si.writeInt32(m_deviceIdx))
+    {
+        setErrorString("Unable to write CUDA device index: " + si.getErrorString());
         return false;
     }
     return true;
@@ -258,6 +267,15 @@ bool LensInversionParametersMultiPlaneGPU::read(serut::SerializationInterface &s
         setErrorString("Unable to read mass scale search parameters: " + m_scaleSearchParams.getErrorString());
         return false;
     }
+
+    int32_t devIdx;
+    if (!si.readInt32(&devIdx))
+    {
+        setErrorString("Unable to read CUDA device index: " + si.getErrorString());
+        return false;
+    }
+    m_deviceIdx = devIdx;
+
     return true;
 }
 
