@@ -10,6 +10,7 @@
 #include "lensinversiongenome.h"
 #include "galensmodule.h"
 #include "gravitationallens.h"
+#include "utils.h"
 #include <serut/memoryserializer.h>
 #include <serut/vectorserializer.h>
 #include <serut/dummyserializer.h>
@@ -88,13 +89,11 @@ bool_t InversionCommunicator::readLineAndBytesWithPrefix(const string &prefix, v
 
 bool_t InversionCommunicator::run()
 {
-	const char envName[] = "GRALE2_MODULEPATH";
-	if (getenv(envName) == nullptr)
+	string moduleDir;
+	if (!getenv("GRALE2_MODULEPATH", moduleDir))
 		return "Environment variable GRALE2_MODULEPATH is not set, don't know where to look for inversion modules";
 
-	string moduleDir(getenv(envName));
 	bool_t r;
-
 	if (!(r = WriteLineStdout("GAINVERTER:" + getVersionInfo())))
 		return "Unable to send identification: " + r.getErrorString();
 

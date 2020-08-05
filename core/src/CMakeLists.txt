@@ -6,6 +6,7 @@ set(HEADERS
 	general/configurationparameters.h
 	general/log.h
 	general/pernodecounter.h
+	general/utils.h
 	cosmology/cosmology.h
 	lens/gravitationallens.h 
 	lens/multipleplummerlens.h 

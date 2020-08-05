@@ -3,6 +3,7 @@
 #include "compositelens.h"
 #include "masssheetlens.h"
 #include "plummerlens.h"
+#include "utils.h"
 #include <assert.h>
 
 using namespace std;
@@ -68,8 +69,6 @@ const mogal::GAFactoryParams *LensInversionGAFactoryMultiPlaneGPU::getCurrentPar
     return m_currentParams.get();
 }
 
-const string kMPCudaLibKey = "GRALE_MPCUDA_LIBRARY";
-
 bool LensInversionGAFactoryMultiPlaneGPU::init(const mogal::GAFactoryParams *p)
 {
     auto pParams = dynamic_cast<const LensInversionGAFactoryParamsMultiPlaneGPU *>(p);
@@ -79,12 +78,12 @@ bool LensInversionGAFactoryMultiPlaneGPU::init(const mogal::GAFactoryParams *p)
         return false;
     }
 
-    if (!getenv(kMPCudaLibKey.c_str()))
+    string libraryPath;
+    if (!getenv("GRALE_MPCUDA_LIBRARY", libraryPath))
     {
-        setErrorString("Environment variable " + kMPCudaLibKey + " for the helper library is not set");
+        setErrorString("Environment variable GRALE_MPCUDA_LIBRARY for the helper library is not set");
         return false;
     }
-    const string libraryPath(getenv(kMPCudaLibKey.c_str()));
 
     if (!analyzeLensBasisFunctions(pParams->getLensRedshifts(), pParams->getBasisLenses()))
         return false;

@@ -1,6 +1,7 @@
 #include "lensinversiongafactorycommon.h"
 #include "lensinversiongenome.h"
 #include "configurationparameters.h"
+#include "utils.h"
 #include <limits>
 #include <iostream>
 #include <sstream>
@@ -148,13 +149,12 @@ void LensInversionGAFactoryCommon::onGeneticAlgorithmStart()
 	m_queuedMessages.clear();
 
 	// To debug the mass scale search
-	string key { "GRALE_DEBUG_MASSCALESEARCH" };
-	if (getenv(key.c_str()))
+	string fileName;
+	if (getenv("GRALE_DEBUG_MASSCALESEARCH", fileName))
 	{
-		string fileName { getenv(key.c_str()) };
 		m_scaleSearchFileStream.open(fileName, ios_base::out);
 		if (!m_scaleSearchFileStream.is_open())
-			sendMessage("WARNING: couldn't open '" + key + "' debug file '" + fileName + "'");
+			sendMessage("WARNING: couldn't open 'GRALE_DEBUG_MASSCALESEARCH' debug file '" + fileName + "'");
 		else
 		{
 			m_scaleSearchFileStream.precision(10);

@@ -1,5 +1,6 @@
 #include "communicator.h"
 #include "gravitationallens.h"
+#include "utils.h"
 #include <iostream>
 #include <thread>
 
@@ -152,21 +153,16 @@ bool_t ThreadsRenderer::renderPointVector(const std::vector<uint8_t> &lensData, 
 
 int main(int argc, char *argv[])
 {
-	if (!getenv("GRALE_NUMTHREADS"))
+	int numThreads;
+	bool_t r = getenv("GRALE_NUMTHREADS", numThreads, 1);
+
+	if (!r)
 	{
-		cerr << "ERROR: Environment variable GRALE_NUMTHREADS needs to be set" << endl;
-		return -1;
-	}
-	int numThreads = atoi(getenv("GRALE_NUMTHREADS"));
-	if (numThreads < 1)
-	{
-		cerr << "ERROR: GRALE_NUMTHREADS environment variable must be a positive number" << endl;
+		cerr << "ERROR: Error getting number of threads from environment variable GRALE_NUMTHREADS: " << r.getErrorString() << endl;
 		return -1;
 	}
 
 	ThreadsRenderer renderer(numThreads);
-	bool_t r;
-
 	if (!(r = renderer.render()))
 	{
 		cerr << "ERROR: " << r.getErrorString() << endl;

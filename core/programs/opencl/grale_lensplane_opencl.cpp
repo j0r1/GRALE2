@@ -2,6 +2,7 @@
 #include "gravitationallens.h"
 #include "openclkernel.h"
 #include "constants.h"
+#include "utils.h"
 #include <iostream>
 
 using namespace std;
@@ -343,9 +344,7 @@ int main(int argc, char *argv[])
 #endif // GRALE_LOADLIBRARY
 
 	string library = defaultLibrary;
-
-	if (getenv("GRALE_OPENCLLIB"))
-		library = string(getenv("GRALE_OPENCLLIB"));
+	getenv("GRALE_OPENCLLIB", library); // Doesn't change the value if environment variable not set
 
 	OpenCLKernel clKernel;
 	if (!clKernel.init(library))

@@ -1,4 +1,5 @@
 #include "log.h"
+#include "utils.h"
 #include <stdlib.h>
 #include <time.h>
 #include <stdio.h>
@@ -71,11 +72,9 @@ Log::Log()
 
 void Log::init(const string &execName)
 {
-	char *pTmp = nullptr;
-	if ((pTmp = getenv("GRALELOG_LOGNAME")) != nullptr)
+	string logName;
+	if (getenv("GRALELOG_LOGNAME", logName))
 	{
-		string logName(pTmp);
-
 		if (logName == "stdout")
 			openStdOut();
 		else if (logName == "stderr")
@@ -93,10 +92,9 @@ void Log::init(const string &execName)
 			openFile(logName);
 		}
 
-		if ((pTmp = getenv("GRALELOG_LEVEL")) != nullptr)
+		string level;
+		if (getenv("GRALELOG_LEVEL", level))
 		{
-			string level(pTmp);
-
 			if (level == "err" || level == "error" || level == "ERR" || level == "ERROR")
 				setLogLevel(ERR);
 			else if (level == "wrn" || level == "warn" || level == "WRN" || level == "WARN")

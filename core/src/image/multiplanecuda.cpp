@@ -1,6 +1,7 @@
 #ifndef WIN32
 #include "multiplanecuda.h"
 #include "pernodecounter.h"
+#include "utils.h"
 #include <dlfcn.h>
 #include <sys/time.h>
 #include <sstream>
@@ -99,10 +100,8 @@ bool MultiPlaneCUDA::init(const std::string &libraryPath, int devIdx,
 
 	if (devIdx < 0)
 	{
-		string key = "GRALE_MPCUDA_AUTODEVICEFILE";
 		string fileName = "/dev/shm/grale_mpcuda_nextdevice.dat";
-		if (getenv(key.c_str()))
-			fileName = string(getenv(key.c_str()));
+		getenv("GRALE_MPCUDA_AUTODEVICEFILE", fileName); // Doesn't change file name if envvar not set
 
 		PerNodeCounter pnc(fileName);
 
