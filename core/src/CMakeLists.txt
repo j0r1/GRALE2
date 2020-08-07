@@ -157,7 +157,6 @@ set(SOURCES
 	source/pointsource.cpp
 	source/polygonsource.cpp
 	source/discretesource.cpp
-	galens/grid.cpp
 	galens/lensinversionparameterssingleplanecpu.cpp
 	galens/lensinversionparametersmultiplanegpu.cpp
 	galens/lensinversionbasislensinfo.cpp
