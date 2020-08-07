@@ -32,7 +32,7 @@ public:
 	mogal::Genome *createNewGenome() const;
 
 	size_t getMaximalFitnessSize() const							{ return sizeof(float)*(1+GRIDLENSINVERSIONGENOMEBASE_MAXFITNESSCOMP); }
-	size_t getMaximalGenomeSize() const							    { return (m_numBasisFunctions+m_numSheetValues)*sizeof(float); }
+	size_t getMaximalGenomeSize() const								{ return (m_numBasisFunctions+m_numSheetValues)*sizeof(float); }
 
 	bool writeGenome(serut::SerializationInterface &si, const mogal::Genome *g) const;
 	bool readGenome(serut::SerializationInterface &si, mogal::Genome **g) const;
@@ -44,21 +44,21 @@ public:
 	bool hasFloatingPointFitnessValues() const 						{ return true; }
 
 	const mogal::RandomNumberGenerator *getRandomNumberGenerator() const { return &m_rndGen; }
-	bool allowNegativeValues() const							    { return m_allowNegativeValues; }
+	bool allowNegativeValues() const								{ return m_allowNegativeValues; }
 	bool useLogarithmicScaleSearch() const { return true; }
 
 	virtual float getChanceMultiplier() = 0;
 	virtual bool useAbsoluteMutation() = 0;
 	virtual float getMutationAmplitude() = 0;
 
-    // TODO: vector<shared_prt<GravitationalLens>>, createLenses
+	// TODO: vector<shared_prt<GravitationalLens>>, createLenses
 	virtual GravitationalLens *createLens(const LensInversionGenome &genome, std::string &errStr) const = 0;
 
 	void sendMessage(const std::string &s);
 
 	bool calculateFitness(const std::vector<float> &basisFunctionWeights,
-                          const std::vector<float> &sheetValues,
-	                      float &scaleFactor,
+						  const std::vector<float> &sheetValues,
+						  float &scaleFactor,
 						  float *pFitnessValues);
 
 	virtual bool initializeNewCalculation(const std::vector<float> &basisFunctionWeights, const std::vector<float> &sheetValues) = 0;
@@ -71,16 +71,16 @@ protected:
 	virtual bool subInit(LensFitnessObject *pFitnessObject) = 0;
 
 	bool initializeLensFitnessObject(double z_d,
-	    const std::vector<std::shared_ptr<ImagesDataExtended>> &images,
+		const std::vector<std::shared_ptr<ImagesDataExtended>> &images,
 		const ConfigurationParameters *pFitnessObjectParameters,
 		std::vector<ImagesDataExtended*> &reducedImages,
 		std::vector<ImagesDataExtended*> &shortImages);
 
-    bool setCommonParameters(int numSheetValues, int maxGenerations,
-                             bool allowNeg,
-                             const std::vector<double> &basisFunctionMasses,
+	bool setCommonParameters(int numSheetValues, int maxGenerations,
+							 bool allowNeg,
+							 const std::vector<double> &basisFunctionMasses,
 							 double massUnit, double targetMass,
-                             const ScaleSearchParameters &searchParams);
+							 const ScaleSearchParameters &searchParams);
 
 	int getMaximumNumberOfGenerations() const						{ return m_maxGenerations; }
 private:

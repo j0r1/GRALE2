@@ -16,8 +16,8 @@ namespace grale
 LensInversionGAFactoryCommon::LensInversionGAFactoryCommon()
 {
   	m_numBasisFunctions = 0;
-    m_numSheetValues = 0;
-    m_maxGenerations = 0;
+	m_numSheetValues = 0;
+	m_maxGenerations = 0;
 	m_allowNegativeValues = false;
 }
 
@@ -27,32 +27,32 @@ LensInversionGAFactoryCommon::~LensInversionGAFactoryCommon()
 }
 
 bool LensInversionGAFactoryCommon::setCommonParameters(int numSheetValues, 
-                            int maxGenerations,
-                            bool allowNeg,
-                            const std::vector<double> &basisFunctionMasses,
+							int maxGenerations,
+							bool allowNeg,
+							const std::vector<double> &basisFunctionMasses,
 							double massUnit, double targetMass,
-                            const ScaleSearchParameters &searchParams)
+							const ScaleSearchParameters &searchParams)
 {
 	sendMessage("RNG SEED: " + std::to_string(m_rndGen.getSeed()));
 
-    m_numBasisFunctions = (int)basisFunctionMasses.size();
+	m_numBasisFunctions = (int)basisFunctionMasses.size();
 	if (m_numBasisFunctions == 0)
 	{
 		setErrorString("No basis function masses specified");
 		return false;
 	}
 
-    m_numSheetValues = numSheetValues;
-    m_maxGenerations = maxGenerations;
-    m_allowNegativeValues = allowNeg;
+	m_numSheetValues = numSheetValues;
+	m_maxGenerations = maxGenerations;
+	m_allowNegativeValues = allowNeg;
 
-    m_basisFunctionMasses.clear();
+	m_basisFunctionMasses.clear();
 	for (auto m : basisFunctionMasses)
 		m_basisFunctionMasses.push_back((float)(m/massUnit));
 
 	m_targetMass = (float)(targetMass/massUnit);
 
-    m_massScaleSearchParams = searchParams;
+	m_massScaleSearchParams = searchParams;
 	if (m_massScaleSearchParams == ScaleSearchParameters(true))
 		sendMessage("Using wide scale factor search");
 	else if (m_massScaleSearchParams == ScaleSearchParameters(false))
@@ -62,11 +62,11 @@ bool LensInversionGAFactoryCommon::setCommonParameters(int numSheetValues,
 	else
 		sendMessage("Using custom scaling parameters: " + m_massScaleSearchParams.toString());
 
-    return true;
+	return true;
 }
 
 bool LensInversionGAFactoryCommon::initializeLensFitnessObject(double z_d,
-    const std::vector<std::shared_ptr<ImagesDataExtended>> &images,
+	const std::vector<std::shared_ptr<ImagesDataExtended>> &images,
 	const ConfigurationParameters *pFitnessObjectParams,
 	vector<ImagesDataExtended*> &reducedImagesVector,
 	vector<ImagesDataExtended*> &shortImagesVector)
@@ -165,7 +165,7 @@ void LensInversionGAFactoryCommon::onGeneticAlgorithmStart()
 
 mogal::Genome *LensInversionGAFactoryCommon::createNewGenome() const
 {
-    assert(m_numBasisFunctions > 0);
+	assert(m_numBasisFunctions > 0);
 	return new LensInversionGenome(const_cast<LensInversionGAFactoryCommon*>(this), m_numBasisFunctions, m_numSheetValues);
 }
 
@@ -188,7 +188,7 @@ bool LensInversionGAFactoryCommon::writeGenome(serut::SerializationInterface &si
 
 bool LensInversionGAFactoryCommon::readGenome(serut::SerializationInterface &si, mogal::Genome **g) const
 {
-    assert(m_numBasisFunctions > 0);
+	assert(m_numBasisFunctions > 0);
 	std::vector<float> basisFunctionWeights(m_numBasisFunctions);
 	std::vector<float> sheetValues(m_numSheetValues);
 
@@ -267,7 +267,7 @@ static float ExpTrans(float x) { return EXP(x); }
 static float IdentityTrans(float x) { return x; }
 
 bool LensInversionGAFactoryCommon::calculateFitness(const vector<float> &basisFunctionWeights,
-                                                    const vector<float> &sheetValues,
+													const vector<float> &sheetValues,
 													float &scaleFactor,
 													float *pFitnessValues
 													)
