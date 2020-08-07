@@ -11,16 +11,15 @@ namespace grale
 class GRALE_IMPORTEXPORT LensInversionBasisLensInfo
 {
 public:
-    LensInversionBasisLensInfo(std::shared_ptr<GravitationalLens> &lens, Vector2Dd center, double relevantLensingMass);
-    LensInversionBasisLensInfo(const LensInversionBasisLensInfo &src);
-    LensInversionBasisLensInfo &operator=(const LensInversionBasisLensInfo &src);
-    
-    std::shared_ptr<GravitationalLens> m_pLens;
-    Vector2Dd m_center;
-    double m_relevantLensingMass;
+	LensInversionBasisLensInfo(std::shared_ptr<GravitationalLens> &lens, Vector2Dd center, double relevantLensingMass);
+	LensInversionBasisLensInfo(const LensInversionBasisLensInfo &src);
+	LensInversionBasisLensInfo &operator=(const LensInversionBasisLensInfo &src);
 
+	std::shared_ptr<GravitationalLens> m_pLens;
+	Vector2Dd m_center;
+	double m_relevantLensingMass;
 private:
-    void copyFrom(const LensInversionBasisLensInfo &src);
+	void copyFrom(const LensInversionBasisLensInfo &src);
 };
 
 }
