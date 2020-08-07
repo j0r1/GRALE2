@@ -37,7 +37,7 @@ public:
 	const ConfigurationParameters *getFitnessObjectParameters() const						{ return m_params.getFitnessObjectParameters(); }
 	int getMaximumNumberOfGenerations() const												{ return m_params.getMaximumNumberOfGenerations(); }
 	bool getAllowNegativeWeights() const													{ return m_params.getAllowNegativeWeights(); }
-    const ScaleSearchParameters &getMassScaleSearchParameters() const               		{ return m_params.getMassScaleSearchParameters(); }
+	const ScaleSearchParameters &getMassScaleSearchParameters() const			   		{ return m_params.getMassScaleSearchParameters(); }
 	int getDeviceIndex() const																{ return m_params.getDeviceIndex(); }
 
 	bool write(serut::SerializationInterface &si) const override;
@@ -65,12 +65,12 @@ public:
 	bool calculateTotalFitness(float scaleFactor, float *pFitnessValues) override;
 private:
 	bool analyzeLensBasisFunctions(const std::vector<double> redshifts,
-                                   const std::vector<std::vector<std::shared_ptr<LensInversionBasisLensInfo>>> &basisLenses);
+								   const std::vector<std::vector<std::shared_ptr<LensInversionBasisLensInfo>>> &basisLenses);
 	bool analyzeSourceImages(const std::vector<std::shared_ptr<ImagesDataExtended>> &sourceImages,
-	                         const Cosmology &cosmology,
-	                         std::vector<std::shared_ptr<ImagesDataExtended>> &imagesVector);
+							 const Cosmology &cosmology,
+							 std::vector<std::shared_ptr<ImagesDataExtended>> &imagesVector);
 	void convertGenomeSheetValuesToDensities(const std::vector<float> &sheetValues,
-	                                         std::vector<float> &sheetDensities) const;
+											 std::vector<float> &sheetDensities) const;
 	bool scaleWeights(float scaleFactor);
 
 	std::unique_ptr<LensInversionGAFactoryParamsMultiPlaneGPU> m_currentParams;
