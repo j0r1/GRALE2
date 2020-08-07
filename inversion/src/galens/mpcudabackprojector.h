@@ -28,7 +28,7 @@ public:
 	MPCUDABackProjector();
 	~MPCUDABackProjector();
 
-    bool init(const std::string &libraryPath, int deviceIndex,
+	bool init(const std::string &libraryPath, int deviceIndex,
 		const Cosmology &cosmology,
 		const std::vector<float> &lensRedshifts,
 		const std::vector<std::vector<PlummerLensInfo>> &lenses, 
@@ -36,11 +36,11 @@ public:
 		const std::vector<ImagesDataExtended *> &images);
 
 	bool calculateSourcePositions(const std::vector<std::vector<float>> &massFactors,
-	                              const std::vector<float> &sheetDensities);
+								  const std::vector<float> &sheetDensities);
 
-    // No single lens distance is available in the multi-plane case
+	// No single lens distance is available in the multi-plane case
 	double getLensDistance() const														{ return std::numeric_limits<double>::quiet_NaN(); }
-    // No single lens redshift is available in the multi-plane case
+	// No single lens redshift is available in the multi-plane case
 	double getLensRedshift() const														{ return std::numeric_limits<double>::quiet_NaN(); }
 
 	double getAngularScale() const														{ return m_angularScale; }
@@ -69,9 +69,9 @@ public:
 	const float *getLensPotential(int sourceNumber, int imageNumber) const				{ return nullptr; }
 	float getTimeDelay(int sourceNumber, int imageNumber, int pointNumber, Vector2D<float> beta) const { return std::numeric_limits<float>::quiet_NaN(); }
 private:
-    static double getAngularScale(const std::vector<ImagesDataExtended*> &images);
+	static double getAngularScale(const std::vector<ImagesDataExtended*> &images);
 
-    MultiPlaneCUDA *m_pMPCU;
+	MultiPlaneCUDA *m_pMPCU;
 	std::vector<std::vector<Vector2D<float>>> m_thetas;
 	double m_angularScale;
 };
