@@ -1011,7 +1011,7 @@ class InversionWorkSpace(object):
         else:
             newImgList = self.imgDataList
 
-        return calculateFitness(newImgList, self.zd, fitnessObjectParameters, lensOrBackProjectedImages, moduleName)
+        return calculateFitness(newImgList, self.zd[0], fitnessObjectParameters, lensOrBackProjectedImages, moduleName)
 
     def backProject(self, lens, typeFilter = [ "pointimages", "extendedimages", "pointgroupimages" ]):
         """Takes the information of the images that were added using :func:`addImageDataToList`,
