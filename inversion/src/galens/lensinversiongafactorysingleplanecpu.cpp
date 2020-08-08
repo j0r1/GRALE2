@@ -136,9 +136,9 @@ bool LensInversionGAFactorySinglePlaneCPU::init(const mogal::GAFactoryParams *p)
 		m_basisLenses.push_back( { bl.m_pLens, bl.m_center });
 		
 		double m = bl.m_relevantLensingMass;
-		if (m <= 0) // TODO: allow this to be overridden
+		if (m < 0) // TODO: allow this to be overridden
 		{
-			setErrorString("A basis lens has a negative lensing mass");
+			setErrorString("A basis lens has a negative strong lensing mass");
 			clear();
 			return false;
 		}

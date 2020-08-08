@@ -206,6 +206,12 @@ bool LensInversionGAFactoryMultiPlaneGPU::analyzeLensBasisFunctions(const vector
 
 		for (auto &bl : plane)
 		{
+			if (bl->m_relevantLensingMass < 0)
+			{
+				setErrorString("A basis lens was found to have a negative strong lensing mass");
+				return false;
+			}
+
 			const PlummerLens *pPlummerLens = dynamic_cast<const PlummerLens *>(bl->m_pLens.get());
 			if (!pPlummerLens)
 			{
