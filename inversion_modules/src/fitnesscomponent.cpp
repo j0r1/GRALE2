@@ -10,6 +10,7 @@
 #include <iostream>
 
 using namespace std;
+using namespace errut;
 
 namespace grale
 {
@@ -1446,6 +1447,56 @@ bool FitnessComponent_CausticPenalty::calculateFitness(const ProjectedImagesInte
 	fitness = calculateCausticPenaltyFitness(iface, m_sourceIndices, m_critIndices,
 			                                 m_lineSegments, m_critTriangles, m_lineSegmentFlags,
 											 m_lineSegmentIntersections, getCache());
+	return true;
+}
+
+FitnessComponent_KappaGradient::FitnessComponent_KappaGradient(FitnessComponentCache *pCache)
+	: FitnessComponent("kappagradient", pCache),
+	  m_srcIdx(-1)
+{
+	addRecognizedTypeName("kappagradientgrids");
+}
+
+FitnessComponent_KappaGradient::~FitnessComponent_KappaGradient()
+{
+}
+
+bool FitnessComponent_KappaGradient::inspectImagesData(int idx, const ImagesDataExtended &imgDat,
+								bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
+								bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence,
+								bool &storeOrigIntens, bool &storeOrigTimeDelay, bool &storeOrigShear)
+{
+	if (m_srcIdx >= 0)
+	{
+		setErrorString("A grid for the kappa gradient has already been set, only one can be present");
+		return false;
+	}
+
+	bool_t r;
+	if (!(r = m_gradCalc.check(imgDat)))
+	{
+		setErrorString(r.getErrorString());
+		return false;
+	}
+	
+	needCalcDeflDeriv = true; // needed for convergence calculation
+	needCalcConvergence = true;
+
+	m_srcIdx = idx;
+	addImagesDataIndex(idx);
+
+	return true;
+}
+
+bool FitnessComponent_KappaGradient::calculateFitness(const ProjectedImagesInterface &iface, float &fitness)
+{
+	const vector<float> &gradientSizes = m_gradCalc.getGradientSizes(m_srcIdx, iface);
+	float sum = 0;
+
+	for (auto x : gradientSizes)
+		sum += x;
+	
+	fitness = sum/gradientSizes.size();
 	return true;
 }
 

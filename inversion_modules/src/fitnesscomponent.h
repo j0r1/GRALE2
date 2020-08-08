@@ -4,6 +4,7 @@
 
 #include "pointgroupstorage.h"
 #include "fitnessutil.h"
+#include "numericgradientcalculator.h"
 #include <grale/triangleindices.h>
 #include <grale/imagesdataextended.h>
 #include <errut/errorbase.h>
@@ -310,6 +311,23 @@ private:
 	std::vector<std::vector<std::vector<bool> > > m_lineSegmentFlags;
 	std::vector<std::vector<std::vector<Vector2D<float> > > > m_lineSegmentIntersections;
 	std::vector<std::vector<std::vector<TriangleIndices> > > m_critTriangles;
+};
+
+class FitnessComponent_KappaGradient : public FitnessComponent
+{
+public:
+	FitnessComponent_KappaGradient(FitnessComponentCache *pCache);
+	~FitnessComponent_KappaGradient();
+	FitnessComponent *createShortCopy() const override { return new FitnessComponent_KappaGradient(nullptr); }
+
+	bool inspectImagesData(int idx, const ImagesDataExtended &imgDat,
+			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
+			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence,
+								   bool &storeOrigIntens, bool &storeOrigTimeDelay, bool &storeOrigShear) override;
+	bool calculateFitness(const ProjectedImagesInterface &iface, float &fitness) override;
+private:
+	NumericGradientCalculator m_gradCalc;
+	int m_srcIdx;
 };
 
 } // end namespace

@@ -127,7 +127,8 @@ void removeEmpty(vector<FitnessComponent *> &comp)
 #define COMPONENT_TIMEDELAY_IDX					6
 #define COMPONENT_KAPPATHRESHOLD_IDX			7
 #define COMPONENT_CAUSTICPENALTY_IDX			8
-#define COMPONENT_IDX_MAX						9
+#define COMPONENT_KAPPAGRADIENT_IDX			    9
+#define COMPONENT_IDX_MAX						10
 
 static const vector<string> componentNames {
 	"pointimageoverlap",
@@ -138,7 +139,8 @@ static const vector<string> componentNames {
 	"extendedimagenull",
 	"timedelay",
 	"kappathreshold",
-	"causticpenalty"
+	"causticpenalty",
+	"kappagradient"
 };
 
 FitnessComponent *totalToShort(const vector<FitnessComponent *> &total, vector<int> &shortImageIndices,
@@ -240,6 +242,7 @@ ConfigurationParameters *LensFitnessGeneral::getDefaultParametersInstance() cons
 	pParams->setParameter("priority_timedelay", 400);
 	pParams->setParameter("priority_kappathreshold", 600);
 	pParams->setParameter("priority_causticpenalty", 100);
+	pParams->setParameter("priority_kappagradient", 700);
 
 	pParams->setParameter("scalepriority_pointimageoverlap", 100);
 	pParams->setParameter("scalepriority_extendedimageoverlap", 100);
@@ -250,6 +253,7 @@ ConfigurationParameters *LensFitnessGeneral::getDefaultParametersInstance() cons
 	pParams->setParameter("scalepriority_timedelay", -1);
 	pParams->setParameter("scalepriority_kappathreshold", -1);
 	pParams->setParameter("scalepriority_causticpenalty", -1);
+	pParams->setParameter("scalepriority_kappagradient", -1);
 
 	pParams->setParameter("fitness_pointimageoverlap_scaletype", string("MinMax"));
 	pParams->setParameter("fitness_pointgroupoverlap_rmstype", string("AllBetas"));
@@ -298,7 +302,8 @@ bool LensFitnessGeneral::init(double z_d, std::list<ImagesDataExtended *> &image
 		new FitnessComponent_NullSpaceExtendedImages(pCache),
 		pTDComponent,
 		new FitnessComponent_KappaThreshold(pCache),
-		new FitnessComponent_CausticPenalty(pCache)
+		new FitnessComponent_CausticPenalty(pCache),
+		new FitnessComponent_KappaGradient(pCache)
 	};
 	assert(m_totalComponents.size() == COMPONENT_IDX_MAX);
 

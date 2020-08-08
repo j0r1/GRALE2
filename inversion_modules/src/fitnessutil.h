@@ -14,6 +14,7 @@ namespace grale
 class ProjectedImagesInterface;
 class PointGroupStorage;
 class FitnessComponentCache;
+class NumericGradientCalculator;
 
 std::shared_ptr<ImagesDataExtended> addGroupsToPointImages(const ImagesDataExtended &imgDat, std::string &errStr);
 

@@ -4,6 +4,6 @@
 #endforeach(i)
 
 add_executable(genometest genometest.cpp ../src/fitnessutil.cpp ../src/fitnesscomponent.cpp ../src/pointgroupstorage.cpp 
-	                  ../src/lensfitnesssimplerectangles.cpp )
+               ../src/numericgradientcalculator.cpp ../src/lensfitnesssimplerectangles.cpp)
 target_link_libraries(genometest ${GRALE_LIBRARIES})
 

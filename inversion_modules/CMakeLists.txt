@@ -1,4 +1,7 @@
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.1)
+if (POLICY CMP0042)
+	cmake_policy(SET CMP0042 NEW)
+endif()
 
 project(gamods)
 
@@ -9,14 +12,15 @@ include(CheckCXXCompilerFlag)
 include(CheckIncludeFile)
 include(CheckIncludeFileCXX)
 include(CheckCXXSourceCompiles)
-CHECK_CXX_COMPILER_FLAG("-std=c++11" COMPILER_SUPPORTS_CXX11)
-if(COMPILER_SUPPORTS_CXX11)
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+
+CHECK_CXX_COMPILER_FLAG("-std=c++14" COMPILER_SUPPORTS_CXX14)
+if(COMPILER_SUPPORTS_CXX14)
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
 else()
-	# Test if the compiler already supports C++11
-	check_cxx_source_compiles("#include <map>\nusing namespace std;\nint main(void) \n {\nmap<int, double> m;\n auto it = m.begin();\n return 0; \n }" C11AVAIL)
-	if (NOT C11AVAIL)
-		message(FATAL_ERROR "The compiler ${CMAKE_CXX_COMPILER} has no C++11 support.")
+	# Test if the compiler already supports C++14
+	check_cxx_source_compiles("int main(void)\n{\n\tauto f = [](auto x)\n\t{\n\t\treturn x*x;\n\t};\n\n\treturn 0;\n}\n" C14AVAIL)
+	if (NOT C14AVAIL)
+		message(FATAL_ERROR "The compiler ${CMAKE_CXX_COMPILER} has no C++14 support.")
 	endif()
 endif()
 
@@ -56,7 +60,7 @@ target_link_libraries(galens_j1004 ${EXTRA_LIBS} ${GRALE_LIBRARIES})
 install(TARGETS galens_j1004 DESTINATION ${LIBRARY_INSTALL_DIR})
 
 add_library(galens_general SHARED src/general/general.cpp src/lensfitnessgeneral.cpp src/fitnesscomponent.cpp src/fitnessutil.cpp
-	                          src/pointgroupstorage.cpp)
+	                          src/pointgroupstorage.cpp src/numericgradientcalculator.cpp)
 target_link_libraries(galens_general ${EXTRA_LIBS} ${GRALE_LIBRARIES})
 install(TARGETS galens_general DESTINATION ${LIBRARY_INSTALL_DIR})
 
