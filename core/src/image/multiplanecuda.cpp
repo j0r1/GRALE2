@@ -25,6 +25,7 @@ void MultiPlaneCUDA::zero()
 	mpcuClearContext = nullptr;
 	m_pLibrary = nullptr;
 	m_pContext = nullptr;
+	m_perNodeCounter.reset();
 }
 
 void MultiPlaneCUDA::cleanup()
@@ -33,7 +34,7 @@ void MultiPlaneCUDA::cleanup()
 		mpcuClearContext(m_pContext);
 	if (m_pLibrary)
 		dlclose(m_pLibrary);
-
+	m_perNodeCounter.reset();
 	zero();
 }
 
@@ -103,12 +104,13 @@ bool MultiPlaneCUDA::init(const std::string &libraryPath, int devIdx,
 		string fileName = "/dev/shm/grale_mpcuda_nextdevice.dat";
 		getenv("GRALE_MPCUDA_AUTODEVICEFILE", fileName); // Doesn't change file name if envvar not set
 
-		PerNodeCounter pnc(fileName);
+		m_perNodeCounter = make_unique<PerNodeCounter>(fileName);
 
-		int idx = pnc.getCount();
+		int idx = m_perNodeCounter->getCount();
 		if (idx < 0)
 		{
-			setErrorString("Couldn't read per-node device index from file '" + fileName + "': " + pnc.getErrorString());
+			setErrorString("Couldn't read per-node device index from file '" + fileName + "': " + m_perNodeCounter->getErrorString());
+			m_perNodeCounter.reset();
 			return false;
 		}
 

@@ -6,9 +6,12 @@
 #include "vector2d.h"
 #include <errut/errorbase.h>
 #include <vector>
+#include <memory>
 
 namespace grale
 {
+
+class PerNodeCounter;
 
 class GRALE_IMPORTEXPORT MultiPlaneCUDA : public errut::ErrorBase
 {
@@ -62,6 +65,7 @@ private:
 	void *m_pLibrary;
 	void *m_pContext;
 	int m_numSourcePlanes;
+	std::unique_ptr<PerNodeCounter> m_perNodeCounter;
 };
 
 } // end namespace
