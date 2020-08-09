@@ -140,6 +140,7 @@ bool MultiPlaneCUDA::init(const std::string &libraryPath, int devIdx,
 		return false;
 	}
 
+	m_deviceIndex = devIdx; // save the real device index
 	m_numSourcePlanes = (int)sourceRedshifts.size();
 
 	return true;

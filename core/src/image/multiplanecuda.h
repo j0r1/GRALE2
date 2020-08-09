@@ -42,6 +42,7 @@ public:
 	bool calculateSourcePositions(const std::vector<std::vector<float>> &massFactors,
 	                              const std::vector<float> &sheetDensities = std::vector<float>());
 	const std::vector<Vector2Df> *getSourcePositions(int srcIdx);
+	int getDeviceIndex() const { return m_deviceIndex; }
 private:
 	void zero();
 	void cleanup();
@@ -66,6 +67,7 @@ private:
 	void *m_pContext;
 	int m_numSourcePlanes;
 	std::unique_ptr<PerNodeCounter> m_perNodeCounter;
+	int m_deviceIndex;
 };
 
 } // end namespace

@@ -9,6 +9,7 @@
 #include "vector2d.h"
 #include "imagesdataextended.h"
 #include "plummerlensinfo.h"
+#include "multiplanecuda.h"
 #include <errut/errorbase.h>
 #include <assert.h>
 #include <vector>
@@ -37,6 +38,7 @@ public:
 
 	bool calculateSourcePositions(const std::vector<std::vector<float>> &massFactors,
 								  const std::vector<float> &sheetDensities);
+	int getDeviceIndex() const { return m_pMPCU->getDeviceIndex(); }
 
 	// No single lens distance is available in the multi-plane case
 	double getLensDistance() const														{ return std::numeric_limits<double>::quiet_NaN(); }

@@ -433,7 +433,7 @@ bool LensInversionGAFactoryMultiPlaneGPU::checkCUDAInit()
 		return false;
 	}
 
-	auto createBackProjector = [this, pParams](auto imgs) -> shared_ptr<MPCUDABackProjector>
+	auto createBackProjector = [this, pParams](auto imgs, int devIdx=-1) -> shared_ptr<MPCUDABackProjector>
 	{
 		vector<float> sourceRedshifts;
 		for (auto i : imgs)
@@ -447,8 +447,11 @@ bool LensInversionGAFactoryMultiPlaneGPU::checkCUDAInit()
 			sourceRedshifts.push_back((float)z);
 		}
 
+		if (devIdx < 0)
+			devIdx = pParams->getDeviceIndex();
+
 		auto bp = make_shared<MPCUDABackProjector>();
-		if (!bp->init(m_libraryPath, pParams->getDeviceIndex(), pParams->getCosmology(), 
+		if (!bp->init(m_libraryPath, devIdx, pParams->getCosmology(), 
 					  m_lensRedshifts, m_basisLenses, sourceRedshifts, imgs))
 		{
 			setErrorString("Unable to initialize CUDA based backprojector: " + bp->getErrorString());
@@ -464,7 +467,9 @@ bool LensInversionGAFactoryMultiPlaneGPU::checkCUDAInit()
 
 	if (m_shortImages.size() > 0) // We can speed up the scale search with a smaller set of images
 	{
-		m_cudaBpShort = createBackProjector(m_shortImages);
+		// Make sure that we're using the same device, we won't be calculating
+		// short and full versions at the same time
+		m_cudaBpShort = createBackProjector(m_shortImages, m_cudaBpFull->getDeviceIndex());
 		if (!m_cudaBpShort.get())
 			return false;
 	}
