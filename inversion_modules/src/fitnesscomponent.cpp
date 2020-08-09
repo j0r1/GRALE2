@@ -1466,6 +1466,12 @@ bool FitnessComponent_KappaGradient::inspectImagesData(int idx, const ImagesData
 								bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence,
 								bool &storeOrigIntens, bool &storeOrigTimeDelay, bool &storeOrigShear)
 {
+	string typeName;
+
+	imgDat.getExtraParameter("type", typeName);
+	if (typeName != "kappagradientgrids") // ignore
+		return true;
+
 	if (m_srcIdx >= 0)
 	{
 		setErrorString("A grid for the kappa gradient has already been set, only one can be present");
