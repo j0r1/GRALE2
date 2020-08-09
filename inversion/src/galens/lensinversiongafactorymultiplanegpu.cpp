@@ -78,8 +78,7 @@ bool LensInversionGAFactoryMultiPlaneGPU::init(const mogal::GAFactoryParams *p)
 		return false;
 	}
 
-	string libraryPath;
-	if (!getenv("GRALE_MPCUDA_LIBRARY", libraryPath))
+	if (!getenv("GRALE_MPCUDA_LIBRARY", m_libraryPath))
 	{
 		setErrorString("Environment variable GRALE_MPCUDA_LIBRARY for the helper library is not set");
 		return false;
@@ -88,52 +87,22 @@ bool LensInversionGAFactoryMultiPlaneGPU::init(const mogal::GAFactoryParams *p)
 	if (!analyzeLensBasisFunctions(pParams->getLensRedshifts(), pParams->getBasisLenses()))
 		return false;
 
-	vector<shared_ptr<ImagesDataExtended>> images;
-	if (!analyzeSourceImages(pParams->getSourceImages(), pParams->getCosmology(), images))
+	m_images.clear();
+	if (!analyzeSourceImages(pParams->getSourceImages(), pParams->getCosmology(), m_images))
 		return false;
 
-	vector<ImagesDataExtended *> reducedImages, shortImages; // These are the ones to actually use
-	if (!initializeLensFitnessObject(numeric_limits<double>::quiet_NaN(), images, pParams->getFitnessObjectParameters(),
-									 reducedImages, shortImages))
+	// These are the ones to actually use
+	m_reducedImages.clear();
+	m_shortImages.clear();
+	if (!initializeLensFitnessObject(numeric_limits<double>::quiet_NaN(), m_images, pParams->getFitnessObjectParameters(),
+									 m_reducedImages, m_shortImages))
 		return false;
 
-	auto createBackProjector = [this, libraryPath, pParams](auto imgs) -> shared_ptr<MPCUDABackProjector>
-	{
-		vector<float> sourceRedshifts;
-		for (auto i : imgs)
-		{
-			double z;
-			if (!i->hasExtraParameter("z") || !i->getExtraParameter("z", z))
-			{
-				setErrorString("Unexpected: no 'z' parameter in images data instance");
-				return nullptr;
-			}
-			sourceRedshifts.push_back((float)z);
-		}
-
-		auto bp = make_shared<MPCUDABackProjector>();
-		if (!bp->init(libraryPath, pParams->getDeviceIndex(), pParams->getCosmology(), 
-					  m_lensRedshifts, m_basisLenses, sourceRedshifts, imgs))
-		{
-			setErrorString("Unable to initialize CUDA based backprojector: " + bp->getErrorString());
-			return nullptr;
-		}
-		return bp;
-	};
-
-	// Allocate backprojector for reducedImages
-	m_cudaBpFull = createBackProjector(reducedImages);
-	if (!m_cudaBpFull.get())
-		return false;
-
-	if (shortImages.size() > 0) // We can speed up the scale search with a smaller set of images
-	{
-		m_cudaBpShort = createBackProjector(shortImages);
-		if (!m_cudaBpShort.get())
-			return false;
-	}
-	else // use the same
-		m_cudaBpShort = m_cudaBpFull;
+	// We're going to init CUDA later, only when we actually need it. The way the code
+	// is structured now, extra factory instances could be created (well at least one),
+	// causing more CUDA inits to happen than needed
+	m_cudaInitAttempted = false;
+	m_cudaInitialized = false;
 
 	// sheet densities, sheet multipliers
 	m_sheetDensities.clear();
@@ -398,6 +367,9 @@ bool LensInversionGAFactoryMultiPlaneGPU::scaleWeights(float scaleFactor)
 
 bool LensInversionGAFactoryMultiPlaneGPU::calculateMassScaleFitness(float scaleFactor, float &fitness)
 {
+	if (!checkCUDAInit())
+		return false;
+
 	if (!scaleWeights(scaleFactor))
 		return false;
 
@@ -419,6 +391,9 @@ bool LensInversionGAFactoryMultiPlaneGPU::calculateMassScaleFitness(float scaleF
 
 bool LensInversionGAFactoryMultiPlaneGPU::calculateTotalFitness(float scaleFactor, float *pFitnessValues)
 {
+	if (!checkCUDAInit())
+		return false;
+
 	if (!scaleWeights(scaleFactor))
 		return false;
 
@@ -439,4 +414,65 @@ bool LensInversionGAFactoryMultiPlaneGPU::calculateTotalFitness(float scaleFacto
 	return true;
 }
 
-} // enc namespace
+bool LensInversionGAFactoryMultiPlaneGPU::checkCUDAInit()
+{
+	if (m_cudaInitialized)
+		return true;
+
+	if (m_cudaInitAttempted)
+	{
+		setErrorString("CUDA initialization has failed previously");
+		return false;
+	}
+	m_cudaInitAttempted = true;
+
+	const LensInversionGAFactoryParamsMultiPlaneGPU *pParams = dynamic_cast<const LensInversionGAFactoryParamsMultiPlaneGPU *>(getCurrentParameters());
+	if (!pParams)
+	{
+		setErrorString("Unexpected: parameters is null, we should already have checked this");
+		return false;
+	}
+
+	auto createBackProjector = [this, pParams](auto imgs) -> shared_ptr<MPCUDABackProjector>
+	{
+		vector<float> sourceRedshifts;
+		for (auto i : imgs)
+		{
+			double z;
+			if (!i->hasExtraParameter("z") || !i->getExtraParameter("z", z))
+			{
+				setErrorString("Unexpected: no 'z' parameter in images data instance");
+				return nullptr;
+			}
+			sourceRedshifts.push_back((float)z);
+		}
+
+		auto bp = make_shared<MPCUDABackProjector>();
+		if (!bp->init(m_libraryPath, pParams->getDeviceIndex(), pParams->getCosmology(), 
+					  m_lensRedshifts, m_basisLenses, sourceRedshifts, imgs))
+		{
+			setErrorString("Unable to initialize CUDA based backprojector: " + bp->getErrorString());
+			return nullptr;
+		}
+		return bp;
+	};
+
+	// Allocate backprojector for reducedImages
+	m_cudaBpFull = createBackProjector(m_reducedImages);
+	if (!m_cudaBpFull.get())
+		return false;
+
+	if (m_shortImages.size() > 0) // We can speed up the scale search with a smaller set of images
+	{
+		m_cudaBpShort = createBackProjector(m_shortImages);
+		if (!m_cudaBpShort.get())
+			return false;
+	}
+	else // use the same
+		m_cudaBpShort = m_cudaBpFull;
+
+	m_cudaInitialized = true;
+	return true;
+}
+
+} // end namespace

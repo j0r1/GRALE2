@@ -72,6 +72,7 @@ private:
 	void convertGenomeSheetValuesToDensities(const std::vector<float> &sheetValues,
 											 std::vector<float> &sheetDensities) const;
 	bool scaleWeights(float scaleFactor);
+	bool checkCUDAInit();
 
 	std::unique_ptr<LensInversionGAFactoryParamsMultiPlaneGPU> m_currentParams;
 	std::shared_ptr<MPCUDABackProjector> m_cudaBpShort, m_cudaBpFull;
@@ -84,6 +85,12 @@ private:
 	std::vector<float> m_sheetMultipliers;
 	std::vector<std::vector<float>> m_basePlaneWeights;
 	std::vector<std::vector<float>> m_scaledPlaneWeights;
+
+	std::vector<std::shared_ptr<ImagesDataExtended>> m_images;
+	std::vector<ImagesDataExtended *> m_reducedImages, m_shortImages;
+	std::string m_libraryPath;
+	bool m_cudaInitialized;
+	bool m_cudaInitAttempted;
 };
 
 } // end namespace
