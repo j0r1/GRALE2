@@ -35,6 +35,9 @@ protected:
 	virtual bool_t runGA(int popSize, mogal::GAFactory &factory, mogal::GeneticAlgorithmParams &params,
 	                     const std::string &moduleDir, const std::string &moduleFile,
 						 const std::vector<uint8_t> &factoryParamBytes);
+	bool_t runGAWrapper(int popSize, mogal::GAFactory &factory, mogal::GeneticAlgorithmParams &params,
+	                     const std::string &moduleDir, const std::string &moduleFile,
+						 const std::vector<uint8_t> &factoryParamBytes);
 	virtual const mogal::GeneticAlgorithm *getGeneticAlgorithm() const { return nullptr; }
 
 	bool_t readLineWithPrefix(const std::string &prefix, std::string &value, int timeoutMSec);
