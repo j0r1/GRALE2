@@ -100,18 +100,7 @@ def initInverterAndFeedback(inverter, feedbackObject):
         inverter = inverters.getDefaultInverter()
     
     if type(inverter) == str:
-        if inverter.lower() == "singlecore":
-            inverter = inverters.SingleProcessInverter()
-        elif inverter.lower() == "gdb":
-            inverter = inverters.SingleProcessGdbInverter()
-        elif inverter.lower() == "mpi":
-            inverter = inverters.MPIProcessInverter()
-        elif inverter.lower() == "localcs":
-            inverter = inverters.LocalCSProcessInverter()
-        elif inverter.lower() == "mpics":
-            inverter = inverters.MPICSProcessInverter()
-        elif inverter.lower() == "clientserver":
-            inverter = inverters.ClientServerProcessInverter()
+        inverter = inverters.createInverterFromString(inverter)
 
     obj = None
     if feedbackObject is None:

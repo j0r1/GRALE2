@@ -9,10 +9,10 @@ classes. Available are:
 
  - "SingleCore" or an instance of :class:`SingleProcessInverter`
  - "GDB" or and instance of :class:`SingleProcessGdbInverter` (for debugging code)
- - "MPI" or an instance of :class:`MPIProcessInverter`
+ - "MPI"/"MPI:numprocesses" or an instance of :class:`MPIProcessInverter`
  - "ClientServer" or an instance of :class:`ClientServerProcessInverter`
- - "LocalCS" or an instance of :class:`LocalCSProcessInverter`
- - "MPICS" or an instance of :class:`MPICSProcessInverter`
+ - "LocalCS"/"LocalCS:numprocesses" or an instance of :class:`LocalCSProcessInverter`
+ - "MPICS"/"MPICS:numprocesses" or an instance of :class:`MPICSProcessInverter`
 
 """
 from __future__ import print_function
@@ -554,3 +554,51 @@ def setDefaultInverter(x):
     """Sets the default inverter to use when running the genetic algorithm."""
     _defaultInverter[0] = x
 
+def createInverterFromString(inverter):
+    """Creates on of the inverters based on the specified inverter name.
+
+    Can be one of (case insensitive)
+    - "SingleCore"
+    - "GDB"
+    - "MPI"/"MPI:numprocesses"
+    - "ClientServer"
+    - "LocalCS"/"LocalCS:numprocesses"
+    - "MPICS"/"MPICS:numprocesses"
+
+    """
+
+    localCsNodesPrefix = "localcs:"
+    mpiNodesPrefix = "mpi:"
+    csMpiNodesPrefix = "mpics:"
+
+    if inverter.lower() == "singlecore":
+        return SingleProcessInverter()
+
+    if inverter.lower() == "gdb":
+        return SingleProcessGdbInverter()
+
+    if inverter.lower() == "mpi":
+        return MPIProcessInverter()
+
+    if inverter.lower().startswith(mpiNodesPrefix):
+        numNodes = int(inverter[len(mpiNodesPrefix):])
+        return MPIProcessInverter(numNodes)
+
+    if inverter.lower() == "localcs":
+        return LocalCSProcessInverter()
+
+    if inverter.lower().startswith(localCsNodesPrefix):
+        numNodes = int(inverter[len(localCsNodesPrefix):])
+        return LocalCSProcessInverter(numNodes)
+
+    if inverter.lower() == "mpics":
+        return MPICSProcessInverter()
+
+    if inverter.lower().startswith(csMpiNodesPrefix):
+        numNodes = int(inverter[len(csMpiNodesPrefix):])
+        return MPICSProcessInverter(numNodes)
+
+    if inverter.lower() == "clientserver":
+        return ClientServerProcessInverter()
+
+    raise InverterException("The specified string '{}' cannot be interpreted as an inverter".format(inverter))
