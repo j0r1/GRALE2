@@ -1007,7 +1007,7 @@ class InversionWorkSpace(object):
                 entry["params"] = params # use changed parameters
                 newImgList.append(entry)
 
-            lensOrBackProjectedImages = self.backProject(lensOrBackProjectedImages)
+            lensOrBackProjectedImages = self.backProject(lensOrBackProjectedImages, None)
         else:
             newImgList = self.imgDataList
 
