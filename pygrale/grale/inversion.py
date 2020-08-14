@@ -532,14 +532,22 @@ class InversionWorkSpace(object):
         self.Dd = [ cosmology.getAngularDiameterDistance(z) for z in zLens ]
         self.imgDataList = []
         self.cosm = cosmology
-        self.inversionArgs = { } 
+        self.inversionArgs = { }
 
-        if regionSize <= 0:
-            raise InversionException("Invalid region size")
+        if type(regionSize) != list:
+            regionSize = [ copy.deepcopy(regionSize) for x in range(len(zLens)) ]
+            regionCenter = [ copy.deepcopy(regionCenter) for x in range(len(zLens)) ]
+
+        if len(regionSize) != len(zLens):
+            raise InversionException("There must be the same amount of region sizes as lens planes")
+
+        for r in regionSize:
+            if r <= 0:
+                raise InversionException("Invalid region size")
         
         # Rough indication of grid position and dimensions, but randomness
         # may be added unless specified otherwise
-        self.regionSize = regionSize
+        self.regionSize = copy.deepcopy(regionSize)
         self.regionCenter = copy.deepcopy(regionCenter)
         self.grid = [ None for z in zLens ]
         self.clearBasisFunctions() # initializes self.basisFunctions
@@ -569,14 +577,20 @@ class InversionWorkSpace(object):
         lpIdx = self._checkLensPlaneIndex(lpIdx)
         return self.Dd[lpIdx]
 
-    def setRegionSize(self, regionSize, regionCenter = [0, 0]):
+    def setRegionSize(self, regionSize, regionCenter = [0, 0], lpIdx = "all"):
         """Set the inversion region, same as in the constructor: `regionSize` and 
         `regionCenter` are the width, height and center of the region in which the
         inversion should take plane. This will be used to base the
         grid dimensions on, but by default some randomness will be added 
         (see e.g. :func:`setUniformGrid`)."""
-        self.regionSize = regionSize
-        self.regionCenter = copy.deepcopy(regionCenter)
+        if lpIdx == "all":
+            for i in range(len(self.regionSize)):
+                self.regionSize[i] = copy.deepcopy(regionSize)
+                self.regionCenter[i] = copy.deepcopy(regionCenter)
+        else:
+            lpIdx = self._checkLensPlaneIndex(lpIdx)
+            self.regionSize[lpIdx] = regionSize
+            self.regionCenter[lpIdx] = copy.deepcopy(regionCenter)
 
     def getCosmology(self):
         """Returns the cosmological model that was specified during initialization."""
@@ -636,11 +650,11 @@ class InversionWorkSpace(object):
         lpIdx = self._checkLensPlaneIndex(lpIdx)
         return self.grid[lpIdx]
 
-    def _getGridDimensions(self, randomFraction, regionSize, regionCenter):
+    def _getGridDimensions(self, randomFraction, regionSize, regionCenter, lpIdx):
         if regionSize is None:
-            regionSize = self.regionSize
+            regionSize = self.regionSize[lpIdx]
         if regionCenter is None:
-            regionCenter = self.regionCenter
+            regionCenter = self.regionCenter[lpIdx]
 
         if type(randomFraction) == float: # Just a number, use the default method
             w = regionSize
@@ -669,16 +683,18 @@ class InversionWorkSpace(object):
         If specified, `regionSize` and `regionCenter` override the internally stored
         dimensions.
         """
-        w, c = self._getGridDimensions(randomFraction, regionSize, regionCenter)
+        
         if lpIdx == "all":
             for i in range(len(self.grid)):
+                w, c = self._getGridDimensions(randomFraction, regionSize, regionCenter, i)
                 self.grid[i] = gridModule.createUniformGrid(w, c, subDiv)
         else:
             lpIdx = self._checkLensPlaneIndex(lpIdx)
+            w, c = self._getGridDimensions(randomFraction, regionSize, regionCenter, lpIdx)
             self.grid[lpIdx] = gridModule.createUniformGrid(w, c, subDiv)
 
-    def _getSinglePlaneSubDivGrid(self, lensOrLensInfo,  minSquares, maxSquares, startSubDiv, randomFraction, regionSize, regionCenter):
-        w, c = self._getGridDimensions(randomFraction, regionSize, regionCenter)
+    def _getSinglePlaneSubDivGrid(self, lensOrLensInfo,  minSquares, maxSquares, startSubDiv, randomFraction, regionSize, regionCenter, lpIdx):
+        w, c = self._getGridDimensions(randomFraction, regionSize, regionCenter, lpIdx)
         if isinstance(lensOrLensInfo, plotutil.DensInfo):
             lensInfo = lensOrLensInfo
         else:
@@ -709,10 +725,10 @@ class InversionWorkSpace(object):
                 isinstance(lensOrLensInfo, plotutil.DensInfo) or type(lensOrLensInfo) != lenses.MultiPlaneContainer
              ))):
             lpIdx = self._checkLensPlaneIndex(lpIdx)
-            self.grid[lpIdx] = self._getSinglePlaneSubDivGrid(lensOrLensInfo, minSquares, maxSquares, startSubDiv, randomFraction, regionSize, regionCenter)
+            self.grid[lpIdx] = self._getSinglePlaneSubDivGrid(lensOrLensInfo, minSquares, maxSquares, startSubDiv, randomFraction, regionSize, regionCenter, lpIdx)
             return
 
-        # Here, we have a multi-plane container, go a similar subdivision
+        # Here, we have a multi-plane container, do a similar subdivision
         # step for each lens plane
         lensesAndRedshifts = lensOrLensInfo.getLensParameters()
         if len(lensesAndRedshifts) != len(self.zd):
@@ -722,7 +738,7 @@ class InversionWorkSpace(object):
             if not np.isclose(lensesAndRedshifts[i]["z"], self.zd[i]):
                 raise InversionException("Redshift {:g} in multi plane container lens {} does not appear to match the expected redshift {:g}".format(lensesAndRedshifts[i]["z"], i+1, self.zd[i]))
 
-            self.grid[i] = self._getSinglePlaneSubDivGrid(lensesAndRedshifts[i]["lens"], minSquares, maxSquares, startSubDiv, randomFraction, regionSize, regionCenter)
+            self.grid[i] = self._getSinglePlaneSubDivGrid(lensesAndRedshifts[i]["lens"], minSquares, maxSquares, startSubDiv, randomFraction, regionSize, regionCenter, i)
        
     def setDefaultInversionArguments(self, **kwargs):
         """In case you want to pass the same keyword arguments to the :func:`invert <grale.inversion.InversionWorkSpace.invert>`
