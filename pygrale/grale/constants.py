@@ -20,8 +20,6 @@ units. These constants are:
 
 """
 
-import math
-
 MASS_SUN          = 1.98855e30
 """Solar mass expressed in units of 1 kg."""
 
@@ -43,8 +41,15 @@ SPEED_C           = 299792458.0
 CONST_G           = 6.67300e-11
 """The gravitational constant, expressed in units of 1 m^3/(kg s)."""
 
-ANGLE_DEGREE      = math.pi/180.0
+ANGLE_DEGREE      = None # Is set below, allows to use math.pi while keeping namespace clean
 """Angle of one degree, expressed in radians."""
+
+def _moduleInit():
+    import math
+    global ANGLE_DEGREE
+    ANGLE_DEGREE = math.pi/180.0
+
+_moduleInit()
 
 ANGLE_ARCMIN      = ANGLE_DEGREE/60.0
 """Angle one arcminute, expressed in radians."""
