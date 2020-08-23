@@ -211,7 +211,7 @@ print("Using version string: '{}'".format(versionStr))
 pyMods = [ "grale.cosmology", "grale.plotutil", "grale.constants", "grale.renderers", "grale.timedio", "grale.untimedio",
            "grale.privutil", "grale.debuglog", "grale.feedback", "grale.bytestring", "grale.inverters",
            "grale.inversion", "grale.grid", "grale.multiplane", "grale.privimages", "grale.privlenses",
-           "grale.util" ]
+           "grale.util", "grale.all", "grale.all_nb" ]
 extraSetupArgs = { }
 
 try:
