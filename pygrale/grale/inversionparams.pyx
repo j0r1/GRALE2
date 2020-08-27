@@ -146,24 +146,26 @@ class InversionParametersException(Exception):
     parameters."""
     pass
 
-cdef shared_ptr[scalesearchparameters.ScaleSearchParameters] _getMassScaleSearchParameters(massScaleSearchType):
-    cdef shared_ptr[scalesearchparameters.ScaleSearchParameters] params
+cdef scalesearchparameters.ScaleSearchParameters* _getMassScaleSearchParameters(massScaleSearchType) except NULL:
 
     if massScaleSearchType == "regular":
-        params.reset(new scalesearchparameters.ScaleSearchParameters(False))
-    elif massScaleSearchType == "wide":
-        params.reset(new scalesearchparameters.ScaleSearchParameters(True))
-    elif massScaleSearchType == "nosearch":
-        params.reset(new scalesearchparameters.ScaleSearchParameters())
-    else:
-        params.reset(new scalesearchparameters.ScaleSearchParameters(
-            massScaleSearchType["startFactor"],
-            massScaleSearchType["stopFactor"],
-            massScaleSearchType["numIterations"],
-            massScaleSearchType["firstIterationSteps"],
-            massScaleSearchType["nextIterationSteps"]))
+        return new scalesearchparameters.ScaleSearchParameters(False)
 
-    return params
+    if massScaleSearchType == "wide":
+        return new scalesearchparameters.ScaleSearchParameters(True)
+
+    if massScaleSearchType == "nosearch":
+        return new scalesearchparameters.ScaleSearchParameters()
+
+    if type(massScaleSearchType) != dict:
+        raise InversionParametersException("'massScaleSearchType' must be either 'regular', 'wide', 'nosearch' or a dictionary")
+
+    return new scalesearchparameters.ScaleSearchParameters(
+        massScaleSearchType["startFactor"],
+        massScaleSearchType["stopFactor"],
+        massScaleSearchType["numIterations"],
+        massScaleSearchType["firstIterationSteps"],
+        massScaleSearchType["nextIterationSteps"])
 
 cdef class LensInversionParametersSinglePlaneCPU(object):
     """An internal representation of the parameters for the lens inversion
@@ -355,7 +357,7 @@ cdef class LensInversionParametersSinglePlaneCPU(object):
                 fitnessObjectParametersObj = ConfigurationParameters(fitnessObjectParameters)
                 pFitnessObjectParameters = ConfigurationParameters._getConfigurationParameters(fitnessObjectParametersObj)
 
-            scaleSearchParams = _getMassScaleSearchParameters(massScaleSearchType)
+            scaleSearchParams.reset(_getMassScaleSearchParameters(massScaleSearchType))
 
             if type(gridInfoOrBasisFunctions) == dict:
                 gridSquareList = gridInfoOrBasisFunctions["gridSquares"]
@@ -626,7 +628,7 @@ cdef class LensInversionParametersMultiPlaneGPU(object):
             fitnessObjectParametersObj = ConfigurationParameters(fitnessObjectParameters)
             pFitnessObjectParameters = ConfigurationParameters._getConfigurationParameters(fitnessObjectParametersObj)
 
-        scaleSearchParams = _getMassScaleSearchParameters(massScaleSearchType)
+        scaleSearchParams.reset(_getMassScaleSearchParameters(massScaleSearchType))
 
         if deviceIndex == "rotate":
             devIdx = -1
