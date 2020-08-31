@@ -1118,7 +1118,7 @@ float calculateWeakLensingFitness(const ProjectedImagesInterface &interface, con
 					d1 = (gamma1-pStoredShear1[i]);
 					d2 = (gamma2-pStoredShear2[i]);
 				}
-				else // Reduced
+				else // Reduced or Bayes
 				{
 					float g1 = gamma1/oneMinusKappa;
 					float g2 = gamma2/oneMinusKappa;
@@ -1127,8 +1127,10 @@ float calculateWeakLensingFitness(const ProjectedImagesInterface &interface, con
 					{
 						d1 = (g1-pStoredShear1[i]);
 						d2 = (g2-pStoredShear2[i]);
+
+						shearFitness += (d1*d1 + d2*d2)*weight;
 					}
-					else // Ellipticities, this is the realistic use case
+					else if (type == AveragedEllipticities) // Ellipticities
 					{
 						assert(type == AveragedEllipticities);
 						complex<float> Ee { pStoredShear1[i], pStoredShear2[i] }; // entry represents averaged ellipticities
@@ -1143,10 +1145,39 @@ float calculateWeakLensingFitness(const ProjectedImagesInterface &interface, con
 
 						d1 = (g.real()-Ee.real());
 						d2 = (g.imag()-Ee.imag());
+						
+						shearFitness += (d1*d1 + d2*d2)*weight;
+					}
+					else // BayesianEllipticities
+					{
+						// This is based on a Bayesian calculation, assuming the ellipticities
+						// are known without error, and assuming the redshift (already taken
+						// into account in g and kappa) is known without error as well. Further
+						// assuming a uniform distribution for the b/a ratio of the elliptic
+						// source shapes, and a uniform prior on the basis function weights.
+						// Then, only the jacobians of the ellipSrc to ellipImg transforms
+						// remain
+
+						// TODO: this fitness can (and will) get negative. The algorithm does
+						//       seem to keep working, but for now I'm not really sure if there
+						//       are unintended consequences of this.
+						
+						// weights are ignored currently
+						float gSq = g1*g1 + g2*g2;
+						float f1 = pStoredShear1[i]; // entries represent measured galaxy ellipticities
+						float f2 = pStoredShear2[i];
+						float fSq = f1*f1 + f2*f2;
+
+						// A factor 2 has been omitted, and logprob sign reversed so that we'll be
+						// looking for a minimum
+						shearFitness += -std::log(std::abs(gSq-1.0f));
+						if (gSq <= 1)
+							shearFitness += std::log(std::abs(fSq*gSq - 2.0f*f1*g1 - 2.0f*f2*g2 + 1.0f));
+						else
+							shearFitness += std::log(std::abs(fSq + gSq - 2.0f*f1*g2 - 2.0f*f2*g2));
 					}
 				}
 
-				shearFitness += (d1*d1 + d2*d2)*weight;
 				usedPoints++;
 			}
 		}

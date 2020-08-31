@@ -72,7 +72,7 @@ float calculateNullFitness_ExtendedImages(const ProjectedImagesInterface &iface,
 									   const std::vector<float> &nullWeights,
 									   FitnessComponentCache *pCache = 0);
 
-enum WeakLensingType { RealShear, RealReducedShear, AveragedEllipticities };
+enum WeakLensingType { RealShear, RealReducedShear, AveragedEllipticities, BayesianEllipticities };
 float calculateWeakLensingFitness(const ProjectedImagesInterface &interface, const std::vector<int> &weakIndices, 
 							      WeakLensingType weakType, const std::vector<float> &oneMinusKappaThreshold);
 
