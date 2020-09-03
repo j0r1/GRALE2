@@ -13,6 +13,9 @@ from . import images
 from . import lenses
 from . import cosmology
 
+import numpy as np
+cimport numpy as np
+
 cimport grale.configurationparameters as configurationparameters
 cimport grale.lensinversionparameterssingleplanecpu as lensinversionparameterssingleplanecpu
 cimport grale.lensinversionparametersmultiplanegpu as lensinversionparametersmultiplanegpu
@@ -60,29 +63,87 @@ cdef class ConfigurationParameters(object):
         cdef double doubleValue = 0.0
         cdef string strValue
         cdef string keyValue
+        cdef vector[cbool] boolValues
+        cdef vector[int] intValues
+        cdef vector[double] doubleValues
+        cdef vector[string] stringValues
+        cdef np.ndarray[double,ndim=1] realArray
+        cdef np.ndarray[np.int32_t,ndim=1] intArray
+        cdef np.ndarray[cbool,ndim=1] boolArray
+        cdef int idx
+
+        def isArr(x):
+            try:
+                if type(x) in (str, unicode):
+                    return False
+                len(x)
+                return True
+            except:
+                return False
 
         if parameterDict:
             for key in parameterDict:
                 if type(key) not in (str,unicode):
-                    raise ConfigurationParameters("A key is present in the parameter dictionary that is not a string")
+                    raise ConfigurationParametersException("A key is present in the parameter dictionary that is not a string")
 
                 keyValue = B(key)
                 val = parameterDict[key]
-                if type(val) is int:
-                    intValue = val
-                    self.m_pParams.setParameter(keyValue, intValue)
-                elif type(val) in (str,unicode):
-                    strValue = B(val)
-                    self.m_pParams.setParameter(keyValue, strValue)
-                elif type(val) is float:
-                    doubleValue = val
-                    self.m_pParams.setParameter(keyValue, doubleValue)
-                elif type(val) is bool:
-                    boolValue = val
-                    self.m_pParams.setParameter(keyValue, boolValue)
-                else:
-                    raise ConfigurationParametersException("Key '{}' has unsupported value type '{}'".format(key,type(val)))
-            
+                if val is None:
+                    self.m_pParams.setParameterEmpty(keyValue)
+                    continue
+
+                if not isArr(val):
+                    if type(val) is int:
+                        intValue = val
+                        self.m_pParams.setParameter(keyValue, intValue)
+                    elif type(val) in (str,unicode):
+                        strValue = B(val)
+                        self.m_pParams.setParameter(keyValue, strValue)
+                    elif type(val) is float:
+                        doubleValue = val
+                        self.m_pParams.setParameter(keyValue, doubleValue)
+                    elif type(val) is bool:
+                        boolValue = val
+                        self.m_pParams.setParameter(keyValue, boolValue)
+                    else:
+                        raise ConfigurationParametersException("Key '{}' has unsupported value type '{}'".format(key,type(val)))
+                
+                else: # Array
+                    if type(val) != np.ndarray: # assume it's a list of strings
+                        stringValues.clear()
+                        for i in val:
+                            if type(i) is not str:
+                                raise ConfigurationParametersException("Expecting all list elements to be of type string but '{}' is of type '{}'".format(i, type(i)))
+    
+                            stringValues.push_back(B(i))
+                        self.m_pParams.setParameter(keyValue, stringValues)
+                    else: # Check type of array
+                        if len(val.shape) != 1:
+                            raise ConfigurationParametersException("Expecting a one dimensional array, but found {} dimensions".format(len(val.shape)))
+
+                        if val.dtype == np.int32:
+                            intArray = val
+                            intValues.resize(intArray.shape[0])
+                            for idx in range(intArray.shape[0]):
+                                intValues[idx] = intArray[idx]
+                            self.m_pParams.setParameter(keyValue, intValues)
+
+                        elif val.dtype == np.float64:
+                            realArray = val
+                            doubleValues.resize(realArray.shape[0])
+                            for idx in range(realArray.shape[0]):
+                                doubleValues[idx] = realArray[idx]                                
+                            self.m_pParams.setParameter(keyValue, doubleValues)
+
+                        elif  val.dtype == np.bool:
+                            boolArray = val
+                            boolValues.resize(boolArray.shape[0])
+                            for idx in range(boolArray.shape[0]):
+                                boolValues[idx] = boolArray[idx]
+                            self.m_pParams.setParameter(keyValue, boolValues)
+                        else:                        
+                            raise ConfigurationParametersException("Unknown array type, expecting bool, int32 or float64, but got {}".format(val.dtype))
+    
     def __dealloc__(self):
         del self.m_pParams
 
@@ -92,30 +153,69 @@ cdef class ConfigurationParameters(object):
         This returns the key/value pairs stored in this instance as a dictionary.
         """
         cdef vector[string] keys
-        cdef configurationparameters.TypedParameter param
-        cdef cbool boolValue = False
-        cdef double doubleValue = 0.0
-        cdef string strValue
-        cdef string keyValue
+        cdef const configurationparameters.TypedParameter *param = NULL
+        cdef np.ndarray[double,ndim=1] realValues
+        cdef np.ndarray[np.int32_t,ndim=1] intValues
+        cdef np.ndarray[cbool,ndim=1] boolValues
+        cdef const vector[string] *strVec = NULL
+        cdef const vector[double] *realVec = NULL
+        cdef const vector[int] *intVec = NULL
+        cdef const vector[cbool] *boolVec = NULL
+        cdef int i
 
         d = { }
         self.m_pParams.getAllKeys(keys)
         for k in keys:
             kStr = S(k)
-            if not self.m_pParams.getParameter(k, param):
+            param = self.m_pParams.getParameter(k)
+            if param == NULL:
                 raise ConfigurationParametersException("Unable to get parameter for key '{}'".format(kStr))
 
-            if param.isBoolean():
-                d[kStr] = param.getBooleanValue()
-            elif param.isInteger():
-                d[kStr] = param.getIntegerValue()
-            elif param.isReal():
-                d[kStr] = param.getRealValue()
-            elif param.isString():
-                d[kStr] = S(param.getStringValue())
-            else:
-                raise ConfigurationParametersException("Unknown type for key '{}'".format(kStr))
+            # param.dump()
+            if not param.isArray():
+                if param.isBoolean():
+                    d[kStr] = param.getBooleanValue()
+                elif param.isInteger():
+                    d[kStr] = param.getIntegerValue()
+                elif param.isReal():
+                    d[kStr] = param.getRealValue()
+                elif param.isString():
+                    d[kStr] = S(param.getStringValue())
+                elif param.isEmpty():
+                    d[kStr] = None
+                else:
+                    raise ConfigurationParametersException("Unknown type for key '{}'".format(kStr))
+            else: # Array
+                if param.isBoolean():
+                    boolVec = cython.address(param.getBooleanValues())
+                    boolValues = np.empty([boolVec.size()], dtype=bool)
+                    for i in range(boolVec.size()):
+                        boolValues[i] = deref(boolVec)[i]
+                    d[kStr] = boolValues
 
+                elif param.isInteger():
+                    intVec = cython.address(param.getIntegerValues())
+                    intValues = np.empty([intVec.size()], dtype=np.int32)
+                    for i in range(intVec.size()):
+                        intValues[i] = deref(intVec)[i]
+                    d[kStr] = intValues
+
+                elif param.isReal():
+                    realVec = cython.address(param.getRealValues())
+                    realValues = np.empty([realVec.size()], dtype=np.double)
+                    for i in range(realVec.size()):
+                        realValues[i] = deref(realVec)[i]
+                    d[kStr] = realValues
+
+                elif param.isString():
+                    values = []
+                    strVec = cython.address(param.getStringValues())
+                    for i in range(strVec.size()):
+                        values.append(S(deref(strVec)[i]))
+                    d[kStr] = values
+
+                else:
+                    raise ConfigurationParametersException("Unknown type for key '{}'".format(kStr))
         return d
 
     @staticmethod
