@@ -1059,13 +1059,6 @@ bool FitnessComponent_WeakLensing::processFitnessOption(const std::string &optio
 			return true;
 		}
 
-		if (valueStr == "BayesianEllipticities")
-		{
-			cerr << "Setting WL fitness type to BayesianEllipticities" << endl;
-			setFitnessType(BayesianEllipticities);
-			return true;
-		}
-
 		setErrorString("Invalid value for '" + optionName + "': '" + valueStr + "'");
 		return false;
 	}

@@ -72,9 +72,12 @@ float calculateNullFitness_ExtendedImages(const ProjectedImagesInterface &iface,
 									   const std::vector<float> &nullWeights,
 									   FitnessComponentCache *pCache = 0);
 
-enum WeakLensingType { RealShear, RealReducedShear, AveragedEllipticities, BayesianEllipticities };
+enum WeakLensingType { RealShear, RealReducedShear, AveragedEllipticities };
 float calculateWeakLensingFitness(const ProjectedImagesInterface &interface, const std::vector<int> &weakIndices, 
 							      WeakLensingType weakType, const std::vector<float> &oneMinusKappaThreshold);
+
+float calculateWeakLensingFitness_Bayes(const ProjectedImagesInterface &interface, const std::vector<int> &weakIndices,
+								  const std::vector<std::pair<float,float>> &unknownDistFracWeightsNormed);
 
 float calculateTimeDelayFitnessPaper2009(const ProjectedImagesInterface &iface, const std::vector<int> &sourceIndices,
 		                        const std::vector<float> &tdScaleFactors = std::vector<float>());

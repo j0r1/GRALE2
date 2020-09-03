@@ -1069,6 +1069,128 @@ float calculateNullFitness_ExtendedImages(const ProjectedImagesInterface &iface,
 	return nullfitness;
 }
 
+// For the bayesian version, we assume that Dds/Ds of the extended images
+// was set to one; the actual Dds/Ds should be stored in the shear weights
+// entries. If set to zero, the actual redshift is unknown and a weighted
+// average will be used based on distanceFractionWeights (assumed to be
+// normalized)
+float calculateWeakLensingFitness_Bayes(const ProjectedImagesInterface &interface, const vector<int> &weakIndices,
+								  const vector<pair<float,float>> &unknownDistFracWeightsNormed)
+{
+	const float epsilon = 1e-6; // to avoid division by zero
+	float shearFitness = 0;
+	int usedPoints = 0;
+
+	auto calculateEllipticityProbability = [epsilon](float f1, float f2, 
+	                                          float axx, float ayy, float axy, float distFrac) -> float
+	{
+		float gamma1 = 0.5f*(axx-ayy)*distFrac;
+		float gamma2 = axy*distFrac;
+		float kappa = 0.5f*(axx+ayy)*distFrac;
+		
+		float oneMinusKappa = 1.0f-kappa;
+		if (ABS(oneMinusKappa) < epsilon) // avoid division by zero
+				oneMinusKappa = copysign(epsilon, oneMinusKappa);
+
+		float g1 = gamma1/oneMinusKappa;
+		float g2 = gamma2/oneMinusKappa;
+
+		// This is based on a Bayesian calculation, assuming the ellipticities
+		// are known without error. Further assuming a uniform distribution 
+		// for the b/a ratio of the elliptic source shapes, and a uniform 
+		// prior on the basis function weights.
+		// Then, only the jacobians of the ellipSrc to ellipImg transforms
+		// weighted by possibly unknown distance fractions
+
+		// TODO: this fitness can (and will) get negative. The algorithm does
+		//       seem to keep working, but for now I'm not really sure if there
+		//       are unintended consequences of this.
+		
+		// weights are ignored currently
+		float gSq = g1*g1 + g2*g2;
+		float fSq = f1*f1 + f2*f2;
+		complex<float> eImg = { f1, f2 };
+		complex<float> g = { g1, g2 };
+		float F = 0;
+		float jacRoot = 0;
+		
+		// A factor 2 has been omitted, and logprob sign reversed so that we'll be
+		// looking for a minimum
+		if (gSq <= 1)
+		{
+			F = abs( (eImg - g)/(1.0f - conj(g)*eImg) );
+			jacRoot = (gSq-1.0f)/(fSq*gSq - 2.0f*f1*g1 - 2.0f*f2*g2 + 1.0f);
+		}
+		else
+		{
+			F = abs( (1.0f - g*conj(eImg))/(conj(eImg) - conj(g)) );
+			jacRoot = (gSq-1.0f)/(fSq + gSq - 2.0f*f1*g2 - 2.0f*f2*g2);
+		}
+
+		float jac = jacRoot*jacRoot;
+		// Note that this is actualy still a proportionality, depending on the b/a distribution
+		// With this proportionality, every b/a, from 0 to 1 is possible with equal probability
+		float F1 = F+1.0f;
+		float prob = 1.0f/(float(CONST_PI) * F * F1*F1)*jac;
+		return prob;
+	};
+
+	for (int sIdx = 0 ; sIdx < weakIndices.size() ; sIdx++)
+	{
+		const int s = weakIndices[sIdx];
+
+		assert(s >= 0 && s < interface.getNumberOfSources());
+		int numPoints = interface.getNumberOfImagePoints(s);
+		const float *pEll1 = interface.getOriginalShearComponent1s(s);
+		const float *pEll2 = interface.getOriginalShearComponent2s(s);
+		const float *pDistFrac = interface.getShearWeights(s);
+		const float *pAxx = interface.getDerivativesXX(s);
+		const float *pAyy = interface.getDerivativesYY(s);
+		const float *pAxy = interface.getDerivativesXY(s);
+
+		assert(pEll1 && pEll2 && pAxx && pAyy && pAxy);
+		
+		for (int i = 0 ; i < numPoints ; i++)
+		{
+			float axx = pAxx[i];
+			float ayy = pAyy[i];
+			float axy = pAxy[i];
+			float distFrac = pDistFrac[i];
+			// we're abusing the weights to store distance fraction, which should be set
+			// explicitly (the default value is 1)
+			assert(distFrac != 1);
+
+			float f1 = pEll1[i]; // entries represent measured galaxy ellipticities
+			float f2 = pEll2[i];
+
+			float elliptProb = 0;
+			if (distFrac != 0)
+				elliptProb = calculateEllipticityProbability(f1, f2, axx, ayy, axy, distFrac);
+			else
+			{
+				// Unknown redshift/distance fraction, use weighted average according to some distribution
+				for (auto fracAndProb : unknownDistFracWeightsNormed)
+					elliptProb += calculateEllipticityProbability(f1, f2, axx, ayy, axy, fracAndProb.first) * fracAndProb.second;
+			}
+
+			if (elliptProb <= 0) // avoid problems with log
+				elliptProb = epsilon; 
+			
+			float logElliptProb = std::log(elliptProb);				
+			shearFitness += -logElliptProb; // use negative to search for a minimum
+			usedPoints++;
+		}
+	}
+
+	if (usedPoints == 0)
+		shearFitness = 1e30; // Avoid creating a solution that dominates this fitness because there are no points
+	else
+		shearFitness /= usedPoints; // this also covers all the weak lensing data sets
+
+	assert(!isnan(shearFitness));
+	return shearFitness;
+}
+
 float calculateWeakLensingFitness(const ProjectedImagesInterface &interface, const vector<int> &weakIndices,
 								  WeakLensingType type, const vector<float> &oneMinusKappaThreshold)
 {
@@ -1118,7 +1240,7 @@ float calculateWeakLensingFitness(const ProjectedImagesInterface &interface, con
 					d1 = (gamma1-pStoredShear1[i]);
 					d2 = (gamma2-pStoredShear2[i]);
 				}
-				else // Reduced or Bayes
+				else // Reduced
 				{
 					float g1 = gamma1/oneMinusKappa;
 					float g2 = gamma2/oneMinusKappa;
@@ -1148,33 +1270,9 @@ float calculateWeakLensingFitness(const ProjectedImagesInterface &interface, con
 						
 						shearFitness += (d1*d1 + d2*d2)*weight;
 					}
-					else // BayesianEllipticities
+					else // BayesianEllipticities is covered somewhere else, signal error
 					{
-						// This is based on a Bayesian calculation, assuming the ellipticities
-						// are known without error, and assuming the redshift (already taken
-						// into account in g and kappa) is known without error as well. Further
-						// assuming a uniform distribution for the b/a ratio of the elliptic
-						// source shapes, and a uniform prior on the basis function weights.
-						// Then, only the jacobians of the ellipSrc to ellipImg transforms
-						// remain
-
-						// TODO: this fitness can (and will) get negative. The algorithm does
-						//       seem to keep working, but for now I'm not really sure if there
-						//       are unintended consequences of this.
-						
-						// weights are ignored currently
-						float gSq = g1*g1 + g2*g2;
-						float f1 = pStoredShear1[i]; // entries represent measured galaxy ellipticities
-						float f2 = pStoredShear2[i];
-						float fSq = f1*f1 + f2*f2;
-
-						// A factor 2 has been omitted, and logprob sign reversed so that we'll be
-						// looking for a minimum
-						shearFitness += -std::log(std::abs(gSq-1.0f));
-						if (gSq <= 1)
-							shearFitness += std::log(std::abs(fSq*gSq - 2.0f*f1*g1 - 2.0f*f2*g2 + 1.0f));
-						else
-							shearFitness += std::log(std::abs(fSq + gSq - 2.0f*f1*g2 - 2.0f*f2*g2));
+						return numeric_limits<float>::quiet_NaN();
 					}
 				}
 
