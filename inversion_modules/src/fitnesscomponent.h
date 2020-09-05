@@ -330,6 +330,23 @@ private:
 	int m_srcIdx;
 };
 
+class FitnessComponent_WeakLensing_Bayes : public FitnessComponent
+{
+public:
+	FitnessComponent_WeakLensing_Bayes(FitnessComponentCache *pCache);
+	~FitnessComponent_WeakLensing_Bayes();
+	FitnessComponent *createShortCopy() const override { return new FitnessComponent_WeakLensing_Bayes(nullptr); }
+
+	bool inspectImagesData(int idx, const ImagesDataExtended &imgDat,
+			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
+			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence,
+								   bool &storeOrigIntens, bool &storeOrigTimeDelay, bool &storeOrigShear) override;
+	bool calculateFitness(const ProjectedImagesInterface &iface, float &fitness) override;
+	bool processFitnessOption(const std::string &optionName, const TypedParameter &value) override;
+private:
+	std::vector<std::pair<float,float>> m_distanceFractionWeights;
+};
+
 } // end namespace
 
 #endif // FITNESSCOMPONENT_H

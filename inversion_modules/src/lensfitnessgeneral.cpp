@@ -128,7 +128,8 @@ void removeEmpty(vector<FitnessComponent *> &comp)
 #define COMPONENT_KAPPATHRESHOLD_IDX			7
 #define COMPONENT_CAUSTICPENALTY_IDX			8
 #define COMPONENT_KAPPAGRADIENT_IDX			    9
-#define COMPONENT_IDX_MAX						10
+#define COMPONENT_BAYESWEAK_IDX					10
+#define COMPONENT_IDX_MAX						11
 
 static const vector<string> componentNames {
 	"pointimageoverlap",
@@ -140,7 +141,8 @@ static const vector<string> componentNames {
 	"timedelay",
 	"kappathreshold",
 	"causticpenalty",
-	"kappagradient"
+	"kappagradient",
+	"bayesweaklensing"
 };
 
 FitnessComponent *totalToShort(const vector<FitnessComponent *> &total, vector<int> &shortImageIndices,
@@ -243,6 +245,7 @@ ConfigurationParameters *LensFitnessGeneral::getDefaultParametersInstance() cons
 	pParams->setParameter("priority_kappathreshold", 600);
 	pParams->setParameter("priority_causticpenalty", 100);
 	pParams->setParameter("priority_kappagradient", 700);
+	pParams->setParameter("priority_bayesweaklensing", 500);
 
 	pParams->setParameter("scalepriority_pointimageoverlap", 100);
 	pParams->setParameter("scalepriority_extendedimageoverlap", 100);
@@ -254,11 +257,13 @@ ConfigurationParameters *LensFitnessGeneral::getDefaultParametersInstance() cons
 	pParams->setParameter("scalepriority_kappathreshold", -1);
 	pParams->setParameter("scalepriority_causticpenalty", -1);
 	pParams->setParameter("scalepriority_kappagradient", -1);
+	pParams->setParameter("scalepriority_bayesweaklensing", 300);
 
 	pParams->setParameter("fitness_pointimageoverlap_scaletype", string("MinMax"));
 	pParams->setParameter("fitness_pointgroupoverlap_rmstype", string("AllBetas"));
 	pParams->setParameter("fitness_timedelay_type", string("NoSrc"));
 	pParams->setParameter("fitness_weaklensing_type", string("AveragedEllipticities"));
+	pParams->setParameterEmpty("fitness_bayesweaklensing_distfracdistribution");
 	return pParams;
 }
 
@@ -291,19 +296,19 @@ bool LensFitnessGeneral::init(double z_d, std::list<ImagesDataExtended *> &image
 	FitnessComponent_PointImagesOverlap *pPtComponent = new FitnessComponent_PointImagesOverlap(pCache);
 	FitnessComponent_PointGroupOverlap *pPtGrpComponent = new FitnessComponent_PointGroupOverlap(pCache);
 	FitnessComponent_TimeDelay *pTDComponent = new FitnessComponent_TimeDelay(pCache);
-	FitnessComponent_WeakLensing *pWLComponent = new FitnessComponent_WeakLensing(pCache);
 
 	/*vector<FitnessComponent *>*/ m_totalComponents = {
 		pPtComponent,
 		new FitnessComponent_ExtendedImagesOverlap(pCache),
 		pPtGrpComponent,
-		pWLComponent,
+		new FitnessComponent_WeakLensing(pCache),
 		new FitnessComponent_NullSpacePointImages(pCache),
 		new FitnessComponent_NullSpaceExtendedImages(pCache),
 		pTDComponent,
 		new FitnessComponent_KappaThreshold(pCache),
 		new FitnessComponent_CausticPenalty(pCache),
-		new FitnessComponent_KappaGradient(pCache)
+		new FitnessComponent_KappaGradient(pCache),
+		new FitnessComponent_WeakLensing_Bayes(pCache)
 	};
 	assert(m_totalComponents.size() == COMPONENT_IDX_MAX);
 
@@ -816,6 +821,8 @@ measures are:
    at certain locations should not exceed a certain threshold, this fitness
    measure is added.
 
+ - `bayesweaklensing`: TODO, bayesian, per galaxy
+
 In general, when more than one fitness measure is used, at the end of the 
 algorithm a set of mass maps is found in which no single one will be better
 than another with respect to all fitness measures. While you can specify that
@@ -943,6 +950,8 @@ is contained in this entry, and can be one of the following:
     The only fitness measure to which this type of data is relevant, is 
    `weaklensing`.
 
+ - `bayesellipticities`: TODO, galaxy ellipticities, for `bayesweaklensing`
+
  - `kappathresholdpoints`: this data set should only contain a single 'image',
    a set of points at which the convergence $\kappa$ is calculated. The
    mandatory extra (real valued) parameter `threshold` specifies if a penalty
@@ -992,11 +1001,13 @@ and are listed in the following table:
 | priority_extendedimageoverlap       | 300                     |
 | priority_timedelay                  | 400                     |
 | priority_weaklensing                | 500                     |
+| priority_bayesweaklensing           | 500                     |
 | priority_kappathreshold             | 600                     |
 | fitness_pointgroupoverlap_rmstype   | 'AllBetas'              |
 | fitness_pointimageoverlap_scaletype | 'MinMax'                |
 | fitness_timedelay_type              | 'NoSrc'                 |
 | fitness_weaklensing_type            | 'AveragedEllipticities' |
+| fitness_bayesweaklensing_distfracdistribution| None           |
 
 In case input is provided with 'pointgroupimages' type, the 'pointgroupoverlap'
 fitness calculation is used, which estimates the RMS in the image plane. It

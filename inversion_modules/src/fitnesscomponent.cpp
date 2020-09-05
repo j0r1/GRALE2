@@ -1506,4 +1506,74 @@ bool FitnessComponent_KappaGradient::calculateFitness(const ProjectedImagesInter
 	return true;
 }
 
+// FitnessComponent_WeakLensing_Bayes
+
+FitnessComponent_WeakLensing_Bayes::FitnessComponent_WeakLensing_Bayes(FitnessComponentCache *pCache) 
+	: FitnessComponent("bayesweaklensing", pCache)
+{
+	addRecognizedTypeName("bayesellipticities");
+}
+
+FitnessComponent_WeakLensing_Bayes::~FitnessComponent_WeakLensing_Bayes()
+{
+}
+
+bool FitnessComponent_WeakLensing_Bayes::inspectImagesData(int idx, const ImagesDataExtended &imgDat,
+			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
+			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence,
+								   bool &storeOrigIntens, bool &storeOrigTimeDelay, bool &storeOrigShear)
+{
+	string typeName;
+
+	imgDat.getExtraParameter("type", typeName);
+	if (typeName != "bayesellipticities")
+		return true; // ignore
+
+	// TODO: check Dds/Ds == 1
+	// TODO: check weights -> used as Dds/Ds fraction
+	// TODO: check if distFrac distribution is needed
+
+	if (imgDat.getNumberOfImages() != 1)
+	{
+		setErrorString("Each images data instance can only contain one 'image' for shear info");
+		return false;
+	}
+
+	if (!imgDat.hasShearInfo())
+	{
+		setErrorString("No shear info is present");
+		return false;
+	}
+
+	needCalcDeflDeriv = true;
+	needCalcShear = true;
+	needCalcConvergence = true;
+	storeOrigShear = true;
+
+	addImagesDataIndex(idx);
+
+	return true;
+}
+
+bool FitnessComponent_WeakLensing_Bayes::processFitnessOption(const std::string &optionName, const TypedParameter &value)
+{
+	if (optionName == "distfracdistribution")
+	{
+		// TODO: check if present, if needed etc
+
+		setErrorString("Invalid value for '" + optionName);
+		return false;
+	}
+
+	setErrorString("Unknown option");
+	return false;
+}
+
+bool FitnessComponent_WeakLensing_Bayes::calculateFitness(const ProjectedImagesInterface &iface, float &fitness)
+{
+	fitness = calculateWeakLensingFitness_Bayes(iface, getUsedImagesDataIndices(), m_distanceFractionWeights);
+	return true;
+}
+
+
 } // end namespace
