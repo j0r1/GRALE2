@@ -1512,6 +1512,7 @@ FitnessComponent_WeakLensing_Bayes::FitnessComponent_WeakLensing_Bayes(FitnessCo
 	: FitnessComponent("bayesweaklensing", pCache)
 {
 	addRecognizedTypeName("bayesellipticities");
+	m_allDistFracKnown = true;
 }
 
 FitnessComponent_WeakLensing_Bayes::~FitnessComponent_WeakLensing_Bayes()
@@ -1529,10 +1530,6 @@ bool FitnessComponent_WeakLensing_Bayes::inspectImagesData(int idx, const Images
 	if (typeName != "bayesellipticities")
 		return true; // ignore
 
-	// TODO: check Dds/Ds == 1
-	// TODO: check weights -> used as Dds/Ds fraction
-	// TODO: check if distFrac distribution is needed
-
 	if (imgDat.getNumberOfImages() != 1)
 	{
 		setErrorString("Each images data instance can only contain one 'image' for shear info");
@@ -1545,9 +1542,43 @@ bool FitnessComponent_WeakLensing_Bayes::inspectImagesData(int idx, const Images
 		return false;
 	}
 
+	// Check Dds ==1 and Ds == 1, so that Dds/Ds == 1
+	if (imgDat.getDs() != 1 || imgDat.getDds() != 1)
+	{
+		setErrorString("For this type of image, both Dds and Ds need to be set to exactly 1");
+		return false;
+	}
+
+	// Check weights -> used as Dds/Ds fraction
+	const int numPoints = imgDat.getNumberOfImagePoints(0);
+	if (numPoints == 0)
+	{
+		setErrorString("No points present");
+		return false;
+	}
+
+	for (int i = 0 ; i < numPoints ; i++)
+	{
+		// TODO: for now we're abusing shear weight to store distance fraction
+		double distFrac = imgDat.getShearWeight(0, i);
+		
+		if (distFrac == 0) // indicates unknown distance fraction, will need probability info
+			m_allDistFracKnown = false;
+		else
+		{
+			if (distFrac < 0 || distFrac >= 1.0)
+			{
+				setErrorString("Encountered invalid distance fraction, should be positive and smaller than one, but is " + to_string(distFrac));
+				return false;
+			}
+		}
+	}
+	
 	needCalcDeflDeriv = true;
-	needCalcShear = true;
-	needCalcConvergence = true;
+	// These two are not needed, they are calculated from the derivatives
+	// in the fitness function
+	// needCalcShear = true;
+	// needCalcConvergence = true;
 	storeOrigShear = true;
 
 	addImagesDataIndex(idx);
@@ -1555,14 +1586,57 @@ bool FitnessComponent_WeakLensing_Bayes::inspectImagesData(int idx, const Images
 	return true;
 }
 
+// This is called before inspect
 bool FitnessComponent_WeakLensing_Bayes::processFitnessOption(const std::string &optionName, const TypedParameter &value)
 {
 	if (optionName == "distfracdistribution")
 	{
-		// TODO: check if present, if needed etc
+		if (value.isEmpty()) // Ok, nothing set, but check later if we need it
+			return true;
+		
+		if (!value.isArray() || !value.isReal())
+		{
+			setErrorString("This should either be empty or an array of real numbers");
+			return false;
+		}
 
-		setErrorString("Invalid value for '" + optionName);
-		return false;
+		const vector<double> &values = value.getRealValues();
+		if (values.size() < 1 || values.size()%2 != 0)
+		{
+			setErrorString("An even number of values should be present, corresponding to pairs of a Dds/Ds fraction and a (positive) weight");
+			return false;
+		}
+
+		vector<pair<double,double>> weights;
+		double weightSum = 0;
+		for (size_t i = 0 ; i < values.size() ; i += 2)
+		{
+			double dfrac = values[i];
+			double w = values[i+1];
+			if (dfrac < 0 || dfrac > 1.0)
+			{
+				setErrorString("All distance fractions must be positive (detected " + to_string(dfrac) + ")");
+				return false;
+			}
+
+			if (w <= 0)
+			{
+				setErrorString("All weights must be strictly positive (detected " + to_string(w) + ")");
+				return false;
+			}
+
+			weights.push_back({dfrac, w});
+			weightSum += w;
+		}
+
+		// Make sure the weights are normalized
+		for (auto &dw : weights)
+			dw.second /= weightSum;
+
+		m_distanceFractionWeights.clear();
+		for (auto dw : weights)
+			m_distanceFractionWeights.push_back({(float)dw.first, (float)dw.second});
+		return true;
 	}
 
 	setErrorString("Unknown option");
@@ -1575,5 +1649,17 @@ bool FitnessComponent_WeakLensing_Bayes::calculateFitness(const ProjectedImagesI
 	return true;
 }
 
+bool FitnessComponent_WeakLensing_Bayes::finalize()
+{
+	if (!m_allDistFracKnown)
+	{
+		if (m_distanceFractionWeights.size() == 0)
+		{
+			setErrorString("No distance fraction distribution is set, but not all distance fractions (Dds/Ds) are known");
+			return false;
+		}
+	}
+	return true;
+}
 
 } // end namespace

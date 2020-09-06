@@ -343,8 +343,10 @@ public:
 								   bool &storeOrigIntens, bool &storeOrigTimeDelay, bool &storeOrigShear) override;
 	bool calculateFitness(const ProjectedImagesInterface &iface, float &fitness) override;
 	bool processFitnessOption(const std::string &optionName, const TypedParameter &value) override;
+	bool finalize() override;
 private:
 	std::vector<std::pair<float,float>> m_distanceFractionWeights;
+	bool m_allDistFracKnown;
 };
 
 } // end namespace
