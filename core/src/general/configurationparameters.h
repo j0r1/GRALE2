@@ -62,6 +62,7 @@ public:
 	TypedParameter(int v)												{ commonConst(Integer, m_intValues, v); }
 	TypedParameter(double v)											{ commonConst(Real, m_realValues, v); }
 	TypedParameter(const std::string &v)								{ commonConst(String, m_strValues, v); }
+	TypedParameter(const char *) = delete;
 
 	TypedParameter(const std::vector<bool> &v) 							{ commonConst(Boolean, m_boolValues, v); }
 	TypedParameter(const std::vector<int> &v)							{ commonConst(Integer, m_intValues, v); }
@@ -70,7 +71,7 @@ public:
 
 	~TypedParameter()													{ }
 
-	void dump() const;
+	void dump(const std::string &prefix = std::string()) const;
 
 	Type getType() const												{ return m_type; }
 	bool isArray() const												{ return m_isArray; }
@@ -143,6 +144,8 @@ public:
 	ConfigurationParameters();
 	ConfigurationParameters(const ConfigurationParameters &cfg);
 	~ConfigurationParameters();
+
+	void dump() const;
 
 	bool read(serut::SerializationInterface &si);
 	bool write(serut::SerializationInterface &si) const;

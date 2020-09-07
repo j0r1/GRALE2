@@ -57,4 +57,7 @@ target_link_libraries(mpcubp graleinv-static gralecore-static ${GRALE_LINK_LIBS}
 add_executable(pernodecounttest pernodecounttest.cpp)
 target_link_libraries(pernodecounttest gralecore-static ${GRALE_LINK_LIBS})
 
+add_executable(configparamstest configparamstest.cpp)
+target_link_libraries(configparamstest gralecore-static ${GRALE_LINK_LIBS})
+
 

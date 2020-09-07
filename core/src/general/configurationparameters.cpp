@@ -41,18 +41,18 @@ namespace grale
 #define TYPEDPARAMETER_TYPE_REAL 3
 #define TYPEDPARAMETER_TYPE_STRING 4
 
-void TypedParameter::dump() const
+void TypedParameter::dump(const string &prefix) const
 {
-	cout << "m_type    = " << m_type << endl;
-	cout << "m_isArray = " << ((m_isArray)?"true":"false") << endl;
+	cerr << prefix << "m_type    = " << m_type << endl;
+	cerr << prefix << "m_isArray = " << ((m_isArray)?"true":"false") << endl;
 
-	auto dumpValues = [](const string &name, const auto &v, auto convert)
+	auto dumpValues = [&prefix](const string &name, const auto &v, auto convert)
 	{
-		cout << name << " = ";
-		cout << "["; 
+		cerr << prefix << name << " = ";
+		cerr << "["; 
 		for (auto x: v)
-			cout << convert(x) << ",";
-		cout << "]" << endl;
+			cerr << convert(x) << ",";
+		cerr << "]" << endl;
 	};
 
 	dumpValues("m_boolValues", m_boolValues, [](bool v) { return (v)?1:0; });
@@ -130,7 +130,6 @@ bool TypedParameter::read(serut::SerializationInterface &si)
 	else if (t == TYPEDPARAMETER_TYPE_STRING)
 	{
 		m_type = String;
-		m_strValues.resize(num);
 		for (int i = 0 ; i < num ; i++)
 		{
 			string s;
@@ -518,6 +517,15 @@ void ConfigurationParameters::getAllKeys(std::vector<std::string> &keys) const
 	keys.clear();
 	for (auto &p : *m_pParameters)
 		keys.push_back(p.first);
+}
+
+void ConfigurationParameters::dump() const
+{
+	for (auto &p : *m_pParameters)
+	{
+		cerr << p.first << " =" << endl;
+		p.second.dump("    ");
+	}
 }
 
 } // end namespace
