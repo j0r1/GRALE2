@@ -616,19 +616,25 @@ class InversionWorkSpace(object):
         # check that imgDat exists
         num = imgDat.getNumberOfImages()
         
-        if zs < self.zd[0]:
-            raise InversionException("Can't add a source with a smaller redshift than the closest lens")
+        if zs is None: # TODO: document this
+            Dds = 1.0
+            Ds = 1.0
+        else:
+            if zs < self.zd[0]:
+                raise InversionException("Can't add a source with a smaller redshift than the closest lens")
+            Ds = self.cosm.getAngularDiameterDistance(zs),
+            # TODO: for backward compatibility, we'll use the first lens plane here
+            Dds = self.cosm.getAngularDiameterDistance(self.zd[0], zs),
         
         params = copy.deepcopy(otherParameters)
         if imgType:
             params["type"] = imgType
             
+        # TODO: clean this so that at this point only the redshifts are stored
         entry = {
             "images": imgDat,
-            "Ds": self.cosm.getAngularDiameterDistance(zs),
-            # TODO: for backward compatibility, we'll use the first lens plane here
-            # TODO: clean this so that at this point only the redshifts are stored
-            "Dds": self.cosm.getAngularDiameterDistance(self.zd[0], zs),
+            "Ds": Ds,
+            "Dds": Dds,
             "z": zs,
             "params": params
         }
