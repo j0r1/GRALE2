@@ -1131,7 +1131,7 @@ float calculateWeakLensingFitness_Bayes(const ProjectedImagesInterface &interfac
 		// Note that this is actualy still a proportionality, depending on the b/a distribution
 		// With this proportionality, every b/a, from 0 to 1 is possible with equal probability
 		float F1 = F+1.0f;
-		float prob = 1.0f/(float(CONST_PI) * F * F1*F1)*jac;
+		float prob = 1.0f/(float(CONST_PI) * (F + epsilon) * F1*F1)*jac; // avoid div by zero
 		return prob;
 	};
 
