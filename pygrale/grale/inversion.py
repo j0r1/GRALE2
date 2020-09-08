@@ -622,9 +622,9 @@ class InversionWorkSpace(object):
         else:
             if zs < self.zd[0]:
                 raise InversionException("Can't add a source with a smaller redshift than the closest lens")
-            Ds = self.cosm.getAngularDiameterDistance(zs),
+            Ds = self.cosm.getAngularDiameterDistance(zs)
             # TODO: for backward compatibility, we'll use the first lens plane here
-            Dds = self.cosm.getAngularDiameterDistance(self.zd[0], zs),
+            Dds = self.cosm.getAngularDiameterDistance(self.zd[0], zs)
         
         params = copy.deepcopy(otherParameters)
         if imgType:
