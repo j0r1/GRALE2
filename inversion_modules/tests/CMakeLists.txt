@@ -7,3 +7,6 @@ add_executable(genometest genometest.cpp ../src/fitnessutil.cpp ../src/fitnessco
                ../src/numericgradientcalculator.cpp ../src/lensfitnesssimplerectangles.cpp)
 target_link_libraries(genometest ${GRALE_LIBRARIES})
 
+add_executable(bayeswlcheck bayeswlcheck.cpp)
+target_link_libraries(bayeswlcheck ${GRALE_LIBRARIES})
+

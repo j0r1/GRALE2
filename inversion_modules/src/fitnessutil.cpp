@@ -9,6 +9,8 @@
 #include <tuple>
 #include <complex>
 
+// #include <serut/fileserializer.h>
+
 using namespace std;
 
 namespace grale
@@ -1118,13 +1120,13 @@ float calculateWeakLensingFitness_Bayes(const ProjectedImagesInterface &interfac
 		// looking for a minimum
 		if (gSq <= 1)
 		{
-			F = abs( (eImg - g)/(1.0f - conj(g)*eImg) );
-			jacRoot = (gSq-1.0f)/(fSq*gSq - 2.0f*f1*g1 - 2.0f*f2*g2 + 1.0f);
+			F = abs(eImg - g)/(abs(1.0f - conj(g)*eImg) + epsilon);
+			jacRoot = (gSq-1.0f)/(abs(fSq*gSq - 2.0f*f1*g1 - 2.0f*f2*g2 + 1.0f) + epsilon);
 		}
 		else
 		{
-			F = abs( (1.0f - g*conj(eImg))/(conj(eImg) - conj(g)) );
-			jacRoot = (gSq-1.0f)/(fSq + gSq - 2.0f*f1*g2 - 2.0f*f2*g2);
+			F = abs(1.0f - g*conj(eImg))/(abs(conj(eImg) - conj(g)) + epsilon);
+			jacRoot = (gSq-1.0f)/(abs(fSq + gSq - 2.0f*f1*g2 - 2.0f*f2*g2) + epsilon);
 		}
 
 		float jac = jacRoot*jacRoot;
@@ -1147,6 +1149,22 @@ float calculateWeakLensingFitness_Bayes(const ProjectedImagesInterface &interfac
 		const float *pAxx = interface.getDerivativesXX(s);
 		const float *pAyy = interface.getDerivativesYY(s);
 		const float *pAxy = interface.getDerivativesXY(s);
+
+		// TODO: for debugging
+		// {
+		// 	serut::FileSerializer fser;
+		// 	fser.open("baddump.dat", serut::FileSerializer::ReadOnly);
+		// 	int32_t pts;
+	
+		// 	fser.readInt32(&pts);
+		// 	fser.readFloats((float*)pEll1, numPoints);
+		// 	fser.readFloats((float*)pEll2, numPoints);
+		// 	fser.readFloats((float*)pDistFrac, numPoints);
+		// 	fser.readFloats((float*)pAxx, numPoints);
+		// 	fser.readFloats((float*)pAyy, numPoints);
+		// 	fser.readFloats((float*)pAxy, numPoints);
+		// 	cerr << "BAD FITNESS SETTINGS LOADED" << endl;
+		// }
 
 		assert(pEll1 && pEll2 && pAxx && pAyy && pAxy);
 		
@@ -1176,7 +1194,29 @@ float calculateWeakLensingFitness_Bayes(const ProjectedImagesInterface &interfac
 			if (elliptProb <= 0) // avoid problems with log
 				elliptProb = epsilon; 
 			
-			float logElliptProb = std::log(elliptProb);				
+			float logElliptProb = std::log(elliptProb);
+			
+			// // TODO: for debugging
+			// if (isinf(logElliptProb) || isnan(logElliptProb))
+			// {
+			// 	serut::FileSerializer fser;
+			// 	fser.open("baddump.dat", serut::FileSerializer::WriteOnly);
+			// 	fser.writeInt32(numPoints);
+			// 	fser.writeFloats(pEll1, numPoints);
+			// 	fser.writeFloats(pEll2, numPoints);
+			// 	fser.writeFloats(pDistFrac, numPoints);
+			// 	fser.writeFloats(pAxx, numPoints);
+			// 	fser.writeFloats(pAyy, numPoints);
+			// 	fser.writeFloats(pAxy, numPoints);
+
+			// 	serut::FileSerializer fser2;
+			// 	vector<float> settings { epsilon, f1, f2, axx, ayy, axy, distFrac };
+			// 	fser2.open("badsettings.dat", serut::FileSerializer::WriteOnly);
+			// 	fser2.writeFloats(settings);
+			// 	cerr << "BAD FITNESS DETECTED, BAILING. Point is " << i << endl;
+			// 	exit(-1);
+			// }
+			
 			shearFitness += -logElliptProb; // use negative to search for a minimum
 			usedPoints++;
 		}
