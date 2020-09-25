@@ -49,8 +49,9 @@ protected:
 	             const std::vector<uint8_t> &factoryParamBytes) override
 	{
 		DummySerializer dumSer;
-		dumSer.writeString(moduleDir);
-		dumSer.writeString(moduleFile);
+		if (!dumSer.writeString(moduleDir) || !dumSer.writeString(moduleFile))
+			return "Unable to write module dir or module file: " + dumSer.getErrorString();
+
 		dumSer.writeBytes(&factoryParamBytes[0], factoryParamBytes.size());
 
 		int paramSize = dumSer.getBytesWritten();
