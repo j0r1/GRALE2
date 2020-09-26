@@ -245,10 +245,16 @@ void LensInversionGenome::mutate()
 			chanceSetSmallDiffAllScalableBasisFunctions(0.0f, rescale);
 	}
 
+	auto chanceSetSimpleUniform = [chance, &uniDist](float &x)
+	{
+		if ((float)uniDist.pickNumber() < chance)
+			x = (float)uniDist.pickNumber();
+	};
+
 	if (m_pFactory->useAbsoluteMutation())
 	{
 		for (auto &v : m_sheetValues)
-			chanceSetUniform(v, 1.0f, 0.0f);
+			chanceSetSimpleUniform(v);
 	}
 	else
 	{
