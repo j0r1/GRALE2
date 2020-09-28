@@ -40,21 +40,33 @@
 namespace grale
 {
 
-class CoordinateInterface;	
-
-template<class T> class Polygon2D;
-
 class GRALE_IMPORTEXPORT ImagesData : public errut::ErrorBase
 {
 public:
+	enum PropertyName
+	{
+		Intensity = 0,
+		ShearComponent1,
+		ShearComponent2,
+		Weight,
+		DistanceFraction,
+		ShearComponent1Uncertainty,
+		ShearComponent2Uncertainty,
+		MaxProperty
+	};
+
 	ImagesData();
 	ImagesData(const ImagesData &data)						{ copyFrom(data); }
 	virtual ~ImagesData();
 	ImagesData *createCopy() const;
 
 	bool create(int numImages, bool intensities, bool shearInfo);
+	bool create(int numImages, const std::vector<PropertyName> &properties);
 
 	int addImage();
+	int addPoint(int imageNumber, Vector2Dd point, const std::vector<std::pair<PropertyName, double>> &properties);
+
+	// TODO: remove these later
 	int addPoint(int imageNumber, Vector2D<double> point); // returns index of the point, -1 on error
 	int addPoint(int imageNumber, Vector2D<double> point, double intensity); // returns index of the point, -1 on error
 	int addPoint(int imageNumber, Vector2D<double> point, Vector2D<double> shearComponents, double shearWeight = 1);
@@ -70,17 +82,23 @@ public:
 	bool read(serut::SerializationInterface &si);
 	bool write(serut::SerializationInterface &si) const;
 
-	bool hasIntensities() const							{ if (m_intensities.empty()) return false; return true; }
-	bool hasShearInfo() const							{ if (m_shearComponent1s.empty()) return false; return true; }
+	bool hasProperty(PropertyName n) const				{ if (n < 0 || n >= m_properties.size()) return false; return m_properties[n]; }
+	// TODO: remove these, for now they're set for backwards compatibility
+	bool hasIntensities() const							{ return hasProperty(Intensity); }
+	bool hasShearInfo() const							{ return (hasProperty(ShearComponent1) && hasProperty(ShearComponent2) && hasProperty(Weight)); }
+
 	bool hasTimeDelays() const							{ if (m_timeDelayInfo.empty()) return false; return true; }
 
 	int getNumberOfImages() const 							{ return m_images.size(); }
 	int getNumberOfImagePoints(int i) const						{ return m_images[i].size(); }
 	Vector2D<double> getImagePointPosition(int image, int point) const		{ return m_images[image][point]; }
-	double getImagePointIntensity(int image, int point) const			{ return m_intensities[image][point]; }
-	double getShearComponent1(int image, int point) const				{ return m_shearComponent1s[image][point]; }
-	double getShearComponent2(int image, int point) const				{ return m_shearComponent2s[image][point]; }
-	double getShearWeight(int image, int point) const					{ return m_shearWeights[image][point]; }
+	double getImagePointProperty(PropertyName n, int image, int point) const { return m_imagePointProperties[n][image][point]; }
+
+	// TODO: remove these
+	double getImagePointIntensity(int image, int point) const			{ return getImagePointProperty(Intensity, image, point); }
+	double getShearComponent1(int image, int point) const				{ return getImagePointProperty(ShearComponent1, image, point); }
+	double getShearComponent2(int image, int point) const				{ return getImagePointProperty(ShearComponent2, image, point); }
+	double getShearWeight(int image, int point) const					{ return getImagePointProperty(Weight, image, point); }
 
 	void setImagePointPosition(int image, int point, Vector2D<double> position) { m_images[image][point] = position; findExtremes(); }
 
@@ -106,6 +124,8 @@ public:
 
 	const ImagesData &operator=(const ImagesData &dat)				{ clear(); copyFrom(dat); return *this; }
 private:
+	bool readOld(serut::SerializationInterface &si);
+
 	void clear();
 	void findExtremes();
 	void copyFrom(const ImagesData &data);
@@ -129,11 +149,9 @@ private:
 		double m_timeDelay;
 	};
 
+	std::vector<bool> m_properties;
 	std::vector<std::vector<Vector2D<double> > > m_images;
-	std::vector<std::vector<double> > m_intensities;
-	std::vector<std::vector<double> > m_shearComponent1s;
-	std::vector<std::vector<double> > m_shearComponent2s;
-	std::vector<std::vector<double> > m_shearWeights;
+	std::vector<std::vector<std::vector<double>>> m_imagePointProperties;
 	std::vector<std::vector<int32_t> > m_groupPoints;
 	std::vector<std::vector<TriangleIndices> > m_triangulations;
 	std::vector<TimeDelayPoint> m_timeDelayInfo;

@@ -30,6 +30,8 @@
 
 #include "debugnew.h"
 
+using namespace std;
+
 namespace grale
 {
 
@@ -39,11 +41,9 @@ ImagesData::ImagesData()
 
 void ImagesData::copyFrom(const ImagesData &data)
 {
+	m_properties = data.m_properties;
 	m_images = data.m_images;
-	m_intensities = data.m_intensities;
-	m_shearComponent1s = data.m_shearComponent1s;
-	m_shearComponent2s = data.m_shearComponent2s;
-	m_shearWeights = data.m_shearWeights;
+	m_imagePointProperties = data.m_imagePointProperties;
 	m_groupPoints = data.m_groupPoints;
 	m_timeDelayInfo = data.m_timeDelayInfo;
 	m_triangulations = data.m_triangulations;
@@ -58,11 +58,9 @@ ImagesData::~ImagesData()
 
 void ImagesData::clear()
 {
+	m_properties.clear();
 	m_images.clear();
-	m_intensities.clear();
-	m_shearComponent1s.clear();
-	m_shearComponent2s.clear();
-	m_shearWeights.clear();
+	m_imagePointProperties.clear();
 	m_groupPoints.clear();
 	m_triangulations.clear();
 	m_timeDelayInfo.clear();
@@ -74,11 +72,9 @@ ImagesData *ImagesData::createCopy() const
 {
 	ImagesData *imgdata = new ImagesData();
 
+	imgdata->m_properties = m_properties;
 	imgdata->m_images = m_images;
-	imgdata->m_intensities = m_intensities;
-	imgdata->m_shearComponent2s = m_shearComponent2s;
-	imgdata->m_shearComponent1s = m_shearComponent1s;
-	imgdata->m_shearWeights = m_shearWeights;
+	imgdata->m_imagePointProperties = m_imagePointProperties;
 	imgdata->m_groupPoints = m_groupPoints;
 	imgdata->m_triangulations = m_triangulations;
 	imgdata->m_topRight = m_topRight;
@@ -87,26 +83,40 @@ ImagesData *ImagesData::createCopy() const
 	return imgdata;
 }
 
-bool ImagesData::create(int numImages, bool intensities, bool shearInfo)
+bool ImagesData::create(int numImages, const vector<PropertyName> &properties)
 {
 	if (numImages <= 0)
 	{
 		setErrorString("The number of images must be greater than zero");
 		return false;
 	}
-		
+
+	for (auto n : properties)
+	{
+		if (n < 0 || n >= MaxProperty)
+		{
+			setErrorString("Invalid property identifier " + to_string((int)n));
+			return false;
+		}
+	}
+
 	clear();
 	
 	m_images.resize(numImages);
-	if (intensities)
-		m_intensities.resize(numImages);
-	if (shearInfo)
+
+	m_properties.resize(MaxProperty, false);
+	m_imagePointProperties.resize(MaxProperty);
+	for (auto n : properties)
 	{
-		m_shearComponent1s.resize(numImages);
-		m_shearComponent2s.resize(numImages);
-		m_shearWeights.resize(numImages);
+		m_properties[n] = true;
+		m_imagePointProperties[n].resize(numImages);
 	}
 	return true;
+}
+
+bool ImagesData::create(int numImages, bool intensities, bool shearInfo)
+{
+	return create(numImages, { Intensity, ShearComponent1, ShearComponent2, Weight });
 }
 
 int ImagesData::addImage()
@@ -114,154 +124,101 @@ int ImagesData::addImage()
 	int newNumImages = m_images.size()+1;
 
 	m_images.resize(newNumImages);
-	if (m_intensities.size() > 0)
-		m_intensities.resize(newNumImages);
-	if (m_shearComponent1s.size() > 0)
+	for (int i = 0 ; i < m_properties.size() ; i++)
 	{
-		m_shearComponent1s.resize(newNumImages);
-		m_shearComponent2s.resize(newNumImages);
-		m_shearWeights.resize(newNumImages);
+		if (m_properties[i])
+			m_imagePointProperties[i].resize(newNumImages);
 	}
+
 	if (m_triangulations.size() > 0)
 		m_triangulations.resize(newNumImages);
 
 	return (newNumImages-1); // index of the new image
 }
-	
-int ImagesData::addPoint(int imageNumber, Vector2D<double> point)
+
+int ImagesData::addPoint(int imageNumber, Vector2Dd point, const vector<pair<PropertyName, double>> &properties)
 {
 	if (imageNumber < 0 || imageNumber >= m_images.size())
 	{
-		setErrorString("Invalid image number");
-		return -1;
+	 	setErrorString("Invalid image number");
+	 	return -1;
 	}
-	
-	if (m_intensities.size() > 0)
+
+	bool specifiedProps[MaxProperty] = { false }; // False should be 0, so that should be fine
+
+	for (auto pv : properties)
 	{
-		setErrorString("Intensity information must be specified for this images data set");
-		return -1;
+		const PropertyName n = pv.first;
+		const double value = pv.second;
+
+		if (n < 0 || n >= MaxProperty)
+		{
+			setErrorString("Invalid property " + to_string((int)n));
+			return false;
+		}
+
+		if (specifiedProps[n])
+		{
+			setErrorString("Property " + to_string((int)n) + " is specified more than once");
+			return false;
+		}
+		specifiedProps[n] = true;
 	}
-	if (m_shearComponent1s.size() > 0)
+
+	assert(MaxProperty == m_properties.size());
+	for (int i = 0 ; i < MaxProperty ; i++)
 	{
-		setErrorString("Shear information must be specified for this images data set");
-		return -1;
+		if (specifiedProps[i] != m_properties[i])
+		{
+			setErrorString("Not all required properties are specified, differs from creation time");
+			return false;
+		}
 	}
 	
 	int pointIndex = m_images[imageNumber].size();
+	m_images[imageNumber].push_back(point);
 	
-	m_images[imageNumber].resize(pointIndex+1);
-	m_images[imageNumber][pointIndex] = point;
+	for (auto pv : properties)
+	{
+		const PropertyName n = pv.first;
+		const double value = pv.second;
 	
+		assert(m_imagePointProperties[n].size() == m_images.size());
+		assert(m_imagePointProperties[n][imageNumber].size() == pointIndex);
+		m_imagePointProperties[n][imageNumber].push_back(value);
+	}
+		
 	findExtremes();
-	
 	return pointIndex;
+}
+
+int ImagesData::addPoint(int imageNumber, Vector2D<double> point)
+{
+	return addPoint(imageNumber, point, {});
 }
 
 int ImagesData::addPoint(int imageNumber, Vector2D<double> point, double intensity)
 {
-	if (imageNumber < 0 || imageNumber >= m_images.size())
-	{
-		setErrorString("Invalid image number");
-		return false;
-	}
-
-	if (m_intensities.size() == 0)
-	{
-		setErrorString("No intensity information can be specified for this images data set");
-		return false;
-	}
-	if (m_shearComponent1s.size() > 0)
-	{
-		setErrorString("Shear information must be specified for this images data set");
-		return -1;
-	}
-
-	int pointIndex = m_images[imageNumber].size();
-	
-	m_images[imageNumber].resize(pointIndex+1);
-	m_images[imageNumber][pointIndex] = point;
-	m_intensities[imageNumber].resize(pointIndex+1);
-	m_intensities[imageNumber][pointIndex] = intensity;
-	
-	findExtremes();
-
-	return pointIndex;
+	return addPoint(imageNumber, point, { { Intensity, intensity }});
 }
 
 int ImagesData::addPoint(int imageNumber, Vector2D<double> point, Vector2D<double> shearComponents, double shearWeight)
 {
-	if (imageNumber < 0 || imageNumber >= m_images.size())
-	{
-		setErrorString("Invalid image number");
-		return false;
-	}
-
-	if (m_intensities.size() > 0)
-	{
-		setErrorString("Intensity information must be specified for this images data set");
-		return false;
-	}
-	if (m_shearComponent1s.size() == 0)
-	{
-		setErrorString("No shear information can be specified for this images data set");
-		return -1;
-	}
-
-	int pointIndex = m_images[imageNumber].size();
-	
-	m_images[imageNumber].resize(pointIndex+1);
-	m_images[imageNumber][pointIndex] = point;
-
-	double shearComponent1 = shearComponents.getX();
-	double shearComponent2 = shearComponents.getY();
-	m_shearComponent1s[imageNumber].resize(pointIndex+1);
-	m_shearComponent1s[imageNumber][pointIndex] = shearComponent1;
-	m_shearComponent2s[imageNumber].resize(pointIndex+1);
-	m_shearComponent2s[imageNumber][pointIndex] = shearComponent2;
-	m_shearWeights[imageNumber].resize(pointIndex+1);
-	m_shearWeights[imageNumber][pointIndex] = shearWeight;
-	
-	findExtremes();
-	return pointIndex;
+	return addPoint(imageNumber, point, { 
+		{ ShearComponent1, shearComponents.getX() },
+		{ ShearComponent2, shearComponents.getY() },
+		{ Weight, shearWeight }
+	});
 }
 
 int ImagesData::addPoint(int imageNumber, Vector2D<double> point, double intensity, Vector2D<double> shearComponents, double shearWeight)
 {
-	if (imageNumber < 0 || imageNumber >= m_images.size())
-	{
-		setErrorString("Invalid image number");
-		return false;
-	}
-
-	if (m_intensities.size() == 0)
-	{
-		setErrorString("No intensity information can be specified for this images data set");
-		return false;
-	}
-	if (m_shearComponent1s.size() == 0)
-	{
-		setErrorString("No shear information can be specified for this images data set");
-		return -1;
-	}
-
-	int pointIndex = m_images[imageNumber].size();
-	
-	m_images[imageNumber].resize(pointIndex+1);
-	m_images[imageNumber][pointIndex] = point;
-	m_intensities[imageNumber].resize(pointIndex+1);
-	m_intensities[imageNumber][pointIndex] = intensity;
-
-	double shearComponent1 = shearComponents.getX();
-	double shearComponent2 = shearComponents.getY();
-	m_shearComponent1s[imageNumber].resize(pointIndex+1);
-	m_shearComponent1s[imageNumber][pointIndex] = shearComponent1;
-	m_shearComponent2s[imageNumber].resize(pointIndex+1);
-	m_shearComponent2s[imageNumber][pointIndex] = shearComponent2;
-	m_shearWeights[imageNumber].resize(pointIndex+1);
-	m_shearWeights[imageNumber][pointIndex] = shearWeight;
-	
-	findExtremes();
-	return pointIndex;
+	return addPoint(imageNumber, point, {
+		{ Intensity, intensity },
+		{ ShearComponent1, shearComponents.getX() },
+		{ ShearComponent2, shearComponents.getY() },
+		{ Weight, shearWeight }
+	});
 }
 
 int ImagesData::addGroup()
@@ -365,7 +322,8 @@ bool ImagesData::addTriangle(int imageIndex, int index1, int index2, int index3)
 	return true;
 }
 
-#define IMAGESDATAID 0x41544449
+#define IMAGESDATAID_OLD 0x41544449
+#define IMAGESDATAID 0x4154444a
 
 bool ImagesData::load(const std::string &fname)
 {
@@ -395,42 +353,231 @@ bool ImagesData::save(const std::string &fname) const
 	return true;
 }
 
-#define IMAGESDATA_FLAG_INTENSITIES	1
-#define IMAGESDATA_FLAG_TRIANGULATIONS	2
-#define IMAGESDATA_FLAG_TIMEDELAY	4 
-#define IMAGESDATA_FLAG_SHEAR		8
-#define IMAGESDATA_FLAG_SHEARWEIGHTS	16
-
 bool ImagesData::read(serut::SerializationInterface &si)
 {
-	int32_t id, numimgs, flag;
+	int32_t id;
+	if (!si.readInt32(&id))
+	{
+		setErrorString(std::string("Error reading images data ID: ") + si.getErrorString());
+		return false;
+	}
+
+	if (id == IMAGESDATAID_OLD)
+		return readOld(si);
+
+	if (id != IMAGESDATAID)
+	{
+		setErrorString("Read invalid images data ID");
+		return false;
+	}
+
+	// Clear the data so that we can fill it in directly
+	clear();
+
+	auto error = [this](const string &errMsg) -> bool
+	{
+		setErrorString(errMsg);
+		clear(); // Clear it again so that we don't get an inconsistent state
+		return false;
+	};
+
+	int32_t flag;
+	if (!si.readInt32(&flag))
+		return error("Can't read flag: " + si.getErrorString());
+	if (flag != 0)
+		return error("Can't handle flag " + to_string(flag) + ", currently only 0 is known");
+
+	int32_t numProps;
+	if (!si.readInt32(&numProps))
+		return error("Can't read number of properties: " + si.getErrorString());
+	if (numProps < 0)
+		return error("Don't understand number of properties " + to_string(numProps));
+	
+	m_properties.resize(numProps, false);
+
+	// TODO: check if a property is _used_ that's beyond the known properties
+
+	int32_t numImages;
+	if (!si.readInt32(&numImages))
+		return error("Can't read number of images: " + si.getErrorString());
+	if (numImages < 0)
+		return error("Invalid number of images " + to_string(numImages));
+	m_images.resize(numImages);
+
+	for (auto &imgPts : m_images)
+	{
+		int32_t numPts;
+		if (!si.readInt32(&numPts))
+			return error("Can't read number of image points: " + si.getErrorString());
+		if (numPts < 0)
+			return error("Invalid number of image points " + to_string(numPts));
+		
+		imgPts.resize(numPts);
+		for (auto &pt : imgPts)
+		{
+			if (!si.readDoubles(pt.getComponents(), 2))
+				return error("Can't read image point coordinates: " + si.getErrorString());
+		}
+	}
+
+	m_imagePointProperties.resize(numProps);
+	for (int i = 0 ; i < numProps ; i++)
+	{
+		auto &prop = m_imagePointProperties[i];
+		int32_t numPropImgs;
+
+		if (!si.readInt32(&numPropImgs))
+			return error("Can't read number of images for property: " + si.getErrorString());
+		
+		if (numPropImgs == -1) // m_properties[i] already set to false;
+			continue;
+
+		if (numPropImgs != numImages)
+			return error("Inconsistent number of images, expecting " + to_string(numImages) + " but got " + to_string(numPropImgs));
+		
+		prop.resize(numImages);
+		for (size_t j = 0 ; j < prop.size() ; j++)
+		{
+			int32_t numPropImgPts;
+			if (!si.readInt32(&numPropImgPts))
+				return error("Can't read number of image points according to property: " + si.getErrorString());
+
+			const int32_t expectedPoints = (int32_t)m_images[j].size();
+			if (numPropImgPts != expectedPoints)
+				return error("Inconsistent number of image points, expecting " + to_string(expectedPoints) + " but got " + to_string(numPropImgPts));
+
+			auto &propPts = prop[j];
+			propPts.resize(numPropImgPts);
+			if (!si.readDoubles(propPts))
+				return error("Error reading property values: " + si.getErrorString());
+		}
+	}
+
+	int32_t numGroups;
+	if (!si.readInt32(&numGroups))
+		return error("Error reading number of point groups: " + si.getErrorString());
+	if (numGroups < 0)
+		return error("Invalid number of groups " + to_string(numGroups));
+	
+	m_groupPoints.resize(numGroups);
+	for (auto &grp : m_groupPoints)
+	{
+		int32_t numGrpPts;
+		if (!si.readInt32(&numGrpPts))
+			return error("Can't read number of group points: " + si.getErrorString());
+		if (numGrpPts < 0 || numGrpPts%2 != 0)
+			return error("Invalid number of points, should be positive and even ((imgidx, pointidx) pairs), but is " + to_string(numGrpPts));
+		grp.resize(numGrpPts);
+
+		if (!si.readInt32s(grp))
+			return error("Can't read point group info: " + si.getErrorString());
+		
+		// Check that the image,point pairs exist
+		for (size_t i = 0 ; i < grp.size() ; i += 2)
+		{
+			int imgIdx = grp[i];
+			int ptIdx = grp[i+1];
+
+			if (imgIdx < 0 || imgIdx >= m_images.size())
+				return error("Invalid image index " + to_string(imgIdx));
+			if (ptIdx < 0 || ptIdx >= m_images[imgIdx].size())
+				return error("Invalid point index " + to_string(ptIdx) + " in image idx " + to_string(imgIdx));
+		}
+	}
+
+	int32_t numTriangulations;
+	if (!si.readInt32(&numTriangulations))
+		return error("Can't read number of triangulations: " + si.getErrorString());
+	if (!(numTriangulations == 0 || numTriangulations == m_images.size()))
+		return error("Invalid number of triangulations " + to_string(numTriangulations));
+
+	if (numTriangulations != 0)
+	{
+		m_triangulations.resize(numTriangulations);
+		for (int imgIdx = 0 ; imgIdx < numTriangulations ; imgIdx++)
+		{
+			auto &triang = m_triangulations[imgIdx];
+			int32_t numTriangles;
+			if (!si.readInt32(&numTriangles))
+				return error("Can't read number of triangles: " + si.getErrorString());
+			if (numTriangles < 0)
+				return error("Invalid number of triangles " + to_string(numTriangles));
+
+			for (int32_t i = 0 ; i < numTriangles ; i++)
+			{
+				int32_t indices[3];
+				if (!si.readInt32s(indices, 3))
+					return error("Can't read triangle indices");
+
+				for (int j = 0 ; j < 3 ; j++)
+				{
+					int ptIdx = indices[j];
+					if (ptIdx < 0 || ptIdx >= m_images[imgIdx].size())
+						return error("Invalid point index " + to_string(ptIdx) + " in triangulation of image idx " + to_string(imgIdx));
+				}
+
+				triang.push_back(TriangleIndices(indices[0], indices[1], indices[2]));
+			}
+		}
+	}
+
+	int32_t numTds;
+	if (!si.readInt32(&numTds))
+		return error("Can't read number of time delays: " + si.getErrorString());
+	if (numTds < 0)
+		return error("Read invalid number of time delays " + to_string(numTds));
+	
+	for (int32_t i = 0 ; i < numTds ; i++)
+	{
+		int32_t indices[2];
+		if (!si.readInt32s(indices, 2))
+			return error("Can't read point indices for time delay: " + si.getErrorString());
+		
+		const int32_t imgIdx = indices[0];
+		if (imgIdx < 0 || imgIdx >= m_images.size())
+			return error("Read invalid image index for time delay " + to_string(imgIdx));
+
+		const int32_t ptIdx = indices[1];
+		if (ptIdx < 0 || ptIdx >= m_images[imgIdx].size())
+			return error("Read invalid point index for time delay " + to_string(ptIdx) + " in image idx " + to_string(imgIdx));
+
+		double delay;
+		if (!si.readDouble(&delay))
+			return error("Error reading time delay: " + si.getErrorString());
+		
+		m_timeDelayInfo.push_back(TimeDelayPoint(imgIdx, ptIdx, delay));
+	}
+
+	findExtremes();
+	return true;
+}
+
+#define IMAGESDATAOLD_FLAG_INTENSITIES	1
+#define IMAGESDATAOLD_FLAG_TRIANGULATIONS	2
+#define IMAGESDATAOLD_FLAG_TIMEDELAY	4 
+#define IMAGESDATAOLD_FLAG_SHEAR		8
+#define IMAGESDATAOLD_FLAG_SHEARWEIGHTS	16
+
+bool ImagesData::readOld(serut::SerializationInterface &si)
+{
+	int32_t numimgs, flag;
 	bool gotintens, gottriang, gotTimeDelay, gotShear, gotShearWeights;
 	std::vector<std::vector<Vector2D<double> > > imgs;
 	std::vector<std::vector<double> > intens, shearComponent1s, shearComponent2s, shearWeights;
 	std::vector<TimeDelayPoint> timeDelays;
 	std::vector<int32_t> numpoints;
 	
-	if (!si.readInt32(&id))
-	{
-		setErrorString(std::string("Error reading images data ID: ") + si.getErrorString());
-		return false;
-	}
-	if (id != IMAGESDATAID)
-	{
-		setErrorString("Read invalid images data ID");
-		return false;
-	}
 	if (!si.readInt32(&flag))
 	{
 		setErrorString(std::string("Error reading feature flag: ") + si.getErrorString());
 		return false;
 	}
 
-	gotintens = ((flag&IMAGESDATA_FLAG_INTENSITIES) == 0)?false:true;
-	gottriang = ((flag&IMAGESDATA_FLAG_TRIANGULATIONS) == 0)?false:true;
-	gotTimeDelay = ((flag&IMAGESDATA_FLAG_TIMEDELAY) == 0)?false:true;
-	gotShear = ((flag&IMAGESDATA_FLAG_SHEAR) == 0)?false:true;
-	gotShearWeights = ((flag&IMAGESDATA_FLAG_SHEARWEIGHTS) == 0)?false:true;
+	gotintens = ((flag&IMAGESDATAOLD_FLAG_INTENSITIES) == 0)?false:true;
+	gottriang = ((flag&IMAGESDATAOLD_FLAG_TRIANGULATIONS) == 0)?false:true;
+	gotTimeDelay = ((flag&IMAGESDATAOLD_FLAG_TIMEDELAY) == 0)?false:true;
+	gotShear = ((flag&IMAGESDATAOLD_FLAG_SHEAR) == 0)?false:true;
+	gotShearWeights = ((flag&IMAGESDATAOLD_FLAG_SHEARWEIGHTS) == 0)?false:true;
 
 	if (gotShearWeights && !gotShear)
 	{
@@ -618,96 +765,117 @@ bool ImagesData::read(serut::SerializationInterface &si)
 
 	// save new data
 
+	m_properties.resize(MaxProperty, false);
 	m_images = imgs;
-	m_intensities = intens;
+	if (gotintens)
+	{
+		m_properties[Intensity] = true;
+		m_imagePointProperties[Intensity] = intens;
+	}
+
 	m_groupPoints = grppts;
 	m_triangulations = triangulations;
 	m_timeDelayInfo = timeDelays;
-	m_shearComponent1s = shearComponent1s;
-	m_shearComponent2s = shearComponent2s;
-	m_shearWeights = shearWeights;
+
+	if (gotShear)
+	{
+		m_properties[ShearComponent1] = true;
+		m_properties[ShearComponent2] = true;
+		m_properties[Weight] = true;
+
+		m_imagePointProperties[ShearComponent1] = shearComponent1s;
+		m_imagePointProperties[ShearComponent2] = shearComponent2s;
+		m_imagePointProperties[Weight] = shearWeights;
+	}
 
 	findExtremes();
-
 	return true;
 }
 
 bool ImagesData::write(serut::SerializationInterface &si) const
 {
-	int flag = 0;
-
-	if (m_intensities.size() != 0)
-		flag |= IMAGESDATA_FLAG_INTENSITIES;
-	if (m_triangulations.size() != 0)
-		flag |= IMAGESDATA_FLAG_TRIANGULATIONS;
-	if (m_timeDelayInfo.size() != 0)
-		flag |= IMAGESDATA_FLAG_TIMEDELAY;
-	if (m_shearComponent1s.size() != 0)
-	{
-		flag |= IMAGESDATA_FLAG_SHEAR;
-		flag |= IMAGESDATA_FLAG_SHEARWEIGHTS;
-	}
-
 	if (!si.writeInt32(IMAGESDATAID))
 	{
 		setErrorString(std::string("Error writing images data ID: ") + si.getErrorString());
 		return false;
 	}
+
+	int32_t flag = 0; // For now just zero, perhaps this is useful later
 	if (!si.writeInt32(flag))
 	{
 		setErrorString(std::string("Error writing feature flag: ") + si.getErrorString());
 		return false;
 	}
+
+	const int32_t numProps = m_properties.size();
+	if (!si.writeInt32(numProps))
+	{
+		setErrorString("Can't write image property flags: " + si.getErrorString());
+		return false;
+	}
+
 	if (!si.writeInt32(m_images.size()))
 	{
-		setErrorString(std::string("Error writing number of images: ") + si.getErrorString());
+		setErrorString("Error writing number of images: " + si.getErrorString());
 		return false;
 	}
 
-	std::vector<int32_t> numImagePoints(m_images.size());
-
-	for (int i = 0 ; i < numImagePoints.size() ; i++)
-		numImagePoints[i] = m_images[i].size();
-
-	if (!si.writeInt32s(numImagePoints))
+	for (auto &imgPts : m_images)
 	{
-		setErrorString(std::string("Error writing images: ") + si.getErrorString());
+		const int32_t numPts = imgPts.size();
+		if (!si.writeInt32(numPts))
+		{
+			setErrorString("Can't write number of image points: " + si.getErrorString());
+			return false;
+		}
+
+		for (auto &pt : imgPts)
+		{
+			if (!si.writeDoubles(pt.getComponents(), 2))
+			{
+				setErrorString("Error writing image point: " + si.getErrorString());
+				return false;
+			}
+		}
+	}
+
+	if (m_imagePointProperties.size() != numProps)
+	{
+		setErrorString("Internal error: mismatch in property count");
 		return false;
 	}
 
-	for (int i = 0 ; i < m_images.size() ; i++)
+	for (int i = 0 ; i < numProps ; i++)
 	{
-		for (int j = 0 ; j < m_images[i].size() ; j++)
+		auto &prop = m_imagePointProperties[i];
+		int32_t numPropImgs = -1; // this property is not enabled
+		if (m_properties[i])
+			numPropImgs = prop.size();
+		
+		if (numPropImgs != m_images.size())
 		{
-			if (!si.writeDoubles(m_images[i][j].getComponents(), 2))
-			{
-				setErrorString(std::string("Error writing images: ") + si.getErrorString());
-				return false;
-			}
+			setErrorString("Internal error: mismatch between number of images and properties");
+			return false;
 		}
-		if (m_intensities.size() != 0)
+
+		if (!si.writeInt32(numPropImgs))
 		{
-			if (!si.writeDoubles(m_intensities[i]))
-			{
-				setErrorString(std::string("Error writing images: ") + si.getErrorString());
-				return false;
-			}
+			setErrorString("Error writing number of images according to property: " + si.getErrorString());
+			return false;
 		}
-		if (m_shearComponent1s.size() != 0)
+
+		for (size_t j = 0 ; j < prop.size() ; j++)
 		{
-			if (!si.writeDoubles(m_shearComponent1s[i]))
+			auto &propPts = prop[j];
+			if (propPts.size() != m_images[j].size())
 			{
-				setErrorString(std::string("Error writing images: ") + si.getErrorString());
+				setErrorString("Internal error: number of image points does not match that of property");
 				return false;
 			}
-			if (!si.writeDoubles(m_shearComponent2s[i]))
+
+			if (!si.writeInt32(propPts.size()) || !si.writeDoubles(propPts))
 			{
-				setErrorString(std::string("Error writing images: ") + si.getErrorString());
-				return false;
-			}
-			if (!si.writeDoubles(m_shearWeights[i]))
-			{
-				setErrorString("Error writing images (shear weights): " + si.getErrorString());
+				setErrorString("Unable to write property values: " + si.getErrorString());
 				return false;
 			}
 		}
@@ -715,31 +883,23 @@ bool ImagesData::write(serut::SerializationInterface &si) const
 
 	if (!si.writeInt32(m_groupPoints.size()))
 	{
-		setErrorString(std::string("Error writing number of groups: ") + si.getErrorString());
+		setErrorString("Error writing number of groups: " + si.getErrorString());
 		return false;
 	}
 
-	if (m_groupPoints.size() > 0)
+	for (auto &grp : m_groupPoints)
 	{
-		std::vector<int32_t> numgrouppoints(m_groupPoints.size());
-
-		for (int i = 0 ; i < m_groupPoints.size() ; i++)
-			numgrouppoints[i] = m_groupPoints[i].size()/2;
-
-		if (!si.writeInt32s(numgrouppoints))
+		if (!si.writeInt32(grp.size()) || !si.writeInt32s(grp))
 		{
-			setErrorString(std::string("Error writing number of group points: ") + si.getErrorString());
+			setErrorString("Unable to write point group info: " + si.getErrorString());
 			return false;
 		}
+	}
 
-		for (int i = 0 ; i < m_groupPoints.size() ; i++)
-		{
-			if (!si.writeInt32s(m_groupPoints[i]))
-			{
-				setErrorString(std::string("Error writing group points: ") + si.getErrorString());
-				return false;
-			}
-		}
+	if (!si.writeInt32(m_triangulations.size()))
+	{
+		setErrorString("Error writing number of triangulations: " + si.getErrorString());
+		return false;
 	}
 
 	if (m_triangulations.size() != 0)
@@ -752,7 +912,7 @@ bool ImagesData::write(serut::SerializationInterface &si) const
 
 			if (!si.writeInt32(m_triangulations[i].size()))
 			{
-				setErrorString(std::string("Error writing triangulation size: ") + si.getErrorString());
+				setErrorString("Error writing triangulation size: " + si.getErrorString());
 				return false;
 			}
 
@@ -764,21 +924,21 @@ bool ImagesData::write(serut::SerializationInterface &si) const
 
 				if (!si.writeInt32s(indices, 3))
 				{
-					setErrorString(std::string("Error writing triangulation indices: ") + si.getErrorString());
+					setErrorString("Error writing triangulation indices: " + si.getErrorString());
 					return false;
 				}
 			}
 		}
 	}
 
+	if (!si.writeInt32(m_timeDelayInfo.size()))
+	{
+		setErrorString("Error writing number of time delay points: " + si.getErrorString());
+		return false;
+	}
+
 	if (m_timeDelayInfo.size() != 0)
 	{
-		if (!si.writeInt32(m_timeDelayInfo.size()))
-		{
-			setErrorString(std::string("Error writing number of time delay points: ") + si.getErrorString());
-			return false;
-		}
-
 		for (int i = 0 ; i < m_timeDelayInfo.size() ; i++)
 		{
 			int32_t indices[2];
@@ -788,13 +948,13 @@ bool ImagesData::write(serut::SerializationInterface &si) const
 
 			if (!si.writeInt32s(indices, 2))
 			{
-				setErrorString(std::string("Error writing time delay point indices: ") + si.getErrorString());
+				setErrorString("Error writing time delay point indices: " + si.getErrorString());
 				return false;
 			}
 
 			if (!si.writeDouble(m_timeDelayInfo[i].getTimeDelay()))
 			{
-				setErrorString(std::string("Error writing time delay: ") + si.getErrorString());
+				setErrorString("Error writing time delay: " + si.getErrorString());
 				return false;
 			}
 		}
@@ -924,14 +1084,11 @@ void ImagesData::subtractIntensity(double v)
 	
 	for (size_t img = 0 ; img < m_images.size() ; img++)
 		for (size_t imgpoint = 0 ; imgpoint < m_images[img].size() ; imgpoint++)
-			m_intensities[img][imgpoint] -= v;
+			m_imagePointProperties[Intensity][img][imgpoint] -= v;
 }
 
 void ImagesData::clearTriangulation()
 {
-	if (m_triangulations.size() == 0)
-		return;
-	
 	m_triangulations.clear();
 }
 

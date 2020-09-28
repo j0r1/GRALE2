@@ -113,8 +113,8 @@ public:
 	/** Returns the stored gamma2 values for a specific image of a specific source. */
 	const float *getOriginalShearComponent2s(int sourceNumber, int imageNumber) const;
 
-	const float *getShearWeights(int sourceNumber) const;
-	const float *getShearWeights(int sourceNumber, int imageNumber) const;
+	const float *getOriginalShearWeights(int sourceNumber) const;
+	const float *getOriginalShearWeights(int sourceNumber, int imageNumber) const;
 
 	/** Returns the number of time delays that were stored for a specific source index. */
 	int getOriginalNumberOfTimeDelays(int sourceNumber) const;
@@ -365,14 +365,14 @@ inline const float *ProjectedImagesInterface::getOriginalShearComponent2s(int so
 	return &(m_originalShearComponent2s[sourceNumber][m_offsets[sourceNumber][imageNumber]]); 
 }
 
-inline const float *ProjectedImagesInterface::getShearWeights(int sourceNumber) const
+inline const float *ProjectedImagesInterface::getOriginalShearWeights(int sourceNumber) const
 {
 	assert(sourceNumber >= 0 && sourceNumber < m_shearWeights.size());
 	assert(m_shearWeights[sourceNumber].size() > 0);
 	return &(m_shearWeights[sourceNumber][0]);
 }
 
-inline const float *ProjectedImagesInterface::getShearWeights(int sourceNumber, int imageNumber) const
+inline const float *ProjectedImagesInterface::getOriginalShearWeights(int sourceNumber, int imageNumber) const
 {
 	assert(sourceNumber >= 0 && sourceNumber < m_shearWeights.size());
 	assert(sourceNumber < m_offsets.size());
