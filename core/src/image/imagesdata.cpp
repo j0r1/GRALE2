@@ -1110,4 +1110,25 @@ bool ImagesData::getTriangles(int image, std::vector<TriangleIndices> &triangles
 	return true;
 }
 
+bool ImagesData::operator==(const ImagesData &d) const
+{
+	if (m_properties != d.m_properties)
+		return false;
+	if (m_images != d.m_images)
+		return false;
+	if (m_imagePointProperties != d.m_imagePointProperties)
+		return false;
+	if (m_groupPoints != d.m_groupPoints)
+		return false;
+	if (m_triangulations != d.m_triangulations)
+		return false;
+	if (m_timeDelayInfo != d.m_timeDelayInfo)
+		return false;
+	if (!(m_bottomLeft == d.m_bottomLeft))
+		return false;
+	if (!(m_topRight == d.m_topRight))
+		return false;
+	return true;
+}
+
 } // end namespace

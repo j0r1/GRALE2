@@ -43,9 +43,18 @@ public:
 	TriangleIndices()											{ }
 	TriangleIndices(int a, int b, int c)						{ m_index[0] = a; m_index[1] = b; m_index[2] = c; }
 	int getIndex(int i) const									{ return m_index[i]; }
+	bool operator==(const TriangleIndices &src) const;
 private:
 	int m_index[3];
 };
+
+inline bool TriangleIndices::operator==(const TriangleIndices &src) const
+{
+	if (m_index[0] == src.m_index[0] && m_index[1] == src.m_index[1]
+	    && m_index[2] == src.m_index[2])
+		return true;
+	return false;
+}
 
 } // end namespace
 

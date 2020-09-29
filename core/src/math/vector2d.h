@@ -71,9 +71,18 @@ public:
 	Vector2D &operator/=(T a)							{ m_pos[0] /= a; m_pos[1] /= a; return *this; }
 	const T *getComponents() const						{ return m_pos; }
 	T *getComponents()									{ return m_pos; }
+	bool operator==(const Vector2D<T> &src) const;
 private:
 	T m_pos[2];
 };
+
+template <class T>
+inline bool Vector2D<T>::operator==(const Vector2D<T> &src) const
+{
+	if (m_pos[0] == src.m_pos[0] && m_pos[1] == src.m_pos[1])
+		return true;
+	return false;
+}
 
 template <class T>
 inline Vector2D<T> operator+(Vector2D<T> v1, Vector2D<T> v2)

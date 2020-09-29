@@ -123,6 +123,7 @@ public:
 	void subtractIntensity(double v);
 
 	const ImagesData &operator=(const ImagesData &dat)				{ clear(); copyFrom(dat); return *this; }
+	bool operator==(const ImagesData &d) const;
 private:
 	bool readOld(serut::SerializationInterface &si);
 
@@ -143,6 +144,12 @@ private:
 		int getImageIndex() const						{ return m_imageIndex; }
 		int getPointIndex() const						{ return m_pointIndex; }
 		double getTimeDelay() const						{ return m_timeDelay; }
+		bool operator==(const TimeDelayPoint &src) const
+		{ 
+			return (m_imageIndex == src.m_imageIndex && 
+			        m_pointIndex == src.m_pointIndex && 
+					m_timeDelay == src.m_timeDelay);
+		}
 	private:
 		int m_imageIndex;
 		int m_pointIndex;
