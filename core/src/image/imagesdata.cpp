@@ -27,6 +27,8 @@
 #include "imagesdata.h"
 #include <serut/fileserializer.h>
 #include <map>
+#include <iostream>
+#include <string>
 
 #include "debugnew.h"
 
@@ -85,7 +87,7 @@ ImagesData *ImagesData::createCopy() const
 
 bool ImagesData::create(int numImages, const vector<PropertyName> &properties)
 {
-	if (numImages <= 0)
+	if (numImages < 0)
 	{
 		setErrorString("The number of images must be greater than zero");
 		return false;
@@ -121,6 +123,12 @@ bool ImagesData::create(int numImages, bool intensities, bool shearInfo)
 
 int ImagesData::addImage()
 {
+	if (m_properties.size() != MaxProperty)
+	{
+		setErrorString("Must create the instance first");
+		return false;
+	}
+	
 	int newNumImages = m_images.size()+1;
 
 	m_images.resize(newNumImages);
@@ -432,6 +440,7 @@ bool ImagesData::read(serut::SerializationInterface &si)
 		if (numPropImgs == -1) // m_properties[i] already set to false;
 			continue;
 
+		m_properties[i] = true;
 		if (numPropImgs != numImages)
 			return error("Inconsistent number of images, expecting " + to_string(numImages) + " but got " + to_string(numPropImgs));
 		
@@ -850,12 +859,14 @@ bool ImagesData::write(serut::SerializationInterface &si) const
 		auto &prop = m_imagePointProperties[i];
 		int32_t numPropImgs = -1; // this property is not enabled
 		if (m_properties[i])
+		{
 			numPropImgs = prop.size();
 		
-		if (numPropImgs != m_images.size())
-		{
-			setErrorString("Internal error: mismatch between number of images and properties");
-			return false;
+			if (numPropImgs != m_images.size())
+			{
+				setErrorString("Internal error: mismatch between number of images and properties");
+				return false;
+			}
 		}
 
 		if (!si.writeInt32(numPropImgs))
@@ -1112,8 +1123,23 @@ bool ImagesData::getTriangles(int image, std::vector<TriangleIndices> &triangles
 
 bool ImagesData::operator==(const ImagesData &d) const
 {
+	// auto printVec = [](const auto &v, auto f, const string &extra = string("  "))
+	// {
+	// 	cerr << extra << "[ ";
+	// 	for (auto e : v)
+	// 		cerr << f(e) << ",";
+	// 	cerr << "]" << endl;
+	// };
+
+	// auto ident = [](auto x) { return x; };
+
 	if (m_properties != d.m_properties)
+	{
+		// cerr << "Properties mismatch" << endl;
+		// printVec(m_properties, ident);
+		// printVec(d.m_properties, ident);
 		return false;
+	}
 	if (m_images != d.m_images)
 		return false;
 	if (m_imagePointProperties != d.m_imagePointProperties)

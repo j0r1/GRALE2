@@ -60,4 +60,6 @@ target_link_libraries(pernodecounttest gralecore-static ${GRALE_LINK_LIBS})
 add_executable(configparamstest configparamstest.cpp)
 target_link_libraries(configparamstest gralecore-static ${GRALE_LINK_LIBS})
 
+add_executable(imgdatatest imgdatatest.cpp)
+target_link_libraries(imgdatatest graleinv-static gralecore-static ${GRALE_LINK_LIBS})
 
