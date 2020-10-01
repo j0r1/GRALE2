@@ -65,8 +65,6 @@ void ProjectedImagesInterface::storeOriginalData(const std::vector<ImagesDataExt
 		m_numTotalPoints[s] = offset;
 	}
 
-	m_intensityScale = 1;
-
 	m_originalIntensityFlags.resize(images.size());
 	m_originalShearInfoFlags.resize(images.size());
 	m_originalTimeDelayInfo.resize(images.size());
@@ -79,37 +77,7 @@ void ProjectedImagesInterface::storeOriginalData(const std::vector<ImagesDataExt
 
 	if (storeOriginalIntensities)
 	{
-		double maxIntensity = 0;
-
 		m_originalIntensities.resize(images.size());
-
-		for (int source = 0 ; source < images.size() ; source++)
-		{
-			ImagesDataExtended *pImgDat = images[source];
-
-			if (pImgDat->hasIntensities())
-			{
-				int numImages = pImgDat->getNumberOfImages();
-
-				for (int i = 0 ; i < numImages ; i++)
-				{
-					int numPoints = pImgDat->getNumberOfImagePoints(i);
-
-					for (int p = 0 ; p < numPoints ; p++)
-					{
-						double intens = ABS(pImgDat->getImagePointIntensity(i, p));
-
-						if (intens > maxIntensity)
-							maxIntensity = intens;
-					}
-				}
-			}
-		}
-
-		if (maxIntensity == 0)
-			m_intensityScale = 1;
-		else
-			m_intensityScale = maxIntensity/10.0;
 
 		for (int source = 0 ; source < images.size() ; source++)
 		{
@@ -129,7 +97,7 @@ void ProjectedImagesInterface::storeOriginalData(const std::vector<ImagesDataExt
 
 					for (int p = 0 ; p < numPoints ; p++, point++)
 					{
-						double intens = pImgDat->getImagePointIntensity(i, p)/m_intensityScale;
+						double intens = (float)pImgDat->getImagePointIntensity(i, p);
 
 						m_originalIntensities[source][point] = (float)intens;
 					}

@@ -155,49 +155,6 @@ ImagesBackProjector::~ImagesBackProjector()
 		delete m_pLens;
 }
 
-bool ImagesBackProjector::write(const std::string &fname, double angularunit, bool magnifyFlux) const
-{
-	FILE *f = fopen(fname.c_str(), "wt");
-	if (f == 0)
-	{
-		setErrorString("Can't open specified file");
-		return false;
-	}
-
-	for (int s = 0 ; s < m_numPoints.size() ; s++)
-	{
-		for (int i = 0 ; i < m_numPoints[s].size() ; i++)
-		{
-			int numPoints = m_numPoints[s][i];
-
-			for (int p = 0 ; p < numPoints ; p++)
-			{
-				Vector2D<float> beta = getBetas(s, i)[p];
-				beta *= (m_angularScale/angularunit);
-
-				double height = 0;
-
-				if (hasOriginalIntensities(s))
-				{
-					double intens = getOriginalIntensities(s, i)[p];
-
-					if (magnifyFlux)
-						height = intens*ABS(getInverseMagnifications(s, i)[p])*getIntensityScale();
-					else
-						height = intens*getIntensityScale();
-				}
-
-				fprintf(f, "%g %g %g\n", (double)beta.getX(), (double)beta.getY(), (double)height);
-			}
-			fprintf(f, "\n");
-		}
-		fprintf(f, "\n\n");
-	}
-
-	fclose(f);
-	return true;
-}
-
 float ImagesBackProjector::getTimeDelay(int sourceNumber, int imageNumber, int pointNumber, Vector2D<float> scaledBeta) const
 {
 	double td = 0;

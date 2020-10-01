@@ -93,12 +93,10 @@ public:
 	/** Returns true if measured shear info was stored for the points of a specific source. */
 	bool hasOriginalShearInfo(int sourceNumber) const;
 
-	/** Returns the measured intensities stored for all images of a specific source number
-	 *  (expressed in terms of the intensity scale, see getIntensityScale). */
+	/** Returns the measured intensities stored for all images of a specific source number. */
 	const float *getOriginalIntensities(int sourceNumber) const;
 
-	/** Returns the measured intensities stored for a specific image of a specific source.
-	 *  (expressed in terms of the intensity scale, see getIntensityScale). */
+	/** Returns the measured intensities stored for a specific image of a specific source. */
 	const float *getOriginalIntensities(int sourceNumber, int imageNumber) const;
 
 	/** Returns the stored gamma1 values for all images of a specific source. */
@@ -123,12 +121,6 @@ public:
 	 *  the image index for a time delay value will be stored in \c pImg, the point index in \c pPoint
 	 *  and the actual measured time delay in \c pDelay. */
 	void getOriginalTimeDelay(int sourceNumber, int index, int *pImg, int *pPoint, float *pDelay) const;
-
-	/** Returns the scale in which stored and calculated image point intensities are expressed. */
-	double getIntensityScale() const;
-
-	// For internal use only
-	//bool setDistanceFractions(const std::vector<float> &fractions);
 
 	float getDistanceFraction(int sourcenum) const { return m_distanceFractions[sourcenum]; }
 
@@ -236,7 +228,6 @@ public:
 						intens *= getInverseMagnifications(s, i)[p];
 
 					beta2 *= getAngularScale();
-					intens *= getIntensityScale();
 
 					printf("%10.10g %10.10g %10.10g\n",(double)(beta2.getX()/ANGLE_ARCSEC),(double)(beta2.getY()/ANGLE_ARCSEC),intens);
 				}
@@ -270,7 +261,6 @@ protected:
 	std::vector<std::vector<int> > m_numPoints;
 	std::vector<int> m_numTotalPoints;
 
-	double m_intensityScale;
 	std::vector<float> m_distanceFractions;
 	std::vector<bool> m_originalIntensityFlags;
 	std::vector<bool> m_originalShearInfoFlags;
@@ -398,11 +388,6 @@ inline void ProjectedImagesInterface::getOriginalTimeDelay(int sourceNumber, int
 	*pImg = m_originalTimeDelayInfo[sourceNumber][index].getImageIndex(); 
 	*pPoint = m_originalTimeDelayInfo[sourceNumber][index].getPointIndex();
 	*pDelay = m_originalTimeDelayInfo[sourceNumber][index].getTimeDelay(); 
-}
-
-inline double ProjectedImagesInterface::getIntensityScale() const
-{ 
-	return m_intensityScale;
 }
 
 } // end namespace

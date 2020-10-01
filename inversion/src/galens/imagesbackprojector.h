@@ -89,8 +89,6 @@ public:
 	const float *getLensPotential(int sourceNumber) const { checkPotential(sourceNumber); return &(m_potential[sourceNumber][0]); }
 	const float *getLensPotential(int sourceNumber, int imageNumber) const { checkPotential(sourceNumber); return &(m_potential[sourceNumber][m_offsets[sourceNumber][imageNumber]]); }
 	float getTimeDelay(int sourceNumber, int imageNumber, int pointNumber, Vector2D<float> beta) const;
-
-	bool write(const std::string &fname, double angularunit, bool magnifyFlux) const;
 private:
 	void checkBetas(int sourceNumber) const;
 	void checkAlphas(int sourceNumber) const;
