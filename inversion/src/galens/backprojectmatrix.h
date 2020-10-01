@@ -53,9 +53,6 @@ public:
 		       const std::vector<bool> &useDerivatives,
 		       const std::vector<bool> &usePotentials,
 		       const GravitationalLens *pBaseLens,
-		       bool storeOriginalIntensities,
-		       bool storeOriginalTimeDelays,
-		       bool storeOriginalShearInfo,
 		       const GravitationalLens *pSheetLens);
 	bool endInit();
 

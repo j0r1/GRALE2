@@ -32,10 +32,7 @@
 namespace grale
 {
 
-void ProjectedImagesInterface::storeOriginalData(const std::vector<ImagesDataExtended *> &images,
-		                             bool storeOriginalIntensities, 
-					     bool storeOriginalTimeDelays, 
-					     bool storeOriginalShearInfo)
+void ProjectedImagesInterface::storeOriginalData(const std::vector<ImagesDataExtended *> &images)
 {
 	m_numTotalPoints.resize(images.size());
 	m_offsets.resize(images.size());
@@ -75,7 +72,7 @@ void ProjectedImagesInterface::storeOriginalData(const std::vector<ImagesDataExt
 		m_originalIntensityFlags[i] = false;
 	}
 
-	if (storeOriginalIntensities)
+	if (1)
 	{
 		m_originalIntensities.resize(images.size());
 
@@ -106,7 +103,7 @@ void ProjectedImagesInterface::storeOriginalData(const std::vector<ImagesDataExt
 		}
 	}
 
-	if (storeOriginalTimeDelays)
+	if (1)
 	{
 		for (int source = 0 ; source < images.size() ; source++)
 		{
@@ -124,7 +121,7 @@ void ProjectedImagesInterface::storeOriginalData(const std::vector<ImagesDataExt
 		}	
 	}
 
-	if (storeOriginalShearInfo)
+	if (1)
 	{
 		m_originalShearComponent1s.resize(images.size());
 		m_originalShearComponent2s.resize(images.size());

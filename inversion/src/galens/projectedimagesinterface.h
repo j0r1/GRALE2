@@ -235,8 +235,7 @@ public:
 		}
 	}
 protected:
-	void storeOriginalData(const std::vector<ImagesDataExtended *> &images,
-			       bool storeOriginalIntensities, bool storeOriginalTimeDelays, bool storeOriginalShearInfo);
+	void storeOriginalData(const std::vector<ImagesDataExtended *> &images);
 
 	class TimeDelayPoint
 	{

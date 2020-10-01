@@ -109,8 +109,7 @@ FitnessComponent::~FitnessComponent()
 
 bool FitnessComponent::inspectImagesData(int idx, const ImagesDataExtended &imgDat,
 			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
-			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence,
-								   bool &storeOrigIntens, bool &storeOrigTimeDelay, bool &storeOrigShear)
+			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence)
 {
 	setErrorString("FitnessComponent::inspectImagesData needs to be implemented in a subclass");
 	return false;
@@ -172,8 +171,7 @@ FitnessComponent_PointImagesOverlap::~FitnessComponent_PointImagesOverlap()
 
 bool FitnessComponent_PointImagesOverlap::inspectImagesData(int idx, const ImagesDataExtended &imgDat,
 							   bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
-							   bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence,
-							   bool &storeOrigIntens, bool &storeOrigTimeDelay, bool &storeOrigShear)
+							   bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence)
 {
 	string typeName;
 
@@ -382,8 +380,7 @@ FitnessComponent_PointGroupOverlap::~FitnessComponent_PointGroupOverlap()
 
 bool FitnessComponent_PointGroupOverlap::inspectImagesData(int idx, const ImagesDataExtended &imgDat,
 			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
-			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence,
-								   bool &storeOrigIntens, bool &storeOrigTimeDelay, bool &storeOrigShear)
+			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence)
 {
 	string typeName;
 
@@ -477,8 +474,7 @@ FitnessComponent_ExtendedImagesOverlap::~FitnessComponent_ExtendedImagesOverlap(
 
 bool FitnessComponent_ExtendedImagesOverlap::inspectImagesData(int idx, const ImagesDataExtended &imgDat,
 			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
-			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence,
-								   bool &storeOrigIntens, bool &storeOrigTimeDelay, bool &storeOrigShear)
+			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence)
 {
 	string typeName;
 
@@ -618,8 +614,7 @@ FitnessComponent_NullSpacePointImages::~FitnessComponent_NullSpacePointImages()
 
 bool FitnessComponent_NullSpacePointImages::inspectImagesData(int idx, const ImagesDataExtended &imgDat,
 			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
-			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence,
-								   bool &storeOrigIntens, bool &storeOrigTimeDelay, bool &storeOrigShear)
+			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence)
 {
 	string typeName;
 
@@ -821,8 +816,7 @@ FitnessComponent_NullSpaceExtendedImages::~FitnessComponent_NullSpaceExtendedIma
 
 bool FitnessComponent_NullSpaceExtendedImages::inspectImagesData(int idx, const ImagesDataExtended &imgDat,
 			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
-			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence,
-								   bool &storeOrigIntens, bool &storeOrigTimeDelay, bool &storeOrigShear)
+			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence)
 {
 	string typeName;
 
@@ -987,8 +981,7 @@ FitnessComponent_WeakLensing::~FitnessComponent_WeakLensing()
 
 bool FitnessComponent_WeakLensing::inspectImagesData(int idx, const ImagesDataExtended &imgDat,
 			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
-			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence,
-								   bool &storeOrigIntens, bool &storeOrigTimeDelay, bool &storeOrigShear)
+			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence)
 {
 	string typeName;
 
@@ -1011,7 +1004,6 @@ bool FitnessComponent_WeakLensing::inspectImagesData(int idx, const ImagesDataEx
 	needCalcDeflDeriv = true;
 	needCalcShear = true;
 	needCalcConvergence = true;
-	storeOrigShear = true;
 
 	double threshold = 0;
 	if (!imgDat.getExtraParameter("threshold", threshold))
@@ -1090,8 +1082,7 @@ FitnessComponent_TimeDelay::~FitnessComponent_TimeDelay()
 
 bool FitnessComponent_TimeDelay::inspectImagesData(int idx, const ImagesDataExtended &imgDat,
 			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
-			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence,
-								   bool &storeOrigIntens, bool &storeOrigTimeDelay, bool &storeOrigShear)
+			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence)
 {
 	string typeName;
 
@@ -1169,7 +1160,6 @@ bool FitnessComponent_TimeDelay::inspectImagesData(int idx, const ImagesDataExte
 	}
 	
 	needCalcPotential = true;
-	storeOrigTimeDelay = true;
 
 	//cerr << "Added TD fitness for " << idx << endl;
 	addImagesDataIndex(idx);
@@ -1233,8 +1223,7 @@ FitnessComponent_KappaThreshold::~FitnessComponent_KappaThreshold()
 
 bool FitnessComponent_KappaThreshold::inspectImagesData(int idx, const ImagesDataExtended &imgDat,
 			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
-			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence,
-								   bool &storeOrigIntens, bool &storeOrigTimeDelay, bool &storeOrigShear)
+			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence)
 {
 	string typeName;
 
@@ -1299,8 +1288,7 @@ FitnessComponent_CausticPenalty::~FitnessComponent_CausticPenalty()
 
 bool FitnessComponent_CausticPenalty::inspectImagesData(int idx, const ImagesDataExtended &imgDat,
 			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
-			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence,
-								   bool &storeOrigIntens, bool &storeOrigTimeDelay, bool &storeOrigShear)
+			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence)
 {
 	string typeName;
 
@@ -1463,8 +1451,7 @@ FitnessComponent_KappaGradient::~FitnessComponent_KappaGradient()
 
 bool FitnessComponent_KappaGradient::inspectImagesData(int idx, const ImagesDataExtended &imgDat,
 								bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
-								bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence,
-								bool &storeOrigIntens, bool &storeOrigTimeDelay, bool &storeOrigShear)
+								bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence)
 {
 	string typeName;
 
@@ -1521,8 +1508,7 @@ FitnessComponent_WeakLensing_Bayes::~FitnessComponent_WeakLensing_Bayes()
 
 bool FitnessComponent_WeakLensing_Bayes::inspectImagesData(int idx, const ImagesDataExtended &imgDat,
 			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
-			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence,
-								   bool &storeOrigIntens, bool &storeOrigTimeDelay, bool &storeOrigShear)
+			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence)
 {
 	string typeName;
 
@@ -1579,7 +1565,6 @@ bool FitnessComponent_WeakLensing_Bayes::inspectImagesData(int idx, const Images
 	// in the fitness function
 	// needCalcShear = true;
 	// needCalcConvergence = true;
-	storeOrigShear = true;
 
 	addImagesDataIndex(idx);
 

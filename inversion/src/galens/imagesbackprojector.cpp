@@ -55,7 +55,7 @@ ImagesBackProjector::ImagesBackProjector(GravitationalLens &lens, const std::lis
 	for (it = images.begin(), i = 0 ; it != images.end() ; it++, i++)
 		imagesVector[i] = *it;
 
-	storeOriginalData(imagesVector, true, true, true);
+	storeOriginalData(imagesVector);
 
 	m_betas.resize(images.size());
 	m_alphas.resize(images.size());

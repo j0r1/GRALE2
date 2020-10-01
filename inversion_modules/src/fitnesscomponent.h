@@ -71,8 +71,7 @@ public:
 
 	virtual bool inspectImagesData(int idx, const ImagesDataExtended &imgDat,
 			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
-			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence,
-								   bool &storeOrigIntens, bool &storeOrigTimeDelay, bool &storeOrigShear);
+			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence);
 
 	// Note that this may be called more than once
 	// TODO: prevent this?
@@ -112,8 +111,7 @@ public:
 
 	bool inspectImagesData(int idx, const ImagesDataExtended &imgDat,
 			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
-			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence,
-								   bool &storeOrigIntens, bool &storeOrigTimeDelay, bool &storeOrigShear) override;
+			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence) override;
 	bool finalize() override;
 	bool calculateFitness(const ProjectedImagesInterface &iface, float &fitness) override;
 	bool processFitnessOption(const std::string &optionName, const TypedParameter &value) override;
@@ -142,8 +140,7 @@ public:
 
 	bool inspectImagesData(int idx, const ImagesDataExtended &imgDat,
 			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
-			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence,
-								   bool &storeOrigIntens, bool &storeOrigTimeDelay, bool &storeOrigShear) override;
+			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence) override;
 	bool calculateFitness(const ProjectedImagesInterface &iface, float &fitness) override;
 	bool processFitnessOption(const std::string &optionName, const TypedParameter &value) override;
 
@@ -162,8 +159,7 @@ public:
 
 	bool inspectImagesData(int idx, const ImagesDataExtended &imgDat,
 			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
-			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence,
-								   bool &storeOrigIntens, bool &storeOrigTimeDelay, bool &storeOrigShear) override;
+			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence) override;
 	bool calculateFitness(const ProjectedImagesInterface &iface, float &fitness) override;
 	bool finalize() override;
 private:
@@ -182,8 +178,7 @@ public:
 
 	bool inspectImagesData(int idx, const ImagesDataExtended &imgDat,
 			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
-			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence,
-								   bool &storeOrigIntens, bool &storeOrigTimeDelay, bool &storeOrigShear) override;
+			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence) override;
 	bool calculateFitness(const ProjectedImagesInterface &iface, float &fitness) override;
 private:
 	int m_lastImgIdx;
@@ -210,8 +205,7 @@ public:
 
 	bool inspectImagesData(int idx, const ImagesDataExtended &imgDat,
 			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
-			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence,
-								   bool &storeOrigIntens, bool &storeOrigTimeDelay, bool &storeOrigShear) override;
+			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence) override;
 	bool calculateFitness(const ProjectedImagesInterface &iface, float &fitness) override;
 private:
 	int m_lastImgIdx;
@@ -235,8 +229,7 @@ public:
 
 	bool inspectImagesData(int idx, const ImagesDataExtended &imgDat,
 			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
-			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence,
-								   bool &storeOrigIntens, bool &storeOrigTimeDelay, bool &storeOrigShear) override;
+			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence) override;
 	bool calculateFitness(const ProjectedImagesInterface &iface, float &fitness) override;
 	bool processFitnessOption(const std::string &optionName, const TypedParameter &value) override;
 
@@ -257,8 +250,7 @@ public:
 
 	bool inspectImagesData(int idx, const ImagesDataExtended &imgDat,
 			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
-			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence,
-								   bool &storeOrigIntens, bool &storeOrigTimeDelay, bool &storeOrigShear) override;
+			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence) override;
 	bool calculateFitness(const ProjectedImagesInterface &iface, float &fitness) override;
 	bool processFitnessOption(const std::string &optionName, const TypedParameter &value) override;
 
@@ -278,8 +270,7 @@ public:
 
 	bool inspectImagesData(int idx, const ImagesDataExtended &imgDat,
 			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
-			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence,
-								   bool &storeOrigIntens, bool &storeOrigTimeDelay, bool &storeOrigShear) override;
+			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence) override;
 	bool calculateFitness(const ProjectedImagesInterface &iface, float &fitness) override;
 private:
 	std::vector<float> m_thresholds;
@@ -294,8 +285,7 @@ public:
 
 	bool inspectImagesData(int idx, const ImagesDataExtended &imgDat,
 			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
-			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence,
-								   bool &storeOrigIntens, bool &storeOrigTimeDelay, bool &storeOrigShear) override;
+			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence) override;
 	bool calculateFitness(const ProjectedImagesInterface &iface, float &fitness) override;
 private:
 	int storeTriangleLine(int sourcePos, int imgIndex, int point1, int point2);
@@ -322,8 +312,7 @@ public:
 
 	bool inspectImagesData(int idx, const ImagesDataExtended &imgDat,
 			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
-			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence,
-								   bool &storeOrigIntens, bool &storeOrigTimeDelay, bool &storeOrigShear) override;
+			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence) override;
 	bool calculateFitness(const ProjectedImagesInterface &iface, float &fitness) override;
 private:
 	NumericGradientCalculator m_gradCalc;
@@ -339,8 +328,7 @@ public:
 
 	bool inspectImagesData(int idx, const ImagesDataExtended &imgDat,
 			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
-			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence,
-								   bool &storeOrigIntens, bool &storeOrigTimeDelay, bool &storeOrigShear) override;
+			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence) override;
 	bool calculateFitness(const ProjectedImagesInterface &iface, float &fitness) override;
 	bool processFitnessOption(const std::string &optionName, const TypedParameter &value) override;
 	bool finalize() override;

@@ -61,7 +61,7 @@ bool PreCalculatedBackProjector::init(const std::vector<ImagesData *> &images,
 		for (auto &it : imagesVectorAutoDelete)
 			imagesVector.push_back(it.get());
 
-		storeOriginalData(imagesVector, false, false, false);
+		storeOriginalData(imagesVector);
 	}
 
 	if (images.size() == 0)

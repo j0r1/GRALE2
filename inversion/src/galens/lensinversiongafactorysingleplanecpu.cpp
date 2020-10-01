@@ -285,19 +285,15 @@ bool LensInversionGAFactorySinglePlaneCPU::localSubInit(double z_d, const vector
 		return false;
 	}
 
-	bool totalStoreIntens, totalStoreTimeDelay, totalStoreShearInfo;
 	std::vector<bool> totalDeflectionFlags, totalDerivativeFlags, totalPotentialFlags;
 
 	LensFitnessObject &fitnessObject = getFitnessObject();
 	fitnessObject.getTotalCalcFlags(totalDeflectionFlags, totalDerivativeFlags, totalPotentialFlags);
-	fitnessObject.getTotalStoreFlags(&totalStoreIntens, &totalStoreTimeDelay, &totalStoreShearInfo);
 	
 	m_pTotalBPMatrix = make_shared<BackProjectMatrix>();
 	if (!m_pTotalBPMatrix->startInit(z_d, basisLenses[0].first->getLensDistance(), m_pDeflectionMatrix.get(),
 				         reducedImagesVector, totalDeflectionFlags, totalDerivativeFlags, 
-					 totalPotentialFlags, pBaseLens, totalStoreIntens, totalStoreTimeDelay,
-					 totalStoreShearInfo,
-					 pSheetLens))
+					 totalPotentialFlags, pBaseLens, pSheetLens))
 	{
 		setErrorString(m_pTotalBPMatrix->getErrorString());
 		return false;
@@ -305,18 +301,14 @@ bool LensInversionGAFactorySinglePlaneCPU::localSubInit(double z_d, const vector
 
 	if (shortImagesVector.size() > 0) // Ok, can improve speed in mass-scale calculation
 	{
-		bool shortStoreIntens, shortStoreTimeDelay, shortStoreShearInfo;
 		std::vector<bool> shortDeflectionFlags, shortDerivativeFlags, shortPotentialFlags;
 
 		fitnessObject.getShortCalcFlags(shortDeflectionFlags, shortDerivativeFlags, shortPotentialFlags);
-		fitnessObject.getShortStoreFlags(&shortStoreIntens, &shortStoreTimeDelay, &shortStoreShearInfo);
 
 		m_pShortBPMatrix = make_shared<BackProjectMatrix>();
 		if (!m_pShortBPMatrix->startInit(z_d, basisLenses[0].first->getLensDistance(), m_pDeflectionMatrix.get(),
 						 shortImagesVector, shortDeflectionFlags, shortDerivativeFlags, 
-						 shortPotentialFlags, pBaseLens, shortStoreIntens, shortStoreTimeDelay,
-						 shortStoreShearInfo,
-						 pSheetLens))
+						 shortPotentialFlags, pBaseLens, pSheetLens))
 		{
 			setErrorString(m_pShortBPMatrix->getErrorString());
 			return false;

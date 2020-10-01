@@ -132,7 +132,7 @@ int main(void)
 
 	BackProjectMatrix bpMatrix;
 	
-	if (!bpMatrix.startInit(z_d, D_d, &matrix, images, ones, ones, ones, pBaseLens, true, true, true, sheetLens.get()))
+	if (!bpMatrix.startInit(z_d, D_d, &matrix, images, ones, ones, ones, pBaseLens, sheetLens.get()))
 		cerr << "Couldn't init BackProjectMatrixNew" << endl;
 
 	vector<pair<shared_ptr<GravitationalLens>, Vector2Dd>> basisLenses;

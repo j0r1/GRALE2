@@ -135,19 +135,10 @@ public:
 	 *  */
 	virtual void getTotalCalcFlags(std::vector<bool> &deflectionFlags, std::vector<bool> &derivativeFlags, std::vector<bool> &potentialFlags) const = 0;
 
-	/** These flags indicate what information from the input images data should be stored in 
-	 *  the ProjectedImagesInterface instance (you can save some memory this way, but if this
-	 *  isn't an issue just set everything to \c true, it doensn't have any other effect on the
-	 *  performance) */
-	virtual void getTotalStoreFlags(bool *pStoreIntens, bool *pStoreTimeDelay, bool *pStoreShearInfo) const = 0;
-
 	/** Same as the LensFitnessObject::getTotalCalcFlags, but this is about the \c massScaleImages
 	 *  list from the LensFitnessObject::init function. */
 	virtual void getShortCalcFlags(std::vector<bool> &deflectionFlags, std::vector<bool> &derivativeFlags, std::vector<bool> &potentialFlags) const = 0;
 
-	/** Same as the LensFitnessObject::getTotalStoreFlags, but this is about the \c massScaleImages
-	 *  list from the LensFitnessObject::init function. */
-	virtual void getShortStoreFlags(bool *pStoreIntens, bool *pStoreTimeDelay, bool *pStoreShearInfo) const = 0;
 	///@}
 
 	// These are used in the genome fitness calculation. They all depend on the derivatives of the

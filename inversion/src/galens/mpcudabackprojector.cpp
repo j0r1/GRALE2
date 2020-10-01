@@ -24,7 +24,7 @@ bool MPCUDABackProjector::init(const string &libraryPath, int deviceIndex,
 		const vector<float> &sourceRedshifts,
 		const vector<ImagesDataExtended *> &images)
 {
-	storeOriginalData(images, false, false, false);
+	storeOriginalData(images);
 
 	m_angularScale = getAngularScale(images);
 	m_thetas.clear();

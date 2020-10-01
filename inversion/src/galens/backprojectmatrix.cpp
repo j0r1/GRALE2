@@ -57,9 +57,6 @@ bool BackProjectMatrix::startInit(double z_d, double D_d, DeflectionMatrix *pDef
 				     const std::vector<bool> &useDerivatives, 
 				     const std::vector<bool> &usePotentials, 
 				     const GravitationalLens *pBaseLens,
-		       		     bool storeOriginalIntensities,
-		       		     bool storeOriginalTimeDelays,
-		       		     bool storeOriginalShearInfo,
 					 const GravitationalLens *pSheetLens)
 {
 	if (m_init)
@@ -76,7 +73,7 @@ bool BackProjectMatrix::startInit(double z_d, double D_d, DeflectionMatrix *pDef
 	m_initializing = true;
 	m_pDeflectionMatrix = pDeflectionMatrix;
 
-	storeOriginalData(images, storeOriginalIntensities, storeOriginalTimeDelays, storeOriginalShearInfo);
+	storeOriginalData(images);
 
 	m_deflectionIndices.resize(images.size());
 	m_derivativeIndices.resize(images.size());

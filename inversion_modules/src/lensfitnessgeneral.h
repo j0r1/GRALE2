@@ -65,13 +65,9 @@ public:
 
 	void getTotalCalcFlags(std::vector<bool> &deflectionFlags, std::vector<bool> &derivativeFlags, 
 			       std::vector<bool> &potentialFlags) const					{ deflectionFlags = m_totalDeflectionFlags; derivativeFlags = m_totalDerivativeFlags; potentialFlags = m_totalPotentialFlags; }
-	void getTotalStoreFlags(bool *pStoreIntens, bool *pStoreTimeDelay, bool *pStoreShearInfo) const 
-																			{ *pStoreIntens = m_totalStoreIntens; *pStoreTimeDelay = m_totalStoreTimeDelay; *pStoreShearInfo = m_totalStoreShear; }
 
 	void getShortCalcFlags(std::vector<bool> &deflectionFlags, std::vector<bool> &derivativeFlags, 
 			       std::vector<bool> &potentialFlags) const					{ deflectionFlags = m_shortDeflectionFlags; derivativeFlags = m_shortDerivativeFlags; potentialFlags = m_shortPotentialFlags; }
-	void getShortStoreFlags(bool *pStoreIntens, bool *pStoreTimeDelay, bool *pStoreShearInfo) const	
-																			{ *pStoreIntens = m_shortStoreIntens; *pStoreTimeDelay = m_shortStoreTimeDelay; *pStoreShearInfo = m_shortStoreShear; }
 
 	int getNumberOfFitnessComponents() const								{ return m_numFitnessComponents; }
 
@@ -84,9 +80,7 @@ private:
 	int m_numFitnessComponents;
 
 	bool m_totalInverse, m_totalShear, m_totalConvergence;
-	bool m_totalStoreIntens, m_totalStoreTimeDelay, m_totalStoreShear;
 	bool m_shortInverse, m_shortShear, m_shortConvergence;
-	bool m_shortStoreIntens, m_shortStoreTimeDelay, m_shortStoreShear;
 	std::vector<bool> m_totalDeflectionFlags, m_totalDerivativeFlags, m_totalPotentialFlags;
 	std::vector<bool> m_totalInverseFlags, m_totalShearFlags, m_totalConvergenceFlags;
 	std::vector<bool> m_shortDeflectionFlags, m_shortDerivativeFlags, m_shortPotentialFlags;

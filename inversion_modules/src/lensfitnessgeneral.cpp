@@ -67,9 +67,6 @@ void LensFitnessGeneral::clear()
 	m_totalInverse = false;
 	m_totalShear = false; 
 	m_totalConvergence = false;
-	m_totalStoreIntens = false;
-	m_totalStoreTimeDelay = false;
-	m_totalStoreShear = false;
 	m_totalDeflectionFlags.clear();
 	m_totalDerivativeFlags.clear();
 	m_totalPotentialFlags.clear();
@@ -80,9 +77,6 @@ void LensFitnessGeneral::clear()
 	m_shortInverse = false;
 	m_shortShear = false; 
 	m_shortConvergence = false;
-	m_shortStoreIntens = false;
-	m_shortStoreTimeDelay = false;
-	m_shortStoreShear = false;
 	m_shortDeflectionFlags.clear();
 	m_shortDerivativeFlags.clear();
 	m_shortPotentialFlags.clear();
@@ -369,9 +363,6 @@ bool LensFitnessGeneral::init(double z_d, std::list<ImagesDataExtended *> &image
 		}
 	}
 
-	vector<bool> storeOrigIntensFlags, storeOrigTimeDelayFlags, storeOrigShearFlags;
-	vector<bool> storeShortOrigIntensFlags, storeShortOrigTimeDelayFlags, storeShortOrigShearFlags;
-
 	// Let the components process the images data
 	int imgDatCount = 0;
 	for (auto it = images.begin() ; it != images.end() ; ++it, imgDatCount++)
@@ -420,8 +411,7 @@ bool LensFitnessGeneral::init(double z_d, std::list<ImagesDataExtended *> &image
 		// Process image in this component (component should ignore image if unknown type name)
 
 		bool totNeedDefl = false, totNeedDeflDeriv = false, totNeedPotential = false,
-			 totNeedInvMag = false, totNeedShear = false, totNeedConv = false,
-			 totStoreOrigIntens = false, totStoreOrigTimeDelay = false, totStoreOrigShear = false;
+			 totNeedInvMag = false, totNeedShear = false, totNeedConv = false;
 
 		for (size_t i = 0 ; i < m_totalComponents.size() ; i++)
 		{
@@ -429,12 +419,10 @@ bool LensFitnessGeneral::init(double z_d, std::list<ImagesDataExtended *> &image
 			assert(pComp);
 
 			bool needDefl = false, needDeflDeriv = false, needPotential = false,
-				 needInvMag = false, needShear = false, needConv = false,
-				 storeOrigIntens = false, storeOrigTimeDelay = false, storeOrigShear = false;
+				 needInvMag = false, needShear = false, needConv = false;
 
 			if (!pComp->inspectImagesData(imgDatCount, *pImgDat, needDefl, needDeflDeriv, needPotential,
-						                  needInvMag, needShear, needConv, storeOrigIntens,
-										  storeOrigTimeDelay, storeOrigShear))
+						                  needInvMag, needShear, needConv))
 			{
 				setErrorString("Unable to process images data entry " + numStr + " by component " +
 						       pComp->getObjectName() + ": " + pComp->getErrorString());
@@ -456,9 +444,6 @@ bool LensFitnessGeneral::init(double z_d, std::list<ImagesDataExtended *> &image
 			if (needInvMag) totNeedInvMag = true;
 			if (needShear) totNeedShear = true;
 			if (needConv) totNeedConv = true;
-			if (storeOrigIntens) totStoreOrigIntens = true;
-			if (storeOrigTimeDelay) totStoreOrigTimeDelay = true;
-			if (storeOrigShear) totStoreOrigShear = true;
 		}
 
 		m_totalDeflectionFlags.push_back(totNeedDefl);
@@ -467,18 +452,11 @@ bool LensFitnessGeneral::init(double z_d, std::list<ImagesDataExtended *> &image
 		m_totalInverseFlags.push_back(totNeedInvMag);
 		m_totalShearFlags.push_back(totNeedShear);
 		m_totalConvergenceFlags.push_back(totNeedConv);
-
-		storeOrigIntensFlags.push_back(totStoreOrigIntens);
-		storeOrigTimeDelayFlags.push_back(totStoreOrigTimeDelay);
-		storeOrigShearFlags.push_back(totStoreOrigShear);
 	}
 
 	m_totalInverse = reduceFlags(m_totalInverseFlags);
 	m_totalShear = reduceFlags(m_totalShearFlags);
 	m_totalConvergence = reduceFlags(m_totalConvergenceFlags);
-	m_totalStoreIntens = reduceFlags(storeOrigIntensFlags);
-	m_totalStoreTimeDelay = reduceFlags(storeOrigTimeDelayFlags);
-	m_totalStoreShear = reduceFlags(storeOrigShearFlags);
 
 	// Clear the components that are not used, finalize others
 	for (size_t i = 0 ; i < m_totalComponents.size() ; i++)
@@ -542,12 +520,10 @@ bool LensFitnessGeneral::init(double z_d, std::list<ImagesDataExtended *> &image
 		assert(pImgDat);
 
 		bool needDefl = false, needDeflDeriv = false, needPotential = false,
-			 needInvMag = false, needShear = false, needConv = false,
-			 storeOrigIntens = false, storeOrigTimeDelay = false, storeOrigShear = false;
+			 needInvMag = false, needShear = false, needConv = false;
 
 		if (!m_pShortComponent->inspectImagesData(imgDatCount, *pImgDat, needDefl, needDeflDeriv, needPotential,
-									  needInvMag, needShear, needConv, storeOrigIntens,
-									  storeOrigTimeDelay, storeOrigShear))
+									  needInvMag, needShear, needConv))
 		{
 			setErrorString("Unexpected: unable to process 'short' images data entry " + numStr + " by component " +
 						   m_pShortComponent->getObjectName() + ": " + m_pShortComponent->getErrorString());
@@ -569,17 +545,10 @@ bool LensFitnessGeneral::init(double z_d, std::list<ImagesDataExtended *> &image
 		m_shortInverseFlags.push_back(needInvMag);
 		m_shortShearFlags.push_back(needShear);
 		m_shortConvergenceFlags.push_back(needConv);
-
-		storeShortOrigIntensFlags.push_back(storeOrigIntens);
-		storeShortOrigTimeDelayFlags.push_back(storeOrigTimeDelay);
-		storeShortOrigShearFlags.push_back(storeOrigShear);
 	}
 	m_shortInverse = reduceFlags(m_shortInverseFlags);
 	m_shortShear = reduceFlags(m_shortShearFlags);
 	m_shortConvergence = reduceFlags(m_shortConvergenceFlags);
-	m_shortStoreIntens = reduceFlags(storeShortOrigIntensFlags);
-	m_shortStoreTimeDelay = reduceFlags(storeShortOrigTimeDelayFlags);
-	m_shortStoreShear = reduceFlags(storeShortOrigShearFlags);
 
 	//cerr << "Short finalize for " << m_pShortComponent->getObjectName() << endl;
 	if (!m_pShortComponent->finalize())
