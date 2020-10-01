@@ -29,6 +29,7 @@
 #include <map>
 #include <iostream>
 #include <string>
+#include <sstream>
 
 #include "debugnew.h"
 
@@ -118,7 +119,12 @@ bool ImagesData::create(int numImages, const vector<PropertyName> &properties)
 
 bool ImagesData::create(int numImages, bool intensities, bool shearInfo)
 {
-	return create(numImages, { Intensity, ShearComponent1, ShearComponent2, Weight });
+	vector<PropertyName> props;
+	if (intensities)
+		props.push_back(Intensity);
+	if (shearInfo)
+		props.insert(props.end(), { ShearComponent1, ShearComponent2, Weight });
+	return create(numImages, props);
 }
 
 int ImagesData::addImage()
@@ -146,11 +152,14 @@ int ImagesData::addImage()
 
 int ImagesData::addPoint(int imageNumber, Vector2Dd point, const vector<pair<PropertyName, double>> &properties)
 {
-	if (imageNumber < 0 || imageNumber >= m_images.size())
+	auto error = [this](const string &s) -> int
 	{
-	 	setErrorString("Invalid image number");
-	 	return -1;
-	}
+		setErrorString(s);
+		return -1;
+	};
+
+	if (imageNumber < 0 || imageNumber >= m_images.size())
+		return error("Invalid image number");
 
 	bool specifiedProps[MaxProperty] = { false }; // False should be 0, so that should be fine
 
@@ -160,27 +169,32 @@ int ImagesData::addPoint(int imageNumber, Vector2Dd point, const vector<pair<Pro
 		const double value = pv.second;
 
 		if (n < 0 || n >= MaxProperty)
-		{
-			setErrorString("Invalid property " + to_string((int)n));
-			return false;
-		}
+			return error("Invalid property " + to_string((int)n));
 
 		if (specifiedProps[n])
-		{
-			setErrorString("Property " + to_string((int)n) + " is specified more than once");
-			return false;
-		}
+			return error("Property " + to_string((int)n) + " is specified more than once");
+
 		specifiedProps[n] = true;
 	}
+
+	auto listProps = [](auto &v) -> string
+	{
+		stringstream ss;
+		ss << "[ ";
+		for (int i = 0 ; i < MaxProperty ; i++)
+		{
+			bool x = v[i];
+			ss << ((x)?"true ":"false ");
+		}
+		ss << "]";
+		return ss.str();
+	};
 
 	assert(MaxProperty == m_properties.size());
 	for (int i = 0 ; i < MaxProperty ; i++)
 	{
 		if (specifiedProps[i] != m_properties[i])
-		{
-			setErrorString("Not all required properties are specified, differs from creation time");
-			return false;
-		}
+			return error("Not all required properties are specified, differs from creation time (" + listProps(specifiedProps) + " != " + listProps(m_properties) + ")");
 	}
 	
 	int pointIndex = m_images[imageNumber].size();

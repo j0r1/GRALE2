@@ -63,3 +63,5 @@ target_link_libraries(configparamstest gralecore-static ${GRALE_LINK_LIBS})
 add_executable(imgdatatest imgdatatest.cpp)
 target_link_libraries(imgdatatest graleinv-static gralecore-static ${GRALE_LINK_LIBS})
 
+add_executable(imgdatdump imgdatdump.cpp)
+target_link_libraries(imgdatdump gralecore-static ${GRALE_LINK_LIBS})
