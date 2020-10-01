@@ -1143,9 +1143,9 @@ float calculateWeakLensingFitness_Bayes(const ProjectedImagesInterface &interfac
 
 		assert(s >= 0 && s < interface.getNumberOfSources());
 		int numPoints = interface.getNumberOfImagePoints(s);
-		const float *pEll1 = interface.getOriginalShearComponent1s(s);
-		const float *pEll2 = interface.getOriginalShearComponent2s(s);
-		const float *pDistFrac = interface.getOriginalShearWeights(s);
+		const float *pEll1 = interface.getOriginalProperties(ImagesData::ShearComponent1, s);
+		const float *pEll2 = interface.getOriginalProperties(ImagesData::ShearComponent2, s);
+		const float *pDistFrac = interface.getOriginalProperties(ImagesData::Weight, s);
 		const float *pAxx = interface.getDerivativesXX(s);
 		const float *pAyy = interface.getDerivativesYY(s);
 		const float *pAxy = interface.getDerivativesXY(s);
@@ -1246,9 +1246,9 @@ float calculateWeakLensingFitness(const ProjectedImagesInterface &interface, con
 
 		assert(s >= 0 && s < interface.getNumberOfSources());
 		int numPoints = interface.getNumberOfImagePoints(s);
-		const float *pStoredShear1 = interface.getOriginalShearComponent1s(s);
-		const float *pStoredShear2 = interface.getOriginalShearComponent2s(s);
-		const float *pWeights = interface.getOriginalShearWeights(s);
+		const float *pStoredShear1 = interface.getOriginalProperties(ImagesData::ShearComponent1, s);
+		const float *pStoredShear2 = interface.getOriginalProperties(ImagesData::ShearComponent2, s);
+		const float *pWeights = interface.getOriginalProperties(ImagesData::Weight, s);
 		const float *pCalcShear1 = interface.getShearComponents1(s);
 		const float *pCalcShear2 = interface.getShearComponents2(s);
 		const float *pConvergence = interface.getConvergence(s);

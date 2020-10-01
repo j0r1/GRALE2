@@ -34,6 +34,7 @@
 #include "graleconfig.h"
 #include "vector2d.h"
 #include "constants.h"
+#include "imagesdata.h"
 #include <stdio.h>
 #include <assert.h>
 #include <vector>
@@ -87,32 +88,9 @@ public:
 	/** Returns the number of points stored for a particular image of a particular source. */
 	int getNumberOfImagePoints(int sourceNumber, int imageNumber) const;
 
-	/** Returns true if measured intensity information was stored for a specific source index. */
-	bool hasOriginalIntensities(int sourceNumber) const;
-
-	/** Returns true if measured shear info was stored for the points of a specific source. */
-	bool hasOriginalShearInfo(int sourceNumber) const;
-
-	/** Returns the measured intensities stored for all images of a specific source number. */
-	const float *getOriginalIntensities(int sourceNumber) const;
-
-	/** Returns the measured intensities stored for a specific image of a specific source. */
-	const float *getOriginalIntensities(int sourceNumber, int imageNumber) const;
-
-	/** Returns the stored gamma1 values for all images of a specific source. */
-	const float *getOriginalShearComponent1s(int sourceNumber) const;
-
-	/** Returns the stored gamma1 values for a specific image of a specific source. */
-	const float *getOriginalShearComponent1s(int sourceNumber, int imageNumber) const;
-
-	/** Returns the stored gamma2 values for all images of a specific source. */
-	const float *getOriginalShearComponent2s(int sourceNumber) const;
-
-	/** Returns the stored gamma2 values for a specific image of a specific source. */
-	const float *getOriginalShearComponent2s(int sourceNumber, int imageNumber) const;
-
-	const float *getOriginalShearWeights(int sourceNumber) const;
-	const float *getOriginalShearWeights(int sourceNumber, int imageNumber) const;
+	bool hasOriginalProperty(ImagesData::PropertyName n, int sourceNumber) const;
+	const float *getOriginalProperties(ImagesData::PropertyName n, int sourceNumber) const;
+	const float *getOriginalProperties(ImagesData::PropertyName n, int sourceNumber, int imageNumber) const;
 
 	/** Returns the number of time delays that were stored for a specific source index. */
 	int getOriginalNumberOfTimeDelays(int sourceNumber) const;
@@ -205,35 +183,6 @@ public:
 	/** For the specified point of an image of a source, calculate the time delay if the backprojected
 	 *  position of that point were \c beta. */
 	virtual float getTimeDelay(int sourceNumber, int imageNumber, int pointNumber, Vector2D<float> beta) const = 0; // in days!
-
-	void dump(bool magnifyFlux) const
-	{
-		int numSources = getNumberOfSources();
-
-		for (int s = 0 ; s < numSources ; s++)
-		{
-			int numImages = getNumberOfImages(s);
-
-			for (int i = 0 ; i < numImages ; i++)
-			{
-				int numPoints = getNumberOfImagePoints(s, i);
-
-				for (int p = 0 ; p < numPoints ; p++)
-				{
-					Vector2D<float> beta = getBetas(s, i)[p];
-					Vector2D<double> beta2(beta.getX(), beta.getY());
-					double intens = getOriginalIntensities(s, i)[p];
-
-					if (magnifyFlux)
-						intens *= getInverseMagnifications(s, i)[p];
-
-					beta2 *= getAngularScale();
-
-					printf("%10.10g %10.10g %10.10g\n",(double)(beta2.getX()/ANGLE_ARCSEC),(double)(beta2.getY()/ANGLE_ARCSEC),intens);
-				}
-			}
-		}
-	}
 protected:
 	void storeOriginalData(const std::vector<ImagesDataExtended *> &images);
 
@@ -261,12 +210,8 @@ protected:
 	std::vector<int> m_numTotalPoints;
 
 	std::vector<float> m_distanceFractions;
-	std::vector<bool> m_originalIntensityFlags;
-	std::vector<bool> m_originalShearInfoFlags;
-	std::vector<std::vector<float> > m_originalIntensities;
-	std::vector<std::vector<float> > m_originalShearComponent1s;
-	std::vector<std::vector<float> > m_originalShearComponent2s;
-	std::vector<std::vector<float> > m_shearWeights;
+	std::vector<std::vector<bool>> m_originalPropertyFlags;
+	std::vector<std::vector<std::vector<float>>> m_originalPointProperties;
 	std::vector<std::vector<TimeDelayPoint> > m_originalTimeDelayInfo;
 };
 
@@ -294,80 +239,30 @@ inline int ProjectedImagesInterface::getNumberOfImagePoints(int sourceNumber, in
 	return m_numPoints[sourceNumber][imageNumber]; 
 }
 
-inline bool ProjectedImagesInterface::hasOriginalIntensities(int sourceNumber) const
+inline bool ProjectedImagesInterface::hasOriginalProperty(ImagesData::PropertyName n, int sourceNumber) const
 {
-	assert(sourceNumber >= 0 && sourceNumber < m_originalIntensityFlags.size());
-	return m_originalIntensityFlags[sourceNumber]; 
+	assert((int)n >= 0 && (int)n < m_originalPropertyFlags.size());
+	assert(sourceNumber >= 0 && sourceNumber < m_originalPropertyFlags[(int)n].size());
+	
+	return m_originalPropertyFlags[(int)n][sourceNumber];
 }
 
-inline bool ProjectedImagesInterface::hasOriginalShearInfo(int sourceNumber) const
+inline const float *ProjectedImagesInterface::getOriginalProperties(ImagesData::PropertyName n, int sourceNumber) const
 {
-	assert(sourceNumber >= 0 && sourceNumber < m_originalShearInfoFlags.size());
-	return m_originalShearInfoFlags[sourceNumber]; 
+	assert((int)n >= 0 && (int)n < m_originalPointProperties.size());
+	assert(sourceNumber >= 0 && sourceNumber < m_originalPointProperties[(int)n].size());
+	assert(m_originalPointProperties[(int)n][sourceNumber].size() > 0);
+	return m_originalPointProperties[(int)n][sourceNumber].data();
 }
 
-inline const float *ProjectedImagesInterface::getOriginalIntensities(int sourceNumber) const
+inline const float *ProjectedImagesInterface::getOriginalProperties(ImagesData::PropertyName n, int sourceNumber, int imageNumber) const
 {
-	assert(sourceNumber >= 0 && sourceNumber < m_originalIntensities.size());
-	assert(m_originalIntensities[sourceNumber].size() > 0);
-	return &(m_originalIntensities[sourceNumber][0]); 
-}
-
-inline const float *ProjectedImagesInterface::getOriginalIntensities(int sourceNumber, int imageNumber) const
-{
-	assert(sourceNumber >= 0 && sourceNumber < m_originalIntensities.size());
+	assert((int)n >= 0 && (int)n < m_originalPointProperties.size());
+	assert(sourceNumber >= 0 && sourceNumber < m_originalPointProperties[(int)n].size());
 	assert(sourceNumber < m_offsets.size());
 	assert(imageNumber >= 0 && imageNumber < m_offsets[sourceNumber].size());
-	assert(m_offsets[sourceNumber][imageNumber] < m_originalIntensities[sourceNumber].size());
-	return &(m_originalIntensities[sourceNumber][m_offsets[sourceNumber][imageNumber]]); 
-}
-
-inline const float *ProjectedImagesInterface::getOriginalShearComponent1s(int sourceNumber) const
-{ 
-	assert(sourceNumber >= 0 && sourceNumber < m_originalShearComponent1s.size());
-	assert(m_originalShearComponent1s[sourceNumber].size() > 0);
-	return &(m_originalShearComponent1s[sourceNumber][0]); 
-}
-
-inline const float *ProjectedImagesInterface::getOriginalShearComponent1s(int sourceNumber, int imageNumber) const
-{ 
-	assert(sourceNumber >= 0 && sourceNumber < m_originalShearComponent1s.size());
-	assert(sourceNumber < m_offsets.size());
-	assert(imageNumber >= 0 && imageNumber < m_offsets[sourceNumber].size());
-	assert(m_offsets[sourceNumber][imageNumber] < m_originalShearComponent1s[sourceNumber].size());
-	return &(m_originalShearComponent1s[sourceNumber][m_offsets[sourceNumber][imageNumber]]); 
-}
-
-inline const float *ProjectedImagesInterface::getOriginalShearComponent2s(int sourceNumber) const
-{ 
-	assert(sourceNumber >= 0 && sourceNumber < m_originalShearComponent2s.size());
-	assert(m_originalShearComponent2s[sourceNumber].size() > 0);
-	return &(m_originalShearComponent2s[sourceNumber][0]); 
-}
-
-inline const float *ProjectedImagesInterface::getOriginalShearComponent2s(int sourceNumber, int imageNumber) const
-{ 
-	assert(sourceNumber >= 0 && sourceNumber < m_originalShearComponent2s.size());
-	assert(sourceNumber < m_offsets.size());
-	assert(imageNumber >= 0 && imageNumber < m_offsets[sourceNumber].size());
-	assert(m_offsets[sourceNumber][imageNumber] < m_originalShearComponent2s[sourceNumber].size());
-	return &(m_originalShearComponent2s[sourceNumber][m_offsets[sourceNumber][imageNumber]]); 
-}
-
-inline const float *ProjectedImagesInterface::getOriginalShearWeights(int sourceNumber) const
-{
-	assert(sourceNumber >= 0 && sourceNumber < m_shearWeights.size());
-	assert(m_shearWeights[sourceNumber].size() > 0);
-	return &(m_shearWeights[sourceNumber][0]);
-}
-
-inline const float *ProjectedImagesInterface::getOriginalShearWeights(int sourceNumber, int imageNumber) const
-{
-	assert(sourceNumber >= 0 && sourceNumber < m_shearWeights.size());
-	assert(sourceNumber < m_offsets.size());
-	assert(imageNumber >= 0 && imageNumber < m_offsets[sourceNumber].size());
-	assert(m_offsets[sourceNumber][imageNumber] < m_shearWeights[sourceNumber].size());
-	return &(m_shearWeights[sourceNumber][m_offsets[sourceNumber][imageNumber]]);
+	assert(m_offsets[sourceNumber][imageNumber] < m_originalPointProperties[(int)n][sourceNumber].size());
+	return &(m_originalPointProperties[(int)n][sourceNumber][m_offsets[sourceNumber][imageNumber]]);
 }
 
 inline int ProjectedImagesInterface::getOriginalNumberOfTimeDelays(int sourceNumber) const

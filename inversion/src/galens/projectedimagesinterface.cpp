@@ -62,42 +62,36 @@ void ProjectedImagesInterface::storeOriginalData(const std::vector<ImagesDataExt
 		m_numTotalPoints[s] = offset;
 	}
 
-	m_originalIntensityFlags.resize(images.size());
-	m_originalShearInfoFlags.resize(images.size());
 	m_originalTimeDelayInfo.resize(images.size());
 
-	for (int i = 0 ; i < images.size() ; i++)
-	{
-		m_originalShearInfoFlags[i] = false;
-		m_originalIntensityFlags[i] = false;
-	}
+	m_originalPropertyFlags.resize(ImagesData::MaxProperty);
+	for (auto &p : m_originalPropertyFlags)
+		p.resize(images.size(), false);
 
-	if (1)
+	m_originalPointProperties.resize(ImagesData::MaxProperty);
+	for (size_t prop = 0 ; prop < m_originalPointProperties.size() ; prop++)
 	{
-		m_originalIntensities.resize(images.size());
+		ImagesData::PropertyName propName = (ImagesData::PropertyName)prop;
+		auto &pp = m_originalPointProperties[prop];
+		pp.resize(images.size());
 
-		for (int source = 0 ; source < images.size() ; source++)
+		for (size_t source = 0 ; source < images.size() ; source++)
 		{
 			ImagesDataExtended *pImgDat = images[source];
-
-			if (pImgDat->hasIntensities())
+			if (pImgDat->hasProperty(propName))
 			{
-				m_originalIntensityFlags[source] = true;
-				m_originalIntensities[source].resize(m_numTotalPoints[source]);
+				m_originalPropertyFlags[prop][source] = true;
+				pp[source].resize(m_numTotalPoints[source]);
 
+				auto &ppSrc = pp[source];
 				int numImages = pImgDat->getNumberOfImages();
 				int point = 0;
 
 				for (int i = 0 ; i < numImages ; i++)
 				{
 					int numPoints = pImgDat->getNumberOfImagePoints(i);
-
 					for (int p = 0 ; p < numPoints ; p++, point++)
-					{
-						double intens = (float)pImgDat->getImagePointIntensity(i, p);
-
-						m_originalIntensities[source][point] = (float)intens;
-					}
+						ppSrc[point] = (float)pImgDat->getImagePointProperty(propName, i, p);
 				}
 			}
 		}
@@ -120,53 +114,6 @@ void ProjectedImagesInterface::storeOriginalData(const std::vector<ImagesDataExt
 			}
 		}	
 	}
-
-	if (1)
-	{
-		m_originalShearComponent1s.resize(images.size());
-		m_originalShearComponent2s.resize(images.size());
-		m_shearWeights.resize(images.size());
-
-		for (int source = 0 ; source < images.size() ; source++)
-		{
-			ImagesDataExtended *pImgDat = images[source];
-
-			if (pImgDat->hasShearInfo())
-			{
-				m_originalShearInfoFlags[source] = true;
-				m_originalShearComponent2s[source].resize(m_numTotalPoints[source]);
-				m_originalShearComponent1s[source].resize(m_numTotalPoints[source]);
-				m_shearWeights[source].resize(m_numTotalPoints[source]);
-
-				int numImages = pImgDat->getNumberOfImages();
-				int point = 0;
-
-				for (int i = 0 ; i < numImages ; i++)
-				{
-					int numPoints = pImgDat->getNumberOfImagePoints(i);
-
-					for (int p = 0 ; p < numPoints ; p++, point++)
-					{
-						m_originalShearComponent1s[source][point] = (float)pImgDat->getShearComponent1(i, p);
-						m_originalShearComponent2s[source][point] = (float)pImgDat->getShearComponent2(i, p);
-						m_shearWeights[source][point] = (float)pImgDat->getShearWeight(i, p);
-					}
-				}
-			}
-		}
-	}
 }
-
-/*
-bool ProjectedImagesInterface::setDistanceFractions(const std::vector<float> &fractions)
-{
-	if (fractions.size() != m_distanceFractions.size())
-		return false;
-
-	m_distanceFractions = fractions;
-
-	return true;
-}
-*/
 
 } // end namespace
