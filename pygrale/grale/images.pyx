@@ -24,6 +24,7 @@ source shapes are derived from the class :class:`SourceImage` and can be
 
 from libcpp.string cimport string
 from libcpp.vector cimport vector
+from libcpp.pair cimport pair
 from libcpp cimport bool as cbool
 from cython.operator cimport dereference as deref
 import cython
@@ -109,8 +110,8 @@ cdef class ImagesData:
             raise ImagesDataException(S(self.m_pImgData.getErrorString()))
         return imageNum
 
-    def addPoint(self, int imageNum, point, intensity = None, shear = None, shearWeight = 1):
-        """addPoint(imageNum, point, intensity = None, shear = None, shearWeight = 1)
+    def addPoint(self, int imageNum, point, intensity = None, shear = None, shearWeight = None):
+        """addPoint(imageNum, point, intensity = None, shear = None, shearWeight = None)
 
         Add a point to an image.
 
@@ -128,21 +129,19 @@ cdef class ImagesData:
 
         cdef pointNum = 0
         cdef vector2d.Vector2Dd p = vector2d.Vector2Dd(point[0], point[1])
-        cdef vector2d.Vector2Dd sh
+        cdef vector[pair[imagesdata.PropertyName, double]] props
 
-        if intensity is None:
-            if shear is None:
-                pointNum = self.m_pImgData.addPoint(imageNum, p)
-            else:
-                sh = vector2d.Vector2Dd(shear[0], shear[1])
-                pointNum = self.m_pImgData.addPoint(imageNum, p, sh, shearWeight)
-        else:
-            if shear is None:
-                pointNum = self.m_pImgData.addPoint(imageNum, p, intensity)
-            else:
-                sh = vector2d.Vector2Dd(shear[0], shear[1])
-                pointNum = self.m_pImgData.addPoint(imageNum, p, intensity, sh, shearWeight)
+        if intensity is not None:
+            props.push_back(pair[imagesdata.PropertyName,double](imagesdata.Intensity, intensity))
 
+        if shear is not None:
+            props.push_back(pair[imagesdata.PropertyName,double](imagesdata.ShearComponent1, shear[0]))
+            props.push_back(pair[imagesdata.PropertyName,double](imagesdata.ShearComponent2, shear[1]))
+
+        if shearWeight is not None:
+            props.push_back(pair[imagesdata.PropertyName,double](imagesdata.Weight, shearWeight))
+
+        pointNum = self.m_pImgData.addPoint(imageNum, p, props)
         if pointNum < 0:
             raise ImagesDataException(S(self.m_pImgData.getErrorString()))
         return pointNum

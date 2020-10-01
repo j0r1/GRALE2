@@ -1,6 +1,7 @@
 from libcpp.string cimport string
 from libcpp cimport bool
 from libcpp.vector cimport vector
+from libcpp.pair cimport pair
 
 cimport grale.vector2d
 cimport grale.triangleindices
@@ -16,13 +17,28 @@ cdef extern from "imagesdata2.h":
         bool read2(serut.SerializationInterface &si)
         bool write2(serut.SerializationInterface &si) const
 
+cdef extern from "grale/imagesdata.h" namespace "grale::ImagesData":
+    cdef enum PropertyName:
+        Intensity,
+        ShearComponent1,
+        ShearComponent2,
+        Weight,
+        DistanceFraction,
+        ShearComponent1Uncertainty,
+        ShearComponent2Uncertainty,
+        MaxProperty
+
 cdef extern from "grale/imagesdata.h" namespace "grale":
     cdef cppclass ImagesData:
         ImagesData()
         string getErrorString()
         
+        bool create(int numImages, const vector[PropertyName] &properties)
         bool create(int numImages, bool intensities, bool shearInfo)
-        int addImage();
+
+        int addImage()
+
+        int addPoint(int imageNumber, Vector2Dd point, const vector[pair[PropertyName,double]] &properties)
         int addPoint(int imageNumber, Vector2Dd point)
         int addPoint(int imageNumber, Vector2Dd point, double intensity)
         int addPoint(int imageNumber, Vector2Dd point, Vector2Dd shearComponents, double shearWeight)
@@ -35,7 +51,8 @@ cdef extern from "grale/imagesdata.h" namespace "grale":
 
         bool load(string fname)
         bool save(const string &fname)
-        
+
+        bool hasProperty(PropertyName n)
         bool hasIntensities()
         bool hasShearInfo()
         bool hasTimeDelays()
@@ -43,6 +60,8 @@ cdef extern from "grale/imagesdata.h" namespace "grale":
         int getNumberOfImages()
         int getNumberOfImagePoints(int i)
         Vector2Dd getImagePointPosition(int image, int point)
+        double getImagePointProperty(PropertyName n, int image, int point)
+
         double getImagePointIntensity(int image, int point)
         double getShearComponent1(int image, int point)
         double getShearComponent2(int image, int point)
