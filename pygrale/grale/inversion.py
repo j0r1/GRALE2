@@ -796,13 +796,14 @@ class InversionWorkSpace(object):
             initialParameters["rescale"] = newKwargs["rescaleBasisFunctions"]
             del newKwargs["rescaleBasisFunctions"]
 
-        if "gridSizeFactor" in kwargs:
+        if "gridSizeFactor" in newKwargs:
             initialParameters["sizefactor"] = newKwargs["gridSizeFactor"]
             del newKwargs["gridSizeFactor"]
 
         for i in range(len(self.zd)): # For each grid
             self.addBasisFunctionsBasedOnCurrentGrid(initialParameters=initialParameters, lpIdx=i)
-        return self.invertBasisFunctions(populationSize, **newKwargs)
+        # Already processed default arguments
+        return self.invertBasisFunctions(populationSize, **newKwargs, ignoreDefaultArguments=True)
 
     def clearBasisFunctions(self, lpIdx = "all"):
         """Clears the list of basis functions that will be used in
@@ -984,11 +985,15 @@ class InversionWorkSpace(object):
         newKwargs = { }
         newKwargs["inverter"] = self.inverter
         newKwargs["feedbackObject"] = self.feedbackObject
-        for a in self.inversionArgs:
-            newKwargs[a] = self.inversionArgs[a]
+        
+        defArgKey = "ignoreDefaultArguments"
+        if not (defArgKey in kwargs and kwargs[defArgKey] == True):
+            for a in self.inversionArgs:
+                newKwargs[a] = self.inversionArgs[a]
 
         for a in kwargs:
-            newKwargs[a] = kwargs[a]
+            if a != defArgKey:
+                newKwargs[a] = kwargs[a]
 
         if not self.isMultiPlane:
             lens = invert(self.imgDataList, self.basisFunctions[0], self.zd[0], self.Dd[0], populationSize, **newKwargs)
