@@ -50,8 +50,8 @@ public:
 		ShearComponent2,
 		ShearWeight,
 		DistanceFraction,
-		ShearComponent1Uncertainty,
-		ShearComponent2Uncertainty,
+		ShearUncertaintyComponent1,
+		ShearUncertaintyComponent2,
 		MaxProperty
 	};
 

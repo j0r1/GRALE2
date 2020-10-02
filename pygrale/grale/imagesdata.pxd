@@ -24,8 +24,8 @@ cdef extern from "grale/imagesdata.h" namespace "grale::ImagesData":
         ShearComponent2,
         ShearWeight,
         DistanceFraction,
-        ShearComponent1Uncertainty,
-        ShearComponent2Uncertainty,
+        ShearUncertaintyComponent1,
+        ShearUncertaintyComponent2,
         MaxProperty
 
 cdef extern from "grale/imagesdata.h" namespace "grale":

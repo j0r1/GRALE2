@@ -1522,11 +1522,17 @@ bool FitnessComponent_WeakLensing_Bayes::inspectImagesData(int idx, const Images
 		return false;
 	}
 
-	if (!imgDat.hasShearInfo())
+	if (!imgDat.hasProperty(ImagesData::ShearComponent1) || !imgDat.hasProperty(ImagesData::ShearComponent2))
 	{
-		setErrorString("No shear info is present");
+		setErrorString("No ellipticity info is present");
 		return false;
 	}
+	if (!imgDat.hasProperty(ImagesData::DistanceFraction))
+	{
+		setErrorString("The points must have distance fraction settings (0 = unknown)");
+		return false;
+	}
+	// TODO: check uncertainties?
 
 	// Check Dds ==1 and Ds == 1, so that Dds/Ds == 1
 	if (imgDat.getDs() != 1 || imgDat.getDds() != 1)
@@ -1535,7 +1541,7 @@ bool FitnessComponent_WeakLensing_Bayes::inspectImagesData(int idx, const Images
 		return false;
 	}
 
-	// Check weights -> used as Dds/Ds fraction
+	// Check distance fraction
 	const int numPoints = imgDat.getNumberOfImagePoints(0);
 	if (numPoints == 0)
 	{
@@ -1545,8 +1551,7 @@ bool FitnessComponent_WeakLensing_Bayes::inspectImagesData(int idx, const Images
 
 	for (int i = 0 ; i < numPoints ; i++)
 	{
-		// TODO: for now we're abusing shear weight to store distance fraction
-		double distFrac = imgDat.getShearWeight(0, i);
+		double distFrac = imgDat.getImagePointProperty(ImagesData::DistanceFraction, 0, i);
 		
 		if (distFrac == 0) // indicates unknown distance fraction, will need probability info
 			m_allDistFracKnown = false;

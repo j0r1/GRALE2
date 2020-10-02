@@ -1145,10 +1145,12 @@ float calculateWeakLensingFitness_Bayes(const ProjectedImagesInterface &interfac
 		int numPoints = interface.getNumberOfImagePoints(s);
 		const float *pEll1 = interface.getOriginalProperties(ImagesData::ShearComponent1, s);
 		const float *pEll2 = interface.getOriginalProperties(ImagesData::ShearComponent2, s);
-		const float *pDistFrac = interface.getOriginalProperties(ImagesData::ShearWeight, s);
+		const float *pDistFrac = interface.getOriginalProperties(ImagesData::DistanceFraction, s);
 		const float *pAxx = interface.getDerivativesXX(s);
 		const float *pAyy = interface.getDerivativesYY(s);
 		const float *pAxy = interface.getDerivativesXY(s);
+		const float *pEllError1 = (interface.hasOriginalProperty(ImagesData::ShearUncertaintyComponent1, s))?interface.getOriginalProperties(ImagesData::ShearUncertaintyComponent1, s):nullptr;
+		const float *pEllError2 = (interface.hasOriginalProperty(ImagesData::ShearUncertaintyComponent2, s))?interface.getOriginalProperties(ImagesData::ShearUncertaintyComponent2, s):nullptr;
 
 		// TODO: for debugging
 		// {
@@ -1180,6 +1182,9 @@ float calculateWeakLensingFitness_Bayes(const ProjectedImagesInterface &interfac
 
 			float f1 = pEll1[i]; // entries represent measured galaxy ellipticities
 			float f2 = pEll2[i];
+			float sigma1 = (pEllError1 != nullptr)?pEllError1[i]:0.0f;
+			float sigma2 = (pEllError2 != nullptr)?pEllError2[i]:0.0f;
+			// TODO: use sigma
 
 			float elliptProb = 0;
 			if (distFrac != 0)
