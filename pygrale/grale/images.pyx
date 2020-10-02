@@ -78,9 +78,29 @@ cdef class ImagesData:
     def __cinit__(self):
         self.m_pImgData = new imagesdata.ImagesData()
 
-    def __init__(self, int numImages, cbool intensities = False, cbool shearInfo = False):
+    propertyMapping = {
+        "intensity": [ imagesdata.Intensity ],
+        "shear": [ imagesdata.ShearComponent1, imagesdata.ShearComponent2 ],
+        "shear1": [ imagesdata.ShearComponent1 ],
+        "shear2": [ imagesdata.ShearComponent2 ],
+        "shearweight": [ imagesdata.ShearWeight ],
+        "distancefraction": [ imagesdata.DistanceFraction ],
+        "shearsigma": [ imagesdata.ShearUncertaintyComponent1, imagesdata.ShearUncertaintyComponent2 ],
+        "shearsigma1": [ imagesdata.ShearUncertaintyComponent1 ],
+        "shearsigma2": [ imagesdata.ShearUncertaintyComponent2 ],
+    }
+    propertyReductions = {
+        "shear": [ "shear1", "shear2" ],
+        "shearsigma": [ "shearsigma1", "shearsigma2" ]
+    }
+
+    @staticmethod
+    def getAllPropertyNames():
+        return sorted(list(ImagesData.propertyMapping.keys()))
+
+    def __init__(self, int numImages, **kwargs):
         """
-        __init__(numImages, intensities = False, shearInfo = False)
+        __init__(numImages, **kwargs)
 
         Parameters:
 
@@ -89,12 +109,40 @@ cdef class ImagesData:
          - ``intensities``: flag indicating if intensity information will be stored.
          - ``shearInfo``: flag indicating if shear info will be stored.
         """
+        # TODO: update the docs!
+        cdef vector[imagesdata.PropertyName] props
         
         if numImages == _imagesDataRndId: # use this special marked to create an uninitialized instance
             return
 
+        def checkTrueFalse(k):
+            x = kwargs[k]
+            if (x is not True) and (x is not False):
+                raise ImagesDataException("Property setting '{}' should be either True or False".format(k))
+
+        propSet = set()
+        for k in kwargs:
+            checkTrueFalse(k)
+            if not kwargs[k]:
+                continue
+
+            if k in ImagesData.propertyMapping:
+                for i in ImagesData.propertyMapping[k]:
+                    propSet.add(i)
+            elif k == "intensities": # For backward compatibility
+                propSet.add(imagesdata.Intensity)
+            elif k == "shearInfo": # For backward compatibility
+                propSet.add(imagesdata.ShearComponent1)
+                propSet.add(imagesdata.ShearComponent2)
+                propSet.add(imagesdata.ShearWeight)
+            else:
+                raise ImagesDataException("Unknown property name '{}'".format(k))
+
+        for i in propSet:
+            props.push_back(i)
+
         # Not a special empty instance, initialize it
-        if not self.m_pImgData.create(numImages, intensities, shearInfo):
+        if not self.m_pImgData.create(numImages, props):
             raise ImagesDataException(S(self.m_pImgData.getErrorString()))
 
     def __dealloc__(self):
@@ -110,40 +158,31 @@ cdef class ImagesData:
             raise ImagesDataException(S(self.m_pImgData.getErrorString()))
         return imageNum
 
-    def addPoint(self, int imageNum, point, intensity = None, shear = None, shearWeight = None):
-        """addPoint(imageNum, point, intensity = None, shear = None, shearWeight = None)
-
-        Add a point to an image.
-
-        Parameters:
-
-         - ``imageNum``: the index of the image to which the point should be added
-         - ``point``: the 2D angular coordinates of the point
-         - ``intensity``: if intensity information was specified in the constructor,
-           then this intensity will be specified for the point
-         - ``shear``: if shear info was specified in the constructor, then this 2D
-           shear info will be stored for the point.
-         - ``shearWeight``: a weight for the shear value, that may or may not be used
-           by an inversion method.
-        """
-
+    def addPoint(self, int imageNum, position, **kwargs):
+        # TODO: docs
         cdef pointNum = 0
         cdef vector2d.Vector2Dd p = vector2d.Vector2Dd(point[0], point[1])
         cdef vector[pair[imagesdata.PropertyName, double]] props
 
-        if intensity is not None:
-            props.push_back(pair[imagesdata.PropertyName,double](imagesdata.Intensity, intensity))
+        for k in kwargs:
+            if not k in ImagesData.propertyMapping:
+                raise ImagesDataException("Property name '{}' not recognized".format(k))
+            
+            value = kwargs[k]
+            propNames = ImagesData.propertyMapping[k]
+            propNameLen = len(propNames)
 
-        if shear is not None:
-            props.push_back(pair[imagesdata.PropertyName,double](imagesdata.ShearComponent1, shear[0]))
-            props.push_back(pair[imagesdata.PropertyName,double](imagesdata.ShearComponent2, shear[1]))
-
-        if shearWeight is not None:
-            props.push_back(pair[imagesdata.PropertyName,double](imagesdata.ShearWeight, shearWeight))
+            if propNameLen == 1:
+                props.push_back(pair[imagesdata.PropertyName, double](propNames[0], value))
+            elif propNameLen == 2:
+                props.push_back(pair[imagesdata.PropertyName, double](propNames[0], value[0]))
+                props.push_back(pair[imagesdata.PropertyName, double](propNames[1], value[1]))
+            else:
+                raise ImagesDataException("Internal error: unexpected length {} of property names".format(len(propNameLen)))
 
         pointNum = self.m_pImgData.addPoint(imageNum, p, props)
         if pointNum < 0:
-            raise ImagesDataException(S(self.m_pImgData.getErrorString()))
+            raise ImagesDataException(S(self.m_pImgData.getErrorString()) + " (valid property names are {})".format(self.getKnownPropertyNames()))
         return pointNum
 
     def addGroup(self):
@@ -217,6 +256,30 @@ cdef class ImagesData:
         if not self.m_pImgData.save(B(fileName)):
             raise ImagesDataException(S(self.m_pImgData.getErrorString()))
 
+    def getKnownPropertyNames(self, reduce=False):
+        # TODO: docs
+        names = [ n for n in ImagesData.getAllPropertyNames() if self.hasProperty(n) ]
+        if not reduce:
+            return names
+    
+        nameSet = set(names)
+        for n in names: # work on a copy of names
+            if n in ImagesData.propertyReductions:
+                for k in ImagesData.propertyReductions[n]:
+                    nameSet.remove(k)
+        return sorted(list(nameSet))
+        
+    def hasProperty(self, propertyName):
+        knownNames = ImagesData.getAllPropertyNames()
+        if not propertyName in knownNames:
+            raise ImagesDataException("Invalid name '{}', valid names are {}".format(propertyName, knownNames))
+
+        props = ImagesData.propertyMapping[propertyName]
+        for p in props:
+            if not self.m_pImgData.hasProperty(p):
+                return False
+        return True
+
     def hasIntensities(self):
         """hasIntensities()
 
@@ -263,6 +326,10 @@ cdef class ImagesData:
         if not self.hasShearInfo():
             raise ImagesDataException("No shear data is stored in this data set");
 
+    cdef _checkProperty(self, propertyName):
+        if not self.hasProperty(propertyName):
+            raise ImagesDataException("Property '{}' is not available in this data set".format(propertyName))
+
     cdef _checkGroupNumber(self, int group):
         if group < 0 or group >= self.m_pImgData.getNumberOfGroups():
             raise ImagesDataException("Invalid group number")
@@ -308,7 +375,16 @@ cdef class ImagesData:
         self._checkImagePointNumber(image, point)
         self.m_pImgData.setImagePointPosition(image, point, p)
 
-    def getAllImagePoints(self):
+    def getImagePointProperty(self, propertyName, image, point):
+        # TODO: docs
+        self._checkImagePointNumber(image, point)
+        self._checkProperty(propertyName)
+        value = [ self.m_pImgData.getImagePointProperty(n, image, point) for n in ImagesData.propertyMapping[propertyName] ]
+        if len(value) == 1:
+            return value[0]
+        return np.array(value)
+
+    def getAllImagePoints(self, properties="all"):
         """getAllImagePoints()
 
         A convenience function that calls calls :func:`getImagePoints <grale.images.ImagesData.getImagePoints>`
@@ -317,9 +393,13 @@ cdef class ImagesData:
         by image number and each entry of the main list will itself be a list of
         points in an image. 
         """
-        return [ list(self.getImagePoints(i)) for i in range(self.getNumberOfImages()) ]
+        # TODO: update docs
+        if properties == "all":
+            properties = self.getKnownPropertyNames(True)
 
-    def getImagePoints(self, image):
+        return [ list(self.getImagePoints(i, properties)) for i in range(self.getNumberOfImages()) ]
+
+    def getImagePoints(self, image, properties="all"):
         """getImagePoints(image)
 
         Returns an iterator that can be used to obtain all points inside
@@ -333,17 +413,19 @@ cdef class ImagesData:
            the point
          - ``shearweight`` (optional): contains the weight for the shear values.
         """
+        # TODO: update docs!
+
+        if properties == "all":
+            properties = self.getKnownPropertyNames(True)
+
         numPoints = self.getNumberOfImagePoints(image)
         intens = self.hasIntensities()
         shear = self.hasShearInfo()
         for i in range(numPoints):
             obj = { }
             obj["position"] = self.getImagePointPosition(image, i)
-            if intens:
-                obj["intensity"] = self.getImagePointIntensity(image, i)
-            if shear:
-                obj["shear"] = self.getShearComponents(image, i)
-                obj["shearweight"] = self.getShearWeight(image, i)
+            for n in properties:
+                obj[n] = self.getImagePointProperty(n, image, i)
 
             yield obj
 
