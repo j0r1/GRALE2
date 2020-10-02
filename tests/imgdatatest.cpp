@@ -200,13 +200,8 @@ bool_t initImageData(ImagesData &imgDat)
     return true;
 }
 
-bool_t runTest()
+bool_t runTest(const ImagesData &imgDat)
 {
-    ImagesData imgDat;
-    bool_t r = initImageData(imgDat);
-    if (!r)
-        return r;
-
     // Check copy constructor
     {    
         ImagesData imgDatCopy(imgDat);
@@ -245,18 +240,48 @@ bool_t runTest()
     return true;
 }
 
-int main(void)
+int main(int argc, char *argv[])
 {
-    const int numTests = 10000;
-    for (int i = 0 ; i < numTests ; i++)
-    {
-        bool_t r = runTest();
-        if (!r)
-        {
-            cerr << "Error: " << r.getErrorString() << endl;
-            return -1;
-        }
-    }
-    cout << "Ran " << numTests << " tests" << endl;
+	if (argc == 1)
+	{
+		const int numTests = 10000;
+		for (int i = 0 ; i < numTests ; i++)
+		{
+			ImagesData imgDat;
+			bool_t r = initImageData(imgDat);
+			if (!r)
+			{
+				cerr << "Error: " << r.getErrorString() << endl;
+				return -1;
+			}
+
+			r = runTest(imgDat);
+			if (!r)
+			{
+				cerr << "Error: " << r.getErrorString() << endl;
+				return -1;
+			}
+		}
+		cout << "Ran " << numTests << " tests" << endl;
+	}
+	else
+	{
+		for (int i = 1 ; i < argc ; i++)
+		{
+			ImagesData imgDat;
+			if (!imgDat.load(argv[i]))
+			{
+				cerr << "Can't load " << argv[i] << ": " << imgDat.getErrorString() << endl;
+				return -1;
+			}
+
+			bool_t r = runTest(imgDat);
+			if (!r)
+			{
+				cerr << "Error: " << r.getErrorString() << endl;
+				return -1;
+			}
+		}
+	}
     return 0;
 }

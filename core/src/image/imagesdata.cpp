@@ -789,6 +789,8 @@ bool ImagesData::readOld(serut::SerializationInterface &si)
 	// save new data
 
 	m_properties.resize(MaxProperty, false);
+	m_imagePointProperties.resize(MaxProperty);
+	
 	m_images = imgs;
 	if (gotintens)
 	{
@@ -864,7 +866,7 @@ bool ImagesData::write(serut::SerializationInterface &si) const
 
 	if (m_imagePointProperties.size() != numProps)
 	{
-		setErrorString("Internal error: mismatch in property count");
+		setErrorString("Internal error: mismatch in property count (" + to_string(m_imagePointProperties.size()) + " != " + to_string(numProps) + ")");
 		return false;
 	}
 
