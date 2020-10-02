@@ -139,7 +139,7 @@ cdef class ImagesData:
             props.push_back(pair[imagesdata.PropertyName,double](imagesdata.ShearComponent2, shear[1]))
 
         if shearWeight is not None:
-            props.push_back(pair[imagesdata.PropertyName,double](imagesdata.Weight, shearWeight))
+            props.push_back(pair[imagesdata.PropertyName,double](imagesdata.ShearWeight, shearWeight))
 
         pointNum = self.m_pImgData.addPoint(imageNum, p, props)
         if pointNum < 0:

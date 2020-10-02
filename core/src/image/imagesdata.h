@@ -48,7 +48,7 @@ public:
 		Intensity = 0,
 		ShearComponent1,
 		ShearComponent2,
-		Weight,
+		ShearWeight,
 		DistanceFraction,
 		ShearComponent1Uncertainty,
 		ShearComponent2Uncertainty,
@@ -85,7 +85,7 @@ public:
 	bool hasProperty(PropertyName n) const				{ if (n < 0 || n >= m_properties.size()) return false; return m_properties[n]; }
 	// TODO: remove these, for now they're set for backwards compatibility
 	bool hasIntensities() const							{ return hasProperty(Intensity); }
-	bool hasShearInfo() const							{ return (hasProperty(ShearComponent1) && hasProperty(ShearComponent2) && hasProperty(Weight)); }
+	bool hasShearInfo() const							{ return (hasProperty(ShearComponent1) && hasProperty(ShearComponent2) && hasProperty(ShearWeight)); }
 
 	bool hasTimeDelays() const							{ if (m_timeDelayInfo.empty()) return false; return true; }
 
@@ -98,7 +98,7 @@ public:
 	double getImagePointIntensity(int image, int point) const			{ return getImagePointProperty(Intensity, image, point); }
 	double getShearComponent1(int image, int point) const				{ return getImagePointProperty(ShearComponent1, image, point); }
 	double getShearComponent2(int image, int point) const				{ return getImagePointProperty(ShearComponent2, image, point); }
-	double getShearWeight(int image, int point) const					{ return getImagePointProperty(Weight, image, point); }
+	double getShearWeight(int image, int point) const					{ return getImagePointProperty(ShearWeight, image, point); }
 
 	void setImagePointPosition(int image, int point, Vector2D<double> position) { m_images[image][point] = position; findExtremes(); }
 

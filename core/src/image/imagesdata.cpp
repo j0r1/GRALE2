@@ -123,7 +123,7 @@ bool ImagesData::create(int numImages, bool intensities, bool shearInfo)
 	if (intensities)
 		props.push_back(Intensity);
 	if (shearInfo)
-		props.insert(props.end(), { ShearComponent1, ShearComponent2, Weight });
+		props.insert(props.end(), { ShearComponent1, ShearComponent2, ShearWeight });
 	return create(numImages, props);
 }
 
@@ -229,7 +229,7 @@ int ImagesData::addPoint(int imageNumber, Vector2D<double> point, Vector2D<doubl
 	return addPoint(imageNumber, point, { 
 		{ ShearComponent1, shearComponents.getX() },
 		{ ShearComponent2, shearComponents.getY() },
-		{ Weight, shearWeight }
+		{ ShearWeight, shearWeight }
 	});
 }
 
@@ -239,7 +239,7 @@ int ImagesData::addPoint(int imageNumber, Vector2D<double> point, double intensi
 		{ Intensity, intensity },
 		{ ShearComponent1, shearComponents.getX() },
 		{ ShearComponent2, shearComponents.getY() },
-		{ Weight, shearWeight }
+		{ ShearWeight, shearWeight }
 	});
 }
 
@@ -806,11 +806,11 @@ bool ImagesData::readOld(serut::SerializationInterface &si)
 	{
 		m_properties[ShearComponent1] = true;
 		m_properties[ShearComponent2] = true;
-		m_properties[Weight] = true;
+		m_properties[ShearWeight] = true;
 
 		m_imagePointProperties[ShearComponent1] = shearComponent1s;
 		m_imagePointProperties[ShearComponent2] = shearComponent2s;
-		m_imagePointProperties[Weight] = shearWeights;
+		m_imagePointProperties[ShearWeight] = shearWeights;
 	}
 
 	findExtremes();
