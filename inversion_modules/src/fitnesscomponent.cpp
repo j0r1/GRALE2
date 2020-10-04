@@ -1500,6 +1500,8 @@ FitnessComponent_WeakLensing_Bayes::FitnessComponent_WeakLensing_Bayes(FitnessCo
 {
 	addRecognizedTypeName("bayesellipticities");
 	m_allDistFracKnown = true;
+	m_howManySigmaFactor = 3.0f;
+	m_numSigmaSamplePoints = 7;
 }
 
 FitnessComponent_WeakLensing_Bayes::~FitnessComponent_WeakLensing_Bayes()
@@ -1579,6 +1581,34 @@ bool FitnessComponent_WeakLensing_Bayes::inspectImagesData(int idx, const Images
 // This is called before inspect
 bool FitnessComponent_WeakLensing_Bayes::processFitnessOption(const std::string &optionName, const TypedParameter &value)
 {
+	if (optionName == "sigmafactor")
+	{
+		if (value.isArray() || !value.isReal())
+		{
+			setErrorString("This should be a real number");
+			return false;
+		}
+		m_howManySigmaFactor = value.getRealValue();
+		return true;
+	}
+
+	if (optionName == "sigmasteps")
+	{
+		if (value.isArray() || !value.isInteger())
+		{
+			setErrorString("This should be an integer");
+			return false;
+		}
+
+		m_numSigmaSamplePoints = value.getIntegerValue();
+		if (m_numSigmaSamplePoints < 2)
+		{
+			setErrorString("At least two points are needed");
+			return false;
+		}
+		return true;
+	}
+
 	if (optionName == "distfracdistribution")
 	{
 		if (value.isEmpty()) // Ok, nothing set, but check later if we need it
@@ -1635,7 +1665,8 @@ bool FitnessComponent_WeakLensing_Bayes::processFitnessOption(const std::string 
 
 bool FitnessComponent_WeakLensing_Bayes::calculateFitness(const ProjectedImagesInterface &iface, float &fitness)
 {
-	fitness = calculateWeakLensingFitness_Bayes(iface, getUsedImagesDataIndices(), m_distanceFractionWeights);
+	fitness = calculateWeakLensingFitness_Bayes(iface, getUsedImagesDataIndices(), m_distanceFractionWeights,
+	                                            m_howManySigmaFactor, m_numSigmaSamplePoints);
 	return true;
 }
 

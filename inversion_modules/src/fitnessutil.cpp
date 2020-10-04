@@ -1077,7 +1077,8 @@ float calculateNullFitness_ExtendedImages(const ProjectedImagesInterface &iface,
 // average will be used based on distanceFractionWeights (assumed to be
 // normalized)
 float calculateWeakLensingFitness_Bayes(const ProjectedImagesInterface &interface, const vector<int> &weakIndices,
-								  const vector<pair<float,float>> &unknownDistFracWeightsNormed)
+								  const vector<pair<float,float>> &unknownDistFracWeightsNormed,
+								  float startFromSigmaFactor, int sigmaSteps)
 {
 	const float epsilon = 1e-6; // to avoid division by zero
 	float shearFitness = 0;
@@ -1137,6 +1138,47 @@ float calculateWeakLensingFitness_Bayes(const ProjectedImagesInterface &interfac
 		return prob;
 	};
 
+	auto calculateEllipticityProbabilityWithError = [epsilon,startFromSigmaFactor,sigmaSteps,calculateEllipticityProbability](
+		                                      float f1, float f2, float sigma1, float sigma2,
+	                                          float axx, float ayy, float axy, float distFrac) -> float
+	{
+		if (sigma1 == 0 && sigma2 == 0)
+			return calculateEllipticityProbability(f1, f2, axx, ayy, axy, distFrac);
+
+		float f1Start = f1 - sigma1*startFromSigmaFactor;
+		float f1End = f1 + sigma1*startFromSigmaFactor;
+		float f2Start = f2 - sigma2*startFromSigmaFactor;
+		float f2End = f2 + sigma2*startFromSigmaFactor;
+		float df1 = (f1End-f1Start)/((float)(sigmaSteps-1));
+		float df2 = (f2End-f2Start)/((float)(sigmaSteps-1));
+		float weightSum = 0;
+		float probSum = 0;
+
+		for (int y = 0 ; y < sigmaSteps ; y++)
+		{
+			float f2Sample = f2Start + y*df2;
+			float difff2 = (f2Sample - f2)/sigma2;
+			float gauss2 = std::exp(-0.5*difff2*difff2);
+
+			for (int x = 0 ; x < sigmaSteps ; x++)
+			{
+				float f1Sample = f1Start + x*df1;
+				float difff1 = (f1Start - f1)/sigma1;
+				float gauss1 = std::exp(-0.5*difff1*difff1);
+
+				float factor = gauss1*gauss2;
+				weightSum += factor;
+
+				float prob = 0.0f;
+				if (f1Sample*f1Sample + f2Sample*f2Sample < 1.0f)
+					prob = calculateEllipticityProbability(f1Sample, f2Sample, axx, ayy, axy, distFrac);
+
+				probSum += factor * prob;
+			}
+		}
+		return probSum/weightSum;
+	};
+
 	for (int sIdx = 0 ; sIdx < weakIndices.size() ; sIdx++)
 	{
 		const int s = weakIndices[sIdx];
@@ -1188,12 +1230,12 @@ float calculateWeakLensingFitness_Bayes(const ProjectedImagesInterface &interfac
 
 			float elliptProb = 0;
 			if (distFrac != 0)
-				elliptProb = calculateEllipticityProbability(f1, f2, axx, ayy, axy, distFrac);
+				elliptProb = calculateEllipticityProbabilityWithError(f1, f2, sigma1, sigma2, axx, ayy, axy, distFrac);
 			else
 			{
 				// Unknown redshift/distance fraction, use weighted average according to some distribution
 				for (auto fracAndProb : unknownDistFracWeightsNormed)
-					elliptProb += calculateEllipticityProbability(f1, f2, axx, ayy, axy, fracAndProb.first) * fracAndProb.second;
+					elliptProb += calculateEllipticityProbabilityWithError(f1, f2, sigma1, sigma2, axx, ayy, axy, fracAndProb.first) * fracAndProb.second;
 			}
 
 			if (elliptProb <= 0) // avoid problems with log

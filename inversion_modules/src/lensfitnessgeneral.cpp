@@ -258,6 +258,8 @@ ConfigurationParameters *LensFitnessGeneral::getDefaultParametersInstance() cons
 	pParams->setParameter("fitness_timedelay_type", string("NoSrc"));
 	pParams->setParameter("fitness_weaklensing_type", string("AveragedEllipticities"));
 	pParams->setParameterEmpty("fitness_bayesweaklensing_distfracdistribution");
+	pParams->setParameter("fitness_bayesweaklensing_sigmafactor", 3.0);
+	pParams->setParameter("fitness_bayesweaklensing_sigmasteps", 7);
 	return pParams;
 }
 

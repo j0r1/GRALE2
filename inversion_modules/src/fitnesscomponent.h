@@ -335,6 +335,8 @@ public:
 private:
 	std::vector<std::pair<float,float>> m_distanceFractionWeights;
 	bool m_allDistFracKnown;
+	float m_howManySigmaFactor;
+	int m_numSigmaSamplePoints;
 };
 
 } // end namespace
