@@ -161,7 +161,7 @@ cdef class ImagesData:
     def addPoint(self, int imageNum, position, **kwargs):
         # TODO: docs
         cdef pointNum = 0
-        cdef vector2d.Vector2Dd p = vector2d.Vector2Dd(point[0], point[1])
+        cdef vector2d.Vector2Dd p = vector2d.Vector2Dd(position[0], position[1])
         cdef vector[pair[imagesdata.PropertyName, double]] props
 
         for k in kwargs:
