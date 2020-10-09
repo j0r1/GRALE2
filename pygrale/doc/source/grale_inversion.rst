@@ -33,6 +33,8 @@ Core functions
 
 .. autofunction:: invert
 
+.. autofunction:: invertMultiPlane
+
 .. autofunction:: defaultLensModelFunction
 
 InversionException

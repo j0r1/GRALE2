@@ -204,3 +204,9 @@ CircularPiecesLens
 
    .. automethod:: __init__
 
+MultiPlaneContainer
+-------------------
+.. autoclass:: grale.lenses.MultiPlaneContainer
+
+   .. automethod:: __init__
+

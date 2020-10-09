@@ -150,7 +150,8 @@ def getInversionModuleUsage(moduleName = "general"):
 def calculateFitness(inputImages, zd, fitnessObjectParameters, lensOrBackProjectedImages, moduleName = "general"):
     """You can pass several parameters in the same way as you would do for a
     lens inversion, but here you also specify the specific lens for which the
-    relevant fitness measures should be calculated.
+    relevant fitness measures should be calculated or the pre-calculated
+    back-projected images.
 
     Arguments:
      - `inputImages`: list of input images data instances that should be used in the
@@ -243,6 +244,107 @@ def invertMultiPlane(cosmology, inputImages, basisLensesAndRedshifts, popSize, m
                      maximumGenerations=16384, geneticAlgorithmParameters={ },
                      returnNds=False, deviceIndex = "rotate",
                      inverter="default", feedbackObject="default"):
+    """Perform a multi-plane lens inversion. This is a rather low-level function,
+    it may be easier to use an instance of :class:`InversionWorkSpace` instead.
+    
+    Arguments:
+
+     - `cosmology`: The cosmological model to use, to calculate the necessary angular
+       diameter distances based on the specified redshifts.
+
+     - `inputImages`: a list of dictionaries with the following entries:
+     
+        - ``images``: an :class:`ImagesData<grale.images.ImagesData>` instance that
+          describes the images of a source, the null space etc.
+        - ``z``: the redshift of this source.
+        - ``params``: for the ``general_gpu`` module, this could contain a 
+          dictionary with at least a ``type`` field, which can be e.g. 
+          ``pointimages`` or ``extendednullgrid`` (see the `usage <./usage_general.html>`_ 
+          documentation). 
+
+     - `basisLensesAndRedshifts`: A list representing the different lens planes.
+       Each list entry is a dictionary with needs a key `z` to describe the
+       plane's redshift, and a key `lenses` that describes the basis functions
+       in this lens plane. This `lenses` entry should be a list of dictionaries
+       with the following entries:
+
+         - `lens`: the lens model for this basis function.
+         - `center`: the x,y position at which this lens model should be placed.
+         - `mass`: the mass of this lens model, in the relevant area. Some models have a total
+           mass parameter which would likely work fine, but not all models have this (e.g. a
+           SIS lens or a mass sheet). You should then precalculate the mass in the strong lensing
+           region (approximately) and store it in this entry. This is needed to the algorithm can
+           estimate the total lensing mass of a certain combination of weighted basis functions.
+
+     - `popSize`: the size of the population in the genetic algorithm, e.g. 512.
+
+     - `moduleName`: name of the inversion module for the genetic algorithm.
+
+     - `massScale`: a rough estimate of the total mass of the gravitational lens.
+       Set to ``"auto"`` or ``"auto_nocheck"`` to let the :func:`estimateStrongLensingMass`
+       function provide this estimate automatically.
+
+     - `allowNegativeValues`: by default, the weight of the basis functions are only
+       allowed to be positive, to make certain that an overall positive mass density
+       is obtained. In case corrections to a certain mass distribution are being sought,
+       negative weights can be allowed by setting this parameter to ``False``.
+
+     - `sheetSearch`: by default, only the basis functions for the grid cells are used.
+       You can also allow a mass-sheet basis function, which may be useful as this kind
+       of effect is difficult to model by a grid of basis functions. To do so, set this
+       to ``"genome"``, in which a mass-sheet component will be added to each lens plane.
+
+     - `fitnessObjectParameters`: parameters for the lens inversion module for the
+       generic algorithm. For the ``"general"`` module, more information can be
+       found in the `usage <./usage_general.html>`_ documentation.
+
+     - `massScaleSearchType`: by default (``"regular"``), a relatively narrow mass 
+       range around the provided mass estimate will be explored. To make this search 
+       wider (which can be useful if you're less certain of the total mass, e.g. 
+       when including weak lensing measurements over a larger area), you can set this
+       parameter to ``"wide"``. It can also be set to ``"nosearch"`` to disable the
+       mass scale search completely. Finally, mainly for testing purposes, it can also
+       be set to a dictionary with the following entries:
+
+        - `startFactor`
+        - `stopFactor`
+        - `numIterations`
+        - `firstIterationSteps`
+        - `nextIterationSteps`
+
+     - `maximumGenerations`: if the genetic algorithm didn't stop by itself after
+       this many generations, stop it anyway. To test an inversion script completely,
+       it can be useful to temporarily stop the genetic algorithm after only a small
+       number of generations so that the code doesn't take long to run.
+
+     - `geneticAlgorithmParameters`: a dictionary with general genetic algorithm parameters
+       that should be changed from their defaults. Known names and their defaults are
+
+        - ``selectionpressure`` (default is 2.5)
+        - ``elitism`` (default is ``True``)
+        - ``alwaysincludebest`` (default is ``True``)
+        - ``crossoverrate`` (default is 0.9)
+
+       For more information about their meaning, refer to the `documentation <http://research.edm.uhasselt.be/jori/mogal/documentation/classmogal_1_1GeneticAlgorithmParams.html>`_
+       of the library that's used for the genetic algorithm.
+
+     - `returnNds`: by default, this function will return a single gravitational lens
+       model. If there are several fitness measures however, the end result is actually
+       a non-dominated set of models. The inversion module for the genetic algorithm has
+       some default strategy for choosing one solution from this set. In case you'd like
+       to get the complete non-dominated set instead, you can set this flag to ``True``.
+
+     - `deviceIndex`: this multi-plane inversion uses a GPU to back-project the image
+       data, and by setting a specific number, a specific device can be specified. To
+       allow multiple GPUs to be used automatically, you can leave this to ``"auto"``
+       and use an :mod:`inverter <grale.inverters>` with as many processes as you have
+       GPUs.
+
+     - `inverter`: specifies the inverter to be used. See the :mod:`inverters<grale.inverters>`
+       module for more information.
+
+     - `feedbackObject`: can be used to specify a particular :ref:`feedback mechanism <feedback>`.
+    """
         
     if massScale == "auto" or massScale == "auto_nocheck":
         minZd = min([entry["z"] for entry in basisLensesAndRedshifts])
@@ -276,15 +378,17 @@ def invert(inputImages, basisFunctions, zd, Dd, popSize, moduleName = "general",
     """Start the genetic algorithm to look for a gravitational lens model that's
     compatible with the specified input images. This is a rather low-level function,
     it may be easier to use an instance of :class:`InversionWorkSpace` instead.
+    This function is for a single lens plane inversion, :func:`invertMultiPlane` is
+    the multi-lens plane counterpart.
 
     Arguments:
      - `inputImages`: a list of dictionaries with the following entries:
      
-        - ``images``: an :class:`ImagesData<grale.images.ImagesData` instance that
+        - ``images``: an :class:`ImagesData<grale.images.ImagesData>` instance that
           describes the images of a source, the null space etc.
         - ``Ds`` and ``Dds``: the angular diameter distances to this source.
         - ``params``: not used for older inversion modules for the genetic
-          algorithm, but for the ``general`` module, this could contain a 
+          algorithm, but for the ``general`` module, this should contain a 
           dictionary with at least a ``type`` field, which can be e.g. 
           ``pointimages`` or ``extendednullgrid`` (see the `usage <./usage_general.html>`_ 
           documentation). Other parameters may be set as well, e.g. you could set
@@ -490,11 +594,18 @@ class InversionWorkSpace(object):
         """Constructor for this class.
 
         Arguments:
-         - `zLens`: the redshift to the gravitational lens
+         - `zLens`: the redshift to the gravitational lens for a single lens plane inversion,
+           or a list of redshifts for an (experimental) multi lens plane inversion.
 
          - `regionSize` and `regionCenter`: the width and height of the region in which the
            inversion should take plane, as well as its center. This will be used to base the
            grid dimensions on, but by default some randomness will be added (see e.g. :func:`setUniformGrid`).
+           
+           These are the default values in :func:`setUniformGrid` and :func:`setSubdivisionGrid`
+           but can still be overridden there.
+
+           In case of a multi-plane inversion, you can specify different sizes for each plane
+           if desired, otherwise the same settings will be used for all planes.
 
          - `inverter`: specifies the inverter to be used. See the :mod:`inverters<grale.inverters>`
 
@@ -573,7 +684,8 @@ class InversionWorkSpace(object):
         return lpIdx
 
     def getLensDistance(self, lpIdx = None):
-        """Returns the angular diameter distance to the lens."""
+        """Returns the angular diameter distance to the lens. In case a multi-plane
+        setting is used, ``lpIdx`` needs to specify a particular lens plane."""
         lpIdx = self._checkLensPlaneIndex(lpIdx)
         return self.Dd[lpIdx]
 
@@ -582,7 +694,11 @@ class InversionWorkSpace(object):
         `regionCenter` are the width, height and center of the region in which the
         inversion should take plane. This will be used to base the
         grid dimensions on, but by default some randomness will be added 
-        (see e.g. :func:`setUniformGrid`)."""
+        (see e.g. :func:`setUniformGrid`).
+        
+        In a multi-plane scenario, ``lpIdx`` can be used to specify a particular
+        lens plane for which the region should be set.
+        """
         if lpIdx == "all":
             for i in range(len(self.regionSize)):
                 self.regionSize[i] = copy.deepcopy(regionSize)
@@ -646,13 +762,21 @@ class InversionWorkSpace(object):
         will be used to control the grid (which in turn controls the layout of the
         basis functions). If this doesn't suffice, you can provide a specific grid
         obtained by one of the functions in :mod:`grid <grale.grid>` yourself using 
-        this function."""
+        this function.
+        
+        In a multi-plane setting, ``lpIdx`` specifies the lens plane for which this
+        grid is relevant.
+        """
         lpIdx = self._checkLensPlaneIndex(lpIdx)
         self.grid[lpIdx] = grid
 
     def getGrid(self, lpIdx = None):
         """Retrieves the currently set grid, e.g. for plotting using 
-        :func:`plotSubdivisionGrid <grale.plotutil.plotSubdivisionGrid>`."""
+        :func:`plotSubdivisionGrid <grale.plotutil.plotSubdivisionGrid>`.
+        
+        In a multi-plane setting, ``lpIdx`` specifies a particular lens
+        plane.
+        """
         lpIdx = self._checkLensPlaneIndex(lpIdx)
         return self.grid[lpIdx]
 
@@ -688,6 +812,9 @@ class InversionWorkSpace(object):
 
         If specified, `regionSize` and `regionCenter` override the internally stored
         dimensions.
+
+        In a multi-plane scenario, ``lpIdx`` can be used to specify only one
+        lens plane.
         """
         
         if lpIdx == "all":
@@ -724,6 +851,13 @@ class InversionWorkSpace(object):
 
         If specified, `regionSize` and `regionCenter` override the internally stored
         dimensions.
+
+        In a multi-plane setting, if `lensOrLensInfo` is a :class:`MultiPlaneContainer <grale.lenses.MultiPlaneContainer>`
+        result returned from a previous invert call, the specified subdivision will
+        be applied to each lens plane, using the corresponding inversion result for that
+        lens plane. Alternatively, a single plane lens model or :class:`LensInfo <grale.plotutil.LensInfo>`
+        instance can be used for a specific lens plane, but in that case ``lpIdx`` must be
+        set to the correct lens plane index.
         """
         
         if ( (not self.isMultiPlane) or
@@ -807,7 +941,9 @@ class InversionWorkSpace(object):
 
     def clearBasisFunctions(self, lpIdx = "all"):
         """Clears the list of basis functions that will be used in
-        :func:`invertBasisFunctions`"""
+        :func:`invertBasisFunctions`. In a multi-plane setting
+        ``lpIdx`` can be used to only clear the basis funtion for a
+        specific lens plane."""
         if lpIdx == "all":
             self.basisFunctions = [ [] for i in range(len(self.zd)) ]
         else:
@@ -817,7 +953,8 @@ class InversionWorkSpace(object):
     def getBasisFunctions(self, lpIdx = None):
         """Returns the basis functions that have currently been stored, and
         of which the weights will be optimized when :func:`invertBasisFunctions`
-        is called."""
+        is called. In a multi-plane setting, ``lpIdx`` can be used to obtain
+        the basis functions for a particular lens plane."""
         lpIdx = self._checkLensPlaneIndex(lpIdx)
         return self.basisFunctions[lpIdx]
 
@@ -853,7 +990,8 @@ class InversionWorkSpace(object):
 
     def setBasisFunctions(self, basisFunctions, lpIdx=None):
         """Convenience method, just calls :func:`clearBasisFunctions` followed
-        by :func:`addBasisFunctions`."""
+        by :func:`addBasisFunctions`. In a multi-plane setting, ``lpIdx``
+        needs to be used to select a particular lens plane."""
         lpIdx = self._checkLensPlaneIndex(lpIdx)
         self.clearBasisFunctions(lpIdx)
         self.addBasisFunctions(basisFunctions, lpIdx)
@@ -870,6 +1008,9 @@ class InversionWorkSpace(object):
         In the final call to the :func:`invert <grale.inversion.invert>` function,
         the complete list is then passed as the `gridInfoOrBasisFunctions`
         argument. You may look there for some additional information.
+
+        In a multi-plane setting, ``lpIdx`` needs to be used to select a particular 
+        lens plane.
         """
         lpIdx = self._checkLensPlaneIndex(lpIdx)
 
@@ -945,6 +1086,9 @@ class InversionWorkSpace(object):
         this basis function. The lens model, the center and optionally this mass is then
         added to a list, which is eventually processed by the :func:`addBasisFunctions`
         procedure.
+
+        In a multi-plane setting, ``lpIdx`` needs to be used to select a particular 
+        lens plane.
         """
         lpIdx = self._checkLensPlaneIndex(lpIdx)
 

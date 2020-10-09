@@ -649,7 +649,7 @@ sup {
 #'''
 
     output = subprocess.check_output([ "pandoc", "--from", "markdown", "--to", "html", "--mathjax=http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML" , "-s"] 
-                                      + [ "--metadata", "title=Inversion module 'general'" ]
+                                      + [ "--metadata", "title= " ]
                                       + [ "usage_general.md"])
     output = output.decode()
     output = output.replace("</head>", "<style>\n" + style + "</style></head>")
