@@ -1,3 +1,10 @@
+"""This is a helper module that imports many of the grale modules,
+sets various :mod:`renderers <grale.renderers>` to the 'threads' 
+implementation, sets the 
+:func:`default plotting angular scale <grale.plotutil.setDefaultAngularUnit>`
+to arc seconds, and defines a function `V(x,y)` that creates a numpy 
+array with two entries.
+"""
 from . import lenses
 from . import renderers
 from . import inversion

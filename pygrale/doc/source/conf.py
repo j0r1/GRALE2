@@ -649,9 +649,12 @@ sup {
 #'''
 
     output = subprocess.check_output([ "pandoc", "--from", "markdown", "--to", "html", "--mathjax=http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML" , "-s"] 
+                                      + [ "--metadata", "title=Inversion module 'general'" ]
                                       + [ "usage_general.md"])
     output = output.decode()
     output = output.replace("</head>", "<style>\n" + style + "</style></head>")
+    if not os.path.exists("../build/html"):
+        os.makedirs("../build/html")
     open("../build/html/usage_general.html", "wt").write(output)
 except Exception as e:
     print("Warning: error creating html file for usage_general.md:", e)

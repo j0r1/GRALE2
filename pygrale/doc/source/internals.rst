@@ -20,7 +20,12 @@ documentation.
 
 .. autoclass:: InversionParametersException
 
-.. autoclass:: GridLensInversionParameters
+.. autoclass:: LensInversionParametersSinglePlaneCPU
+   :members:
+
+   .. automethod:: __init__
+
+.. autoclass:: LensInversionParametersMultiPlaneGPU
    :members:
 
    .. automethod:: __init__

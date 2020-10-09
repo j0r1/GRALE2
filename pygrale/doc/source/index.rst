@@ -4,7 +4,7 @@ GRALE2: pygrale
 
 GRALE is a project to allow you to simulate and invert
 `gravitational lenses <https://en.wikipedia.org/wiki/Gravitational_lens>`_.
-The `first generation <http://research.edm.uhasselt.be/jori/grale>`_ of GRALE
+The `first generation <https://research.edm.uhasselt.be/jori/page/Physics/GraleV1.html>`_ of GRALE
 consisted of C++ libraries and an interactive program called *GRALESHELL*
 with which many useful commands could be executed without having to write
 a program yourself using the C++ libraries.
@@ -54,6 +54,7 @@ Indices and tables
    
    tutorial.rst
    example_notebooks.rst
+   grale_all.rst
    grale_constants.rst
    grale_contourfinder.rst
    grale_cosmology.rst

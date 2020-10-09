@@ -99,17 +99,26 @@ cdef class ImagesData:
         return sorted(list(ImagesData.propertyMapping.keys()))
 
     def __init__(self, int numImages, **kwargs):
-        """
-        __init__(numImages, **kwargs)
+        """__init__(numImages, **kwargs)
 
         Parameters:
 
          - ``numImages``: the number of images this instance will contain. Can still be increased
            using the :func:`addImage` member function.
-         - ``intensities``: flag indicating if intensity information will be stored.
-         - ``shearInfo``: flag indicating if shear info will be stored.
+         - ``kwargs`` can specify the presence of a number of properties, which can
+           be one or more of 
+           ``intensity``, ``shear``, ``shear1``, ``shear2``, ``shearweight``, ``distancefraction``, ``shearsigma``, ``shearsigma1``, ``shearsigma2``.
+           E.g to add intensity information to each point, pass
+           ``intensity=True`` as an argument. Property names that are set to ``False``
+           are simply ignored.
+
+        In addition to these properties, for backward compatibility the following arguments
+        are recognized as well:
+
+         - ``intensities``: is the same as ``intensity``
+         - ``shearInfo``: sets ``shearsigma1``, ``shearsigma2`` and ``shearweight`` to ``True``
         """
-        # TODO: update the docs!
+
         cdef vector[imagesdata.PropertyName] props
         
         if numImages == _imagesDataRndId: # use this special marked to create an uninitialized instance
@@ -159,7 +168,22 @@ cdef class ImagesData:
         return imageNum
 
     def addPoint(self, int imageNum, position, **kwargs):
-        # TODO: docs
+        """addPoint(imageNum, position, **kwargs)
+
+        In the image with index ``imageNum``, add a point at the specified
+        2D ``position``, with properties specified by ``kwargs``. For every
+        point, the same properties must be specified as when the ImagesData
+        instance was constructed.
+
+        For example, if ``intensity`` was specified as a property, you could
+        call::
+
+            newPt = imgDat.addPoint(0, [1,2], intensity=345)
+
+        Or, if ``shear`` and ``shearweight`` were specified::
+
+            newPt = imgDat.addPoint(0, [1,2], shear=[3,4], shearweight=5)
+        """
         cdef pointNum = 0
         cdef vector2d.Vector2Dd p = vector2d.Vector2Dd(position[0], position[1])
         cdef vector[pair[imagesdata.PropertyName, double]] props
@@ -257,7 +281,15 @@ cdef class ImagesData:
             raise ImagesDataException(S(self.m_pImgData.getErrorString()))
 
     def getKnownPropertyNames(self, reduce=False):
-        # TODO: docs
+        """getKnownPropertyNames(reduce=False)
+
+        For this ImagesData instance, return the property names that are
+        are recognized. Some property names refer to components of a
+        2D property. For example, the shear property enables ``shear1``,
+        ``shear2`` as well as just ``shear``. In case ``reduce`` is set
+        to ``True``, only ``shear`` would be returned and not ``shear1`` 
+        or ``shear2``.
+        """
         names = [ n for n in ImagesData.getAllPropertyNames() if self.hasProperty(n) ]
         if not reduce:
             return names
@@ -270,6 +302,11 @@ cdef class ImagesData:
         return sorted(list(nameSet))
         
     def hasProperty(self, propertyName):
+        """hasProperty(propertyName)
+
+        Returns a flag indicating if the property ``propertyName`` is available
+        in this ImagesData instance.
+        """
         knownNames = ImagesData.getAllPropertyNames()
         if not propertyName in knownNames:
             raise ImagesDataException("Invalid name '{}', valid names are {}".format(propertyName, knownNames))
@@ -376,7 +413,11 @@ cdef class ImagesData:
         self.m_pImgData.setImagePointPosition(image, point, p)
 
     def getImagePointProperty(self, propertyName, image, point):
-        # TODO: docs
+        """getImagePointProperty(propertyName, image, point)
+
+        For the point with specified index ``point``, in the image with specified index ``image``,
+        return the property value for ``propertyName``.
+        """
         self._checkImagePointNumber(image, point)
         self._checkProperty(propertyName)
         value = [ self.m_pImgData.getImagePointProperty(n, image, point) for n in ImagesData.propertyMapping[propertyName] ]
@@ -385,35 +426,34 @@ cdef class ImagesData:
         return np.array(value)
 
     def getAllImagePoints(self, properties="all"):
-        """getAllImagePoints()
+        """getAllImagePoints(properties="all")
 
         A convenience function that calls calls :func:`getImagePoints <grale.images.ImagesData.getImagePoints>`
         for each image, returning a list of the lists of dictionaries described in
         that function call. This means that the main list returned will be indexed
         by image number and each entry of the main list will itself be a list of
-        points in an image. 
+        points in an image.
+
+        The ``properties`` flag is simply passed on to :func:`getImagePoints <grale.images.ImagesData.getImagePoints>`,
+        allowing you to select which properties to return.
         """
-        # TODO: update docs
         if properties == "all":
             properties = self.getKnownPropertyNames(True)
 
         return [ list(self.getImagePoints(i, properties)) for i in range(self.getNumberOfImages()) ]
 
     def getImagePoints(self, image, properties="all"):
-        """getImagePoints(image)
+        """getImagePoints(image, properties="all")
 
         Returns an iterator that can be used to obtain all points inside
         the image with ID ``image``. For each point, an dictionary will be
-        provided with the following entries:
+        provided with a ``position`` entry, specifying the 2D position of 
+        the point, as well as entries for the properties assigned to the
+        point.
 
-         - ``position``: contains the 2D position of the point
-         - ``intensity`` (optional): contains the intensity information associated
-           to the point
-         - ``shear`` (optional): contains the two shear components associated to
-           the point
-         - ``shearweight`` (optional): contains the weight for the shear values.
+        By default, all known properties are listed, but ``properties``
+        can also be set to a different list of property names. 
         """
-        # TODO: update docs!
 
         if properties == "all":
             properties = self.getKnownPropertyNames(True)
