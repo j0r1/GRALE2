@@ -39,6 +39,13 @@ def _fractionalGridToRealGrid(grid):
         g.append({ "center": realPos, "size": realSize })
     return g
 
+def fractionalGridToRealGrid(grid):
+    """Transforms the specified `grid`, which uses a grid center and
+    fractional sizes and centers for the cells, to a straighforward list of 
+    cells, each having a regular center and size.
+    """ 
+    return _fractionalGridToRealGrid(grid)
+
 def createUniformGrid(size, center, axisSubDivisions, excludeFunction = None):
     """Creates a uniform grid, centered on the X,Y coordinates in `center` and
     with width and height specified by `size`. The generated grid will be have

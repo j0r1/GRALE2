@@ -11,6 +11,8 @@ grale.grid
 
 .. autofunction:: createSubdivisionGrid
 
+.. autofunction:: fractionalGridToRealGrid
+
 .. autofunction:: fitMultiplePlummerLens
 
 .. autoexception:: GridException

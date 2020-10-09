@@ -339,39 +339,310 @@ it's subdivided further.
 Inversion
 ---------
 
-TODO: :class:`grale.inversion.InversionWorkSpace`, :mod:`grale.inverters`,
-:class:`images.ImagesData`, :func:`grale.images.readInputImagesFile`
+While creating gravitational lens simulations is interesting in its own
+right, usually one is far more interested in performing a gravitational lens
+inversion. Below you can find some information to help get you started,
+several `examples <https://github.com/j0r1/GRALE2/tree/master/inversion_examples>`_
+are included in the source code archive to illustrate the procedure.
+
+The origins of the inversion procedure start with 
+`2006MNRAS.367.1209L <https://ui.adsabs.harvard.edu/abs/2006MNRAS.367.1209L/abstract>`_,
+but over the years many additions were made, for example to include
+so-called null-space information (where no images are present), or to
+include time delay information. A recent overview of the entire procedure
+can be found in 
+`2020MNRAS.494.3253L <https://ui.adsabs.harvard.edu/abs/2020MNRAS.494.3253L/abstract>`_.
 
 Overview
 ^^^^^^^^
 
-TODO
+You need to specify a few things to be able to start the inversion procedure:
+
+ - the observations, usually multiple images of several sources, but could
+   also include e.g. null space data, or weak lensing measurements;
+ - a set of basis functions (type, location and initial shape/mass)
+   for the lensing mass distribution, of which the weights need to be 
+   determined to fit the observations specified as the input.
+
+A genetic algorithm (GA) is then used as the optimization procedure, to
+look for the weights of these basis functions. The GA looks *only* for
+appropriate weights, so e.g. the position or orientation of a basis function
+will not change.
+
+To be able to model quite arbitrary mass distributions, one typically
+starts with basis functions (the default type is a :class:`Plummer <grale.lenses.PlummerLens>`
+model) laid out in a regular grid pattern. Then, based on a first run
+of the GA, and therefore a first estimate of the lensing mass distribution,
+one creates a grid in which cells are subdivided more finely in regions
+where more mass is detected. This is illustated in the figure below:
+
+.. plot:: ex/example_subdiv.py
+
+Each cell will again correspond to a basis function of which the weight
+needs to be optimized, and the GA is executed again to perform this optimization.
+This subdivision procedure is typically repeated a number of times, with
+more and more subdivisions/basisfunctions, until the added complexity
+no longer provides an improvement in the retrieved solution.
+
+Because no particular shape of the mass distribution is assumed, other
+than the fact that it can be be built up using many simple basis functions,
+the method is often termed 'free-form' or 'non-parametric'. You could
+also place specific models, e.g. :class:`SIE <grale.lenses.SIELens>` models, at the
+location of observed galaxies, and optimize their weights to fit the
+observations. This is not unlike so-called parametric methods, but note that
+the GA can only optimize the weights of the basis functions, it cannot
+alter their location or rotation angle for example.
+
+With an :class:`InversionWorkSpace <grale.inversion.InversionWorkSpace>`
+object, it is quite straightforward to execute the needed steps:
+
+ - first, you create an `InversionWorkSpace` where you specify the
+   redshift of the lens, the size of region that will be used for the
+   grid-based procedure, and the center of this region;
+
+ - then, you :func:`add <grale.inversion.InversionWorkSpace.addImageDataToList>`
+   contraints from observations to the workspace, specified as 
+   :class:`ImagesData <grale.images.ImagesData>` objects;
+
+ - you create a grid to lay out the basis functions, either a
+   :func:`uniform <grale.inversion.InversionWorkSpace.setUniformGrid>`
+   one, or a :func:`subdivision grid <grale.inversion.InversionWorkSpace.setSubdivisionGrid>`
+   based on a previous lens model. Alternatively, you can also 
+   manually :func:`add basis functions <grale.inversion.InversionWorkSpace.addBasisFunctions>`;
+
+ - you :func:`run the GA <grale.inversion.InversionWorkSpace.invert>`
+   to determine the weights of the basis functions, resulting in
+   a mass model.
+
+Based on the resulting mass model, you can create a new grid, start
+the GA again, etc. This is the main procedure you'll find in the included
+`examples <https://github.com/j0r1/GRALE2/tree/master/inversion_examples>`_.
+
+Creating an InversionWorkSpace
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+In the procedure outlined above, during several refinement steps always the
+same obvervational input data is used, and typically the same region is used
+that is subdivided into a number of grid cells. To keep track of these
+common settings, as well as to perform some other operations, an
+:class:`InversionWorkSpace <grale.inversion.InversionWorkSpace>` instance
+is created. 
+
+For example, if a gravitational lens is located at a redshift of 0.4, 
+the strong lensing mass should be retrieved in a 250 arcsec :sup:`2`
+region, and a particular :class:`cosmological model <grale.cosmology.Cosmology>` 
+is to be used, you'd do something like this::
+
+   import grale.inversion as inversion
+   import grale.cosmology as cosmology
+   from grale.constants import *
+
+   z_lens = 0.4
+   cosm = cosmology.Cosmology(0.7, 0.27, 0, 0.73)
+   iws = inversion.InversionWorkSpace(z_lens, 250*ANGLE_ARCSEC,
+                                      cosmology=cosm)
+
+Instead of specifying the cosmology in the constructor, you could also
+first :func:`set a default <grale.cosmology.setDefaultCosmology>` one,
+after which you can just omit the model in the construction of the
+workspace, i.e. something like::
+
+   cosm = cosmology.Cosmology(0.7, 0.27, 0, 0.73)
+   cosmology.setDefaultCosmology(cosm)
+
+   iws = inversion.InversionWorkSpace(z_lens, 250*ANGLE_ARCSEC)
+
 
 Adding images
 ^^^^^^^^^^^^^
 
-TODO
+Next, we need to specify what the observational constraints are,
+for example multiply imaged point sources. For such point image
+data, it is common to have it listed in a text file, and there
+exists a helper function :func:`readInputImagesFile <grale.images.readInputImagesFile>`
+to process such a text file. It returns a list of dictionaries
+with information about the redshift, the source identifier, and an
+:class:`ImagesData <grale.images.ImagesData>` object (describing the
+actual images), one for each multiply imaged source.
+Depending on the format of such a text file, it is likely that you
+need to specify how each line should be analyzed, the documentation
+lists some examples. If no further processing is required, the
+call would be something like this::
+
+   import grale.images as images
+
+   imgList = images.readInputImagesFile("inputpoints.txt", True)
+
+For each image in the list, we then need to call the workspace's
+:func:`addImageDataToList <grale.inversion.InversionWorkSpace.addImageDataToList>`.
+In that call, we not only tell the workspace what the relevant redshift
+is, but also what the type is of the data. In this case the data describes
+point images, but it could also describe extended images or null space
+information for example. In our example this would become::
+
+   for i in imgList:
+      iws.addImageDataToList(i["imgdata"], i["z"], "pointimages")
+
+For extended images it's also possible to read all the points from a
+text file, but it's unlikely that such a file is available. Usually,
+based on one or more FITS files of the sky region, you can use
+the :ref:`GRALE Editor <graleeditor>` tool to create these data sets,
+and save them to a file. Again, there would be a different file for
+each multiply imaged (extended) source. You could load and add these 
+to the workspace like this::
+
+   src1 = images.ImagesData.load("source1.imgdata")
+   src2 = images.ImagesData.load("source2.imgdata")
+
+   iws.addImageDataToList(src1, 2.5, "extendedimages")
+   iws.addImageDataToList(src2, 1.5, "extendedimages")
+
+A null space grid can be created using the helper function
+:func:`createGridTriangles <grale.images.createGridTriangles>`,
+or you could create it in the :ref:`GRALE Editor <graleeditor>`. For
+point images, the grid is typically a simple grid, but for extended
+images the irrelevant regions should be cut out (the regions of
+the images themselves, or a bright cluster galaxy for example).
+
+To allow the inversion algorithm to figure out which null space data
+belongs to which source, the data must be specified right after the
+images themselves. For point images, as no holes are cut out there,
+the same grid can typically be used for each source, and adding the
+data could become something like this::
+
+   bottomLeft = [ -200*ANGLE_ARCSEC, -200*ANGLE_ARCSEC]
+   topRight = [ 200*ANGLE_ARCSEC, 200*ANGLE_ARCSEC]
+   nullData = images.createGridTriangles(bottomLeft, topRight, 48, 48)
+
+   for i in imgList:
+      iws.addImageDataToList(i["imgdata"], i["z"], "pointimages")
+      iws.addImageDataToList(nullData, i["z"], "pointnullgrid")
+
+For extended images, as different regions *are* cut out for different
+sources, a different file will need to be loaded. The code would then
+become::
+
+   src1 = images.ImagesData.load("source1.imgdata")
+   null1 = images.ImagesData.load("null1.imgdata")
+   src2 = images.ImagesData.load("source2.imgdata")
+   null2 = images.ImagesData.load("null2.imgdata")
+
+   iws.addImageDataToList(src1, 2.5, "extendedimages")
+   iws.addImageDataToList(null1, 2.5, "extendednullgrid")
+   iws.addImageDataToList(src2, 1.5, "extendedimages")
+   iws.addImageDataToList(null2, 1.5, "extendednullgrid")
+
+More information about the different types of input data that can
+be specified this way, can be found in the `usage <./usage_general.html>`_
+documentation.
+
+**Whatever you do, before continuing, make sure that your input
+data makes sense!** Create plots using
+:func:`plotImagesData <grale.plotutil.plotImagesData>` or load
+the data in the GRALE Editor.
 
 Creating a grid
 ^^^^^^^^^^^^^^^
+As explained before, the usual way to start a lens inversion is to
+lay out basis functions in a regular grid pattern. In a next step,
+lens plane basis functions (by default Plummer lenses) will be initialized to
+have a width that's proportional to the size of a cell. To set up
+such a regular grid, use :func:`setUniformGrid <grale.inversion.InversionWorkSpace.setUniformGrid>`,
+for example::
 
-TODO
+   iws.setUniformGrid(15)
+
+This would produce a regular 15x15 grid, with cells that cover the
+region specified at the workspace's construction time. As the
+documentation shows, by default some randomness will be applied to 
+the grid center.
+
+In case you already have a lens model, for example the result from
+using this uniform grid (let's call it ``lens1``), you could 
+create a new grid with cells that are finer in regions where 
+there's more mass. This can be done with a call to
+:func:`setSubdivisionGrid <grale.inversion.InversionWorkSpace.setSubdivisionGrid>`,
+where you specify a range in which the number of cells should lie. 
+As the 15x15 grid produces 225 cells, in a next step often the range 
+from 300 to 400 is used, for example::
+
+   iws.setSubdivisionGrid(lens1, 300, 400)
+
+How many cells exactly this procedure would produce, depends on
+the mass distribution. In a next iteration, with the optimization 
+result from using this grid, you could for example create a new 
+one as follows::
+
+   iws.setSubdivisionGrid(lens2, 500, 600)
+
+The grid that is created this way, can be obtained using 
+:func:`InversionWorkSpace.getGrid <grale.inversion.InversionWorkSpace.getGrid>`,
+and can be visualized easily using :func:`plotSubdivisionGrid<grale.plotutil.plotSubdivisionGrid>`.
+This creates plots such as the ones shown above.
 
 Running the inversion
 ^^^^^^^^^^^^^^^^^^^^^
 
-TODO
+The grid created in the previous step, determines the layout and widths
+of the basis functions. A call to :func:`invert <grale.inversion.InversionWorkSpace.invert>`
+determines the initial masses of these basis functions, and
+subsequently starts the GA to figure out the weights of the basis
+functions that are compatible with the observational constraints
+provided to the workspace. In this `invert` call, a
+so called 'inverter' can be specified, which allows you to speed
+up the calculations using e.g. MPI. Alternatively, you can set a
+default inverter using :func:`setDefaultInverter <grale.inversion.setDefaultInverter>`
+and omit the parameter from the `invert` call. This would then
+yield code like the following::
+
+   inversion.setDefaultInverter("mpi")
+   lens1, fitness, fitdesc = iws.invert(512)
+
+The number 512 in the `invert` call, specifies the number of individuals/chromosomes/genomes
+in the population of the GA. The function returns the :class:`GravitationalLens <grale.lenses.GravitationalLens>`
+based lens model that is reconstructed, consisting of the basis functions 
+with weights determined by the GA. This model can be 
+:func:`saved <grale.lenses.GravitationalLens.save>` and later 
+:func:`loaded <grale.lenses.GravitationalLens.load>` for further analysis.
+Apart from this model, the `invert` call also returns the fitness value
+that this model had in the GA, together with the type of the fitness measure
+that was used. 
+
+To assign initial masses to the basis functions, the mass of the
+lens is estimated roughly from the provided images. If desired or needed,
+this can be overridden using the `invert` call's ``massScale`` argument.
+The default strategy is to simply divide this mass by the number of
+grid cells, and assign each grid cell's basis function that share of the
+mass. This will automatically place more mass in the more finely subdivided
+regions. In case you feel this places too much mass in those regions, you
+can set the ``rescaleBasisFunctions`` parameter to ``True``, causing these
+weights to rescaled according to the size of the cell. In practice, the
+default setting seems to provide better solutions faster.
+
+Full control over which basis functions are placed where can be obtained
+by using e.g. :func:`addBasisFunctions <grale.inversion.InversionWorkSpace.addBasisFunctions>`.
+This allows you to use any lens model as a basis function. Instead of
+`invert`, then the :func:`invertBasisFunctions <grale.inversion.InversionWorkSpace.invertBasisFunctions>`
+call is required. As a side note, the `invert` call internally actually
+calls this function once the basis functions have been derived from the
+grid.
+
+TODO: grid determines basis functions; mass based on total mass;
+:func:`grale.inversion.InversionWorkSpace.setDefaultInversionArguments`,
+non dominated set, nosheet/genome
+multiple fitness measures
 
 Processing the results
 ^^^^^^^^^^^^^^^^^^^^^^
 
-TODO
+TODO: backproject, calculateFitness, 
 
-Examples
-^^^^^^^^
+Note on reproducibility
+^^^^^^^^^^^^^^^^^^^^^^^
+
+TODO: two sources of randomness: grid and GA
 
 GRALE Editor
 ------------
 
-Creating a new version of the :ref:`graleeditor` is still work in progress. 
-
+TODO: :ref:`GRALE Editor <graleeditor>`

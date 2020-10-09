@@ -56,7 +56,7 @@ cdef class ConfigurationParameters(object):
         Initializes this object, storing the key/value entries from `parameterDict`
         (if present). Note that not all dictionaries are valid: the keys should be
         strings, and the values can be integers, strings, floating point values
-        or boolean values.
+        or boolean values, or 1D arrays thereof.
         """
         cdef int intValue = 0
         cdef cbool boolValue = False
@@ -638,6 +638,50 @@ cdef class LensInversionParametersMultiPlaneGPU(object):
                  massEstimate = 0, sheetSearch = "nosheet", fitnessObjectParameters = None, maxGen = 0,
                  allowNegativeWeights = False, massScaleSearchType = "regular",
                  deviceIndex = "rotate"):
+        """__init__(cosmology = cosmology.Cosmology(0.7, 0.3, 0, 0.7), basisLensesAndRedshifts = [], imagesAndRedshifts = [], massEstimate = 0, sheetSearch = "nosheet", fitnessObjectParameters = None, maxGen = 0, allowNegativeWeights = False, massScaleSearchType = "regular", deviceIndex = "rotate")
+
+        Parameters:
+
+         - `cosmology`: the cosmological model to use to transform redshifts into angular diameter
+           distances.
+         - `basisLensesAndRedshifts`: a list of dictionaries with entries `z` and `lenses`, 
+           representing the lens planes and the basis functions therein. Each entry in the `lenses`
+           list should be a dictionary with `lens`, `center` and `mass` entries, as with the
+           single plane inversion.
+         - `imagesAndRedshifts`: a list of dictionaries, each having an entry `z` describing the
+           redshift of the images, `images` with an :class:`ImagesData <grale.images.ImagesData>`
+           instance, and `params` listing additional parameters (such as a `type`).
+         - `massEstimate`: a mass scale for the optimization to use. The weights of the
+           basis functions will be adjusted to lie in a certain range around this
+           scale (the width of the range depends on `massScaleSearchType`)
+         - `sheetSearch`: can be ``nosheet`` or ``genome``.
+         - `fitnessObjectParameters`: parameters that should be passed to the inversion 
+           module that will be used.
+         - `maxGen`: The maximum number of generations in the genetic algorithm. Intended as a fail-safe
+           to prevent the algorithm from running indefinitely.
+         - `allowNegativeWeights`: by default, only positive weights will be assigned to
+           the basis functions used in the optimization. If negative weights are allowed
+           as well, this can be set to ``True``.
+         - `massScaleSearchType`: default is ``"regular"``, but if set to ``"wide"``, a 
+           wider range of masses will be  probed around the specified `massScale` argument. 
+           In typical cases, this is not needed, but may be useful when trying to combine 
+           strong and weak lensing information. It can also be set to ``"nosearch"`` to
+           disable the search for an appropriate scaling of the basis functions. It is also
+           possible to set to a dictionary with the following entries, mainly for testing
+           purposes:
+
+             - `startFactor`
+             - `stopFactor`
+             - `numIterations`
+             - `firstIterationSteps`
+             - `nextIterationSteps`
+
+         - `deviceIndex`: this multi-plane inversion uses a GPU to back-project the image
+           data, and by setting a specific number, a specific device can be specified. To
+           allow multiple GPUs to be used automatically, you can leave this to ``"auto"``
+           and use an :mod:`inverter <grale.inverters>` with as many processes as you have
+           GPUs.
+        """
         
         cdef cppcosmology.Cosmology cosm
         cdef vector[double] lensRedshifts
