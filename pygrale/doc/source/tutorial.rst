@@ -486,7 +486,7 @@ information for example. In our example this would become::
 For extended images it's also possible to read all the points from a
 text file, but it's unlikely that such a file is available. Usually,
 based on one or more FITS files of the sky region, you can use
-the :ref:`GRALE Editor <graleeditor>` tool to create these data sets,
+the :ref:`GRALE Editor <tut-graleeditor>` tool to create these data sets,
 and save them to a file. Again, there would be a different file for
 each multiply imaged (extended) source. You could load and add these 
 to the workspace like this::
@@ -499,7 +499,7 @@ to the workspace like this::
 
 A null space grid can be created using the helper function
 :func:`createGridTriangles <grale.images.createGridTriangles>`,
-or you could create it in the :ref:`GRALE Editor <graleeditor>`. For
+or you could create it in the :ref:`GRALE Editor <tut-graleeditor>`. For
 point images, the grid is typically a simple grid, but for extended
 images the irrelevant regions should be cut out (the regions of
 the images themselves, or a bright cluster galaxy for example).
@@ -598,7 +598,7 @@ yield code like the following::
    inversion.setDefaultInverter("mpi")
    lens1, fitness, fitdesc = iws.invert(512)
 
-The number 512 in the `invert` call, specifies the number of individuals/chromosomes/genomes
+The number 512 in the `invert` call, specifies the number of genomes/chromosomes/individuals
 in the population of the GA. The function returns the :class:`GravitationalLens <grale.lenses.GravitationalLens>`
 based lens model that is reconstructed, consisting of the basis functions 
 with weights determined by the GA. This model can be 
@@ -606,7 +606,8 @@ with weights determined by the GA. This model can be
 :func:`loaded <grale.lenses.GravitationalLens.load>` for further analysis.
 Apart from this model, the `invert` call also returns the fitness value
 that this model had in the GA, together with the type of the fitness measure
-that was used. 
+that was used (e.g `extendedimageoverlap` or `pointimageoverlap` depending
+on the type of the provided input).
 
 To assign initial masses to the basis functions, the mass of the
 lens is estimated roughly from the provided images. If desired or needed,
@@ -627,22 +628,216 @@ call is required. As a side note, the `invert` call internally actually
 calls this function once the basis functions have been derived from the
 grid.
 
-TODO: grid determines basis functions; mass based on total mass;
-:func:`grale.inversion.InversionWorkSpace.setDefaultInversionArguments`,
-non dominated set, nosheet/genome
-multiple fitness measures
+The ``massScale`` parameter also serves another purpose. Each genome in
+the GA's population contains the weights of the basis functions for a
+particular trial solution. As described in the articles, these weights
+actually only determine the *shape* of the mass distribution. An overall 
+scale factor will still be searched for, so that the resulting mass
+distribution yields the best fitness value for that genome. This scale factor
+will be probed in such a way that the total mass lies in a certain range 
+around ``massScale``. The range can be controlled with the parameter
+``massScaleSearchType``.
+
+A special kind of basis function that can be enabled, is a mass sheet
+basis function. It's special in the sense that it doesn't take part in
+the scaling procedure mentioned above. To enable this, set the
+``sheetSearch`` parameter to ``"genome"`` (the default is ``"nosheet"``).
+
+To avoid having to specify the same arguments over and over in the `invert`
+calls, you can use 
+:func:`setDefaultInversionArguments <grale.inversion.InversionWorkSpace.setDefaultInversionArguments>`
+to set the default values.
+
+In case multiple types of constraints are used, e.g. multiple images as well
+as null space information, a multi-objective GA will be used. Having multiple
+constraints, and hence multiple fitness values, implies that there's in general
+no longer a single best genome in each generation of the population, 
+but a `non-dominated set`. 
+The default behavior of the `invert` call is still to return a single
+solution based on a priority of the individual fitness measures (can be 
+controlled using the `priority` parameters, described in the
+`usage <./usage_general.html>`_ documentation). To return the final non-dominated
+set instead, set the ``returnNds`` parameter to ``True``. 
 
 Processing the results
 ^^^^^^^^^^^^^^^^^^^^^^
 
-TODO: backproject, calculateFitness, 
+The `invert` call returns a :class:`GravitationalLens <grale.lenses.GravitationalLens>`
+based lens model, which you can then further analyze as described earlier in the
+tutorial. For example, you can create plots of the mass distribution, or of the
+critial lines and caustics. 
+
+The workspace's function
+:func:`backProject <grale.inversion.InversionWorkSpace.backProject>` can be
+used to project the images back onto their respective source planes, 
+using a particular lens model (doesn't even have to be one resulting from
+the inversion routine). It returns
+a list of `ImagesData` instances that have their point coordinates replaced
+by the back-projected coordinates. Together with the
+:func:`plotImagesData <grale.plotutil.plotImagesData>` function you could
+create the plot below, showing the input images as well as the
+back-projected ones for the first two lens models from the routine outlined
+previously:
+
+.. plot:: ex/example_backproj.py
+
+The code to create such a plot looks like this:
+
+.. literalinclude:: ex/example_backproj.py
+   :language: python
+   :lines: 15-34
+
+With respect to re-lensing the source estimates, the functions
+:func:`calculateRMS <grale.util.calculateRMS>` and
+:func:`calculateImagePredictions <grale.util.calculateImagePredictions>`
+may be of help.
+These function reduce each observed image to a single point, which is
+trivial for point images. In case you're dealing with extended images,
+you can control how this needs to be done. 
+
+In case you'd like to create a source shape from the backprojected images, the
+:func:`createSourceFromImagesData <grale.images.createSourceFromImagesData>`
+function may be of interest to you. The source shape this creates is just a simple 
+filled polygon however, in case you'd like to see the actual lens effect using
+one of the back-projected images as the source, you can calculate this with
+the :ref:`GRALE Editor <tut-graleeditor>`.
+
+You can always calculate the fitness value(s) a specific lens model (again,
+doesn't need to be one that resulted from the inversion procedure) has
+using :func:`calculateFitness <grale.inversion.InversionWorkSpace.calculateFitness>`.
+For a lens model that was returned using the `invert` procedure, this should yield
+roughly the same value as was returned by that function. Not precisely, as the
+`calculateFitness` function uses code that's much different from the optimized
+code in the inversion routine. The calculations can also take quite some time.
 
 Note on reproducibility
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-TODO: two sources of randomness: grid and GA
+In the procedure that's outlined above, there are actually two random number
+generators at work, which is good to know if you'd like to be able to reproduce
+your results exactly.
+
+The first one is used in the creation of the grid: as
+mentioned above, by default some randomness is added to the position of the
+grid center. This randomness comes from Python's
+`random module <https://docs.python.org/3/library/random.html>`_, so if
+you want to make sure that the same grids are generated in different runs,
+you can set the random number generator's seed using
+`random.seed <https://docs.python.org/3/library/random.html#random.seed>`_.
+Alternatively, you can save the random number generator's state using
+`random.getstate <https://docs.python.org/3/library/random.html#random.getstate>`_
+which you can then restore if needed using
+`random.setstate <https://docs.python.org/3/library/random.html#random.setstate>`_.
+
+Instead of working with Python's random number generator, you can also simply
+save the generated grids. A grid can be obtained using the workspace's
+:func:`getGrid <grale.inversion.InversionWorkSpace.getGrid>` function and can be
+set again using :func:`setGrid <grale.inversion.InversionWorkSpace.setGrid>`.
+To save or load very general Python objects, the easiest way is to
+`pickle/unpickle <https://docs.python.org/3/library/pickle.html>`_ them.
+
+To perform the inversion, so to run the GA, the Python code will actually
+start a different program (written in C++), which has its own random number
+generator. In the output of that program, you'll see a line like the following,
+which allows you to find out which seed was used::
+
+   GAMESSAGESTR:RNG SEED: 1581199847
+
+To force a specific seed to be used when this inversion program is executed,
+you can set the ``GRALE_DEBUG_SEED`` environment variable. For example,
+to make sure that seed 12345 is used, one would run the code as follows::
+
+   import os
+   os.environ["GRALE_DEBUG_SEED"] = "12345"
+   lens1, fitness, fitdesc = iws.invert(512)
+
+Note that with this approach, the same environment variable will still be set
+for other `invert` calls as well, which means that the same seed will be
+used! To reproduce the results from other runs, you'd need to set
+the seeds those different `invert` calls used, for example::
+
+   os.environ["GRALE_DEBUG_SEED"] = "12345"
+   lens1, fitness, fitdesc = iws.invert(512)
+
+   iws.setSubdivisionGrid(lens1, 300, 400)
+   
+   os.environ["GRALE_DEBUG_SEED"] = "45678"
+   lens2, fitness, fitdesc = iws.invert(512)
+
+So, if you create an inversion script and want to be able to reproduce the
+run exactly, you could print the random number generator's state at the
+start, and perform a number of `invert` calls further on in the script,
+as follows::
+
+   import random
+   print("RNG State:")
+   print(random.getstate())
+
+   ...
+
+   iws = inversion.InversionWorkSpace( ... )
+
+   ...
+
+   iws.setUniformGrid(15)
+   lens1, fitness, fitdesc = iws.invert(512)
+   lens1.save("inv1.lensdata")
+
+   iws.setSubdivisionGrid(lens1, 300, 400)
+   lens2, fitness, fitdesc = iws.invert(512)
+   lens2.save("inv2.lensdata")
+
+   iws.setSubdivisionGrid(lens2, 500, 600)
+   lens3, fitness, fitdesc = iws.invert(512)
+   lens3.save("inv3.lensdata")
+
+To be able to recreate this run exactly, you need to be able to inspect
+all the output this script generated, so let's assume you've got that
+in a file somehow. In that file, you can find the random number generator's
+state (right below ``RNG State``, which we printed in the script) as well
+as the seeds that were used in the external inversion program (those
+``GAMESSAGESTR:RNG SEED:`` lines). Depending on that information, the
+script to recreate the run would look something like this::
+
+   import random
+   random.setstate((3, (2869744549, 791801109, ... ), None))
+
+   ...
+
+   iws = inversion.InversionWorkSpace( ... )
+
+   ...
+
+   iws.setUniformGrid(15)
+   os.environ["GRALE_DEBUG_SEED"] = "2551823485"
+   lens1, fitness, fitdesc = iws.invert(512)
+   lens1.save("inv1.lensdata")
+
+   iws.setSubdivisionGrid(lens1, 300, 400)
+   os.environ["GRALE_DEBUG_SEED"] = "1662455239"
+   lens2, fitness, fitdesc = iws.invert(512)
+   lens2.save("inv2.lensdata")
+
+   iws.setSubdivisionGrid(lens2, 500, 600)
+   os.environ["GRALE_DEBUG_SEED"] = "440472084"
+   lens3, fitness, fitdesc = iws.invert(512)
+   lens3.save("inv3.lensdata")
+
+
+.. _tut-graleeditor:
 
 GRALE Editor
 ------------
 
 TODO: :ref:`GRALE Editor <graleeditor>`
+
+Things to mention:
+
+ - undo/redo
+ - layers
+ - draw image shapes, point groups, time delays
+ - FITS background, align PNG overlay
+ - null space grid, holes
+ - export regions to file
+ - backproject/re-lens
+ - matching points/point groups, on backprojected image
