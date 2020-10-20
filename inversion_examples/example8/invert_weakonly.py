@@ -5,6 +5,13 @@ import grale.images as images
 import grale.lenses as lenses
 import grale.cosmology as cosmology
 
+# Write the RNG state, in case we want to reproduce the run exactly
+# (note that the GRALE_DEBUG_SEED environment variable will need
+# to be restored as well)
+import random
+print("RNG State:")
+print(random.getstate())
+
 renderers.setDefaultLensPlaneRenderer("mpi") # threads, mpi, opencl, None or a Renderer object
 renderers.setDefaultMassRenderer("mpi") # threads, mpi, None, or a Renderer object
 inversion.setDefaultInverter("mpi") # singlecore, mpi, localcs, mpics, or an Inverter object
