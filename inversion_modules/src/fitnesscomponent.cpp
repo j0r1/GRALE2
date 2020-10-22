@@ -995,9 +995,16 @@ bool FitnessComponent_WeakLensing::inspectImagesData(int idx, const ImagesDataEx
 		return false;
 	}
 
-	if (!imgDat.hasShearInfo())
+	if (!imgDat.hasProperty(ImagesData::ShearComponent1) ||
+	    !imgDat.hasProperty(ImagesData::ShearComponent2))
 	{
-		setErrorString("No shear info is present");
+		setErrorString("Not all components are present");
+		return false;
+	}
+
+	if (!imgDat.hasProperty(ImagesData::ShearWeight))
+	{
+		setErrorString("Shear weights are not present");
 		return false;
 	}
 

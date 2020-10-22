@@ -226,7 +226,7 @@ bool_t runTest(const ImagesData &imgDat)
         if (!imgDat.write(vSer))
             return "Error in serialization test: can't write: " + imgDat.getErrorString();
         if (!imgDatCopy.read(vSer))
-            return "Error in serialization test: can't read: " + imgDat.getErrorString();
+            return "Error in serialization test: can't read: " + imgDatCopy.getErrorString();
         
         if (!(imgDatCopy == imgDat))
             return "Error using serialization";

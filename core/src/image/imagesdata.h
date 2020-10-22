@@ -125,6 +125,7 @@ public:
 	const ImagesData &operator=(const ImagesData &dat)				{ clear(); copyFrom(dat); return *this; }
 	bool operator==(const ImagesData &d) const;
 private:
+	bool writeOld(serut::SerializationInterface &si) const;
 	bool readOld(serut::SerializationInterface &si);
 
 	void clear();

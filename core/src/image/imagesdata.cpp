@@ -26,6 +26,7 @@
 #include "graleconfig.h" 
 #include "imagesdata.h"
 #include <serut/fileserializer.h>
+#include <serut/dummyserializer.h>
 #include <map>
 #include <iostream>
 #include <string>
@@ -581,6 +582,216 @@ bool ImagesData::read(serut::SerializationInterface &si)
 #define IMAGESDATAOLD_FLAG_SHEAR		8
 #define IMAGESDATAOLD_FLAG_SHEARWEIGHTS	16
 
+bool ImagesData::writeOld(serut::SerializationInterface &si) const
+{
+	vector<bool> supportedProps(MaxProperty, false);
+	supportedProps[Intensity] = true;
+	supportedProps[ShearComponent1] = true;
+	supportedProps[ShearComponent2] = true;
+	supportedProps[ShearWeight] = true;
+
+	for (int p = 0 ; p < MaxProperty ; p++)
+	{
+		if (hasProperty((PropertyName)p))
+		{
+			if (!supportedProps[p])
+			{
+				setErrorString("Unsupported property for old writer");
+				return false;
+			}
+
+			if (m_imagePointProperties[p].size() == 0)
+			{
+				setErrorString("Unsupported number of images (zero) for old writer");
+				return false;
+			}
+		}
+	}
+
+	if ( (hasProperty(ShearComponent1) && !hasProperty(ShearComponent2)) ||
+		 (!hasProperty(ShearComponent1) && hasProperty(ShearComponent2)) )
+	{
+		setErrorString("Only one shear component property is known");
+		return false;
+	}
+
+	if (hasProperty(ShearWeight) && !hasProperty(ShearComponent1))
+	{
+		setErrorString("Shear weights set, but not shear");
+		return false;
+	}
+
+	int flag = 0;
+
+	if (hasProperty(Intensity))
+		flag |= IMAGESDATAOLD_FLAG_INTENSITIES;
+	if (m_triangulations.size() != 0)
+		flag |= IMAGESDATAOLD_FLAG_TRIANGULATIONS;
+	if (m_timeDelayInfo.size() != 0)
+		flag |= IMAGESDATAOLD_FLAG_TIMEDELAY;
+	if (hasProperty(ShearComponent1))
+		flag |= IMAGESDATAOLD_FLAG_SHEAR;
+	if (hasProperty(ShearWeight))
+		flag |= IMAGESDATAOLD_FLAG_SHEARWEIGHTS;
+
+	if (!si.writeInt32(IMAGESDATAID_OLD))
+	{
+		setErrorString(std::string("Error writing images data ID: ") + si.getErrorString());
+		return false;
+	}
+	if (!si.writeInt32(flag))
+	{
+		setErrorString(std::string("Error writing feature flag: ") + si.getErrorString());
+		return false;
+	}
+	if (!si.writeInt32(m_images.size()))
+	{
+		setErrorString(std::string("Error writing number of images: ") + si.getErrorString());
+		return false;
+	}
+
+	std::vector<int32_t> numImagePoints(m_images.size());
+
+	for (int i = 0 ; i < numImagePoints.size() ; i++)
+		numImagePoints[i] = m_images[i].size();
+
+	if (!si.writeInt32s(numImagePoints))
+	{
+		setErrorString(std::string("Error writing images: ") + si.getErrorString());
+		return false;
+	}
+
+	for (int i = 0 ; i < m_images.size() ; i++)
+	{
+		for (int j = 0 ; j < m_images[i].size() ; j++)
+		{
+			if (!si.writeDoubles(m_images[i][j].getComponents(), 2))
+			{
+				setErrorString(std::string("Error writing images: ") + si.getErrorString());
+				return false;
+			}
+		}
+		if (hasProperty(Intensity))
+		{
+			if (!si.writeDoubles(m_imagePointProperties[Intensity][i]))
+			{
+				setErrorString(std::string("Error writing intensities: ") + si.getErrorString());
+				return false;
+			}
+		}
+		if (hasProperty(ShearComponent1))
+		{
+			if (!si.writeDoubles(m_imagePointProperties[ShearComponent1][i]))
+			{
+				setErrorString(std::string("Error writing shear component 1: ") + si.getErrorString());
+				return false;
+			}
+			if (!si.writeDoubles(m_imagePointProperties[ShearComponent2][i]))
+			{
+				setErrorString(std::string("Error writing shear component 2: ") + si.getErrorString());
+				return false;
+			}
+		}
+		if (hasProperty(ShearWeight))
+		{
+			if (!si.writeDoubles(m_imagePointProperties[ShearWeight][i]))
+			{
+				setErrorString("Error writing images (shear weights): " + si.getErrorString());
+				return false;
+			}
+		}
+	}
+
+	if (!si.writeInt32(m_groupPoints.size()))
+	{
+		setErrorString(std::string("Error writing number of groups: ") + si.getErrorString());
+		return false;
+	}
+
+	if (m_groupPoints.size() > 0)
+	{
+		std::vector<int32_t> numgrouppoints(m_groupPoints.size());
+
+		for (int i = 0 ; i < m_groupPoints.size() ; i++)
+			numgrouppoints[i] = m_groupPoints[i].size()/2;
+
+		if (!si.writeInt32s(numgrouppoints))
+		{
+			setErrorString(std::string("Error writing number of group points: ") + si.getErrorString());
+			return false;
+		}
+
+		for (int i = 0 ; i < m_groupPoints.size() ; i++)
+		{
+			if (!si.writeInt32s(m_groupPoints[i]))
+			{
+				setErrorString(std::string("Error writing group points: ") + si.getErrorString());
+				return false;
+			}
+		}
+	}
+
+	if (m_triangulations.size() != 0)
+	{
+		for (int i = 0 ; i < m_images.size() ; i++) // this is the amount of triangulations we should have
+		{
+			int32_t indices[3];
+			
+			// write size
+
+			if (!si.writeInt32(m_triangulations[i].size()))
+			{
+				setErrorString(std::string("Error writing triangulation size: ") + si.getErrorString());
+				return false;
+			}
+
+			for (auto it = m_triangulations[i].begin() ; it != m_triangulations[i].end() ; it++)
+			{
+				indices[0] = (*it).getIndex(0);
+				indices[1] = (*it).getIndex(1);
+				indices[2] = (*it).getIndex(2);
+
+				if (!si.writeInt32s(indices, 3))
+				{
+					setErrorString(std::string("Error writing triangulation indices: ") + si.getErrorString());
+					return false;
+				}
+			}
+		}
+	}
+
+	if (m_timeDelayInfo.size() != 0)
+	{
+		if (!si.writeInt32(m_timeDelayInfo.size()))
+		{
+			setErrorString(std::string("Error writing number of time delay points: ") + si.getErrorString());
+			return false;
+		}
+
+		for (int i = 0 ; i < m_timeDelayInfo.size() ; i++)
+		{
+			int32_t indices[2];
+
+			indices[0] = m_timeDelayInfo[i].getImageIndex();
+			indices[1] = m_timeDelayInfo[i].getPointIndex();
+
+			if (!si.writeInt32s(indices, 2))
+			{
+				setErrorString(std::string("Error writing time delay point indices: ") + si.getErrorString());
+				return false;
+			}
+
+			if (!si.writeDouble(m_timeDelayInfo[i].getTimeDelay()))
+			{
+				setErrorString(std::string("Error writing time delay: ") + si.getErrorString());
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
 bool ImagesData::readOld(serut::SerializationInterface &si)
 {
 	int32_t numimgs, flag;
@@ -806,10 +1017,13 @@ bool ImagesData::readOld(serut::SerializationInterface &si)
 	{
 		m_properties[ShearComponent1] = true;
 		m_properties[ShearComponent2] = true;
-		m_properties[ShearWeight] = true;
 
 		m_imagePointProperties[ShearComponent1] = shearComponent1s;
 		m_imagePointProperties[ShearComponent2] = shearComponent2s;
+	}
+	if (gotShearWeights)
+	{
+		m_properties[ShearWeight] = true;
 		m_imagePointProperties[ShearWeight] = shearWeights;
 	}
 
@@ -819,6 +1033,18 @@ bool ImagesData::readOld(serut::SerializationInterface &si)
 
 bool ImagesData::write(serut::SerializationInterface &si) const
 {
+	// Let's first try the old serializer, to be as backward compatible
+	// as possible
+	serut::DummySerializer dummy;
+	if (writeOld(dummy)) // Ok, we appear to be able to use the old serializer
+	{
+		if (!writeOld(si)) // error should already be set
+			return false;
+		return true;
+	}
+
+	// Couldn't use the old format, use the new one!
+
 	if (!si.writeInt32(IMAGESDATAID))
 	{
 		setErrorString(std::string("Error writing images data ID: ") + si.getErrorString());
