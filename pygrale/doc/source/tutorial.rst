@@ -829,15 +829,376 @@ script to recreate the run would look something like this::
 GRALE Editor
 ------------
 
-TODO: :ref:`GRALE Editor <graleeditor>`
+The :ref:`GRALE Editor <graleeditor>` is a Graphical User Interface (GUI) program
+to be able to prepare or inspect input files for an inversion, to back-project 
+observed images (from FITS data or an RGB image file), to re-lens a back-projected 
+image and to look for corresponding points in back-projected images.
 
-Things to mention:
+It is quite similar in concept as the older version, but quite different in design
+internally, and hopefully easier to use. A major advantage (at least in my view)
+is the ability to **undo** (Ctrl-Z, or Cmd-Z on OS X) and **redo** (Shift-Ctrl-Z,
+or Shift-Cmd-Z on OS X).
 
- - undo/redo
- - layers
- - draw image shapes, point groups, time delays
- - FITS background, align PNG overlay
- - null space grid, holes
- - export regions to file
- - backproject/re-lens
- - matching points/point groups, on backprojected image
+Layers & points
+^^^^^^^^^^^^^^^
+
+The screenshots below show a number of the core ideas. The main viewport, the left part
+of each figure, shows a coordinate system on which points can be placed. Near the
+top of the window, the coordinates (arcsec) corresponding to the mouse pointer's
+position are shown, as well as the current zoom. Zooming in/out can easily be
+done by holding Ctrl/Cmd and using the mouse wheel. To base
+the coordinates on an actual observation, you can load a FITS file as the background.
+In the options on the right for this FITS file, you can see that a certain RA/dec
+coordinate is placed at the center of the coordinate system in the main viewport.
+
+The editor does not provide a way to combine several FITS files from different
+wavelengths into a color image, but you can import a color image (e.g. a PNG or
+JPG file) into the editor. You can then match points in the color image to points
+in the underlying FITS file; that's what happened in this picture and that's what
+those red circles are a remnant of.
+
+.. image:: _static/grale_editor_a3827.png
+
+In the picture above, you can also see some yellow dots, although they are not
+well resolved. After zooming in however you can see that several points as well
+as a triangulation outline one of the images in Abell 3827.
+
+.. image:: _static/grale_editor_a3827_zoomed.png
+
+In this example you can see that there are three kinds of layers: for a FITS
+file, for an RGB image and for points (that can be exported to an
+:class:`ImagesData <grale.images.ImagesData>` file). While in this example
+there is one layer of each, there can be as many as needed, and you
+can change their order by dragging them around in that 'Layers' part of the
+window. The first layer will be
+rendered first, that's why the RGB layer is drawn on top of the FITS layer
+and hides a big part of the FITS image. With the checkboxes you can control
+whether or not a layer is shown.
+
+The actions you perform (keyboard/mouse) will have a different effect depending
+on which layer is active. In the screenshots above, the points layer is the
+active one, indicated by a dark green color; to change which layer is active,
+just double click on that layer (I find it easiest to double click just to their
+left of the checkbox). A left-mouse button click
+places a point, holding Ctrl/Cmd at the same time will immediately allow you
+to start typing to add a label/name to the point. To add/change the label
+later on, just double click on the point. The size of the point and
+label can be controlled using the option in the right part of the window, where
+you can opt either to show the point as a fixed number of pixels, or in arcsec
+units, corresponding to the zoom of the viewport.
+
+For a points layer, this point is a yellow dot, for a FITS layer this is a
+red cross, and for an RGB layer this is a red circle. The use of the points
+in FITS/RGB layers, is to be able to mark corresponding points in these layers
+by giving them the same label. To make this procedure somewhat easier, a label
+(a number) will be added automatically to these points, based on the 'Next
+group ID' settings on the right. You can always change the label if desired,
+of course.
+
+Background FITS & matched RGB
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To create such a background FITS and matching RGB image, you start by adding
+a FITS layer. To specify which point in the FITS image corresponds to the center
+of the coordinate system, you can double click on that point. Alternatively, 
+you can simply enter the RA/dec coordinates in the layer's info; by default
+they have been set to the central pixel's coordinates.
+
+When this layer is active, and you perform a single left mouse click, a red
+cross will be added with a label that's specified in the bottom-left of the
+user interface ('Next group ID for FITS'). The screenshot below shows the
+viewport where four such points have been added, roughly at the center of
+four prominent galaxies.
+
+.. image:: _static/grale_editor_points_fits.png
+
+To align an RGB image to this FITS file, first we need to add a new RGB layer,
+containing e.g. a PNG or JPG file. Initially, the image will just be shown centered in the
+viewport, will not be aligned yet with the FITS file, even having a different
+scale. To be able to calculate the necessary transformation, we need to
+select the same galaxies, which will be shown as red circles. For the example 
+we're using, this looks something like the image below.
+
+.. image:: _static/grale_editor_points_rgb.png
+
+To be able to match the RGB layer to the FITS layer, it's imperative that the
+corresponding points have the same label. For a first alignment, it's not that
+important that the exact positions match, for now we just want the alignment
+to be roughly ok. To perform the necessary calculations and align the RGB
+layer to the FITS layer, just make sure that the RGB layer is active and
+double click in the main viewport (doesn't matter where you click). In our
+example, this yields the following:
+
+.. image:: _static/grale_editor_points_rgb_matched.png
+
+To see how well the alignment worked, you can just hide/show the RGB layer
+so that you can compare it to the underlying FITS image. Since we only
+roughly selected those galaxies, the alignment will not be that good yet.
+To get a better alignment, we need to get those points to point to corresponding
+positions more accurately. To move a point, you can just drag it.
+
+My approach is usually to just forget about those initial points, and add new
+ones that lie near the borders of the images. Furthermore, to
+make it easier to pin-point a feature in the FITS/RGB files, I typically look
+for some very small galaxies that are visible in both images. To delete points, 
+first select them: a single point is selected by clicking on it, by holding
+Ctrl/Cmd you can add points to the selection, and by holding Shift you can
+select a range. Pressing Shift-Delete then removes the selected points.
+With the new matching points, make sure that the RGB layer is active, and double
+click again to re-calculate the alignment.
+
+Extended images & null space
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+While double clicking on a FITS or RGB layer is related to the background images,
+double clicking on a point in the viewport when a points layer is active, starts
+the contour finder tool. In the example below, a left double click on the
+blueish galaxy was performed (with a points layer being active). The slider then
+allows you to select a specific contour, indicated by a curved green line. By 
+default, the dialog box is actually
+a bit smaller, but if you press the three dots ``...`` next to the slider, you'll
+see various options that are related to how the contours are determined.
+
+The square region that will be used for the contour finder, is indicated by the
+green box, the width of which can be set using the aptly named `Width` parameter.
+For this region, internally a square gray scale image is generated, subdivided
+in the specified number of pixels both horizontally and vertically. This internal
+image is blurred using the specified width, and in the resulting blurred/smoothed image contours
+are determined. Note that all these operations happen on the image as it is shown,
+irrespective of whether that's a FITS layer, an RGB layer or an overlap. If it's
+a FITS layer of which the min/max parameters are set in such a way that everything
+is shown as white for example, then no meaningful contours will be detected. The
+tool works with how the viewport is shown.
+
+.. image:: _static/grale_editor_a3827_contourtool.png
+
+If you press `Ok`, then the selected contour will be traced with a number of 
+points and these will be triangulated. The resulting points and triangles will
+be added to the active points layer. The screenshot below shows an example.
+If there would already be points inside the contour, in the active layer, then
+these will be included in determining the triangulation.
+
+.. image:: _static/grale_editor_a3827_contourtool2.png
+
+If the contour tool does not work well enough, you can always simply draw the
+contour yourself. Just hold the left mouse button and move the mouse pointer
+to start drawing. The screenshot below illustrates this:
+
+.. image:: _static/grale_editor_a3827_draw.png
+
+When you release the mouse button, points are added according to the
+contour that was drawn, and a triangulation is provided. All points and
+triangles are added to the active points layer. As can be seen in the
+example below, if a point in the active layer is internal to the contour,
+it is used in the triangulation.
+
+.. image:: _static/grale_editor_a3827_draw2.png
+
+You can also follow a completely manual approach: first just add individual
+points using a single left click each time. Then, select the points for which
+you'd like to add a triangulation. To select points, you can select an entire
+region by keeping the Shift key pressed, holding down the left mouse button
+and select a rectangular range. Alternatively, you can select multiple points
+individually by keeping Ctrl (or Cmd on OS X) pressed down, and clicking on
+the existing points individually. In either case, a selected point will turn
+blue instead of yellow. The figure on the left shown this. To create a triangulation
+from these points, just double click on one of the selected points. This in
+turn would produce the situation on the right.
+
+.. image:: _static/grale_editor_a3827_manual.png
+
+.. image:: _static/grale_editor_a3827_manual2.png
+
+To delete points or triangles, first select them as before. Then, to delete
+both points and triangles press Shift+Delete. To only delete the selected triangles
+but not points that could be selected as well, press Ctrl+Delete.
+
+If you right-click on a point, a dialog is shown with various properties
+of that point; an example is shown below. You could change the coordinates
+somewhat if you like, provide a label/group name to the point, and possibly 
+a time delay. In the current inversion procedure, the time delays are 
+expected as a number of days.
+
+.. image:: _static/grale_editor_a3827_props.png
+
+If you only want to provide a label/group name to a point, to indicate which points 
+correspond to each other in different images, you can also just double click on a 
+point that's not selected (so a yellow point, not a blue one). You'll then 
+see a dotted rectangle in which you can type a label, as the figure below shows.
+
+.. image:: _static/grale_editor_a3827_label.png
+
+In the ``Edit`` menu, there's an option called ``Create null grid``, with which
+you can create null space grids for use in inversions with point images or extended
+images. For extended images, the inversion routine assumes a grid in which the
+regions where images are observed, or where extra images could be observed, are
+cut out. For inversions with point images, a very simple grid is typically used,
+there's no need to cut out anything.
+
+The tool is the same for both cases, and it will decide if regions need to be cut
+out based on the visible points layers. So if you want to create a simple null
+grid, without removing any regions, make sure that all points layers are hidden
+(using the checkbox next to the layer name). Assuming that this case is fairly
+straightforward, let's focus on the case in which we do want to remove certain
+regions.
+
+In the screenshot below, four extended images were drawn (very roughly, just for 
+this example). In the editor, there are two main ways to specify *different* images.
+A very simple one, that is not used in the example below, is to have a points layer
+for each image. Another approach is to have several images in the same layer,
+but then triangulations are needed to be able to detect that there are in fact
+*multiple* images in that layer. If there are only points, there's no way to automatically
+detect which points belong together in one image, but if triangulations are present
+then these can be used to figure out which points belong to which image.
+
+.. image:: _static/grale_editor_a3827_null_images.png
+
+When the tool is started from the ``Edit`` menu, a dialog box appears, as you can
+see below. There you can specify the size of the grid, as well as its center, and
+the number of points in each direction, which determines how small or how large
+the triangles in between will be. It is usually a good idea to make the region
+considerably larger than the strong lensing region, to avoid the inversion routine
+getting fooled by extra, far away images that lie completely outside the null space
+region.
+
+If no points layers are visible, then a regular grid would be the result, but if
+points layers are present, the images therein will be removed from the null space
+grid. It is usually a good idea to remove a slightly larger region than the images
+themselves, so that there's no null space penalty anymore if the back-projected
+images don't overlap perfectly (this is never the case). That's what the
+`Cut-out border` option is for. If multiple images are present in the same 
+points layer (see above), as is the case here, the `Split points...` option needs
+to be checked to detect them. If it is not checked, only a single image is assumed
+per layer, and if that image can't be reconstructed from the triangulation info,
+then the convex hull of all points will be used as the image shape. In this example,
+unchecking that option would cause the entire region enclosed by the images to
+be removed from the null space grid.
+
+.. image:: _static/grale_editor_a3827_null_dialog.png
+
+When you're satisfied with all the options, just press ``Ok`` and the null space
+grid is generated. A new points layer is automatically added, containing the
+generated points and the triangulation. For the example we're considering, the
+result is shown below (the grid is larger than the current viewport though),
+and you can see that the image regions, as well as an extra border, have been
+removed from the null space. If you want to do this programmatically in a
+script, perhaps useful to create grids with the same settings for many
+multiple-image systems, you can use the :func:`createGridTriangles <grale.images.createGridTriangles>`
+routine. Always check the resulting generated grids! You can show them either
+in the GRALE Editor, or using :func:`plotImagesData <grale.plotutil.plotImagesData>`.
+
+.. image:: _static/grale_editor_a3827_null_result.png
+
+Exporting to and importing from :class:`ImagesData <grale.images.ImagesData>` files
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+All info that you're working with in the GRALE Editor, all layers and their settings,
+can be saved to a file, and loaded from a file, from within the ``File`` menu.
+This saves the information in a straightforward `JSON <https://en.wikipedia.org/wiki/JSON>`_
+format, which can be edited manually if needed, for example to change the path for one
+of the FITS or RGB files. The FITS or RGB data itself, the pixel values, are not stored
+in that file, only the file name paths. If you'd like to share such a saved JSON file
+with someone else, this means you'd have to share the FITS or RGB files separately.
+The receiver may need to adjust the paths to those files in the JSON file.
+
+Ultimately, we're interested in creating input for a lens inversion, which requires
+:class:`ImagesData <grale.images.ImagesData>` instances for the images or null space.
+The ``Export to images data`` and ``Export options`` entries, both in the ``File`` menu as
+well, allow you to write the points layers to files which can later be 
+:func:`loaded <grale.images.ImagesData.load>` again as `ImagesData` objects in an
+inversion script.
+
+The `Export options` entry, contains the following three items that control the export
+procedure:
+
+ - Split layer into images
+ - Export groups
+ - Export time delays
+
+In any case, only points layers (note that a null space grid is also a points layer)
+can be stored into an `ImagesData` file, and only visible points layers are considered
+when exporting. If the first option, `Split layer into images` is *not* checked, then
+each visible points layer will be stored as a separate image in the `ImagesData`
+instance. When the option is *checked*, additionally each points layer will be split
+into several images based on the triangulation info (as explained before), potentially
+leading to more images than visible points layers. This is very useful when all
+images are simply stored in a single points layers.
+
+The labels/group names you assign to points define which points inside extended
+images are actually point images of the same point source. Such point groups can
+be stored in an `ImagesData` file, and it's likely that you want to leave this
+option checked to do so. If for some reason you'd like to forget about the group
+info, you can uncheck this.
+
+While the points belonging together can be stored in this way, the names you assign
+to them, the labels, are not stored in an `ImagesData` instance. When you export to
+and later import from an `ImagesData` file, instead of the names you assigned to
+the points, you'll only see numbers. The points in the same group will still have
+the same number of course.
+
+The last option, `Export time delays` is quite self-explanatory. It merely controls
+if the time delay data that you've entered is written to the `ImagesData` file as
+well. Usually you'd want to leave this checked.
+
+Note that for convenience these export options are remembered, so if you're not
+sure what will be exported it may be a good idea to double check this.
+To actually export the file, you'd select the `Export to images data` option and
+specify a file name.
+
+The `Import images data` option actually has two variants:
+
+ - Points layer per image
+ - All in one points layer
+ 
+If the first option is selected, every image contained in the `ImagesData` file
+is introduced as a separate points layer. In the second case, all images from the
+file are added to a single points layer. Note that if the file does not contain
+triangulation information, it may be difficult to split the layer into separate
+images again. In both cases, new points layers are simply added to the current
+GRALE Editor scene, nothing will be overwritten or deleted.
+
+Saving the view to an image file (PNG or JPG)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+In the ``File`` menu, there's an entry ``Export area/view``; you can use this
+to save what's currently shown to e.g. a PNG or JPG image. All visible layers
+are considered, using the current point sizes. In the dialog that is shown
+when you select this option, you can choose either to save the area that's
+currently shown, or an area with the dimensions specified in the dialog. You
+can also specify the number of pixels in the resulting image.
+
+This can come in handy to create an overlay of the reconstruction of the mass
+density on top of an observation. If the reconstruction whould show the mass
+density in a 30x30 arcsec region centered on the origin for example, this tool
+allows you to export the same region to an image, and load that again in
+a script to create a mass density plot overlayed on this background::
+
+   # Read the background image exported using the GRALE Editor
+   rgb = plt.imread("./a3827_background_30x30.png")
+
+   # Here we need to tell how the image pixels map onto the coordinate system:
+   # In the GRALE Editor, the RA axis pointed left, so the left most pixel is
+   # at 15 arcsec, the rightmost at -15 arcsec. The bottom pixel corresponds
+   # to a declination of -15 arcsec, the top pixel to 15 arcsec.
+   plt.imshow(rgb, extent=[15,-15,-15,15]) 
+
+   # Draw several contour levels
+   plotutil.plotDensityContours(lensInfo, densityUnit=critDens, levels=np.arange(0,10,0.2), cmap="gray")
+   # Redraw the critical density contour as a think white line
+   plotutil.plotDensityContours(lensInfo, densityUnit=critDens, levels=[1], linewidths=[3], colors="white")
+   # Show the RA axis pointing left instead of right
+   plt.gca().invert_xaxis()
+
+This would then produce the following plot:
+
+.. image:: _static/a3827overlay.png
+
+Back-projecting and images using a lens model and re-lensing them
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+TODO: backproject/re-lens
+
+Looking for corresponding image points on back-projected images
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+TODO: matching points/point groups, on backprojected image
