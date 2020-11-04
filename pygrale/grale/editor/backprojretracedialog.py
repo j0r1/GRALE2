@@ -97,7 +97,7 @@ class BackprojRetraceDialog(QtWidgets.QDialog):
         tr, bl = [ np.array(ri[x])/ANGLE_ARCSEC for x in [ "topright", "bottomleft"] ]
 
         self.imagePlane = ip
-        self.ui.m_imgPlaneInfo.setText("{}x{} points, ({},{}) -> ({},{}) arcsec".format(
+        self.ui.m_imgPlaneInfo.setText("{}x{} points, ({:.2f},{:.2f}) -> ({:.2f},{:.2f}) arcsec".format(
                 ri["xpoints"], ri["ypoints"], bl[0], bl[1], tr[0], tr[1]))
 
     def getImagePlaneInfo(self):
