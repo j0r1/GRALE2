@@ -943,7 +943,7 @@ make it easier to pin-point a feature in the FITS/RGB files, I typically look
 for some very small galaxies that are visible in both images. To delete points, 
 first select them: a single point is selected by clicking on it, by holding
 Ctrl/Cmd you can add points to the selection, and by holding Shift you can
-select a range. Pressing Shift-Delete then removes the selected points.
+select a range. Pressing Shift+Delete then removes the selected points.
 With the new matching points, make sure that the RGB layer is active, and double
 click again to re-calculate the alignment.
 
@@ -1196,9 +1196,191 @@ This would then produce the following plot:
 Back-projecting and images using a lens model and re-lensing them
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-TODO: backproject/re-lens
+With the result from an inversion, you can use the GRALE Editor to backproject
+one or more image regions as currently displayed, e.g. from a FITS file or
+overlayed RGB file. These backprojected images will then be used as a source,
+and the lens effect will be recalculated. For example, suppose we've indicated one
+image in the viewport as follows:
+
+.. image:: _static/grale_editor_bpretrace1.png
+
+In the ``Edit`` menu, there's a tool called ``Back-project and retrace`` that
+in this case will determine the image region based on the points layer. It then
+hides the points layers themselves, and based on the visible FITS/RGB layers
+will grab what the image looks like. This all uses the FITS/RGB layers as displayed,
+it will not use the raw FITS values for example.
+
+The simplest case uses only one image, and calculate the entire image plane in one
+go. The result of the tool is that two RGB layers are added to the scene: one 
+containing the estimated source, so the back-projected image region, and one
+containing the re-lensed images. In this example, when hiding the re-lensed
+images, the resulting scene with the added source estimate, would look as
+follow:
+
+.. image:: _static/grale_editor_bpretrace2.png
+
+If we hide this back-projected image, but show the re-lensed images based on the
+lens model and this source estimate, the result is shown below. This is shown
+on top of the existing layers, which is why you see the yellow dots from the
+points layer still peeking out from underneath.
+
+.. image:: _static/grale_editor_bpretrace3.png
+
+This represents one of the simplest uses of the tool. One step more complex
+is to use one or more points layers to indicate more than one image. Each image
+will then be considered separately, creating a back-projected version and re-lensing
+this. Depending on the detail that you like, instead of tracing the entire lens
+plane, you can also recalculate only the image regions that you indicated, based on
+each source estimate. As this limits the size of the regions that need to be calculated,
+allowing you to get a better resolution there, you won't get results for the image 
+plane that don't have image shapes assigned to them in some points layer. In the
+example above, we'd still get that one source estimate, but we'd only recalculate
+the region that we indicated in the points layer. No estimates of the other images
+would be calculated in the re-lensing procedure.
+
+When you start the tool from the ``Edit`` menu, you'll see a dialog like the
+one below. Near the top, no image plane info will be shown however, you'll need
+to load that first. To create such a file, you need to get an
+:class:`ImagePlane <grale.images.ImagePlane>`
+for the redshift of the source/images that you're considering, and use
+`pickle <https://docs.python.org/3/library/pickle.html>`_ to create a file.
+This file should have the extension `.dat` or `.imgplane` for the tool to
+recognize it. You can create this `ImagePlane` manually by first creating a
+:class:`LensPlane <grale.images.LensPlane>` from your 
+:class:`lens model <grale.lenses.GravitationalLens>`. An easier way may be
+to create a :class:`LensInfo <grale.plotutil.LensInfo>` instance first, and
+then to call its :func:`getImagePlane <grale.plotutil.LensInfo.getImagePlane>`
+method, e.g::
+
+   li = plotutil.LensInfo(lens, size=50*ANGLE_ARCSEC, zd=zd, zs=zs)
+   imgPlane = li.getImagePlane()
+   pickle.dump(imgPlane, open("test.imgplane", "wb"))
+
+When you click the `Load` button, you can load this file into the tool; you
+can specify an arbitrary description, that's just for yourself to known which
+image plane has been loaded in case you need the tool again, perhaps for a
+source at another redshift (in which case you'd need to load another image plane
+file).
+
+.. image:: _static/backprojretracedialog.png
+
+The various other options all have a `Help` button to explain what they 
+mean. There are options to specify how the input regions should be constructed,
+and with what resolution they should be turned into pictures. The output has
+two modes as explained above: either the entire image plane is re-lensed,
+or only the image regions are re-calculated. When the
+tool is run, new PNG files are created which are shown in new RGB layers.
+The `Templates` control the layer names and file names. By default these
+files are not overwritten if they already exist, for safety reasons, but there's
+an option to allow that.
+Care must be taken when not using new file names however: the RGB layers
+only store the names to these files, so if they are overwritten by a new
+run of the tool, a layer may suddenly refer to different contents which
+may only become available when the layer is re-loaded.
 
 Looking for corresponding image points on back-projected images
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-TODO: matching points/point groups, on backprojected image
+The `CL0024+17 <https://en.wikipedia.org/wiki/CL0024%2B17>`_ cluster is
+a gravitational lens system containing a set of five extened images in
+which some corresponding points can easily be identified. In the
+scene below, a FITS image of this system was loaded in the editor,
+a points layer was added, and a very rough contour of the images
+was created by simply drawing the contour (as explained above).
+
+.. image:: _static/grale_editor_cl0024_quickimages.png
+
+To help identify corresponding points in these extended images,
+it would be helpful if we could quickly change the view, 
+focusing on each image in turn. This can be done using the
+``Point select - no back-projection`` tool that can be accessed
+from the ``Edit`` menu. This first shows a dialog to control e.g. how
+the different images are identified; there's a `Help` button to
+provide more information about the options. When you click `Ok`,
+the actual tool is started, and a window like the following is
+shown:
+
+.. image:: _static/imgpointsel_initial.png
+
+A similar background is shown as was visible in the main viewport
+of the editor, but only for the image region that was detected.
+Several tab pages are available, one for each of the images. The
+points that are relevant for each image are shown as well, and
+their size can be controlled by the options near the bottom,
+similarly as in the main editor. 
+
+Now, you can add or move points, and you can also provide labels
+to the points. This way, you can identify corresponding points in
+the different images. To add a label, you can first add a point using
+a left click, and then double click that point. You can also just
+keep Ctrl (or Cmd) pressed during the left click to add the point,
+which will immediately allow you to start typing. By switching
+from image to image, you can add several corresponding points, as
+is shown below:
+
+.. image:: _static/imgpointsel.gif
+
+When you click the `Close and update` button, the changes you've
+made (points added, moved, deleted, or labels changed) will be
+passed to the main editor. When you simply close the window, all
+changes will be lost however!
+
+Note that if points were added, they will not automatically be inserted
+into a triangulation that may be present for an image. If you need this
+to be the case, you can simply select all points/triangles for that
+image (includes the new points), press Ctrl+Delete to delete only the
+triangles, and finally double click on one of the (selected) points to
+generate a new triangulation.
+
+Depending on the situation, you could export the extended images, including
+the corresponding points, to an `ImagesData` file. Alternatively you could
+create input for a point image inversion, but that requires you to get the
+coordinates of the corresponding points only. Saving the extended images
+first to an `ImagesData` file and processing the point groups stored therein
+is one possibility. Alternatively you could directly analyze the JSON file 
+(Python has a `json module <https://docs.python.org/3/library/json.html>`_)
+that you get when you save the scene in the editor.
+
+While being able to switch from image to image can certainly help
+to identify corresponding features, the fact that the
+gravitational lens distorts each image, flipping it and stretching
+it in various ways, makes the identification somewhat less straightforward.
+In case you have a model for the lens at hand, perhaps from a first
+rough identification of corresponding points, you can use this to
+back-project these image regions first, and look for corresponding
+points in the back-projected images.
+
+This is done using the tool ``Point select - back-project first``, also in
+the ``Edit`` menu. The dialog that's shown allows you to load an image
+plane file, similar as in the back-project/re-lens tool that was
+discussed previously. Other options again have a `Help` button for more
+information, and are similar as in the point select tool without
+back-projecting first. 
+
+.. 
+   No longer used -> image:: _static/bpimgpointsel.gif
+
+After the dialog, a similar window is shown as before. The main difference
+is that the image regions have been projected back onto their source planes,
+and that for each back-projected image, the same source plane region is 
+always shown. This means that if you zoom in one of the tabs, you'll also
+zoom in the other tabs. Having a lens model may make it much easier to
+identify corresponding points, and you can end up with back-projected images
+that match quite well:
+
+.. image:: _static/detbpimgpointsel.gif
+
+If you add or move points, when you click the `Close and update` button,
+their corresponding location in the image plane is calculated using the
+information about the lens model that was loaded. 
+
+So far in the example, we've only used a FITS layer to get the shape of the
+images. If you have an RGB version of the same region at hand, or if you can
+make one based on several FITS files, it can be much easier to identify the
+points. Since the tool always shows the same region in the source plane, but 
+for different images, it can easily be used to get an idea about how well 
+the back-projected images (so the source estimates) overlap. In the animation
+below, the point size was set to 0 to hide the points and only shown the
+back-projected images:
+
+.. image:: _static/rgbbpimg.gif
