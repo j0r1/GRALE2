@@ -1196,8 +1196,8 @@ This would then produce the following plot:
 
 .. image:: _static/a3827overlay.png
 
-Back-projecting and images using a lens model and re-lensing them
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Back-projecting images using a lens model and re-lensing them
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 With the result from an inversion, you can use the GRALE Editor to backproject
 one or more image regions as currently displayed, e.g. from a FITS file or
