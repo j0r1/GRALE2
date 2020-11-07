@@ -10,8 +10,11 @@ first, this tutorial aims to familiarize you with the core ideas and procedures.
 You can also take a look at various :ref:`notebooks` to see them in
 action immediately.
 
+Modeling and plotting
+---------------------
+
 Modeling gravitational lenses
------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 One of the core parts of the software is the :class:`GravitationalLens <grale.lenses.GravitationalLens>`
 class. You won't create an instance of this class directly, that's prohibited, instead
@@ -66,7 +69,7 @@ obtained by inverting CL0024:
 
 
 Plotting lens systems
----------------------
+^^^^^^^^^^^^^^^^^^^^^
 
 The :mod:`plotutil <grale.plotutil>` module contains various functions to create plots, 
 using `matplotlib <https://matplotlib.org/>`_, `gnuplot <http://gnuplot.info/>`_
@@ -74,7 +77,7 @@ or even an interactive 3D plot when using a `Jupyter <http://jupyter.org/>`_
 notebook.
 
 Renderers and feedback
-^^^^^^^^^^^^^^^^^^^^^^
+,,,,,,,,,,,,,,,,,,,,,,
 
 By default, calculations will be done on a single CPU core. For a complex lens
 model, this can become quite slow, and various so called :mod:`renderers <grale.renderers>`
@@ -99,7 +102,7 @@ example:
 
 
 Single lens plane
-^^^^^^^^^^^^^^^^^
+,,,,,,,,,,,,,,,,,
 
 In the case of a single lens plane, we can create a plot of the image
 plane and projected mass density with e.g. the :func:`plotImagePlane <grale.plotutil.plotImagePlane>`
@@ -242,7 +245,7 @@ example:
 .. plot:: ex/example_plot_stddev.py
 
 Multiple lens planes
-^^^^^^^^^^^^^^^^^^^^
+,,,,,,,,,,,,,,,,,,,,
 
 Using a :class:`LensInfo <grale.plotutil.LensInfo>` object, you can also
 simulate lensing by multiple gravitational lenses as different redshifts.
@@ -280,8 +283,8 @@ from the SIS and SIE lenses in the previous one:
 
 .. plot:: ex/example_plot_multiplane_dens.py
 
-Modelling arbitrary mass distributions
---------------------------------------
+Modeling arbitrary mass distributions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 There are several reasons you might want to be able to calculate the
 lens effect for a mass distribution of which you don't know how to
@@ -1384,3 +1387,12 @@ below, the point size was set to 0 to hide the points and only shown the
 back-projected images:
 
 .. image:: _static/rgbbpimg.gif
+
+Pro-tips
+^^^^^^^^
+
+TODO:
+
+ - command line
+ - shortcut keys
+ 
