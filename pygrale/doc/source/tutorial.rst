@@ -1391,8 +1391,82 @@ back-projected images:
 Pro-tips
 ^^^^^^^^
 
+The command line
+,,,,,,,,,,,,,,,,
+
+On the command line, you can specify a previously saved JSON file as the
+first argument, causing this file to be loaded. With other file names
+you can add to this scene: for example if another JSON file is specified, 
+its layers will be added to the existing ones. You can add layers from other
+files as well, and you don't need to specify a JSON file first for this
+to work. 
+
+If a JPG, PNG or FITS file is specified
+the corresponding layer will be added. Note that in this case, no alignment
+or recentering will be done in advance as there isn't any available data yet.
+Specifying a ``.`` on the command line adds a new points layer to the scene.
+With ``myimagesfile.imgdata`` or ``N,myimagesfile.imgdata``
+you can add one or more points layers with information from the specified file.
+In the first case, all points from all images in the file will be added to the
+same points layer, including the triangulations if present. In the second case,
+if N is zero or more, it specifies a specific image in the file (counting starts 
+with 0) that should be imported into a new points layer. In case N is negative,
+all images will be imported again, but each in its own points layer.
+
+When exiting the GRALE Editor, it should give you a warning if there are unsaved
+changes. For some workflows this could cause unnecessary delays, and to prevent
+this dialog from interfering you can specify ``--nocheck`` on the command line.
+We will see an example of this below. In that example we'll also encounter the
+option ``--imgdataname:myexportfile.imgdata`` to set the file name that will be
+proposed when exporting the points layers to an `ImagesData` file.
+
+For completeness, with ``--imgplane:myimgplane.dat`` you can pre-load a pickled
+image plane for use with the tools that require backprojecting the images, and 
+with ``--zoom:X`` you can set the zoom factor to a specific value.
+
+Shortcut keys
+,,,,,,,,,,,,,
+
+If a point is selected, pressing ``c`` centers the view on that point. When
+exporting to an `ImagesData` file and you've selected that individual images
+should be determined from the triangulation info, it's possible that this
+fails, for example perhaps you've unknowingly added added a point by a mouse
+click. If this fails, you'll be asked if you'd like to select the point that
+triggered the failure. Since this may be difficult to spot, perhaps it's outside
+the current view for example, centering on the point may be helpful.
+
+By pressing ``1`` ... ``9``, you automatically set the zoom level to 2 :sup:`N`,
+depending on the pressed key (actually ``0`` also works). This can also help
+in the previous scenario: just centering on the point may not be clear enough
+depending on the number of points in the neighbourhood and the zoom level. By
+changing the zoom without changing the location in the center, the point can
+more easily be identified.
+
+If Ctrl (or Cmd on OS X) is pressed at the same time one of the ``1`` ... ``9``
+keys is pressed, the editor will look for the corresponding points layer,
+make it active, and center on it. This will only be helpful if each image is
+present in its own points layer, for example by specifying ``-1,myfile.imgdata``
+on the command line. If Ctrl-1 is pressed, the first points layer will be used,
+Ctrl-2 uses the second points layer, etc.
+
+Above, it was explained how the contour finder tool can be started by having a
+points layer active, and double clicking on a point in the background FITS
+layer for example. Instead of double clicking, you can also press Ctrl-L (or
+Cmd-L on OS X), in which case the position that's currently centered on will
+be used.
+
+As is often the case, pressing Ctrl-S (Cmd-S on OS X) is a shortcut for
+saving the entire scene, to a JSON file in case of the GRALE Editor. There's
+also a shortcut to export the visible points layers to an `ImagesData` file:
+Ctrl-E (or Cmd-E on OS X). This is the same as selecting the entry from the
+menu, so the same export options will be used.
+
+Example workflow: extended images from point images
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+
 TODO:
 
- - command line
- - shortcut keys
+ - point images to imgdata files
+ - actions for one imgdata file
+ - bash loop all image files
  
