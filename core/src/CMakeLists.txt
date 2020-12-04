@@ -58,6 +58,7 @@ set(HEADERS
 	math/polygon2d.h
 	math/rectangle2d.h
 	math/contourfinder.h
+	math/discretefunction.h
 	image/imagesdata.h
 	image/imagesdataextended.h
 	image/lensplane.h

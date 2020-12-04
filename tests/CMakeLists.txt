@@ -65,3 +65,6 @@ target_link_libraries(imgdatatest graleinv-static gralecore-static ${GRALE_LINK_
 
 add_executable(imgdatdump imgdatdump.cpp)
 target_link_libraries(imgdatdump gralecore-static ${GRALE_LINK_LIBS})
+
+add_executable(discretefunction discretefunction.cpp)
+target_link_libraries(discretefunction gralecore-static ${GRALE_LINK_LIBS})
