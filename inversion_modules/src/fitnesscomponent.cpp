@@ -252,7 +252,7 @@ bool FitnessComponent_PointImagesOverlap::inspectImagesData(int idx, const Image
 	return true;
 }
 
-bool FitnessComponent_PointImagesOverlap::finalize()
+bool FitnessComponent_PointImagesOverlap::finalize(double zd, const Cosmology *pCosm)
 {
 	if (m_isFinalized) // TODO: can this be called more than once?
 		return true;
@@ -574,7 +574,7 @@ bool FitnessComponent_ExtendedImagesOverlap::inspectImagesData(int idx, const Im
 	return true;
 }
 
-bool FitnessComponent_ExtendedImagesOverlap::finalize()
+bool FitnessComponent_ExtendedImagesOverlap::finalize(double zd, const Cosmology *pCosm)
 {
 	if (m_extendedSourceCount == 0)
 	{
@@ -1536,6 +1536,8 @@ bool FitnessComponent_WeakLensing_Bayes::inspectImagesData(int idx, const Images
 		setErrorString("No ellipticity info is present");
 		return false;
 	}
+
+	// TODO: this should be redshift as well as redshift uncertainty
 	if (!imgDat.hasProperty(ImagesData::DistanceFraction))
 	{
 		setErrorString("The points must have distance fraction settings (0 = unknown)");
@@ -1677,8 +1679,14 @@ bool FitnessComponent_WeakLensing_Bayes::calculateFitness(const ProjectedImagesI
 	return true;
 }
 
-bool FitnessComponent_WeakLensing_Bayes::finalize()
+bool FitnessComponent_WeakLensing_Bayes::finalize(double zd, const Cosmology *pCosm)
 {
+	if (pCosm == nullptr)
+	{
+		setErrorString("Cosmological model needs to be set for this component");
+		return false;
+	}
+
 	if (!m_allDistFracKnown)
 	{
 		if (m_distanceFractionWeights.size() == 0)
@@ -1687,6 +1695,8 @@ bool FitnessComponent_WeakLensing_Bayes::finalize()
 			return false;
 		}
 	}
+
+
 	return true;
 }
 

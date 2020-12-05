@@ -29,7 +29,6 @@
 #include <grale/imagesdataextended.h>
 #include <grale/configurationparameters.h>
 #include <limits>
-#include <set>
 #include <algorithm>
 #include <sstream>
 #include <memory>
@@ -86,6 +85,8 @@ void LensFitnessGeneral::clear()
 
 	delete m_pCache;
 	m_pCache = 0;
+
+	m_cosmology = nullptr;
 }
 
 inline bool reduceFlags(const vector<bool> &flags)
@@ -229,6 +230,8 @@ ConfigurationParameters *LensFitnessGeneral::getDefaultParametersInstance() cons
 {
 	ConfigurationParameters *pParams = new ConfigurationParameters();
 
+	pParams->setParameterEmpty("general_cosmology");
+
 	pParams->setParameter("priority_pointimageoverlap", 300);
 	pParams->setParameter("priority_extendedimageoverlap", 300);
 	pParams->setParameter("priority_pointgroupoverlap", 250);
@@ -261,6 +264,106 @@ ConfigurationParameters *LensFitnessGeneral::getDefaultParametersInstance() cons
 	pParams->setParameter("fitness_bayesweaklensing_sigmafactor", 3.0);
 	pParams->setParameter("fitness_bayesweaklensing_sigmasteps", 7);
 	return pParams;
+}
+
+bool LensFitnessGeneral::setFitnessOptions(FitnessComponent *pComp, const ConfigurationParameters *pParams)
+{
+	vector<string> allKeys;
+	pParams->getAllKeys(allKeys);
+
+	string fitnessOptionStart = "fitness_" + pComp->getObjectName() + "_";
+	for (auto &k : allKeys)
+	{
+		if (k.find(fitnessOptionStart) == 0) // key starts with this
+		{
+			string optionName = k.substr(fitnessOptionStart.length());
+			TypedParameter tp;
+
+			pParams->getParameter(k, tp);
+			if (!pComp->processFitnessOption(optionName, tp))
+			{
+				setErrorString("Unable to process fitness option '" + k + "': " + pComp->getErrorString());
+				return false;
+			}
+		}
+	}
+	return true;
+};
+
+bool LensFitnessGeneral::processGeneralParameters(const ConfigurationParameters *pParams)
+{
+	TypedParameter tp;
+
+	// Check cosmology
+	if (!pParams->getParameter("general_cosmology", tp))
+	{
+		setErrorString("No 'general_cosmology' parameter present");
+		return false;
+	}
+	if (tp.isEmpty())
+	{
+		m_cosmology = nullptr; // allow this, perhaps it's not needed
+		cerr << "DEBUG: cleared cosmology" << endl;
+	}
+	else
+	{
+		if (!(tp.isReal() && tp.isArray() && tp.getNumberOfEntries() == 5))
+		{
+			setErrorString("Cosmology setting in 'general_cosmology' must be an array of five real values (h, Omega_m, Omega_r, Omega_v, w)");
+			return false;
+		}
+		const vector<double> &v = tp.getRealValues();
+		m_cosmology = make_shared<Cosmology>(v[0], v[1], v[2], v[3], v[4]);
+		cerr << "DEBUG: created cosmology with parameters ("
+		     << m_cosmology->getH() << ","
+			 << m_cosmology->getOmegaM() << ","
+			 << m_cosmology->getOmegaR() << ","
+			 << m_cosmology->getOmegaV() << ","
+			 << m_cosmology->getW() << ")" << endl;
+	}
+	
+	return true;
+}
+
+bool LensFitnessGeneral::processComponentParameters(const ConfigurationParameters *pParams)
+{
+	// Set priorities and component specific fitness options
+	for (FitnessComponent *pComp : m_totalComponents)
+	{
+		assert(pComp);
+		string keyName = "priority_" + pComp->getObjectName();
+
+		int priority = 0;
+		if (!pParams->getParameter(keyName, priority))
+		{
+			setErrorString("Can't find (integer) parameter '" + keyName + "': " + pParams->getErrorString());
+			return false;
+		}
+
+		pComp->setPriority(priority);
+		if (!setFitnessOptions(pComp, pParams))
+			return false;
+	}
+
+	return true;
+}
+
+set<string> LensFitnessGeneral::getSupportedTypeNames()
+{
+	set<string> supportedNames;
+	for (size_t i = 0 ; i < m_totalComponents.size() ; i++)
+	{
+		FitnessComponent *pComp = m_totalComponents[i];
+		assert(pComp);
+
+		vector<string> names = pComp->getRecognizedTypeNames();
+		for (size_t n = 0 ; n < names.size() ; n++)
+		{
+			supportedNames.insert(names[n]);
+			//cerr << "SUPPORTED NAME: " << names[n] << endl;
+		}
+	}
+	return supportedNames;
 }
 
 bool LensFitnessGeneral::init(double z_d, std::list<ImagesDataExtended *> &images, 
@@ -308,62 +411,13 @@ bool LensFitnessGeneral::init(double z_d, std::list<ImagesDataExtended *> &image
 	};
 	assert(m_totalComponents.size() == COMPONENT_IDX_MAX);
 
-	vector<string> allKeys;
-	pParams->getAllKeys(allKeys);
-
-	auto setFitnessOptions = [&allKeys, pParams, this](FitnessComponent *pComp)
-	{
-		string fitnessOptionStart = "fitness_" + pComp->getObjectName() + "_";
-		for (auto &k : allKeys)
-		{
-			if (k.find(fitnessOptionStart) == 0) // key starts with this
-			{
-				string optionName = k.substr(fitnessOptionStart.length());
-				TypedParameter tp;
-
-				pParams->getParameter(k, tp);
-				if (!pComp->processFitnessOption(optionName, tp))
-				{
-					setErrorString("Unable to process fitness option '" + k + "': " + pComp->getErrorString());
-					return false;
-				}
-			}
-		}
-		return true;
-	};
-
-	// Set priorities and component specific fitness options
-	for (FitnessComponent *pComp : m_totalComponents)
-	{
-		assert(pComp);
-		string keyName = "priority_" + pComp->getObjectName();
-
-		int priority = 0;
-		if (!pParams->getParameter(keyName, priority))
-		{
-			setErrorString("Can't find (integer) parameter '" + keyName + "': " + pParams->getErrorString());
-			return false;
-		}
-
-		pComp->setPriority(priority);
-		if (!setFitnessOptions(pComp))
-			return false;
-	}
+	if (!processGeneralParameters(pParams))
+		return false;
+	if (!processComponentParameters(pParams))
+		return false;
 
 	// Get the supported type names
-	set<string> supportedNames;
-	for (size_t i = 0 ; i < m_totalComponents.size() ; i++)
-	{
-		FitnessComponent *pComp = m_totalComponents[i];
-		assert(pComp);
-
-		vector<string> names = pComp->getRecognizedTypeNames();
-		for (size_t n = 0 ; n < names.size() ; n++)
-		{
-			supportedNames.insert(names[n]);
-			//cerr << "SUPPORTED NAME: " << names[n] << endl;
-		}
-	}
+	set<string> supportedNames = getSupportedTypeNames();
 
 	// Let the components process the images data
 	int imgDatCount = 0;
@@ -474,7 +528,7 @@ bool LensFitnessGeneral::init(double z_d, std::list<ImagesDataExtended *> &image
 		else
 		{
 			//cerr << "Long finalize for " << pComp->getObjectName() << endl;
-			if (!pComp->finalize())
+			if (!pComp->finalize(z_d, m_cosmology.get()))
 			{
 				setErrorString("Unable to finalize component '" + pComp->getObjectName() + "':" + pComp->getErrorString());
 				return false;
@@ -496,7 +550,7 @@ bool LensFitnessGeneral::init(double z_d, std::list<ImagesDataExtended *> &image
 	// TODO: find something better to report
 	cerr << "DBG: shortComponent = " << m_pShortComponent->getObjectName() << endl;
 
-	setFitnessOptions(m_pShortComponent); // Also set the possibly different fitness options
+	setFitnessOptions(m_pShortComponent, pParams); // Also set the possibly different fitness options
 	
 	// Store the relevant image indices in a set
 	for (auto idx : shortIndices)
@@ -553,7 +607,7 @@ bool LensFitnessGeneral::init(double z_d, std::list<ImagesDataExtended *> &image
 	m_shortConvergence = reduceFlags(m_shortConvergenceFlags);
 
 	//cerr << "Short finalize for " << m_pShortComponent->getObjectName() << endl;
-	if (!m_pShortComponent->finalize())
+	if (!m_pShortComponent->finalize(z_d, m_cosmology.get()))
 	{
 		setErrorString("Unable to finalize (short) component '" + m_pShortComponent->getObjectName() + "':" + m_pShortComponent->getErrorString());
 		return false;

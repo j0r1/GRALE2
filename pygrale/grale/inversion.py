@@ -147,7 +147,24 @@ def getInversionModuleUsage(moduleName = "general"):
     _getModuleDirectory(n) # So that GRALE2_MODULEPATH gets set
     return inverters.getInversionModuleUsage(n)
 
-def calculateFitness(inputImages, zd, fitnessObjectParameters, lensOrBackProjectedImages, moduleName = "general"):
+def _mergeModuleParameters(fitnessObjectParameters, moduleName, cosmology):
+    fullFitnessObjParams = getDefaultModuleParameters(moduleName)
+    if fitnessObjectParameters:
+        for k in fitnessObjectParameters:
+            fullFitnessObjParams[k] = fitnessObjectParameters[k]
+
+    if "general_cosmology" in fullFitnessObjParams:
+        if cosmology is None:
+            fullFitnessObjParams["general_cosmology"] = None
+        else:
+            p = cosmology.getParameters()
+            fullFitnessObjParams["general_cosmology"] = np.array([
+                p["h"], p["Omega_m"], p["Omega_r"], p["Omega_v"], p["w"]
+            ])
+    
+    return fullFitnessObjParams
+
+def calculateFitness(inputImages, zd, fitnessObjectParameters, lensOrBackProjectedImages, moduleName = "general", cosmology = None):
     """You can pass several parameters in the same way as you would do for a
     lens inversion, but here you also specify the specific lens for which the
     relevant fitness measures should be calculated or the pre-calculated
@@ -169,10 +186,7 @@ def calculateFitness(inputImages, zd, fitnessObjectParameters, lensOrBackProject
     _getModuleDirectory(n) # So that GRALE2_MODULEPATH gets set
 
     # Merge fitnessObjectParameters with defaults
-    fullFitnessObjParams = getDefaultModuleParameters(moduleName)
-    if fitnessObjectParameters:
-        for k in fitnessObjectParameters:
-            fullFitnessObjParams[k] = fitnessObjectParameters[k]
+    fullFitnessObjParams = _mergeModuleParameters(fitnessObjectParameters, moduleName, cosmology)
 
     lens, bpImages = None, None
     try:
@@ -204,10 +218,7 @@ def _invertCommon(inverter, feedbackObject, moduleName, fitnessObjectParameters,
     feedbackObject.onStatus("Detected module path is: " + _getModuleDirectory(n))
 
     # Merge fitnessObjectParameters with defaults
-    fullFitnessObjParams = getDefaultModuleParameters(moduleName)
-    if fitnessObjectParameters:
-        for k in fitnessObjectParameters:
-            fullFitnessObjParams[k] = fitnessObjectParameters[k]
+    fullFitnessObjParams = _mergeModuleParameters(fitnessObjectParameters, moduleName, cosmology)
 
     # Get massscale
     if massScale == "auto":
@@ -374,7 +385,8 @@ def invertMultiPlane(cosmology, inputImages, basisLensesAndRedshifts, popSize, m
 def invert(inputImages, basisFunctions, zd, Dd, popSize, moduleName = "general", massScale = "auto",
            allowNegativeValues = False, baseLens = None, 
            sheetSearch = "nosheet", fitnessObjectParameters = None, massScaleSearchType = "regular", maximumGenerations = 16384,
-           geneticAlgorithmParameters = { }, returnNds = False, inverter = "default", feedbackObject = "default"):
+           geneticAlgorithmParameters = { }, returnNds = False, inverter = "default", feedbackObject = "default",
+           cosmology = None):
     """Start the genetic algorithm to look for a gravitational lens model that's
     compatible with the specified input images. This is a rather low-level function,
     it may be easier to use an instance of :class:`InversionWorkSpace` instead.
@@ -486,6 +498,9 @@ def invert(inputImages, basisFunctions, zd, Dd, popSize, moduleName = "general",
        module for more information.
 
      - `feedbackObject`: can be used to specify a particular :ref:`feedback mechanism <feedback>`.
+
+     - `cosmology`: depending on the inversion algorithm, it may be necessary to specify a
+       cosmological model.
     """
 
     def getParamsFunction(fullFitnessObjParams, massScale):
@@ -495,7 +510,7 @@ def invert(inputImages, basisFunctions, zd, Dd, popSize, moduleName = "general",
 
     return _invertCommon(inverter, feedbackObject, moduleName, fitnessObjectParameters,
                   massScale, [Dd, zd], inputImages, getParamsFunction, popSize,
-                  geneticAlgorithmParameters, returnNds, None) # cosmology is not used here
+                  geneticAlgorithmParameters, returnNds, cosmology)
 
 def defaultLensModelFunction(operation, operationInfo, parameters):
     """This is the default `lensModelFunction` that's used in 
@@ -1129,6 +1144,7 @@ class InversionWorkSpace(object):
         newKwargs = { }
         newKwargs["inverter"] = self.inverter
         newKwargs["feedbackObject"] = self.feedbackObject
+        newKwargs["cosmology"] = self.cosm
         
         defArgKey = "ignoreDefaultArguments"
         if not (defArgKey in kwargs and kwargs[defArgKey] == True):
@@ -1182,7 +1198,7 @@ class InversionWorkSpace(object):
         else:
             newImgList = self.imgDataList
 
-        return calculateFitness(newImgList, self.zd[0], fitnessObjectParameters, lensOrBackProjectedImages, moduleName)
+        return calculateFitness(newImgList, self.zd[0], fitnessObjectParameters, lensOrBackProjectedImages, moduleName, self.cosm)
 
     def backProject(self, lens, typeFilter = [ "pointimages", "extendedimages", "pointgroupimages" ]):
         """Takes the information of the images that were added using :func:`addImageDataToList`,

@@ -29,6 +29,9 @@
 #define GRALE_LENSFITNESSGENERAL_H
 
 #include <grale/lensfitnessobject.h>
+#include <grale/cosmology.h>
+#include <memory>
+#include <set>
 
 namespace grale
 {
@@ -75,6 +78,10 @@ public:
 	bool calculateOverallFitness(const ProjectedImagesInterface &inf, float *fitnessvalues) const override;
 private:
 	void clear();
+	bool processGeneralParameters(const ConfigurationParameters *pParams);
+	bool processComponentParameters(const ConfigurationParameters *pParams);
+	bool setFitnessOptions(FitnessComponent *pComp, const ConfigurationParameters *pParams);
+	std::set<std::string> getSupportedTypeNames();
 
 	bool m_initialized;
 	int m_numFitnessComponents;
@@ -92,6 +99,8 @@ private:
 
 	FitnessComponentCache *m_pCache;
 	std::string m_fitnessComponentDescription;
+
+	std::shared_ptr<Cosmology> m_cosmology;
 };
 
 } // end namespace

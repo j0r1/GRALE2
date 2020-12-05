@@ -16,6 +16,7 @@ namespace grale
 
 class ImagesDataExtended;
 class ProjectedImagesInterface;
+class Cosmology;
 
 class FitnessComponentCache
 {
@@ -76,7 +77,8 @@ public:
 	// Note that this may be called more than once
 	// TODO: prevent this?
 	// TODO: check that this is actually the case?
-	virtual bool finalize()																{ return true; }
+	// Note that cosmology may be nullptr
+	virtual bool finalize(double zd, const Cosmology *pCosm)							{ return true; }
 	virtual bool calculateFitness(const ProjectedImagesInterface &iface, float &fitness);
 	virtual bool processFitnessOption(const std::string &optionName, const TypedParameter &value);
 	
@@ -112,7 +114,7 @@ public:
 	bool inspectImagesData(int idx, const ImagesDataExtended &imgDat,
 			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
 			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence) override;
-	bool finalize() override;
+	bool finalize(double zd, const Cosmology *pCosm) override;
 	bool calculateFitness(const ProjectedImagesInterface &iface, float &fitness) override;
 	bool processFitnessOption(const std::string &optionName, const TypedParameter &value) override;
 
@@ -161,7 +163,7 @@ public:
 			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
 			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence) override;
 	bool calculateFitness(const ProjectedImagesInterface &iface, float &fitness) override;
-	bool finalize() override;
+	bool finalize(double zd, const Cosmology *pCosm) override;
 private:
 	PointGroupStorage m_pointGroups;
 	std::vector<bool> m_rectFlags;
@@ -331,7 +333,7 @@ public:
 			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence) override;
 	bool calculateFitness(const ProjectedImagesInterface &iface, float &fitness) override;
 	bool processFitnessOption(const std::string &optionName, const TypedParameter &value) override;
-	bool finalize() override;
+	bool finalize(double zd, const Cosmology *pCosm) override;
 private:
 	std::vector<std::pair<float,float>> m_distanceFractionWeights;
 	bool m_allDistFracKnown;
