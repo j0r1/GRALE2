@@ -9,6 +9,7 @@
 #include <grale/imagesdataextended.h>
 #include <errut/errorbase.h>
 #include <grale/polygon2d.h>
+#include <grale/discretefunction.h>
 #include <vector>
 
 namespace grale
@@ -335,10 +336,14 @@ public:
 	bool processFitnessOption(const std::string &optionName, const TypedParameter &value) override;
 	bool finalize(double zd, const Cosmology *pCosm) override;
 private:
+	std::vector<std::vector<float>> m_distanceFractionsForZ;
 	std::vector<std::pair<float,float>> m_distanceFractionWeights;
-	bool m_allDistFracKnown;
+	bool m_redshiftDistributionNeeded;
 	float m_howManySigmaFactor;
 	int m_numSigmaSamplePoints;
+
+	float m_maxZ;
+	DiscreteFunction<float> m_distFracFunction;
 };
 
 } // end namespace

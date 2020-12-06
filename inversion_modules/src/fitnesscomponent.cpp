@@ -3,6 +3,7 @@
 #include <grale/imagesdataextended.h>
 #include <grale/projectedimagesinterface.h>
 #include <grale/configurationparameters.h>
+#include <grale/cosmology.h>
 #include <limits>
 #include <list>
 #include <sstream>
@@ -1506,9 +1507,10 @@ FitnessComponent_WeakLensing_Bayes::FitnessComponent_WeakLensing_Bayes(FitnessCo
 	: FitnessComponent("bayesweaklensing", pCache)
 {
 	addRecognizedTypeName("bayesellipticities");
-	m_allDistFracKnown = true;
+	m_redshiftDistributionNeeded = false;
 	m_howManySigmaFactor = 3.0f;
 	m_numSigmaSamplePoints = 7;
+	m_maxZ = 0;
 }
 
 FitnessComponent_WeakLensing_Bayes::~FitnessComponent_WeakLensing_Bayes()
@@ -1537,13 +1539,11 @@ bool FitnessComponent_WeakLensing_Bayes::inspectImagesData(int idx, const Images
 		return false;
 	}
 
-	// TODO: this should be redshift as well as redshift uncertainty
-	if (!imgDat.hasProperty(ImagesData::DistanceFraction))
+	if (!imgDat.hasProperty(ImagesData::Redshift) || !imgDat.hasProperty(ImagesData::RedshiftUncertainty))
 	{
-		setErrorString("The points must have distance fraction settings (0 = unknown)");
+		setErrorString("The points must have redshift and uncertainty settings (z=0 z_sigma=0 is completely unknown, z=X z_sigma=0 is accurate redshift, z=X z_sigma=Y is redshift with uncertainty)");
 		return false;
 	}
-	// TODO: check uncertainties?
 
 	// Check Dds ==1 and Ds == 1, so that Dds/Ds == 1
 	if (imgDat.getDs() != 1 || imgDat.getDds() != 1)
@@ -1560,20 +1560,41 @@ bool FitnessComponent_WeakLensing_Bayes::inspectImagesData(int idx, const Images
 		return false;
 	}
 
+	m_distanceFractionsForZ.push_back(vector<float>());
+	vector<float> &distFracForZ = m_distanceFractionsForZ[m_distanceFractionsForZ.size()-1];
+
 	for (int i = 0 ; i < numPoints ; i++)
 	{
-		double distFrac = imgDat.getImagePointProperty(ImagesData::DistanceFraction, 0, i);
-		
-		if (distFrac == 0) // indicates unknown distance fraction, will need probability info
-			m_allDistFracKnown = false;
-		else
+		// We don't have the lens redshift here, not the cosmology
+		// For now just save the redshift if it needs to be converted
+		float z = (float)imgDat.getImagePointProperty(ImagesData::Redshift, 0, i);
+		float dz = (float)imgDat.getImagePointProperty(ImagesData::RedshiftUncertainty, 0, i);
+		if (z < 0 || dz < 0)
 		{
-			if (distFrac < 0 || distFrac >= 1.0)
+			setErrorString("All redshifts and uncertainties must be non-negative (z=" + to_string(z) + " z_sigma=" + to_string(dz) + ")");
+			return false;
+		}
+		
+		float dfToCalculate = -1; // negative signals that it does not need to be calculated
+		if (z == 0) // indicates unknown distance fraction, will need probability info
+		{
+			if (dz != 0)
 			{
-				setErrorString("Encountered invalid distance fraction, should be positive and smaller than one, but is " + to_string(distFrac));
+				setErrorString("For unknown redshifts, the uncertainty must be set to zero (z_sigma=" + to_string(dz) + ")");
 				return false;
 			}
+			m_redshiftDistributionNeeded = true;
 		}
+		else
+		{
+			// Keep track of maximum redshift
+			// TODO: is 5 sigma a good upper limit to add?
+			m_maxZ = std::max(m_maxZ, z + 5.0f*dz);
+			if (dz == 0)
+				dfToCalculate = z;
+		}
+
+		distFracForZ.push_back(dfToCalculate);
 	}
 	
 	needCalcDeflDeriv = true;
@@ -1618,6 +1639,9 @@ bool FitnessComponent_WeakLensing_Bayes::processFitnessOption(const std::string 
 		return true;
 	}
 
+	// TODO: add b/a distribution, check between 0 and 1, calculate area and normalize
+
+	// TODO: this should become redshift distribution
 	if (optionName == "distfracdistribution")
 	{
 		if (value.isEmpty()) // Ok, nothing set, but check later if we need it
@@ -1687,8 +1711,45 @@ bool FitnessComponent_WeakLensing_Bayes::finalize(double zd, const Cosmology *pC
 		return false;
 	}
 
-	if (!m_allDistFracKnown)
+	if (zd <= 0) // Should not happen of course, just for safety an extra check
 	{
+		setErrorString("Lens redshift should be positive");
+		return false;
+	}
+
+	// Determine a discrete distance fraction function
+	if (m_maxZ < zd)
+		m_maxZ = zd*1.1f; // TODO: should probably not happen anyway
+	int distFracPoints = 8192; // TODO: what's a good value here? get this from config option?
+	vector<float> distFracs(distFracPoints);
+	for (int i = 0 ; i < distFracPoints ; i++)
+	{
+		float frac = (float)i/(float)(distFracPoints-1);
+		float zs = (1.0f-frac)*zd + frac*m_maxZ;
+		distFracs[i] = (float)(pCosm->getAngularDiameterDistance(zd, zs)/pCosm->getAngularDiameterDistance(zs));
+	}
+
+	auto r = m_distFracFunction.init(zd, m_maxZ, distFracs);
+	if (!r)
+	{
+		setErrorString("Unexpected: couldn't init discrete distance fraction function: " + r.getErrorString());
+		return false;
+	}
+
+	// Pre-calculate Dds/Ds for points where it's useful
+	for (auto &sources : m_distanceFractionsForZ)
+	{
+		for (auto &zsToDf : sources)
+		{
+			// If the value is positive, it can be pre-calculated to a distance fraction
+			if (zsToDf > 0)
+				zsToDf = m_distFracFunction(zsToDf); // TODO: use exact calculation here instead?
+		}
+	}
+
+	if (m_redshiftDistributionNeeded)
+	{
+		// TODO: this should become the redshift distribution
 		if (m_distanceFractionWeights.size() == 0)
 		{
 			setErrorString("No distance fraction distribution is set, but not all distance fractions (Dds/Ds) are known");
