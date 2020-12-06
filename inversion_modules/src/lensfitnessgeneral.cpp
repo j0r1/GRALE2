@@ -260,7 +260,10 @@ ConfigurationParameters *LensFitnessGeneral::getDefaultParametersInstance() cons
 	pParams->setParameter("fitness_pointgroupoverlap_rmstype", string("AllBetas"));
 	pParams->setParameter("fitness_timedelay_type", string("NoSrc"));
 	pParams->setParameter("fitness_weaklensing_type", string("AveragedEllipticities"));
+
 	pParams->setParameterEmpty("fitness_bayesweaklensing_distfracdistribution");
+	pParams->setParameterEmpty("fitness_bayesweaklensing_redshiftdistribution");
+	pParams->setParameterEmpty("fitness_bayesweaklensing_b_over_a_distribution");
 	pParams->setParameter("fitness_bayesweaklensing_sigmafactor", 3.0);
 	pParams->setParameter("fitness_bayesweaklensing_sigmasteps", 7);
 	return pParams;

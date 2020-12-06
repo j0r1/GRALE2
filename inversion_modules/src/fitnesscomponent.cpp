@@ -1640,6 +1640,48 @@ bool FitnessComponent_WeakLensing_Bayes::processFitnessOption(const std::string 
 	}
 
 	// TODO: add b/a distribution, check between 0 and 1, calculate area and normalize
+	if (optionName == "b_over_a_distribution")
+	{
+		if (value.isEmpty()) // Allow empty default, check later if it's been set if needed
+			return true;
+
+		if (!value.isArray() || !value.isReal() || value.getNumberOfEntries() < 2)
+		{
+			setErrorString("This should either be an array with at least two real numbers");
+			return false;
+		}
+
+		// Normalize it ; b/a goes from 0 to 1
+		const vector<double> &probdist = value.getRealValues();
+		double area = 0;
+		for (int i = 0 ; i < probdist.size()-1 ; i++)
+		{
+			double x0 = (double)i/(double)(probdist.size()-1);
+			double x1 = (double)(i+1)/(double)(probdist.size()-1);
+			double y0 = probdist[i];
+			double y1 = probdist[i+1];
+			if (y0 < 0 || y1 < 0)
+			{
+				setErrorString("All values in b/a distribution must be non-negative");
+				return false;
+			}
+
+			area += 0.5*(y0+y1)*(x1-x0);
+		}
+		vector<float> floatProbdist;
+		for (auto p : probdist)
+			floatProbdist.push_back((float)(p / area));
+
+		m_baDistFunction = make_unique<DiscreteFunction<float>>();
+		auto r = m_baDistFunction->init(0.0f, 1.0f, floatProbdist);
+		if (!r)
+		{
+			setErrorString("Unexpected: unable to initialize b/a prob dist function: " + r.getErrorString());
+			return false;
+		}
+
+		return true;
+	}
 
 	// TODO: this should become redshift distribution
 	if (optionName == "distfracdistribution")
@@ -1755,6 +1797,12 @@ bool FitnessComponent_WeakLensing_Bayes::finalize(double zd, const Cosmology *pC
 			setErrorString("No distance fraction distribution is set, but not all distance fractions (Dds/Ds) are known");
 			return false;
 		}
+	}
+
+	if (m_baDistFunction.get() == nullptr)
+	{
+		setErrorString("No b/a distribution has been set");
+		return false;
 	}
 
 

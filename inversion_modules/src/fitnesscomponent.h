@@ -344,6 +344,8 @@ private:
 
 	float m_maxZ;
 	DiscreteFunction<float> m_distFracFunction;
+
+	std::unique_ptr<DiscreteFunction<float>> m_baDistFunction;
 };
 
 } // end namespace
