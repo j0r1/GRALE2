@@ -52,6 +52,8 @@ public:
 		DistanceFraction,
 		ShearUncertaintyComponent1,
 		ShearUncertaintyComponent2,
+		Redshift,
+		RedshiftUncertainty,
 		MaxProperty
 	};
 

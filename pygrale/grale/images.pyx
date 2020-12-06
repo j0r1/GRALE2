@@ -88,6 +88,8 @@ cdef class ImagesData:
         "shearsigma": [ imagesdata.ShearUncertaintyComponent1, imagesdata.ShearUncertaintyComponent2 ],
         "shearsigma1": [ imagesdata.ShearUncertaintyComponent1 ],
         "shearsigma2": [ imagesdata.ShearUncertaintyComponent2 ],
+        "redshift": [ imagesdata.Redshift ],
+        "redshiftsigma": [ imagesdata.RedshiftUncertainty ],
     }
     propertyReductions = {
         "shear": [ "shear1", "shear2" ],
@@ -107,7 +109,8 @@ cdef class ImagesData:
            using the :func:`addImage` member function.
          - ``kwargs`` can specify the presence of a number of properties, which can
            be one or more of 
-           ``intensity``, ``shear``, ``shear1``, ``shear2``, ``shearweight``, ``distancefraction``, ``shearsigma``, ``shearsigma1``, ``shearsigma2``.
+           ``intensity``, ``shear``, ``shear1``, ``shear2``, ``shearweight``, ``distancefraction``, 
+           ``shearsigma``, ``shearsigma1``, ``shearsigma2``, ``redshift``, ``redshiftsigma``.
            E.g to add intensity information to each point, pass
            ``intensity=True`` as an argument. Property names that are set to ``False``
            are simply ignored.
