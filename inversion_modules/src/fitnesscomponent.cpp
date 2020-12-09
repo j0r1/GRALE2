@@ -1511,6 +1511,9 @@ FitnessComponent_WeakLensing_Bayes::FitnessComponent_WeakLensing_Bayes(FitnessCo
 	m_howManySigmaFactor = 3.0f;
 	m_numSigmaSamplePoints = 7;
 	m_maxZ = 0;
+	m_zDistSampleStart = 0;
+	m_zDistSampleEnd = 0;
+	m_zDistSampleCount = 0;
 }
 
 FitnessComponent_WeakLensing_Bayes::~FitnessComponent_WeakLensing_Bayes()
@@ -1683,55 +1686,52 @@ bool FitnessComponent_WeakLensing_Bayes::processFitnessOption(const std::string 
 		return true;
 	}
 
-	// TODO: this should become redshift distribution
-	if (optionName == "distfracdistribution")
+	if (optionName == "zdist_values")
 	{
 		if (value.isEmpty()) // Ok, nothing set, but check later if we need it
 			return true;
-		
-		if (!value.isArray() || !value.isReal())
+
+		if (!value.isArray() || !value.isReal() || value.getNumberOfEntries() < 2)
 		{
-			setErrorString("This should either be empty or an array of real numbers");
+			setErrorString("This should either be empty or an array of at least two real numbers");
 			return false;
 		}
 
-		const vector<double> &values = value.getRealValues();
-		if (values.size() < 1 || values.size()%2 != 0)
+		// For now we'll just save this, we need range info from another parameter
+		for (auto v : value.getRealValues())
+			m_zDistValues.push_back((float)v);
+	}
+
+	if (optionName == "zdist_range")
+	{
+		if (value.isEmpty()) // Ok, nothing set, but check later if we need it
+			return true;
+
+		if (!value.isArray() || !value.isReal() || value.getNumberOfEntries() != 2)
 		{
-			setErrorString("An even number of values should be present, corresponding to pairs of a Dds/Ds fraction and a (positive) weight");
+			setErrorString("This should either be empty or an array of two real numbers");
 			return false;
 		}
 
-		vector<pair<double,double>> weights;
-		double weightSum = 0;
-		for (size_t i = 0 ; i < values.size() ; i += 2)
+		// Just store this for now, initialize it later
+		m_zDistMinMax.resize(2);
+		m_zDistMinMax[0] = (float)value.getRealValue(0);
+		m_zDistMinMax[1] = (float)value.getRealValue(1);
+	}
+
+	if (optionName == "zdist_numsamples")
+	{
+		if (value.isArray() || !value.isInteger())
 		{
-			double dfrac = values[i];
-			double w = values[i+1];
-			if (dfrac < 0 || dfrac > 1.0)
-			{
-				setErrorString("All distance fractions must be positive (detected " + to_string(dfrac) + ")");
-				return false;
-			}
-
-			if (w <= 0)
-			{
-				setErrorString("All weights must be strictly positive (detected " + to_string(w) + ")");
-				return false;
-			}
-
-			weights.push_back({dfrac, w});
-			weightSum += w;
+			setErrorString("This should be an integer");
+			return false;
 		}
-
-		// Make sure the weights are normalized
-		for (auto &dw : weights)
-			dw.second /= weightSum;
-
-		m_distanceFractionWeights.clear();
-		for (auto dw : weights)
-			m_distanceFractionWeights.push_back({(float)dw.first, (float)dw.second});
-		return true;
+		m_zDistSampleCount = value.getIntegerValue();
+		if (m_zDistSampleCount < 2)
+		{
+			setErrorString("At least two samples are needed");
+			return false;
+		}
 	}
 
 	setErrorString("Unknown option");
@@ -1791,12 +1791,45 @@ bool FitnessComponent_WeakLensing_Bayes::finalize(double zd, const Cosmology *pC
 
 	if (m_redshiftDistributionNeeded)
 	{
-		// TODO: this should become the redshift distribution
-		if (m_distanceFractionWeights.size() == 0)
+		if (m_zDistValues.size() == 0)
 		{
-			setErrorString("No distance fraction distribution is set, but not all distance fractions (Dds/Ds) are known");
+			setErrorString("Not all redshifts are known, a general redshift distribution is needed");
 			return false;
 		}
+		if (m_zDistMinMax.size() != 2)
+		{
+			setErrorString("Start/end of the redshift distribution range is needed");
+			return false;
+		}
+
+		m_zDistFunction = make_unique<DiscreteFunction<float>>();
+		auto r = m_zDistFunction->init(m_zDistMinMax[0], m_zDistMinMax[1], m_zDistValues);
+		if (!r)
+		{
+			setErrorString("Unable to initialize the redshift distribution function: " + r.getErrorString());
+			return false;
+		}
+
+		float x0 = zd;
+		float x1 = m_zDistValues[1];
+
+		// The distance ratio for zd will be zero, we don't need to consider this
+		// If the probability for the highest z is also zero, we don't need to
+		// consider that either
+		if ((*m_zDistFunction)(x1) == 0)
+		{
+			float diff = (x1-x0)/(float)(m_zDistSampleCount+1);
+			x0 += diff;
+			x1 -= diff;
+		}
+		else
+		{
+			float diff = (x1-x0)/(float)m_zDistSampleCount;
+			x0 += diff;
+		}
+
+		m_zDistSampleStart = x0;
+		m_zDistSampleEnd = x1;
 	}
 
 	if (m_baDistFunction.get() == nullptr)

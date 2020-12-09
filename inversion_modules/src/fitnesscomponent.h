@@ -337,13 +337,21 @@ public:
 	bool finalize(double zd, const Cosmology *pCosm) override;
 private:
 	std::vector<std::vector<float>> m_distanceFractionsForZ;
-	std::vector<std::pair<float,float>> m_distanceFractionWeights;
+
+	std::vector<std::pair<float,float>> m_distanceFractionWeights; // TODO: remove this!
+
 	bool m_redshiftDistributionNeeded;
 	float m_howManySigmaFactor;
 	int m_numSigmaSamplePoints;
 
-	float m_maxZ;
+	float m_maxZ; // Keeps track of maximum redshift in input data (uncertainty included, 5sigma)
+
 	DiscreteFunction<float> m_distFracFunction;
+
+	std::vector<float> m_zDistValues;
+	std::vector<float> m_zDistMinMax;
+	std::unique_ptr<DiscreteFunction<float>> m_zDistFunction;
+	float m_zDistSampleStart, m_zDistSampleEnd, m_zDistSampleCount;
 
 	std::unique_ptr<DiscreteFunction<float>> m_baDistFunction;
 };
