@@ -1071,12 +1071,108 @@ float calculateNullFitness_ExtendedImages(const ProjectedImagesInterface &iface,
 	return nullfitness;
 }
 
+inline float calculateEllipticityProbability(float epsilon, float f1, float f2, 
+											float axx, float ayy, float axy, float distFrac)
+{
+	float gamma1 = 0.5f*(axx-ayy)*distFrac;
+	float gamma2 = axy*distFrac;
+	float kappa = 0.5f*(axx+ayy)*distFrac;
+	
+	float oneMinusKappa = 1.0f-kappa;
+	if (ABS(oneMinusKappa) < epsilon) // avoid division by zero
+			oneMinusKappa = copysign(epsilon, oneMinusKappa);
+
+	float g1 = gamma1/oneMinusKappa;
+	float g2 = gamma2/oneMinusKappa;
+
+	// This is based on a Bayesian calculation, assuming the ellipticities
+	// are known without error. Further assuming a uniform distribution 
+	// for the b/a ratio of the elliptic source shapes, and a uniform 
+	// prior on the basis function weights.
+	// Then, only the jacobians of the ellipSrc to ellipImg transforms
+	// weighted by possibly unknown distance fractions
+
+	// TODO: this fitness can (and will) get negative. The algorithm does
+	//       seem to keep working, but for now I'm not really sure if there
+	//       are unintended consequences of this.
+	
+	// weights are ignored currently
+	float gSq = g1*g1 + g2*g2;
+	float fSq = f1*f1 + f2*f2;
+	complex<float> eImg = { f1, f2 };
+	complex<float> g = { g1, g2 };
+	float F = 0;
+	float jacRoot = 0;
+	
+	// A factor 2 has been omitted, and logprob sign reversed so that we'll be
+	// looking for a minimum
+	if (gSq <= 1)
+	{
+		F = abs(eImg - g)/(abs(1.0f - conj(g)*eImg) + epsilon);
+		jacRoot = (gSq-1.0f)/(abs(fSq*gSq - 2.0f*f1*g1 - 2.0f*f2*g2 + 1.0f) + epsilon);
+	}
+	else
+	{
+		F = abs(1.0f - g*conj(eImg))/(abs(conj(eImg) - conj(g)) + epsilon);
+		jacRoot = (gSq-1.0f)/(abs(fSq + gSq - 2.0f*f1*g2 - 2.0f*f2*g2) + epsilon);
+	}
+
+	float jac = jacRoot*jacRoot;
+	// Note that this is actualy still a proportionality, depending on the b/a distribution
+	// With this proportionality, every b/a, from 0 to 1 is possible with equal probability
+	float F1 = F+1.0f;
+	float prob = 1.0f/(float(CONST_PI) * (F + epsilon) * F1*F1)*jac; // avoid div by zero
+	return prob;
+}
+
+float calculateEllipticityProbabilityWithError(float epsilon, float startFromSigmaFactor, float sigmaSteps,
+											float f1, float f2, float sigma1, float sigma2,
+											float axx, float ayy, float axy, float distFrac)
+{
+	if (sigma1 == 0 && sigma2 == 0)
+		return calculateEllipticityProbability(epsilon, f1, f2, axx, ayy, axy, distFrac);
+
+	float f1Start = f1 - sigma1*startFromSigmaFactor;
+	float f1End = f1 + sigma1*startFromSigmaFactor;
+	float f2Start = f2 - sigma2*startFromSigmaFactor;
+	float f2End = f2 + sigma2*startFromSigmaFactor;
+	float df1 = (f1End-f1Start)/((float)(sigmaSteps-1));
+	float df2 = (f2End-f2Start)/((float)(sigmaSteps-1));
+	float weightSum = 0;
+	float probSum = 0;
+
+	for (int y = 0 ; y < sigmaSteps ; y++)
+	{
+		float f2Sample = f2Start + y*df2;
+		float difff2 = (f2Sample - f2)/sigma2;
+		float gauss2 = std::exp(-0.5f*difff2*difff2);
+
+		for (int x = 0 ; x < sigmaSteps ; x++)
+		{
+			float f1Sample = f1Start + x*df1;
+			float difff1 = (f1Start - f1)/sigma1;
+			float gauss1 = std::exp(-0.5f*difff1*difff1);
+
+			float factor = gauss1*gauss2;
+			weightSum += factor;
+
+			float prob = 0.0f;
+			if (f1Sample*f1Sample + f2Sample*f2Sample < 1.0f)
+				prob = calculateEllipticityProbability(epsilon, f1Sample, f2Sample, axx, ayy, axy, distFrac);
+
+			probSum += factor * prob;
+		}
+	}
+	return probSum/weightSum;
+};
+
 // For the bayesian version, we assume that Dds/Ds of the extended images
 // was set to one; the actual Dds/Ds should be stored in the shear weights
 // entries. If set to zero, the actual redshift is unknown and a weighted
 // average will be used based on distanceFractionWeights (assumed to be
 // normalized)
 
+// TODO: use B/A dist!
 float calculateWeakLensingFitness_Bayes(const ProjectedImagesInterface &interface,
 	const vector<int> &weakIndices,
 	const vector<vector<float>> &preCalcDistFrac,
@@ -1084,115 +1180,14 @@ float calculateWeakLensingFitness_Bayes(const ProjectedImagesInterface &interfac
 	const DiscreteFunction<float> *pZDistFunction,
 	float zDistSampleMin, float zDistSampleMax, int zDistSampleCount,
 	const DiscreteFunction<float> &baDistFunction,
-	float startFromSigmaFactor, int sigmaSteps)
-{
-	return 0; // TODO
-}
-
-float calculateWeakLensingFitness_Bayes_old(const ProjectedImagesInterface &interface, 
-	const vector<int> &weakIndices,
-	const vector<pair<float,float>> &unknownDistFracWeightsNormed,
-	float startFromSigmaFactor, int sigmaSteps)
+	float startFromSigmaFactor, int sigmaSteps,
+	float zLens)
 {
 	const float epsilon = 1e-6; // to avoid division by zero
 	float shearFitness = 0;
 	int usedPoints = 0;
 
-	auto calculateEllipticityProbability = [epsilon](float f1, float f2, 
-	                                          float axx, float ayy, float axy, float distFrac) -> float
-	{
-		float gamma1 = 0.5f*(axx-ayy)*distFrac;
-		float gamma2 = axy*distFrac;
-		float kappa = 0.5f*(axx+ayy)*distFrac;
-		
-		float oneMinusKappa = 1.0f-kappa;
-		if (ABS(oneMinusKappa) < epsilon) // avoid division by zero
-				oneMinusKappa = copysign(epsilon, oneMinusKappa);
-
-		float g1 = gamma1/oneMinusKappa;
-		float g2 = gamma2/oneMinusKappa;
-
-		// This is based on a Bayesian calculation, assuming the ellipticities
-		// are known without error. Further assuming a uniform distribution 
-		// for the b/a ratio of the elliptic source shapes, and a uniform 
-		// prior on the basis function weights.
-		// Then, only the jacobians of the ellipSrc to ellipImg transforms
-		// weighted by possibly unknown distance fractions
-
-		// TODO: this fitness can (and will) get negative. The algorithm does
-		//       seem to keep working, but for now I'm not really sure if there
-		//       are unintended consequences of this.
-		
-		// weights are ignored currently
-		float gSq = g1*g1 + g2*g2;
-		float fSq = f1*f1 + f2*f2;
-		complex<float> eImg = { f1, f2 };
-		complex<float> g = { g1, g2 };
-		float F = 0;
-		float jacRoot = 0;
-		
-		// A factor 2 has been omitted, and logprob sign reversed so that we'll be
-		// looking for a minimum
-		if (gSq <= 1)
-		{
-			F = abs(eImg - g)/(abs(1.0f - conj(g)*eImg) + epsilon);
-			jacRoot = (gSq-1.0f)/(abs(fSq*gSq - 2.0f*f1*g1 - 2.0f*f2*g2 + 1.0f) + epsilon);
-		}
-		else
-		{
-			F = abs(1.0f - g*conj(eImg))/(abs(conj(eImg) - conj(g)) + epsilon);
-			jacRoot = (gSq-1.0f)/(abs(fSq + gSq - 2.0f*f1*g2 - 2.0f*f2*g2) + epsilon);
-		}
-
-		float jac = jacRoot*jacRoot;
-		// Note that this is actualy still a proportionality, depending on the b/a distribution
-		// With this proportionality, every b/a, from 0 to 1 is possible with equal probability
-		float F1 = F+1.0f;
-		float prob = 1.0f/(float(CONST_PI) * (F + epsilon) * F1*F1)*jac; // avoid div by zero
-		return prob;
-	};
-
-	auto calculateEllipticityProbabilityWithError = [epsilon,startFromSigmaFactor,sigmaSteps,calculateEllipticityProbability](
-		                                      float f1, float f2, float sigma1, float sigma2,
-	                                          float axx, float ayy, float axy, float distFrac) -> float
-	{
-		if (sigma1 == 0 && sigma2 == 0)
-			return calculateEllipticityProbability(f1, f2, axx, ayy, axy, distFrac);
-
-		float f1Start = f1 - sigma1*startFromSigmaFactor;
-		float f1End = f1 + sigma1*startFromSigmaFactor;
-		float f2Start = f2 - sigma2*startFromSigmaFactor;
-		float f2End = f2 + sigma2*startFromSigmaFactor;
-		float df1 = (f1End-f1Start)/((float)(sigmaSteps-1));
-		float df2 = (f2End-f2Start)/((float)(sigmaSteps-1));
-		float weightSum = 0;
-		float probSum = 0;
-
-		for (int y = 0 ; y < sigmaSteps ; y++)
-		{
-			float f2Sample = f2Start + y*df2;
-			float difff2 = (f2Sample - f2)/sigma2;
-			float gauss2 = std::exp(-0.5*difff2*difff2);
-
-			for (int x = 0 ; x < sigmaSteps ; x++)
-			{
-				float f1Sample = f1Start + x*df1;
-				float difff1 = (f1Start - f1)/sigma1;
-				float gauss1 = std::exp(-0.5*difff1*difff1);
-
-				float factor = gauss1*gauss2;
-				weightSum += factor;
-
-				float prob = 0.0f;
-				if (f1Sample*f1Sample + f2Sample*f2Sample < 1.0f)
-					prob = calculateEllipticityProbability(f1Sample, f2Sample, axx, ayy, axy, distFrac);
-
-				probSum += factor * prob;
-			}
-		}
-		return probSum/weightSum;
-	};
-
+	assert(weakIndices.size() == preCalcDistFrac.size());
 	for (int sIdx = 0 ; sIdx < weakIndices.size() ; sIdx++)
 	{
 		const int s = weakIndices[sIdx];
@@ -1201,12 +1196,16 @@ float calculateWeakLensingFitness_Bayes_old(const ProjectedImagesInterface &inte
 		int numPoints = interface.getNumberOfImagePoints(s);
 		const float *pEll1 = interface.getOriginalProperties(ImagesData::ShearComponent1, s);
 		const float *pEll2 = interface.getOriginalProperties(ImagesData::ShearComponent2, s);
-		const float *pDistFrac = interface.getOriginalProperties(ImagesData::DistanceFraction, s);
+		const float *pZ = interface.getOriginalProperties(ImagesData::Redshift, s);
+		const float *pZSigma = interface.getOriginalProperties(ImagesData::RedshiftUncertainty, s);
 		const float *pAxx = interface.getDerivativesXX(s);
 		const float *pAyy = interface.getDerivativesYY(s);
 		const float *pAxy = interface.getDerivativesXY(s);
 		const float *pEllError1 = (interface.hasOriginalProperty(ImagesData::ShearUncertaintyComponent1, s))?interface.getOriginalProperties(ImagesData::ShearUncertaintyComponent1, s):nullptr;
 		const float *pEllError2 = (interface.hasOriginalProperty(ImagesData::ShearUncertaintyComponent2, s))?interface.getOriginalProperties(ImagesData::ShearUncertaintyComponent2, s):nullptr;
+		
+		const float *pDistFrac = preCalcDistFrac[sIdx].data(); // Note that we need sIdx here, not s
+		assert(preCalcDistFrac[sIdx].size() == numPoints);
 
 		// TODO: for debugging
 		// {
@@ -1231,27 +1230,76 @@ float calculateWeakLensingFitness_Bayes_old(const ProjectedImagesInterface &inte
 			float axx = pAxx[i];
 			float ayy = pAyy[i];
 			float axy = pAxy[i];
-			float distFrac = pDistFrac[i];
-			// we're abusing the weights to store distance fraction, which should be set
-			// explicitly (the default value is 1)
-			assert(distFrac != 1);
+			float distFrac = pDistFrac[i]; // TODO: check later if this is initialized
+			float z = pZ[i];
+			float zSigma = pZSigma[i];
 
 			float f1 = pEll1[i]; // entries represent measured galaxy ellipticities
 			float f2 = pEll2[i];
 			float sigma1 = (pEllError1 != nullptr)?pEllError1[i]:0.0f;
 			float sigma2 = (pEllError2 != nullptr)?pEllError2[i]:0.0f;
-			// TODO: use sigma
 
 			float elliptProb = 0;
-			if (distFrac != 0)
-				elliptProb = calculateEllipticityProbabilityWithError(f1, f2, sigma1, sigma2, axx, ayy, axy, distFrac);
-			else
-			{
-				// Unknown redshift/distance fraction, use weighted average according to some distribution
-				for (auto fracAndProb : unknownDistFracWeightsNormed)
-					elliptProb += calculateEllipticityProbabilityWithError(f1, f2, sigma1, sigma2, axx, ayy, axy, fracAndProb.first) * fracAndProb.second;
-			}
+			float weightSum = 0;
 
+			if (z != 0 && zSigma == 0) // Redshift is known accurately
+			{
+				assert(distFrac > 0 && distFrac < 1);
+
+				elliptProb = calculateEllipticityProbabilityWithError(epsilon, startFromSigmaFactor, sigmaSteps,
+					f1, f2, sigma1, sigma2, axx, ayy, axy, distFrac);
+				weightSum = 1.0f;
+			}
+			else if (z != 0 && zSigma != 0) // Redshift is known with uncertainty
+			{
+
+				// // Unknown redshift/distance fraction, use weighted average according to some distribution
+				// for (auto fracAndProb : unknownDistFracWeightsNormed)
+				// 	elliptProb += calculateEllipticityProbabilityWithError(epsilon, startFromSigmaFactor, sigmaSteps,
+				// 		f1, f2, sigma1, sigma2, axx, ayy, axy, fracAndProb.first) * fracAndProb.second;
+
+				float zStart = z - zSigma*startFromSigmaFactor;
+				float zEnd = z + zSigma*startFromSigmaFactor;
+				float dz = (zEnd-zStart)/((float)(sigmaSteps-1));
+
+				for (int i = 0 ; i < sigmaSteps ; i++)
+				{
+					float zSample = zStart + i*dz;
+					float diffz = (zSample - z)/zSigma;
+					float zProb = std::exp(-0.5f*diffz*diffz);
+					float distFrac = distFracFunction(zSample);
+
+					if (zSample > zLens) // Otherwise probability is zero
+					{
+						weightSum += zProb;
+						elliptProb += calculateEllipticityProbabilityWithError(epsilon, startFromSigmaFactor, sigmaSteps,
+							f1, f2, sigma1, sigma2, axx, ayy, axy, distFrac) * zProb;
+					}
+				}
+			}
+			else if (z == 0 && zSigma == 0)
+			{
+				// No knowledge about redshift whatsoever
+				// TODO: pre-calculate probs and distFracs, no need to evaluate this every time
+
+				assert(pZDistFunction);
+				for (int i = 0 ; i < zDistSampleCount ; i++)
+				{
+					float frac = (float)i/(float)(zDistSampleCount-1);
+					float z = zDistSampleMin*(1.0f-frac) + zDistSampleMax*frac;
+
+					float zProb = (*pZDistFunction)(z);
+					float distFrac = distFracFunction(z);
+
+					weightSum += zProb;
+					elliptProb += calculateEllipticityProbabilityWithError(epsilon, startFromSigmaFactor, sigmaSteps,
+				 		f1, f2, sigma1, sigma2, axx, ayy, axy, distFrac) * zProb;
+				}
+			}
+			else
+				assert(0);
+
+			elliptProb /= weightSum;
 			if (elliptProb <= 0) // avoid problems with log
 				elliptProb = epsilon; 
 			

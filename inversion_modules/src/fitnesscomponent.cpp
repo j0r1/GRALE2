@@ -1510,6 +1510,7 @@ FitnessComponent_WeakLensing_Bayes::FitnessComponent_WeakLensing_Bayes(FitnessCo
 	m_redshiftDistributionNeeded = false;
 	m_howManySigmaFactor = 3.0f;
 	m_numSigmaSamplePoints = 7;
+	m_zLens = 0;
 	m_maxZ = 0;
 	m_zDistSampleStart = 0;
 	m_zDistSampleEnd = 0;
@@ -1745,7 +1746,7 @@ bool FitnessComponent_WeakLensing_Bayes::calculateFitness(const ProjectedImagesI
 		m_distanceFractionsForZ, m_distFracFunction,
 		m_zDistFunction.get(), m_zDistSampleStart, m_zDistSampleEnd, m_zDistSampleCount,
 		*m_baDistFunction.get(),
-		m_howManySigmaFactor, m_numSigmaSamplePoints);
+		m_howManySigmaFactor, m_numSigmaSamplePoints, m_zLens);
 
 	return true;
 }
@@ -1763,6 +1764,8 @@ bool FitnessComponent_WeakLensing_Bayes::finalize(double zd, const Cosmology *pC
 		setErrorString("Lens redshift should be positive");
 		return false;
 	}
+
+	m_zLens = zd;
 
 	// Determine a discrete distance fraction function
 	if (m_maxZ < zd)

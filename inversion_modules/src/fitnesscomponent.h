@@ -342,6 +342,7 @@ private:
 	float m_howManySigmaFactor;
 	int m_numSigmaSamplePoints;
 
+	float m_zLens;
 	float m_maxZ; // Keeps track of maximum redshift in input data (uncertainty included, 5sigma)
 
 	DiscreteFunction<float> m_distFracFunction;

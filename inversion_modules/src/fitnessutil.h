@@ -84,7 +84,8 @@ float calculateWeakLensingFitness_Bayes(const ProjectedImagesInterface &interfac
 	const DiscreteFunction<float> *pZDistFunction,
 	float zDistSampleMin, float zDistSampleMax, int zDistSampleCount,
 	const DiscreteFunction<float> &baDistFunction,
-	float startFromSigmaFactor, int sigmaSteps);
+	float startFromSigmaFactor, int sigmaSteps,
+	float zd);
 
 float calculateTimeDelayFitnessPaper2009(const ProjectedImagesInterface &iface, const std::vector<int> &sourceIndices,
 		                        const std::vector<float> &tdScaleFactors = std::vector<float>());
