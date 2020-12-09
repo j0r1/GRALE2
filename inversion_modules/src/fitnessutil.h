@@ -81,8 +81,7 @@ float calculateWeakLensingFitness_Bayes(const ProjectedImagesInterface &interfac
 	const std::vector<int> &weakIndices,
 	const std::vector<std::vector<float>> &preCalcDistFrac,
 	const DiscreteFunction<float> &distFracFunction,
-	const DiscreteFunction<float> *pZDistFunction,
-	float zDistSampleMin, float zDistSampleMax, int zDistSampleCount,
+	const std::vector<std::pair<float,float>> &zDistDistFracAndProb,
 	const DiscreteFunction<float> &baDistFunction,
 	float startFromSigmaFactor, int sigmaSteps,
 	float zd);

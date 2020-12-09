@@ -350,7 +350,8 @@ private:
 	std::vector<float> m_zDistValues;
 	std::vector<float> m_zDistMinMax;
 	std::unique_ptr<DiscreteFunction<float>> m_zDistFunction;
-	float m_zDistSampleStart, m_zDistSampleEnd, m_zDistSampleCount;
+	float m_zDistSampleCount;
+	std::vector<std::pair<float,float>> m_zDistDistFracAndProb;
 
 	std::unique_ptr<DiscreteFunction<float>> m_baDistFunction;
 };

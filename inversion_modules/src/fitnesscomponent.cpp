@@ -1512,8 +1512,6 @@ FitnessComponent_WeakLensing_Bayes::FitnessComponent_WeakLensing_Bayes(FitnessCo
 	m_numSigmaSamplePoints = 7;
 	m_zLens = 0;
 	m_maxZ = 0;
-	m_zDistSampleStart = 0;
-	m_zDistSampleEnd = 0;
 	m_zDistSampleCount = 0;
 }
 
@@ -1744,7 +1742,7 @@ bool FitnessComponent_WeakLensing_Bayes::calculateFitness(const ProjectedImagesI
 	fitness = calculateWeakLensingFitness_Bayes(iface,
 		getUsedImagesDataIndices(),
 		m_distanceFractionsForZ, m_distFracFunction,
-		m_zDistFunction.get(), m_zDistSampleStart, m_zDistSampleEnd, m_zDistSampleCount,
+		m_zDistDistFracAndProb,
 		*m_baDistFunction.get(),
 		m_howManySigmaFactor, m_numSigmaSamplePoints, m_zLens);
 
@@ -1836,8 +1834,17 @@ bool FitnessComponent_WeakLensing_Bayes::finalize(double zd, const Cosmology *pC
 			x0 += diff;
 		}
 
-		m_zDistSampleStart = x0;
-		m_zDistSampleEnd = x1;
+		m_zDistDistFracAndProb.clear();
+		for (int i = 0 ; i < m_zDistSampleCount ; i++)
+		{
+			float frac = (float)i/(float)(m_zDistSampleCount-1);
+			float z = x0*(1.0f-frac) + x1*frac;
+
+			float zProb = (*m_zDistFunction)(z);
+			float distFrac = m_distFracFunction(z);
+
+			m_zDistDistFracAndProb.push_back({ distFrac, zProb });
+		}
 	}
 
 	if (m_baDistFunction.get() == nullptr)

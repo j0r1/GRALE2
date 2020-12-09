@@ -1177,8 +1177,7 @@ float calculateWeakLensingFitness_Bayes(const ProjectedImagesInterface &interfac
 	const vector<int> &weakIndices,
 	const vector<vector<float>> &preCalcDistFrac,
 	const DiscreteFunction<float> &distFracFunction,
-	const DiscreteFunction<float> *pZDistFunction,
-	float zDistSampleMin, float zDistSampleMax, int zDistSampleCount,
+	const std::vector<std::pair<float,float>> &zDistDistFracAndProb,
 	const DiscreteFunction<float> &baDistFunction,
 	float startFromSigmaFactor, int sigmaSteps,
 	float zLens)
@@ -1280,16 +1279,11 @@ float calculateWeakLensingFitness_Bayes(const ProjectedImagesInterface &interfac
 			else if (z == 0 && zSigma == 0)
 			{
 				// No knowledge about redshift whatsoever
-				// TODO: pre-calculate probs and distFracs, no need to evaluate this every time
-
-				assert(pZDistFunction);
-				for (int i = 0 ; i < zDistSampleCount ; i++)
+				assert(zDistDistFracAndProb.size() > 0);
+				for (auto dp : zDistDistFracAndProb)
 				{
-					float frac = (float)i/(float)(zDistSampleCount-1);
-					float z = zDistSampleMin*(1.0f-frac) + zDistSampleMax*frac;
-
-					float zProb = (*pZDistFunction)(z);
-					float distFrac = distFracFunction(z);
+					float distFrac = dp.first;
+					float zProb = dp.second;
 
 					weightSum += zProb;
 					elliptProb += calculateEllipticityProbabilityWithError(epsilon, startFromSigmaFactor, sigmaSteps,
