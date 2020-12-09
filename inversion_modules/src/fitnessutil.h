@@ -5,6 +5,7 @@
 #include <grale/triangleindices.h>
 #include <grale/vector2d.h>
 #include <grale/imagesdataextended.h>
+#include <grale/discretefunction.h>
 #include <vector>
 #include <memory>
 
@@ -76,9 +77,14 @@ enum WeakLensingType { RealShear, RealReducedShear, AveragedEllipticities };
 float calculateWeakLensingFitness(const ProjectedImagesInterface &interface, const std::vector<int> &weakIndices, 
 							      WeakLensingType weakType, const std::vector<float> &oneMinusKappaThreshold);
 
-float calculateWeakLensingFitness_Bayes(const ProjectedImagesInterface &interface, const std::vector<int> &weakIndices,
-								  const std::vector<std::pair<float,float>> &unknownDistFracWeightsNormed,
-								  float startFromSigmaFactor, int sigmaSteps);
+float calculateWeakLensingFitness_Bayes(const ProjectedImagesInterface &interface,
+	const std::vector<int> &weakIndices,
+	const std::vector<std::vector<float>> &preCalcDistFrac,
+	const DiscreteFunction<float> &distFracFunction,
+	const DiscreteFunction<float> *pZDistFunction,
+	float zDistSampleMin, float zDistSampleMax, int zDistSampleCount,
+	const DiscreteFunction<float> &baDistFunction,
+	float startFromSigmaFactor, int sigmaSteps);
 
 float calculateTimeDelayFitnessPaper2009(const ProjectedImagesInterface &iface, const std::vector<int> &sourceIndices,
 		                        const std::vector<float> &tdScaleFactors = std::vector<float>());

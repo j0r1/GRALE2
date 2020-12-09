@@ -1076,9 +1076,23 @@ float calculateNullFitness_ExtendedImages(const ProjectedImagesInterface &iface,
 // entries. If set to zero, the actual redshift is unknown and a weighted
 // average will be used based on distanceFractionWeights (assumed to be
 // normalized)
-float calculateWeakLensingFitness_Bayes(const ProjectedImagesInterface &interface, const vector<int> &weakIndices,
-								  const vector<pair<float,float>> &unknownDistFracWeightsNormed,
-								  float startFromSigmaFactor, int sigmaSteps)
+
+float calculateWeakLensingFitness_Bayes(const ProjectedImagesInterface &interface,
+	const vector<int> &weakIndices,
+	const vector<vector<float>> &preCalcDistFrac,
+	const DiscreteFunction<float> &distFracFunction,
+	const DiscreteFunction<float> *pZDistFunction,
+	float zDistSampleMin, float zDistSampleMax, int zDistSampleCount,
+	const DiscreteFunction<float> &baDistFunction,
+	float startFromSigmaFactor, int sigmaSteps)
+{
+	return 0; // TODO
+}
+
+float calculateWeakLensingFitness_Bayes_old(const ProjectedImagesInterface &interface, 
+	const vector<int> &weakIndices,
+	const vector<pair<float,float>> &unknownDistFracWeightsNormed,
+	float startFromSigmaFactor, int sigmaSteps)
 {
 	const float epsilon = 1e-6; // to avoid division by zero
 	float shearFitness = 0;

@@ -1740,8 +1740,13 @@ bool FitnessComponent_WeakLensing_Bayes::processFitnessOption(const std::string 
 
 bool FitnessComponent_WeakLensing_Bayes::calculateFitness(const ProjectedImagesInterface &iface, float &fitness)
 {
-	fitness = calculateWeakLensingFitness_Bayes(iface, getUsedImagesDataIndices(), m_distanceFractionWeights,
-	                                            m_howManySigmaFactor, m_numSigmaSamplePoints);
+	fitness = calculateWeakLensingFitness_Bayes(iface,
+		getUsedImagesDataIndices(),
+		m_distanceFractionsForZ, m_distFracFunction,
+		m_zDistFunction.get(), m_zDistSampleStart, m_zDistSampleEnd, m_zDistSampleCount,
+		*m_baDistFunction.get(),
+		m_howManySigmaFactor, m_numSigmaSamplePoints);
+
 	return true;
 }
 
@@ -1837,7 +1842,6 @@ bool FitnessComponent_WeakLensing_Bayes::finalize(double zd, const Cosmology *pC
 		setErrorString("No b/a distribution has been set");
 		return false;
 	}
-
 
 	return true;
 }

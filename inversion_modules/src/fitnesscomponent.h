@@ -338,8 +338,6 @@ public:
 private:
 	std::vector<std::vector<float>> m_distanceFractionsForZ;
 
-	std::vector<std::pair<float,float>> m_distanceFractionWeights; // TODO: remove this!
-
 	bool m_redshiftDistributionNeeded;
 	float m_howManySigmaFactor;
 	int m_numSigmaSamplePoints;
