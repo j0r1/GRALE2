@@ -1032,11 +1032,27 @@ and are listed in the following table:
 | priority_weaklensing                | 500                     |
 | priority_bayesweaklensing           | 500                     |
 | priority_kappathreshold             | 600                     |
+| scalepriority_pointimageoverlap     | 100                     |
+| scalepriority_extendedimageoverlap  | 100                     |
+| scalepriority_pointgroupoverlap     | 200                     |
+| scalepriority_pointimagenull        | -1                      |
+| scalepriority_extendedimagenull     | -1                      |
+| scalepriority_weaklensing           | 300                     |
+| scalepriority_timedelay             | -1                      |
+| scalepriority_kappathreshold        | -1                      |
+| scalepriority_causticpenalty        | -1                      |
+| scalepriority_kappagradient         | -1                      |
+| scalepriority_bayesweaklensing      | 300                     |
 | fitness_pointgroupoverlap_rmstype   | 'AllBetas'              |
 | fitness_pointimageoverlap_scaletype | 'MinMax'                |
 | fitness_timedelay_type              | 'NoSrc'                 |
 | fitness_weaklensing_type            | 'AveragedEllipticities' |
-| fitness_bayesweaklensing_distfracdistribution| None           |
+| fitness_bayesweaklensing_zdist_values          | None         |
+| fitness_bayesweaklensing_zdist_range           | None         |
+| fitness_bayesweaklensing_zdist_numsamples      | 16           |
+| fitness_bayesweaklensing_b_over_a_distribution | None         |
+| fitness_bayesweaklensing_sigmafactor           | 3.0          |
+| fitness_bayesweaklensing_sigmasteps            | 7            |
 
 In case input is provided with 'pointgroupimages' type, the 'pointgroupoverlap'
 fitness calculation is used, which estimates the RMS in the image plane. It
