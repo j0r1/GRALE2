@@ -2,6 +2,7 @@
 #include "constants.h"
 #include <limits>
 #include <cmath>
+#include <iostream>
 #include <gsl/gsl_integration.h>
 
 using namespace std;
@@ -46,6 +47,7 @@ struct CosmParams
 
 double Cosmology::getAngularDiameterDistance(double z1, double z2) const
 {
+	//cerr << "DEBUG: Calculating angular diameter distance for " << z1 << " to " << z2 << endl;
 	if (z1 < 0 || z2 < 0)
 	{
 		setErrorString("Redshifts must be positive");
@@ -54,6 +56,9 @@ double Cosmology::getAngularDiameterDistance(double z1, double z2) const
 
 	if (z1 > z2)
 		std::swap(z1, z2);
+
+	if (z1 == z2)
+		return 0;
 
 	CosmParams cosm(m_h, m_Wm, m_Wr, m_Wv, m_w);
 	gsl_function F;
