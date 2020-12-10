@@ -1072,7 +1072,8 @@ float calculateNullFitness_ExtendedImages(const ProjectedImagesInterface &iface,
 }
 
 inline float calculateEllipticityProbability(float epsilon, float f1, float f2, 
-											float axx, float ayy, float axy, float distFrac)
+											float axx, float ayy, float axy, float distFrac,
+											const DiscreteFunction<float> &baDistFunction)
 {
 	float gamma1 = 0.5f*(axx-ayy)*distFrac;
 	float gamma2 = axy*distFrac;
@@ -1085,18 +1086,6 @@ inline float calculateEllipticityProbability(float epsilon, float f1, float f2,
 	float g1 = gamma1/oneMinusKappa;
 	float g2 = gamma2/oneMinusKappa;
 
-	// This is based on a Bayesian calculation, assuming the ellipticities
-	// are known without error. Further assuming a uniform distribution 
-	// for the b/a ratio of the elliptic source shapes, and a uniform 
-	// prior on the basis function weights.
-	// Then, only the jacobians of the ellipSrc to ellipImg transforms
-	// weighted by possibly unknown distance fractions
-
-	// TODO: this fitness can (and will) get negative. The algorithm does
-	//       seem to keep working, but for now I'm not really sure if there
-	//       are unintended consequences of this.
-	
-	// weights are ignored currently
 	float gSq = g1*g1 + g2*g2;
 	float fSq = f1*f1 + f2*f2;
 	complex<float> eImg = { f1, f2 };
@@ -1118,19 +1107,19 @@ inline float calculateEllipticityProbability(float epsilon, float f1, float f2,
 	}
 
 	float jac = jacRoot*jacRoot;
-	// Note that this is actualy still a proportionality, depending on the b/a distribution
-	// With this proportionality, every b/a, from 0 to 1 is possible with equal probability
+	float baProb = baDistFunction(F);
 	float F1 = F+1.0f;
-	float prob = 1.0f/(float(CONST_PI) * (F + epsilon) * F1*F1)*jac; // avoid div by zero
+	float prob = 1.0f/(float(CONST_PI) * (F + epsilon) * F1*F1) * baProb * jac; // avoid div by zero
 	return prob;
 }
 
 float calculateEllipticityProbabilityWithError(float epsilon, float startFromSigmaFactor, float sigmaSteps,
 											float f1, float f2, float sigma1, float sigma2,
-											float axx, float ayy, float axy, float distFrac)
+											float axx, float ayy, float axy, float distFrac,
+											const DiscreteFunction<float> &baDistFunction)
 {
 	if (sigma1 == 0 && sigma2 == 0)
-		return calculateEllipticityProbability(epsilon, f1, f2, axx, ayy, axy, distFrac);
+		return calculateEllipticityProbability(epsilon, f1, f2, axx, ayy, axy, distFrac, baDistFunction);
 
 	float f1Start = f1 - sigma1*startFromSigmaFactor;
 	float f1End = f1 + sigma1*startFromSigmaFactor;
@@ -1158,7 +1147,7 @@ float calculateEllipticityProbabilityWithError(float epsilon, float startFromSig
 
 			float prob = 0.0f;
 			if (f1Sample*f1Sample + f2Sample*f2Sample < 1.0f)
-				prob = calculateEllipticityProbability(epsilon, f1Sample, f2Sample, axx, ayy, axy, distFrac);
+				prob = calculateEllipticityProbability(epsilon, f1Sample, f2Sample, axx, ayy, axy, distFrac, baDistFunction);
 
 			probSum += factor * prob;
 		}
@@ -1166,13 +1155,22 @@ float calculateEllipticityProbabilityWithError(float epsilon, float startFromSig
 	return probSum/weightSum;
 };
 
+// This is based on a Bayesian calculation, assuming the ellipticities
+// are known without error. Further assuming a uniform 
+// prior on the basis function weights.
+// Then, only the jacobians of the ellipSrc to ellipImg transforms
+// weighted by possibly unknown distance fractions
+
+// TODO: this fitness can (and will) get negative. The algorithm does
+//       seem to keep working, but for now I'm not really sure if there
+//       are unintended consequences of this.
+
 // For the bayesian version, we assume that Dds/Ds of the extended images
 // was set to one; the actual Dds/Ds should be stored in the shear weights
 // entries. If set to zero, the actual redshift is unknown and a weighted
 // average will be used based on distanceFractionWeights (assumed to be
 // normalized)
 
-// TODO: use B/A dist!
 float calculateWeakLensingFitness_Bayes(const ProjectedImagesInterface &interface,
 	const vector<int> &weakIndices,
 	const vector<vector<float>> &preCalcDistFrac,
@@ -1229,7 +1227,7 @@ float calculateWeakLensingFitness_Bayes(const ProjectedImagesInterface &interfac
 			float axx = pAxx[i];
 			float ayy = pAyy[i];
 			float axy = pAxy[i];
-			float distFrac = pDistFrac[i]; // TODO: check later if this is initialized
+			float distFrac = pDistFrac[i]; // Check later if this is initialized
 			float z = pZ[i];
 			float zSigma = pZSigma[i];
 
@@ -1246,7 +1244,7 @@ float calculateWeakLensingFitness_Bayes(const ProjectedImagesInterface &interfac
 				assert(distFrac > 0 && distFrac < 1);
 
 				elliptProb = calculateEllipticityProbabilityWithError(epsilon, startFromSigmaFactor, sigmaSteps,
-					f1, f2, sigma1, sigma2, axx, ayy, axy, distFrac);
+					f1, f2, sigma1, sigma2, axx, ayy, axy, distFrac, baDistFunction);
 				weightSum = 1.0f;
 			}
 			else if (z != 0 && zSigma != 0) // Redshift is known with uncertainty
@@ -1272,7 +1270,7 @@ float calculateWeakLensingFitness_Bayes(const ProjectedImagesInterface &interfac
 					{
 						weightSum += zProb;
 						elliptProb += calculateEllipticityProbabilityWithError(epsilon, startFromSigmaFactor, sigmaSteps,
-							f1, f2, sigma1, sigma2, axx, ayy, axy, distFrac) * zProb;
+							f1, f2, sigma1, sigma2, axx, ayy, axy, distFrac, baDistFunction) * zProb;
 					}
 				}
 			}
@@ -1287,7 +1285,7 @@ float calculateWeakLensingFitness_Bayes(const ProjectedImagesInterface &interfac
 
 					weightSum += zProb;
 					elliptProb += calculateEllipticityProbabilityWithError(epsilon, startFromSigmaFactor, sigmaSteps,
-				 		f1, f2, sigma1, sigma2, axx, ayy, axy, distFrac) * zProb;
+				 		f1, f2, sigma1, sigma2, axx, ayy, axy, distFrac, baDistFunction) * zProb;
 				}
 			}
 			else
