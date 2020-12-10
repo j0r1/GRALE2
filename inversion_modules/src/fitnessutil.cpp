@@ -8,6 +8,7 @@
 #include <limits>
 #include <tuple>
 #include <complex>
+#include <iomanip>
 
 // #include <serut/fileserializer.h>
 
@@ -1171,6 +1172,26 @@ float calculateEllipticityProbabilityWithError(float epsilon, float startFromSig
 // average will be used based on distanceFractionWeights (assumed to be
 // normalized)
 
+void dumpFunction(const DiscreteFunction<float> &f, const string &fname)
+{
+	float x0, x1;
+	f.getLimits(x0, x1);
+
+	ofstream s(fname, ofstream::out);
+	if (!s.is_open())
+		cerr << "ERROR: couldn't open " << fname << endl;
+	
+	const int N = 1024;
+	for (int i = 0 ; i < N ; i++)
+	{
+		float factor = (float)i/(float)(N-1);
+		float x = (1.0f-factor)*x0 + factor*x1;
+		float y = f(x);
+
+		s << std::setprecision(8) << x << " " << y << endl;
+	}
+}
+
 float calculateWeakLensingFitness_Bayes(const ProjectedImagesInterface &interface,
 	const vector<int> &weakIndices,
 	const vector<vector<float>> &preCalcDistFrac,
@@ -1180,6 +1201,23 @@ float calculateWeakLensingFitness_Bayes(const ProjectedImagesInterface &interfac
 	float startFromSigmaFactor, int sigmaSteps,
 	float zLens)
 {
+	// // TODO: for debugging
+	// static bool first = true;
+	// if (first)
+	// {
+	// 	cerr << "DEBUG: z_lens = " << zLens << endl;
+	// 	first = false;
+	// 	dumpFunction(distFracFunction, "distfracfunction.txt");
+	// 	dumpFunction(baDistFunction, "badistfunction.txt");
+
+	// 	ofstream f("distfractandprob.txt", ofstream::out);
+	// 	if (f.is_open())
+	// 	{
+	// 		for (auto dp : zDistDistFracAndProb)
+	// 			f << setprecision(8) << dp.first << " " << dp.second << endl;
+	// 	}
+	// }
+
 	const float epsilon = 1e-6; // to avoid division by zero
 	float shearFitness = 0;
 	int usedPoints = 0;
@@ -1242,6 +1280,7 @@ float calculateWeakLensingFitness_Bayes(const ProjectedImagesInterface &interfac
 			if (z != 0 && zSigma == 0) // Redshift is known accurately
 			{
 				assert(distFrac > 0 && distFrac < 1);
+				assert(distFracFunction(z) == distFrac);
 
 				elliptProb = calculateEllipticityProbabilityWithError(epsilon, startFromSigmaFactor, sigmaSteps,
 					f1, f2, sigma1, sigma2, axx, ayy, axy, distFrac, baDistFunction);
