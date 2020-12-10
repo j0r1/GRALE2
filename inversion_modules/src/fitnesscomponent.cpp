@@ -1699,6 +1699,8 @@ bool FitnessComponent_WeakLensing_Bayes::processFitnessOption(const std::string 
 		// For now we'll just save this, we need range info from another parameter
 		for (auto v : value.getRealValues())
 			m_zDistValues.push_back((float)v);
+
+		return true;
 	}
 
 	if (optionName == "zdist_range")
@@ -1716,6 +1718,8 @@ bool FitnessComponent_WeakLensing_Bayes::processFitnessOption(const std::string 
 		m_zDistMinMax.resize(2);
 		m_zDistMinMax[0] = (float)value.getRealValue(0);
 		m_zDistMinMax[1] = (float)value.getRealValue(1);
+
+		return true;
 	}
 
 	if (optionName == "zdist_numsamples")
@@ -1731,6 +1735,8 @@ bool FitnessComponent_WeakLensing_Bayes::processFitnessOption(const std::string 
 			setErrorString("At least two samples are needed");
 			return false;
 		}
+
+		return true;
 	}
 
 	setErrorString("Unknown option");
@@ -1770,7 +1776,8 @@ bool FitnessComponent_WeakLensing_Bayes::finalize(double zd, const Cosmology *pC
 		m_maxZ = zd*1.1f; // TODO: should probably not happen anyway
 	int distFracPoints = 8192; // TODO: what's a good value here? get this from config option?
 	vector<float> distFracs(distFracPoints);
-	for (int i = 0 ; i < distFracPoints ; i++)
+	distFracs[0] = 0; // Angular diameter distance from zd to zd is zero
+	for (int i = 1 ; i < distFracPoints ; i++)
 	{
 		float frac = (float)i/(float)(distFracPoints-1);
 		float zs = (1.0f-frac)*zd + frac*m_maxZ;
@@ -1817,7 +1824,8 @@ bool FitnessComponent_WeakLensing_Bayes::finalize(double zd, const Cosmology *pC
 		}
 
 		float x0 = zd;
-		float x1 = m_zDistValues[1];
+		float x1 = m_zDistMinMax[1];
+		// cerr << "DEBUG: m_zDistMinMax = " << m_zDistMinMax[0] << " " << m_zDistMinMax[1] << endl;
 
 		// The distance ratio for zd will be zero, we don't need to consider this
 		// If the probability for the highest z is also zero, we don't need to
@@ -1834,11 +1842,17 @@ bool FitnessComponent_WeakLensing_Bayes::finalize(double zd, const Cosmology *pC
 			x0 += diff;
 		}
 
+		// cerr << "DEBUG: x0 = " << x0 << " x1 = " << x1 << endl;
+		// float l0, l1;
+		// m_distFracFunction.getLimits(l0, l1);
+		// cerr << "DEBUG: l0 = " << l0 << " l1 = " << l1 << endl;
+
 		m_zDistDistFracAndProb.clear();
 		for (int i = 0 ; i < m_zDistSampleCount ; i++)
 		{
 			float frac = (float)i/(float)(m_zDistSampleCount-1);
 			float z = x0*(1.0f-frac) + x1*frac;
+			// cerr << "DEBUG: z = " << z << endl;
 
 			float zProb = (*m_zDistFunction)(z);
 			float distFrac = m_distFracFunction(z);
