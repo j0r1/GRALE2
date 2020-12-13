@@ -1279,7 +1279,7 @@ float calculateWeakLensingFitness_Bayes(const ProjectedImagesInterface &interfac
 
 			if (z != 0 && zSigma == 0) // Redshift is known accurately
 			{
-				assert(distFrac > 0 && distFrac < 1);
+				assert(distFrac >= 0 && distFrac < 1);
 				assert(distFracFunction(z) == distFrac);
 
 				elliptProb = calculateEllipticityProbabilityWithError(epsilon, startFromSigmaFactor, sigmaSteps,
