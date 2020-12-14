@@ -1270,6 +1270,104 @@ class InversionWorkSpace(object):
 
         return bpImages
 
+    def setStrongAndWeakBasisFunctions(self, strongSubDivInfo, weakSubDiv = None, weakRegionSize = 0,
+                                       weakRegionCenter = None, weakRandomFraction = "onesquare",
+                                       weakMassScale = None, ignoreWLMassInMassScaleSearch = False):
+        """This is a convenience function for strong&weak inversions. It sets basis functions
+        based on a strong lensing grid (uniform or subdivision grid) as well as a uniform grid
+        for the weak lensing region. It returns a tuple containing the created grids for strong
+        and weak lensing regions respectively. Use :func:`invertBasisFunctions` to start the
+        inversion.
+
+        Arguments:
+         - `strongSubDivInfo`: this can either be a number, causing a uniform subdivision grid
+           to be created for the strong lensing region (see :func:`setUniformGrid`). Alternatively,
+           it can be a tuple (lens, minSubDiv, maxSubDiv) which will be used to create a
+           subdivision grid through a call to :func:`setSubdivisionGrid`.
+
+        - `weakSubDiv`: this should be a number that specifies the uniform subdivision parameter
+          for the :func:`setUniformGrid` call for the weak lensing region. If this is set to zero
+          or ``None``, the function will only create the strong lensing part.
+
+        - `weakRegionSize`: this specifies the size of the grid for the weak lensing area. The
+          strong lensing size is the one that was specified in the constructor.
+
+        - `weakRegionCenter`: the default is to use the same center as the strong lensing grid,
+          as specified in the constructor. A different value can be set with this parameter.
+
+        - `weakRandomFraction`: the default will add a random offset to the weak lensing grid
+          that's based on the grid cell size. A different value will be passed directly to the
+          :func:`setUniformGrid` function.
+
+        - `weakMassScale`: while the strong lensing mass scale can be estimated from the observed
+          multiple image sytems, a mass scale needs to be specified for the weak lensing area.
+          The basis functions that are created for the uniform weak lensing grid, will have a 
+          total mass that's equal to this value.
+
+        - `ignoreWLMassInMassScaleSearch`: internally, the genetic algorithm will rescale the
+          mass distribution, in some range around the estimated strong lensing mass. When weak
+          lensing mass is included, this search should either be expanded (set `massScaleSearchType`
+          to ``wide`` instead of ``regular``), or the masses of the basis functions in the weak
+          lensing area should not be counted in this search.
+        """
+
+        if len(self.zd) != 1:
+            raise InversionException("This is meant for a single lensplane")
+
+        # Create the SL grid
+        strongGrid = None
+
+        try:
+            baseLens, minDiv, maxDiv = strongSubDivInfo
+            self.setSubdivisionGrid(baseLens, minDiv, maxDiv)
+            strongGrid = copy.deepcopy(self.getGrid())
+        except Exception as e:
+            #print("DEBUG: ", e)
+            pass
+
+        if not strongGrid:
+            try:
+                self.setUniformGrid(strongSubDivInfo)
+                strongGrid = copy.deepcopy(self.getGrid())
+            except Exception as e:
+                #print("DEBUG2: ", e)
+                raise InversionException("'subDivInfo' must either be an integer for a uniform subdivision, or a tuple (lens, minSubDiv, maxSubDiv)")
+
+        def dummyLensModelFunction(operation, operationInfo, parameters):
+            r = defaultLensModelFunction(operation, operationInfo, parameters)
+            
+            # Set the mass that's counted in determining the scale factor in the GA to (almost) zero
+            # (zero is not allowed by the GA)
+            if operation == "add":
+                return (r[0], 0.1)
+            return r
+
+        weakGrid = None
+        if weakSubDiv:
+            if not weakMassScale:
+                raise InversionException("A mass scale for the weak lensing region is required")
+            if not weakRegionSize:
+                raise InversionException("A separate weak lensing region size must be specified")
+
+            if weakRandomFraction == "onesquare":
+                weakRandomFraction = 1.0/weakSubDiv
+
+            self.setUniformGrid(weakSubDiv, randomFraction=weakRandomFraction,
+                                regionSize=weakRegionSize, regionCenter=weakRegionCenter)
+            weakGrid = copy.deepcopy(self.getGrid())
+
+            lensModelFunction = dummyLensModelFunction if ignoreWLMassInMassScaleSearch else defaultLensModelFunction
+            
+        # Add the basisfunction
+        self.clearBasisFunctions()
+        self.setGrid(strongGrid)
+        self.addBasisFunctionsBasedOnCurrentGrid() # TODO: options?
+        if weakGrid:
+            self.setGrid(weakGrid)
+            self.addBasisFunctionsBasedOnCurrentGrid(lensModelFunction, { "totalmass": weakMassScale })
+
+        return strongGrid, weakGrid
+
 def getDefaultInverter():
     """Convenience function in this module, just calls 
     :func:`grale.inverters.getDefaultInverter`"""
