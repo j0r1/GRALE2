@@ -446,7 +446,7 @@ class MPICSProcessInverter(Inverter):
     will connect to it. In turn the ``mpigaserver`` program will distribute 
     the calculations using MPI."""
 
-    def __init__(self, numProcesses = None, feedbackObject = None, serverDebugLevel = 0):
+    def __init__(self, numProcesses = None, feedbackObject = None, serverDebugLevel = 0, connectionDelay = 5):
         """Initializes an instance of this class, optionally setting the number of
         MPI processes to use explicitly to `numProcesses`. A specific :mod:`feedback <grale.feedback>`
         object can be specified for status updates. The verbosity of the output of the
@@ -471,7 +471,7 @@ class MPICSProcessInverter(Inverter):
         npArgs = [ ] if numProcesses is None else [ "-np", str(numProcesses) ]
 
         self.proc = subprocess.Popen(["mpirun" ] + npArgs + [ "mpigaserver", str(serverDebugLevel), str(serverPort), moduleDir ])
-        time.sleep(2) # wait a short while before allowing client to connect
+        time.sleep(connectionDelay) # wait a short while before allowing client to connect
 
     def destroy(self):
         """Stops the ``mpigaserver`` program."""
@@ -493,7 +493,7 @@ class LocalCSProcessInverter(Inverter):
     :class:`single process <SingleProcessInverter>` approach, especially when the
     calculations become more involved."""
 
-    def __init__(self, numProcesses = None, feedbackObject = None, serverHelperDebugLevel = 0):
+    def __init__(self, numProcesses = None, feedbackObject = None, serverHelperDebugLevel = 0, connectionDelay = 5):
         """Initializes an instance of this class, optionally setting the number of
         helper processes to use explicitly to `numProcesses`. A specific :mod:`feedback <grale.feedback>`
         object can be specified for status updates. The verbosity of the output of the
@@ -522,7 +522,7 @@ class LocalCSProcessInverter(Inverter):
         
         p = subprocess.Popen(["gaserver", str(serverHelperDebugLevel), str(serverPort), moduleDir ])
         self.procs.append(p)
-        time.sleep(2) # wait a short while before starting to connect the helpers
+        time.sleep(connectionDelay) # wait a short while before starting to connect the helpers
 
         for i in range(numHelpers):
             p = subprocess.Popen(["gahelper", str(serverHelperDebugLevel), "127.0.0.1", str(serverPort), moduleDir ])
