@@ -97,7 +97,7 @@ int main(int argc, char *argv[])
 #ifdef _WIN32
 	WSACleanup();
 #endif // _WIN32
-	cerr << "MAIN: REACHED END" << endl;
-	exit(r);
+//	cerr << "MAIN: REACHED END" << endl;
+//	exit(r);
 	return r;
 }
