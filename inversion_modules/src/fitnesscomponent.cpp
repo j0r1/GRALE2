@@ -1771,6 +1771,13 @@ bool FitnessComponent_WeakLensing_Bayes::finalize(double zd, const Cosmology *pC
 
 	m_zLens = zd;
 
+	// If a z dist is needed as well, we need to take that maximum into account:
+	// The approx distfrac function is used there, so it must be defined for those
+	// redshifts as well!
+	if (m_redshiftDistributionNeeded)
+		for (auto z: m_zDistMinMax)
+			m_maxZ = std::max(m_maxZ, z);
+
 	// Determine a discrete distance fraction function
 	if (m_maxZ < zd)
 		m_maxZ = zd*1.1f; // TODO: should probably not happen anyway
@@ -1802,6 +1809,7 @@ bool FitnessComponent_WeakLensing_Bayes::finalize(double zd, const Cosmology *pC
 		}
 	}
 
+	//cerr << "DEBUG: m_redshiftDistributionNeeded = " << (int)m_redshiftDistributionNeeded << endl;
 	if (m_redshiftDistributionNeeded)
 	{
 		if (m_zDistValues.size() == 0)
@@ -1842,22 +1850,30 @@ bool FitnessComponent_WeakLensing_Bayes::finalize(double zd, const Cosmology *pC
 			x0 += diff;
 		}
 
-		// cerr << "DEBUG: x0 = " << x0 << " x1 = " << x1 << endl;
-		// float l0, l1;
-		// m_distFracFunction.getLimits(l0, l1);
-		// cerr << "DEBUG: l0 = " << l0 << " l1 = " << l1 << endl;
+		//cerr << "DEBUG: x0 = " << x0 << " x1 = " << x1 << endl;
+		float l0, l1;
+		m_distFracFunction.getLimits(l0, l1);
+		//cerr << "DEBUG: l0 = " << l0 << " l1 = " << l1 << endl;
 
+		//cerr << "DISTFRACS" << endl;
 		m_zDistDistFracAndProb.clear();
 		for (int i = 0 ; i < m_zDistSampleCount ; i++)
 		{
 			float frac = (float)i/(float)(m_zDistSampleCount-1);
 			float z = x0*(1.0f-frac) + x1*frac;
-			// cerr << "DEBUG: z = " << z << endl;
+			//cerr << "DEBUG: z = " << z << endl;
+
+			if (z > l1 || z < l0)
+			{
+				setErrorString("Internal error: z out of bounds of approximate distfrac function");
+				return false;
+			}
 
 			float zProb = (*m_zDistFunction)(z);
 			float distFrac = m_distFracFunction(z);
 
 			m_zDistDistFracAndProb.push_back({ distFrac, zProb });
+			//cerr << distFrac << "," << zProb << "," << endl;
 		}
 	}
 
