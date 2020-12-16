@@ -299,11 +299,11 @@ gcc -O2 -DNO_TIMER -DLINUX -o../../bin/triangle triangle.c -lm
 
 cat > "$PREFIX/bin/activategrale" << EOF
 source "$PREFIX/bin/activate"
-export PATH="$PREFIX/bin:$PATH"
-if [ -z "$LD_LIBRARY_PATH" ] ; then
+export PATH="$PREFIX/bin:\$PATH"
+if [ -z "\$LD_LIBRARY_PATH" ] ; then
 	export LD_LIBRARY_PATH="$PREFIX/lib"
 else
-	export LD_LIBRARY_PATH="$PREFIX/lib:$LD_LIBRARY_PATH"
+	export LD_LIBRARY_PATH="$PREFIX/lib:\$LD_LIBRARY_PATH"
 fi
 EOF
 
