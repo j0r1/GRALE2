@@ -107,6 +107,7 @@ Vector2Dd NumericGradientCalculator::getGradientDouble(int srcIdx, int ptIdx, co
 Vector2Df NumericGradientCalculator::getGradientFloat(int srcIdx, int ptIdx, const ProjectedImagesInterface &iface)
 {
 	Vector2Dd g = getGradientDouble(srcIdx, ptIdx, iface);
+	return Vector2Df((float)g.getX(), (float)g.getY());
 }
 
 template<class T, typename F>
