@@ -949,6 +949,9 @@ class InversionWorkSpace(object):
             initialParameters["sizefactor"] = newKwargs["gridSizeFactor"]
             del newKwargs["gridSizeFactor"]
 
+        if "massScale" in newKwargs:
+            initialParameters["totalmass"] = newKwargs["massScale"]
+
         for i in range(len(self.zd)): # For each grid
             self.addBasisFunctionsBasedOnCurrentGrid(initialParameters=initialParameters, lpIdx=i)
         # Already processed default arguments
