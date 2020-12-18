@@ -1203,6 +1203,17 @@ bool FitnessComponent_TimeDelay::processFitnessOption(const std::string &optionN
 	return false;
 }
 
+bool FitnessComponent_TimeDelay::finalize(double zd, const Cosmology *pCosm)
+{
+	if (zd <= 0)
+	{
+		setErrorString("Lens redshift is not positive");
+		return false;
+	}
+
+	return true;
+}
+
 bool FitnessComponent_TimeDelay::calculateFitness(const ProjectedImagesInterface &iface, float &fitness)
 {
 	if (m_fitnessType == Paper2009)

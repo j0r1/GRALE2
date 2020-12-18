@@ -617,16 +617,6 @@ bool LensFitnessGeneral::init(double z_d, std::list<ImagesDataExtended *> &image
 		return false;
 	}
 
-	// Time delays are requested, make sure that z_d is set!
-	if (m_totalComponents[COMPONENT_TIMEDELAY_IDX] != 0)
-	{
-		if (z_d <= 0)
-		{
-			setErrorString("Time delays are begin used, but lens redshift is not positive");
-			return false;
-		}
-	}
-
 	// Clear unused components from the list, and determine the number of fitness components
 	removeEmpty(m_totalComponents);
 	m_numFitnessComponents = m_totalComponents.size();

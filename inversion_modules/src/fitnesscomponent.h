@@ -258,6 +258,7 @@ public:
 	bool processFitnessOption(const std::string &optionName, const TypedParameter &value) override;
 
 	void setFitnessType(TDFitnessType t) { m_fitnessType = t; }
+	bool finalize(double zd, const Cosmology *pCosm) override;
 private:
 	TDFitnessType m_fitnessType;
 	std::vector<std::pair<int,int>> m_referencePoints; // for relative TD fitness
