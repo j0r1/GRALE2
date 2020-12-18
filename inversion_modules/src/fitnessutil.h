@@ -6,6 +6,7 @@
 #include <grale/vector2d.h>
 #include <grale/imagesdataextended.h>
 #include <grale/discretefunction.h>
+#include <grale/polygon2d.h>
 #include <vector>
 #include <memory>
 
@@ -57,6 +58,9 @@ float calculateOverlapFitness_Extended(const PointGroupStorage &pointGroups, con
 									   const std::vector<bool> &rectFlags,
 									   const std::vector<bool> &groupFlags,
 									   FitnessComponentCache *pCache = 0);
+
+void getEstimatedSourceShape(int s, const ProjectedImagesInterface &iface, FitnessComponentCache *pCache,
+		Polygon2D<float> &estimatedShape, float &minX, float &maxX, float &minY, float &maxY);
 
 float calculateNullFitness_PointImages(const PointGroupStorage &pointGroups,
 		                               const ProjectedImagesInterface &interface, 

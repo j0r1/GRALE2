@@ -25,7 +25,12 @@
 */
 
 #include "lensfitnessgeneral.h"
-#include "fitnesscomponent.h"
+#include "fitnesscomponent_overlap.h"
+#include "fitnesscomponent_null.h"
+#include "fitnesscomponent_weak.h"
+#include "fitnesscomponent_time.h"
+#include "fitnesscomponent_caustic.h"
+#include "fitnesscomponent_dens.h"
 #include <grale/imagesdataextended.h>
 #include <grale/configurationparameters.h>
 #include <limits>

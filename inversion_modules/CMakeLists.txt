@@ -40,34 +40,43 @@ else()
 	add_definitions("-DGAMODS_EXPORT=")
 endif()
 
-add_library(galens_pointoverlap SHARED src/galensmodule1/pointoverlap.cpp src/lensfitnesspointoverlap.cpp src/fitnessutil.cpp 
-	                               src/fitnesscomponent.cpp src/pointgroupstorage.cpp)
-target_link_libraries(galens_pointoverlap ${EXTRA_LIBS} ${GRALE_LIBRARIES})
-install(TARGETS galens_pointoverlap DESTINATION ${LIBRARY_INSTALL_DIR})
+#add_library(galens_pointoverlap SHARED src/galensmodule1/pointoverlap.cpp src/lensfitnesspointoverlap.cpp src/fitnessutil.cpp 
+# 	                               src/fitnesscomponent.cpp src/pointgroupstorage.cpp)
+#target_link_libraries(galens_pointoverlap ${EXTRA_LIBS} ${GRALE_LIBRARIES})
+#install(TARGETS galens_pointoverlap DESTINATION ${LIBRARY_INSTALL_DIR})
 
-add_library(galens_pointoverlapnull SHARED src/galensmodule1/pointoverlapnull.cpp src/lensfitnesspointoverlap.cpp src/fitnessutil.cpp 
-	                                   src/fitnesscomponent.cpp src/pointgroupstorage.cpp)
-target_link_libraries(galens_pointoverlapnull ${EXTRA_LIBS} ${GRALE_LIBRARIES})
-install(TARGETS galens_pointoverlapnull DESTINATION ${LIBRARY_INSTALL_DIR})
+#add_library(galens_pointoverlapnull SHARED src/galensmodule1/pointoverlapnull.cpp src/lensfitnesspointoverlap.cpp src/fitnessutil.cpp 
+#	                                   src/fitnesscomponent.cpp src/pointgroupstorage.cpp)
+#target_link_libraries(galens_pointoverlapnull ${EXTRA_LIBS} ${GRALE_LIBRARIES})
+#install(TARGETS galens_pointoverlapnull DESTINATION ${LIBRARY_INSTALL_DIR})
 
-add_library(galens_simplerect SHARED src/galensmodule1/galens1.cpp src/lensfitnesssimplerectangles.cpp
-	                             src/pointgroupstorage.cpp src/fitnessutil.cpp src/fitnesscomponent.cpp)
-target_link_libraries(galens_simplerect ${EXTRA_LIBS} ${GRALE_LIBRARIES})
-install(TARGETS galens_simplerect DESTINATION ${LIBRARY_INSTALL_DIR})
+#add_library(galens_simplerect SHARED src/galensmodule1/galens1.cpp src/lensfitnesssimplerectangles.cpp
+#	                             src/pointgroupstorage.cpp src/fitnessutil.cpp src/fitnesscomponent.cpp)
+#target_link_libraries(galens_simplerect ${EXTRA_LIBS} ${GRALE_LIBRARIES})
+#install(TARGETS galens_simplerect DESTINATION ${LIBRARY_INSTALL_DIR})
 
-add_library(galens_j1004 SHARED src/j10044112/j1004test.cpp src/lensfitnessj1004.cpp src/pointgroupstorage.cpp src/fitnesscomponent.cpp src/fitnessutil.cpp)
-target_link_libraries(galens_j1004 ${EXTRA_LIBS} ${GRALE_LIBRARIES})
-install(TARGETS galens_j1004 DESTINATION ${LIBRARY_INSTALL_DIR})
+#add_library(galens_j1004 SHARED src/j10044112/j1004test.cpp src/lensfitnessj1004.cpp src/pointgroupstorage.cpp src/fitnesscomponent.cpp src/fitnessutil.cpp)
+#target_link_libraries(galens_j1004 ${EXTRA_LIBS} ${GRALE_LIBRARIES})
+#install(TARGETS galens_j1004 DESTINATION ${LIBRARY_INSTALL_DIR})
 
-add_library(galens_general SHARED src/general/general.cpp src/lensfitnessgeneral.cpp src/fitnesscomponent.cpp src/fitnessutil.cpp
-	                          src/pointgroupstorage.cpp src/numericgradientcalculator.cpp)
+add_library(galens_general SHARED src/general/general.cpp src/lensfitnessgeneral.cpp src/fitnesscomponent.cpp
+				  src/fitnessutil_overlap.cpp src/fitnessutil_null.cpp src/fitnessutil_weak.cpp
+				  src/fitnessutil_time.cpp src/fitnessutil_dens.cpp src/fitnessutil_caustic.cpp
+	                          src/pointgroupstorage.cpp src/numericgradientcalculator.cpp
+				  src/fitnesscomponent_overlap.cpp src/fitnesscomponent_null.cpp src/fitnesscomponent_weak.cpp
+				  src/fitnesscomponent_time.cpp src/fitnesscomponent_dens.cpp src/fitnesscomponent_caustic.cpp
+				  )
 target_link_libraries(galens_general ${EXTRA_LIBS} ${GRALE_LIBRARIES})
 install(TARGETS galens_general DESTINATION ${LIBRARY_INSTALL_DIR})
 
-add_library(galens_general_gpu SHARED src/general/general_gpu.cpp src/lensfitnessgeneral.cpp src/fitnesscomponent.cpp src/fitnessutil.cpp
-	                          src/pointgroupstorage.cpp src/numericgradientcalculator.cpp)
+add_library(galens_general_gpu SHARED src/general/general_gpu.cpp src/lensfitnessgeneral.cpp src/fitnesscomponent.cpp
+				  src/fitnessutil_overlap.cpp src/fitnessutil_null.cpp src/fitnessutil_weak.cpp
+				  src/fitnessutil_time.cpp src/fitnessutil_dens.cpp src/fitnessutil_caustic.cpp
+	                          src/pointgroupstorage.cpp src/numericgradientcalculator.cpp
+				  src/fitnesscomponent_overlap.cpp src/fitnesscomponent_null.cpp src/fitnesscomponent_weak.cpp
+				  src/fitnesscomponent_time.cpp src/fitnesscomponent_dens.cpp src/fitnesscomponent_caustic.cpp
+				  )
 target_link_libraries(galens_general_gpu ${EXTRA_LIBS} ${GRALE_LIBRARIES})
 install(TARGETS galens_general_gpu DESTINATION ${LIBRARY_INSTALL_DIR})
-
 
 add_subdirectory(tests)
