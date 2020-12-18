@@ -140,8 +140,25 @@ static const vector<string> componentNames {
 	"bayesweaklensing"
 };
 
-FitnessComponent *totalToShort(const vector<FitnessComponent *> &total, vector<int> &shortImageIndices,
-							   const ConfigurationParameters &params, string &errStr)
+vector<FitnessComponent*> getAllComponents(FitnessComponentCache *pCache)
+{
+	return {
+		new FitnessComponent_PointImagesOverlap(pCache),
+		new FitnessComponent_ExtendedImagesOverlap(pCache),
+		new FitnessComponent_PointGroupOverlap(pCache),
+		new FitnessComponent_WeakLensing(pCache),
+		new FitnessComponent_NullSpacePointImages(pCache),
+		new FitnessComponent_NullSpaceExtendedImages(pCache),
+		new FitnessComponent_TimeDelay(pCache),
+		new FitnessComponent_KappaThreshold(pCache),
+		new FitnessComponent_CausticPenalty(pCache),
+		new FitnessComponent_KappaGradient(pCache),
+		new FitnessComponent_WeakLensing_Bayes(pCache)
+	};
+}
+
+FitnessComponent *LensFitnessGeneral::totalToShort(const vector<FitnessComponent *> &total, vector<int> &shortImageIndices,
+							   const ConfigurationParameters &params)
 {
 	assert(componentNames.size() == COMPONENT_IDX_MAX);
 	assert(componentNames.size() == total.size());
@@ -158,7 +175,7 @@ FitnessComponent *totalToShort(const vector<FitnessComponent *> &total, vector<i
 		int priority = 0;
 		if (!params.getParameter(keyName, priority))
 		{
-			errStr = "Can't find (integer) parameter '" + keyName + "': " + params.getErrorString();
+			setErrorString("Can't find (integer) parameter '" + keyName + "': " + params.getErrorString());
 			return nullptr;
 		}
 
@@ -167,7 +184,7 @@ FitnessComponent *totalToShort(const vector<FitnessComponent *> &total, vector<i
 
 		if (pComp->getObjectName() != compName)
 		{
-			errStr = "Internal error: component name '" + pComp->getObjectName() + "' is not the expected '" + compName + "'";
+			setErrorString("Internal error: component name '" + pComp->getObjectName() + "' is not the expected '" + compName + "'");
 			return nullptr;
 		}
 	
@@ -185,7 +202,7 @@ FitnessComponent *totalToShort(const vector<FitnessComponent *> &total, vector<i
 
 	if (priorityKeys.size() == 0)
 	{
-		errStr = "No suitable component could be found to use mass scale";
+		setErrorString("No suitable component could be found to use mass scale");
 		return nullptr;
 	}
 
@@ -223,8 +240,6 @@ bool componentSortFunction(const FitnessComponent *pComp1, const FitnessComponen
 	}
 	return false;
 }
-
-inline string itos(int i) { return to_string(i); }
 
 ConfigurationParameters *LensFitnessGeneral::getDefaultParametersInstance() const
 {
@@ -396,23 +411,7 @@ bool LensFitnessGeneral::init(double z_d, std::list<ImagesDataExtended *> &image
 		pImg->clearRetrievalMarkers();
 	
 	// Populate m_totalComponents
-	FitnessComponent_PointImagesOverlap *pPtComponent = new FitnessComponent_PointImagesOverlap(pCache);
-	FitnessComponent_PointGroupOverlap *pPtGrpComponent = new FitnessComponent_PointGroupOverlap(pCache);
-	FitnessComponent_TimeDelay *pTDComponent = new FitnessComponent_TimeDelay(pCache);
-
-	/*vector<FitnessComponent *>*/ m_totalComponents = {
-		pPtComponent,
-		new FitnessComponent_ExtendedImagesOverlap(pCache),
-		pPtGrpComponent,
-		new FitnessComponent_WeakLensing(pCache),
-		new FitnessComponent_NullSpacePointImages(pCache),
-		new FitnessComponent_NullSpaceExtendedImages(pCache),
-		pTDComponent,
-		new FitnessComponent_KappaThreshold(pCache),
-		new FitnessComponent_CausticPenalty(pCache),
-		new FitnessComponent_KappaGradient(pCache),
-		new FitnessComponent_WeakLensing_Bayes(pCache)
-	};
+	m_totalComponents = getAllComponents(pCache);
 	assert(m_totalComponents.size() == COMPONENT_IDX_MAX);
 
 	if (!processGeneralParameters(pParams))
@@ -420,6 +419,133 @@ bool LensFitnessGeneral::init(double z_d, std::list<ImagesDataExtended *> &image
 	if (!processComponentParameters(pParams))
 		return false;
 
+	if (!checkImagesDataParameters(images))
+		return false;
+
+	// Let the components process the images data
+	if (!inspectImagesByComponents(images, m_totalComponents,
+			m_totalDeflectionFlags,
+			m_totalDerivativeFlags,
+			m_totalPotentialFlags,
+			m_totalInverseFlags,
+			m_totalShearFlags,
+			m_totalConvergenceFlags,
+			m_totalInverse,
+			m_totalShear,
+			m_totalConvergence))
+		return false;
+
+	// Clear the components that are not used, finalize others
+	if (!finalizeAndCleanUnusedComponents(z_d, m_cosmology.get()))
+		return false;
+
+	vector<int> shortIndices;
+	// This function creates a copy, but further on we'll check if we can actually
+	// reuse an already existing component, and discard the copy
+	m_pShortComponent = totalToShort(m_totalComponents, shortIndices, *pParams);
+	// Check that we have something to base the mass scale on
+	if (m_pShortComponent == nullptr)
+		return false; // error string has been set
+
+	// TODO: find something better to report
+	cerr << "DBG: shortComponent = " << m_pShortComponent->getObjectName() << endl;
+
+	// Also set the possibly different fitness options
+	setFitnessOptions(m_pShortComponent, pParams);
+
+	buildShortImagesList(images, shortIndices, shortImages);
+
+	// Run the shortImages through the newly created m_pShortComponent
+	vector<FitnessComponent *> shortComponentVector { m_pShortComponent };
+	if (!inspectImagesByComponents(shortImages, shortComponentVector,
+			m_shortDeflectionFlags,
+			m_shortDerivativeFlags,
+			m_shortPotentialFlags,
+			m_shortInverseFlags,
+			m_shortShearFlags,
+			m_shortConvergenceFlags,
+			m_shortInverse,
+			m_shortShear,
+			m_shortConvergence))
+		return false;
+
+	//cerr << "Short finalize for " << m_pShortComponent->getObjectName() << endl;
+	if (!m_pShortComponent->finalize(z_d, m_cosmology.get()))
+	{
+		setErrorString("Unable to finalize (short) component '" + m_pShortComponent->getObjectName() + "':" + m_pShortComponent->getErrorString());
+		return false;
+	}
+
+	// Clear unused components from the list, and determine the number of fitness components
+	removeEmpty(m_totalComponents);
+	m_numFitnessComponents = m_totalComponents.size();
+
+	if (m_numFitnessComponents == 0)
+	{
+		setErrorString("No fitness components could be used");
+		return false;
+	}
+
+	if (m_numFitnessComponents == 1) 
+	{
+		// We can use the same 'short' version as the total one
+		// (we've already checked that a short version can be created, so
+		// this can now only be the remaining fitness components)
+		if (m_deleteShortComponent)
+			delete m_pShortComponent;
+
+		assert(m_totalComponents.size() == 1);
+		m_pShortComponent = m_totalComponents[0];
+		assert(m_pShortComponent);
+
+		m_deleteShortComponent = false; // don't delete things twice!
+		
+		shortImages.clear(); // Make sure the caller knows we're not using a separate list
+	}
+
+	// Save the order things should be calculated (for possible caching
+	// dependencies) and order the components according to priority
+	// This may be necessary for null space for example: there the estimated
+	// source shape is calculated by the extended overlap component
+	m_calculationOrderComponents = m_totalComponents;
+
+	sort(m_totalComponents.begin(), m_totalComponents.end(), componentSortFunction);
+	for (size_t i = 0 ; i < m_totalComponents.size() ; i++)
+		m_totalComponents[i]->setPriorityOrder(i);
+
+	if (!checkAllImagesUsed(images))
+		return false;
+
+	// Check for parameter names that are specified but not used
+	if (!checkUnusedImagesDataParameters(images))
+		return false;
+
+	// TODO: should find something better than stdout
+	cerr << "FITNESS COMPONENT ORDER: ";
+	for (const FitnessComponent *pComp : m_totalComponents)
+	{
+		assert(pComp);
+		cerr << pComp->getObjectName() << " ";
+	}
+	cerr << endl;
+
+	stringstream ss;
+	ss << m_totalComponents[0]->getObjectName();
+	for (size_t i = 1 ; i < m_totalComponents.size() ; i++)
+		ss << " " << m_totalComponents[i]->getObjectName();
+
+	m_fitnessComponentDescription = ss.str();
+
+	// We don't want the cache to be deleted, extract it from the smart pointer
+	m_pCache = cacheSmart.release();
+
+	m_initialized = true;
+
+	return true;
+}
+
+bool LensFitnessGeneral::checkImagesDataParameters(list<ImagesDataExtended *> &images)
+{
 	// Get the supported type names
 	set<string> supportedNames = getSupportedTypeNames();
 
@@ -467,15 +593,43 @@ bool LensFitnessGeneral::init(double z_d, std::list<ImagesDataExtended *> &image
 			setErrorString("Images data set " + numStr + " type name '" + typeName + "' is not supported");
 			return false;
 		}
+	}
+	return true;
+}
 
+bool LensFitnessGeneral::inspectImagesByComponents(list<ImagesDataExtended *> &images,
+	vector<FitnessComponent *> &components,
+	vector<bool> &deflectionFlags,
+	vector<bool> &derivativeFlags,
+	vector<bool> &potentialFlags,
+	vector<bool> &inverseFlags,
+	vector<bool> &shearFlags,
+	vector<bool> &convergenceFlags,
+	bool &calcInverse, bool &calcShear, bool &calcConvergence)
+{
+	deflectionFlags.clear();
+	derivativeFlags.clear();
+	potentialFlags.clear();
+	inverseFlags.clear();
+	shearFlags.clear();
+	convergenceFlags.clear();
+
+	// Let the components process the images data
+	int imgDatCount = 0;
+	for (auto it = images.begin() ; it != images.end() ; ++it, imgDatCount++)
+	{
+		string numStr = to_string(imgDatCount+1);
+
+		ImagesDataExtended *pImgDat = *it;
+		assert(pImgDat);
+	
 		// Process image in this component (component should ignore image if unknown type name)
 
 		bool totNeedDefl = false, totNeedDeflDeriv = false, totNeedPotential = false,
 			 totNeedInvMag = false, totNeedShear = false, totNeedConv = false;
 
-		for (size_t i = 0 ; i < m_totalComponents.size() ; i++)
+		for (auto pComp : components)
 		{
-			FitnessComponent *pComp = m_totalComponents[i];
 			assert(pComp);
 
 			bool needDefl = false, needDeflDeriv = false, needPotential = false,
@@ -506,19 +660,23 @@ bool LensFitnessGeneral::init(double z_d, std::list<ImagesDataExtended *> &image
 			if (needConv) totNeedConv = true;
 		}
 
-		m_totalDeflectionFlags.push_back(totNeedDefl);
-		m_totalDerivativeFlags.push_back(totNeedDeflDeriv);
-		m_totalPotentialFlags.push_back(totNeedPotential);
-		m_totalInverseFlags.push_back(totNeedInvMag);
-		m_totalShearFlags.push_back(totNeedShear);
-		m_totalConvergenceFlags.push_back(totNeedConv);
+		deflectionFlags.push_back(totNeedDefl);
+		derivativeFlags.push_back(totNeedDeflDeriv);
+		potentialFlags.push_back(totNeedPotential);
+		inverseFlags.push_back(totNeedInvMag);
+		shearFlags.push_back(totNeedShear);
+		convergenceFlags.push_back(totNeedConv);
 	}
 
-	m_totalInverse = reduceFlags(m_totalInverseFlags);
-	m_totalShear = reduceFlags(m_totalShearFlags);
-	m_totalConvergence = reduceFlags(m_totalConvergenceFlags);
+	calcInverse = reduceFlags(inverseFlags);
+	calcShear = reduceFlags(shearFlags);
+	calcConvergence = reduceFlags(convergenceFlags);
 
-	// Clear the components that are not used, finalize others
+	return true;
+}
+
+bool LensFitnessGeneral::finalizeAndCleanUnusedComponents(float z_d, const Cosmology *pCosmology)
+{
 	for (size_t i = 0 ; i < m_totalComponents.size() ; i++)
 	{
 		FitnessComponent *pComp = m_totalComponents[i];
@@ -532,133 +690,51 @@ bool LensFitnessGeneral::init(double z_d, std::list<ImagesDataExtended *> &image
 		else
 		{
 			//cerr << "Long finalize for " << pComp->getObjectName() << endl;
-			if (!pComp->finalize(z_d, m_cosmology.get()))
+			if (!pComp->finalize(z_d, pCosmology))
 			{
 				setErrorString("Unable to finalize component '" + pComp->getObjectName() + "':" + pComp->getErrorString());
 				return false;
 			}
 		}
 	}
+	return true;
+}
 
-	vector<int> shortIndices;
-	set<int> shortIndicesSet;
-	string errStr;
-	m_pShortComponent = totalToShort(m_totalComponents, shortIndices, *pParams, errStr);
-	// Check that we have something to base the mass scale on
-	if (m_pShortComponent == nullptr)
-	{
-		setErrorString(errStr);
-		return false;
-	}
-
-	// TODO: find something better to report
-	cerr << "DBG: shortComponent = " << m_pShortComponent->getObjectName() << endl;
-
-	setFitnessOptions(m_pShortComponent, pParams); // Also set the possibly different fitness options
-	
-	// Store the relevant image indices in a set
-	for (auto idx : shortIndices)
-		shortIndicesSet.insert(idx);
-
-	// Store the relevant images data instances in shortImages
-	imgDatCount = 0;
+bool LensFitnessGeneral::checkUnusedImagesDataParameters(list<ImagesDataExtended *> &images)
+{
+	int imgDatCount = 0;
 	for (auto it = images.begin() ; it != images.end() ; ++it, imgDatCount++)
 	{
-		if (shortIndicesSet.find(imgDatCount) != shortIndicesSet.end()) // This is a useful image
-			shortImages.push_back(*it);
-	}
-
-	// Run the shortImages through the newly created m_pShortComponent
-	assert(shortImages.size() > 0);
-
-	imgDatCount = 0;
-	for (auto it = shortImages.begin() ; it != shortImages.end() ; ++it, imgDatCount++)
-	{
-		string numStr(itos(imgDatCount+1));
+		string numStr = to_string(imgDatCount+1);
 
 		ImagesDataExtended *pImgDat = *it;
 		assert(pImgDat);
 
-		bool needDefl = false, needDeflDeriv = false, needPotential = false,
-			 needInvMag = false, needShear = false, needConv = false;
+		vector<string> unretrievedKeys;
+		pImgDat->getUnretrievedKeys(unretrievedKeys);
 
-		if (!m_pShortComponent->inspectImagesData(imgDatCount, *pImgDat, needDefl, needDeflDeriv, needPotential,
-									  needInvMag, needShear, needConv))
+		if (unretrievedKeys.size() > 0)
 		{
-			setErrorString("Unexpected: unable to process 'short' images data entry " + numStr + " by component " +
-						   m_pShortComponent->getObjectName() + ": " + m_pShortComponent->getErrorString());
+			stringstream ss;
+
+			ss << "Unused keys in images data set " + numStr + ":";
+			for (auto &k : unretrievedKeys)
+				ss << " " << k;
+
+			setErrorString(ss.str());
 			return false;
 		}
-		
-		// Sanity check
-		if ((needInvMag || needShear || needConv) && !needDeflDeriv)
-		{
-			setErrorString("Unexpected: internal error processing 'short' images data " + numStr + " by component " +
-						   m_pShortComponent->getObjectName() + ": didn't set need for deflection derivatives, "
-						   "but inverse magnifications, shear or convergence was requested");
-			return false;
-		}
-
-		m_shortDeflectionFlags.push_back(needDefl);
-		m_shortDerivativeFlags.push_back(needDeflDeriv);
-		m_shortPotentialFlags.push_back(needPotential);
-		m_shortInverseFlags.push_back(needInvMag);
-		m_shortShearFlags.push_back(needShear);
-		m_shortConvergenceFlags.push_back(needConv);
 	}
-	m_shortInverse = reduceFlags(m_shortInverseFlags);
-	m_shortShear = reduceFlags(m_shortShearFlags);
-	m_shortConvergence = reduceFlags(m_shortConvergenceFlags);
+	return true;
+}
 
-	//cerr << "Short finalize for " << m_pShortComponent->getObjectName() << endl;
-	if (!m_pShortComponent->finalize(z_d, m_cosmology.get()))
-	{
-		setErrorString("Unable to finalize (short) component '" + m_pShortComponent->getObjectName() + "':" + m_pShortComponent->getErrorString());
-		return false;
-	}
-
-	// Clear unused components from the list, and determine the number of fitness components
-	removeEmpty(m_totalComponents);
-	m_numFitnessComponents = m_totalComponents.size();
-
-	if (m_numFitnessComponents == 0)
-	{
-		setErrorString("No fitness components could be used");
-		return false;
-	}
-
-	if (m_numFitnessComponents == 1) 
-	{
-		// We can use the same 'short' version as the total one
-		// (we've already checked that a short version can be created, so
-		// this can now only be the remaining fitness components)
-		if (m_deleteShortComponent)
-			delete m_pShortComponent;
-
-		assert(m_totalComponents.size() == 1);
-		m_pShortComponent = m_totalComponents[0];
-		assert(m_pShortComponent);
-
-		m_deleteShortComponent = false; // don't delete things twice!
-		
-		shortImages.clear(); // Make sure the caller knows we're not using a separate list
-	}
-
-	// Save the order things should be calculated (for possible caching
-	// dependencies) and order the components according to priority
-	m_calculationOrderComponents = m_totalComponents;
-
-	sort(m_totalComponents.begin(), m_totalComponents.end(), componentSortFunction);
-	for (size_t i = 0 ; i < m_totalComponents.size() ; i++)
-		m_totalComponents[i]->setPriorityOrder(i);
-
+bool LensFitnessGeneral::checkAllImagesUsed(list<ImagesDataExtended *> &images)
+{
 	// Check that each images data set is used
 	vector<bool> imageCheckFlags(images.size(), false);
-	for (size_t i = 0 ; i < m_totalComponents.size() ; i++)
+	for (auto pComp : m_totalComponents)
 	{
-		FitnessComponent *pComp = m_totalComponents[i];
 		assert(pComp);
-
 		vector<int> indices = pComp->getUsedImagesDataIndices();
 		for (auto idx : indices)
 		{
@@ -671,58 +747,31 @@ bool LensFitnessGeneral::init(double z_d, std::list<ImagesDataExtended *> &image
 	{
 		if (!imageCheckFlags[i])
 		{
-			setErrorString("Images data set " + itos(i+1) + " isn't used by any fitness component");
+			setErrorString("Images data set " + to_string(i+1) + " isn't used by any fitness component");
 			return false;
 		}
 	}
+	return true;
+}
 
-	// Check for parameter names that are specified but not used
-	imgDatCount = 0;
+void LensFitnessGeneral::buildShortImagesList(list<ImagesDataExtended *> &images, 
+	const vector<int> &shortIndices,
+	list<ImagesDataExtended *> &shortImages)
+{
+	shortImages.clear();
+
+	// Store the relevant image indices in a set
+	set<int> shortIndicesSet(shortIndices.begin(), shortIndices.end());
+
+	// Store the relevant images data instances in shortImages
+	int imgDatCount = 0;
 	for (auto it = images.begin() ; it != images.end() ; ++it, imgDatCount++)
 	{
-		string numStr(itos(imgDatCount+1));
-
-		ImagesDataExtended *pImgDat = *it;
-		assert(pImgDat);
-
-		vector<string> unretrievedKeys;
-		pImgDat->getUnretrievedKeys(unretrievedKeys);
-
-		if (unretrievedKeys.size() > 0)
-		{
-			stringstream ss;
-			
-			ss << "Unused keys in images data set " + numStr + ":";
-			for (auto &k : unretrievedKeys)
-				ss << " " << k;
-
-			setErrorString(ss.str());
-			return false;
-		}
+		if (shortIndicesSet.find(imgDatCount) != shortIndicesSet.end()) // This is a useful image
+			shortImages.push_back(*it);
 	}
 
-	// TODO: should find something better than stdout
-	cerr << "FITNESS COMPONENT ORDER: ";
-	for (const FitnessComponent *pComp : m_totalComponents)
-	{
-		assert(pComp);
-		cerr << pComp->getObjectName() << " ";
-	}
-	cerr << endl;
-
-	stringstream ss;
-	ss << m_totalComponents[0]->getObjectName();
-	for (size_t i = 1 ; i < m_totalComponents.size() ; i++)
-		ss << " " << m_totalComponents[i]->getObjectName();
-
-	m_fitnessComponentDescription = ss.str();
-
-	// We don't want the cache to be deleted, extract it from the smart pointer
-	m_pCache = cacheSmart.release();
-
-	m_initialized = true;
-
-	return true;
+	assert(shortImages.size() > 0);
 }
 
 bool LensFitnessGeneral::calculateMassScaleFitness(const ProjectedImagesInterface &iface, float &fitness) const

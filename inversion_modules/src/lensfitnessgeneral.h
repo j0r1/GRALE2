@@ -82,6 +82,25 @@ private:
 	bool processComponentParameters(const ConfigurationParameters *pParams);
 	bool setFitnessOptions(FitnessComponent *pComp, const ConfigurationParameters *pParams);
 	std::set<std::string> getSupportedTypeNames();
+	bool checkImagesDataParameters(std::list<ImagesDataExtended *> &images);
+	bool inspectImagesByComponents(
+		std::list<ImagesDataExtended *> &images,
+		std::vector<FitnessComponent *> &components,
+		std::vector<bool> &deflectionFlags,
+		std::vector<bool> &derivativeFlags,
+		std::vector<bool> &potentialFlags,
+		std::vector<bool> &inverseFlags,
+		std::vector<bool> &shearFlags,
+		std::vector<bool> &convergenceFlags,
+		bool &calcInverse, bool &calcShear, bool &calcConvergence);
+	bool checkUnusedImagesDataParameters(std::list<ImagesDataExtended *> &images);
+	bool checkAllImagesUsed(std::list<ImagesDataExtended *> &images);
+	bool finalizeAndCleanUnusedComponents(float z_d, const Cosmology *pCosmology);
+	FitnessComponent *totalToShort(const std::vector<FitnessComponent *> &total, std::vector<int> &shortImageIndices,
+							       const ConfigurationParameters &params);
+	void buildShortImagesList(std::list<ImagesDataExtended *> &images,
+		const std::vector<int> &shortIndices,
+		std::list<ImagesDataExtended *> &shortImages);
 
 	bool m_initialized;
 	int m_numFitnessComponents;
