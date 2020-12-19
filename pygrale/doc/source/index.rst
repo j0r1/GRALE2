@@ -72,3 +72,4 @@ Indices and tables
    grale_util.rst
    grale_editor.rst
    internals.rst
+   debugging.rst
