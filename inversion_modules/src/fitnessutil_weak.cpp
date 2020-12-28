@@ -133,6 +133,7 @@ void dumpFunction(const DiscreteFunction<float> &f, const string &fname)
 
 float calculateWeakLensingFitness_Bayes(const ProjectedImagesInterface &interface,
 	const vector<int> &weakIndices,
+	const std::vector<int> &avgDensPriorIndices,
 	const vector<vector<float>> &preCalcDistFrac,
 	const DiscreteFunction<float> &distFracFunction,
 	const std::vector<std::pair<float,float>> &zDistDistFracAndProb,
@@ -159,7 +160,6 @@ float calculateWeakLensingFitness_Bayes(const ProjectedImagesInterface &interfac
 
 	const float epsilon = 1e-6; // to avoid division by zero
 	float shearFitness = 0;
-	int usedPoints = 0;
 
 	assert(weakIndices.size() == preCalcDistFrac.size());
 	for (int sIdx = 0 ; sIdx < weakIndices.size() ; sIdx++)
@@ -297,14 +297,39 @@ float calculateWeakLensingFitness_Bayes(const ProjectedImagesInterface &interfac
 			// }
 			
 			shearFitness += -logElliptProb; // use negative to search for a minimum
-			usedPoints++;
 		}
 	}
 
-	if (usedPoints == 0)
-		shearFitness = 1e30; // Avoid creating a solution that dominates this fitness because there are no points
-	else
-		shearFitness /= usedPoints; // this also covers all the weak lensing data sets
+	float avgKappa = 0;
+	int numKappaPoints = 0;
+	for (int s : avgDensPriorIndices)
+	{
+		int numPoints = interface.getNumberOfImagePoints(s);
+		const float *pKappa = interface.getConvergence(s);
+
+		for (int i = 0 ; i < numPoints ; i++)
+			avgKappa += pKappa[i];
+		numKappaPoints += numPoints;
+	}
+
+	avgKappa /= (float)numKappaPoints;
+	const int kappaMin = epsilon; // TODO: make this configurable? Avoid log of zero
+	if (avgKappa < kappaMin)
+		avgKappa = kappaMin;
+
+	// prob(dens) = cte * 1/dens => logprob = - log(dens) + const
+	// since we're using the negative log prob, it's just log(dens)
+	shearFitness += log(avgKappa);
+
+	// static bool first = true;
+	// if (first)
+	// {
+	// 	first = false;
+	// 	cerr << "weakIndices.size = " << weakIndices.size() << endl;
+	// 	cerr << "avgDensPriorIndices.size = " << avgDensPriorIndices.size() << endl;
+	// 	cerr << "numKappaPoints = " << numKappaPoints << endl;
+	// 	cerr << "avgKappa = " << avgKappa << endl;
+	// }
 
 	assert(!isnan(shearFitness));
 	return shearFitness;

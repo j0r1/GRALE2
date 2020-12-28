@@ -83,6 +83,7 @@ float calculateWeakLensingFitness(const ProjectedImagesInterface &interface, con
 
 float calculateWeakLensingFitness_Bayes(const ProjectedImagesInterface &interface,
 	const std::vector<int> &weakIndices,
+	const std::vector<int> &avgDensPriorIndices,
 	const std::vector<std::vector<float>> &preCalcDistFrac,
 	const DiscreteFunction<float> &distFracFunction,
 	const std::vector<std::pair<float,float>> &zDistDistFracAndProb,

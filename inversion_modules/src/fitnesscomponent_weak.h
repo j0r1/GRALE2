@@ -38,6 +38,8 @@ public:
 	bool processFitnessOption(const std::string &optionName, const TypedParameter &value) override;
 	bool finalize(double zd, const Cosmology *pCosm) override;
 private:
+	std::vector<int> m_elliptImgs, m_priorDensImages;
+
 	std::vector<std::vector<float>> m_distanceFractionsForZ;
 
 	bool m_redshiftDistributionNeeded;
