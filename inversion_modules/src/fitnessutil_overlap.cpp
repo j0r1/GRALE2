@@ -262,7 +262,11 @@ float calculateOverlapFitness_PointImages(const ProjectedImagesInterface &interf
 float calculateOverlapFitness_PointGroups(const PointGroupStorage &pointGroups,
 		                                  const ProjectedImagesInterface &interface,
 										  const std::vector<int> &sourceIndices,
-										  PointGroupRMSType t)
+										  PointGroupRMSType t,
+										  // I added this so that the same calculation
+										  // can be used in the bayesian fitness
+										  vector<Vector2Df> *pAllThetaDiffs
+										  )
 {
 	assert(sourceIndices.size() == pointGroups.getNumberOfSources());
 	
@@ -270,6 +274,8 @@ float calculateOverlapFitness_PointGroups(const PointGroupStorage &pointGroups,
 	float fitness = 0;
 
 	vector<Vector2Df> betas;
+	if (pAllThetaDiffs)
+		pAllThetaDiffs->clear();
 
 	for (int sIdx = 0 ; sIdx < sourceIndices.size() ; sIdx++)
 	{
@@ -366,6 +372,9 @@ float calculateOverlapFitness_PointGroups(const PointGroupStorage &pointGroups,
 
 					// TODO: optionally use something else here?
 					groupRms += dTheta.getLengthSquared();
+
+					if (pAllThetaDiffs)
+						pAllThetaDiffs->push_back(dTheta);
 				}
 			}
 

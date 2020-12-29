@@ -51,7 +51,8 @@ enum PointGroupRMSType { AllBetas, AverageBeta };
 float calculateOverlapFitness_PointGroups(const PointGroupStorage &pointGroups,
 		                                  const ProjectedImagesInterface &interface,
 										  const std::vector<int> &sourceIndices,
-										  PointGroupRMSType t);
+										  PointGroupRMSType t,
+										  std::vector<Vector2Df> *pAllThetaDiffs = nullptr);
 
 float calculateOverlapFitness_Extended(const PointGroupStorage &pointGroups, const ProjectedImagesInterface &iface,
 		                               const std::vector<int> &sourceIndices,
