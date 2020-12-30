@@ -6,6 +6,7 @@
 #include <iostream>
 
 using namespace std;
+using namespace errut;
 
 namespace grale
 {
@@ -234,6 +235,25 @@ FitnessComponent_PointGroupOverlap::~FitnessComponent_PointGroupOverlap()
 {
 }
 
+bool_t FitnessComponent_PointGroupOverlap::extendedOrPointImageDataToPointGroups(const ImagesDataExtended &imgDat,
+		                                     PointGroupStorage &pointGroups)
+{
+	if (imgDat.getNumberOfGroups() > 0)
+		pointGroups.add(&imgDat);
+	else // no point groups, is this a point image?
+	{
+		if (!isPointImage(imgDat))
+			return "No point groups present, and not a point image";
+
+		string errStr;
+		auto grpImg = addGroupsToPointImages(imgDat, errStr);
+		if (!grpImg.get())
+			return "Couldn't add group info to point image: " + errStr;
+		pointGroups.add(grpImg.get());
+	}
+	return true;
+}
+
 bool FitnessComponent_PointGroupOverlap::inspectImagesData(int idx, const ImagesDataExtended &imgDat,
 			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
 			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence)
@@ -251,24 +271,11 @@ bool FitnessComponent_PointGroupOverlap::inspectImagesData(int idx, const Images
 		return false;
 	}
 	
-	if (imgDat.getNumberOfGroups() > 0)
-		m_pointGroups.add(&imgDat);
-	else // no point groups, is this a point image?
+	bool_t r = extendedOrPointImageDataToPointGroups(imgDat, m_pointGroups);
+	if (!r)
 	{
-		if (!isPointImage(imgDat))
-		{
-			setErrorString("No point groups present, and not a point image");
-			return false;
-		}
-
-		string errStr;
-		auto grpImg = addGroupsToPointImages(imgDat, errStr);
-		if (!grpImg.get())
-		{
-			setErrorString("Couldn't add group info to point image: " + errStr);
-			return false;
-		}
-		m_pointGroups.add(grpImg.get());
+		setErrorString(r.getErrorString());
+		return false;
 	}
 	
 	// Ok everything checks out

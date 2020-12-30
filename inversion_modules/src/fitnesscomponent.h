@@ -87,13 +87,13 @@ public:
 	int getNumberOfUsedImages() const													{ return m_usedImagesCount; }
 
 	std::vector<std::string> getRecognizedTypeNames() const								{ return m_recognizedTypeNames; }
+
+	static bool isPointImage(const ImagesData &imgDat);
 protected:
 	void addImagesDataIndex(int idx);
 	void addRecognizedTypeName(const std::string &n);
 	void addToUsedImagesCount(int c);
 	FitnessComponentCache *getCache()													{ return m_pCache; }
-
-	static bool isPointImage(const ImagesData &imgDat);
 private:
 	int m_priority;
 	int m_usedImagesCount;

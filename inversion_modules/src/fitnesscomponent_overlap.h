@@ -1,6 +1,7 @@
 #pragma once
 
 #include "fitnesscomponent.h"
+#include <errut/booltype.h>
 
 namespace grale
 {
@@ -48,6 +49,9 @@ public:
 	bool processFitnessOption(const std::string &optionName, const TypedParameter &value) override;
 
 	void setFitnessRMSType(PointGroupRMSType t) { m_rmsType = t; }
+
+	static errut::bool_t extendedOrPointImageDataToPointGroups(const ImagesDataExtended &imgDat,
+		                                     PointGroupStorage &pointGroups);
 private:
 	PointGroupStorage m_pointGroups;
 	PointGroupRMSType m_rmsType;
