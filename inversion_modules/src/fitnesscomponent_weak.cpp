@@ -134,7 +134,7 @@ FitnessComponent_WeakLensing_Bayes::FitnessComponent_WeakLensing_Bayes(FitnessCo
 	m_zLens = 0;
 	m_maxZ = 0;
 	m_zDistSampleCount = 0;
-	m_slSigmaArcsec = 2; // TODO: make this configurable!
+	m_slSigmaArcsec = 0;
 }
 
 FitnessComponent_WeakLensing_Bayes::~FitnessComponent_WeakLensing_Bayes()
@@ -259,6 +259,16 @@ bool FitnessComponent_WeakLensing_Bayes::inspectImagesData(int idx, const Images
 // This is called before inspect
 bool FitnessComponent_WeakLensing_Bayes::processFitnessOption(const std::string &optionName, const TypedParameter &value)
 {
+	if (optionName == "stronglenssigma")
+	{
+		if (value.isArray() || !value.isReal())
+		{
+			setErrorString("This should be a real number");
+			return false;
+		}
+		m_slSigmaArcsec = (float)(value.getRealValue()/ANGLE_ARCSEC);
+		return true;
+	}
 	if (optionName == "sigmafactor")
 	{
 		if (value.isArray() || !value.isReal())
@@ -527,6 +537,12 @@ bool FitnessComponent_WeakLensing_Bayes::finalize(double zd, const Cosmology *pC
 	if (m_elliptImgs.size() > 0 && m_baDistFunction.get() == nullptr)
 	{
 		setErrorString("No b/a distribution has been set");
+		return false;
+	}
+
+	if (m_slSigmaArcsec <= 0)
+	{
+		setErrorString("The fitness_bayesweaklensing_stronglenssigma value should be positive");
 		return false;
 	}
 

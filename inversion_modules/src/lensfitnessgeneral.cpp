@@ -287,6 +287,7 @@ ConfigurationParameters *LensFitnessGeneral::getDefaultParametersInstance() cons
 	pParams->setParameterEmpty("fitness_bayesweaklensing_b_over_a_distribution");
 	pParams->setParameter("fitness_bayesweaklensing_sigmafactor", 3.0);
 	pParams->setParameter("fitness_bayesweaklensing_sigmasteps", 7);
+	pParams->setParameter("fitness_bayesweaklensing_stronglenssigma", 0.0);
 	return pParams;
 }
 
