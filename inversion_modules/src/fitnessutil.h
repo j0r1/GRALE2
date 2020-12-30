@@ -83,6 +83,8 @@ float calculateWeakLensingFitness(const ProjectedImagesInterface &interface, con
 							      WeakLensingType weakType, const std::vector<float> &oneMinusKappaThreshold);
 
 float calculateWeakLensingFitness_Bayes(const ProjectedImagesInterface &interface,
+	const PointGroupStorage &pointGroups,
+	const std::vector<int> &strongIndices,
 	const std::vector<int> &weakIndices,
 	const std::vector<int> &avgDensPriorIndices,
 	const std::vector<std::vector<float>> &preCalcDistFrac,
@@ -90,7 +92,7 @@ float calculateWeakLensingFitness_Bayes(const ProjectedImagesInterface &interfac
 	const std::vector<std::pair<float,float>> &zDistDistFracAndProb,
 	const DiscreteFunction<float> &baDistFunction,
 	float startFromSigmaFactor, int sigmaSteps,
-	float zd);
+	float zd, float slSigmaArcsec);
 
 float calculateTimeDelayFitnessPaper2009(const ProjectedImagesInterface &iface, const std::vector<int> &sourceIndices,
 		                        const std::vector<float> &tdScaleFactors = std::vector<float>());

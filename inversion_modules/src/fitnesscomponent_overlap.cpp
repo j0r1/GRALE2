@@ -238,6 +238,10 @@ FitnessComponent_PointGroupOverlap::~FitnessComponent_PointGroupOverlap()
 bool_t FitnessComponent_PointGroupOverlap::extendedOrPointImageDataToPointGroups(const ImagesDataExtended &imgDat,
 		                                     PointGroupStorage &pointGroups)
 {
+	int numImg = imgDat.getNumberOfImages();
+	if (numImg < 1)
+		return "Images data set doesn't contain any images";
+	
 	if (imgDat.getNumberOfGroups() > 0)
 		pointGroups.add(&imgDat);
 	else // no point groups, is this a point image?
@@ -264,13 +268,6 @@ bool FitnessComponent_PointGroupOverlap::inspectImagesData(int idx, const Images
 	if (typeName != "pointgroupimages") // ignore
 		return true;
 	
-	int numImg = imgDat.getNumberOfImages();
-	if (numImg < 1)
-	{
-		setErrorString("Images data set doesn't contain any images");
-		return false;
-	}
-	
 	bool_t r = extendedOrPointImageDataToPointGroups(imgDat, m_pointGroups);
 	if (!r)
 	{
@@ -284,7 +281,7 @@ bool FitnessComponent_PointGroupOverlap::inspectImagesData(int idx, const Images
 	needCalcDeflDeriv = true;
 
 	addImagesDataIndex(idx);
-	addToUsedImagesCount(numImg);
+	addToUsedImagesCount(imgDat.getNumberOfImages());
 
 	return true;
 }

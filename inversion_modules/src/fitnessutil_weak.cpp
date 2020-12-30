@@ -1,6 +1,7 @@
 #include "fitnessutil.h"
 #include "fitnesscomponent.h"
 #include <grale/projectedimagesinterface.h>
+#include <grale/constants.h>
 #include <assert.h>
 #include <limits>
 #include <complex>
@@ -132,6 +133,8 @@ void dumpFunction(const DiscreteFunction<float> &f, const string &fname)
 }
 
 float calculateWeakLensingFitness_Bayes(const ProjectedImagesInterface &interface,
+	const PointGroupStorage &pointGroups,
+	const vector<int> &strongIndices,
 	const vector<int> &weakIndices,
 	const std::vector<int> &avgDensPriorIndices,
 	const vector<vector<float>> &preCalcDistFrac,
@@ -139,7 +142,8 @@ float calculateWeakLensingFitness_Bayes(const ProjectedImagesInterface &interfac
 	const std::vector<std::pair<float,float>> &zDistDistFracAndProb,
 	const DiscreteFunction<float> &baDistFunction,
 	float startFromSigmaFactor, int sigmaSteps,
-	float zLens)
+	float zLens,
+	float slSigmaArcsec)
 {
 	// // TODO: for debugging
 	// static bool first = true;
@@ -330,6 +334,25 @@ float calculateWeakLensingFitness_Bayes(const ProjectedImagesInterface &interfac
 	// 	cerr << "numKappaPoints = " << numKappaPoints << endl;
 	// 	cerr << "avgKappa = " << avgKappa << endl;
 	// }
+
+	// The SL part
+	
+	vector<Vector2Df> thetaDiffs;
+	// We don't need the fitness, just the differences in the image plane
+	// that are calculated here
+	float dummy = calculateOverlapFitness_PointGroups(pointGroups, interface, 
+													  strongIndices, AverageBeta, &thetaDiffs);
+
+	float minLogSLProb = 0;
+	float sigmaScaled = (float)(((double)slSigmaArcsec * ANGLE_ARCSEC)/interface.getAngularScale());
+	for (auto dtheta : thetaDiffs)
+	{
+		dtheta /= sigmaScaled;
+		minLogSLProb += dtheta.getLengthSquared();
+	}
+	minLogSLProb /= 2.0f;
+
+	shearFitness += minLogSLProb;
 
 	assert(!isnan(shearFitness));
 	return shearFitness;

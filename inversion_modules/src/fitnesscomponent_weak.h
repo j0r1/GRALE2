@@ -38,7 +38,8 @@ public:
 	bool processFitnessOption(const std::string &optionName, const TypedParameter &value) override;
 	bool finalize(double zd, const Cosmology *pCosm) override;
 private:
-	std::vector<int> m_elliptImgs, m_priorDensImages;
+	std::vector<int> m_elliptImgs, m_priorDensImages, m_slImages;
+	PointGroupStorage m_pointGroups;
 
 	std::vector<std::vector<float>> m_distanceFractionsForZ;
 
@@ -46,6 +47,7 @@ private:
 	float m_howManySigmaFactor;
 	int m_numSigmaSamplePoints;
 
+	float m_slSigmaArcsec;
 	float m_zLens;
 	float m_maxZ; // Keeps track of maximum redshift in input data (uncertainty included, 5sigma)
 
