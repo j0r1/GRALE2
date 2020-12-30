@@ -65,7 +65,8 @@ def estimateStrongLensingMass(Dd, images, skipParamCheck = False):
         if not skipParamCheck:
             params = imgInfo["params"]
             imgType = params["type"]
-            if imgType not in [ "extendedimages", "pointimages", "pointgroupimages" ]:
+            if imgType not in [ "extendedimages", "pointimages",
+                                "pointgroupimages", "bayesstronglensing" ]:
                 continue
                 
         if img.getNumberOfImages() <= 1:
