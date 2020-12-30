@@ -404,7 +404,7 @@ bool FitnessComponent_WeakLensing_Bayes::calculateFitness(const ProjectedImagesI
 
 bool FitnessComponent_WeakLensing_Bayes::finalize(double zd, const Cosmology *pCosm)
 {
-	if (pCosm == nullptr)
+	if (m_elliptImgs.size() > 0 && pCosm == nullptr)
 	{
 		setErrorString("Cosmological model needs to be set for this component");
 		return false;
@@ -524,7 +524,7 @@ bool FitnessComponent_WeakLensing_Bayes::finalize(double zd, const Cosmology *pC
 		}
 	}
 
-	if (m_baDistFunction.get() == nullptr)
+	if (m_elliptImgs.size() > 0 && m_baDistFunction.get() == nullptr)
 	{
 		setErrorString("No b/a distribution has been set");
 		return false;

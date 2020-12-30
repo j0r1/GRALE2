@@ -316,14 +316,17 @@ float calculateWeakLensingFitness_Bayes(const ProjectedImagesInterface &interfac
 		numKappaPoints += numPoints;
 	}
 
-	avgKappa /= (float)numKappaPoints;
-	const int kappaMin = epsilon; // TODO: make this configurable? Avoid log of zero
-	if (avgKappa < kappaMin)
-		avgKappa = kappaMin;
+	if (numKappaPoints > 0)
+	{
+		avgKappa /= (float)numKappaPoints;
+		const int kappaMin = epsilon; // TODO: make this configurable? Avoid log of zero
+		if (avgKappa < kappaMin)
+			avgKappa = kappaMin;
 
-	// prob(dens) = cte * 1/dens => logprob = - log(dens) + const
-	// since we're using the negative log prob, it's just log(dens)
-	shearFitness += log(avgKappa);
+		// prob(dens) = cte * 1/dens => logprob = - log(dens) + const
+		// since we're using the negative log prob, it's just log(dens)
+		shearFitness += log(avgKappa);
+	}
 
 	// static bool first = true;
 	// if (first)
@@ -348,11 +351,16 @@ float calculateWeakLensingFitness_Bayes(const ProjectedImagesInterface &interfac
 	for (auto dtheta : thetaDiffs)
 	{
 		dtheta /= sigmaScaled;
+		// cerr << dtheta.getX() << " " << dtheta.getY() << endl;
 		minLogSLProb += dtheta.getLengthSquared();
 	}
+
 	minLogSLProb /= 2.0f;
 
 	shearFitness += minLogSLProb;
+	// cerr << "shearFitness = " << shearFitness << endl;
+	// cerr << "minLogSLProb = " << minLogSLProb << endl;
+	// exit(-1);
 
 	assert(!isnan(shearFitness));
 	return shearFitness;
