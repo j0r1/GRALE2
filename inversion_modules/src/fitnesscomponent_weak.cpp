@@ -540,7 +540,7 @@ bool FitnessComponent_WeakLensing_Bayes::finalize(double zd, const Cosmology *pC
 		return false;
 	}
 
-	if (m_slSigmaArcsec <= 0)
+	if (m_pointGroups.getNumberOfSources() > 0 && m_slSigmaArcsec <= 0)
 	{
 		setErrorString("The fitness_bayesweaklensing_stronglenssigma value should be positive");
 		return false;
