@@ -136,6 +136,7 @@ float calculateWeakLensingFitness_Bayes(const ProjectedImagesInterface &interfac
 	const PointGroupStorage &pointGroups,
 	const vector<int> &strongIndices,
 	const vector<int> &weakIndices,
+	const std::vector<int> &densPriorIndices,
 	const std::vector<int> &avgDensPriorIndices,
 	const vector<vector<float>> &preCalcDistFrac,
 	const DiscreteFunction<float> &distFracFunction,
@@ -316,16 +317,33 @@ float calculateWeakLensingFitness_Bayes(const ProjectedImagesInterface &interfac
 		numKappaPoints += numPoints;
 	}
 
+	// TODO: be careful with negative densities?
+	const int kappaMin = epsilon; // TODO: make this configurable? Avoid log of zero
 	if (numKappaPoints > 0)
 	{
 		avgKappa /= (float)numKappaPoints;
-		const int kappaMin = epsilon; // TODO: make this configurable? Avoid log of zero
+		
 		if (avgKappa < kappaMin)
 			avgKappa = kappaMin;
 
 		// prob(dens) = cte * 1/dens => logprob = - log(dens) + const
 		// since we're using the negative log prob, it's just log(dens)
 		shearFitness += log(avgKappa);
+	}
+
+	// for each density point, use 1/dens prior
+	for (int s : densPriorIndices)
+	{
+		int numPoints = interface.getNumberOfImagePoints(s);
+		const float *pKappa = interface.getConvergence(s);
+
+		for (int i = 0 ; i < numPoints ; i++)
+		{
+			float kappa = pKappa[i];
+			if (kappa < kappaMin)
+				kappa = kappaMin;
+			shearFitness += log(kappa);
+		}
 	}
 
 	// static bool first = true;

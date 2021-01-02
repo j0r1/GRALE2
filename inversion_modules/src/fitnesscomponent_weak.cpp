@@ -127,6 +127,7 @@ FitnessComponent_WeakLensing_Bayes::FitnessComponent_WeakLensing_Bayes(FitnessCo
 {
 	addRecognizedTypeName("bayesellipticities");
 	addRecognizedTypeName("bayesaveragedensityprior");
+	addRecognizedTypeName("bayesdensityprior");
 	addRecognizedTypeName("bayesstronglensing");
 	m_redshiftDistributionNeeded = false;
 	m_howManySigmaFactor = 3.0f;
@@ -150,6 +151,7 @@ bool FitnessComponent_WeakLensing_Bayes::inspectImagesData(int idx, const Images
 	imgDat.getExtraParameter("type", typeName);
 	if (typeName != "bayesellipticities" && 
 	    typeName != "bayesaveragedensityprior" &&
+		typeName != "bayesdensityprior" &&
 		typeName != "bayesstronglensing")
 		return true; // ignore
 
@@ -166,7 +168,7 @@ bool FitnessComponent_WeakLensing_Bayes::inspectImagesData(int idx, const Images
 		m_slImages.push_back(idx);
 		needCalcDeflections = true;
 	}
-	else // ellipticities or avg dens prior
+	else // ellipticities or (avg) dens prior
 	{
 		if (imgDat.getNumberOfImages() != 1)
 		{
@@ -241,11 +243,15 @@ bool FitnessComponent_WeakLensing_Bayes::inspectImagesData(int idx, const Images
 			}
 			m_elliptImgs.push_back(idx);
 		}
-		else // avgdensity
+		else // (avg)density
 		{
 			// Nothing else needs to be checked here
 		
-			m_priorDensImages.push_back(idx);
+			if (typeName == "bayesdensityprior")
+				m_priorDensImages.push_back(idx);
+			else
+				m_priorAvgDensImages.push_back(idx);
+			
 			needCalcConvergence = true;
 		}
 	}
@@ -402,7 +408,7 @@ bool FitnessComponent_WeakLensing_Bayes::processFitnessOption(const std::string 
 bool FitnessComponent_WeakLensing_Bayes::calculateFitness(const ProjectedImagesInterface &iface, float &fitness)
 {
 	fitness = calculateWeakLensingFitness_Bayes(iface,
-		m_pointGroups, m_slImages, m_elliptImgs, m_priorDensImages,
+		m_pointGroups, m_slImages, m_elliptImgs, m_priorDensImages, m_priorAvgDensImages,
 		m_distanceFractionsForZ, m_distFracFunction,
 		m_zDistDistFracAndProb,
 		*m_baDistFunction.get(),
