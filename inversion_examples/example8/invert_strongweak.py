@@ -52,12 +52,15 @@ iws.setDefaultInversionArguments(sheetSearch = sheetType) # add maximumGeneratio
 #  2. don't count the WL basis function masses in the rescaling operation, so
 #     that that's only based on the SL mass
 #
-# The first can be done using the 'wideSearch' parameter in one of the invert
-# functions. The second is what the function below is for: We'll just call
+# The first can be done by setting 'massScaleSearchType' to 'noshearch' in an invert
+# function. The second is what the function below is for: We'll just call
 # the default implementation, which returns a basis function, as well as the
 # mass that is counted for the rescaling operation. By setting this to something
 # very small, the basis function's mass is ignored when determining an 
-# appropriate scale factor
+# appropriate scale factor.
+# 
+# Note that there is now a convenience function setStrongAndWeakBasisFunctions
+# in InversionWorkSpace that does this internally.
 
 def myLensModelFunction(operation, operationInfo, parameters):
     r = inversion.defaultLensModelFunction(operation, operationInfo, parameters)

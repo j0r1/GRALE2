@@ -33,7 +33,13 @@ iws.addImageDataToList(images.ImagesData.load("ellipt_48x48_exact_z4.imgdata"), 
 iws.setDefaultInversionArguments(sheetSearch = sheetType) # add maximumGenerations = 2 to test if script works
 
 iws.setUniformGrid(weakSubDiv)
-# We don't have SL info to estimate a mass scale, so we'll specify one. If you're
-# more uncertain about this, you can also specify wideSearch=True
-lens, fitness, fitdesc = iws.invert(512, massScale=5e15*MASS_SUN)
+
+# We don't have SL info to estimate a mass scale, so we'll specify one. This
+# will be used to set the masses of the basis functions for each grid cell.
+
+# For WL only inversions, the extra search for a mass scale does not really
+# provide much benefit, just overhead. For this reason, it is set to
+# "nosearch" here. 
+
+lens, fitness, fitdesc = iws.invert(512, massScale=5e15*MASS_SUN, massScaleSearchType="nosearch")
 lens.save("inv_weakonly.lensdata")
