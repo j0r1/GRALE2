@@ -142,7 +142,7 @@ def getDefaultGeneticAlgorithmParameters():
 
 def getInversionModuleUsage(moduleName = "general"):
     """Returns a usage description that's provided by the specified genetic algorithm 
-    module. The usage information for the ``general`` module can be viewed here: `usage <./usage_general.html>`_
+    module. The usage information for the ``general`` module can be viewed here: :ref:`usage <usage-module-general>`
     """
     n = _getModuleName(moduleName)
     _getModuleDirectory(n) # So that GRALE2_MODULEPATH gets set
@@ -271,7 +271,7 @@ def invertMultiPlane(cosmology, inputImages, basisLensesAndRedshifts, popSize, m
         - ``z``: the redshift of this source.
         - ``params``: for the ``general_gpu`` module, this could contain a 
           dictionary with at least a ``type`` field, which can be e.g. 
-          ``pointimages`` or ``extendednullgrid`` (see the `usage <./usage_general.html>`_ 
+          ``pointimages`` or ``extendednullgrid`` (see the :ref:`usage <usage-module-general>` 
           documentation). 
 
      - `basisLensesAndRedshifts`: A list representing the different lens planes.
@@ -308,7 +308,7 @@ def invertMultiPlane(cosmology, inputImages, basisLensesAndRedshifts, popSize, m
 
      - `fitnessObjectParameters`: parameters for the lens inversion module for the
        generic algorithm. For the ``"general"`` module, more information can be
-       found in the `usage <./usage_general.html>`_ documentation.
+       found in the :ref:`usage <usage-module-general>` documentation.
 
      - `massScaleSearchType`: by default (``"regular"``), a relatively narrow mass 
        range around the provided mass estimate will be explored. To make this search 
@@ -403,7 +403,7 @@ def invert(inputImages, basisFunctions, zd, Dd, popSize, moduleName = "general",
         - ``params``: not used for older inversion modules for the genetic
           algorithm, but for the ``general`` module, this should contain a 
           dictionary with at least a ``type`` field, which can be e.g. 
-          ``pointimages`` or ``extendednullgrid`` (see the `usage <./usage_general.html>`_ 
+          ``pointimages`` or ``extendednullgrid`` (see the `usage :ref:<usage-module-general>`
           documentation). Other parameters may be set as well, e.g. you could set
           ``timedelay`` to ``False`` to ignore the time delay information in
           a particular images data instance.
@@ -457,7 +457,7 @@ def invert(inputImages, basisFunctions, zd, Dd, popSize, moduleName = "general",
 
      - `fitnessObjectParameters`: parameters for the lens inversion module for the
        generic algorithm. For the ``"general"`` module, more information can be
-       found in the `usage <./usage_general.html>`_ documentation.
+       found in the :ref:`usage <usage-module-general>` documentation.
 
      - `massScaleSearchType`: by default (``"regular"``), a relatively narrow mass 
        range around the provided mass estimate will be explored. To make this search 
@@ -742,7 +742,7 @@ class InversionWorkSpace(object):
         to the list of inputs. The corresponding redshift is `zs`, and `imgType`
         describes the type of input, e.g. ``"extendedimages"``. The
         `otherParameters` dictionary provides additional settings for this
-        input set. See the `usage <./usage_general.html>`_ documentation for other types
+        input set. See the :ref:`usage <usage-module-general>` documentation for other types
         and parameters.
         """
         # check that imgDat exists

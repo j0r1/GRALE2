@@ -536,7 +536,7 @@ become::
    iws.addImageDataToList(null2, 1.5, "extendednullgrid")
 
 More information about the different types of input data that can
-be specified this way, can be found in the `usage <./usage_general.html>`_
+be specified this way, can be found in the :ref:`usage <usage-module-general>`
 documentation.
 
 **Whatever you do, before continuing, make sure that your input
@@ -659,7 +659,7 @@ but a `non-dominated set`.
 The default behavior of the `invert` call is still to return a single
 solution based on a priority of the individual fitness measures (can be 
 controlled using the `priority` parameters, described in the
-`usage <./usage_general.html>`_ documentation). To return the final non-dominated
+:ref:`usage <usage-module-general>` documentation). To return the final non-dominated
 set instead, set the ``returnNds`` parameter to ``True``. 
 
 Processing the results
