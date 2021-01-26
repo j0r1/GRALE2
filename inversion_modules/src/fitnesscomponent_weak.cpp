@@ -126,7 +126,6 @@ FitnessComponent_WeakLensing_Bayes::FitnessComponent_WeakLensing_Bayes(FitnessCo
 	: FitnessComponent("bayesweaklensing", pCache)
 {
 	addRecognizedTypeName("bayesellipticities");
-	addRecognizedTypeName("bayesaveragedensityprior");
 	addRecognizedTypeName("bayesdensityprior");
 	addRecognizedTypeName("bayesstronglensing");
 	m_redshiftDistributionNeeded = false;
@@ -150,7 +149,6 @@ bool FitnessComponent_WeakLensing_Bayes::inspectImagesData(int idx, const Images
 
 	imgDat.getExtraParameter("type", typeName);
 	if (typeName != "bayesellipticities" && 
-	    typeName != "bayesaveragedensityprior" &&
 		typeName != "bayesdensityprior" &&
 		typeName != "bayesstronglensing")
 		return true; // ignore
@@ -168,7 +166,7 @@ bool FitnessComponent_WeakLensing_Bayes::inspectImagesData(int idx, const Images
 		m_slImages.push_back(idx);
 		needCalcDeflections = true;
 	}
-	else // ellipticities or (avg) dens prior
+	else // ellipticities or dens prior
 	{
 		if (imgDat.getNumberOfImages() != 1)
 		{
@@ -243,16 +241,16 @@ bool FitnessComponent_WeakLensing_Bayes::inspectImagesData(int idx, const Images
 			}
 			m_elliptImgs.push_back(idx);
 		}
-		else // (avg)density
+		else // density
 		{
-			// Nothing else needs to be checked here
-		
-			if (typeName == "bayesdensityprior")
-				m_priorDensImages.push_back(idx);
-			else
-				m_priorAvgDensImages.push_back(idx);
-			
+			m_priorDensImages.push_back(idx);
 			needCalcConvergence = true;
+
+			if (!imgDat.hasProperty(ImagesData::Kappa) || !imgDat.hasProperty(ImagesData::KappaUncertainty))
+			{
+				setErrorString("The points must have properties for kappa and its uncertainty");
+				return false;
+			}
 		}
 	}
 	
@@ -408,7 +406,7 @@ bool FitnessComponent_WeakLensing_Bayes::processFitnessOption(const std::string 
 bool FitnessComponent_WeakLensing_Bayes::calculateFitness(const ProjectedImagesInterface &iface, float &fitness)
 {
 	fitness = calculateWeakLensingFitness_Bayes(iface,
-		m_pointGroups, m_slImages, m_elliptImgs, m_priorDensImages, m_priorAvgDensImages,
+		m_pointGroups, m_slImages, m_elliptImgs, m_priorDensImages,
 		m_distanceFractionsForZ, m_distFracFunction,
 		m_zDistDistFracAndProb,
 		*m_baDistFunction.get(),

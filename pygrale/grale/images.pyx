@@ -90,6 +90,8 @@ cdef class ImagesData:
         "shearsigma2": [ imagesdata.ShearUncertaintyComponent2 ],
         "redshift": [ imagesdata.Redshift ],
         "redshiftsigma": [ imagesdata.RedshiftUncertainty ],
+        "kappa": [ imagesdata.Kappa ],
+        "kappasigma": [ imagesdata.KappaUncertainty ]
     }
     propertyReductions = {
         "shear": [ "shear1", "shear2" ],

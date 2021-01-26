@@ -137,7 +137,6 @@ float calculateWeakLensingFitness_Bayes(const ProjectedImagesInterface &interfac
 	const vector<int> &strongIndices,
 	const vector<int> &weakIndices,
 	const std::vector<int> &densPriorIndices,
-	const std::vector<int> &avgDensPriorIndices,
 	const vector<vector<float>> &preCalcDistFrac,
 	const DiscreteFunction<float> &distFracFunction,
 	const std::vector<std::pair<float,float>> &zDistDistFracAndProb,
@@ -305,53 +304,29 @@ float calculateWeakLensingFitness_Bayes(const ProjectedImagesInterface &interfac
 		}
 	}
 
-	float avgKappa = 0;
-	int numKappaPoints = 0;
-	for (int s : avgDensPriorIndices)
-	{
-		int numPoints = interface.getNumberOfImagePoints(s);
-		const float *pKappa = interface.getConvergence(s);
-
-		for (int i = 0 ; i < numPoints ; i++)
-			avgKappa += pKappa[i];
-		numKappaPoints += numPoints;
-	}
-
-	// TODO: be careful with negative densities?
-	const int kappaMin = epsilon; // TODO: make this configurable? Avoid log of zero
-	if (numKappaPoints > 0)
-	{
-		avgKappa /= (float)numKappaPoints;
-		
-		if (avgKappa < kappaMin)
-			avgKappa = kappaMin;
-
-		// prob(dens) = cte * 1/dens => logprob = - log(dens) + const
-		// since we're using the negative log prob, it's just log(dens)
-		shearFitness += log(avgKappa);
-	}
-
-	// for each density point, use 1/dens prior
+	// for each density point check prior
+	float minLogPrior = 0;
 	for (int s : densPriorIndices)
 	{
+		assert(s >= 0 && s < interface.getNumberOfSources());
 		int numPoints = interface.getNumberOfImagePoints(s);
-		const float *pKappa = interface.getConvergence(s);
+		const float *pKappaPrior = interface.getOriginalProperties(ImagesData::Kappa, s);
+		const float *pKappaSigma = interface.getOriginalProperties(ImagesData::KappaUncertainty, s);
+		const float *pKappaModel = interface.getConvergence(s);
 
 		for (int i = 0 ; i < numPoints ; i++)
 		{
-			float kappa = pKappa[i];
-			if (kappa < kappaMin)
-				kappa = kappaMin;
-			shearFitness += log(kappa);
+			float relDiff = (pKappaModel[i]-pKappaPrior[i])/pKappaSigma[i];
+			minLogPrior += 0.5*relDiff*relDiff;
 		}
 	}
+	shearFitness += minLogPrior;
 
 	// static bool first = true;
 	// if (first)
 	// {
 	// 	first = false;
 	// 	cerr << "weakIndices.size = " << weakIndices.size() << endl;
-	// 	cerr << "avgDensPriorIndices.size = " << avgDensPriorIndices.size() << endl;
 	// 	cerr << "numKappaPoints = " << numKappaPoints << endl;
 	// 	cerr << "avgKappa = " << avgKappa << endl;
 	// }

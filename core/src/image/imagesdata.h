@@ -54,6 +54,8 @@ public:
 		ShearUncertaintyComponent2,
 		Redshift,
 		RedshiftUncertainty,
+		Kappa,
+		KappaUncertainty,
 		MaxProperty
 	};
 
