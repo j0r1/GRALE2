@@ -25,6 +25,7 @@ public:
 	const std::vector<Vector2Df> &getGradientFloats(int srcIdx, const ProjectedImagesInterface &iface);
 	const std::vector<Vector2Dd> &getGradientDoubles(int srcIdx, const ProjectedImagesInterface &iface);
 	const std::vector<float> &getGradientSizes(int srcIdx, const ProjectedImagesInterface &iface);
+	const std::vector<float> &getGradientSquaredSizes(int srcIdx, const ProjectedImagesInterface &iface);
 private:
 	std::vector<Vector2Df> m_tmpGradientsFloat;
 	std::vector<Vector2Dd> m_tmpGradientsDouble;

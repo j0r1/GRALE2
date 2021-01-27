@@ -120,7 +120,7 @@ bool FitnessComponent_KappaGradient::inspectImagesData(int idx, const ImagesData
 
 bool FitnessComponent_KappaGradient::calculateFitness(const ProjectedImagesInterface &iface, float &fitness)
 {
-	const vector<float> &gradientSizes = m_gradCalc.getGradientSizes(m_srcIdx, iface);
+	const vector<float> &gradientSizes = m_gradCalc.getGradientSquaredSizes(m_srcIdx, iface);
 	float sum = 0;
 
 	for (auto x : gradientSizes)

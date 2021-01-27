@@ -157,4 +157,18 @@ const std::vector<float> &NumericGradientCalculator::getGradientSizes(int srcIdx
 	return m_tmpGradientsSizes;
 }
 
+const std::vector<float> &NumericGradientCalculator::getGradientSquaredSizes(int srcIdx, const ProjectedImagesInterface &iface)
+{
+	assert(srcIdx >= 0 && srcIdx < iface.getNumberOfSources());
+	assert(iface.getNumberOfImages(srcIdx) == 3);
+
+	const vector<Vector2Dd> &v = getGradientDoubles(srcIdx, iface);
+	m_tmpGradientsSizes.resize(v.size());
+	
+	for (size_t i = 0 ; i < m_tmpGradientsSizes.size() ; i++)
+		m_tmpGradientsSizes[i] = (float)v[i].getLengthSquared();
+
+	return m_tmpGradientsSizes;
+}
+
 }
