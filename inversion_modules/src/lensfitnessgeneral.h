@@ -48,6 +48,12 @@ public:
 	          std::list<ImagesDataExtended *> &shortImages, const ConfigurationParameters *pParams) override;
 	std::string getUsage() const override;
 
+	int getConvergenceHistorySize() const									{ return m_convHistSize; }
+
+	const std::vector<double> getConvergenceFactors() const					{ return m_convFactors; }
+	// Negative means large mutation
+	const std::vector<double> getConvergenceSmallMutationSizes() const		{ return m_convMutSizes; }
+
 	ConfigurationParameters *getDefaultParametersInstance() const override;
 	std::string getFitnessComponentsDescription() const						{ return m_fitnessComponentDescription; }
 	int getImagesGroupSize() const											{ return 1; }
@@ -79,6 +85,7 @@ public:
 private:
 	void clear();
 	bool processGeneralParameters(const ConfigurationParameters *pParams);
+	bool processGAConvergenceParameters(const ConfigurationParameters *pParams);
 	bool processComponentParameters(const ConfigurationParameters *pParams);
 	bool setFitnessOptions(FitnessComponent *pComp, const ConfigurationParameters *pParams);
 	std::set<std::string> getSupportedTypeNames();
@@ -120,6 +127,8 @@ private:
 	std::string m_fitnessComponentDescription;
 
 	std::shared_ptr<Cosmology> m_cosmology;
+	int m_convHistSize;
+	std::vector<double> m_convMutSizes, m_convFactors;
 };
 
 } // end namespace

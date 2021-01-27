@@ -251,6 +251,9 @@ ConfigurationParameters *LensFitnessGeneral::getDefaultParametersInstance() cons
 	ConfigurationParameters *pParams = new ConfigurationParameters();
 
 	pParams->setParameterEmpty("general_cosmology");
+	pParams->setParameter("convergence_history_size", 250);
+	pParams->setParameter("convergence_factors", vector<double> { 0.1, 0.05 });
+	pParams->setParameter("convergence_smallmutation_sizes", vector<double> { -1.0, 0.1 }); // Negative means large mutation
 
 	pParams->setParameter("priority_pointimageoverlap", 300);
 	pParams->setParameter("priority_extendedimageoverlap", 300);
@@ -350,6 +353,47 @@ bool LensFitnessGeneral::processGeneralParameters(const ConfigurationParameters 
 	return true;
 }
 
+bool LensFitnessGeneral::processGAConvergenceParameters(const ConfigurationParameters *pParams)
+{
+	if (!pParams->getParameter("convergence_history_size", m_convHistSize))
+	{
+		setErrorString("Can't get GA parameter 'convergence_history_size' (not present or not an integer)");
+		return false;
+	}
+
+	if (m_convHistSize < 16)
+	{
+		setErrorString("GA parameter 'convergence_history_size' must be at least 16");
+		return false;
+	}
+
+	if (!pParams->getParameter("convergence_factors", m_convFactors))
+	{
+		setErrorString("Can't get GA parameter 'convergence_factors' (not present or not an array of doubles)");
+		return false;
+	}
+
+	if (!pParams->getParameter("convergence_smallmutation_sizes", m_convMutSizes))
+	{
+		setErrorString("Can't get GA parameter 'convergence_smallmutation_sizes' (not present or not an array of doubles)");
+		return false;
+	}
+
+	if (m_convMutSizes.size() != m_convFactors.size())
+	{
+		setErrorString("GA convergence factors and mutation sizes must be of same size");
+		return false;
+	}
+
+	if (m_convFactors.size() < 1)
+	{
+		setErrorString("No GA convergence factors present");
+		return false;
+	}
+
+	return true;
+}
+
 bool LensFitnessGeneral::processComponentParameters(const ConfigurationParameters *pParams)
 {
 	// Set priorities and component specific fitness options
@@ -421,6 +465,8 @@ bool LensFitnessGeneral::init(double z_d, std::list<ImagesDataExtended *> &image
 	assert(m_totalComponents.size() == COMPONENT_IDX_MAX);
 
 	if (!processGeneralParameters(pParams))
+		return false;
+	if (!processGAConvergenceParameters(pParams))
 		return false;
 	if (!processComponentParameters(pParams))
 		return false;
