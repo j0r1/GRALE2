@@ -276,7 +276,7 @@ ConfigurationParameters *LensFitnessGeneral::getDefaultParametersInstance() cons
 	pParams->setParameter("scalepriority_timedelay", -1);
 	pParams->setParameter("scalepriority_kappathreshold", -1);
 	pParams->setParameter("scalepriority_causticpenalty", -1);
-	pParams->setParameter("scalepriority_kappagradient", -1);
+	pParams->setParameter("scalepriority_kappagradient", 1000);
 	pParams->setParameter("scalepriority_bayesweaklensing", 300);
 
 	pParams->setParameter("fitness_pointimageoverlap_scaletype", string("MinMax"));
