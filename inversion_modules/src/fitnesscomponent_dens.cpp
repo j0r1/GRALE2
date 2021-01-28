@@ -1,6 +1,8 @@
 #include "fitnesscomponent_dens.h"
 #include "fitnessutil.h"
+#include <grale/constants.h>
 #include <grale/imagesdataextended.h>
+#include <grale/projectedimagesinterface.h>
 
 using namespace std;
 using namespace errut;
@@ -126,7 +128,9 @@ bool FitnessComponent_KappaGradient::calculateFitness(const ProjectedImagesInter
 	for (auto x : gradientSizes)
 		sum += x;
 	
-	fitness = sum/gradientSizes.size();
+	float factor = (float)(iface.getAngularScale()/ANGLE_ARCSEC);
+
+	fitness = (sum/gradientSizes.size())/(factor*factor);
 	return true;
 }
 
