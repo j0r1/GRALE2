@@ -49,3 +49,8 @@ Example Jupyter notebooks
  * An example of generating fake weak lensing measurements: 
    `generatefakewldata.ipynb <_static/generatefakewldata.ipynb>`_
 
+ * Recreates some plots of the article `A generalization of the mass-sheet degeneracy 
+   producing ring-like artefacts in the lens mass distribution <https://ui.adsabs.harvard.edu/abs/2008MNRAS.386..307L/abstract>`_,
+   describing a generalization of the mass sheet degeneracy that works with sources
+   at different redshifts: `scaledegen.ipynb <_static/scaledegen.ipynb>`_
+
