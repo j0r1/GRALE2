@@ -56,6 +56,10 @@ public:
 		RedshiftUncertainty,
 		Kappa,
 		KappaUncertainty,
+		DeflectionComponent1,
+		DeflectionComponent2,
+		Magnification,
+		MagnificationUncertainty,
 		MaxProperty
 	};
 

@@ -91,11 +91,17 @@ cdef class ImagesData:
         "redshift": [ imagesdata.Redshift ],
         "redshiftsigma": [ imagesdata.RedshiftUncertainty ],
         "kappa": [ imagesdata.Kappa ],
-        "kappasigma": [ imagesdata.KappaUncertainty ]
+        "kappasigma": [ imagesdata.KappaUncertainty ],
+        "alpha1": [ imagesdata.DeflectionComponent1 ],
+        "alpha2": [ imagesdata.DeflectionComponent2 ],
+        "alpha": [ imagesdata.DeflectionComponent1, imagesdata.DeflectionComponent2 ],
+        "mu": [ imagesdata.Magnification ],
+        "musigma": [ imagesdata.MagnificationUncertainty ],
     }
     propertyReductions = {
         "shear": [ "shear1", "shear2" ],
-        "shearsigma": [ "shearsigma1", "shearsigma2" ]
+        "shearsigma": [ "shearsigma1", "shearsigma2" ],
+        "alpha": [ "alpha1", "alpha2" ]
     }
 
     @staticmethod
