@@ -128,6 +128,7 @@ FitnessComponent_WeakLensing_Bayes::FitnessComponent_WeakLensing_Bayes(FitnessCo
 	addRecognizedTypeName("bayesellipticities");
 	addRecognizedTypeName("bayesdensityprior");
 	addRecognizedTypeName("bayesstronglensing");
+	addRecognizedTypeName("bayesmagnification");
 	m_redshiftDistributionNeeded = false;
 	m_howManySigmaFactor = 3.0f;
 	m_numSigmaSamplePoints = 7;
@@ -150,7 +151,9 @@ bool FitnessComponent_WeakLensing_Bayes::inspectImagesData(int idx, const Images
 	imgDat.getExtraParameter("type", typeName);
 	if (typeName != "bayesellipticities" && 
 		typeName != "bayesdensityprior" &&
-		typeName != "bayesstronglensing")
+		typeName != "bayesstronglensing" &&
+		typeName != "bayesmagnification"
+		)
 		return true; // ignore
 
 	if (typeName == "bayesstronglensing")
@@ -165,6 +168,17 @@ bool FitnessComponent_WeakLensing_Bayes::inspectImagesData(int idx, const Images
 
 		m_slImages.push_back(idx);
 		needCalcDeflections = true;
+	}
+	else if (typeName == "bayesmagnification")
+	{
+		if (!imgDat.hasProperty(ImagesData::Magnification) || !imgDat.hasProperty(ImagesData::MagnificationUncertainty))
+		{
+			setErrorString("Need both magnification and its uncertainty properties");
+			return false;
+		}
+
+		m_magImages.push_back(idx);
+		needCalcInverseMag = true;
 	}
 	else // ellipticities or dens prior
 	{
@@ -406,7 +420,7 @@ bool FitnessComponent_WeakLensing_Bayes::processFitnessOption(const std::string 
 bool FitnessComponent_WeakLensing_Bayes::calculateFitness(const ProjectedImagesInterface &iface, float &fitness)
 {
 	fitness = calculateWeakLensingFitness_Bayes(iface,
-		m_pointGroups, m_slImages, m_elliptImgs, m_priorDensImages,
+		m_pointGroups, m_slImages, m_elliptImgs, m_priorDensImages, m_magImages,
 		m_distanceFractionsForZ, m_distFracFunction,
 		m_zDistDistFracAndProb,
 		*m_baDistFunction.get(),

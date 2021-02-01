@@ -137,6 +137,7 @@ float calculateWeakLensingFitness_Bayes(const ProjectedImagesInterface &interfac
 	const vector<int> &strongIndices,
 	const vector<int> &weakIndices,
 	const std::vector<int> &densPriorIndices,
+	const std::vector<int> &magIndices,
 	const vector<vector<float>> &preCalcDistFrac,
 	const DiscreteFunction<float> &distFracFunction,
 	const std::vector<std::pair<float,float>> &zDistDistFracAndProb,
@@ -351,6 +352,26 @@ float calculateWeakLensingFitness_Bayes(const ProjectedImagesInterface &interfac
 	minLogSLProb /= 2.0f;
 
 	shearFitness += minLogSLProb;
+
+	float minLogMagProb = 0;
+	for (auto s : magIndices)
+	{
+		assert(s >= 0 && s < interface.getNumberOfSources());
+		int numPoints = interface.getNumberOfImagePoints(s);
+		const float *pMagOrig = interface.getOriginalProperties(ImagesData::Magnification, s);
+		const float *pMagSigma = interface.getOriginalProperties(ImagesData::MagnificationUncertainty, s);
+		const float *pInvMagCalc = interface.getInverseMagnifications(s);
+	
+		for (int i = 0 ; i < numPoints ; i++)
+		{
+			float diff = (1.0/(ABS(pInvMagCalc[i])+epsilon) - ABS(pMagOrig[i]))/pMagSigma[i];
+			minLogMagProb += diff*diff;
+		}
+	}
+	minLogMagProb /= 2.0f;
+
+	shearFitness += minLogMagProb;
+
 	// cerr << "shearFitness = " << shearFitness << endl;
 	// cerr << "minLogSLProb = " << minLogSLProb << endl;
 	// exit(-1);
