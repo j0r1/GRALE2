@@ -65,6 +65,7 @@ add_library(galens_general SHARED src/general/general.cpp src/lensfitnessgeneral
 	                          src/pointgroupstorage.cpp src/numericgradientcalculator.cpp
 				  src/fitnesscomponent_overlap.cpp src/fitnesscomponent_null.cpp src/fitnesscomponent_weak.cpp
 				  src/fitnesscomponent_time.cpp src/fitnesscomponent_dens.cpp src/fitnesscomponent_caustic.cpp
+				  src/fitnesscomponent_defl.cpp
 				  )
 target_link_libraries(galens_general ${EXTRA_LIBS} ${GRALE_LIBRARIES})
 install(TARGETS galens_general DESTINATION ${LIBRARY_INSTALL_DIR})
@@ -75,6 +76,7 @@ add_library(galens_general_gpu SHARED src/general/general_gpu.cpp src/lensfitnes
 	                          src/pointgroupstorage.cpp src/numericgradientcalculator.cpp
 				  src/fitnesscomponent_overlap.cpp src/fitnesscomponent_null.cpp src/fitnesscomponent_weak.cpp
 				  src/fitnesscomponent_time.cpp src/fitnesscomponent_dens.cpp src/fitnesscomponent_caustic.cpp
+				  src/fitnesscomponent_defl.cpp
 				  )
 target_link_libraries(galens_general_gpu ${EXTRA_LIBS} ${GRALE_LIBRARIES})
 install(TARGETS galens_general_gpu DESTINATION ${LIBRARY_INSTALL_DIR})
