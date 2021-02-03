@@ -54,7 +54,6 @@ bool FitnessComponent_DeflectionAngle::inspectImagesData(int idx, const ImagesDa
 bool FitnessComponent_DeflectionAngle::calculateFitness(const ProjectedImagesInterface &iface, float &fitness)
 {
 	double unitScale = (iface.getAngularScale()/ANGLE_ARCSEC);
-	float unitScale2 = (float)(unitScale*unitScale);
 	float deflAngleDiffSum2 = 0;
 	int totalNumPts = 0;
 
@@ -64,8 +63,9 @@ bool FitnessComponent_DeflectionAngle::calculateFitness(const ProjectedImagesInt
 		int numPoints = iface.getNumberOfImagePoints(s);
 		totalNumPts += numPoints;
 
-		assert(iface.hasOriginalProperty(ImagesData::DeflectionComponent1()) && iface.hasOriginalProperty(ImagesData::DeflectionComponent2()));
+		assert(iface.hasOriginalProperty(ImagesData::DeflectionComponent1, s) && iface.hasOriginalProperty(ImagesData::DeflectionComponent2, s));
 
+		// TODO: for now this needs to be in arcsec, make this configurable
 		const float *pOrigAx = iface.getOriginalProperties(ImagesData::DeflectionComponent1, s);
 		const float *pOrigAy = iface.getOriginalProperties(ImagesData::DeflectionComponent2, s);
 		const Vector2Df *pAlpha = iface.getAlphas(s);
@@ -73,6 +73,7 @@ bool FitnessComponent_DeflectionAngle::calculateFitness(const ProjectedImagesInt
 		for (int i = 0 ; i < numPoints ; i++)
 		{
 			Vector2Df diff = pAlpha[i];
+			diff *= unitScale;
 			diff -= Vector2Df(pOrigAx[i], pOrigAy[i]);
 			deflAngleDiffSum2 += diff.getLengthSquared();
 		}
@@ -81,7 +82,7 @@ bool FitnessComponent_DeflectionAngle::calculateFitness(const ProjectedImagesInt
 	if (totalNumPts > 0)
 		deflAngleDiffSum2 /= (float)totalNumPts;
 
-	fitness = deflAngleDiffSum2 * unitScale2;
+	fitness = deflAngleDiffSum2;
 	return true;
 }
 
