@@ -15,7 +15,8 @@ namespace grale
 FitnessComponent_KappaThreshold::FitnessComponent_KappaThreshold(FitnessComponentCache *pCache) 
 	: FitnessComponent("kappathreshold", pCache)
 {
-	addRecognizedTypeName("kappathresholdpoints");
+	addRecognizedTypeName("kappathresholdmin");
+	addRecognizedTypeName("kappathresholdmax");
 }
 
 FitnessComponent_KappaThreshold::~FitnessComponent_KappaThreshold()
@@ -29,35 +30,12 @@ bool FitnessComponent_KappaThreshold::inspectImagesData(int idx, const ImagesDat
 	string typeName;
 
 	imgDat.getExtraParameter("type", typeName);
-	if (typeName != "kappathresholdpoints")
+	if (typeName != "kappathresholdmin" && typeName != "kappathresholdmax")
 		return true; // not relevant, ignore
 
-	string thresStr;
-	double threshold = 1.0;
-
-	if (imgDat.hasExtraParameter("threshold"))
+	if (!imgDat.hasProperty(ImagesData::Kappa))
 	{
-		if (!imgDat.getExtraParameter("threshold", threshold))
-		{
-			setErrorString("Extra parameter 'threshold' is present, but doesn't seem to be a real value");
-			return false;
-		}
-	}
-
-	if (threshold < 0)
-	{
-		setErrorString("The specified threshold is negative");
-		return false;
-	}
-
-	if (imgDat.getNumberOfImages() != 1)
-	{
-		setErrorString("Only a single large 'image' (containing a set of points for which kappa should be inspected) is allowed");
-		return false;
-	}
-	if (imgDat.getNumberOfImagePoints(0) < 1)
-	{
-		setErrorString("No image points are present");
+		setErrorString("image data should have 'kappa' property");
 		return false;
 	}
 
@@ -65,13 +43,38 @@ bool FitnessComponent_KappaThreshold::inspectImagesData(int idx, const ImagesDat
 	needCalcConvergence = true;
 
 	addImagesDataIndex(idx);
-	m_thresholds.push_back((float)threshold);
+	m_minMax.push_back((typeName == "kappathresholdmin")?false:true);
 	return true;
 }
 
 bool FitnessComponent_KappaThreshold::calculateFitness(const ProjectedImagesInterface &iface, float &fitness)
 {
-	fitness = calculateKappaThresholdFitness(iface, getUsedImagesDataIndices(), m_thresholds);
+	const vector<int> &srcs = getUsedImagesDataIndices();
+	assert(srcs.size() == m_minMax.size());
+
+	float diffSum = 0;
+
+	for (size_t sIdx = 0 ; sIdx < srcs.size() ; sIdx++)
+	{
+		bool isMax = m_minMax[sIdx];
+		const float isMaxFactor = (isMax)?1.0f:-1.0f;
+
+		const int s = srcs[sIdx];
+		assert(s >= 0 && s < iface.getNumberOfSources());
+
+		const int numPoints = iface.getNumberOfImagePoints(s);
+		const float *pKappaOrig = iface.getOriginalProperties(ImagesData::Kappa, s);
+		const float *pKappa = iface.getConvergence(s);
+
+		for (int i = 0 ; i < numPoints ; i++)
+		{
+			float diff = (pKappa[i] - pKappaOrig[i])*isMaxFactor;
+			if (diff > 0)
+				diffSum += diff;
+		}
+	}
+
+	fitness = diffSum;
 	return true;
 }
 

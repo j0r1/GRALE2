@@ -17,7 +17,7 @@ public:
 			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence) override;
 	bool calculateFitness(const ProjectedImagesInterface &iface, float &fitness) override;
 private:
-	std::vector<float> m_thresholds;
+	std::vector<bool> m_minMax;
 };
 
 class FitnessComponent_KappaGradient : public FitnessComponent

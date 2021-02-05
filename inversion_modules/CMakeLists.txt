@@ -61,7 +61,7 @@ endif()
 
 add_library(galens_general SHARED src/general/general.cpp src/lensfitnessgeneral.cpp src/fitnesscomponent.cpp
 				  src/fitnessutil_overlap.cpp src/fitnessutil_null.cpp src/fitnessutil_weak.cpp
-				  src/fitnessutil_time.cpp src/fitnessutil_dens.cpp src/fitnessutil_caustic.cpp
+				  src/fitnessutil_time.cpp src/fitnessutil_caustic.cpp
 	                          src/pointgroupstorage.cpp src/numericgradientcalculator.cpp
 				  src/fitnesscomponent_overlap.cpp src/fitnesscomponent_null.cpp src/fitnesscomponent_weak.cpp
 				  src/fitnesscomponent_time.cpp src/fitnesscomponent_dens.cpp src/fitnesscomponent_caustic.cpp
@@ -72,7 +72,7 @@ install(TARGETS galens_general DESTINATION ${LIBRARY_INSTALL_DIR})
 
 add_library(galens_general_gpu SHARED src/general/general_gpu.cpp src/lensfitnessgeneral.cpp src/fitnesscomponent.cpp
 				  src/fitnessutil_overlap.cpp src/fitnessutil_null.cpp src/fitnessutil_weak.cpp
-				  src/fitnessutil_time.cpp src/fitnessutil_dens.cpp src/fitnessutil_caustic.cpp
+				  src/fitnessutil_time.cpp src/fitnessutil_caustic.cpp
 	                          src/pointgroupstorage.cpp src/numericgradientcalculator.cpp
 				  src/fitnesscomponent_overlap.cpp src/fitnesscomponent_null.cpp src/fitnesscomponent_weak.cpp
 				  src/fitnesscomponent_time.cpp src/fitnesscomponent_dens.cpp src/fitnesscomponent_caustic.cpp

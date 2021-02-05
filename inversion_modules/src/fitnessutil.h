@@ -101,9 +101,6 @@ float calculateTimeDelayFitnessPaper2009(const ProjectedImagesInterface &iface, 
 float calculateTimeDelayFitnessNoSrc(const ProjectedImagesInterface &iface, const std::vector<int> &sourceIndices,
                                              const std::vector<float> &tdScaleFactors = std::vector<float>());
 
-float calculateKappaThresholdFitness(const ProjectedImagesInterface &iface, const std::vector<int> &sourceIndices,
-		                             const std::vector<float> &kappaThresholds);
-
 float calculateCausticPenaltyFitness(const ProjectedImagesInterface &iface,
 		const std::vector<int> &sourceIndices,
 		const std::vector<int> &gridIndices,
