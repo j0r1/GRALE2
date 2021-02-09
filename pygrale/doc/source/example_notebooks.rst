@@ -54,3 +54,8 @@ Example Jupyter notebooks
    describing a generalization of the mass sheet degeneracy that works with sources
    at different redshifts: `scaledegen.ipynb <_static/scaledegen.ipynb>`_
 
+ * The previous example scales two sources at different redshifts with the
+   same scale factor, in the article `Lensing degeneracies and mass substructure <https://ui.adsabs.harvard.edu/abs/2012MNRAS.425.1772L/abstract>`_
+   it was shown how different scale factors can be used instead. Some results
+   can be found here: `scaledegen2012.ipynb <_static/scaledegen2012.ipynb>`_
+

@@ -20,81 +20,25 @@ baseLens = lenses.GravitationalLens.load("approxlens.lensdata")
 srcs = [ images.ImagesData.load("source1entire.imgdata"),
          images.ImagesData.load("source2entire.imgdata") ]
 
-# This is a helper function to create the ImagesData instance that
-# will be used for the numeric estimation of the gradient, and will
-# also return the monopole basis functions of which the weights
-# will need to be optimized
-def createGradientImagesAndMonopoleBasisFunctions(srcs, Dd, subDiv, size, center = [0, 0], 
-                                      widthFactor = 3.0, rangeFactor = 4.0,
-                                      centralDensity = 1.0,
-                                      cellPartForNumericGradient = 1000.0):
+# The createMonopoleBasisFunctions function below creates the monopole 
+# basis functions of which the weights will need to be optimized. Using
+# a callback for each cell, we'll also create the ImagesData instance that
+# will be used for the numeric estimation of the gradient.
+
+gradImg = images.ImagesData(3)
     
-    borders = [ [ s.getBorder(i) for i in range(s.getNumberOfImages()) ] for s in srcs ]
-
-    def getDistanceToImages(pt):
-        from shapely.geometry import Point, Polygon
-
-        minDistSquared = float("inf")
-        minPt = None
-        for srcBorders in borders:
-            for border in srcBorders:
-                if Point(pt).within(Polygon(border)): # Check if point is inside polygon
-                    return 0.0, pt.copy()
-
-                for imgPt in border:
-                    diff = imgPt - pt
-                    distSquared = diff[0]**2 + diff[1]**2
-                    if distSquared < minDistSquared:
-                        minPt = imgPt
-                        minDistSquared = distSquared
-                        
-        return minDistSquared**0.5, minPt
-
-    import grale.grid as ggrid
-
-    cellSize = size/subDiv
-    rndX = (random.random()-0.5)*cellSize
-    rndY = (random.random()-0.5)*cellSize
-    
-    g = ggrid.createUniformGrid(size, np.array(center, dtype=np.double) + V(rndX, rndY), subDiv)
-    g = ggrid.fractionalGridToRealGrid(g)
-    
+def cellCenterCallback(ctr, cellSize, hasBasisFunction, gradImg):
+    cellPartForNumericGradient = 1000.0
     dx = cellSize/cellPartForNumericGradient
-    
-    gradImg = images.ImagesData(3)
-    basisFunctions = []
-    
-    factor = widthFactor
-    
-    for cell in g:
-        ctr = np.array(cell["center"])
-        gradImg.addPoint(0, ctr)
-        gradImg.addPoint(1, ctr + V(dx, 0))
-        gradImg.addPoint(2, ctr + V(0, dx))
-        
-        minDist, minPt = getDistanceToImages(ctr)
-        minDist *= 0.99
-        
-        if minDist > rangeFactor*cellSize:
-            
-            zeroPoint = (cellSize*factor)/minDist
-            mp = lenses.ZeroMassLens(Dd, { 
-                "density": centralDensity,
-                "radius": minDist,
-                "zeropoint": zeroPoint
-            })
 
-            basisFunctions.append({
-                "lens": mp,
-                "center": ctr,
-                "mass": 1 # This is not used, but cannot be set to zero
-            })
-                                
-    return gradImg, basisFunctions
-
+    gradImg.addPoint(0, ctr)
+    gradImg.addPoint(1, ctr + V(dx, 0))
+    gradImg.addPoint(2, ctr + V(0, dx))
+        
 # These are the same settings as used for the figure in the CL0024 article
-gradImg, basisFunctions = createGradientImagesAndMonopoleBasisFunctions(srcs,
-        Dd, 31, 1.2*ANGLE_ARCMIN)
+basisFunctions = util.createMonopoleBasisFunctions(srcs, Dd, 31, 1.2*ANGLE_ARCMIN,
+                                              cellCenterCallback=cellCenterCallback,
+                                              cellCenterCallbackState=gradImg)
 
 # This is not really relevant for the kind of optimization routine we'll be
 # using

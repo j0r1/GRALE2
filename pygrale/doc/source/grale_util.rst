@@ -7,4 +7,4 @@ grale.util
 
 .. autofunction:: calculateRMS
 
-
+.. autofunction:: createMonopoleBasisFunctions
