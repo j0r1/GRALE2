@@ -59,3 +59,9 @@ Example Jupyter notebooks
    it was shown how different scale factors can be used instead. Some results
    can be found here: `scaledegen2012.ipynb <_static/scaledegen2012.ipynb>`_
 
+ * These notebooks show how the IrtyshI and IrtyshII lens models, used in
+   `Free-form grale lens inversion of galaxy clusters with up to 1000 multiple images <https://ui.adsabs.harvard.edu/abs/2020MNRAS.494.3998G/abstract>`_
+   and created using the `gravlens/lensmodel software <https://www.physics.rutgers.edu/~keeton/gravlens/2012WS/>`_
+   (see also `Keeton 2001 <https://ui.adsabs.harvard.edu/abs/2001astro.ph..2341K/abstract>`_),
+   can be convert to lens models for Grale: `irtyshI.ipynb <_static/irtyshI.ipynb>`_ and
+   `irtyshII.ipynb <_static/irtyshII.ipynb>`_
