@@ -42,6 +42,7 @@ Example Jupyter notebooks
    * Situation in Figure 7: `multisistests.ipynb <_static/multisistests.ipynb>`_
    * Situation in Figure 2: `multisistests2.ipynb <_static/multisistests2.ipynb>`_
    * Situation in Figure 6 (second row): `multisistests3.ipynb <_static/multisistests3.ipynb>`_
+
  
  * Illustration of loading `LensTool <https://projets.lam.fr/projects/lenstool/wiki>`_
    models: `lenstooltest.ipynb <_static/lenstooltest.ipynb>`_
@@ -65,3 +66,13 @@ Example Jupyter notebooks
    (see also `Keeton 2001 <https://ui.adsabs.harvard.edu/abs/2001astro.ph..2341K/abstract>`_),
    can be convert to lens models for Grale: `irtyshI.ipynb <_static/irtyshI.ipynb>`_ and
    `irtyshII.ipynb <_static/irtyshII.ipynb>`_
+
+ * Importing deflection fields from `various models of the Abell 370 <https://archive.stsci.edu/pub/hlsp/frontier/abell370/models/>`_:
+
+   * `a370cats.ipynb <_static/a370cats.ipynb>`_
+   * `a370diego.ipynb <_static/a370diego.ipynb>`_
+   * `a370glafic.ipynb <_static/a370glafic.ipynb>`_
+   * `a370keeton.ipynb <_static/a370keeton.ipynb>`_
+   * `a370sharon.ipynb <_static/a370sharon.ipynb>`_
+   * `a370williams.ipynb <_static/a370williams.ipynb>`_
+
