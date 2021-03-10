@@ -29,6 +29,7 @@ import sys
 
 debugOutput = False
 debugDirectStderr = False
+debugCaptureProcessCommandsFile = None
 communicationTimeout = 300
 
 real_print = print
@@ -69,6 +70,15 @@ def _getErrorLineFromErrFile(errFile):
     else:
         errLine = "Something went wrong, but don't know what"
     return errLine
+
+class IOWrapper(timed_or_untimed_io.IO):
+    def __init__(self, outFD, inFD, fname):
+        self.f = open(fname, "wb")
+        super(IOWrapper, self).__init__(outFD, inFD)
+
+    def writeBytes(self, b):
+        self.f.write(b)
+        return super(IOWrapper, self).writeBytes(b)
 
 class Inverter(object):
     def __init__(self, args, inversionType, extraEnv = None, feedbackObject = None, readDescriptor = None, 
@@ -111,7 +121,8 @@ class Inverter(object):
 
             inFd = proc.stdin.fileno() if self.writeDescriptor is None else self.writeDescriptor
             outFd = proc.stdout.fileno() if self.readDescriptor is None else self.readDescriptor
-            io = timed_or_untimed_io.IO(outFd, inFd)
+
+            io = timed_or_untimed_io.IO(outFd, inFd) if not debugCaptureProcessCommandsFile else IOWrapper(outFd, inFd, debugCaptureProcessCommandsFile)
 
             line = io.readLine(30)
             invId = "GAINVERTER:"
