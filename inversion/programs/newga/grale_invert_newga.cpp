@@ -6,6 +6,7 @@
 #include <errut/booltype.h>
 #include <serut/memoryserializer.h>
 #include <mogal/geneticalgorithm.h>
+#include <mogal2/geneticalgorithm.h>
 #ifndef WIN32
 #include <fcntl.h>
 #endif // !WIN32
@@ -17,8 +18,8 @@
 using namespace std;
 using namespace grale;
 using namespace serut;
-using namespace mogal;
 using namespace errut;
+using namespace mogal;
 
 // TODO: rename this, is from copy-paste
 class SingleCoreCommunicator : public InversionCommunicator
@@ -33,6 +34,7 @@ protected:
 	             const std::string &moduleDir, const std::string &moduleFile,
 	             const std::vector<uint8_t> &factoryParamBytes) override
 	{
+		mogal2::GeneticAlgorithm ga;
 
 		return "TODO";
 	}
