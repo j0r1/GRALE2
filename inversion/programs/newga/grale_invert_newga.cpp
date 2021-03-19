@@ -6,12 +6,14 @@
 #include "inversioncommunicator.h"
 #include "randomnumbergenerator.h"
 #include "constants.h"
-#include <errut/booltype.h>
+#include "lensgaindividual.h"
+#include "lensgagenomemutation.h"
+#include "lensgagenomecrossover.h"
+#include "lensgafitnesscomparison.h"
 #include <serut/memoryserializer.h>
 #include <mogal/geneticalgorithm.h>
 #include <mogal2/geneticalgorithm.h>
 #include <mogal2/randomnumbergenerator.h>
-#include <mogal2/vectorgenomefitness.h>
 #include <mogal2/singlethreadedpopulationfitnesscalculation.h>
 #include <mogal2/stopcriterion.h>
 #include <mogal2/simplesortedpopulation.h>
@@ -29,169 +31,6 @@ using namespace std;
 using namespace serut;
 using namespace errut;
 
-class LensFitness : public mogal2::Fitness
-{
-public:
-	LensFitness(size_t numObjectives)
-	{
-		m_fitnesses.resize(numObjectives);
-		m_scaleFactor = numeric_limits<float>::quiet_NaN();
-	}
-
-	std::shared_ptr<Fitness> createCopy(bool copyContents = true) const
-	{
-		auto c = make_shared<LensFitness>(m_fitnesses.size());
-		if (copyContents)
-		{
-			for (size_t i = 0 ; i < m_fitnesses.size() ; i++)
-				c->m_fitnesses[i] = m_fitnesses[i];
-			c->m_scaleFactor = m_scaleFactor;
-			if (isCalculated())
-				c->setCalculated();
-		}
-		return c;
-	}
-
-	std::string toString() const
-	{
-		if (!isCalculated())
-			return "?";
-
-		stringstream ss;
-		ss << "[";
-		for (auto x : m_fitnesses)
-			ss << " " << x;
-		
-		ss << " * " << m_scaleFactor << " ]";
-		return ss.str();
-	}
-
-	errut::bool_t MPI_BroadcastLayout(int root, MPI_Comm communicator)
-	{
-		int s = (int)m_fitnesses.size();
-		MPI_Bcast(&s, 1, MPI_INT, root, communicator);
-		m_fitnesses.resize(s);
-		return true;
-	}
-
-	errut::bool_t MPI_Send(int dest, int tag, MPI_Comm communicator,
-	                               std::vector<MPI_Request> &requests) const
-	{
-		requests.resize(2);
-		MPI_Isend(m_fitnesses.data(), m_fitnesses.size(), MPI_FLOAT, dest, tag, communicator, &requests[0]);
-		MPI_Isend(&m_scaleFactor, 1, MPI_FLOAT, dest, tag, communicator, &requests[1]);
-		return true;
-	}
-	errut::bool_t MPI_Recv(int src, int tag, MPI_Comm communicator,
-								   std::vector<MPI_Request> &requests)
-	{
-		requests.resize(2);
-		MPI_Irecv(m_fitnesses.data(), m_fitnesses.size(), MPI_FLOAT, src, tag, communicator, &requests[0]);
-		MPI_Irecv(&m_scaleFactor, 1, MPI_FLOAT, src, tag, communicator, &requests[1]);
-		return true;
-	}
-
-	vector<float> m_fitnesses;
-	float m_scaleFactor;
-};
-
-class LensGenome : public mogal2::Genome
-{
-public:
-	LensGenome(size_t numWeights, size_t numSheetValues)
-	{
-		m_weights.resize(numWeights);
-		m_sheets.resize(numSheetValues);
-		m_scaleFactor = numeric_limits<float>::quiet_NaN(); // Will be returned by the fitness calculation
-	}
-
-	std::shared_ptr<Genome> createCopy(bool copyContents = true) const
-	{
-		auto c = make_shared<LensGenome>(m_weights.size(), m_sheets.size());
-		if (copyContents)
-		{
-			for (size_t i = 0 ; i < m_weights.size() ; i++)
-				c->m_weights[i] = m_weights[i];
-			for (size_t i = 0 ; i < m_sheets.size() ; i++)
-				c->m_sheets[i] = m_sheets[i];
-			c->m_scaleFactor = m_scaleFactor;
-		}
-		return c;
-	}
-	std::string toString() const
-	{
-		stringstream ss;
-		ss << "[";
-		for (auto x : m_weights)
-			ss << " " << x;
-		
-		if (m_sheets.size() > 0)
-		{
-			ss << " |";
-			for (auto x : m_sheets)
-				ss << " " << x;
-		}
-		ss << " * " << m_scaleFactor << " ]";
-		return ss.str();
-	}
-
-	errut::bool_t MPI_BroadcastLayout(int root, MPI_Comm communicator)
-	{
-		int sizes[2] = { (int)m_weights.size(), (int)m_sheets.size() };
-		MPI_Bcast(sizes, 2, MPI_INT, root, communicator);
-		m_weights.resize(sizes[0]);
-		m_sheets.resize(sizes[1]);
-		return true;
-	}
-	
-	errut::bool_t MPI_Send(int dest, int tag, MPI_Comm communicator,
-	                               std::vector<MPI_Request> &requests) const
-	{
-		size_t n = (m_sheets.empty())?1:2;
-		requests.resize(n);
-
-		MPI_Isend(m_weights.data(), m_weights.size(), MPI_FLOAT, dest, tag, communicator, &requests[0]);
-		if (!m_sheets.empty())
-			MPI_Isend(m_sheets.data(), m_sheets.size(), MPI_FLOAT, dest, tag, communicator, &requests[1]);
-		return true;
-	}
-	
-	errut::bool_t MPI_Recv(int src, int tag, MPI_Comm communicator,
-								   std::vector<MPI_Request> &requests)
-	{
-		size_t n = (m_sheets.empty())?1:2;
-		requests.resize(n);
-
-		MPI_Irecv(m_weights.data(), m_weights.size(), MPI_FLOAT, src, tag, communicator, &requests[0]);
-		if (!m_sheets.empty())
-			MPI_Irecv(m_sheets.data(), m_sheets.size(), MPI_FLOAT, src, tag, communicator, &requests[1]);
-		return true;		
-	}
-
-	vector<float> m_weights;
-	vector<float> m_sheets;
-	float m_scaleFactor;
-};
-
-class LensIndividual : public mogal2::Individual
-{
-public:
-	LensIndividual(std::shared_ptr<mogal2::Genome> genome, std::shared_ptr<mogal2::Fitness> fitness,
-			   size_t introducedInGeneration = std::numeric_limits<size_t>::max())
-		: mogal2::Individual(genome, fitness, introducedInGeneration),
-		  m_parent1(-1), m_parent2(-1)
-	{
-	}
-
-	std::shared_ptr<Individual> createNew(std::shared_ptr<mogal2::Genome> genome, std::shared_ptr<mogal2::Fitness> fitness,
-			   size_t introducedInGeneration = std::numeric_limits<size_t>::max()) const override
-	{
-		return make_shared<LensIndividual>(genome, fitness, introducedInGeneration);
-	}
-
-	int m_parent1, m_parent2;
-};
-
 class Creation : public mogal2::IndividualCreation
 {
 public:
@@ -205,7 +44,7 @@ public:
 		auto &basisWeights = g->getBasisFunctionWeights();
 		auto &sheetValues = g->getSheetValues();
 
-		shared_ptr<LensGenome> genome = make_shared<LensGenome>(basisWeights.size(), sheetValues.size());
+		shared_ptr<grale::LensGAGenome> genome = make_shared<grale::LensGAGenome>(basisWeights.size(), sheetValues.size());
 		genome->m_weights = basisWeights;
 		genome->m_sheets = sheetValues;
 		return genome;
@@ -213,12 +52,12 @@ public:
 
     std::shared_ptr<mogal2::Fitness> createEmptyFitness() override
 	{
-		return make_shared<LensFitness>(m_pFactory->getNumberOfFitnessComponents());
+		return make_shared<grale::LensGAFitness>(m_pFactory->getNumberOfFitnessComponents());
 	}
 
 	std::shared_ptr<mogal2::Individual> createReferenceIndividual() override
 	{
-		return std::make_shared<LensIndividual>(nullptr, nullptr);
+		return std::make_shared<grale::LensGAIndividual>(nullptr, nullptr);
 	}
 private:
 	grale::LensInversionGAFactoryCommon *m_pFactory;
@@ -247,241 +86,6 @@ private:
 	const mogal::RandomNumberGenerator *m_pRng;
 };
 
-class LensGenomeMutation : public mogal2::GenomeMutation
-{
-public:
-	LensGenomeMutation(const shared_ptr<mogal2::RandomNumberGenerator> &rng, float chanceMultiplier,
-					   bool allowNegativeValues, float mutationAmplitude, bool absoluteMutation)
-		: m_rng(rng), m_chanceMultiplier(chanceMultiplier), m_allowNegative(allowNegativeValues),
-		  m_mutationAmplitude(mutationAmplitude), m_absoluteMutation(absoluteMutation)
-	{
-	}
-
-	errut::bool_t check(const mogal2::Genome &genome) override
-	{
-		if (!dynamic_cast<const LensGenome*>(&genome))
-			return "Genome is of wrong type";
-
-		return true;
-	}
-
-	errut::bool_t mutate(mogal2::Genome &genome, bool &isChanged) override
-	{
-		LensGenome &g = static_cast<LensGenome&>(genome);
-
-		size_t numBasisFunctions = g.m_weights.size();
-		float chance = m_chanceMultiplier/((float)numBasisFunctions);
-
-		auto absVal = [](auto x) { return ABS(x); };
-		auto noChange = [](auto x) { return x; };
-		auto getMaxVal = [&g, numBasisFunctions](auto fn)
-		{
-			float maxVal = 0;
-
-			for (int i = 0 ; i < numBasisFunctions ; i++)
-			{
-				float x = fn(g.m_weights[i]);
-				if (maxVal < x)
-					maxVal = x;
-			}
-			return maxVal;
-		};
-
-		float maxVal = (m_allowNegative)?getMaxVal(absVal):getMaxVal(noChange);
-
-		// In the past, this 'maxVal' value was rescaled to 0.5, the unit range then 
-		// corresponds to twice this. This means that the unit based mutation amplitude
-		// needs to be scaled by 2*maxVal
-		float rescale = 2.0f*maxVal;
-		float mutationAmplitude = m_mutationAmplitude * rescale;
-
-		auto chanceSetUniform = [&isChanged, chance, this, rescale](float &x, float mult, float offset)
-		{
-			if ((float)m_rng->getRandomDouble() < chance)
-			{
-				x = ((float)m_rng->getRandomDouble()*mult - offset)*rescale;
-				isChanged = true;
-			}
-		};
-
-		auto chanceSetUniformAllScalableBasisFunctions = [this, &g, chance, numBasisFunctions, chanceSetUniform](float mult, float offset)
-		{
-			for (int i = 0 ; i < numBasisFunctions ; i++)
-				chanceSetUniform(g.m_weights[i], mult, offset);
-		};
-
-		auto chanceSetSmallDiff = [&isChanged, chance, this, mutationAmplitude](float &target, float yMin, float yMax)
-		{
-			if ((float)m_rng->getRandomDouble() < chance)
-			{
-				// allow larger mutations with smaller probablility
-				// p(x) = (2/Pi)*1/(x^2+1)
-				// cfr anomalous diffusion
-				float p = (float)m_rng->getRandomDouble()*2.0f-1.0f;
-				float x = TAN(p*(float)(grale::CONST_PI/4.0))*mutationAmplitude;
-				float y = x+target;
-
-				if (y < yMin)
-					y = yMin;
-				else if (y > yMax)
-					y = yMax;
-				
-				target = y;
-
-				isChanged = true;
-			}
-		};
-
-		auto chanceSetSmallDiffAllScalableBasisFunctions = [this, chance, &g, numBasisFunctions, chanceSetSmallDiff](float yMin, float yMax)
-		{
-			for (int i = 0 ; i < numBasisFunctions ; i++)
-				chanceSetSmallDiff(g.m_weights[i], yMin, yMax);
-		};
-
-		if (m_absoluteMutation)
-		{
-			if (m_allowNegative)
-				chanceSetUniformAllScalableBasisFunctions(2.0f, 1.0f);
-			else
-				chanceSetUniformAllScalableBasisFunctions(1.0f, 0.0f);
-		}
-		else
-		{
-			if (m_allowNegative)
-				chanceSetSmallDiffAllScalableBasisFunctions(-rescale, rescale);
-			else
-				chanceSetSmallDiffAllScalableBasisFunctions(0.0f, rescale);
-		}
-
-		auto chanceSetSimpleUniform = [&isChanged, chance, this](float &x)
-		{
-			if ((float)m_rng->getRandomDouble() < chance)
-			{
-				x = (float)m_rng->getRandomDouble();
-				isChanged = true;
-			}
-		};
-
-		if (m_absoluteMutation)
-		{
-			for (auto &v : g.m_sheets)
-				chanceSetSimpleUniform(v);
-		}
-		else
-		{
-			for (auto &v : g.m_sheets)
-				chanceSetSmallDiff(v, 0.0f, 1.0f);
-		}
-
-		return true;
-	}
-private:
-	shared_ptr<mogal2::RandomNumberGenerator> m_rng;
-	float m_chanceMultiplier;
-	float m_mutationAmplitude;
-	bool m_allowNegative;
-	bool m_absoluteMutation;
-};
-
-class LensGenomeCrossover : public mogal2::GenomeCrossover
-{
-public:
-	LensGenomeCrossover(const shared_ptr<mogal2::RandomNumberGenerator> &rng, bool allowNegative)
-		: m_rng(rng), m_allowNegative(allowNegative)
-	{
-	}
-
-	LensGenomeCrossover()
-	{
-	}
-
-	errut::bool_t check(const std::vector<std::shared_ptr<mogal2::Genome>> &parents)
-	{
-		if (parents.size() != 2)
-			return "Expecting two parents";
-		if (dynamic_cast<LensGenome*>(parents[0].get()) == 0)
-			return "Genome is of wrong type";
-		return true;
-	}
-
-	errut::bool_t generateOffspring(const std::vector<std::shared_ptr<mogal2::Genome>> &parents,
-	                                        std::vector<std::shared_ptr<mogal2::Genome>> &generatedOffspring)
-	{
-		assert(parents.size() == 2);
-		LensGenome *pParents[2] = {
-			static_cast<LensGenome*>(parents[1].get()),
-			static_cast<LensGenome*>(parents[0].get())
-		};
-
-		size_t numBasisFunctions = pParents[0]->m_weights.size();
-
-		generatedOffspring.clear();
-		auto offspring = parents[0]->createCopy(false);
-		generatedOffspring.push_back(offspring);
-		LensGenome *pOff = static_cast<LensGenome*>(offspring.get());
-
-		std::vector<float> &newBasisFunctionsWeights = pOff->m_weights;
-
-		auto pickParent = [pParents, this]()
-		{
-			float x = (float)m_rng->getRandomDouble();
-			const LensGenome *pParent = pParents[(x < 0.5f)?1:0];
-			return pParent;
-		};
-
-		auto genomeUniformCrossover = [&newBasisFunctionsWeights, numBasisFunctions, &pickParent](auto check)
-		{
-			for (int i = 0 ; i < numBasisFunctions ; i++)
-			{
-				const LensGenome *pParent = pickParent();
-				newBasisFunctionsWeights[i] = pParent->m_scaleFactor * pParent->m_weights[i];
-				check(newBasisFunctionsWeights[i]);
-			}
-		};
-
-		auto noChange = [](float &x) { };
-		auto clamp = [](float &x) { if (x < 0) x = 0; };
-
-		if (m_allowNegative)
-			genomeUniformCrossover(noChange);
-		else
-			genomeUniformCrossover(clamp);
-
-		vector<float> &newSheetValues = pOff->m_sheets;
-		for (size_t i = 0 ; i < newSheetValues.size() ; i++)
-			newSheetValues[i] = pickParent()->m_sheets[i];
-
-		return true;
-	}
-private:
-	shared_ptr<mogal2::RandomNumberGenerator> m_rng;
-	bool m_allowNegative;
-};
-
-class LensFitnessComparison : public mogal2::FitnessComparison
-{
-public:
-	LensFitnessComparison() { }
-	~LensFitnessComparison() { }
-	
-	errut::bool_t check(const mogal2::Fitness &f) const
-	{
-		if (!dynamic_cast<const LensFitness*>(&f))
-			return "Fitness is of wrong type";
-		return true;
-	}
-
-	bool isFitterThan(const mogal2::Fitness &first, const mogal2::Fitness &second, size_t objectiveNumber) const
-	{
-		const LensFitness &f1 = static_cast<const LensFitness &>(first);
-		const LensFitness &f2 = static_cast<const LensFitness &>(second);
-
-		assert(f1.m_fitnesses.size() == f2.m_fitnesses.size());
-		assert(objectiveNumber < f1.m_fitnesses.size());
-
-		return f1.m_fitnesses[objectiveNumber] < f2.m_fitnesses[objectiveNumber];
-	}
-};
 // TODO: this is for a single fitness measure
 class MyCrossover : public mogal2::PopulationCrossover
 {
@@ -491,7 +95,7 @@ public:
 				bool allowNegative,
 				const shared_ptr<mogal2::GenomeMutation> &mutation)
 		: m_beta(beta), m_bestWithoutMutation(elitism), m_bestWithMutation(includeBest), m_crossoverRate(crossoverRate),
-		  m_rng(rng), m_sortedPop(make_shared<LensFitnessComparison>()), m_cross(rng, allowNegative),
+		  m_rng(rng), m_sortedPop(make_shared<grale::LensGAFitnessComparison>()), m_cross(rng, allowNegative),
 		  m_mutation(mutation)
 	{
 
@@ -502,9 +106,9 @@ public:
 		if (population->size() == 0)
 			return "Empty population";
 		auto &i = population->individual(0);
-		if (!dynamic_cast<const LensGenome *>(i->genomePtr()))
+		if (!dynamic_cast<const grale::LensGAGenome *>(i->genomePtr()))
 			return "Genome is of wrong type";
-		if (!dynamic_cast<const LensFitness *>(i->fitnessPtr()))
+		if (!dynamic_cast<const grale::LensGAFitness *>(i->fitnessPtr()))
 			return "Fitness is of wrong type";
 
 		bool_t r;
@@ -531,8 +135,8 @@ public:
 		// Scale factor is calculated and stored in fitness, copy it back to genome
 		for (auto &i : population->individuals())
 		{
-			auto &g = static_cast<LensGenome &>(i->genomeRef());
-			auto &f = static_cast<LensFitness &>(i->fitnessRef());
+			auto &g = static_cast<grale::LensGAGenome &>(i->genomeRef());
+			auto &f = static_cast<grale::LensGAFitness &>(i->fitnessRef());
 			g.m_scaleFactor = f.m_scaleFactor;
 		}
 
@@ -547,7 +151,7 @@ public:
 		auto appendBest = [&newPop, &population]()
 		{
 			auto ind = population->individual(0)->createCopy();
-			LensIndividual &i = static_cast<LensIndividual&>(*ind);
+			grale::LensGAIndividual &i = static_cast<grale::LensGAIndividual&>(*ind);
 			i.m_parent1 = 0;
 			i.m_parent2 = -1;
 			newPop->append(ind);
@@ -572,9 +176,9 @@ public:
 			return r;
 		};
 
-		auto getLensIndividual = [&population](size_t i) -> const LensIndividual &
+		auto getLensIndividual = [&population](size_t i) -> const grale::LensGAIndividual &
 		{
-			return static_cast<LensIndividual&>(*population->individual(i));
+			return static_cast<grale::LensGAIndividual&>(*population->individual(i));
 		};
 
 		// In original version, an attempt was made to prevent inbreeding
@@ -624,7 +228,7 @@ public:
 
 				for (auto &g : offspring)
 				{
-					auto ind = make_shared<LensIndividual>(g, population->individual(0)->fitness()->createCopy(false), generation);
+					auto ind = make_shared<grale::LensGAIndividual>(g, population->individual(0)->fitness()->createCopy(false), generation);
 					ind->m_parent1 = index1;
 					ind->m_parent2 = index2;
 					newPop->append(ind);
@@ -635,7 +239,7 @@ public:
 				int index = pickParent();
 				auto ind = population->individual(index)->createCopy();
 
-				LensIndividual &lensInd = static_cast<LensIndividual&>(*ind);
+				grale::LensGAIndividual &lensInd = static_cast<grale::LensGAIndividual&>(*ind);
 				lensInd.m_parent1 = index;
 				lensInd.m_parent2 = -1;
 				newPop->append(ind);
@@ -661,7 +265,7 @@ public:
 
 	shared_ptr<mogal2::RandomNumberGenerator> m_rng;
 	mogal2::SimpleSortedPopulation m_sortedPop;
-	LensGenomeCrossover m_cross;
+	grale::LensGAGenomeCrossover m_cross;
 	double m_beta, m_bestWithMutation, m_bestWithoutMutation, m_crossoverRate;
 	shared_ptr<mogal2::GenomeMutation> m_mutation;
 };
@@ -674,8 +278,8 @@ public:
 
 	errut::bool_t calculate(const mogal2::Genome &genome, mogal2::Fitness &fitness)
 	{
-		const LensGenome &g = dynamic_cast<const LensGenome &>(genome);
-		LensFitness &f = dynamic_cast<LensFitness &>(fitness);
+		const grale::LensGAGenome &g = dynamic_cast<const grale::LensGAGenome &>(genome);
+		grale::LensGAFitness &f = dynamic_cast<grale::LensGAFitness &>(fitness);
 		
 		// Anything that needs to get communicated back needs to be in the fitness, so
 		// we'll store the scalefactor in the fitness and transfer it to the genome in a
@@ -694,13 +298,13 @@ public:
 	MyGA() { }
 	~MyGA() { }
 
-	errut::bool_t onBeforeFitnessCalculation(size_t generation, std::shared_ptr<mogal2::Population> &population)
-	{
-		cout << "# Generation " << generation << ", before calculation: " << endl;
-		for (auto &i : population->individuals())
-			cout << i->fitness()->toString() << endl;
-		return true;
-	}
+	// errut::bool_t onBeforeFitnessCalculation(size_t generation, std::shared_ptr<mogal2::Population> &population)
+	// {
+	// 	cout << "# Generation " << generation << ", before calculation: " << endl;
+	// 	for (auto &i : population->individuals())
+	// 		cout << i->fitness()->toString() << endl;
+	// 	return true;
+	// }
 
     errut::bool_t onFitnessCalculated(size_t generation, std::shared_ptr<mogal2::Population> &population)
 	{
@@ -732,7 +336,7 @@ protected:
 		shared_ptr<RNG> rng = make_shared<RNG>(gaFactory.getRandomNumberGenerator());
 		MyGA ga;
 
-		auto mutation = make_shared<LensGenomeMutation>(rng, 
+		auto mutation = make_shared<grale::LensGAGenomeMutation>(rng, 
 					   gaFactory.getChanceMultiplier(),
 					   gaFactory.allowNegativeValues(),
 					   gaFactory.getMutationAmplitude(),
@@ -747,10 +351,15 @@ protected:
 						  gaFactory.allowNegativeValues(),
 						  mutation);
 		mogal2::SingleThreadedPopulationFitnessCalculation calc(make_shared<LensFitnessCalculation>(gaFactory));
-		mogal2::FixedGenerationsStopCriterion stop(10); // for testing
+		mogal2::FixedGenerationsStopCriterion stop(11); // for testing
 
 		if (!(r = ga.run(creation, cross, calc, stop, popSize)))
 			return "Error running GA: " + r.getErrorString();
+
+		auto &bestSolutions = cross.m_sortedPop.getBestIndividuals();
+		cout << "Best: " << endl;
+		for (auto &b: bestSolutions)
+			cout << b->fitness()->toString() << endl;
 
 		return true;
 	}

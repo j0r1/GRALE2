@@ -20,6 +20,14 @@ set(HEADERS
 	prob/probabilitydistribution.h
 	prob/simpleuniformdistribution.h
 	)
+if (MOGAL2_FOUND)
+	set(HEADERS ${HEADERS} 
+		galens/lensgaindividual.h
+		galens/lensgagenomemutation.h
+		galens/lensgagenomecrossover.h
+		galens/lensgafitnesscomparison.h
+		)
+endif()
 
 set(SOURCES
 	galens/backprojectmatrix.cpp
@@ -39,6 +47,16 @@ set(SOURCES
 	prob/randomnumbergenerator.cpp
 	prob/probabilitydistribution.cpp
 	)
+
+if (MOGAL2_FOUND)
+	set(SOURCES ${SOURCES} 
+		galens/lensgaindividual.cpp
+		galens/lensgagenomemutation.cpp
+		galens/lensgagenomecrossover.cpp
+		galens/lensgafitnesscomparison.cpp
+	    )
+endif()
+
 
 if (MSVC)
 	set(CMAKE_DEBUG_POSTFIX _d)
