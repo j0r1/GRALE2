@@ -39,12 +39,7 @@ public:
 	RNG(const mogal::RandomNumberGenerator *pRng) : m_pRng(pRng) { }
 	~RNG() { }
     double getRandomDouble() override { return m_pRng->pickRandomNumber(); }
-    float getRandomFloat() override
-	{
-		cerr << "getRandomFloat NOT IMPLEMENTED" << endl;
-		exit(-1);
-		return 0;
-	}
+    float getRandomFloat() override { return (float)m_pRng->pickRandomNumber(); }
 	uint32_t getRandomUint32() override
 	{
 		cerr << "getRandomUint32 NOT IMPLEMENTED" << endl;

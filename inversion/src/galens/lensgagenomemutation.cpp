@@ -56,9 +56,9 @@ bool_t LensGAGenomeMutation::mutate(mogal2::Genome &genome, bool &isChanged)
 
     auto chanceSetUniform = [&isChanged, chance, this, rescale](float &x, float mult, float offset)
     {
-        if ((float)m_rng->getRandomDouble() < chance)
+        if (m_rng->getRandomFloat() < chance)
         {
-            x = ((float)m_rng->getRandomDouble()*mult - offset)*rescale;
+            x = (m_rng->getRandomFloat()*mult - offset)*rescale;
             isChanged = true;
         }
     };
@@ -71,12 +71,12 @@ bool_t LensGAGenomeMutation::mutate(mogal2::Genome &genome, bool &isChanged)
 
     auto chanceSetSmallDiff = [&isChanged, chance, this, mutationAmplitude](float &target, float yMin, float yMax)
     {
-        if ((float)m_rng->getRandomDouble() < chance)
+        if (m_rng->getRandomFloat() < chance)
         {
             // allow larger mutations with smaller probablility
             // p(x) = (2/Pi)*1/(x^2+1)
             // cfr anomalous diffusion
-            float p = (float)m_rng->getRandomDouble()*2.0f-1.0f;
+            float p = m_rng->getRandomFloat()*2.0f-1.0f;
             float x = TAN(p*(float)(CONST_PI/4.0))*mutationAmplitude;
             float y = x+target;
 
@@ -114,9 +114,9 @@ bool_t LensGAGenomeMutation::mutate(mogal2::Genome &genome, bool &isChanged)
 
     auto chanceSetSimpleUniform = [&isChanged, chance, this](float &x)
     {
-        if ((float)m_rng->getRandomDouble() < chance)
+        if (m_rng->getRandomFloat() < chance)
         {
-            x = (float)m_rng->getRandomDouble();
+            x = m_rng->getRandomFloat();
             isChanged = true;
         }
     };

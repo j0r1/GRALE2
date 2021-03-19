@@ -41,7 +41,7 @@ bool_t LensGAGenomeCrossover::generateOffspring(const vector<shared_ptr<mogal2::
 
     auto pickParent = [pParents, this]()
     {
-        float x = (float)m_rng->getRandomDouble();
+        float x = m_rng->getRandomFloat();
         const LensGAGenome *pParent = pParents[(x < 0.5f)?1:0];
         return pParent;
     };

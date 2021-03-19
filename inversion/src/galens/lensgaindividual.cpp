@@ -168,7 +168,7 @@ shared_ptr<mogal2::Genome> LensGAIndividualCreation::createInitializedGenome()
     shared_ptr<LensGAGenome> genome = make_shared<LensGAGenome>(m_numBasisFunctions, m_numSheets);
 
     for (auto &x : genome->m_weights)
-        x = (float)m_rng->getRandomDouble();
+        x = m_rng->getRandomFloat();
 
     if (m_allowNegative)
     {
@@ -177,7 +177,7 @@ shared_ptr<mogal2::Genome> LensGAIndividualCreation::createInitializedGenome()
     }
 
     for (auto &s : genome->m_sheets)
-        s = (float)m_rng->getRandomDouble();
+        s = m_rng->getRandomFloat();
 
     return genome;
 }
