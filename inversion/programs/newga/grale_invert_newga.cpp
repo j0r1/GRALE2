@@ -5,6 +5,7 @@
 #include "lensinversiongafactorycommon.h"
 #include "inversioncommunicator.h"
 #include "randomnumbergenerator.h"
+#include "constants.h"
 #include <errut/booltype.h>
 #include <serut/memoryserializer.h>
 #include <mogal/geneticalgorithm.h>
@@ -222,6 +223,142 @@ private:
 	const mogal::RandomNumberGenerator *m_pRng;
 };
 
+class LensGenomeMutation : public mogal2::GenomeMutation
+{
+public:
+	LensGenomeMutation(const shared_ptr<mogal2::RandomNumberGenerator> &rng, float chanceMultiplier,
+					   bool allowNegativeValues, float mutationAmplitude, bool absoluteMutation)
+		: m_rng(rng), m_chanceMultiplier(chanceMultiplier), m_allowNegative(allowNegativeValues),
+		  m_mutationAmplitude(mutationAmplitude), m_absoluteMutation(absoluteMutation)
+	{
+	}
+
+	errut::bool_t check(const mogal2::Genome &genome) override
+	{
+		if (!dynamic_cast<const LensGenome*>(&genome))
+			return "Genome is of wrong type";
+
+		return true;
+	}
+
+	errut::bool_t mutate(mogal2::Genome &genome, bool &isChanged) override
+	{
+		LensGenome &g = static_cast<LensGenome&>(genome);
+
+		size_t numBasisFunctions = g.m_weights.size();
+		float chance = m_chanceMultiplier/((float)numBasisFunctions);
+
+		auto absVal = [](auto x) { return ABS(x); };
+		auto noChange = [](auto x) { return x; };
+		auto getMaxVal = [&g, numBasisFunctions](auto fn)
+		{
+			float maxVal = 0;
+
+			for (int i = 0 ; i < numBasisFunctions ; i++)
+			{
+				float x = fn(g.m_weights[i]);
+				if (maxVal < x)
+					maxVal = x;
+			}
+			return maxVal;
+		};
+
+		float maxVal = (m_allowNegative)?getMaxVal(absVal):getMaxVal(noChange);
+
+		// In the past, this 'maxVal' value was rescaled to 0.5, the unit range then 
+		// corresponds to twice this. This means that the unit based mutation amplitude
+		// needs to be scaled by 2*maxVal
+		float rescale = 2.0f*maxVal;
+		float mutationAmplitude = m_mutationAmplitude * rescale;
+
+		auto chanceSetUniform = [&isChanged, chance, this, rescale](float &x, float mult, float offset)
+		{
+			if ((float)m_rng->getRandomDouble() < chance)
+			{
+				x = ((float)m_rng->getRandomDouble()*mult - offset)*rescale;
+				isChanged = true;
+			}
+		};
+
+		auto chanceSetUniformAllScalableBasisFunctions = [this, &g, chance, numBasisFunctions, chanceSetUniform](float mult, float offset)
+		{
+			for (int i = 0 ; i < numBasisFunctions ; i++)
+				chanceSetUniform(g.m_weights[i], mult, offset);
+		};
+
+		auto chanceSetSmallDiff = [&isChanged, chance, this, mutationAmplitude](float &target, float yMin, float yMax)
+		{
+			if ((float)m_rng->getRandomDouble() < chance)
+			{
+				// allow larger mutations with smaller probablility
+				// p(x) = (2/Pi)*1/(x^2+1)
+				// cfr anomalous diffusion
+				float p = (float)m_rng->getRandomDouble()*2.0f-1.0f;
+				float x = TAN(p*(float)(grale::CONST_PI/4.0))*mutationAmplitude;
+				float y = x+target;
+
+				if (y < yMin)
+					y = yMin;
+				else if (y > yMax)
+					y = yMax;
+				
+				target = y;
+
+				isChanged = true;
+			}
+		};
+
+		auto chanceSetSmallDiffAllScalableBasisFunctions = [this, chance, &g, numBasisFunctions, chanceSetSmallDiff](float yMin, float yMax)
+		{
+			for (int i = 0 ; i < numBasisFunctions ; i++)
+				chanceSetSmallDiff(g.m_weights[i], yMin, yMax);
+		};
+
+		if (m_absoluteMutation)
+		{
+			if (m_allowNegative)
+				chanceSetUniformAllScalableBasisFunctions(2.0f, 1.0f);
+			else
+				chanceSetUniformAllScalableBasisFunctions(1.0f, 0.0f);
+		}
+		else
+		{
+			if (m_allowNegative)
+				chanceSetSmallDiffAllScalableBasisFunctions(-rescale, rescale);
+			else
+				chanceSetSmallDiffAllScalableBasisFunctions(0.0f, rescale);
+		}
+
+		auto chanceSetSimpleUniform = [&isChanged, chance, this](float &x)
+		{
+			if ((float)m_rng->getRandomDouble() < chance)
+			{
+				x = (float)m_rng->getRandomDouble();
+				isChanged = true;
+			}
+		};
+
+		if (m_absoluteMutation)
+		{
+			for (auto &v : g.m_sheets)
+				chanceSetSimpleUniform(v);
+		}
+		else
+		{
+			for (auto &v : g.m_sheets)
+				chanceSetSmallDiff(v, 0.0f, 1.0f);
+		}
+
+		return true;
+	}
+private:
+	shared_ptr<mogal2::RandomNumberGenerator> m_rng;
+	float m_chanceMultiplier;
+	float m_mutationAmplitude;
+	bool m_allowNegative;
+	bool m_absoluteMutation;
+};
+
 class LensGenomeCrossover : public mogal2::GenomeCrossover
 {
 public:
@@ -327,9 +464,11 @@ class MyCrossover : public mogal2::PopulationCrossover
 public:
 	MyCrossover(double beta, bool elitism, bool includeBest, double crossoverRate,
 				const shared_ptr<mogal2::RandomNumberGenerator> &rng,
-				bool allowNegative)
+				bool allowNegative,
+				const shared_ptr<mogal2::GenomeMutation> &mutation)
 		: m_beta(beta), m_bestWithoutMutation(elitism), m_bestWithMutation(includeBest), m_crossoverRate(crossoverRate),
-		  m_rng(rng), m_sortedPop(make_shared<LensFitnessComparison>()), m_cross(rng, allowNegative)
+		  m_rng(rng), m_sortedPop(make_shared<LensFitnessComparison>()), m_cross(rng, allowNegative),
+		  m_mutation(mutation)
 	{
 
 	}
@@ -348,6 +487,10 @@ public:
 		vector<shared_ptr<mogal2::Genome>> testParents = { population->individual(0)->genome(), population->individual(0)->genome() };
 		if (!(r = m_cross.check(testParents)))
 			return "Error in genome crossover check: " + r.getErrorString();
+
+		if (!(r = m_mutation->check(population->individual(0)->genomeRef())))
+			return "Error checking mutation: " + r.getErrorString();
+
 		return true;
 	}
 
@@ -417,8 +560,18 @@ public:
 			}
 		}
 
-		// TODO: Mutation
+		for (size_t i = mutOffset ; i < newPop->size() ; i++)
+		{
+			bool isChanged = false;
 
+			auto &ind = newPop->individual(i);
+
+			if (!(r = m_mutation->mutate(ind->genomeRef(), isChanged)))
+				return "Error mutating genome: " + r.getErrorString();
+			if (isChanged)
+				ind->fitness()->setCalculated(false);
+		}
+		
 		swap(population, newPop);
 		
 		return true;
@@ -428,6 +581,7 @@ public:
 	mogal2::SimpleSortedPopulation m_sortedPop;
 	LensGenomeCrossover m_cross;
 	double m_beta, m_bestWithMutation, m_bestWithoutMutation, m_crossoverRate;
+	shared_ptr<mogal2::GenomeMutation> m_mutation;
 };
 
 class LensFitnessCalculation : public mogal2::GenomeFitnessCalculation
@@ -496,13 +650,20 @@ protected:
 		shared_ptr<RNG> rng = make_shared<RNG>(gaFactory.getRandomNumberGenerator());
 		MyGA ga;
 
+		auto mutation = make_shared<LensGenomeMutation>(rng, 
+					   gaFactory.getChanceMultiplier(),
+					   gaFactory.allowNegativeValues(),
+					   gaFactory.getMutationAmplitude(),
+					   gaFactory.useAbsoluteMutation());
+
 		Creation creation(gaFactory);
 		MyCrossover cross(params.getBeta(),
 					      params.useElitism(),
 						  params.alwaysIncludeBestGenome(),
 						  params.getCrossOverRate(),
 						  rng,
-						  gaFactory.allowNegativeValues());
+						  gaFactory.allowNegativeValues(),
+						  mutation);
 		mogal2::SingleThreadedPopulationFitnessCalculation calc(make_shared<LensFitnessCalculation>(gaFactory));
 		mogal2::FixedGenerationsStopCriterion stop(10); // for testing
 
