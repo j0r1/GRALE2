@@ -173,6 +173,25 @@ public:
 	float m_scaleFactor;
 };
 
+class LensIndividual : public mogal2::Individual
+{
+public:
+	LensIndividual(std::shared_ptr<mogal2::Genome> genome, std::shared_ptr<mogal2::Fitness> fitness,
+			   size_t introducedInGeneration = std::numeric_limits<size_t>::max())
+		: mogal2::Individual(genome, fitness, introducedInGeneration),
+		  m_parent1(-1), m_parent2(-1)
+	{
+	}
+
+	std::shared_ptr<Individual> createNew(std::shared_ptr<mogal2::Genome> genome, std::shared_ptr<mogal2::Fitness> fitness,
+			   size_t introducedInGeneration = std::numeric_limits<size_t>::max()) const override
+	{
+		return make_shared<LensIndividual>(genome, fitness, introducedInGeneration);
+	}
+
+	int m_parent1, m_parent2;
+};
+
 class Creation : public mogal2::IndividualCreation
 {
 public:
@@ -195,6 +214,11 @@ public:
     std::shared_ptr<mogal2::Fitness> createEmptyFitness() override
 	{
 		return make_shared<LensFitness>(m_pFactory->getNumberOfFitnessComponents());
+	}
+
+	std::shared_ptr<mogal2::Individual> createReferenceIndividual() override
+	{
+		return std::make_shared<LensIndividual>(nullptr, nullptr);
 	}
 private:
 	grale::LensInversionGAFactoryCommon *m_pFactory;
@@ -385,8 +409,8 @@ public:
 	{
 		assert(parents.size() == 2);
 		LensGenome *pParents[2] = {
-			static_cast<LensGenome*>(parents[0].get()),
-			static_cast<LensGenome*>(parents[1].get())
+			static_cast<LensGenome*>(parents[1].get()),
+			static_cast<LensGenome*>(parents[0].get())
 		};
 
 		size_t numBasisFunctions = pParents[0]->m_weights.size();
@@ -519,14 +543,24 @@ public:
 			return "Error sorting population: " + r.getErrorString();
 
 		shared_ptr<mogal2::Population> newPop = make_shared<mogal2::Population>();
+
+		auto appendBest = [&newPop, &population]()
+		{
+			auto ind = population->individual(0)->createCopy();
+			LensIndividual &i = static_cast<LensIndividual&>(*ind);
+			i.m_parent1 = 0;
+			i.m_parent2 = -1;
+			newPop->append(ind);
+		};
+
 		size_t mutOffset = 0;
 		if (m_bestWithoutMutation)
 		{
 			mutOffset = 1;
-			newPop->append(population->individual(0)->createCopy());
+			appendBest();
 		}
 		if (m_bestWithMutation)
-			newPop->append(population->individual(0)->createCopy());
+			appendBest();
 		
 		auto pickParent = [&population, this]()
 		{
@@ -538,25 +572,73 @@ public:
 			return r;
 		};
 
+		auto getLensIndividual = [&population](size_t i) -> const LensIndividual &
+		{
+			return static_cast<LensIndividual&>(*population->individual(i));
+		};
+
+		// In original version, an attempt was made to prevent inbreeding
+		auto pickParentIndices = [&pickParent, &getLensIndividual](int &index1, int &index2)
+		{
+			bool ok;
+			int count = 0;
+
+			do 
+			{
+				ok = false;
+
+				index1 = pickParent();
+				index2 = pickParent();
+
+				// prevent inbreeding
+
+				int a1 = getLensIndividual(index1).m_parent1;
+				int a2 = getLensIndividual(index1).m_parent2;
+				int b1 = getLensIndividual(index2).m_parent1;
+				int b2 = getLensIndividual(index2).m_parent2;
+
+				if (a1 < 0 || b1 < 0) // one of them is a brand new genome
+					ok = true;
+				else
+				{
+					if (!(a1 == b1 || a1 == b2 || b1 == a2 || ((a2 >= 0) && a2 == b2)))
+						ok = true;
+				}
+				count++;
+			} while (count < 10 && !ok);
+		};
+
 		vector<shared_ptr<mogal2::Genome>> parents(2);
 		vector<shared_ptr<mogal2::Genome>> offspring;
 		while (newPop->size() < targetPopulationSize)
 		{
 			if (m_rng->getRandomDouble() < m_crossoverRate)
 			{
-				// TODO: in original version, an attempt was made to prevent inbreeding
-				for (size_t i = 0 ; i < parents.size() ; i++)
-					parents[i] = population->individual(pickParent())->genome();
+				int index1 = -1, index2 = -1;
+				pickParentIndices(index1, index2);
+				parents[0] = population->individual(index1)->genome();
+				parents[1] = population->individual(index2)->genome();
 				
 				if (!(r = m_cross.generateOffspring(parents, offspring)))
 					return "Error in crossover: " + r.getErrorString();
 
 				for (auto &g : offspring)
-					newPop->append(make_shared<mogal2::Individual>(g, population->individual(0)->fitness()->createCopy(false)));
+				{
+					auto ind = make_shared<LensIndividual>(g, population->individual(0)->fitness()->createCopy(false), generation);
+					ind->m_parent1 = index1;
+					ind->m_parent2 = index2;
+					newPop->append(ind);
+				}
 			}
 			else // clone
 			{
-				newPop->append(population->individual(pickParent())->createCopy());
+				int index = pickParent();
+				auto ind = population->individual(index)->createCopy();
+
+				LensIndividual &lensInd = static_cast<LensIndividual&>(*ind);
+				lensInd.m_parent1 = index;
+				lensInd.m_parent2 = -1;
+				newPop->append(ind);
 			}
 		}
 
