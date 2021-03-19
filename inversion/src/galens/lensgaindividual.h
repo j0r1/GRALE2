@@ -2,6 +2,7 @@
 
 #include "graleconfig.h"
 #include <mogal2/population.h>
+#include <mogal2/randomnumbergenerator.h>
 #include <limits>
 
 namespace grale
@@ -51,6 +52,23 @@ public:
 			   size_t introducedInGeneration = std::numeric_limits<size_t>::max()) const override;
 
 	int m_parent1, m_parent2;
+};
+
+class LensGAIndividualCreation : public mogal2::IndividualCreation
+{
+public:
+	LensGAIndividualCreation(const std::shared_ptr<mogal2::RandomNumberGenerator> &rng,
+		     size_t numBasisFunctions, size_t numSheets, bool allowNegative,
+			 size_t numObjectives);
+	~LensGAIndividualCreation();
+
+    std::shared_ptr<mogal2::Genome> createInitializedGenome() override;
+    std::shared_ptr<mogal2::Fitness> createEmptyFitness() override;
+	std::shared_ptr<mogal2::Individual> createReferenceIndividual() override;
+private:
+	std::shared_ptr<mogal2::RandomNumberGenerator> m_rng;
+	const size_t m_numBasisFunctions, m_numSheets, m_numObjectives;
+	const bool m_allowNegative;
 };
 
 }

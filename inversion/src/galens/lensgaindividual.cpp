@@ -151,4 +151,45 @@ shared_ptr<Individual> LensGAIndividual::createNew(shared_ptr<mogal2::Genome> ge
     return make_shared<LensGAIndividual>(genome, fitness, introducedInGeneration);
 }
 
+LensGAIndividualCreation::LensGAIndividualCreation(const std::shared_ptr<mogal2::RandomNumberGenerator> &rng,
+		     size_t numBasisFunctions, size_t numSheets, bool allowNegative,
+			 size_t numObjectives)
+	 : m_rng(rng), m_numBasisFunctions(numBasisFunctions), m_numSheets(numSheets), m_allowNegative(allowNegative),
+	   m_numObjectives(numObjectives)
+{
+}
+
+LensGAIndividualCreation::~LensGAIndividualCreation()
+{
+}
+
+shared_ptr<mogal2::Genome> LensGAIndividualCreation::createInitializedGenome()
+{
+    shared_ptr<LensGAGenome> genome = make_shared<LensGAGenome>(m_numBasisFunctions, m_numSheets);
+
+    for (auto &x : genome->m_weights)
+        x = (float)m_rng->getRandomDouble();
+
+    if (m_allowNegative)
+    {
+        for (auto &x : genome->m_weights)
+            x -= 0.5f;
+    }
+
+    for (auto &s : genome->m_sheets)
+        s = (float)m_rng->getRandomDouble();
+
+    return genome;
+}
+
+shared_ptr<mogal2::Fitness> LensGAIndividualCreation::createEmptyFitness()
+{
+    return make_shared<LensGAFitness>(m_numObjectives);
+}
+
+shared_ptr<mogal2::Individual> LensGAIndividualCreation::createReferenceIndividual()
+{
+    return std::make_shared<LensGAIndividual>(nullptr, nullptr);
+}
+
 }
