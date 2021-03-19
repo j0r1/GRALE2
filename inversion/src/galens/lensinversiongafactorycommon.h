@@ -64,6 +64,9 @@ public:
 	virtual bool initializeNewCalculation(const std::vector<float> &basisFunctionWeights, const std::vector<float> &sheetValues) = 0;
 	virtual bool calculateMassScaleFitness(float scaleFactor, float &fitness) = 0;
 	virtual bool calculateTotalFitness(float scaleFactor, float *pFitnessValues) = 0;
+
+	size_t getNumberOfBasisFunctions() const { return (size_t)m_numBasisFunctions; }
+	size_t getNumberOfSheets() const { return (size_t)m_numSheetValues; }
 protected:
 	LensFitnessObject &getFitnessObject() { return *(m_fitnessObject.get()); }
 	virtual LensFitnessObject *createFitnessObject() = 0; // implemented in module

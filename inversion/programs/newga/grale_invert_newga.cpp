@@ -34,25 +34,38 @@ using namespace errut;
 class Creation : public mogal2::IndividualCreation
 {
 public:
-	Creation(grale::LensInversionGAFactoryCommon &factory) : m_pFactory(&factory) { }
+	Creation(const std::shared_ptr<mogal2::RandomNumberGenerator> &rng,
+		     size_t numBasisFunctions, size_t numSheets, bool allowNegative,
+			 size_t numObjectives)
+	 : m_rng(rng), m_numBasisFunctions(numBasisFunctions), m_numSheets(numSheets), m_allowNegative(allowNegative),
+	   m_numObjectives(numObjectives)
+	{
+	}
+
 	~Creation() { }
 
     std::shared_ptr<mogal2::Genome> createInitializedGenome() override
 	{
-		unique_ptr<grale::LensInversionGenome> g(static_cast<grale::LensInversionGenome*>(m_pFactory->createNewGenome()));
+		shared_ptr<grale::LensGAGenome> genome = make_shared<grale::LensGAGenome>(m_numBasisFunctions, m_numSheets);
 
-		auto &basisWeights = g->getBasisFunctionWeights();
-		auto &sheetValues = g->getSheetValues();
+		for (auto &x : genome->m_weights)
+			x = (float)m_rng->getRandomDouble();
 
-		shared_ptr<grale::LensGAGenome> genome = make_shared<grale::LensGAGenome>(basisWeights.size(), sheetValues.size());
-		genome->m_weights = basisWeights;
-		genome->m_sheets = sheetValues;
+		if (m_allowNegative)
+		{
+			for (auto &x : genome->m_weights)
+				x -= 0.5f;
+		}
+
+		for (auto &s : genome->m_sheets)
+			s = (float)m_rng->getRandomDouble();
+
 		return genome;
 	}
 
     std::shared_ptr<mogal2::Fitness> createEmptyFitness() override
 	{
-		return make_shared<grale::LensGAFitness>(m_pFactory->getNumberOfFitnessComponents());
+		return make_shared<grale::LensGAFitness>(m_numObjectives);
 	}
 
 	std::shared_ptr<mogal2::Individual> createReferenceIndividual() override
@@ -60,7 +73,9 @@ public:
 		return std::make_shared<grale::LensGAIndividual>(nullptr, nullptr);
 	}
 private:
-	grale::LensInversionGAFactoryCommon *m_pFactory;
+	std::shared_ptr<mogal2::RandomNumberGenerator> m_rng;
+	const size_t m_numBasisFunctions, m_numSheets, m_numObjectives;
+	const bool m_allowNegative;
 };
 
 // Wrap the GSL based RNG for now
@@ -342,7 +357,9 @@ protected:
 					   gaFactory.getMutationAmplitude(),
 					   gaFactory.useAbsoluteMutation());
 
-		Creation creation(gaFactory);
+		Creation creation(rng, gaFactory.getNumberOfBasisFunctions(), gaFactory.getNumberOfSheets(),
+		                  gaFactory.allowNegativeValues(), gaFactory.getNumberOfFitnessComponents());
+
 		MyCrossover cross(params.getBeta(),
 					      params.useElitism(),
 						  params.alwaysIncludeBestGenome(),
