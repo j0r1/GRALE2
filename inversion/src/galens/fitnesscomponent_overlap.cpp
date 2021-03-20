@@ -1,7 +1,7 @@
 #include "fitnesscomponent_overlap.h"
 #include "fitnessutil.h"
-#include <grale/imagesdataextended.h>
-#include <grale/configurationparameters.h>
+#include "imagesdataextended.h"
+#include "configurationparameters.h"
 
 #include <iostream>
 

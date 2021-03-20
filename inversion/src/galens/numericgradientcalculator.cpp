@@ -1,6 +1,6 @@
 #include "numericgradientcalculator.h"
-#include <grale/imagesdataextended.h>
-#include <grale/projectedimagesinterface.h>
+#include "imagesdataextended.h"
+#include "projectedimagesinterface.h"
 #include <sstream>
 
 using namespace std;

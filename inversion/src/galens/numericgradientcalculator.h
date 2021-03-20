@@ -1,6 +1,7 @@
 #pragma once
 
-#include <grale/vector2d.h>
+#include "graleconfig.h"
+#include "vector2d.h"
 #include <errut/booltype.h>
 #include <vector>
 

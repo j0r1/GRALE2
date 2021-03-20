@@ -24,12 +24,11 @@
   
 */
 
-#ifndef GRALE_LENSFITNESSGENERAL_H
+#pragma once
 
-#define GRALE_LENSFITNESSGENERAL_H
-
-#include <grale/lensfitnessobject.h>
-#include <grale/cosmology.h>
+#include "graleconfig.h"
+#include "lensfitnessobject.h"
+#include "cosmology.h"
 #include <memory>
 #include <set>
 
@@ -132,6 +131,3 @@ private:
 };
 
 } // end namespace
-
-#endif // GRALE_LENSFITNESSGENERAL_H
-

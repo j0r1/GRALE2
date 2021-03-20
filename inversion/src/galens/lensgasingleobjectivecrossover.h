@@ -20,7 +20,7 @@ public:
 	errut::bool_t check(const std::shared_ptr<mogal2::Population> &population) override;
 	errut::bool_t createNewPopulation(size_t generation, std::shared_ptr<mogal2::Population> &population, size_t targetPopulationSize) override;
     
-    const std::vector<std::shared_ptr<mogal2::Individual>> &getBestIndividuals() const { return m_sortedPop.getBestIndividuals(); }
+    const std::vector<std::shared_ptr<mogal2::Individual>> &getBestIndividuals() const override { return m_sortedPop.getBestIndividuals(); }
 private:
 	void copyScaleFactorFromFitnessToGenome(std::shared_ptr<mogal2::Population> &population);
 	size_t elitism(std::shared_ptr<mogal2::Population> &population, std::shared_ptr<mogal2::Population> &newPop);

@@ -73,6 +73,26 @@ private:
 	grale::LensInversionGAFactoryCommon *m_pFactory;
 };
 
+class LensGAStropCriterion : public mogal2::StopCriterion
+{
+public:
+	LensGAStropCriterion(grale::LensInversionGAFactoryCommon &factory,
+						 const std::shared_ptr<grale::LensGAGenomeMutation> &mutation)
+		: m_pFactory(&factory), m_mutation(mutation)
+	{ 
+		m_numObjectives = m_pFactory->getNumberOfFitnessComponents();
+	}
+	
+	errut::bool_t analyze(const std::vector<std::shared_ptr<mogal2::Individual>> &currentBest, size_t generationNumber, bool &shouldStop) override
+	{
+		return true;
+	}
+private:
+	grale::LensInversionGAFactoryCommon *m_pFactory;
+	std::shared_ptr<grale::LensGAGenomeMutation> m_mutation;
+	size_t m_numObjectives;
+};
+
 class MyGA : public mogal2::GeneticAlgorithm
 {
 public:

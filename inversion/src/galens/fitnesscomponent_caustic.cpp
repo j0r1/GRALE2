@@ -1,6 +1,6 @@
 #include "fitnesscomponent_caustic.h"
 #include "fitnessutil.h"
-#include <grale/imagesdataextended.h>
+#include "imagesdataextended.h"
 
 using namespace std;
 

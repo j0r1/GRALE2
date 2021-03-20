@@ -1,12 +1,11 @@
-#ifndef GRALE_FITNESSUTIL_H
+#pragma once
 
-#define GRALE_FITNESSUTIL_H
-
-#include <grale/triangleindices.h>
-#include <grale/vector2d.h>
-#include <grale/imagesdataextended.h>
-#include <grale/discretefunction.h>
-#include <grale/polygon2d.h>
+#include "graleconfig.h"
+#include "triangleindices.h"
+#include "vector2d.h"
+#include "imagesdataextended.h"
+#include "discretefunction.h"
+#include "polygon2d.h"
 #include <vector>
 #include <memory>
 
@@ -111,5 +110,3 @@ float calculateCausticPenaltyFitness(const ProjectedImagesInterface &iface,
 		FitnessComponentCache *pCache);
 
 } // end namespace
-
-#endif // GRALE_FITNESSUTIL_H

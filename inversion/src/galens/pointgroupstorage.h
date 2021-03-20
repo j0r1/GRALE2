@@ -28,6 +28,7 @@
 
 #define GRALE_POINTGROUPSTORAGE_H
 
+#include "graleconfig.h"
 #include <vector>
 #include <list>
 

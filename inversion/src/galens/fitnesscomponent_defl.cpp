@@ -1,8 +1,8 @@
 #include "fitnesscomponent_defl.h"
 #include "fitnessutil.h"
-#include <grale/constants.h>
-#include <grale/imagesdataextended.h>
-#include <grale/projectedimagesinterface.h>
+#include "constants.h"
+#include "imagesdataextended.h"
+#include "projectedimagesinterface.h"
 
 using namespace std;
 using namespace errut;

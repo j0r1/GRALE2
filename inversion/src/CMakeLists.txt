@@ -19,6 +19,19 @@ set(HEADERS
 	prob/randomnumbergenerator.h
 	prob/probabilitydistribution.h
 	prob/simpleuniformdistribution.h
+
+	galens/pointgroupstorage.h
+	galens/fitnesscomponent.h
+	galens/fitnesscomponent_caustic.h
+	galens/fitnesscomponent_null.h
+	galens/fitnesscomponent_overlap.h
+	galens/fitnesscomponent_time.h
+	galens/lensfitnessgeneral.h
+	galens/numericgradientcalculator.h
+	galens/fitnesscomponent_defl.h
+	galens/fitnesscomponent_dens.h
+	galens/fitnesscomponent_weak.h
+	galens/fitnessutil.h
 	)
 if (MOGAL2_FOUND)
 	set(HEADERS ${HEADERS} 
@@ -47,6 +60,23 @@ set(SOURCES
 	galens/lensinversiongafactorycommon.cpp
 	prob/randomnumbergenerator.cpp
 	prob/probabilitydistribution.cpp
+
+	galens/lensfitnessgeneral.cpp
+	galens/fitnesscomponent.cpp
+	galens/fitnessutil_overlap.cpp
+	galens/fitnessutil_null.cpp
+	galens/fitnessutil_weak.cpp
+	galens/fitnessutil_time.cpp
+	galens/fitnessutil_caustic.cpp
+	galens/pointgroupstorage.cpp
+	galens/numericgradientcalculator.cpp
+	galens/fitnesscomponent_overlap.cpp
+	galens/fitnesscomponent_null.cpp
+	galens/fitnesscomponent_weak.cpp
+	galens/fitnesscomponent_time.cpp
+	galens/fitnesscomponent_dens.cpp
+	galens/fitnesscomponent_caustic.cpp
+	galens/fitnesscomponent_defl.cpp	
 	)
 
 if (MOGAL2_FOUND)

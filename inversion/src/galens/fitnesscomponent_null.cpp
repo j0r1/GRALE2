@@ -1,6 +1,6 @@
 #include "fitnesscomponent_null.h"
 #include "fitnessutil.h"
-#include <grale/imagesdataextended.h>
+#include "imagesdataextended.h"
 
 #include <iostream>
 

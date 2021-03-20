@@ -4,8 +4,7 @@
 #endforeach(i)
 
 include_directories(../src/old)
-add_executable(genometest genometest.cpp ../src/fitnessutil_overlap.cpp ../src/fitnesscomponent.cpp ../src/pointgroupstorage.cpp 
-               ../src/numericgradientcalculator.cpp ../src/old/lensfitnesssimplerectangles.cpp)
+add_executable(genometest genometest.cpp ../src/old/lensfitnesssimplerectangles.cpp)
 target_link_libraries(genometest ${GRALE_LIBRARIES})
 
 add_executable(bayeswlcheck bayeswlcheck.cpp)

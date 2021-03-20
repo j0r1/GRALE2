@@ -1,5 +1,6 @@
 #pragma once
 
+#include "graleconfig.h"
 #include "pointgroupstorage.h"
 #include "fitnessutil.h"
 #include "numericgradientcalculator.h"

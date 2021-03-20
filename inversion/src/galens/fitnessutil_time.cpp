@@ -1,6 +1,6 @@
 #include "fitnessutil.h"
 #include "fitnesscomponent.h"
-#include <grale/projectedimagesinterface.h>
+#include "projectedimagesinterface.h"
 #include <assert.h>
 
 using namespace std;

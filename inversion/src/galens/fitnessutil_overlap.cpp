@@ -1,7 +1,7 @@
 #include "fitnessutil.h"
 #include "pointgroupstorage.h"
 #include "fitnesscomponent.h"
-#include <grale/projectedimagesinterface.h>
+#include "projectedimagesinterface.h"
 #include <assert.h>
 #include <limits>
 

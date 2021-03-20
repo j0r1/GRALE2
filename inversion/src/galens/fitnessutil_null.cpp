@@ -1,8 +1,8 @@
 #include "fitnessutil.h"
 #include "fitnesscomponent.h"
-#include <grale/projectedimagesinterface.h>
-#include <grale/polygon2d.h>
-#include <grale/triangle2d.h>
+#include "projectedimagesinterface.h"
+#include "polygon2d.h"
+#include "triangle2d.h"
 #include <assert.h>
 #include <limits>
 

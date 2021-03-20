@@ -31,7 +31,7 @@
 #include <grale/lensfitnessobject.h>
 #include <grale/rectangle2d.h>
 #include <grale/triangleindices.h>
-#include "pointgroupstorage.h"
+#include <grale/pointgroupstorage.h>
 #include <vector>
 #include <list>
 

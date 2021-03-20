@@ -1,4 +1,4 @@
-#include "lensfitnessgeneral.h"
+#include <grale/lensfitnessgeneral.h>
 #include <grale/lensinversiongenome.h>
 #include <grale/vector2d.h>
 #include <grale/imagesdata.h>

@@ -32,8 +32,8 @@
 #include "fitnesscomponent_caustic.h"
 #include "fitnesscomponent_dens.h"
 #include "fitnesscomponent_defl.h"
-#include <grale/imagesdataextended.h>
-#include <grale/configurationparameters.h>
+#include "imagesdataextended.h"
+#include "configurationparameters.h"
 #include <limits>
 #include <algorithm>
 #include <sstream>

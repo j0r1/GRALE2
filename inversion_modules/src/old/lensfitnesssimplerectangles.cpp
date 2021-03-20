@@ -25,7 +25,7 @@
 */
 
 #include "lensfitnesssimplerectangles.h"
-#include "fitnessutil.h"
+#include <grale/fitnessutil.h>
 #include <grale/vector2d.h>
 #include <grale/polygon2d.h>
 #include <grale/imagesdataextended.h>

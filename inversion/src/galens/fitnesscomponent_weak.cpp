@@ -1,9 +1,9 @@
 #include "fitnesscomponent_weak.h"
 #include "fitnesscomponent_overlap.h"
 #include "fitnessutil.h"
-#include <grale/imagesdataextended.h>
-#include <grale/configurationparameters.h>
-#include <grale/cosmology.h>
+#include "imagesdataextended.h"
+#include "configurationparameters.h"
+#include "cosmology.h"
 #include <limits>
 
 #include <iostream>

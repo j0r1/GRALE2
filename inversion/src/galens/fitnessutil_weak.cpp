@@ -1,7 +1,7 @@
 #include "fitnessutil.h"
 #include "fitnesscomponent.h"
-#include <grale/projectedimagesinterface.h>
-#include <grale/constants.h>
+#include "projectedimagesinterface.h"
+#include "constants.h"
 #include <assert.h>
 #include <limits>
 #include <complex>

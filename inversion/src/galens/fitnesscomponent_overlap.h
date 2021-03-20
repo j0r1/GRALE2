@@ -1,5 +1,6 @@
 #pragma once
 
+#include "graleconfig.h"
 #include "fitnesscomponent.h"
 #include <errut/booltype.h>
 
