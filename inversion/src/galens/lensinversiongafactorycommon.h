@@ -67,8 +67,11 @@ public:
 
 	size_t getNumberOfBasisFunctions() const { return (size_t)m_numBasisFunctions; }
 	size_t getNumberOfSheets() const { return (size_t)m_numSheetValues; }
-protected:
+
 	LensFitnessObject &getFitnessObject() { return *(m_fitnessObject.get()); }
+	int getMaximumNumberOfGenerations() const						{ return m_maxGenerations; }
+
+protected:
 	virtual LensFitnessObject *createFitnessObject() = 0; // implemented in module
 	// This should at least set the number of fitness components
 	virtual bool subInit(LensFitnessObject *pFitnessObject) = 0;
@@ -85,7 +88,6 @@ protected:
 							 double massUnit, double targetMass,
 							 const ScaleSearchParameters &searchParams);
 
-	int getMaximumNumberOfGenerations() const						{ return m_maxGenerations; }
 private:
 	void onCurrentBest(const std::list<mogal::Genome *> &bestGenomes) override;
 	void onGeneticAlgorithmStart() override;

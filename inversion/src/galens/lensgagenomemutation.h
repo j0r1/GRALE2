@@ -13,6 +13,9 @@ public:
 	LensGAGenomeMutation(const std::shared_ptr<mogal2::RandomNumberGenerator> &rng, float chanceMultiplier,
 					   bool allowNegativeValues, float mutationAmplitude, bool absoluteMutation);
 
+	void setMutationAmplitude(float x) { m_mutationAmplitude = x; }
+	void setAbsoluteMutation(bool x) { m_absoluteMutation = x; }
+
 	errut::bool_t check(const mogal2::Genome &genome) override;
 	errut::bool_t mutate(mogal2::Genome &genome, bool &isChanged) override;
 private: 
