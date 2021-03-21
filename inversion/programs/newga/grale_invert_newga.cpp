@@ -13,13 +13,16 @@
 #include "lensgasingleobjectivecrossover.h"
 #include "lensfitnessgeneral.h"
 #include "multifitnesshistory.h"
+#include "galensmodule.h"
 #include <serut/memoryserializer.h>
 #include <mogal/geneticalgorithm.h>
 #include <mogal2/geneticalgorithm.h>
 #include <mogal2/randomnumbergenerator.h>
 #include <mogal2/singlethreadedpopulationfitnesscalculation.h>
+#include <mogal2/multithreadedpopulationfitnesscalculation.h>
 #include <mogal2/stopcriterion.h>
 #include <mogal2/simplesortedpopulation.h>
+#include <serut/vectorserializer.h>
 #ifndef WIN32
 #include <fcntl.h>
 #endif // !WIN32
@@ -57,6 +60,12 @@ class LensFitnessCalculation : public mogal2::GenomeFitnessCalculation
 {
 public:
 	LensFitnessCalculation(grale::LensInversionGAFactoryCommon &factory) : m_pFactory(&factory) { }
+	LensFitnessCalculation(const shared_ptr<grale::LensInversionGAFactoryCommon> &factory)
+	{
+		m_spFactory = factory; // keep a reference to the lib
+		m_pFactory = factory.get();
+	}
+
 	~LensFitnessCalculation() { }
 
 	errut::bool_t calculate(const mogal2::Genome &genome, mogal2::Fitness &fitness)
@@ -73,6 +82,7 @@ public:
 	}
 private:
 	grale::LensInversionGAFactoryCommon *m_pFactory;
+	shared_ptr<grale::LensInversionGAFactoryCommon> m_spFactory;
 };
 
 class LensGAStropCriterion : public mogal2::StopCriterion
@@ -235,13 +245,49 @@ protected:
 						  rng,
 						  gaFactory.allowNegativeValues(),
 						  mutation);
-		mogal2::SingleThreadedPopulationFitnessCalculation calc(make_shared<LensFitnessCalculation>(gaFactory));
+
+		size_t numThreads = 1;
+		if (getenv("NUMTHREADS"))
+			numThreads = stoi(getenv("NUMTHREADS"));
+		cerr << "Using " << numThreads << " threads " << endl;
+
+		vector<shared_ptr<mogal2::GenomeFitnessCalculation>> genomeFitnessCalculators = { make_shared<LensFitnessCalculation>(gaFactory) };
+		grale::GALensModule module;
+
+		if (!module.open(moduleDir, moduleFile))
+			return "Couldn't open module: " + module.getErrorString();
+
+		for (size_t i = 2 ; i < numThreads ; i++)
+		{
+			auto newFac = shared_ptr<grale::LensInversionGAFactoryCommon>(dynamic_cast<grale::LensInversionGAFactoryCommon*>(module.createFactoryInstance()));
+			auto facParams = shared_ptr<mogal::GAFactoryParams>(newFac->createParamsInstance());
+
+			serut::VectorSerializer ser(factoryParamBytes);
+			if (!facParams->read(ser))
+				return "Coudln't deserialize factory parameters: " + facParams->getErrorString();
+
+			if (!newFac->init(facParams.get()))
+				return "Unable to init factory copy: " + newFac->getErrorString();
+			
+			genomeFitnessCalculators.push_back(make_shared<LensFitnessCalculation>(newFac));
+		}
+		
+		shared_ptr<mogal2::PopulationFitnessCalculation> calc;
+		if (numThreads <= 1)
+			calc = make_shared<mogal2::SingleThreadedPopulationFitnessCalculation>(genomeFitnessCalculators[0]);
+		else
+		{
+			auto mpCalc = make_shared<mogal2::MultiThreadedPopulationFitnessCalculation>();
+			if (!(r = mpCalc->initThreadPool(genomeFitnessCalculators)))
+				return "Unable to initialize threads: " + r.getErrorString();
+			calc = mpCalc;
+		}
 		
 		LensGAStropCriterion stop(gaFactory.getMaximumNumberOfGenerations(), mutation);
 		if (!(r = stop.initialize(gaFactory.getFitnessObject())))
 			return "Error initializing convergence checker: " + r.getErrorString();
 
-		if (!(r = ga.run(creation, cross, calc, stop, popSize)))
+		if (!(r = ga.run(creation, cross, *calc, stop, popSize)))
 			return "Error running GA: " + r.getErrorString();
 
 		auto &bestSolutions = cross.getBestIndividuals();
