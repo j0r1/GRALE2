@@ -139,13 +139,13 @@ bool_t LensGAGenome::MPI_Recv(int src, int tag, MPI_Comm communicator,
     return true;		
 }
 
-LensGAIndividual::LensGAIndividual(shared_ptr<Genome> genome, shared_ptr<Fitness> fitness,
+LensGAIndividual::LensGAIndividual(const shared_ptr<Genome> &genome, const shared_ptr<Fitness> &fitness,
             size_t introducedInGeneration)
     : Individual(genome, fitness, introducedInGeneration), m_parent1(-1), m_parent2(-1)
 {
 }
 
-shared_ptr<Individual> LensGAIndividual::createNew(shared_ptr<mogal2::Genome> genome, shared_ptr<mogal2::Fitness> fitness,
+shared_ptr<Individual> LensGAIndividual::createNew(const shared_ptr<mogal2::Genome> &genome, const shared_ptr<mogal2::Fitness> &fitness,
             size_t introducedInGeneration) const
 {
     return make_shared<LensGAIndividual>(genome, fitness, introducedInGeneration);

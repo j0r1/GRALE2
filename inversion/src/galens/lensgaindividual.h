@@ -45,10 +45,10 @@ public:
 class LensGAIndividual : public mogal2::Individual
 {
 public:
-	LensGAIndividual(std::shared_ptr<mogal2::Genome> genome, std::shared_ptr<mogal2::Fitness> fitness,
+	LensGAIndividual(const std::shared_ptr<mogal2::Genome> &genome, const std::shared_ptr<mogal2::Fitness> &fitness,
 			   size_t introducedInGeneration = std::numeric_limits<size_t>::max());
 
-	std::shared_ptr<mogal2::Individual> createNew(std::shared_ptr<mogal2::Genome> genome, std::shared_ptr<mogal2::Fitness> fitness,
+	std::shared_ptr<mogal2::Individual> createNew(const std::shared_ptr<mogal2::Genome> &genome, const std::shared_ptr<mogal2::Fitness> &fitness,
 			   size_t introducedInGeneration = std::numeric_limits<size_t>::max()) const override;
 
 	int m_parent1, m_parent2;
