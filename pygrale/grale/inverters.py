@@ -383,9 +383,13 @@ def calculateFitness(moduleName, inputImages, zd, fitnessObjectParameters, lens 
 
 class NewGAProcessInverter(Inverter):
 
-    def __init__(self, feedbackObject = None):
+    def __init__(self, numThreads = 1, feedbackObject = None):
 
-        super(NewGAProcessInverter, self).__init__([ "grale_invert_newga" ], "New GA test process", feedbackObject=feedbackObject)
+        numThreads = _getNumHelpers(numThreads)
+        super(NewGAProcessInverter, self).__init__([ "grale_invert_newga" ],
+                                                     "New GA test process",
+                                                     extraEnv = { "NUMTHREADS": str(numThreads) },
+                                                     feedbackObject=feedbackObject)
 
 class SingleProcessInverter(Inverter):
     """If this inverter is used, a single process, single core method is used. For
@@ -587,6 +591,7 @@ def createInverterFromString(inverter):
     localCsNodesPrefix = "localcs:"
     mpiNodesPrefix = "mpi:"
     csMpiNodesPrefix = "mpics:"
+    newGAThreadsPrefix = "newga:"
 
     if inverter.lower() == "newga":
         return NewGAProcessInverter()
@@ -606,6 +611,10 @@ def createInverterFromString(inverter):
 
     if inverter.lower() == "localcs":
         return LocalCSProcessInverter()
+
+    if inverter.lower().startswith(newGAThreadsPrefix):
+        numThreads = int(inverter[len(newGAThreadsPrefix):])
+        return NewGAProcessInverter(numThreads)
 
     if inverter.lower().startswith(localCsNodesPrefix):
         numNodes = int(inverter[len(localCsNodesPrefix):])
