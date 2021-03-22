@@ -24,6 +24,7 @@
 #include <serut/vectorserializer.h>
 #ifndef WIN32
 #include <fcntl.h>
+#include <unistd.h>
 #endif // !WIN32
 
 #include <iostream>
@@ -31,6 +32,7 @@
 #include <string>
 #include <memory>
 #include <limits>
+#include <chrono>
 
 using namespace std;
 using namespace serut;
@@ -77,6 +79,11 @@ public:
 		// later stage
 		if (!m_pFactory->calculateFitness(g.m_weights, g.m_sheets, f.m_scaleFactor, f.m_fitnesses.data()))
 			return "Error calculating fitness: " + m_pFactory->getErrorString();
+
+
+		// TODO: for testing
+		// usleep(10000);
+
 		return true;
 	}
 private:
@@ -84,27 +91,69 @@ private:
 	shared_ptr<grale::LensInversionGAFactoryCommon> m_spFactory;
 };
 
+class Timer {
+public:
+    Timer() {
+        start();
+    }
+
+    void start() {
+        beg = std::chrono::steady_clock::now();
+    }
+
+    void stop() {
+        end = std::chrono::steady_clock::now();
+    }
+
+    double duration() {
+        return std::chrono::duration_cast<std::chrono::nanoseconds>(end - beg).count();
+    }
+private:
+    std::chrono::time_point<std::chrono::steady_clock> beg;
+    std::chrono::time_point<std::chrono::steady_clock> end;
+};
+
+
 class MyGA : public mogal2::GeneticAlgorithm
 {
 public:
 	MyGA() { }
-	~MyGA() { }
+	~MyGA()
+	{
+		double dtSum = 0;
+		double dt2Sum = 0;
+		for (auto dt : m_intervals)
+		{
+			dtSum += dt;
+			dt2Sum += dt*dt;
+		}
 
-	// errut::bool_t onBeforeFitnessCalculation(size_t generation, std::shared_ptr<mogal2::Population> &population)
-	// {
+		double avg = dtSum/m_intervals.size();
+		double stddev = SQRT(dt2Sum/m_intervals.size() - avg*avg);
+		cerr << "Avg = " << avg/1e6 << " ms, stddev = " << stddev/1e6 << " ms" << endl;
+	}
+
+	Timer m_timer;
+	vector <double> m_intervals;
+
+	errut::bool_t onBeforeFitnessCalculation(size_t generation, std::shared_ptr<mogal2::Population> &population)
+	{
+		m_timer.start();
 	// 	cout << "# Generation " << generation << ", before calculation: " << endl;
 	// 	for (auto &i : population->individuals())
 	// 		cout << i->fitness()->toString() << endl;
-	// 	return true;
-	// }
+		return true;
+	}
 
-    // errut::bool_t onFitnessCalculated(size_t generation, std::shared_ptr<mogal2::Population> &population)
-	// {
+    errut::bool_t onFitnessCalculated(size_t generation, std::shared_ptr<mogal2::Population> &population)
+	{
+		m_timer.stop();
+		m_intervals.push_back(m_timer.duration());
 	// 	cout << "# Generation " << generation << ", calculated: " << endl;
 	// 	for (auto &i : population->individuals())
 	// 		cout << i->fitness()->toString() << endl;
-	// 	return true;
-	// }
+		return true;
+	}
 };
 
 // TODO: rename this, is from copy-paste
