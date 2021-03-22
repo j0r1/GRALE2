@@ -381,6 +381,12 @@ def calculateFitness(moduleName, inputImages, zd, fitnessObjectParameters, lens 
 
     return (fitness, description)
 
+class NewGAProcessInverter(Inverter):
+
+    def __init__(self, feedbackObject = None):
+
+        super(NewGAProcessInverter, self).__init__([ "grale_invert_newga" ], "New GA test process", feedbackObject=feedbackObject)
+
 class SingleProcessInverter(Inverter):
     """If this inverter is used, a single process, single core method is used. For
     a very simple inversion problem this may still be the most performant though.
@@ -581,6 +587,9 @@ def createInverterFromString(inverter):
     localCsNodesPrefix = "localcs:"
     mpiNodesPrefix = "mpi:"
     csMpiNodesPrefix = "mpics:"
+
+    if inverter.lower() == "newga":
+        return NewGAProcessInverter()
 
     if inverter.lower() == "singlecore":
         return SingleProcessInverter()
