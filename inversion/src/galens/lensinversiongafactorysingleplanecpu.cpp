@@ -185,15 +185,13 @@ bool LensInversionGAFactorySinglePlaneCPU::init(const mogal::GAFactoryParams *p)
 	return true;
 }
 
-GravitationalLens *LensInversionGAFactorySinglePlaneCPU::createLens(const LensInversionGenome &genome,
-                                                              std::string &errStr) const
+GravitationalLens *LensInversionGAFactorySinglePlaneCPU::createLens(const std::vector<float> &basisFunctionWeights,
+	                                      const std::vector<float> &sheetValues,
+										  float scaleFactor,
+										  std::string &errStr) const
 {
 	CompositeLensParams lensParams;
 	CompositeLens *pLens;
-
-	const vector<float> &basisFunctionWeights = genome.getBasisFunctionWeights();
-	const float scaleFactor = genome.getScaleFactor();
-	const vector<float> &sheetValues = genome.getSheetValues();
 
 	float sheetValue = 0;
 	if (sheetValues.size() > 0)
@@ -217,6 +215,13 @@ GravitationalLens *LensInversionGAFactorySinglePlaneCPU::createLens(const LensIn
 
 	// Note that this lens does not include any base lens that might be set
 	return pLens;
+}
+
+
+GravitationalLens *LensInversionGAFactorySinglePlaneCPU::createLens(const LensInversionGenome &genome,
+                                                              std::string &errStr) const
+{
+	return createLens(genome.getBasisFunctionWeights(), genome.getSheetValues(), genome.getScaleFactor(), errStr);
 }
 
 // This is some very old code, haven't used this for a long time. I'm just leaving this

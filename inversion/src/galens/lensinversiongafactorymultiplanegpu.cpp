@@ -243,7 +243,10 @@ bool LensInversionGAFactoryMultiPlaneGPU::analyzeSourceImages(const vector<share
 	return true;
 }
 
-GravitationalLens *LensInversionGAFactoryMultiPlaneGPU::createLens(const LensInversionGenome &genome, std::string &errStr) const
+GravitationalLens *LensInversionGAFactoryMultiPlaneGPU::createLens(const std::vector<float> &basisFunctionWeights,
+	                                      const std::vector<float> &sheetValues,
+										  float scaleFactor,
+										  std::string &errStr) const
 {
 	bool useSheets = m_currentParams->useMassSheetBasisFunctions();
 	auto &cosm = m_currentParams->getCosmology();
@@ -251,13 +254,11 @@ GravitationalLens *LensInversionGAFactoryMultiPlaneGPU::createLens(const LensInv
 	auto &redshifts = m_currentParams->getLensRedshifts();
 	assert(redshifts.size() == basisFunctions.size());
 
-	auto sheetValues = genome.getSheetValues();
 	vector<float> sheetDensities(sheetValues.size());
 	assert((useSheets && sheetValues.size() == redshifts.size()) || (!useSheets && sheetValues.size() == 0));
 
 	convertGenomeSheetValuesToDensities(sheetValues, sheetDensities);
-	double scale = genome.getScaleFactor();
-	auto basisFunctionWeights = genome.getBasisFunctionWeights();
+	double scale = scaleFactor;
 	int basisFunctionWeightIdx = 0;
 
 	MultiPlaneContainerParams containerParams;
@@ -319,6 +320,11 @@ GravitationalLens *LensInversionGAFactoryMultiPlaneGPU::createLens(const LensInv
 	}
 
 	return containerLens.release();
+}
+
+GravitationalLens *LensInversionGAFactoryMultiPlaneGPU::createLens(const LensInversionGenome &genome, std::string &errStr) const
+{
+	return createLens(genome.getBasisFunctionWeights(), genome.getSheetValues(), genome.getScaleFactor(), errStr);
 }
 
 void LensInversionGAFactoryMultiPlaneGPU::convertGenomeSheetValuesToDensities(const vector<float> &sheetValues,

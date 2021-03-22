@@ -53,6 +53,10 @@ public:
 
 	// TODO: vector<shared_prt<GravitationalLens>>, createLenses
 	virtual GravitationalLens *createLens(const LensInversionGenome &genome, std::string &errStr) const = 0;
+	virtual GravitationalLens *createLens(const std::vector<float> &basisFunctionWeights,
+	                                      const std::vector<float> &sheetValues,
+										  float scaleFactor,
+										  std::string &errStr) const = 0;
 
 	void sendMessage(const std::string &s);
 

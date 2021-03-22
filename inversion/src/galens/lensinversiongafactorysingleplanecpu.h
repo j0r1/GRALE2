@@ -57,6 +57,10 @@ public:
 	bool init(const mogal::GAFactoryParams *p);
 
 	GravitationalLens *createLens(const LensInversionGenome &genome, std::string &errStr) const override;
+	GravitationalLens *createLens(const std::vector<float> &basisFunctionWeights,
+	                                      const std::vector<float> &sheetValues,
+										  float scaleFactor,
+										  std::string &errStr) const override;
 
 	bool initializeNewCalculation(const std::vector<float> &masses, const std::vector<float> &sheetValues) override;
 	bool calculateMassScaleFitness(float scaleFactor, float &fitness) override;

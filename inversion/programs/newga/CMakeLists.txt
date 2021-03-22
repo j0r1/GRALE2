@@ -3,7 +3,7 @@ if (MOGAL2_FOUND)
 	include_directories("..")
 	include_directories("${PROJECT_SOURCE_DIR}/core/programs/")
 
-	add_executable(grale_invert_newga grale_invert_newga.cpp ../inversioncommunicator.cpp
+	add_executable(grale_invert_newga grale_invert_newga.cpp ../inversioncommunicatornewga.cpp
 			"${PROJECT_SOURCE_DIR}/core/programs/inputoutput.cpp"
 	)
 	target_link_libraries(grale_invert_newga graleinv-shared gralecore-shared ${GRALE_LINK_LIBS})

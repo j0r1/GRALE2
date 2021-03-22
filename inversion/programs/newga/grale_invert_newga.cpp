@@ -3,7 +3,7 @@
 #include "gaparameters.h"
 #include "lensinversiongafactoryparamssingleplanecpu.h"
 #include "lensinversiongafactorycommon.h"
-#include "inversioncommunicator.h"
+#include "inversioncommunicatornewga.h"
 #include "randomnumbergenerator.h"
 #include "constants.h"
 #include "lensgaindividual.h"
@@ -42,10 +42,10 @@ using namespace errut;
 class RNG : public mogal2::RandomNumberGenerator
 {
 public:
-	RNG(const mogal::RandomNumberGenerator *pRng) : m_pRng(pRng) { }
+	RNG() { }
 	~RNG() { }
-    double getRandomDouble() override { return m_pRng->pickRandomNumber(); }
-    float getRandomFloat() override { return (float)m_pRng->pickRandomNumber(); }
+    double getRandomDouble() override { return m_rng.pickRandomNumber(); }
+    float getRandomFloat() override { return (float)m_rng.pickRandomNumber(); }
 	uint32_t getRandomUint32() override
 	{
 		cerr << "getRandomUint32 NOT IMPLEMENTED" << endl;
@@ -53,7 +53,7 @@ public:
 		return 0;
 	}
 private:
-	const mogal::RandomNumberGenerator *m_pRng;
+	grale::RandomNumberGenerator m_rng;
 };
 
 
@@ -164,6 +164,21 @@ public:
 	~SingleCoreCommunicator() { }
 protected:
 	string getVersionInfo() const override { return "Single core genetic algorithm engine"; }
+	
+	bool hasGeneticAlgorithm() const override { return true; }
+	void getAllBestGenomes(std::vector<std::shared_ptr<mogal2::Individual>> &bestGenomes) override
+	{
+		bestGenomes = m_best;
+	}
+
+	shared_ptr<mogal2::Individual> getPreferredBestGenome() override
+	{
+		if (m_best.size() == 0)
+			return nullptr;
+		
+		// TODO: select best!
+		return m_best[0];
+	}
 
 	bool_t runGA(int popSize, mogal::GAFactory &factory, mogal::GeneticAlgorithmParams &params,
 	             const std::string &moduleDir, const std::string &moduleFile,
@@ -174,7 +189,7 @@ protected:
 		if (gaFactory.getNumberOfFitnessComponents() != 1)
 			return "Currently only for one fitness component";
 
-		shared_ptr<RNG> rng = make_shared<RNG>(gaFactory.getRandomNumberGenerator());
+		shared_ptr<RNG> rng = make_shared<RNG>();
 		MyGA ga;
 
 		auto mutation = make_shared<grale::LensGAGenomeMutation>(rng, 
@@ -238,13 +253,14 @@ protected:
 		if (!(r = ga.run(creation, cross, *calc, stop, popSize)))
 			return "Error running GA: " + r.getErrorString();
 
-		auto &bestSolutions = cross.getBestIndividuals();
+		m_best = cross.getBestIndividuals();
 		cout << "Best: " << endl;
-		for (auto &b: bestSolutions)
+		for (auto &b: m_best)
 			cout << b->fitness()->toString() << endl;
 
 		return true;
 	}
+	std::vector<std::shared_ptr<mogal2::Individual>> m_best;
 };
 
 int main(int argc, char *argv[])
