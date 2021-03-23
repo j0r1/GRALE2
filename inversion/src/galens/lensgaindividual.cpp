@@ -141,7 +141,7 @@ bool_t LensGAGenome::MPI_Recv(int src, int tag, MPI_Comm communicator,
 
 LensGAIndividual::LensGAIndividual(const shared_ptr<Genome> &genome, const shared_ptr<Fitness> &fitness,
             size_t introducedInGeneration)
-    : Individual(genome, fitness, introducedInGeneration), m_parent1(-1), m_parent2(-1)
+    : Individual(genome, fitness, introducedInGeneration), m_parent1(-1), m_parent2(-1), m_ownIndex(-1)
 {
 }
 

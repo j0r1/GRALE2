@@ -52,6 +52,7 @@ public:
 			   size_t introducedInGeneration = std::numeric_limits<size_t>::max()) const override;
 
 	int m_parent1, m_parent2;
+	int m_ownIndex;
 };
 
 class LensGAIndividualCreation : public mogal2::IndividualCreation

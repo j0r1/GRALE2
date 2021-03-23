@@ -9,10 +9,10 @@
 namespace grale
 {
 
-class LensGASingleFitnessCrossover : public mogal2::PopulationCrossover
+class LensGASingleObjectiveCrossover : public mogal2::PopulationCrossover
 {
 public:
-	LensGASingleFitnessCrossover(double beta, bool elitism, bool includeBest, double crossoverRate,
+	LensGASingleObjectiveCrossover(double beta, bool elitism, bool includeBest, double crossoverRate,
 				const std::shared_ptr<mogal2::RandomNumberGenerator> &rng,
 				bool allowNegative,
 				const std::shared_ptr<mogal2::GenomeMutation> &mutation);
@@ -22,7 +22,8 @@ public:
     
     const std::vector<std::shared_ptr<mogal2::Individual>> &getBestIndividuals() const override { return m_sortedPop.getBestIndividuals(); }
 private:
-	void copyScaleFactorFromFitnessToGenome(std::shared_ptr<mogal2::Population> &population);
+	void copyScaleFactorFromFitnessToGenome(const std::shared_ptr<mogal2::Population> &population);
+	void copyPopulationIndex(const std::shared_ptr<mogal2::Population> &population);
 	size_t elitism(std::shared_ptr<mogal2::Population> &population, std::shared_ptr<mogal2::Population> &newPop);
 	errut::bool_t crossover(size_t generation, std::shared_ptr<mogal2::Population> &population, std::shared_ptr<mogal2::Population> &newPop);
 	errut::bool_t mutation(size_t mutOffset, std::shared_ptr<mogal2::Population> &newPop);

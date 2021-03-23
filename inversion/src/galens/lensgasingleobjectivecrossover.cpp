@@ -9,7 +9,7 @@ using namespace errut;
 namespace grale
 {
 
-LensGASingleFitnessCrossover::LensGASingleFitnessCrossover(double beta, bool elitism, bool includeBest, double crossoverRate,
+LensGASingleObjectiveCrossover::LensGASingleObjectiveCrossover(double beta, bool elitism, bool includeBest, double crossoverRate,
             const shared_ptr<mogal2::RandomNumberGenerator> &rng,
             bool allowNegative,
             const shared_ptr<mogal2::GenomeMutation> &mutation)
@@ -20,7 +20,7 @@ LensGASingleFitnessCrossover::LensGASingleFitnessCrossover(double beta, bool eli
 
 }
 
-bool_t LensGASingleFitnessCrossover::check(const shared_ptr<mogal2::Population> &population)
+bool_t LensGASingleObjectiveCrossover::check(const shared_ptr<mogal2::Population> &population)
 {
     if (population->size() == 0)
         return "Empty population";
@@ -41,7 +41,7 @@ bool_t LensGASingleFitnessCrossover::check(const shared_ptr<mogal2::Population> 
     return true;
 }
 
-bool_t LensGASingleFitnessCrossover::createNewPopulation(size_t generation, shared_ptr<mogal2::Population> &population, size_t targetPopulationSize)
+bool_t LensGASingleObjectiveCrossover::createNewPopulation(size_t generation, shared_ptr<mogal2::Population> &population, size_t targetPopulationSize)
 {
     bool_t r;
     if (generation == 0)
@@ -59,6 +59,8 @@ bool_t LensGASingleFitnessCrossover::createNewPopulation(size_t generation, shar
     if (!(r = m_sortedPop.processPopulation(population, targetPopulationSize)))
         return "Error sorting population: " + r.getErrorString();
 
+    copyPopulationIndex(population);
+
     shared_ptr<mogal2::Population> newPop = make_shared<mogal2::Population>();
 
     size_t mutOffset = elitism(population, newPop);
@@ -74,7 +76,18 @@ bool_t LensGASingleFitnessCrossover::createNewPopulation(size_t generation, shar
     return true;
 }
 
-void LensGASingleFitnessCrossover::copyScaleFactorFromFitnessToGenome(shared_ptr<mogal2::Population> &population)
+void LensGASingleObjectiveCrossover::copyPopulationIndex(const std::shared_ptr<mogal2::Population> &population)
+{
+    for (size_t i = 0 ; i < population->size() ; i++)
+    {
+        LensGAIndividual *pInd = static_cast<LensGAIndividual *>(population->individual(i).get());
+        assert(pInd);
+
+        pInd->m_ownIndex = (int)i;
+    }
+}
+
+void LensGASingleObjectiveCrossover::copyScaleFactorFromFitnessToGenome(const shared_ptr<mogal2::Population> &population)
 {
     for (auto &i : population->individuals())
     {
@@ -84,7 +97,7 @@ void LensGASingleFitnessCrossover::copyScaleFactorFromFitnessToGenome(shared_ptr
     }
 }
 
-size_t LensGASingleFitnessCrossover::elitism(shared_ptr<mogal2::Population> &population, shared_ptr<mogal2::Population> &newPop)
+size_t LensGASingleObjectiveCrossover::elitism(shared_ptr<mogal2::Population> &population, shared_ptr<mogal2::Population> &newPop)
 {
     auto appendBest = [&newPop, &population]()
     {
@@ -107,25 +120,21 @@ size_t LensGASingleFitnessCrossover::elitism(shared_ptr<mogal2::Population> &pop
     return mutOffset;
 }
 
-errut::bool_t LensGASingleFitnessCrossover::crossover(size_t generation, shared_ptr<mogal2::Population> &population, shared_ptr<mogal2::Population> &newPop)
+errut::bool_t LensGASingleObjectiveCrossover::crossover(size_t generation, shared_ptr<mogal2::Population> &population, shared_ptr<mogal2::Population> &newPop)
 {
-    auto pickParent = [&population, this]()
+    auto pickParent = [&population, this]() -> LensGAIndividual *
     {
         double x = m_rng->getRandomDouble();
         double val = (1.0-pow(x, 1.0/(1.0+m_beta)))*((double)population->size());
         int r = (int)val;
         if (r >= (int)population->size())
-                r = (int)population->size() - 1;
-        return r;
-    };
+            r = (int)population->size() - 1;
 
-    auto getLensIndividual = [&population](size_t i) -> const LensGAIndividual &
-    {
-        return static_cast<LensGAIndividual&>(*population->individual(i));
+        return static_cast<LensGAIndividual*>(population->individual(r).get());
     };
 
     // In original version, an attempt was made to prevent inbreeding
-    auto pickParentIndices = [&pickParent, &getLensIndividual](int &index1, int &index2)
+    auto pickParents = [&pickParent](LensGAIndividual **pParent1, LensGAIndividual **pParent2)
     {
         bool ok;
         int count = 0;
@@ -134,15 +143,15 @@ errut::bool_t LensGASingleFitnessCrossover::crossover(size_t generation, shared_
         {
             ok = false;
 
-            index1 = pickParent();
-            index2 = pickParent();
+            *pParent1 = pickParent();
+            *pParent2 = pickParent();
 
             // prevent inbreeding
 
-            int a1 = getLensIndividual(index1).m_parent1;
-            int a2 = getLensIndividual(index1).m_parent2;
-            int b1 = getLensIndividual(index2).m_parent1;
-            int b2 = getLensIndividual(index2).m_parent2;
+            int a1 = (*pParent1)->m_parent1;
+            int a2 = (*pParent1)->m_parent2;
+            int b1 = (*pParent2)->m_parent1;
+            int b2 = (*pParent2)->m_parent2;
 
             if (a1 < 0 || b1 < 0) // one of them is a brand new genome
                 ok = true;
@@ -163,10 +172,12 @@ errut::bool_t LensGASingleFitnessCrossover::crossover(size_t generation, shared_
     {
         if (m_rng->getRandomDouble() < m_crossoverRate)
         {
-            int index1 = -1, index2 = -1;
-            pickParentIndices(index1, index2);
-            parents[0] = population->individual(index1)->genome();
-            parents[1] = population->individual(index2)->genome();
+            LensGAIndividual *pParent1 = nullptr, *pParent2 = nullptr;
+            pickParents(&pParent1, &pParent2);
+            assert(pParent1 && pParent2);
+
+            parents[0] = pParent1->genome();
+            parents[1] = pParent2->genome();
             
             if (!(r = m_cross.generateOffspring(parents, offspring)))
                 return "Error in crossover: " + r.getErrorString();
@@ -174,26 +185,30 @@ errut::bool_t LensGASingleFitnessCrossover::crossover(size_t generation, shared_
             for (auto &g : offspring)
             {
                 auto ind = make_shared<LensGAIndividual>(g, population->individual(0)->fitness()->createCopy(false), generation);
-                ind->m_parent1 = index1;
-                ind->m_parent2 = index2;
+                ind->m_parent1 = pParent1->m_ownIndex;
+                ind->m_parent2 = pParent2->m_ownIndex;
+                // Own offset will be set later
                 newPop->append(ind);
             }
         }
         else // clone
         {
-            int index = pickParent();
-            auto ind = population->individual(index)->createCopy();
+            LensGAIndividual *pParent = pickParent();
+            assert(pParent);
+
+            auto ind = pParent->createCopy();
 
             LensGAIndividual &lensInd = static_cast<LensGAIndividual&>(*ind);
-            lensInd.m_parent1 = index;
+            lensInd.m_parent1 = pParent->m_ownIndex;
             lensInd.m_parent2 = -1;
+            // Own offset will be set later
             newPop->append(ind);
         }
     }
     return true;
 }
 
-bool_t LensGASingleFitnessCrossover::mutation(size_t mutOffset, shared_ptr<mogal2::Population> &newPop)
+bool_t LensGASingleObjectiveCrossover::mutation(size_t mutOffset, shared_ptr<mogal2::Population> &newPop)
 {
     bool_t r;
 

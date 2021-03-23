@@ -56,6 +56,10 @@ private:
 	grale::RandomNumberGenerator m_rng;
 };
 
+class LensGAMultiObjectiveCrossover : public mogal2::PopulationCrossover
+{
+
+};
 
 class LensFitnessCalculation : public mogal2::GenomeFitnessCalculation
 {
@@ -276,7 +280,7 @@ protected:
 		grale::LensGAIndividualCreation creation(rng, gaFactory.getNumberOfBasisFunctions(), gaFactory.getNumberOfSheets(),
 		                  gaFactory.allowNegativeValues(), gaFactory.getNumberOfFitnessComponents());
 
-		grale::LensGASingleFitnessCrossover cross(params.getBeta(),
+		grale::LensGASingleObjectiveCrossover cross(params.getBeta(),
 					      params.useElitism(),
 						  params.alwaysIncludeBestGenome(),
 						  params.getCrossOverRate(),
