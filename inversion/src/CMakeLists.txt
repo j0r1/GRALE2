@@ -42,6 +42,7 @@ if (MOGAL2_FOUND)
 		galens/lensgasingleobjectivecrossover.h
 		galens/lensgastopcriterion.h
 		galens/lensgacrossoverbase.h
+		galens/lensgamultiobjectivecrossover.h
 		)
 endif()
 
@@ -90,6 +91,7 @@ if (MOGAL2_FOUND)
 		galens/lensgasingleobjectivecrossover.cpp
 		galens/lensgastopcriterion.cpp
 		galens/lensgacrossoverbase.cpp
+		galens/lensgamultiobjectivecrossover.cpp
 	    )
 endif()
 

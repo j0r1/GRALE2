@@ -11,6 +11,7 @@
 #include "lensgagenomecrossover.h"
 #include "lensgafitnesscomparison.h"
 #include "lensgasingleobjectivecrossover.h"
+#include "lensgamultiobjectivecrossover.h"
 #include "galensmodule.h"
 #include "lensgastopcriterion.h"
 #include <serut/memoryserializer.h>
@@ -262,8 +263,6 @@ protected:
 		bool_t r;
 		grale::LensInversionGAFactoryCommon &gaFactory = dynamic_cast<grale::LensInversionGAFactoryCommon&>(factory);
 		size_t numObjectives = gaFactory.getNumberOfFitnessComponents();
-		if (numObjectives != 1)
-			return "Currently only for one fitness component";
 
 		m_selector = make_shared<SubsequentBestIndividualSelector>(numObjectives,
 								make_shared<grale::LensGAFitnessComparison>());
@@ -280,13 +279,24 @@ protected:
 		grale::LensGAIndividualCreation creation(rng, gaFactory.getNumberOfBasisFunctions(), gaFactory.getNumberOfSheets(),
 		                  gaFactory.allowNegativeValues(), gaFactory.getNumberOfFitnessComponents());
 
-		grale::LensGASingleObjectiveCrossover cross(params.getBeta(),
+		shared_ptr<grale::LensGACrossoverBase> cross;
+		if (numObjectives == 1)
+			cross = make_shared<grale::LensGASingleObjectiveCrossover>(params.getBeta(),
 					      params.useElitism(),
 						  params.alwaysIncludeBestGenome(),
 						  params.getCrossOverRate(),
 						  rng,
 						  gaFactory.allowNegativeValues(),
 						  mutation);
+		else
+			cross = make_shared<grale::LensGAMultiObjectiveCrossover>(params.getBeta(),
+					      params.useElitism(),
+						  params.alwaysIncludeBestGenome(),
+						  params.getCrossOverRate(),
+						  rng,
+						  gaFactory.allowNegativeValues(),
+						  mutation,
+						  numObjectives);
 
 		size_t numThreads = 1;
 		if (getenv("NUMTHREADS"))
@@ -329,10 +339,10 @@ protected:
 		if (!(r = stop.initialize(gaFactory.getFitnessObject())))
 			return "Error initializing convergence checker: " + r.getErrorString();
 
-		if (!(r = ga.run(creation, cross, *calc, stop, popSize)))
+		if (!(r = ga.run(creation, *cross, *calc, stop, popSize)))
 			return "Error running GA: " + r.getErrorString();
 
-		m_best = cross.getBestIndividuals();
+		m_best = cross->getBestIndividuals();
 		cout << "Best: " << endl;
 		for (auto &b: m_best)
 			cout << b->fitness()->toString() << endl;
