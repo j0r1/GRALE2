@@ -70,7 +70,7 @@ bool_t LensGAStropCriterion::analyze(const std::vector<std::shared_ptr<mogal2::I
     {
         for (int j = 0 ; j < currentBest.size() ; j++)
         {
-            const LensGAFitness &f = static_cast<const LensGAFitness&>(currentBest[i]->fitnessRef());
+            const LensGAFitness &f = static_cast<const LensGAFitness&>(currentBest[j]->fitnessRef());
 
             assert(i < (int)f.m_fitnesses.size());
             m_pFitnessHistory->processValue(i, f.m_fitnesses[i]);
