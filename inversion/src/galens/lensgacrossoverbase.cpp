@@ -96,7 +96,7 @@ void LensGACrossoverBase::copyScaleFactorFromFitnessToGenome(const shared_ptr<mo
     }
 }
 
-void LensGACrossoverBase::pickParents(const shared_ptr<mogal2::Population> &population, 
+void LensGACrossoverBase::pickParentsNoInbreed(const shared_ptr<mogal2::Population> &population, 
                                                  LensGAIndividual **pParent1, LensGAIndividual **pParent2)
 {
     bool ok;
@@ -107,8 +107,8 @@ void LensGACrossoverBase::pickParents(const shared_ptr<mogal2::Population> &popu
     {
         ok = false;
 
-        *pParent1 = pickParent(population);
-        *pParent2 = pickParent(population);
+        pickParentsRaw(population, pParent1, pParent2);
+        // cout << "Trying parents " << (*pParent1)->fitness()->toString() << " and " << (*pParent2)->fitness()->toString() << endl;
 
         // prevent inbreeding
 
@@ -126,7 +126,7 @@ void LensGACrossoverBase::pickParents(const shared_ptr<mogal2::Population> &popu
         }
         count++;
     } while (count < 10 && !ok);
-
+    // cout << "Accepted after " << count << " tries" << endl;
 }
 
 errut::bool_t LensGACrossoverBase::crossover(size_t generation, shared_ptr<mogal2::Population> &population, shared_ptr<mogal2::Population> &newPop)
@@ -140,7 +140,7 @@ errut::bool_t LensGACrossoverBase::crossover(size_t generation, shared_ptr<mogal
         if (m_rng->getRandomDouble() < m_crossoverRate)
         {
             LensGAIndividual *pParent1 = nullptr, *pParent2 = nullptr;
-            pickParents(population, &pParent1, &pParent2);
+            pickParentsNoInbreed(population, &pParent1, &pParent2);
             assert(pParent1 && pParent2);
 
             parents[0] = pParent1->genome();

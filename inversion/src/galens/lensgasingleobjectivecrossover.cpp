@@ -65,5 +65,10 @@ LensGAIndividual *LensGASingleObjectiveCrossover::pickParent(const shared_ptr<mo
     return static_cast<LensGAIndividual*>(population->individual(r).get());
 }
 
+void LensGASingleObjectiveCrossover::pickParentsRaw(const std::shared_ptr<mogal2::Population> &population, LensGAIndividual **pParent1, LensGAIndividual **pParent2)
+{
+    *pParent1 = pickParent(population);
+    *pParent2 = pickParent(population);
+}
 
 }
