@@ -32,11 +32,11 @@ protected:
 	virtual std::string getVersionInfo() const = 0;
 	virtual bool_t runModule(const std::string &moduleDir, const std::string &moduleFile, grale::GALensModule *pModule);
 	virtual bool_t runGA(int popSize, mogal::GAFactory &factory, mogal::GeneticAlgorithmParams &params,
-	                     const std::string &moduleDir, const std::string &moduleFile,
+	                     const std::string &moduleDir, const std::string &moduleFile, grale::GALensModule &module,
 						 const std::vector<uint8_t> &factoryParamBytes);
 
 	bool_t runGAWrapper(int popSize, mogal::GAFactory &factory, mogal::GeneticAlgorithmParams &params,
-	                     const std::string &moduleDir, const std::string &moduleFile,
+	                     const std::string &moduleDir, const std::string &moduleFile, grale::GALensModule &module,
 						 const std::vector<uint8_t> &factoryParamBytes);
 
 	bool_t readLineWithPrefix(const std::string &prefix, std::string &value, int timeoutMSec);

@@ -9,6 +9,15 @@ if (MOGAL2_FOUND)
 	target_link_libraries(grale_invert_newga graleinv-shared gralecore-shared ${GRALE_LINK_LIBS})
 
 	install(TARGETS grale_invert_newga DESTINATION bin)
+
+	if (GRALE_SUPPORT_MPI)
+		add_executable(grale_invert_newgampi grale_invert_newgampi.cpp ../inversioncommunicatornewga.cpp
+				"${PROJECT_SOURCE_DIR}/core/programs/inputoutput.cpp"
+		)
+		target_link_libraries(grale_invert_newgampi graleinv-shared gralecore-shared ${GRALE_LINK_LIBS})
+
+		install(TARGETS grale_invert_newgampi DESTINATION bin)
+	endif()
 endif()
 
 

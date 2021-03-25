@@ -177,7 +177,7 @@ bool_t InversionCommunicator::runModule(const string &moduleDir, const string &m
 	if (!pFactory->init(pFactoryParams))
 		return "Unable to initialize the GA factory: " + pFactory->getErrorString();
 
-	if (!(r = runGAWrapper(popSize, *pFactory, params, moduleDir, moduleFile, factoryParamBytes)))
+	if (!(r = runGAWrapper(popSize, *pFactory, params, moduleDir, moduleFile, *pModule, factoryParamBytes)))
 		return r;
 
 	LOG(Log::DBG, "Finished runGA");
@@ -192,10 +192,10 @@ bool_t InversionCommunicator::runModule(const string &moduleDir, const string &m
 }
 
 bool_t InversionCommunicator::runGAWrapper(int popSize, mogal::GAFactory &factory, mogal::GeneticAlgorithmParams &params,
-	                     const string &moduleDir, const string &moduleFile,
+	                     const string &moduleDir, const string &moduleFile, grale::GALensModule &module,
 						 const vector<uint8_t> &factoryParamBytes)
 {
-	bool_t r = runGA(popSize, factory, params, moduleDir, moduleFile, factoryParamBytes);
+	bool_t r = runGA(popSize, factory, params, moduleDir, moduleFile, module, factoryParamBytes);
 	if (!r)
 	{
 		string factoryError = factory.getErrorString();
@@ -207,7 +207,7 @@ bool_t InversionCommunicator::runGAWrapper(int popSize, mogal::GAFactory &factor
 }
 
 bool_t InversionCommunicator::runGA(int popSize, mogal::GAFactory &factory, mogal::GeneticAlgorithmParams &params,
-	                     const string &moduleDir, const string &moduleFile,
+	                     const string &moduleDir, const string &moduleFile, grale::GALensModule &module,
 						 const vector<uint8_t> &factoryParamBytes)
 {
 	return "Not implemented in base class";
