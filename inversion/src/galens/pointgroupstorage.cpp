@@ -25,7 +25,7 @@
 */
 
 #include "pointgroupstorage.h"
-#include <grale/imagesdataextended.h>
+#include "imagesdataextended.h"
 
 namespace grale
 {

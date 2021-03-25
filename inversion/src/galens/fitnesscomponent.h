@@ -4,11 +4,11 @@
 #include "pointgroupstorage.h"
 #include "fitnessutil.h"
 #include "numericgradientcalculator.h"
-#include <grale/triangleindices.h>
-#include <grale/imagesdataextended.h>
+#include "triangleindices.h"
+#include "imagesdataextended.h"
 #include <errut/errorbase.h>
-#include <grale/polygon2d.h>
-#include <grale/discretefunction.h>
+#include "polygon2d.h"
+#include "discretefunction.h"
 #include <vector>
 
 namespace grale
