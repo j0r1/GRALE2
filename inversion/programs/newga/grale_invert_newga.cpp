@@ -24,6 +24,7 @@ protected:
 	bool_t getCalculator(grale::LensInversionGAFactoryCommon &gaFactory,
 						const std::string &moduleDir, const std::string &moduleFile, grale::GALensModule &module,
 						const std::vector<uint8_t> &factoryParamBytes,
+						grale::LensGAIndividualCreation &creation,
 						shared_ptr<mogal2::PopulationFitnessCalculation> &calc) override
 	{
 		bool_t r;

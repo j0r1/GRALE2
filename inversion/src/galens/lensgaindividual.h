@@ -63,7 +63,8 @@ public:
 			 size_t numObjectives);
 	~LensGAIndividualCreation();
 
-    std::shared_ptr<mogal2::Genome> createInitializedGenome() override;
+    std::shared_ptr<mogal2::Genome> createUnInitializedGenome() override;
+	std::shared_ptr<mogal2::Genome> createInitializedGenome() override;
     std::shared_ptr<mogal2::Fitness> createEmptyFitness() override;
 	std::shared_ptr<mogal2::Individual> createReferenceIndividual() override;
 private:

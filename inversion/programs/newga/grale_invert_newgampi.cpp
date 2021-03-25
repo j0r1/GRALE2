@@ -1,6 +1,10 @@
 #include <mpi.h>
 #include "newgacommunicatorbase.h"
+#include <mogal2/mpieventdistributor.h>
+#include <mogal2/mpipopulationfitnesscalculation.h>
+#include <mogal2/singlethreadedpopulationfitnesscalculation.h>
 #include <serut/memoryserializer.h>
+#include <serut/vectorserializer.h>
 #include <fcntl.h>
 #include <unistd.h>
 
@@ -21,15 +25,39 @@ protected:
 	bool_t getCalculator(grale::LensInversionGAFactoryCommon &gaFactory,
 						const std::string &moduleDir, const std::string &moduleFile, grale::GALensModule &module,
 						const std::vector<uint8_t> &factoryParamBytes,
+						grale::LensGAIndividualCreation &creation,
 						shared_ptr<mogal2::PopulationFitnessCalculation> &calc) override
 	{
 		bool_t r;
+		VectorSerializer ser;
 
-		// TODO
+		if (!(ser.writeString(moduleDir) && ser.writeString(moduleFile) &&
+		      ser.writeBytes(factoryParamBytes.data(), factoryParamBytes.size())))
+			return "Error writing module info and parameters: " + ser.getErrorString();
+
+		int paramSize = ser.getBufferSize();
+		MPI_Bcast(&paramSize, 1, MPI_INT, 0, MPI_COMM_WORLD);
+		MPI_Bcast((void*)ser.getBufferPointer(), ser.getBufferSize(), MPI_BYTE, 0, MPI_COMM_WORLD);
+		
+		auto genomeCalc = make_shared<LensFitnessCalculation>(gaFactory);
+		auto localCalc = make_shared<mogal2::SingleThreadedPopulationFitnessCalculation>(genomeCalc);
+		
+		// The event distribution mechanism uses a weak pointer, make sure this doesn't
+		// get deallocated too soon by storing it in the class instance
+		m_evtDist = make_shared<mogal2::MPIEventDistributor>();
+		auto mpiCalc = make_shared<mogal2::MPIPopulationFitnessCalculation>(m_evtDist);
+		calc = mpiCalc;
+
+		auto refGenome = creation.createUnInitializedGenome();
+		auto refFitness = creation.createEmptyFitness();
+
+		if (!(r = mpiCalc->init(*refGenome, *refFitness, localCalc)))
+			return "Error initializing MPI calculator: " + r.getErrorString();
 		return true;
 	}
 private:
 	size_t m_size;
+	std::shared_ptr<mogal2::MPIEventDistributor> m_evtDist;
 };
 
 bool_t runHelper()
@@ -69,9 +97,21 @@ bool_t runHelper()
 	if (!pFactory->init(pParams))
 		return "Internal error: unable to init factory: " + pFactory->getErrorString();
 
-	// TODO
+	grale::LensInversionGAFactoryCommon &lensFactory = dynamic_cast<grale::LensInversionGAFactoryCommon &>(*pFactory);
+	auto genomeCalc = make_shared<LensFitnessCalculation>(lensFactory);
+	auto localCalc = make_shared<mogal2::SingleThreadedPopulationFitnessCalculation>(genomeCalc);
+	auto dist = make_shared<mogal2::MPIEventDistributor>();
+	auto calc = make_shared<mogal2::MPIPopulationFitnessCalculation>(dist);
 
-	return true;
+	dist->setHandler(mogal2::MPIEventHandler::Calculation, calc);
+
+	grale::LensGAGenome refGenome(0, 0); // will receive layout in 'init'
+	grale::LensGAFitness refFitness(0); // will receive the number of components in 'init'
+	bool_t r;
+
+	if (!(r = calc->init(refGenome, refFitness, localCalc)))
+		return "Error initializing MPI calculation: " + r.getErrorString();
+	return dist->eventLoop();
 }
 
 int main(int argc, char *argv[])

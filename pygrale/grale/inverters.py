@@ -391,6 +391,21 @@ class NewGAProcessInverter(Inverter):
                                                      extraEnv = { "NUMTHREADS": str(numThreads) },
                                                      feedbackObject=feedbackObject)
 
+class MPINewGAProcessInverter(Inverter):
+
+    def __init__(self, numProcesses = None, feedbackObject = None):
+
+        # Using stdin/stdout does not seem to work well for MPI (at least not openmpi),
+        # so we'll use a different set of pipes
+        self.pipePair = privutil.PipePair() # Keep it for the lifetime of this object
+        pp = self.pipePair
+
+        npArgs = [ ] if numProcesses is None else [ "-np", str(numProcesses) ]
+        super(MPINewGAProcessInverter, self).__init__( [ "mpirun" ] + npArgs + [ "grale_invert_newgampi", pp.wrFileName, pp.rdFileName ], 
+                                                  "New GA MPI inverter", feedbackObject=feedbackObject, 
+                                                  readDescriptor = pp.rdPipeDesc, writeDescriptor = pp.wrPipeDesc)
+
+
 class SingleProcessInverter(Inverter):
     """If this inverter is used, a single process, single core method is used. For
     a very simple inversion problem this may still be the most performant though.
@@ -592,9 +607,13 @@ def createInverterFromString(inverter):
     mpiNodesPrefix = "mpi:"
     csMpiNodesPrefix = "mpics:"
     newGAThreadsPrefix = "newga:"
+    newGAMPIPrefix = "mpinewga:"
 
     if inverter.lower() == "newga":
         return NewGAProcessInverter()
+
+    if inverter.lower() == "mpinewga":
+        return MPINewGAProcessInverter()
 
     if inverter.lower() == "singlecore":
         return SingleProcessInverter()
@@ -604,6 +623,10 @@ def createInverterFromString(inverter):
 
     if inverter.lower() == "mpi":
         return MPIProcessInverter()
+
+    if inverter.lower().startswith(newGAMPIPrefix):
+        numNodes = int(inverter[len(newGAMPIPrefix):])
+        return MPINewGAProcessInverter(numNodes)
 
     if inverter.lower().startswith(mpiNodesPrefix):
         numNodes = int(inverter[len(mpiNodesPrefix):])

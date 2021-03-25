@@ -163,6 +163,12 @@ LensGAIndividualCreation::~LensGAIndividualCreation()
 {
 }
 
+shared_ptr<mogal2::Genome> LensGAIndividualCreation::createUnInitializedGenome()
+{
+    shared_ptr<LensGAGenome> genome = make_shared<LensGAGenome>(m_numBasisFunctions, m_numSheets);
+    return genome;
+}
+
 shared_ptr<mogal2::Genome> LensGAIndividualCreation::createInitializedGenome()
 {
     shared_ptr<LensGAGenome> genome = make_shared<LensGAGenome>(m_numBasisFunctions, m_numSheets);

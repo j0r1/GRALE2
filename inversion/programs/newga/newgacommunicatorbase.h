@@ -233,7 +233,7 @@ protected:
 
 
 		std::shared_ptr<mogal2::PopulationFitnessCalculation> calc;
-		if (!(r = getCalculator(gaFactory, moduleDir, moduleFile, module, factoryParamBytes, calc)))
+		if (!(r = getCalculator(gaFactory, moduleDir, moduleFile, module, factoryParamBytes, creation, calc)))
 			return "Can't get calculator: " + r.getErrorString();
 		
 		grale::LensGAStropCriterion stop(gaFactory.getMaximumNumberOfGenerations(), mutation);
@@ -254,6 +254,7 @@ protected:
 	virtual errut::bool_t getCalculator(grale::LensInversionGAFactoryCommon &gaFactory, 
 								const std::string &moduleDir, const std::string &moduleFile, grale::GALensModule &module,
 	             				const std::vector<uint8_t> &factoryParamBytes,
+								grale::LensGAIndividualCreation &creation,
 								std::shared_ptr<mogal2::PopulationFitnessCalculation> &calc) = 0;
 	
 	std::vector<std::shared_ptr<mogal2::Individual>> m_best;
