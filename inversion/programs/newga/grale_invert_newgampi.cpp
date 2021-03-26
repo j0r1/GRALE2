@@ -22,6 +22,12 @@ public:
 protected:
 	string getVersionInfo() const override { return "MOGAL2 MPI based algorithm, " + to_string(m_size) + " processes"; }
 
+	void calculatorCleanup() override
+	{
+		m_evtDist->signal(mogal2::MPIEventHandler::Done);
+		m_evtDist = nullptr;
+	}
+
 	bool_t getCalculator(grale::LensInversionGAFactoryCommon &gaFactory,
 						const std::string &moduleDir, const std::string &moduleFile, grale::GALensModule &module,
 						const std::vector<uint8_t> &factoryParamBytes,
@@ -52,7 +58,10 @@ protected:
 		auto refFitness = creation.createEmptyFitness();
 
 		if (!(r = mpiCalc->init(*refGenome, *refFitness, localCalc)))
+		{
+			m_evtDist = nullptr;
 			return "Error initializing MPI calculator: " + r.getErrorString();
+		}
 		return true;
 	}
 private:

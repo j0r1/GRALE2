@@ -238,10 +238,18 @@ protected:
 		
 		grale::LensGAStropCriterion stop(gaFactory.getMaximumNumberOfGenerations(), mutation);
 		if (!(r = stop.initialize(gaFactory.getFitnessObject())))
+		{
+			calculatorCleanup();
 			return "Error initializing convergence checker: " + r.getErrorString();
+		}
 
 		if (!(r = ga.run(creation, *cross, *calc, stop, popSize)))
+		{
+			calculatorCleanup();
 			return "Error running GA: " + r.getErrorString();
+		}
+
+		calculatorCleanup();
 
 		m_best = cross->getBestIndividuals();
 		std::cout << "Best: " << std::endl;
@@ -256,6 +264,8 @@ protected:
 	             				const std::vector<uint8_t> &factoryParamBytes,
 								grale::LensGAIndividualCreation &creation,
 								std::shared_ptr<mogal2::PopulationFitnessCalculation> &calc) = 0;
+
+	virtual void calculatorCleanup() { }
 	
 	std::vector<std::shared_ptr<mogal2::Individual>> m_best;
 	std::shared_ptr<SubsequentBestIndividualSelector> m_selector;
