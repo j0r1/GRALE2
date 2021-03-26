@@ -189,7 +189,7 @@ protected:
 		return selected;
 	}
 
-	errut::bool_t runGA(int popSize, mogal::GAFactory &factory, mogal::GeneticAlgorithmParams &params,
+	errut::bool_t runGA(int popSize, mogal::GAFactory &factory, grale::GAParameters &params,
 	             const std::string &moduleDir, const std::string &moduleFile, grale::GALensModule &module,
 	             const std::vector<uint8_t> &factoryParamBytes) override
 	{
@@ -214,17 +214,17 @@ protected:
 
 		std::shared_ptr<grale::LensGACrossoverBase> cross;
 		if (numObjectives == 1)
-			cross = std::make_shared<grale::LensGASingleObjectiveCrossover>(params.getBeta(),
-					      params.useElitism(),
-						  params.alwaysIncludeBestGenome(),
+			cross = std::make_shared<grale::LensGASingleObjectiveCrossover>(params.getSelectionPressure(),
+					      params.getUseElitism(),
+						  params.getAlwaysIncludeBest(),
 						  params.getCrossOverRate(),
 						  rng,
 						  gaFactory.allowNegativeValues(),
 						  mutation);
 		else
-			cross = std::make_shared<grale::LensGAMultiObjectiveCrossover>(params.getBeta(),
-					      params.useElitism(),
-						  params.alwaysIncludeBestGenome(),
+			cross = std::make_shared<grale::LensGAMultiObjectiveCrossover>(params.getSelectionPressure(),
+					      params.getUseElitism(),
+						  params.getAlwaysIncludeBest(),
 						  params.getCrossOverRate(),
 						  rng,
 						  gaFactory.allowNegativeValues(),

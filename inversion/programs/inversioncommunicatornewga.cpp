@@ -171,13 +171,10 @@ bool_t InversionCommunicator::runModule(const string &moduleDir, const string &m
 	else
 		return "Expected 'RUN' or 'RUN:NDS', but got: '" + runStr + "'";
 
-	mogal::GeneticAlgorithmParams params(gaParams.getSelectionPressure(), gaParams.getUseElitism(),
-	                              gaParams.getAlwaysIncludeBest(), gaParams.getCrossOverRate());
-
 	if (!pFactory->init(pFactoryParams))
 		return "Unable to initialize the GA factory: " + pFactory->getErrorString();
 
-	if (!(r = runGAWrapper(popSize, *pFactory, params, moduleDir, moduleFile, *pModule, factoryParamBytes)))
+	if (!(r = runGAWrapper(popSize, *pFactory, gaParams, moduleDir, moduleFile, *pModule, factoryParamBytes)))
 		return r;
 
 	LOG(Log::DBG, "Finished runGA");
@@ -191,7 +188,7 @@ bool_t InversionCommunicator::runModule(const string &moduleDir, const string &m
 	return true;
 }
 
-bool_t InversionCommunicator::runGAWrapper(int popSize, mogal::GAFactory &factory, mogal::GeneticAlgorithmParams &params,
+bool_t InversionCommunicator::runGAWrapper(int popSize, mogal::GAFactory &factory, grale::GAParameters &params,
 	                     const string &moduleDir, const string &moduleFile, grale::GALensModule &module,
 						 const vector<uint8_t> &factoryParamBytes)
 {
@@ -206,7 +203,7 @@ bool_t InversionCommunicator::runGAWrapper(int popSize, mogal::GAFactory &factor
 	return true;
 }
 
-bool_t InversionCommunicator::runGA(int popSize, mogal::GAFactory &factory, mogal::GeneticAlgorithmParams &params,
+bool_t InversionCommunicator::runGA(int popSize, mogal::GAFactory &factory, grale::GAParameters &params,
 	                     const string &moduleDir, const string &moduleFile, grale::GALensModule &module,
 						 const vector<uint8_t> &factoryParamBytes)
 {
