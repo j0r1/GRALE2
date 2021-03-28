@@ -26,11 +26,10 @@
 #pragma once
 
 #include "graleconfig.h"
+#include "lensinversionparametersbase.h"
 #include "grid.h"
 #include "lensinversionbasislensinfo.h"
 #include "scalesearchparameters.h"
-#include <serut/serializationinterface.h>
-#include <errut/errorbase.h>
 #include <vector>
 #include <memory>
 
@@ -41,7 +40,7 @@ class ImagesDataExtended;
 class GravitationalLens;
 class ConfigurationParameters;
 
-class GRALE_IMPORTEXPORT LensInversionParametersSinglePlaneCPU : public errut::ErrorBase
+class GRALE_IMPORTEXPORT LensInversionParametersSinglePlaneCPU : public LensInversionParametersBase
 {
 public:
 	enum BasisFunctionType { PlummerBasis, SquareBasis, GaussBasis };
@@ -101,8 +100,8 @@ public:
 	const ConfigurationParameters *getFitnessObjectParameters() const				{ return m_pParams.get(); }
 	const ScaleSearchParameters &getMassScaleSearchParameters() const				{ return m_scaleSearchParams; }
 	
-	bool write(serut::SerializationInterface &si) const;
-	bool read(serut::SerializationInterface &si);
+	bool write(serut::SerializationInterface &si) const override;
+	bool read(serut::SerializationInterface &si) override;
 
 	const std::vector<LensInversionBasisLensInfo> &getBasisLenses() const			{ return m_basisLenses; }
 

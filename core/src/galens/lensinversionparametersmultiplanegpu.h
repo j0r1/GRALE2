@@ -3,16 +3,15 @@
 #include "graleconfig.h"
 #include "cosmology.h"
 #include "lensinversionbasislensinfo.h"
+#include "lensinversionparametersbase.h"
 #include "imagesdataextended.h"
 #include "configurationparameters.h"
 #include "scalesearchparameters.h"
-#include <errut/errorbase.h>
-#include <serut/serializationinterface.h>
 
 namespace grale
 {
 
-class GRALE_IMPORTEXPORT LensInversionParametersMultiPlaneGPU : public errut::ErrorBase
+class GRALE_IMPORTEXPORT LensInversionParametersMultiPlaneGPU : public LensInversionParametersBase
 {
 public:
 	LensInversionParametersMultiPlaneGPU();

@@ -71,6 +71,7 @@ set(HEADERS
 	source/polygonsource.h
 	source/discretesource.h
 	galens/grid.h
+	galens/lensinversionparametersbase.h
 	galens/lensinversionparameterssingleplanecpu.h
 	galens/lensinversionparametersmultiplanegpu.h
 	galens/lensinversionbasislensinfo.h
