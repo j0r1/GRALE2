@@ -27,14 +27,15 @@
  * \file lensfitnessobject.h
  */
 
-#ifndef GRALE_LENSFITNESSOBJECT_H
-
-#define GRALE_LENSFITNESSOBJECT_H
+#pragma once
 
 #include "graleconfig.h"
 #include "projectedimagesinterface.h"
 #include <errut/errorbase.h>
+#include <errut/booltype.h>
 #include <vector>
+#include <map>
+#include <memory>
 #include <list>
 
 namespace grale
@@ -203,7 +204,43 @@ public:
 	///@}
 };
 
-} // end namespace
+class LensFitnessObjectFactory
+{
+public:
+	virtual std::unique_ptr<LensFitnessObject> createFitnessObject() = 0;
+};
 
-#endif // GRALE_LENSFITNESSOBJECT_H
+template <class T>
+class LensFitnessObjectFactoryHelper : public LensFitnessObjectFactory
+{
+public:
+	std::unique_ptr<LensFitnessObject> createFitnessObject() override
+	{
+		return std::make_unique<T>();
+	}
+};
+
+class LensFitnessObjectRegistry
+{
+public:
+    static LensFitnessObjectRegistry &instance();
+
+    ~LensFitnessObjectRegistry();
+
+	template<class T>
+	errut::bool_t registerLensFitnessObject(const std::string &name)
+	{
+		return registerFitnessObjectFactory(name, std::make_unique<LensFitnessObjectFactoryHelper<T>>());
+	}
+	
+    std::unique_ptr<LensFitnessObject> createFitnessObject(const std::string &name);
+private:
+    LensFitnessObjectRegistry();
+	errut::bool_t registerFitnessObjectFactory(const std::string &name, std::unique_ptr<LensFitnessObjectFactory> fitnessObjectFactory);
+
+    std::map<std::string, std::unique_ptr<LensFitnessObjectFactory>> m_registry;
+    static std::unique_ptr<LensFitnessObjectRegistry> s_instance;
+};
+
+} // end namespace
 

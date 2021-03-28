@@ -3,6 +3,7 @@
 #include "lensinversiongafactorysingleplanecpu.h"
 #include "lensinversiongafactoryparamssingleplanecpu.h"
 #include "lensfitnessobject.h"
+#include "lensfitnessgeneral.h"
 #include <serut/vectorserializer.h>
 #include <mogal/gafactorymultiobjective.h>
 #ifndef WIN32
@@ -180,6 +181,8 @@ int main(int argc, char *argv[])
 
 	grale::LensGACalculatorRegistry::instance().registerCalculatorFactory("cpu",
 		make_unique<GeneralFactory>());
+
+	grale::LensFitnessObjectRegistry::instance().registerLensFitnessObject<grale::LensFitnessGeneral>("general");
 
 	NewGACommunicatorThreads comm(numThreads);
 

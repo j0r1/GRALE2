@@ -66,6 +66,7 @@ set(SOURCES
 	prob/randomnumbergenerator.cpp
 	prob/probabilitydistribution.cpp
 
+	galens/lensfitnessobject.cpp
 	galens/lensfitnessgeneral.cpp
 	galens/fitnesscomponent.cpp
 	galens/fitnessutil_overlap.cpp

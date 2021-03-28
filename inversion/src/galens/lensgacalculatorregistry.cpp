@@ -24,15 +24,21 @@ LensGACalculatorRegistry &LensGACalculatorRegistry::instance()
 
 bool_t LensGACalculatorRegistry::registerCalculatorFactory(const std::string &name, unique_ptr<LensGACalculatorFactory> factory)
 {
-    // TODO
+    auto it = m_registry.find(name);
+    if (it != m_registry.end())
+        return "Name already in use";
+    m_registry[name] = move(factory);
     return true;
 }
 
 
 LensGACalculatorFactory *LensGACalculatorRegistry::getFactory(const std::string &name)
 {
-    // TODO
-    return nullptr;
+    auto it = m_registry.find(name);
+    if (it == m_registry.end())
+        return nullptr;
+
+    return it->second.get();
 }
 
 LensGACalculatorRegistry::LensGACalculatorRegistry()
