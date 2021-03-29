@@ -189,37 +189,42 @@ protected:
 		return selected;
 	}
 
-	errut::bool_t runGA(int popSize, mogal::GAFactory &factory, grale::GAParameters &params,
-	             const std::string &moduleDir, const std::string &moduleFile, grale::GALensModule &module,
-	             const std::vector<uint8_t> &factoryParamBytes) override
+	errut::bool_t runGA(int popSize, const std::string &lensFitnessObjectType, 
+	                     grale::LensGACalculatorFactory &calcFactory, 
+						 const std::shared_ptr<grale::LensGAGenomeCalculator> &genomeCalculator,
+						 const std::vector<uint8_t> &factoryParamBytes,
+						 const grale::GAParameters &params)
 	{
-		errut::bool_t r;
-		grale::LensInversionGAFactoryCommon &gaFactory = dynamic_cast<grale::LensInversionGAFactoryCommon&>(factory);
-		size_t numObjectives = gaFactory.getNumberOfFitnessComponents();
 
-		m_selector = std::make_shared<SubsequentBestIndividualSelector>(numObjectives,
+		errut::bool_t r;
+
+		m_selector = std::make_shared<SubsequentBestIndividualSelector>(
+								genomeCalculator->getNumberOfObjectives(),
 								std::make_shared<grale::LensGAFitnessComparison>());
 
 		std::shared_ptr<mogal2::RandomNumberGenerator> rng = std::make_shared<GslRNGWrapper>();
 		MyGA ga;
 
 		auto mutation = std::make_shared<grale::LensGAGenomeMutation>(rng, 
-					   gaFactory.getChanceMultiplier(),
-					   gaFactory.allowNegativeValues(),
-					   gaFactory.getMutationAmplitude(),
-					   gaFactory.useAbsoluteMutation());
+					   1.0, // chance multiplier; has always been set to one
+					   genomeCalculator->allowNegativeValues(),
+					   0, // mutation amplitude, will be in the stop criterion
+					   true); // absolute or small mutation, will be set in the stop criterion
 
-		grale::LensGAIndividualCreation creation(rng, gaFactory.getNumberOfBasisFunctions(), gaFactory.getNumberOfSheets(),
-		                  gaFactory.allowNegativeValues(), gaFactory.getNumberOfFitnessComponents());
+		grale::LensGAIndividualCreation creation(rng, 
+						  genomeCalculator->getNumberOfBasisFunctions(),
+						  genomeCalculator->getNumberOfSheets(),
+		                  genomeCalculator->allowNegativeValues(),
+						  genomeCalculator->getNumberOfObjectives());
 
 		std::shared_ptr<grale::LensGACrossoverBase> cross;
-		if (numObjectives == 1)
+		if (genomeCalculator->getNumberOfObjectives() == 1)
 			cross = std::make_shared<grale::LensGASingleObjectiveCrossover>(params.getSelectionPressure(),
 					      params.getUseElitism(),
 						  params.getAlwaysIncludeBest(),
 						  params.getCrossOverRate(),
 						  rng,
-						  gaFactory.allowNegativeValues(),
+						  genomeCalculator->allowNegativeValues(),
 						  mutation);
 		else
 			cross = std::make_shared<grale::LensGAMultiObjectiveCrossover>(params.getSelectionPressure(),
@@ -227,17 +232,17 @@ protected:
 						  params.getAlwaysIncludeBest(),
 						  params.getCrossOverRate(),
 						  rng,
-						  gaFactory.allowNegativeValues(),
+						  genomeCalculator->allowNegativeValues(),
 						  mutation,
-						  numObjectives);
-
+						  genomeCalculator->getNumberOfObjectives());
 
 		std::shared_ptr<mogal2::PopulationFitnessCalculation> calc;
-		if (!(r = getCalculator(gaFactory, moduleDir, moduleFile, module, factoryParamBytes, creation, calc)))
+		if (!(r = getCalculator(lensFitnessObjectType, calcFactory, genomeCalculator,
+								factoryParamBytes, creation, calc)))
 			return "Can't get calculator: " + r.getErrorString();
 		
-		grale::LensGAStropCriterion stop(gaFactory.getMaximumNumberOfGenerations(), mutation);
-		if (!(r = stop.initialize(gaFactory.getFitnessObject())))
+		grale::LensGAStropCriterion stop(genomeCalculator->getMaximumNumberOfGenerations(), mutation);
+		if (!(r = stop.initialize(genomeCalculator->getLensFitnessObject())))
 		{
 			calculatorCleanup();
 			return "Error initializing convergence checker: " + r.getErrorString();
@@ -259,11 +264,12 @@ protected:
 		return true;
 	}
 
-	virtual errut::bool_t getCalculator(grale::LensInversionGAFactoryCommon &gaFactory, 
-								const std::string &moduleDir, const std::string &moduleFile, grale::GALensModule &module,
-	             				const std::vector<uint8_t> &factoryParamBytes,
-								grale::LensGAIndividualCreation &creation,
-								std::shared_ptr<mogal2::PopulationFitnessCalculation> &calc) = 0;
+	virtual errut::bool_t getCalculator(const std::string &lensFitnessObjectType, 
+									grale::LensGACalculatorFactory &calcFactory, 
+									const std::shared_ptr<grale::LensGAGenomeCalculator> &genomeCalculator,
+									const std::vector<uint8_t> &factoryParamBytes,
+									grale::LensGAIndividualCreation &creation,
+									std::shared_ptr<mogal2::PopulationFitnessCalculation> &calc) = 0;
 
 	virtual void calculatorCleanup() { }
 	

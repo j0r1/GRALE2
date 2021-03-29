@@ -4,6 +4,7 @@
 #include "lensinversiongafactoryparamssingleplanecpu.h"
 #include "lensfitnessobject.h"
 #include "lensfitnessgeneral.h"
+#include "lensgacalculatorregistry.h"
 #include <serut/vectorserializer.h>
 #include <mogal/gafactorymultiobjective.h>
 #ifndef WIN32
@@ -28,28 +29,31 @@ public:
 protected:
 	string getVersionInfo() const override { return "MOGAL2 Thread based algorithm, " + to_string(m_numThreads) + " threads"; }
 
-	bool_t getCalculator(grale::LensInversionGAFactoryCommon &gaFactory,
-						const std::string &moduleDir, const std::string &moduleFile, grale::GALensModule &module,
-						const std::vector<uint8_t> &factoryParamBytes,
-						grale::LensGAIndividualCreation &creation,
-						shared_ptr<mogal2::PopulationFitnessCalculation> &calc) override
+	bool_t getCalculator(const std::string &lensFitnessObjectType, 
+									grale::LensGACalculatorFactory &calcFactory, 
+									const std::shared_ptr<grale::LensGAGenomeCalculator> &genomeCalculator,
+									const std::vector<uint8_t> &factoryParamBytes,
+									grale::LensGAIndividualCreation &creation,
+									std::shared_ptr<mogal2::PopulationFitnessCalculation> &calc) override
 	{
 		bool_t r;
-		vector<shared_ptr<mogal2::GenomeFitnessCalculation>> genomeFitnessCalculators = { make_shared<LensFitnessCalculation>(gaFactory) };
+		vector<shared_ptr<mogal2::GenomeFitnessCalculation>> genomeFitnessCalculators = { genomeCalculator };
 
 		for (size_t i = 2 ; i < m_numThreads ; i++)
 		{
-			auto newFac = shared_ptr<grale::LensInversionGAFactoryCommon>(dynamic_cast<grale::LensInversionGAFactoryCommon*>(module.createFactoryInstance()));
-			auto facParams = shared_ptr<mogal::GAFactoryParams>(newFac->createParamsInstance());
+			unique_ptr<grale::LensFitnessObject> fitObj = grale::LensFitnessObjectRegistry::instance().createFitnessObject(lensFitnessObjectType);
+			if (!fitObj.get())
+				return "No fitness object with name '" + lensFitnessObjectType + "' is known";
 
-			serut::VectorSerializer ser(factoryParamBytes);
-			if (!facParams->read(ser))
-				return "Coudln't deserialize factory parameters: " + facParams->getErrorString();
+			auto calculatorParams = calcFactory.createParametersInstance();
+			if (!(r = InversionCommunicator::loadFromBytes(*calculatorParams, factoryParamBytes)))
+				return "Can't load calculator parameters from received data: " + r.getErrorString();
+		
+	 		shared_ptr<grale::LensGAGenomeCalculator> calculatorInstance = calcFactory.createCalculatorInstance(move(fitObj));
+			if (!(r = calculatorInstance->init(*calculatorParams)))
+			 	return "Unable to initialize calculator: " + r.getErrorString();
 
-			if (!newFac->init(facParams.get()))
-				return "Unable to init factory copy: " + newFac->getErrorString();
-			
-			genomeFitnessCalculators.push_back(make_shared<LensFitnessCalculation>(newFac));
+			genomeFitnessCalculators.push_back(calculatorInstance);
 		}
 		
 		if (m_numThreads <= 1)
@@ -75,15 +79,15 @@ public:
 	GAFactoryHelper() { }
 
 	// Fr now, we're not going to create new one, just use the previously set one
-	grale::LensFitnessObject *createFitnessObject()
+	grale::LensFitnessObject *createFitnessObject() override
 	{
+		cout << "GAFactoryHelpen: createFitnessObject " << (void*)m_fitObj.get() << endl;
 		if (!m_fitObj.get())
 		{
 			setErrorString("LensFitnessObject was already retrieved");
 			return nullptr;
 		}
-		auto obj = m_fitObj.get();			
-		m_fitObj.reset(); // The caller will take care of this
+		auto obj = m_fitObj.release(); // The caller will take care of this
 		return obj;
 	}
 
@@ -135,6 +139,32 @@ public:
 
 		return true;
 	}
+
+	bool_t createLens(const grale::LensGAGenome &genome, std::unique_ptr<grale::GravitationalLens> &lens) const override
+	{
+		string errStr = "unknown error";
+
+		lens = move(unique_ptr<grale::GravitationalLens>(m_helperFactory->createLens(genome.m_weights, genome.m_sheets, genome.m_scaleFactor, errStr)));
+		if (!lens.get())
+			return errStr;
+		return true;
+	}
+
+	size_t getNumberOfObjectives() const override { return m_helperFactory->getNumberOfFitnessComponents(); }
+	bool allowNegativeValues() const override { return m_helperFactory->allowNegativeValues(); }
+	size_t getNumberOfBasisFunctions() const override { return m_helperFactory->getNumberOfBasisFunctions(); }
+    size_t getNumberOfSheets() const override { return m_helperFactory->getNumberOfSheets(); }
+	size_t getMaximumNumberOfGenerations() const override { return m_helperFactory->getMaximumNumberOfGenerations(); }
+	const grale::LensFitnessObject &getLensFitnessObject() const override { return m_helperFactory->getFitnessObject(); }
+
+	bool_t calculate(const mogal2::Genome &genome, mogal2::Fitness &fitness) override
+	{
+		const grale::LensGAGenome &g = static_cast<const grale::LensGAGenome&>(genome);
+		grale::LensGAFitness &f = static_cast<grale::LensGAFitness&>(fitness);
+		if (!m_helperFactory->calculateFitness(g.m_weights, g.m_sheets, f.m_scaleFactor, f.m_fitnesses.data()))
+			return "Unable to calculate fitness: " + m_helperFactory->getErrorString();
+		return true;		
+	}
 private:
 	unique_ptr<GAFactoryHelper> m_helperFactory;
 };
@@ -179,6 +209,7 @@ int main(int argc, char *argv[])
 	if (getenv("NUMTHREADS"))
 		numThreads = stoi(getenv("NUMTHREADS"));
 
+	cout << "Registering name..." << endl;
 	grale::LensGACalculatorRegistry::instance().registerCalculatorFactory("cpu",
 		make_unique<GeneralFactory>());
 

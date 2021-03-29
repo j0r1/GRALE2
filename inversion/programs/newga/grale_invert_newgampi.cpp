@@ -28,12 +28,14 @@ protected:
 		m_evtDist = nullptr;
 	}
 
-	bool_t getCalculator(grale::LensInversionGAFactoryCommon &gaFactory,
-						const std::string &moduleDir, const std::string &moduleFile, grale::GALensModule &module,
-						const std::vector<uint8_t> &factoryParamBytes,
-						grale::LensGAIndividualCreation &creation,
-						shared_ptr<mogal2::PopulationFitnessCalculation> &calc) override
+	bool_t getCalculator(const std::string &lensFitnessObjectType, 
+									grale::LensGACalculatorFactory &calcFactory, 
+									const std::shared_ptr<grale::LensGAGenomeCalculator> &genomeCalculator,
+									const std::vector<uint8_t> &factoryParamBytes,
+									grale::LensGAIndividualCreation &creation,
+									std::shared_ptr<mogal2::PopulationFitnessCalculation> &calc) override
 	{
+		/*
 		bool_t r;
 		VectorSerializer ser;
 
@@ -62,7 +64,10 @@ protected:
 			m_evtDist = nullptr;
 			return "Error initializing MPI calculator: " + r.getErrorString();
 		}
+
 		return true;
+		*/
+		return "TODO";
 	}
 private:
 	size_t m_size;

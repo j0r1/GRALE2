@@ -12,6 +12,7 @@
 #include "gravitationallens.h"
 #include "utils.h"
 #include "lensgaindividual.h"
+#include "lensfitnessobject.h"
 #include <serut/memoryserializer.h>
 #include <serut/vectorserializer.h>
 #include <serut/dummyserializer.h>
@@ -89,9 +90,9 @@ bool_t InversionCommunicator::readLineAndBytesWithPrefix(const string &prefix, v
 
 bool_t InversionCommunicator::run()
 {
-	string moduleDir;
-	if (!getenv("GRALE2_MODULEPATH", moduleDir))
-		return "Environment variable GRALE2_MODULEPATH is not set, don't know where to look for inversion modules";
+	// string moduleDir;
+	// if (!getenv("GRALE2_MODULEPATH", moduleDir))
+	// 	return "Environment variable GRALE2_MODULEPATH is not set, don't know where to look for inversion modules";
 
 	bool_t r;
 	if (!(r = WriteLineStdout("GAINVERTER:" + getVersionInfo())))
@@ -101,11 +102,19 @@ bool_t InversionCommunicator::run()
 	if (!(r = readLineWithPrefix("MODULE", moduleFile, 60000)))
 		return "Error reading module name: " + r.getErrorString();
 
-	GALensModule module;
-	if (!module.open(moduleDir, moduleFile))
-		return "Unable to open " + moduleFile + " in directory " + moduleDir + ": " + module.getErrorString();
+	// TODO: get these from parameters
+	string lensFitnessObjectType = "general";
+	string calculatorType = "cpu";
 
-	if (!(r = runModule(moduleDir, moduleFile, &module)))
+	unique_ptr<LensFitnessObject> fitObj = LensFitnessObjectRegistry::instance().createFitnessObject(lensFitnessObjectType);
+	if (!fitObj.get())
+		return "No fitness object with name '" + lensFitnessObjectType + "' is known";
+
+	// GALensModule module;
+	// if (!module.open(moduleDir, moduleFile))
+	// 	return "Unable to open " + moduleFile + " in directory " + moduleDir + ": " + module.getErrorString();
+
+	if (!(r = runModule(lensFitnessObjectType, move(fitObj), calculatorType)))
 		return r;
 
 	LOG(Log::DBG, "Waiting for EXIT line");
@@ -121,19 +130,12 @@ bool_t InversionCommunicator::run()
 	return true;
 }
 
-bool_t InversionCommunicator::runModule(const string &moduleDir, const string &moduleFile, GALensModule *pModule)
+bool_t InversionCommunicator::runModule(const std::string &lensFitnessObjectType,
+										std::unique_ptr<grale::LensFitnessObject> fitnessObject,
+                                        const std::string &calculatorType)
 {
 	bool_t r;
 	int popSize = 0;
-
-	auto pBaseFactory = pModule->createFactoryInstance();
-	if (!pBaseFactory)
-		return "Unable to create GA factory instance";
-	unique_ptr<mogal::GAFactory> baseFactory(pBaseFactory); // just to make memory management easier
-
-	auto pFactory = dynamic_cast<LensInversionGAFactoryCommon*>(pBaseFactory);
-	if (!pFactory)
-		return "GA factory instance could be created from module, but is not of expected type";
 
 	if (!(r = readLineWithPrefix("POPULATIONSIZE", popSize, 10000)))
 		return "Error reading population size: " + r.getErrorString();
@@ -144,22 +146,9 @@ bool_t InversionCommunicator::runModule(const string &moduleDir, const string &m
 	if (!(r = readLineAndBytesWithPrefix("GAPARAMS", gaParamBytes, 10000)))
 		return "Error reading GA parameters: " + r.getErrorString();
 	
-	vector<uint8_t> factoryParamBytes;
-	if (!(r = readLineAndBytesWithPrefix("GAFACTORYPARAMS", factoryParamBytes, 10000)))
+	vector<uint8_t> calcParamBytes;
+	if (!(r = readLineAndBytesWithPrefix("GAFACTORYPARAMS", calcParamBytes, 10000)))
 		return "Error reading GA factory parameters: " + r.getErrorString();
-
-	GAParameters gaParams;
-	mogal::GAFactoryParams *pFactoryParams = pFactory->createParamsInstance();
-	if (!pFactoryParams)
-		return "Unable to create factory parameters instance: " + pFactory->getErrorString();
-
-	unique_ptr<mogal::GAFactoryParams> factoryParamsAutoDelete(pFactoryParams);
-
-	if (!(r = loadFromBytes(gaParams, gaParamBytes)))
-		return "Unable to load GA parameters from received data: " + r.getErrorString();
-
-	if (!(r = loadFromBytes(*pFactoryParams, factoryParamBytes)))
-		return "Unable to load GA factory parameters from received data: " + r.getErrorString();
 
 	string runStr;
 	if (!(r = ReadLineStdin(10000, runStr)))
@@ -171,46 +160,46 @@ bool_t InversionCommunicator::runModule(const string &moduleDir, const string &m
 	else
 		return "Expected 'RUN' or 'RUN:NDS', but got: '" + runStr + "'";
 
-	if (!pFactory->init(pFactoryParams))
-		return "Unable to initialize the GA factory: " + pFactory->getErrorString();
+	LensGACalculatorFactory *pCalculatorFactory = LensGACalculatorRegistry::instance().getFactory(calculatorType);
+	if (!pCalculatorFactory)
+		return "Calculator type '" + calculatorType + "' is not known";
 
-	if (!(r = runGAWrapper(popSize, *pFactory, gaParams, moduleDir, moduleFile, *pModule, factoryParamBytes)))
+	GAParameters gaParams;
+	if (!(r = loadFromBytes(gaParams, gaParamBytes)))
+		return "Unable to load GA parameters from received data: " + r.getErrorString();
+
+	auto calculatorParams = pCalculatorFactory->createParametersInstance();
+	if (!(r = loadFromBytes(*calculatorParams, calcParamBytes)))
+		return "Can't load calculator parameters from received data: " + r.getErrorString();
+
+	shared_ptr<grale::LensGAGenomeCalculator> calculatorInstance = pCalculatorFactory->createCalculatorInstance(move(fitnessObject));
+	if (!(r = calculatorInstance->init(*calculatorParams)))
+		return "Unable to initialize calculator: " + r.getErrorString();
+
+	if (!(r = runGA(popSize, lensFitnessObjectType, *pCalculatorFactory,
+	                calculatorInstance, calcParamBytes, gaParams)))
 		return r;
 
 	LOG(Log::DBG, "Finished runGA");
 
 	if (hasGeneticAlgorithm())
 	{
-		if (!(r = onGAFinished(*pFactory)))
+		if (!(r = onGAFinished(*calculatorInstance)))
 			return r;
 	}
 	LOG(Log::DBG, "Called 'onGAFinished', end of runModule");
 	return true;
 }
 
-bool_t InversionCommunicator::runGAWrapper(int popSize, mogal::GAFactory &factory, grale::GAParameters &params,
-	                     const string &moduleDir, const string &moduleFile, grale::GALensModule &module,
-						 const vector<uint8_t> &factoryParamBytes)
-{
-	bool_t r = runGA(popSize, factory, params, moduleDir, moduleFile, module, factoryParamBytes);
-	if (!r)
-	{
-		string factoryError = factory.getErrorString();
-		if (factoryError.length() > 0)
-			return r.getErrorString() + "(factory has error: " + factoryError + ")";
-		return r;
-	}
-	return true;
-}
-
-bool_t InversionCommunicator::runGA(int popSize, mogal::GAFactory &factory, grale::GAParameters &params,
-	                     const string &moduleDir, const string &moduleFile, grale::GALensModule &module,
-						 const vector<uint8_t> &factoryParamBytes)
+bool_t InversionCommunicator::runGA(int popSize, const std::string &lensFitnessObjectType, 
+	                     grale::LensGACalculatorFactory &calcFactory, 
+						 const std::shared_ptr<grale::LensGAGenomeCalculator> &genomeCalculator,
+						 const std::vector<uint8_t> &factoryParamBytes, const grale::GAParameters &params)
 {
 	return "Not implemented in base class";
 }
 
-bool_t InversionCommunicator::onGAFinished(const LensInversionGAFactoryCommon &factory)
+bool_t InversionCommunicator::onGAFinished(const grale::LensGAGenomeCalculator &calculator)
 {
 	vector<shared_ptr<mogal2::Individual>> bestGenomes;
 
@@ -245,9 +234,11 @@ bool_t InversionCommunicator::onGAFinished(const LensInversionGAFactoryCommon &f
 		string errStr;
 
 		LOG(Log::DBG, "Getting lens for genome");
-		unique_ptr<GravitationalLens> lens(factory.createLens(pGenome->m_weights, pGenome->m_sheets, pGenome->m_scaleFactor, errStr));
-		if (!lens.get())
-			return "Unable to create lens from genome: " + errStr;
+		
+		bool_t r;
+		unique_ptr<grale::GravitationalLens> lens;
+		if (!(r = calculator.createLens(*pGenome, lens)))
+			return "Unable to create lens from genome: " + r.getErrorString();
 
 		LOG(Log::DBG, "Writing lens to buffer");
 		VectorSerializer bufSer;

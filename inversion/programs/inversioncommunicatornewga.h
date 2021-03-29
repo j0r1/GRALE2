@@ -1,6 +1,9 @@
 #pragma once
 
 #include "graleconfig.h"
+#include "lensgagenomecalculator.h"
+#include "lensfitnessobject.h"
+#include "lensgacalculatorregistry.h"
 #include <errut/booltype.h>
 #include <serut/memoryserializer.h>
 #include <vector>
@@ -12,12 +15,6 @@ namespace grale
 	class LensInversionGAFactoryCommon;
 	class GALensModule;
 	class GAParameters;
-}
-namespace mogal
-{
-	class GeneticAlgorithmParams;
-	class GeneticAlgorithm;
-	class GAFactory;
 }
 
 class InversionCommunicator
@@ -31,30 +28,31 @@ public:
 	bool_t run();
 protected:
 	virtual std::string getVersionInfo() const = 0;
-	virtual bool_t runModule(const std::string &moduleDir, const std::string &moduleFile, grale::GALensModule *pModule);
-	virtual bool_t runGA(int popSize, mogal::GAFactory &factory, grale::GAParameters &params,
-	                     const std::string &moduleDir, const std::string &moduleFile, grale::GALensModule &module,
-						 const std::vector<uint8_t> &factoryParamBytes);
+	virtual bool_t runModule(const std::string &lensFitnessObjectType, 
+	                         std::unique_ptr<grale::LensFitnessObject> fitnessObject,
+							 const std::string &calculatorType);
 
-	bool_t runGAWrapper(int popSize, mogal::GAFactory &factory, grale::GAParameters &params,
-	                     const std::string &moduleDir, const std::string &moduleFile, grale::GALensModule &module,
-						 const std::vector<uint8_t> &factoryParamBytes);
+	virtual bool_t runGA(int popSize, const std::string &lensFitnessObjectType, 
+	                     grale::LensGACalculatorFactory &calcFactory, 
+						 const std::shared_ptr<grale::LensGAGenomeCalculator> &genomeCalculator,
+						 const std::vector<uint8_t> &factoryParamBytes,
+						 const grale::GAParameters &params);
 
 	bool_t readLineWithPrefix(const std::string &prefix, std::string &value, int timeoutMSec);
 	bool_t readLineWithPrefix(const std::string &prefix, int &value, int timeoutMSec);
 	bool_t readLineAndBytesWithPrefix(const std::string &prefix, std::vector<uint8_t> &bytes, int timeoutMSec);
-	template<class T> bool_t loadFromBytes(T &x, std::vector<uint8_t> &bytes);
+	template<class T> bool_t loadFromBytes(T &x, const std::vector<uint8_t> &bytes);
 
 	virtual bool hasGeneticAlgorithm() const { return false; }
 	virtual void getAllBestGenomes(std::vector<std::shared_ptr<mogal2::Individual>> &bestGenomes) { }
 	virtual std::shared_ptr<mogal2::Individual> getPreferredBestGenome() { return nullptr; }
 
-	bool_t onGAFinished(const grale::LensInversionGAFactoryCommon &factory);
+	bool_t onGAFinished(const grale::LensGAGenomeCalculator &calculator);
 	bool m_nds;
 };
 
 template<class T>
-inline InversionCommunicator::bool_t InversionCommunicator::loadFromBytes(T &x, std::vector<uint8_t> &bytes)
+inline InversionCommunicator::bool_t InversionCommunicator::loadFromBytes(T &x, const std::vector<uint8_t> &bytes)
 {
 	serut::MemorySerializer mSer(&bytes[0], bytes.size(), 0, 0);
 	if (!x.read(mSer))
