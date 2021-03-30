@@ -33,6 +33,7 @@ protected:
 							 const std::string &calculatorType);
 
 	virtual bool_t runGA(int popSize, const std::string &lensFitnessObjectType, 
+						 const std::string &calculatorType,
 	                     grale::LensGACalculatorFactory &calcFactory, 
 						 const std::shared_ptr<grale::LensGAGenomeCalculator> &genomeCalculator,
 						 const std::vector<uint8_t> &factoryParamBytes,

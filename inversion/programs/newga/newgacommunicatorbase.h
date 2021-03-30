@@ -189,7 +189,8 @@ protected:
 		return selected;
 	}
 
-	errut::bool_t runGA(int popSize, const std::string &lensFitnessObjectType, 
+	errut::bool_t runGA(int popSize, const std::string &lensFitnessObjectType,
+						 const std::string &calculatorType,
 	                     grale::LensGACalculatorFactory &calcFactory, 
 						 const std::shared_ptr<grale::LensGAGenomeCalculator> &genomeCalculator,
 						 const std::vector<uint8_t> &factoryParamBytes,
@@ -237,7 +238,7 @@ protected:
 						  genomeCalculator->getNumberOfObjectives());
 
 		std::shared_ptr<mogal2::PopulationFitnessCalculation> calc;
-		if (!(r = getCalculator(lensFitnessObjectType, calcFactory, genomeCalculator,
+		if (!(r = getCalculator(lensFitnessObjectType, calculatorType, calcFactory, genomeCalculator,
 								factoryParamBytes, creation, calc)))
 			return "Can't get calculator: " + r.getErrorString();
 		
@@ -264,7 +265,8 @@ protected:
 		return true;
 	}
 
-	virtual errut::bool_t getCalculator(const std::string &lensFitnessObjectType, 
+	virtual errut::bool_t getCalculator(const std::string &lensFitnessObjectType,
+									const std::string &calculatorType,
 									grale::LensGACalculatorFactory &calcFactory, 
 									const std::shared_ptr<grale::LensGAGenomeCalculator> &genomeCalculator,
 									const std::vector<uint8_t> &factoryParamBytes,

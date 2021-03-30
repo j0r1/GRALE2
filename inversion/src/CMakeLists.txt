@@ -96,6 +96,7 @@ if (MOGAL2_FOUND)
 		galens/lensgacrossoverbase.cpp
 		galens/lensgamultiobjectivecrossover.cpp
 		galens/lensgacalculatorregistry.cpp
+		galens/lensgaoldfactorywrapper.cpp
 	    )
 endif()
 

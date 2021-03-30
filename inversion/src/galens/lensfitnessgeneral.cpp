@@ -885,5 +885,9 @@ string LensFitnessGeneral::getUsage() const
 	return "The usage documentation for this module has been migrated to https://research.edm.uhasselt.be/jori/grale2/usage_general.html";
 }
 
+
+LensFitnessObject_Registrar<LensFitnessGeneral> lensFitnessGeneralRegistrar("general");
+
+
 } // end namespace
 

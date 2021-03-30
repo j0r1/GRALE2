@@ -104,7 +104,7 @@ bool_t InversionCommunicator::run()
 
 	// TODO: get these from parameters
 	string lensFitnessObjectType = "general";
-	string calculatorType = "cpu";
+	string calculatorType = "singleplanecpu";
 
 	unique_ptr<LensFitnessObject> fitObj = LensFitnessObjectRegistry::instance().createFitnessObject(lensFitnessObjectType);
 	if (!fitObj.get())
@@ -176,7 +176,7 @@ bool_t InversionCommunicator::runModule(const std::string &lensFitnessObjectType
 	if (!(r = calculatorInstance->init(*calculatorParams)))
 		return "Unable to initialize calculator: " + r.getErrorString();
 
-	if (!(r = runGA(popSize, lensFitnessObjectType, *pCalculatorFactory,
+	if (!(r = runGA(popSize, lensFitnessObjectType, calculatorType, *pCalculatorFactory,
 	                calculatorInstance, calcParamBytes, gaParams)))
 		return r;
 
@@ -192,7 +192,7 @@ bool_t InversionCommunicator::runModule(const std::string &lensFitnessObjectType
 }
 
 bool_t InversionCommunicator::runGA(int popSize, const std::string &lensFitnessObjectType, 
-	                     grale::LensGACalculatorFactory &calcFactory, 
+	                     const std::string &calcType, grale::LensGACalculatorFactory &calcFactory,
 						 const std::shared_ptr<grale::LensGAGenomeCalculator> &genomeCalculator,
 						 const std::vector<uint8_t> &factoryParamBytes, const grale::GAParameters &params)
 {

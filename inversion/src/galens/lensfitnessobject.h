@@ -37,6 +37,7 @@
 #include <map>
 #include <memory>
 #include <list>
+#include <iostream>
 
 namespace grale
 {
@@ -241,6 +242,22 @@ private:
     std::map<std::string, std::unique_ptr<LensFitnessObjectFactory>> m_registry;
     static std::unique_ptr<LensFitnessObjectRegistry> s_instance;
 };
+
+template<class T>
+class LensFitnessObject_Registrar
+{
+public:
+	LensFitnessObject_Registrar(const std::string &name)
+	{
+		errut::bool_t r;
+		r = LensFitnessObjectRegistry::instance().registerLensFitnessObject<T>(name);
+		if (!r)
+			std::cerr << "WARNING: unable to register lensfitnessobject named '" << name << "'" << std::endl;
+		// else
+		// 	std::cerr << "LensFitnessObject " << name << " registered" << std::endl;
+	}
+};
+
 
 } // end namespace
 

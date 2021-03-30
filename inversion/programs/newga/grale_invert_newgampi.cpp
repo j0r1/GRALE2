@@ -28,18 +28,17 @@ protected:
 		m_evtDist = nullptr;
 	}
 
-	bool_t getCalculator(const std::string &lensFitnessObjectType, 
+	bool_t getCalculator(const std::string &lensFitnessObjectType, const std::string &calculatorType,
 									grale::LensGACalculatorFactory &calcFactory, 
 									const std::shared_ptr<grale::LensGAGenomeCalculator> &genomeCalculator,
 									const std::vector<uint8_t> &factoryParamBytes,
 									grale::LensGAIndividualCreation &creation,
 									std::shared_ptr<mogal2::PopulationFitnessCalculation> &calc) override
 	{
-		/*
 		bool_t r;
 		VectorSerializer ser;
 
-		if (!(ser.writeString(moduleDir) && ser.writeString(moduleFile) &&
+		if (!(ser.writeString(lensFitnessObjectType) && ser.writeString(calculatorType) &&
 		      ser.writeBytes(factoryParamBytes.data(), factoryParamBytes.size())))
 			return "Error writing module info and parameters: " + ser.getErrorString();
 
@@ -47,8 +46,7 @@ protected:
 		MPI_Bcast(&paramSize, 1, MPI_INT, 0, MPI_COMM_WORLD);
 		MPI_Bcast((void*)ser.getBufferPointer(), ser.getBufferSize(), MPI_BYTE, 0, MPI_COMM_WORLD);
 		
-		auto genomeCalc = make_shared<LensFitnessCalculation>(gaFactory);
-		auto localCalc = make_shared<mogal2::SingleThreadedPopulationFitnessCalculation>(genomeCalc);
+		auto localCalc = make_shared<mogal2::SingleThreadedPopulationFitnessCalculation>(genomeCalculator);
 		
 		// The event distribution mechanism uses a weak pointer, make sure this doesn't
 		// get deallocated too soon by storing it in the class instance
@@ -66,8 +64,6 @@ protected:
 		}
 
 		return true;
-		*/
-		return "TODO";
 	}
 private:
 	size_t m_size;
@@ -83,37 +79,31 @@ bool_t runHelper()
 	MPI_Bcast(&(paramBuffer[0]), paramsSize, MPI_BYTE, 0, MPI_COMM_WORLD);
 	MemorySerializer mSer(&(paramBuffer[0]), paramsSize, 0, 0);
 
-	string baseDir, moduleName;
+	string lensFitnessObjectType, calculatorType;
 	
-	if (!mSer.readString(baseDir))
-		return "Internal error: can't read module base directory";
-	if (!mSer.readString(moduleName))
-		return "Internal error: can't read module name";
+	if (!mSer.readString(lensFitnessObjectType))
+		return "Internal error: can't read fitness object type";
+	if (!mSer.readString(calculatorType))
+		return "Internal error: can't read calculator type";
 	
-	mogal::GAModule module;
+	unique_ptr<grale::LensFitnessObject> fitObj = grale::LensFitnessObjectRegistry::instance().createFitnessObject(lensFitnessObjectType);
+	if (!fitObj.get())
+		return "No fitness object with name '" + lensFitnessObjectType + "' is known";
 
-	if (!module.open(baseDir, moduleName))
-		return "Internal error: can't open specified GA module: " + baseDir + "/" + moduleName + ": " + module.getErrorString();
+	grale::LensGACalculatorFactory *pCalculatorFactory = grale::LensGACalculatorRegistry::instance().getFactory(calculatorType);
+	if (!pCalculatorFactory)
+		return "Calculator type '" + calculatorType + "' is not known";
 
-	mogal::GAFactory *pFactory = module.createFactoryInstance();
-	if (!pFactory)
-		return "Internal error: unable to create factory from module: " + module.getErrorString();
-	unique_ptr<mogal::GAFactory> factory(pFactory);
+	auto calculatorParams = pCalculatorFactory->createParametersInstance();
+	if (!calculatorParams->read(mSer))
+		return "Internal error: unable to read factory parameters: " + calculatorParams->getErrorString();
 
-	mogal::GAFactoryParams *pParams = pFactory->createParamsInstance();
-	if (!pParams)
-		return "Internal error: unable to create factory parameters instance: " + pFactory->getErrorString();
-	unique_ptr<mogal::GAFactoryParams> factParams(pParams);
+	bool_t r;
+	shared_ptr<grale::LensGAGenomeCalculator> calculatorInstance = pCalculatorFactory->createCalculatorInstance(move(fitObj));
+	if (!(r = calculatorInstance->init(*calculatorParams)))
+		return "Unable to initialize calculator: " + r.getErrorString();
 
-	if (!pParams->read(mSer))
-		return "Internal error: unable to read factory parameters: " + pParams->getErrorString();
-
-	if (!pFactory->init(pParams))
-		return "Internal error: unable to init factory: " + pFactory->getErrorString();
-
-	grale::LensInversionGAFactoryCommon &lensFactory = dynamic_cast<grale::LensInversionGAFactoryCommon &>(*pFactory);
-	auto genomeCalc = make_shared<LensFitnessCalculation>(lensFactory);
-	auto localCalc = make_shared<mogal2::SingleThreadedPopulationFitnessCalculation>(genomeCalc);
+	auto localCalc = make_shared<mogal2::SingleThreadedPopulationFitnessCalculation>(calculatorInstance);
 	auto dist = make_shared<mogal2::MPIEventDistributor>();
 	auto calc = make_shared<mogal2::MPIPopulationFitnessCalculation>(dist);
 
@@ -121,7 +111,6 @@ bool_t runHelper()
 
 	grale::LensGAGenome refGenome(0, 0); // will receive layout in 'init'
 	grale::LensGAFitness refFitness(0); // will receive the number of components in 'init'
-	bool_t r;
 
 	if (!(r = calc->init(refGenome, refFitness, localCalc)))
 		return "Error initializing MPI calculation: " + r.getErrorString();
