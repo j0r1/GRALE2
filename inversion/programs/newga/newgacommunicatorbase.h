@@ -16,7 +16,6 @@
 #include "lensgamultiobjectivecrossover.h"
 #include "galensmodule.h"
 #include "lensgastopcriterion.h"
-#include "lensfitnesscalculation.h"
 #include <serut/memoryserializer.h>
 #include <mogal/geneticalgorithm.h>
 #include <mogal2/geneticalgorithm.h>
