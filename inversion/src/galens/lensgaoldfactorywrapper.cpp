@@ -104,7 +104,7 @@ public:
 	size_t getMaximumNumberOfGenerations() const override { return m_helperFactory->getMaximumNumberOfGenerations(); }
 	const LensFitnessObject &getLensFitnessObject() const override { return m_helperFactory->getFitnessObject(); }
 
-	bool_t calculate(const mogal2::Genome &genome, mogal2::Fitness &fitness) override
+	bool_t calculate(const eatk::Genome &genome, eatk::Fitness &fitness) override
 	{
 		const LensGAGenome &g = static_cast<const LensGAGenome&>(genome);
 		LensGAFitness &f = static_cast<LensGAFitness&>(fitness);

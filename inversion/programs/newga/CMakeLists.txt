@@ -1,5 +1,5 @@
 
-if (MOGAL2_FOUND)
+if (EATK_FOUND)
 	include_directories("..")
 	include_directories("${PROJECT_SOURCE_DIR}/core/programs/")
 
@@ -10,7 +10,7 @@ if (MOGAL2_FOUND)
 
 	install(TARGETS grale_invert_newga DESTINATION bin)
 
-	if (GRALE_SUPPORT_MPI)
+	if (GRALE_SUPPORT_MPI AND EATK_SUPPORT_MPI)
 		add_executable(grale_invert_newgampi grale_invert_newgampi.cpp ../inversioncommunicatornewga.cpp
 				"${PROJECT_SOURCE_DIR}/core/programs/inputoutput.cpp"
 		)

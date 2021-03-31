@@ -14,14 +14,14 @@ LensGAFitnessComparison::~LensGAFitnessComparison()
 {
 }
 
-bool_t LensGAFitnessComparison::check(const mogal2::Fitness &f) const
+bool_t LensGAFitnessComparison::check(const eatk::Fitness &f) const
 {
     if (!dynamic_cast<const LensGAFitness*>(&f))
         return "Fitness is of wrong type";
     return true;
 }
 
-bool LensGAFitnessComparison::isFitterThan(const mogal2::Fitness &first, const mogal2::Fitness &second, size_t objectiveNumber) const
+bool LensGAFitnessComparison::isFitterThan(const eatk::Fitness &first, const eatk::Fitness &second, size_t objectiveNumber) const
 {
     const LensGAFitness &f1 = static_cast<const LensGAFitness &>(first);
     const LensGAFitness &f2 = static_cast<const LensGAFitness &>(second);

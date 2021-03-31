@@ -3,21 +3,21 @@
 #include "graleconfig.h"
 #include "lensgagenomemutation.h"
 #include "multifitnesshistory.h"
-#include <mogal2/stopcriterion.h>
+#include <eatk/stopcriterion.h>
 
 namespace grale
 {
 
 class LensFitnessObject;
 
-class LensGAStropCriterion : public mogal2::StopCriterion
+class LensGAStropCriterion : public eatk::StopCriterion
 {
 public:
 	LensGAStropCriterion(size_t maxGenerations,
 						 const std::shared_ptr<LensGAGenomeMutation> &mutation);
 
 	errut::bool_t initialize(const LensFitnessObject &fitnessObject);
-	errut::bool_t analyze(const std::vector<std::shared_ptr<mogal2::Individual>> &currentBest, size_t generationNumber, bool &shouldStop) override;
+	errut::bool_t analyze(const std::vector<std::shared_ptr<eatk::Individual>> &currentBest, size_t generationNumber, bool &shouldStop) override;
 private:
 	void updateMutationAndConvergenceInfo();
 

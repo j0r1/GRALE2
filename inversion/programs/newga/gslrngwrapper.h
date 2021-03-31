@@ -1,12 +1,12 @@
 #pragma once
 
 #include "randomnumbergenerator.h"
-#include <mogal2/randomnumbergenerator.h>
+#include <eatk/randomnumbergenerator.h>
 #include <stdlib.h>
 #include <iostream>
 
 // Wrap the GSL based RNG for now
-class GslRNGWrapper : public mogal2::RandomNumberGenerator
+class GslRNGWrapper : public eatk::RandomNumberGenerator
 {
 public:
 	GslRNGWrapper() { }

@@ -9,15 +9,15 @@ namespace grale
 {
 
 LensGASingleObjectiveCrossover::LensGASingleObjectiveCrossover(double beta, bool elitism, bool includeBest, double crossoverRate,
-            const shared_ptr<mogal2::RandomNumberGenerator> &rng,
+            const shared_ptr<eatk::RandomNumberGenerator> &rng,
             bool allowNegative,
-            const shared_ptr<mogal2::GenomeMutation> &mutation)
+            const shared_ptr<eatk::GenomeMutation> &mutation)
     : LensGACrossoverBase(beta, elitism, includeBest, crossoverRate, rng, allowNegative, mutation),
         m_sortedPop(make_shared<LensGAFitnessComparison>())
 {
 }
 
-bool_t LensGASingleObjectiveCrossover::sortCheck(const std::shared_ptr<mogal2::Population> &population)
+bool_t LensGASingleObjectiveCrossover::sortCheck(const std::shared_ptr<eatk::Population> &population)
 {
     bool_t r;
     if (!(r = m_sortedPop.check(*population)))
@@ -25,7 +25,7 @@ bool_t LensGASingleObjectiveCrossover::sortCheck(const std::shared_ptr<mogal2::P
     return true;
 }
 
-bool_t LensGASingleObjectiveCrossover::sort(std::shared_ptr<mogal2::Population> &population, size_t targetPopulationSize)
+bool_t LensGASingleObjectiveCrossover::sort(std::shared_ptr<eatk::Population> &population, size_t targetPopulationSize)
 {
     bool_t r;
 
@@ -35,7 +35,7 @@ bool_t LensGASingleObjectiveCrossover::sort(std::shared_ptr<mogal2::Population> 
     return true;
 }
 
-size_t LensGASingleObjectiveCrossover::elitism(shared_ptr<mogal2::Population> &population, shared_ptr<mogal2::Population> &newPop)
+size_t LensGASingleObjectiveCrossover::elitism(shared_ptr<eatk::Population> &population, shared_ptr<eatk::Population> &newPop)
 {
     auto appendBest = [&newPop, &population]()
     {
@@ -58,14 +58,14 @@ size_t LensGASingleObjectiveCrossover::elitism(shared_ptr<mogal2::Population> &p
     return mutOffset;
 }
 
-LensGAIndividual *LensGASingleObjectiveCrossover::pickParent(const shared_ptr<mogal2::Population> &population)
+LensGAIndividual *LensGASingleObjectiveCrossover::pickParent(const shared_ptr<eatk::Population> &population)
 {
     size_t r = pickBetaDistIndex(population->size());
 
     return static_cast<LensGAIndividual*>(population->individual(r).get());
 }
 
-void LensGASingleObjectiveCrossover::pickParentsRaw(const std::shared_ptr<mogal2::Population> &population, LensGAIndividual **pParent1, LensGAIndividual **pParent2)
+void LensGASingleObjectiveCrossover::pickParentsRaw(const std::shared_ptr<eatk::Population> &population, LensGAIndividual **pParent1, LensGAIndividual **pParent2)
 {
     *pParent1 = pickParent(population);
     *pParent2 = pickParent(population);

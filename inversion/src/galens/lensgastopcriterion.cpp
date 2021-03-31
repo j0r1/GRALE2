@@ -59,7 +59,7 @@ void LensGAStropCriterion::updateMutationAndConvergenceInfo()
         cerr << "DEBUG: Setting large mutations" << endl;
 }
 
-bool_t LensGAStropCriterion::analyze(const std::vector<std::shared_ptr<mogal2::Individual>> &currentBest, size_t generationNumber, bool &shouldStop)
+bool_t LensGAStropCriterion::analyze(const std::vector<std::shared_ptr<eatk::Individual>> &currentBest, size_t generationNumber, bool &shouldStop)
 {
     if (m_numObjectives == 0)
         return "Not initialized";

@@ -1,14 +1,14 @@
 #pragma once
 
 #include "graleconfig.h"
-#include <mogal2/population.h>
-#include <mogal2/randomnumbergenerator.h>
+#include <eatk/population.h>
+#include <eatk/randomnumbergenerator.h>
 #include <limits>
 
 namespace grale
 {
 
-class LensGAFitness : public mogal2::Fitness
+class LensGAFitness : public eatk::Fitness
 {
 public:
 	LensGAFitness(size_t numObjectives);
@@ -24,7 +24,7 @@ public:
 	float m_scaleFactor;
 };
 
-class LensGAGenome : public mogal2::Genome
+class LensGAGenome : public eatk::Genome
 {
 public:
 	LensGAGenome(size_t numWeights, size_t numSheetValues);
@@ -42,33 +42,33 @@ public:
 	float m_scaleFactor;
 };
 
-class LensGAIndividual : public mogal2::Individual
+class LensGAIndividual : public eatk::Individual
 {
 public:
-	LensGAIndividual(const std::shared_ptr<mogal2::Genome> &genome, const std::shared_ptr<mogal2::Fitness> &fitness,
+	LensGAIndividual(const std::shared_ptr<eatk::Genome> &genome, const std::shared_ptr<eatk::Fitness> &fitness,
 			   size_t introducedInGeneration = std::numeric_limits<size_t>::max());
 
-	std::shared_ptr<mogal2::Individual> createNew(const std::shared_ptr<mogal2::Genome> &genome, const std::shared_ptr<mogal2::Fitness> &fitness,
+	std::shared_ptr<eatk::Individual> createNew(const std::shared_ptr<eatk::Genome> &genome, const std::shared_ptr<eatk::Fitness> &fitness,
 			   size_t introducedInGeneration = std::numeric_limits<size_t>::max()) const override;
 
 	int m_parent1, m_parent2;
 	int m_ownIndex;
 };
 
-class LensGAIndividualCreation : public mogal2::IndividualCreation
+class LensGAIndividualCreation : public eatk::IndividualCreation
 {
 public:
-	LensGAIndividualCreation(const std::shared_ptr<mogal2::RandomNumberGenerator> &rng,
+	LensGAIndividualCreation(const std::shared_ptr<eatk::RandomNumberGenerator> &rng,
 		     size_t numBasisFunctions, size_t numSheets, bool allowNegative,
 			 size_t numObjectives);
 	~LensGAIndividualCreation();
 
-    std::shared_ptr<mogal2::Genome> createUnInitializedGenome() override;
-	std::shared_ptr<mogal2::Genome> createInitializedGenome() override;
-    std::shared_ptr<mogal2::Fitness> createEmptyFitness() override;
-	std::shared_ptr<mogal2::Individual> createReferenceIndividual() override;
+    std::shared_ptr<eatk::Genome> createUnInitializedGenome() override;
+	std::shared_ptr<eatk::Genome> createInitializedGenome() override;
+    std::shared_ptr<eatk::Fitness> createEmptyFitness() override;
+	std::shared_ptr<eatk::Individual> createReferenceIndividual() override;
 private:
-	std::shared_ptr<mogal2::RandomNumberGenerator> m_rng;
+	std::shared_ptr<eatk::RandomNumberGenerator> m_rng;
 	const size_t m_numBasisFunctions, m_numSheets, m_numObjectives;
 	const bool m_allowNegative;
 };

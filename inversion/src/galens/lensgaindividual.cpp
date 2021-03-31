@@ -1,7 +1,7 @@
 #include "lensgaindividual.h"
 #include <sstream>
 
-using namespace mogal2;
+using namespace eatk;
 using namespace std;
 using namespace errut;
 
@@ -75,7 +75,7 @@ LensGAGenome::LensGAGenome(size_t numWeights, size_t numSheetValues)
     m_scaleFactor = numeric_limits<float>::quiet_NaN(); // Will be returned by the fitness calculation
 }
 
-shared_ptr<mogal2::Genome> LensGAGenome::createCopy(bool copyContents) const
+shared_ptr<eatk::Genome> LensGAGenome::createCopy(bool copyContents) const
 {
     auto c = make_shared<LensGAGenome>(m_weights.size(), m_sheets.size());
     if (copyContents)
@@ -145,13 +145,13 @@ LensGAIndividual::LensGAIndividual(const shared_ptr<Genome> &genome, const share
 {
 }
 
-shared_ptr<Individual> LensGAIndividual::createNew(const shared_ptr<mogal2::Genome> &genome, const shared_ptr<mogal2::Fitness> &fitness,
+shared_ptr<Individual> LensGAIndividual::createNew(const shared_ptr<eatk::Genome> &genome, const shared_ptr<eatk::Fitness> &fitness,
             size_t introducedInGeneration) const
 {
     return make_shared<LensGAIndividual>(genome, fitness, introducedInGeneration);
 }
 
-LensGAIndividualCreation::LensGAIndividualCreation(const std::shared_ptr<mogal2::RandomNumberGenerator> &rng,
+LensGAIndividualCreation::LensGAIndividualCreation(const std::shared_ptr<eatk::RandomNumberGenerator> &rng,
 		     size_t numBasisFunctions, size_t numSheets, bool allowNegative,
 			 size_t numObjectives)
 	 : m_rng(rng), m_numBasisFunctions(numBasisFunctions), m_numSheets(numSheets), m_allowNegative(allowNegative),
@@ -163,13 +163,13 @@ LensGAIndividualCreation::~LensGAIndividualCreation()
 {
 }
 
-shared_ptr<mogal2::Genome> LensGAIndividualCreation::createUnInitializedGenome()
+shared_ptr<eatk::Genome> LensGAIndividualCreation::createUnInitializedGenome()
 {
     shared_ptr<LensGAGenome> genome = make_shared<LensGAGenome>(m_numBasisFunctions, m_numSheets);
     return genome;
 }
 
-shared_ptr<mogal2::Genome> LensGAIndividualCreation::createInitializedGenome()
+shared_ptr<eatk::Genome> LensGAIndividualCreation::createInitializedGenome()
 {
     shared_ptr<LensGAGenome> genome = make_shared<LensGAGenome>(m_numBasisFunctions, m_numSheets);
 
@@ -188,12 +188,12 @@ shared_ptr<mogal2::Genome> LensGAIndividualCreation::createInitializedGenome()
     return genome;
 }
 
-shared_ptr<mogal2::Fitness> LensGAIndividualCreation::createEmptyFitness()
+shared_ptr<eatk::Fitness> LensGAIndividualCreation::createEmptyFitness()
 {
     return make_shared<LensGAFitness>(m_numObjectives);
 }
 
-shared_ptr<mogal2::Individual> LensGAIndividualCreation::createReferenceIndividual()
+shared_ptr<eatk::Individual> LensGAIndividualCreation::createReferenceIndividual()
 {
     return std::make_shared<LensGAIndividual>(nullptr, nullptr);
 }

@@ -7,12 +7,12 @@ using namespace errut;
 namespace grale
 {
 
-LensGAGenomeCrossover::LensGAGenomeCrossover(const shared_ptr<mogal2::RandomNumberGenerator> &rng, bool allowNegative)
+LensGAGenomeCrossover::LensGAGenomeCrossover(const shared_ptr<eatk::RandomNumberGenerator> &rng, bool allowNegative)
     : m_rng(rng), m_allowNegative(allowNegative)
 {
 }
 
-bool_t LensGAGenomeCrossover::check(const vector<shared_ptr<mogal2::Genome>> &parents)
+bool_t LensGAGenomeCrossover::check(const vector<shared_ptr<eatk::Genome>> &parents)
 {
     if (parents.size() != 2)
         return "Expecting two parents";
@@ -21,8 +21,8 @@ bool_t LensGAGenomeCrossover::check(const vector<shared_ptr<mogal2::Genome>> &pa
     return true;
 }
 
-bool_t LensGAGenomeCrossover::generateOffspring(const vector<shared_ptr<mogal2::Genome>> &parents,
-                                        vector<shared_ptr<mogal2::Genome>> &generatedOffspring)
+bool_t LensGAGenomeCrossover::generateOffspring(const vector<shared_ptr<eatk::Genome>> &parents,
+                                        vector<shared_ptr<eatk::Genome>> &generatedOffspring)
 {
     assert(parents.size() == 2);
     LensGAGenome *pParents[2] = {

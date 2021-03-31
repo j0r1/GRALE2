@@ -18,9 +18,9 @@
 #include "lensgastopcriterion.h"
 #include <serut/memoryserializer.h>
 #include <mogal/geneticalgorithm.h>
-#include <mogal2/geneticalgorithm.h>
-#include <mogal2/singlethreadedpopulationfitnesscalculation.h>
-#include <mogal2/multithreadedpopulationfitnesscalculation.h>
+#include <eatk/evolutionaryalgorithm.h>
+#include <eatk/singlethreadedpopulationfitnesscalculation.h>
+#include <eatk/multithreadedpopulationfitnesscalculation.h>
 #include <serut/vectorserializer.h>
 
 #include <iostream>
@@ -53,7 +53,7 @@ private:
 };
 
 
-class MyGA : public mogal2::GeneticAlgorithm
+class MyGA : public eatk::EvolutionaryAlgorithm
 {
 public:
 	MyGA() { }
@@ -75,7 +75,7 @@ public:
 	Timer m_timer;
 	std::vector <double> m_intervals;
 
-	errut::bool_t onBeforeFitnessCalculation(size_t generation, std::shared_ptr<mogal2::Population> &population)
+	errut::bool_t onBeforeFitnessCalculation(size_t generation, std::shared_ptr<eatk::Population> &population)
 	{
 		m_timer.start();
 	// 	cout << "# Generation " << generation << ", before calculation: " << endl;
@@ -84,7 +84,7 @@ public:
 		return true;
 	}
 
-    errut::bool_t onFitnessCalculated(size_t generation, std::shared_ptr<mogal2::Population> &population)
+    errut::bool_t onFitnessCalculated(size_t generation, std::shared_ptr<eatk::Population> &population)
 	{
 		m_timer.stop();
 		m_intervals.push_back(m_timer.duration());
@@ -100,8 +100,8 @@ class PreferredIndividualSelector
 public:
 	PreferredIndividualSelector() { }
 	virtual ~PreferredIndividualSelector() { }
-	virtual errut::bool_t select(const std::vector<std::shared_ptr<mogal2::Individual>> &best,
-								 std::shared_ptr<mogal2::Individual> &selected)
+	virtual errut::bool_t select(const std::vector<std::shared_ptr<eatk::Individual>> &best,
+								 std::shared_ptr<eatk::Individual> &selected)
 	{
 		return "Not implemented";
 	}
@@ -111,16 +111,16 @@ class SubsequentBestIndividualSelector : public PreferredIndividualSelector
 {
 public:
 	SubsequentBestIndividualSelector(size_t numObjectives,
-									 const std::shared_ptr<mogal2::FitnessComparison> &fitComp)
+									 const std::shared_ptr<eatk::FitnessComparison> &fitComp)
 		: m_numObjectives(numObjectives), m_cmp(fitComp) { }
 	~SubsequentBestIndividualSelector() { }
 	
-	errut::bool_t select(const std::vector<std::shared_ptr<mogal2::Individual>> &bestIndividuals,
-								 std::shared_ptr<mogal2::Individual> &selected) override
+	errut::bool_t select(const std::vector<std::shared_ptr<eatk::Individual>> &bestIndividuals,
+								 std::shared_ptr<eatk::Individual> &selected) override
 	{
-		std::vector<std::shared_ptr<mogal2::Individual>> genomes = bestIndividuals;
-		std::vector<std::shared_ptr<mogal2::Individual>> genomes2;
-		std::shared_ptr<mogal2::Individual> best;
+		std::vector<std::shared_ptr<eatk::Individual>> genomes = bestIndividuals;
+		std::vector<std::shared_ptr<eatk::Individual>> genomes2;
+		std::shared_ptr<eatk::Individual> best;
 
 		if (genomes.size() == 0)
 			return "No best individuals to select one from";
@@ -154,7 +154,7 @@ public:
 	}
 private:
 	size_t m_numObjectives;
-	std::shared_ptr<mogal2::FitnessComparison> m_cmp;
+	std::shared_ptr<eatk::FitnessComparison> m_cmp;
 };
 
 // TODO: rename this, is from copy-paste
@@ -165,12 +165,12 @@ public:
 	~NewGACommunicatorBase() { }
 protected:	
 	bool hasGeneticAlgorithm() const override { return true; }
-	void getAllBestGenomes(std::vector<std::shared_ptr<mogal2::Individual>> &bestGenomes) override
+	void getAllBestGenomes(std::vector<std::shared_ptr<eatk::Individual>> &bestGenomes) override
 	{
 		bestGenomes = m_best;
 	}
 
-	std::shared_ptr<mogal2::Individual> getPreferredBestGenome() override
+	std::shared_ptr<eatk::Individual> getPreferredBestGenome() override
 	{
 		if (m_best.size() == 0)
 			return nullptr;
@@ -178,7 +178,7 @@ protected:
 			return nullptr;
 		
 		errut::bool_t r;
-		std::shared_ptr<mogal2::Individual> selected;
+		std::shared_ptr<eatk::Individual> selected;
 		if (!(r = m_selector->select(m_best, selected)))
 		{
 			std::cerr << "Error in preferred individual selection: " << r.getErrorString() << std::endl;
@@ -202,7 +202,7 @@ protected:
 								genomeCalculator->getNumberOfObjectives(),
 								std::make_shared<grale::LensGAFitnessComparison>());
 
-		std::shared_ptr<mogal2::RandomNumberGenerator> rng = std::make_shared<GslRNGWrapper>();
+		std::shared_ptr<eatk::RandomNumberGenerator> rng = std::make_shared<GslRNGWrapper>();
 		MyGA ga;
 
 		auto mutation = std::make_shared<grale::LensGAGenomeMutation>(rng, 
@@ -236,7 +236,7 @@ protected:
 						  mutation,
 						  genomeCalculator->getNumberOfObjectives());
 
-		std::shared_ptr<mogal2::PopulationFitnessCalculation> calc;
+		std::shared_ptr<eatk::PopulationFitnessCalculation> calc;
 		if (!(r = getCalculator(lensFitnessObjectType, calculatorType, calcFactory, genomeCalculator,
 								factoryParamBytes, creation, calc)))
 			return "Can't get calculator: " + r.getErrorString();
@@ -270,10 +270,10 @@ protected:
 									const std::shared_ptr<grale::LensGAGenomeCalculator> &genomeCalculator,
 									const std::vector<uint8_t> &factoryParamBytes,
 									grale::LensGAIndividualCreation &creation,
-									std::shared_ptr<mogal2::PopulationFitnessCalculation> &calc) = 0;
+									std::shared_ptr<eatk::PopulationFitnessCalculation> &calc) = 0;
 
 	virtual void calculatorCleanup() { }
 	
-	std::vector<std::shared_ptr<mogal2::Individual>> m_best;
+	std::vector<std::shared_ptr<eatk::Individual>> m_best;
 	std::shared_ptr<SubsequentBestIndividualSelector> m_selector;
 };

@@ -1,19 +1,19 @@
 #pragma once
 
 #include "graleconfig.h"
-#include <mogal2/genomefitness.h>
+#include <eatk/genomefitness.h>
 
 namespace grale
 {
 
-class LensGAFitnessComparison : public mogal2::FitnessComparison
+class LensGAFitnessComparison : public eatk::FitnessComparison
 {
 public:
 	LensGAFitnessComparison();
 	~LensGAFitnessComparison();
 	
-	errut::bool_t check(const mogal2::Fitness &f) const override;
-	bool isFitterThan(const mogal2::Fitness &first, const mogal2::Fitness &second, size_t objectiveNumber) const override;
+	errut::bool_t check(const eatk::Fitness &f) const override;
+	bool isFitterThan(const eatk::Fitness &first, const eatk::Fitness &second, size_t objectiveNumber) const override;
 };
 
 }

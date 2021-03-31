@@ -5,12 +5,12 @@
 #include "lensgaindividual.h"
 #include "gravitationallens.h"
 #include "lensfitnessobject.h"
-#include <mogal2/genomefitness.h>
+#include <eatk/genomefitness.h>
 
 namespace grale
 {
 
-class LensGAGenomeCalculator : public mogal2::GenomeFitnessCalculation
+class LensGAGenomeCalculator : public eatk::GenomeFitnessCalculation
 {
 public:
     virtual errut::bool_t init(const LensInversionParametersBase &params) = 0;

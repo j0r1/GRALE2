@@ -9,14 +9,14 @@ using namespace errut;
 namespace grale
 {
 
-LensGAGenomeMutation::LensGAGenomeMutation(const shared_ptr<mogal2::RandomNumberGenerator> &rng, float chanceMultiplier,
+LensGAGenomeMutation::LensGAGenomeMutation(const shared_ptr<eatk::RandomNumberGenerator> &rng, float chanceMultiplier,
                     bool allowNegativeValues, float mutationAmplitude, bool absoluteMutation)
     : m_rng(rng), m_chanceMultiplier(chanceMultiplier), m_allowNegative(allowNegativeValues),
       m_mutationAmplitude(mutationAmplitude), m_absoluteMutation(absoluteMutation)
 {
 }
 
-bool_t LensGAGenomeMutation::check(const mogal2::Genome &genome)
+bool_t LensGAGenomeMutation::check(const eatk::Genome &genome)
 {
     if (!dynamic_cast<const LensGAGenome*>(&genome))
         return "Genome is of wrong type";
@@ -24,7 +24,7 @@ bool_t LensGAGenomeMutation::check(const mogal2::Genome &genome)
     return true;
 }
 
-bool_t LensGAGenomeMutation::mutate(mogal2::Genome &genome, bool &isChanged)
+bool_t LensGAGenomeMutation::mutate(eatk::Genome &genome, bool &isChanged)
 {
     LensGAGenome &g = static_cast<LensGAGenome&>(genome);
 

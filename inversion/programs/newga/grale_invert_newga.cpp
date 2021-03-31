@@ -26,10 +26,10 @@ protected:
 									const std::shared_ptr<grale::LensGAGenomeCalculator> &genomeCalculator,
 									const std::vector<uint8_t> &factoryParamBytes,
 									grale::LensGAIndividualCreation &creation,
-									std::shared_ptr<mogal2::PopulationFitnessCalculation> &calc) override
+									std::shared_ptr<eatk::PopulationFitnessCalculation> &calc) override
 	{
 		bool_t r;
-		vector<shared_ptr<mogal2::GenomeFitnessCalculation>> genomeFitnessCalculators = { genomeCalculator };
+		vector<shared_ptr<eatk::GenomeFitnessCalculation>> genomeFitnessCalculators = { genomeCalculator };
 
 		for (size_t i = 2 ; i < m_numThreads ; i++)
 		{
@@ -49,10 +49,10 @@ protected:
 		}
 		
 		if (m_numThreads <= 1)
-			calc = make_shared<mogal2::SingleThreadedPopulationFitnessCalculation>(genomeFitnessCalculators[0]);
+			calc = make_shared<eatk::SingleThreadedPopulationFitnessCalculation>(genomeFitnessCalculators[0]);
 		else
 		{
-			auto mpCalc = make_shared<mogal2::MultiThreadedPopulationFitnessCalculation>();
+			auto mpCalc = make_shared<eatk::MultiThreadedPopulationFitnessCalculation>();
 			if (!(r = mpCalc->initThreadPool(genomeFitnessCalculators)))
 				return "Unable to initialize threads: " + r.getErrorString();
 			calc = mpCalc;

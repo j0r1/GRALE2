@@ -33,7 +33,7 @@ set(HEADERS
 	galens/fitnesscomponent_weak.h
 	galens/fitnessutil.h
 	)
-if (MOGAL2_FOUND)
+if (EATK_FOUND)
 	set(HEADERS ${HEADERS} 
 		galens/lensgaindividual.h
 		galens/lensgagenomemutation.h
@@ -85,7 +85,7 @@ set(SOURCES
 	galens/fitnesscomponent_defl.cpp	
 	)
 
-if (MOGAL2_FOUND)
+if (EATK_FOUND)
 	set(SOURCES ${SOURCES} 
 		galens/lensgaindividual.cpp
 		galens/lensgagenomemutation.cpp
@@ -99,7 +99,6 @@ if (MOGAL2_FOUND)
 		galens/lensgaoldfactorywrapper.cpp
 	    )
 endif()
-
 
 if (MSVC)
 	set(CMAKE_DEBUG_POSTFIX _d)

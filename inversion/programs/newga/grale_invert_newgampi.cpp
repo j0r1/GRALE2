@@ -1,8 +1,8 @@
 #include <mpi.h>
 #include "newgacommunicatorbase.h"
-#include <mogal2/mpieventdistributor.h>
-#include <mogal2/mpipopulationfitnesscalculation.h>
-#include <mogal2/singlethreadedpopulationfitnesscalculation.h>
+#include <eatk/mpieventdistributor.h>
+#include <eatk/mpipopulationfitnesscalculation.h>
+#include <eatk/singlethreadedpopulationfitnesscalculation.h>
 #include <serut/memoryserializer.h>
 #include <serut/vectorserializer.h>
 #include <fcntl.h>
@@ -24,7 +24,7 @@ protected:
 
 	void calculatorCleanup() override
 	{
-		m_evtDist->signal(mogal2::MPIEventHandler::Done);
+		m_evtDist->signal(eatk::MPIEventHandler::Done);
 		m_evtDist = nullptr;
 	}
 
@@ -33,7 +33,7 @@ protected:
 									const std::shared_ptr<grale::LensGAGenomeCalculator> &genomeCalculator,
 									const std::vector<uint8_t> &factoryParamBytes,
 									grale::LensGAIndividualCreation &creation,
-									std::shared_ptr<mogal2::PopulationFitnessCalculation> &calc) override
+									std::shared_ptr<eatk::PopulationFitnessCalculation> &calc) override
 	{
 		bool_t r;
 		VectorSerializer ser;
@@ -46,12 +46,12 @@ protected:
 		MPI_Bcast(&paramSize, 1, MPI_INT, 0, MPI_COMM_WORLD);
 		MPI_Bcast((void*)ser.getBufferPointer(), ser.getBufferSize(), MPI_BYTE, 0, MPI_COMM_WORLD);
 		
-		auto localCalc = make_shared<mogal2::SingleThreadedPopulationFitnessCalculation>(genomeCalculator);
+		auto localCalc = make_shared<eatk::SingleThreadedPopulationFitnessCalculation>(genomeCalculator);
 		
 		// The event distribution mechanism uses a weak pointer, make sure this doesn't
 		// get deallocated too soon by storing it in the class instance
-		m_evtDist = make_shared<mogal2::MPIEventDistributor>();
-		auto mpiCalc = make_shared<mogal2::MPIPopulationFitnessCalculation>(m_evtDist);
+		m_evtDist = make_shared<eatk::MPIEventDistributor>();
+		auto mpiCalc = make_shared<eatk::MPIPopulationFitnessCalculation>(m_evtDist);
 		calc = mpiCalc;
 
 		auto refGenome = creation.createUnInitializedGenome();
@@ -67,7 +67,7 @@ protected:
 	}
 private:
 	size_t m_size;
-	std::shared_ptr<mogal2::MPIEventDistributor> m_evtDist;
+	std::shared_ptr<eatk::MPIEventDistributor> m_evtDist;
 };
 
 bool_t runHelper()
@@ -103,11 +103,11 @@ bool_t runHelper()
 	if (!(r = calculatorInstance->init(*calculatorParams)))
 		return "Unable to initialize calculator: " + r.getErrorString();
 
-	auto localCalc = make_shared<mogal2::SingleThreadedPopulationFitnessCalculation>(calculatorInstance);
-	auto dist = make_shared<mogal2::MPIEventDistributor>();
-	auto calc = make_shared<mogal2::MPIPopulationFitnessCalculation>(dist);
+	auto localCalc = make_shared<eatk::SingleThreadedPopulationFitnessCalculation>(calculatorInstance);
+	auto dist = make_shared<eatk::MPIEventDistributor>();
+	auto calc = make_shared<eatk::MPIPopulationFitnessCalculation>(dist);
 
-	dist->setHandler(mogal2::MPIEventHandler::Calculation, calc);
+	dist->setHandler(eatk::MPIEventHandler::Calculation, calc);
 
 	grale::LensGAGenome refGenome(0, 0); // will receive layout in 'init'
 	grale::LensGAFitness refFitness(0); // will receive the number of components in 'init'

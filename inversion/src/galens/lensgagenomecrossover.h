@@ -1,22 +1,22 @@
 #pragma once
 
 #include "graleconfig.h"
-#include <mogal2/crossovermutation.h>
-#include <mogal2/randomnumbergenerator.h>
+#include <eatk/crossovermutation.h>
+#include <eatk/randomnumbergenerator.h>
 
 namespace grale
 {
 
-class LensGAGenomeCrossover : public mogal2::GenomeCrossover
+class LensGAGenomeCrossover : public eatk::GenomeCrossover
 {
 public:
-	LensGAGenomeCrossover(const std::shared_ptr<mogal2::RandomNumberGenerator> &rng, bool allowNegative);
+	LensGAGenomeCrossover(const std::shared_ptr<eatk::RandomNumberGenerator> &rng, bool allowNegative);
 
-	errut::bool_t check(const std::vector<std::shared_ptr<mogal2::Genome>> &parents) override;
-	errut::bool_t generateOffspring(const std::vector<std::shared_ptr<mogal2::Genome>> &parents,
-	                                std::vector<std::shared_ptr<mogal2::Genome>> &generatedOffspring) override;
+	errut::bool_t check(const std::vector<std::shared_ptr<eatk::Genome>> &parents) override;
+	errut::bool_t generateOffspring(const std::vector<std::shared_ptr<eatk::Genome>> &parents,
+	                                std::vector<std::shared_ptr<eatk::Genome>> &generatedOffspring) override;
 private:
-	std::shared_ptr<mogal2::RandomNumberGenerator> m_rng;
+	std::shared_ptr<eatk::RandomNumberGenerator> m_rng;
 	bool m_allowNegative;
 };
 

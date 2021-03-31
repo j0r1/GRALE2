@@ -201,7 +201,7 @@ bool_t InversionCommunicator::runGA(int popSize, const std::string &lensFitnessO
 
 bool_t InversionCommunicator::onGAFinished(const grale::LensGAGenomeCalculator &calculator)
 {
-	vector<shared_ptr<mogal2::Individual>> bestGenomes;
+	vector<shared_ptr<eatk::Individual>> bestGenomes;
 
 	if (!m_nds)
 	{

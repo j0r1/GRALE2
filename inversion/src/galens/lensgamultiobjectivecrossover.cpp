@@ -1,8 +1,8 @@
 #include "lensgamultiobjectivecrossover.h"
 #include "lensgaindividual.h"
 #include "lensgafitnesscomparison.h"
-#include <mogal2/basicnondominatedsetcreator.h>
-#include <mogal2/fitnessbasedduplicateremoval.h>
+#include <eatk/basicnondominatedsetcreator.h>
+#include <eatk/fitnessbasedduplicateremoval.h>
 
 using namespace std;
 using namespace errut;
@@ -11,17 +11,17 @@ namespace grale
 {
 
 LensGAMultiObjectiveCrossover::LensGAMultiObjectiveCrossover(double beta, bool elitism, bool includeBest, double crossoverRate,
-            const shared_ptr<mogal2::RandomNumberGenerator> &rng,
+            const shared_ptr<eatk::RandomNumberGenerator> &rng,
             bool allowNegative,
-            const shared_ptr<mogal2::GenomeMutation> &mutation,
+            const shared_ptr<eatk::GenomeMutation> &mutation,
             size_t numObjectives)
     : LensGACrossoverBase(beta, elitism, includeBest, crossoverRate, rng, allowNegative, mutation),
-      m_sortedPop(make_shared<mogal2::BasicNonDominatedSetCreator>(make_shared<LensGAFitnessComparison>(), numObjectives),
-                  make_shared<mogal2::FitnessBasedDuplicateRemoval>(make_shared<LensGAFitnessComparison>(), numObjectives) )
+      m_sortedPop(make_shared<eatk::BasicNonDominatedSetCreator>(make_shared<LensGAFitnessComparison>(), numObjectives),
+                  make_shared<eatk::FitnessBasedDuplicateRemoval>(make_shared<LensGAFitnessComparison>(), numObjectives) )
 {
 }
 
-bool_t LensGAMultiObjectiveCrossover::sortCheck(const std::shared_ptr<mogal2::Population> &population)
+bool_t LensGAMultiObjectiveCrossover::sortCheck(const std::shared_ptr<eatk::Population> &population)
 {
     bool_t r;
     if (!(r = m_sortedPop.check(*population)))
@@ -29,7 +29,7 @@ bool_t LensGAMultiObjectiveCrossover::sortCheck(const std::shared_ptr<mogal2::Po
     return true;
 }
 
-bool_t LensGAMultiObjectiveCrossover::sort(std::shared_ptr<mogal2::Population> &population, size_t targetPopulationSize)
+bool_t LensGAMultiObjectiveCrossover::sort(std::shared_ptr<eatk::Population> &population, size_t targetPopulationSize)
 {
     bool_t r;
     if (!(r = m_sortedPop.processPopulation(population, targetPopulationSize)))
@@ -37,7 +37,7 @@ bool_t LensGAMultiObjectiveCrossover::sort(std::shared_ptr<mogal2::Population> &
     return true;
 }
 
-size_t LensGAMultiObjectiveCrossover::elitism(shared_ptr<mogal2::Population> &population, shared_ptr<mogal2::Population> &newPop)
+size_t LensGAMultiObjectiveCrossover::elitism(shared_ptr<eatk::Population> &population, shared_ptr<eatk::Population> &newPop)
 {
     // cout << "Population is: " << endl;
     // for (auto &i : population->individuals())
@@ -102,14 +102,14 @@ size_t LensGAMultiObjectiveCrossover::elitism(shared_ptr<mogal2::Population> &po
     return mutOffset;
 }
 
-LensGAIndividual *LensGAMultiObjectiveCrossover::pickParent(const shared_ptr<mogal2::Population> &population)
+LensGAIndividual *LensGAMultiObjectiveCrossover::pickParent(const shared_ptr<eatk::Population> &population)
 {
     size_t s = pickBetaDistIndex(m_sortedPop.getNumberOfSets());
     size_t i = pickRandomNumber(m_sortedPop.getSetSize(s));
     return static_cast<LensGAIndividual*>(m_sortedPop.getIndividual(s, i).get());
 }
 
-void LensGAMultiObjectiveCrossover::pickParentsRaw(const std::shared_ptr<mogal2::Population> &population, LensGAIndividual **pParent1, LensGAIndividual **pParent2)
+void LensGAMultiObjectiveCrossover::pickParentsRaw(const std::shared_ptr<eatk::Population> &population, LensGAIndividual **pParent1, LensGAIndividual **pParent2)
 {
     size_t s1 = pickBetaDistIndex(m_sortedPop.getNumberOfSets());
     size_t s2 = pickBetaDistIndex(m_sortedPop.getNumberOfSets());

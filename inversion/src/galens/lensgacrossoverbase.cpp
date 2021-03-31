@@ -9,9 +9,9 @@ namespace grale
 {
 
 LensGACrossoverBase::LensGACrossoverBase(double beta, bool elitism, bool includeBest, double crossoverRate,
-            const shared_ptr<mogal2::RandomNumberGenerator> &rng,
+            const shared_ptr<eatk::RandomNumberGenerator> &rng,
             bool allowNegative,
-            const shared_ptr<mogal2::GenomeMutation> &mutation)
+            const shared_ptr<eatk::GenomeMutation> &mutation)
     : m_beta(beta), m_bestWithoutMutation(elitism), m_bestWithMutation(includeBest), m_crossoverRate(crossoverRate),
         m_rng(rng), m_cross(rng, allowNegative),
         m_mutation(mutation)
@@ -19,7 +19,7 @@ LensGACrossoverBase::LensGACrossoverBase(double beta, bool elitism, bool include
 
 }
 
-bool_t LensGACrossoverBase::check(const shared_ptr<mogal2::Population> &population)
+bool_t LensGACrossoverBase::check(const shared_ptr<eatk::Population> &population)
 {
     if (population->size() == 0)
         return "Empty population";
@@ -30,7 +30,7 @@ bool_t LensGACrossoverBase::check(const shared_ptr<mogal2::Population> &populati
         return "Fitness is of wrong type";
 
     bool_t r;
-    vector<shared_ptr<mogal2::Genome>> testParents = { population->individual(0)->genome(), population->individual(0)->genome() };
+    vector<shared_ptr<eatk::Genome>> testParents = { population->individual(0)->genome(), population->individual(0)->genome() };
     if (!(r = m_cross.check(testParents)))
         return "Error in genome crossover check: " + r.getErrorString();
 
@@ -40,7 +40,7 @@ bool_t LensGACrossoverBase::check(const shared_ptr<mogal2::Population> &populati
     return true;
 }
 
-bool_t LensGACrossoverBase::createNewPopulation(size_t generation, shared_ptr<mogal2::Population> &population, size_t targetPopulationSize)
+bool_t LensGACrossoverBase::createNewPopulation(size_t generation, shared_ptr<eatk::Population> &population, size_t targetPopulationSize)
 {
     bool_t r;
     if (generation == 0)
@@ -60,7 +60,7 @@ bool_t LensGACrossoverBase::createNewPopulation(size_t generation, shared_ptr<mo
 
     copyPopulationIndex(population);
 
-    shared_ptr<mogal2::Population> newPop = make_shared<mogal2::Population>();
+    shared_ptr<eatk::Population> newPop = make_shared<eatk::Population>();
 
     size_t mutOffset = elitism(population, newPop);
 
@@ -75,7 +75,7 @@ bool_t LensGACrossoverBase::createNewPopulation(size_t generation, shared_ptr<mo
     return true;
 }
 
-void LensGACrossoverBase::copyPopulationIndex(const std::shared_ptr<mogal2::Population> &population)
+void LensGACrossoverBase::copyPopulationIndex(const std::shared_ptr<eatk::Population> &population)
 {
     for (size_t i = 0 ; i < population->size() ; i++)
     {
@@ -86,7 +86,7 @@ void LensGACrossoverBase::copyPopulationIndex(const std::shared_ptr<mogal2::Popu
     }
 }
 
-void LensGACrossoverBase::copyScaleFactorFromFitnessToGenome(const shared_ptr<mogal2::Population> &population)
+void LensGACrossoverBase::copyScaleFactorFromFitnessToGenome(const shared_ptr<eatk::Population> &population)
 {
     for (auto &i : population->individuals())
     {
@@ -96,7 +96,7 @@ void LensGACrossoverBase::copyScaleFactorFromFitnessToGenome(const shared_ptr<mo
     }
 }
 
-void LensGACrossoverBase::pickParentsNoInbreed(const shared_ptr<mogal2::Population> &population, 
+void LensGACrossoverBase::pickParentsNoInbreed(const shared_ptr<eatk::Population> &population, 
                                                  LensGAIndividual **pParent1, LensGAIndividual **pParent2)
 {
     bool ok;
@@ -129,10 +129,10 @@ void LensGACrossoverBase::pickParentsNoInbreed(const shared_ptr<mogal2::Populati
     // cout << "Accepted after " << count << " tries" << endl;
 }
 
-errut::bool_t LensGACrossoverBase::crossover(size_t generation, shared_ptr<mogal2::Population> &population, shared_ptr<mogal2::Population> &newPop)
+errut::bool_t LensGACrossoverBase::crossover(size_t generation, shared_ptr<eatk::Population> &population, shared_ptr<eatk::Population> &newPop)
 {
-    vector<shared_ptr<mogal2::Genome>> parents(2);
-    vector<shared_ptr<mogal2::Genome>> offspring;
+    vector<shared_ptr<eatk::Genome>> parents(2);
+    vector<shared_ptr<eatk::Genome>> offspring;
     bool_t r;
 
     while (newPop->size() < population->size())
@@ -175,7 +175,7 @@ errut::bool_t LensGACrossoverBase::crossover(size_t generation, shared_ptr<mogal
     return true;
 }
 
-bool_t LensGACrossoverBase::mutation(size_t mutOffset, shared_ptr<mogal2::Population> &newPop)
+bool_t LensGACrossoverBase::mutation(size_t mutOffset, shared_ptr<eatk::Population> &newPop)
 {
     bool_t r;
 

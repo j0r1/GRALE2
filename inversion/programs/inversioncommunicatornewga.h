@@ -8,7 +8,7 @@
 #include <serut/memoryserializer.h>
 #include <vector>
 #include <stdint.h>
-#include <mogal2/population.h>
+#include <eatk/population.h>
 
 namespace grale
 {
@@ -45,8 +45,8 @@ protected:
 	template<class T> bool_t loadFromBytes(T &x, const std::vector<uint8_t> &bytes);
 
 	virtual bool hasGeneticAlgorithm() const { return false; }
-	virtual void getAllBestGenomes(std::vector<std::shared_ptr<mogal2::Individual>> &bestGenomes) { }
-	virtual std::shared_ptr<mogal2::Individual> getPreferredBestGenome() { return nullptr; }
+	virtual void getAllBestGenomes(std::vector<std::shared_ptr<eatk::Individual>> &bestGenomes) { }
+	virtual std::shared_ptr<eatk::Individual> getPreferredBestGenome() { return nullptr; }
 
 	bool_t onGAFinished(const grale::LensGAGenomeCalculator &calculator);
 	bool m_nds;
