@@ -59,13 +59,13 @@ class LensGAIndividualCreation : public eatk::IndividualCreation
 {
 public:
 	LensGAIndividualCreation(const std::shared_ptr<eatk::RandomNumberGenerator> &rng,
-		     size_t numBasisFunctions, size_t numSheets, bool allowNegative,
+			 size_t numBasisFunctions, size_t numSheets, bool allowNegative,
 			 size_t numObjectives);
 	~LensGAIndividualCreation();
 
-    std::shared_ptr<eatk::Genome> createUnInitializedGenome() override;
+	std::shared_ptr<eatk::Genome> createUnInitializedGenome() override;
 	std::shared_ptr<eatk::Genome> createInitializedGenome() override;
-    std::shared_ptr<eatk::Fitness> createEmptyFitness() override;
+	std::shared_ptr<eatk::Fitness> createEmptyFitness() override;
 	std::shared_ptr<eatk::Individual> createReferenceIndividual() override;
 private:
 	std::shared_ptr<eatk::RandomNumberGenerator> m_rng;

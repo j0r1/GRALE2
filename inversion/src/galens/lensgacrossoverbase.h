@@ -35,10 +35,10 @@ protected:
 	size_t pickBetaDistIndex(size_t s)
 	{
 		double x = m_rng->getRandomDouble();
-        double val = (1.0-pow(x, 1.0/(1.0+m_beta)))*((double)s);
-        size_t r = (size_t)val;
-        if (r >= s)
-            r = s - 1;
+		double val = (1.0-pow(x, 1.0/(1.0+m_beta)))*((double)s);
+		size_t r = (size_t)val;
+		if (r >= s)
+			r = s - 1;
 		return r;
 	}
 

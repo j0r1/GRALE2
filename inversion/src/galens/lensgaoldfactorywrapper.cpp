@@ -44,7 +44,7 @@ public:
 	}
 
 	void onGeneticAlgorithmStep(int generation,  
-			                    bool *generationInfoChanged, bool *stopAlgorithm)
+								bool *generationInfoChanged, bool *stopAlgorithm)
 	{
 		sendMessage("Should not be called");
 		*stopAlgorithm = true;
@@ -100,7 +100,7 @@ public:
 	size_t getNumberOfObjectives() const override { return m_helperFactory->getNumberOfFitnessComponents(); }
 	bool allowNegativeValues() const override { return m_helperFactory->allowNegativeValues(); }
 	size_t getNumberOfBasisFunctions() const override { return m_helperFactory->getNumberOfBasisFunctions(); }
-    size_t getNumberOfSheets() const override { return m_helperFactory->getNumberOfSheets(); }
+	size_t getNumberOfSheets() const override { return m_helperFactory->getNumberOfSheets(); }
 	size_t getMaximumNumberOfGenerations() const override { return m_helperFactory->getMaximumNumberOfGenerations(); }
 	const LensFitnessObject &getLensFitnessObject() const override { return m_helperFactory->getFitnessObject(); }
 
@@ -120,12 +120,12 @@ template<class T, class P1, class P2>
 class GeneralFactory : public LensGACalculatorFactory
 {
 public:
-    std::unique_ptr<LensInversionParametersBase> createParametersInstance() override
+	std::unique_ptr<LensInversionParametersBase> createParametersInstance() override
 	{
 		return make_unique<P1>();
 	}
 
-    std::unique_ptr<LensGAGenomeCalculator> createCalculatorInstance(unique_ptr<LensFitnessObject> fitObj) override
+	std::unique_ptr<LensGAGenomeCalculator> createCalculatorInstance(unique_ptr<LensFitnessObject> fitObj) override
 	{
 		auto helper = make_unique<GAFactoryHelper<T>>(move(fitObj));
 		auto wrapper = make_unique<GAFactoryWrapperLensGAGenomeCalculator<T,P1,P2>>(move(helper));

@@ -14,8 +14,8 @@ public:
 				const std::shared_ptr<eatk::RandomNumberGenerator> &rng,
 				bool allowNegative,
 				const std::shared_ptr<eatk::GenomeMutation> &mutation);
-    
-    const std::vector<std::shared_ptr<eatk::Individual>> &getBestIndividuals() const override { return m_sortedPop.getBestIndividuals(); }
+	
+	const std::vector<std::shared_ptr<eatk::Individual>> &getBestIndividuals() const override { return m_sortedPop.getBestIndividuals(); }
 private:
 	LensGAIndividual *pickParent(const std::shared_ptr<eatk::Population> &population) override;
 	void pickParentsRaw(const std::shared_ptr<eatk::Population> &population, LensGAIndividual **pParent1, LensGAIndividual **pParent2) override;

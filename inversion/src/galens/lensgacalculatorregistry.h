@@ -14,27 +14,27 @@ namespace grale
 class LensGACalculatorFactory
 {
 public:
-    LensGACalculatorFactory() { }
-    ~LensGACalculatorFactory() { }
+	LensGACalculatorFactory() { }
+	~LensGACalculatorFactory() { }
 
-    virtual std::unique_ptr<LensInversionParametersBase> createParametersInstance() = 0;
-    virtual std::unique_ptr<LensGAGenomeCalculator> createCalculatorInstance(std::unique_ptr<grale::LensFitnessObject> fitObj) = 0;
+	virtual std::unique_ptr<LensInversionParametersBase> createParametersInstance() = 0;
+	virtual std::unique_ptr<LensGAGenomeCalculator> createCalculatorInstance(std::unique_ptr<grale::LensFitnessObject> fitObj) = 0;
 };
 
 class LensGACalculatorRegistry
 {
 public:
-    static LensGACalculatorRegistry &instance();
+	static LensGACalculatorRegistry &instance();
 
-    ~LensGACalculatorRegistry();
+	~LensGACalculatorRegistry();
 
-    errut::bool_t registerCalculatorFactory(const std::string &name, std::unique_ptr<LensGACalculatorFactory> factory);
-    LensGACalculatorFactory *getFactory(const std::string &name);
+	errut::bool_t registerCalculatorFactory(const std::string &name, std::unique_ptr<LensGACalculatorFactory> factory);
+	LensGACalculatorFactory *getFactory(const std::string &name);
 private:
-    LensGACalculatorRegistry();
+	LensGACalculatorRegistry();
 
-    std::map<std::string, std::unique_ptr<LensGACalculatorFactory>> m_registry;
-    static std::unique_ptr<LensGACalculatorRegistry> s_instance;
+	std::map<std::string, std::unique_ptr<LensGACalculatorFactory>> m_registry;
+	static std::unique_ptr<LensGACalculatorRegistry> s_instance;
 };
 
 }
