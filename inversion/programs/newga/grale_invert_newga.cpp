@@ -31,7 +31,7 @@ protected:
 		bool_t r;
 		vector<shared_ptr<eatk::GenomeFitnessCalculation>> genomeFitnessCalculators = { genomeCalculator };
 
-		for (size_t i = 2 ; i < m_numThreads ; i++)
+		for (size_t i = 1 ; i < m_numThreads ; i++)
 		{
 			unique_ptr<grale::LensFitnessObject> fitObj = grale::LensFitnessObjectRegistry::instance().createFitnessObject(lensFitnessObjectType);
 			if (!fitObj.get())
