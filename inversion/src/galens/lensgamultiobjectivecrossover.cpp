@@ -1,7 +1,7 @@
 #include "lensgamultiobjectivecrossover.h"
 #include "lensgaindividual.h"
 #include "lensgafitnesscomparison.h"
-#include <eatk/basicnondominatedsetcreator.h>
+#include <eatk/fasternondominatedsetcreator.h>
 #include <eatk/fitnessbasedduplicateremoval.h>
 
 using namespace std;
@@ -16,7 +16,7 @@ LensGAMultiObjectiveCrossover::LensGAMultiObjectiveCrossover(double beta, bool e
 			const shared_ptr<eatk::GenomeMutation> &mutation,
 			size_t numObjectives)
 	: LensGACrossoverBase(beta, elitism, includeBest, crossoverRate, rng, allowNegative, mutation),
-	  m_sortedPop(make_shared<eatk::BasicNonDominatedSetCreator>(make_shared<LensGAFitnessComparison>(), numObjectives),
+	  m_sortedPop(make_shared<eatk::FasterNonDominatedSetCreator>(make_shared<LensGAFitnessComparison>(), numObjectives),
 				  make_shared<eatk::FitnessBasedDuplicateRemoval>(make_shared<LensGAFitnessComparison>(), numObjectives) )
 {
 }
