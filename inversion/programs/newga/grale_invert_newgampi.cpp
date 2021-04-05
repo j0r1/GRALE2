@@ -5,6 +5,8 @@
 #include <eatk/singlethreadedpopulationfitnesscalculation.h>
 #include <serut/memoryserializer.h>
 #include <serut/vectorserializer.h>
+#include <sys/socket.h>
+#include <sys/un.h>
 #include <fcntl.h>
 #include <unistd.h>
 
@@ -117,6 +119,27 @@ bool_t runHelper()
 	return dist->eventLoop();
 }
 
+bool_t getConnectedSocket(const string &sockName, int &s)
+{
+	cerr << "Opening " << sockName << " for communication" << endl;
+
+	s = socket(AF_UNIX, SOCK_STREAM, 0);
+	if (s < 0)
+		return "Error creating UNIX socket: code " + to_string(s);
+
+	struct sockaddr_un addr;
+	memset(&addr, 0, sizeof(struct sockaddr_un));
+	addr.sun_family = AF_UNIX;
+	strncpy(addr.sun_path, sockName.c_str(), sizeof(addr.sun_path) - 1);
+	addr.sun_path[sizeof(addr.sun_path) - 1] = 0;
+
+	int status = connect(s, (struct sockaddr *)&addr, sizeof(addr));
+	if (status < 0)
+		return "Error connecting to " + string(addr.sun_path) + ": code " + to_string(status);
+
+	return true;
+}
+
 int main(int argc, char *argv[])
 {
 	int worldSize, myRank;
@@ -132,29 +155,29 @@ int main(int argc, char *argv[])
 	else
 		grale::LOG(grale::Log::INF, "Helper node");
 
-	if (argc != 3)
-		MPIABORT("ERROR: the names of input and output pipes are needed on command line");
+	if (argc != 2)
+		MPIABORT("ERROR: the names of UNIX socket path is needed on command line");
 
 	if (worldSize <= 1)
 		MPIABORT("ERROR: Need more than one process to be able to work");
 
 	if (myRank == 0)
 	{
-		string inputPipeName(argv[1]);
-		string outputPipeName(argv[2]);
-		cerr << "Opening " << outputPipeName << " for communication" << endl;
+		int s;
+		bool_t r = getConnectedSocket(argv[1], s);
+		if (!r)
+			MPIABORT("Can't get connected UNIX socket: " + r.getErrorString());
+
 		// Nasty: override the file desc for communication
-		stdOutFileDescriptor = open(outputPipeName.c_str(), O_WRONLY); 
-		cerr << "Opening " << inputPipeName << " for communication" << endl;
+		stdOutFileDescriptor = s;
 		// Nasty: override the file desc for communication
-		stdInFileDescriptor = open(inputPipeName.c_str(), O_RDWR); 
+		stdInFileDescriptor = s;
 
 		cerr << "Starting MPI session with " << worldSize << " processes" << endl;
 
 		NewGACommunicatorMPI comm(worldSize);
 
-		bool_t r = comm.run();
-		if (!r)
+		if (!(r = comm.run()))
 			MPIABORT("ERROR: " + r.getErrorString());
 	}
 	else

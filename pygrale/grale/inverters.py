@@ -91,11 +91,18 @@ class Inverter(object):
         self.readDescriptor = readDescriptor
         self.writeDescriptor = writeDescriptor
 
+    def setDescriptors(self, readDescriptor, writeDescriptor):
+        self.readDescriptor = readDescriptor
+        self.writeDescriptor = writeDescriptor
+
     def setFeedbackObject(self, feedbackObject):
         self.feedback = feedbackObject
 
     def getFeedbackObject(self):
         return self.feedback
+
+    def onStartedProcess(self, proc):
+        pass
 
     def invert(self, moduleName, populationSize, gaParams, lensInversionParameters, returnNds):
 
@@ -113,6 +120,7 @@ class Inverter(object):
 
             #print(self.args)
             proc = subprocess.Popen(self.args, stdin = subprocess.PIPE, stdout = subprocess.PIPE, env = env, stderr = errFile)
+            self.onStartedProcess(proc)
         except Exception as e:
             raise InverterException("Unable to start inversion process: {}".format(e)) 
 
@@ -391,20 +399,65 @@ class NewGAProcessInverter(Inverter):
                                                      extraEnv = { "NUMTHREADS": str(numThreads) },
                                                      feedbackObject=feedbackObject)
 
+def _createRandomTmpPath(length = 16):
+    import random
+    import string
+
+    tmpDir = tempfile.gettempdir()
+    chars = string.ascii_letters + string.digits
+    return os.path.join(tmpDir, "".join([ chars[random.randint(0, len(chars)-1)] for i in range(length) ]))
+
+def _createBoundUnixSocket(socketPath):
+    import socket
+
+    s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) 
+    s.bind(socketPath)
+    s.listen(1)
+    return s
+
 class MPINewGAProcessInverter(Inverter):
 
-    def __init__(self, numProcesses = None, feedbackObject = None):
+    def __init__(self, numProcesses = None, incomingConnectionTimeout = 10, feedbackObject = None):
 
         # Using stdin/stdout does not seem to work well for MPI (at least not openmpi),
-        # so we'll use a different set of pipes
-        self.pipePair = privutil.PipePair() # Keep it for the lifetime of this object
-        pp = self.pipePair
+        # so we'll use a UNIX socket        
+        self.socketPath = _createRandomTmpPath()
+        
+        # We'll create the socket here, wait for an incoming connection in onStartedProcess
+        self.servSock = _createBoundUnixSocket(self.socketPath)
+        self.incomingConnectionTimeout = incomingConnectionTimeout
 
         npArgs = [ ] if numProcesses is None else [ "-np", str(numProcesses) ]
-        super(MPINewGAProcessInverter, self).__init__( [ "mpirun" ] + npArgs + [ "grale_invert_newgampi", pp.wrFileName, pp.rdFileName ], 
-                                                  "New GA MPI inverter", feedbackObject=feedbackObject, 
-                                                  readDescriptor = pp.rdPipeDesc, writeDescriptor = pp.wrPipeDesc)
+        super(MPINewGAProcessInverter, self).__init__( [ "mpirun" ] + npArgs + [ "grale_invert_newgampi", self.socketPath ], 
+                                                  "New GA MPI inverter", feedbackObject=feedbackObject)
 
+    def onStartedProcess(self, proc):
+
+        import select
+
+        if self.feedback:
+            self.feedback.onStatus("Waiting for incoming connection on UNIX socket " + self.socketPath)
+
+        # Wait for connection
+        rlist, _, _ = select.select([self.servSock], [], [], self.incomingConnectionTimeout)
+        if not rlist:
+            raise InverterException("Timeout while waiting for connection from MPI helper process")
+
+        self.sock, _ = self.servSock.accept()
+        self.servSock.close()
+
+        self.setDescriptors(self.sock.fileno(), self.sock.fileno())
+
+    def __del__(self):
+        try:
+            self.sock.close()
+        except Exception as e:
+            pass
+
+        try:
+            os.unlink(self.socketPath)
+        except Exception as e:
+            pass
 
 class SingleProcessInverter(Inverter):
     """If this inverter is used, a single process, single core method is used. For

@@ -99,13 +99,16 @@ class IO(object):
         startTime = timer()
         dt = timeout*1.0
 
+        errFlags = select.POLLERR | select.POLLHUP
+
         l = b"" 
         while dt >= 0:
 
             r = self.pollObject.poll(dt*1000.0)
             if len(r) == 0:
                 raise IOTimeoutException
-            if r[0][1]&select.POLLIN == 0:
+            if r[0][1]&select.POLLIN == 0 or r[0][1]&errFlags != 0:
+
                 # Connection is closed
                 if len(l) != 0:
                     break
