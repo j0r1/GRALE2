@@ -7,7 +7,7 @@ if (MPI_FOUND)
 	add_executable(grale_invert_mpi grale_invert_mpi.cpp ../inversioncommunicator.cpp
 		"${PROJECT_SOURCE_DIR}/core/programs/inputoutput.cpp"
 		)
-	target_link_libraries(grale_invert_mpi graleinv-shared gralecore-static ${GRALE_LINK_LIBS} ${MPI_LIBRARIES})
+	target_link_libraries(grale_invert_mpi graleinv-static gralecore-static ${GRALE_LINK_LIBS} ${MPI_LIBRARIES})
 	add_mpi_flags(grale_invert_mpi)
 
 	install(TARGETS grale_invert_mpi DESTINATION bin)
