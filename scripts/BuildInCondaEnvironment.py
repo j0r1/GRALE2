@@ -225,6 +225,9 @@ and re-run this script.
     extraOpts = [] if not "CMAKE_EXTRA_OPTS" in os.environ else os.environ["CMAKE_EXTRA_OPTS"].split()
 
     CP = os.environ["CONDA_PREFIX"]
+    if os.name == "nt":
+        CP += "/Library"
+
     cmakeCmd = [ "cmake", "..", "-DCMAKE_BUILD_TYPE=release", "-DCMAKE_INSTALL_PREFIX=" + CP,
                  "-DCMAKE_INSTALL_RPATH=" + CP + "/lib", "-DCMAKE_FIND_ROOT_PATH=" + CP,
                  "-DLIBRARY_INSTALL_DIR=" + CP + "/lib", "-G", generator ] + extraOpts
