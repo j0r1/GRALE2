@@ -76,7 +76,8 @@ libDirs = [ ]
 
 libraries = [ "gsl", "serut", "grale2core" ]
 if platform.system() == "Windows":
-    libraries += [ "gslcblas", "errut" ]
+    #libraries += [ "gslcblas", "errut" ]
+    libraries += [ "gslcblas" ]
 else:
     libraries += [ "gslcblas" ]
     extraFlags += [ "-std=c++11" ]
