@@ -9,6 +9,6 @@ else (TMP_LOADLIBRARY_CHECK)
 endif (TMP_LOADLIBRARY_CHECK)
 
 add_executable(grale_lensplane_opencl grale_lensplane_opencl.cpp openclkernel.cpp ../inputoutput.cpp ../communicator.cpp)
-target_link_libraries(grale_lensplane_opencl gralecore-shared ${GRALE_LINK_LIBS} ${GRALE_DLLIBS})
+target_link_libraries(grale_lensplane_opencl gralecore-static ${GRALE_LINK_LIBS} ${GRALE_DLLIBS})
 
 install(TARGETS grale_lensplane_opencl DESTINATION bin)
