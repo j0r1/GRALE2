@@ -41,7 +41,11 @@ public:
 
 int main(int argc, char *argv[])
 {
+#ifndef WIN32
 	setenv("GRALE_DEBUG_SEED", "12345", 1);
+#else
+	_putenv("GRALE_DEBUG_SEED=12345");
+#endif
 
 	double D_d = 1000*DIST_MPC;
 	double D_s = 1600*DIST_MPC;

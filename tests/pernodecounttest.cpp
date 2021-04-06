@@ -1,11 +1,12 @@
 #include "pernodecounter.h"
 #include <iostream>
+
+using namespace std;
+
 #ifndef WIN32 // The PerNodeCounter class only works on non-windows anyway
 #include <unistd.h>
-#endif // WIN32
 
 using namespace grale;
-using namespace std;
 
 int main(int argc, char const *argv[])
 {
@@ -34,3 +35,13 @@ int main(int argc, char const *argv[])
 	sleep(delay);
 	return 0;
 }
+
+#else
+
+int main(void)
+{
+	cerr << "Not available on windows" << endl;
+	return -1;
+}
+
+#endif // !WIN32

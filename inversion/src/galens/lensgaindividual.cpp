@@ -42,6 +42,7 @@ string LensGAFitness::toString() const
 	return ss.str();
 }
 
+#ifdef EATKCONFIG_MPISUPPORT
 bool_t LensGAFitness::MPI_BroadcastLayout(int root, MPI_Comm communicator)
 {
 	int s = (int)m_fitnesses.size();
@@ -67,6 +68,7 @@ bool_t LensGAFitness::MPI_Recv(int src, int tag, MPI_Comm communicator,
 	MPI_Irecv(&m_scaleFactor, 1, MPI_FLOAT, src, tag, communicator, &requests[1]);
 	return true;
 }
+#endif // EATKCONFIG_MPISUPPORT
 
 LensGAGenome::LensGAGenome(size_t numWeights, size_t numSheetValues)
 {
@@ -106,6 +108,7 @@ string LensGAGenome::toString() const
 	return ss.str();
 }
 
+#ifdef EATKCONFIG_MPISUPPORT
 bool_t LensGAGenome::MPI_BroadcastLayout(int root, MPI_Comm communicator)
 {
 	int sizes[2] = { (int)m_weights.size(), (int)m_sheets.size() };
@@ -138,6 +141,7 @@ bool_t LensGAGenome::MPI_Recv(int src, int tag, MPI_Comm communicator,
 		MPI_Irecv(m_sheets.data(), m_sheets.size(), MPI_FLOAT, src, tag, communicator, &requests[1]);
 	return true;		
 }
+#endif //EATKCONFIG_MPISUPPORT
 
 LensGAIndividual::LensGAIndividual(const shared_ptr<Genome> &genome, const shared_ptr<Fitness> &fitness,
 			size_t introducedInGeneration)

@@ -15,11 +15,11 @@ public:
 
 	std::shared_ptr<Fitness> createCopy(bool copyContents = true) const override;
 	std::string toString() const override;
-
+#ifdef EATKCONFIG_MPISUPPORT
 	errut::bool_t MPI_BroadcastLayout(int root, MPI_Comm communicator) override;
 	errut::bool_t MPI_Send(int dest, int tag, MPI_Comm communicator, std::vector<MPI_Request> &requests) const override;
 	errut::bool_t MPI_Recv(int src, int tag, MPI_Comm communicator, std::vector<MPI_Request> &requests) override;
-
+#endif // EATKCONFIG_MPISUPPORT
 	std::vector<float> m_fitnesses;
 	float m_scaleFactor;
 };
@@ -32,11 +32,12 @@ public:
 	std::shared_ptr<Genome> createCopy(bool copyContents = true) const override;
 	std::string toString() const override;
 
+#ifdef EATKCONFIG_MPISUPPORT
 	errut::bool_t MPI_BroadcastLayout(int root, MPI_Comm communicator) override;
 	errut::bool_t MPI_Send(int dest, int tag, MPI_Comm communicator, std::vector<MPI_Request> &requests) const override;
 	errut::bool_t MPI_Recv(int src, int tag, MPI_Comm communicator,
 								   std::vector<MPI_Request> &requests) override;
-
+#endif // EATKCONFIG_MPISUPPORT
 	std::vector<float> m_weights;
 	std::vector<float> m_sheets;
 	float m_scaleFactor;

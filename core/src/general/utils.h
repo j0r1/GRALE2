@@ -17,8 +17,8 @@ inline errut::bool_t getenv(const std::string &key, std::string &value)
 }
 
 inline errut::bool_t getenv(const std::string &key, int &value,
-							int minValue = std::numeric_limits<int>::min(),
-							int maxValue = std::numeric_limits<int>::max())
+							int minValue = (std::numeric_limits<int>::min)(), // wrapping in parentheses because of conflict with windows macros
+							int maxValue = (std::numeric_limits<int>::max)())
 {
 	std::string strValue;
 	auto r = getenv(key, strValue);
