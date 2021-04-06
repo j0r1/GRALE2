@@ -3,6 +3,8 @@
 // TODO: Error version if windows
 // TODO: make an implementation using shared memory instead of files
 
+#ifndef WIN32
+
 #include <unistd.h>
 #include <fcntl.h>
 #include <string.h>
@@ -140,3 +142,37 @@ bool PerNodeCounter::readWrite(bool increaseOrDecrease)
 }
 
 } // end namespace
+
+#else
+
+namespace grale
+{
+
+PerNodeCounter::PerNodeCounter(const string &shmFileName)
+{
+}
+
+PerNodeCounter::~PerNodeCounter()
+{
+}
+
+int PerNodeCounter::getCount()
+{
+	return 0;
+}
+
+bool PerNodeCounter::openFile()
+{
+	setErrorString("Not available on windows");
+	return false;
+}
+
+bool PerNodeCounter::readWrite(bool increaseOrDecrease)
+{
+	setErrorString("Not available on windows");
+	return false;
+}
+
+} // end namespace
+#endif // !WIN32
+
