@@ -185,6 +185,7 @@ const std::vector<Vector2Df> *MultiPlaneCUDA::getSourcePositions(int srcIdx)
 #else 
 
 #include "multiplanecuda.h"
+#include "pernodecounter.h"
 
 namespace grale
 {
@@ -205,11 +206,11 @@ MultiPlaneCUDA::~MultiPlaneCUDA()
 {
 }
 
-bool MultiPlaneCUDA::init(const std::string &libraryPath,
+bool MultiPlaneCUDA::init(const std::string &libraryPath, int devIdx,
 	double angularUnit,
 	double h, double W_m, double W_r, double W_v, double w,
 	const std::vector<float> &lensRedshifts,
-	const std::vector<std::vector<PlummerInfo>> &fixedPlummerParameters,
+	const std::vector<std::vector<PlummerInfo>> &fixedPlummerParameters, 
 	const std::vector<float> &sourceRedshifts,
 	const std::vector<std::vector<Vector2Df>> &theta)
 {

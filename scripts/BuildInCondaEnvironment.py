@@ -6,23 +6,21 @@ import time
 import subprocess
 
 def usage(full = False):
-    print("""Usage:
+    print(r"""Usage:
     python BuildInCondaEnvironment.py [-builddir] path
-
 or
-
     python BuildInCondaEnvironment.py --help
 
 This script attempts to compile PyGrale in an existing conda environment.
 
-If '-builddir' is not specified, the path will be used as a parent directory
-in which the GRALE2 repository will be cloned. This is probably what you
-want.
-
-If '-builddir' is specified, the path is interpreted as an existing empty
-subdirectory of a GRALE2 repository clone, so that one directory above this
-contains the main CMakeLists.txt. No git update will be performed. No other
-sources will be built. This can be helpful for development purposes.
+On Windows, you'll need to install the Visual Studio 2017 build tools from 
+https://www.visualstudio.com/downloads/#build-tools-for-visual-studio-2017
+(see also
+https://stackoverflow.com/questions/57795314/are-visual-studio-2017-build-tools-still-available-for-download)
+Then, in the start menu select "x64 Native Tools Command Prompt for VS2017",
+and enable the conda environment by typing c:\pathtoanaconda\Scripts\activate
+That way, both the build tools will be available, as well as anaconda. Once
+everything has been built, you can just start the conda prompt directly.
 
 Start with creating a new conda environment, and activate it, e.g:
 
@@ -36,15 +34,20 @@ downloading and compiling the source code in the specified path, e.g:
 
     python BuildInCondaEnvironment.py path_to_dir
 
-On Windows, you'll need to install the build tools from 
-https://www.visualstudio.com/downloads/#build-tools-for-visual-studio-2017
-(see also https://conda-forge.org/docs/maintainer/knowledge_base.html)
-
 Of course: use at your own risk!
 """)
 
     if full:
         print("""
+If '-builddir' is not specified, the path will be used as a parent directory
+in which the GRALE2 repository will be cloned. This is probably what you
+want.
+
+If '-builddir' is specified, the path is interpreted as an existing empty
+subdirectory of a GRALE2 repository clone, so that one directory above this
+contains the main CMakeLists.txt. No git update will be performed. No other
+sources will be built. This can be helpful for development purposes.
+
 Environment variables that are used:
 
  - NUMCORES: if set, 'make' will be started to use this amount of

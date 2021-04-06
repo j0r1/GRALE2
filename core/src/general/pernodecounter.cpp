@@ -148,7 +148,7 @@ bool PerNodeCounter::readWrite(bool increaseOrDecrease)
 namespace grale
 {
 
-PerNodeCounter::PerNodeCounter(const string &shmFileName)
+PerNodeCounter::PerNodeCounter(const std::string &shmFileName)
 {
 }
 

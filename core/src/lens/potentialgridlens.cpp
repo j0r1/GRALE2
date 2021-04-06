@@ -6,12 +6,6 @@
 
 using namespace std;
 
-#ifdef WIN32
-#define INTERP gsl_interp2d_bicubic_get()
-#else
-#define INTERP gsl_interp2d_bicubic
-#endif
-
 namespace grale
 {
 
@@ -121,14 +115,14 @@ bool PotentialGridLens::processParameters(const GravitationalLensParams *pLensPa
 		return false;
 	}
 
-	if (numX < gsl_interp2d_type_min_size(INTERP) ||
-		numY < gsl_interp2d_type_min_size(INTERP))
+	if (numX < gsl_interp2d_type_min_size(gsl_interp2d_bicubic) ||
+		numY < gsl_interp2d_type_min_size(gsl_interp2d_bicubic))
 	{
 		setErrorString("Not enough points in grid in at least one dimension");
 		return false;
 	}
 
-	m_pInterp = gsl_interp2d_alloc(INTERP, numX, numY);
+	m_pInterp = gsl_interp2d_alloc(gsl_interp2d_bicubic, numX, numY);
 	if (!m_pInterp)
 	{
 		setErrorString("Unable to allocate GSL interpolation workspace");
