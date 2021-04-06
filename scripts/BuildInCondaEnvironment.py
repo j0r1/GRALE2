@@ -84,20 +84,20 @@ Environment variables that are used:
     sys.exit(-1)
 
 def getInstalledCondaPackages():
-    return [ l.split()[0] for l in subprocess.check_output(["conda", "list"]).decode().splitlines() if not l.startswith("#") ]
+    return [ l.split()[0] for l in subprocess.check_output("conda list", shell=True).decode().splitlines() if not l.startswith("#") ]
 
 def checkCall(cmd, errString):
     try:
-        subprocess.check_call(cmd, stderr = subprocess.DEVNULL, stdout = subprocess.DEVNULL)
+        subprocess.check_call(cmd, stderr = subprocess.DEVNULL, stdout = subprocess.DEVNULL, shell=True)
     except Exception as e:
         raise Exception(errString + " ({})".format(e))
 
 def getUnixGeneratorAndMakeCommand():
     import multiprocessing
-    return ("Unix Makefiles", [ "make", "-j", "{}".format(multiprocessing.cpu_count())], [ "make", "--version"] )
+    return ("Unix Makefiles", [ "make", "-j", "{}".format(multiprocessing.cpu_count())], "make --version")
 
 def getWindowsGeneratorAndMakeCommand():
-    return ("NMake Makefiles", [ "nmake" ], [ "nmake", "/HELP" ])
+    return ("NMake Makefiles", [ "nmake" ], "nmake /HELP")
 
 getGeneratorAndMakeCommand = getWindowsGeneratorAndMakeCommand if os.name == 'nt' else getUnixGeneratorAndMakeCommand
 
@@ -129,8 +129,8 @@ def main():
  
     generator, makeCmd, makeTestCommand = getGeneratorAndMakeCommand()
 
-    checkCall(["git", "--version"], "Git does not appear to be available")
-    checkCall(["conda", "--version"], "Need active conda environment - 'conda' command is not available")
+    checkCall("git --version", "Git does not appear to be available")
+    checkCall("conda --version", "Need active conda environment - 'conda' command is not available")
     checkCall(makeTestCommand, "Need make/nmake to be able to build the source code")
 
     if not "CONDA_PREFIX" in os.environ:
@@ -198,7 +198,8 @@ or
 
         print("Installing {} from conda-forge".format(" ".join(condaPacks)))
         
-        subprocess.check_call([ "conda", "install", "-y", "-c", "conda-forge" ] + condaPacks)
+        cmd = [ "conda", "install", "-y", "-c", "conda-forge" ] + condaPacks
+        subprocess.check_call(" ".join(cmd), shell=True)
 
         newPacks = getInstalledCondaPackages()
         if not "compilers" in startPacks and "compilers" in newPacks:
@@ -216,6 +217,7 @@ and re-run this script.
 
 """.format(os.environ["CONDA_DEFAULT_ENV"]))
             sys.exit(-1)
+
 
     extraOpts = [] if not "CMAKE_EXTRA_OPTS" in os.environ else os.environ["CMAKE_EXTRA_OPTS"].split()
 
