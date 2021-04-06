@@ -12,13 +12,12 @@ in which the GRALE2 repository will be cloned.
 
 If '-builddir' is specified, the path is interpreted as an existing empty
 subdirectory of a GRALE2 repository clone, so that one directory above this
-contains the main CMakeLists.txt. No git update will be performed.
-
-where the specified directory stores the source code and build files.
+contains the main CMakeLists.txt. No git update will be performed. No other
+sources will be built.
 
 Start with creating a new conda environment, and activate it:
 
-    conda create -y mypygrale
+    conda create -n mypygrale
     conda activate mypygrale
 
 Then, running the script should install/build everything in this environment.
@@ -176,54 +175,20 @@ fi
 
 if [ -z "$NOCONDAINSTALL" ] ; then
 	
-	OWNPACKS="errut serut enut mogal triangle"
+	CONDAPACKS="python$PYVER ipython jupyter astropy sip pyqt cython numpy scipy matplotlib shapely PyOpenGL ipywidgets cmake compilers"
+
 	if [ -z "$NOGSL" ] ; then
-		OWNPACKS="$OWNPACKS gsl"
+		CONDAPACKS="$CONDAPACKS gsl"
 	fi
 	if [ -z "$NOMPI" ] ; then
-		OWNPACKS="$OWNPACKS openmpi"
+		CONDAPACKS="$CONDAPACKS openmpi"
 	fi
 
-	echo "OWNPACKS=$OWNPACKS"
-	conda install -y -c jori $OWNPACKS
+	conda install -y -c conda-forge $CONDAPACKS
 
-	CONDAPACKS="python$PYVER ipython jupyter astropy sip pyqt cython numpy scipy matplotlib shapely PyOpenGL ipywidgets cmake"
-	if [ "$UNAME" = "Darwin" ] ; then
-		CONDAPACKS="$CONDAPACKS clangxx_osx-64"
-	elif [ "$UNAME" = "Linux" ] ; then
-		CONDAPACKS="$CONDAPACKS gxx_linux-64"
-	else
-		echo "Unexpected uname of $UNAME, expecting Darwin or Linux. You can set the UNAME environment variable to force a choice"
-		exit -1
-	fi
-
-	echo "Installing $CONDAPACKS"
+	echo "Installing $CONDAPACKS from conda-forge"
 	conda install -y $CONDAPACKS
 
-fi
-
-if [ "$BUILDDIR" != "yes" ] ; then
-
-	p="GRALE2"
-	if ! [ -e $p ] ; then
-		echo "Cloning $p"
-		git clone https://github.com/j0r1/$p
-		cd $p
-	else
-		echo "Updating $p"
-		cd $p
-		if [ -z "$NOPULL" ] ; then
-			git pull
-		else
-			echo "Environment variable NOPULL was set, skipping git pull"
-		fi
-	fi
-
-	echo "Building $p"
-	if ! [ -e "build" ] ; then
-		mkdir build
-	fi
-	cd build
 fi
 
 echo "CXX=$CXX"
@@ -231,9 +196,40 @@ echo "CXX=$CXX"
 source ${CONDA_EXE::-5}activate "$CONDA_DEFAULT_ENV"
 echo "CXX=$CXX"
 
-cmake .. -DCMAKE_BUILD_TYPE=release -DCMAKE_INSTALL_PREFIX="$CONDA_PREFIX" -DCMAKE_INSTALL_RPATH="$CONDA_PREFIX/lib" -DCMAKE_FIND_ROOT_PATH="$CONDA_PREFIX" -DLIBRARY_INSTALL_DIR="$CONDA_PREFIX/lib" $CMAKE_EXTRA_OPTS
-make -j $NUMCORES
-make install
+if [ "$BUILDDIR" != "yes" ] ; then
+
+	for p in ErrUt SerUt ENUt MOGAL EATk GRALE2 ; do
+		cd "$D"
+
+		if ! [ -e $p ] ; then
+			echo "Cloning $p"
+			git clone https://github.com/j0r1/$p
+			cd $p
+		else
+			echo "Updating $p"
+			cd $p
+			if [ -z "$NOPULL" ] ; then
+				git pull
+			else
+				echo "Environment variable NOPULL was set, skipping git pull"
+			fi
+		fi
+
+		echo "Building $p"
+		if ! [ -e "build" ] ; then
+			mkdir build
+		fi
+		cd build
+	
+		cmake .. -DCMAKE_BUILD_TYPE=release -DCMAKE_INSTALL_PREFIX="$CONDA_PREFIX" -DCMAKE_INSTALL_RPATH="$CONDA_PREFIX/lib" -DCMAKE_FIND_ROOT_PATH="$CONDA_PREFIX" -DLIBRARY_INSTALL_DIR="$CONDA_PREFIX/lib" $CMAKE_EXTRA_OPTS
+		make -j $NUMCORES
+		make install
+	done
+else
+	cmake .. -DCMAKE_BUILD_TYPE=release -DCMAKE_INSTALL_PREFIX="$CONDA_PREFIX" -DCMAKE_INSTALL_RPATH="$CONDA_PREFIX/lib" -DCMAKE_FIND_ROOT_PATH="$CONDA_PREFIX" -DLIBRARY_INSTALL_DIR="$CONDA_PREFIX/lib" $CMAKE_EXTRA_OPTS
+	make -j $NUMCORES
+	make install
+fi
 
 echo "Building inversion modules"
 cd "../inversion_modules"
@@ -247,3 +243,4 @@ make install
 
 cd "../../pygrale/"
 CXXFLAGS="-O3 -std=c++11" ./setup.py build install
+
