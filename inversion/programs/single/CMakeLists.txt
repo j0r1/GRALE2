@@ -16,15 +16,14 @@ add_executable(grale_invert_confparamdefaults_new grale_invert_confparamdefaults
 	)
 target_link_libraries(grale_invert_confparamdefaults_new graleinv-shared gralecore-shared ${GRALE_LINK_LIBS})
 
-
-add_executable(grale_invert_calcfitness grale_invert_calcfitness.cpp ../inversioncommunicator.cpp
+add_executable(grale_invert_calcfitness_new grale_invert_calcfitness_new.cpp ../inversioncommunicatornewga.cpp
 	"${PROJECT_SOURCE_DIR}/core/programs/inputoutput.cpp"
 	)
-target_link_libraries(grale_invert_calcfitness graleinv-shared gralecore-shared ${GRALE_LINK_LIBS})
+target_link_libraries(grale_invert_calcfitness_new graleinv-shared gralecore-shared ${GRALE_LINK_LIBS})
 
 install(TARGETS grale_invert_single DESTINATION bin)
 install(TARGETS grale_invert_usage_new DESTINATION bin)
 install(TARGETS grale_invert_confparamdefaults_new DESTINATION bin)
-install(TARGETS grale_invert_calcfitness DESTINATION bin)
+install(TARGETS grale_invert_calcfitness_new DESTINATION bin)
 
 

@@ -1,4 +1,5 @@
-#include "inversioncommunicator.h"
+#include "inversionregistry.h"
+#include "inversioncommunicatornewga.h"
 #include "inputoutput.h"
 #include "galensmodule.h"
 #include "lensfitnessobject.h"
@@ -26,7 +27,9 @@ public:
 protected:
 	string getVersionInfo() const override { return "Inversion module usage information"; }
 
-	bool_t runModule(const string &moduleDir, const string &moduleFile, GALensModule *pModule);
+	bool_t runModule(const std::string &lensFitnessObjectType,
+					 std::unique_ptr<grale::LensFitnessObject> fitnessObject,
+					 const std::string &calculatorType);
 };
 
 class GravitationalLensWrapper : public errut::ErrorBase
@@ -55,7 +58,9 @@ private:
 	unique_ptr<GravitationalLens> m_lens;
 };
 
-bool_t CalcFitnessCommunicator::runModule(const string &moduleDir, const string &moduleFile, GALensModule *pModule)
+bool_t CalcFitnessCommunicator::runModule(const std::string &lensFitnessObjectType, 
+					 std::unique_ptr<grale::LensFitnessObject> fitnessObject,
+					 const std::string &calculatorType)
 {
 	bool_t r;
 	string type;
@@ -77,9 +82,9 @@ bool_t CalcFitnessCommunicator::runModule(const string &moduleDir, const string 
 		factoryParams.getBaseLens() != nullptr)
 		return "Expecting dummy settings for max number of generations, grid and base lens";
 
-	unique_ptr<LensFitnessObject> f(pModule->createFitnessObject());
+	auto &f = fitnessObject;
 	if (!f.get())
-		return "Unable to create lens fitness object for module: " + moduleFile;
+		return "Unable to create lens fitness object for module: " + lensFitnessObjectType;
 
 	list<ImagesDataExtended *> dummyShortList;
 	// list can be modified
@@ -90,7 +95,7 @@ bool_t CalcFitnessCommunicator::runModule(const string &moduleDir, const string 
 	double z_d = factoryParams.getZ_d();
 	if (!f->init(z_d, images, dummyShortList, factoryParams.getFitnessObjectParameters()))
 		return "Unable to initialize fitness object: " + f->getErrorString();
-	      
+		  
 	vector<string> unusedKeys;
 	factoryParams.getFitnessObjectParameters()->getUnretrievedKeys(unusedKeys);
 	if (unusedKeys.size() > 0)
@@ -168,6 +173,7 @@ bool_t CalcFitnessCommunicator::runModule(const string &moduleDir, const string 
 
 int main(int argc, char *argv[])
 {
+	grale::registerDefaultInversionComponents();
 	CalcFitnessCommunicator comm;
 
 	bool_t r = comm.run();

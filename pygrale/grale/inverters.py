@@ -381,7 +381,7 @@ def calculateFitness(moduleName, inputImages, zd, fitnessObjectParameters, lens 
 
         return fitness, description
 
-    fitness, description = _commonModuleCommunication(moduleName, "grale_invert_calcfitness", f)
+    fitness, description = _commonModuleCommunication(moduleName, "grale_invert_calcfitness_new", f)
 
     return (fitness, description)
 
