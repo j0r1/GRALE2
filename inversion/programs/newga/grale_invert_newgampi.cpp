@@ -23,7 +23,7 @@ public:
 	NewGACommunicatorMPI(size_t s) : m_size(s) { }
 	~NewGACommunicatorMPI() { }
 protected:
-	string getVersionInfo() const override { return "MOGAL2 MPI based algorithm, " + to_string(m_size) + " processes"; }
+	string getVersionInfo() const override { return "EATk MPI based algorithm, " + to_string(m_size) + " processes"; }
 
 	void calculatorCleanup() override
 	{

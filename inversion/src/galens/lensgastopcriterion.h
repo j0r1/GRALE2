@@ -10,14 +10,16 @@ namespace grale
 
 class LensFitnessObject;
 
-class LensGAStropCriterion : public eatk::StopCriterion
+class LensGAStopCriterion : public eatk::StopCriterion
 {
 public:
-	LensGAStropCriterion(size_t maxGenerations,
-						 const std::shared_ptr<LensGAGenomeMutation> &mutation);
+	LensGAStopCriterion(size_t maxGenerations,
+						const std::shared_ptr<LensGAGenomeMutation> &mutation);
 
 	errut::bool_t initialize(const LensFitnessObject &fitnessObject);
 	errut::bool_t analyze(const std::vector<std::shared_ptr<eatk::Individual>> &currentBest, size_t generationNumber, bool &shouldStop) override;
+protected:
+	virtual void onReport(const std::string &s)	const { }
 private:
 	void updateMutationAndConvergenceInfo();
 

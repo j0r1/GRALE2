@@ -7,12 +7,8 @@ In the :mod:`inversion` module, you can specify the inverter to use as
 a (case insensitive) string, or as an instance of the available inverter
 classes. Available are:
 
- - "SingleCore" or an instance of :class:`SingleProcessInverter`
- - "GDB" or and instance of :class:`SingleProcessGdbInverter` (for debugging code)
+ - "Threads"/"Threads:numthreads" or an instance of :class:`ThreadsInverter`
  - "MPI"/"MPI:numprocesses" or an instance of :class:`MPIProcessInverter`
- - "ClientServer" or an instance of :class:`ClientServerProcessInverter`
- - "LocalCS"/"LocalCS:numprocesses" or an instance of :class:`LocalCSProcessInverter`
- - "MPICS"/"MPICS:numprocesses" or an instance of :class:`MPICSProcessInverter`
 
 """
 from __future__ import print_function
@@ -389,13 +385,13 @@ def calculateFitness(moduleName, inputImages, zd, fitnessObjectParameters, lens 
 
     return (fitness, description)
 
-class NewGAProcessInverter(Inverter):
+class ThreadsInverter(Inverter):
 
-    def __init__(self, numThreads = 1, feedbackObject = None):
+    def __init__(self, numThreads = 0, feedbackObject = None):
 
         numThreads = _getNumHelpers(numThreads)
-        super(NewGAProcessInverter, self).__init__([ "grale_invert_newga" ],
-                                                     "New GA test process",
+        super(ThreadsInverter, self).__init__([ "grale_invert_newga" ],
+                                                     "Thread based inverter",
                                                      extraEnv = { "NUMTHREADS": str(numThreads) },
                                                      feedbackObject=feedbackObject)
 
@@ -415,7 +411,7 @@ def _createBoundUnixSocket(socketPath):
     s.listen(1)
     return s
 
-class MPINewGAProcessInverter(Inverter):
+class MPIProcessInverter(Inverter):
 
     def __init__(self, numProcesses = None, incomingConnectionTimeout = 10, feedbackObject = None):
 
@@ -428,8 +424,8 @@ class MPINewGAProcessInverter(Inverter):
         self.incomingConnectionTimeout = incomingConnectionTimeout
 
         npArgs = [ ] if numProcesses is None else [ "-np", str(numProcesses) ]
-        super(MPINewGAProcessInverter, self).__init__( [ "mpirun" ] + npArgs + [ "grale_invert_newgampi", self.socketPath ], 
-                                                  "New GA MPI inverter", feedbackObject=feedbackObject)
+        super(MPIProcessInverter, self).__init__( [ "mpirun" ] + npArgs + [ "grale_invert_newgampi", self.socketPath ], 
+                                                  "MPI inverter", feedbackObject=feedbackObject)
 
     def onStartedProcess(self, proc):
 
@@ -468,27 +464,28 @@ class SingleProcessInverter(Inverter):
         """Initializes an instance of this class; a specific :mod:`feedback <grale.feedback>`
         object can be specified for status updates."""
 
-        super(SingleProcessInverter, self).__init__([ "grale_invert_single" ], "Single process", feedbackObject=feedbackObject)
+        super(SingleProcessInverter, self).__init__([ "grale_invert_single" ], "Single process (deprecated)", feedbackObject=feedbackObject)
 
-class SingleProcessGdbInverter(Inverter):
-    """If this inverter is used, a single process, single core method is used
-    which is started using the debugger `GDB <https://www.gnu.org/software/gdb/>`_.
-    To be able to interact with GDB, it is started in an `xterm <https://en.wikipedia.org/wiki/Xterm>`_
-    process. This is meant to make debugging this multi-process architecure 
-    somewhat easier."""
-    def __init__(self, feedbackObject = None):
-        """Initializes an instance of this class; a specific :mod:`feedback <grale.feedback>`
-        object can be specified for status updates."""
-        self.pipePair = privutil.PipePair() # Keep it for the lifetime of this object
-        pp = self.pipePair
-        super(SingleProcessGdbInverter, self).__init__([ "xterm", "-e", 
-                                                         "gdb grale_invert_single -ex 'set args {} {}' ; echo sleeping 10 seconds; sleep 10".format(pp.wrFileName, pp.rdFileName),
-                                                         ], 
-                                                         "Single process GDB", feedbackObject=feedbackObject, 
-                                                         readDescriptor=pp.rdPipeDesc, 
-                                                         writeDescriptor=pp.wrPipeDesc)
+# TODO: make this work with new engine
+# class SingleProcessGdbInverter(Inverter):
+#     """If this inverter is used, a single process, single core method is used
+#     which is started using the debugger `GDB <https://www.gnu.org/software/gdb/>`_.
+#     To be able to interact with GDB, it is started in an `xterm <https://en.wikipedia.org/wiki/Xterm>`_
+#     process. This is meant to make debugging this multi-process architecure 
+#     somewhat easier."""
+#     def __init__(self, feedbackObject = None):
+#         """Initializes an instance of this class; a specific :mod:`feedback <grale.feedback>`
+#         object can be specified for status updates."""
+#         self.pipePair = privutil.PipePair() # Keep it for the lifetime of this object
+#         pp = self.pipePair
+#         super(SingleProcessGdbInverter, self).__init__([ "xterm", "-e", 
+#                                                          "gdb grale_invert_single -ex 'set args {} {}' ; echo sleeping 10 seconds; sleep 10".format(pp.wrFileName, pp.rdFileName),
+#                                                          ], 
+#                                                          "Single process GDB", feedbackObject=feedbackObject, 
+#                                                          readDescriptor=pp.rdPipeDesc, 
+#                                                          writeDescriptor=pp.wrPipeDesc)
 
-class MPIProcessInverter(Inverter):
+class OldMPIProcessInverter(Inverter):
     """If MPI is available for your platform, this inverter will use the MPI system
     to distribute the calculations over the available processes."""
 
@@ -503,8 +500,8 @@ class MPIProcessInverter(Inverter):
         pp = self.pipePair
 
         npArgs = [ ] if numProcesses is None else [ "-np", str(numProcesses) ]
-        super(MPIProcessInverter, self).__init__( [ "mpirun" ] + npArgs + [ "grale_invert_mpi", pp.wrFileName, pp.rdFileName ], 
-                                                  "MPI inverter", feedbackObject=feedbackObject, 
+        super(OldMPIProcessInverter, self).__init__( [ "mpirun" ] + npArgs + [ "grale_invert_mpi", pp.wrFileName, pp.rdFileName ], 
+                                                  "Old MPI inverter (deprecated)", feedbackObject=feedbackObject, 
                                                   readDescriptor = pp.rdPipeDesc, writeDescriptor = pp.wrPipeDesc)
 
 def _getNumHelpers(n):
@@ -513,126 +510,7 @@ def _getNumHelpers(n):
         return multiprocessing.cpu_count()
     return n
 
-class ClientServerProcessInverter(Inverter):
-    """This inverter will connect to a ``gaserver`` instance from the
-    `MOGAL <http://research.edm.uhasselt.be/jori/mogal/>`_ library, which should already
-    have several ``gahelper`` instances connected to it. The calculations
-    will be divided over the available helpers."""
-
-    def __init__(self, ipString = "127.0.0.1", portNumber = 9999, feedbackObject = None):
-        """Initializes an instance of this class, where you must specify the
-        IP address and port number at which the ``gaserver`` process can be
-        reached.  A specific :mod:`feedback <grale.feedback>`
-        object can be specified for status updates."""
-
-        super(ClientServerProcessInverter, self).__init__([ "grale_invert_clientserver", ipString, str(portNumber)],
-                                                          "Client-server (IP {}, port {})".format(ipString, portNumber),
-                                                          feedbackObject=feedbackObject)
-
-class MPICSProcessInverter(Inverter):
-    """This inverter will start an ``mpigaserver`` instance from
-    the `MOGAL <http://research.edm.uhasselt.be/jori/mogal/>`_ library, and
-    will connect to it. In turn the ``mpigaserver`` program will distribute 
-    the calculations using MPI."""
-
-    def __init__(self, numProcesses = None, feedbackObject = None, serverDebugLevel = 0, connectionDelay = 5):
-        """Initializes an instance of this class, optionally setting the number of
-        MPI processes to use explicitly to `numProcesses`. A specific :mod:`feedback <grale.feedback>`
-        object can be specified for status updates. The verbosity of the output of the
-        ``mpigaserver`` process can be controller using `serverDebugLevel`"""
-
-        self.proc = None
-
-        # Obtain a port number to use, let's hope it will still be valid in a few seconds
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.bind(('0.0.0.0', 0))
-        bindIp, serverPort = s.getsockname()
-        del s
-    
-        super(MPICSProcessInverter, self).__init__([ "grale_invert_clientserver", "127.0.0.1", str(serverPort) ],
-                                                   "MPI client-server", feedbackObject=feedbackObject)
-
-        # Get the module directory
-        from . import inversion
-        n = inversion._getModuleName("general")
-        moduleDir = inversion._getModuleDirectory(n)
-
-        npArgs = [ ] if numProcesses is None else [ "-np", str(numProcesses) ]
-
-        self.proc = subprocess.Popen(["mpirun" ] + npArgs + [ "mpigaserver", str(serverDebugLevel), str(serverPort), moduleDir ])
-        time.sleep(connectionDelay) # wait a short while before allowing client to connect
-
-    def destroy(self):
-        """Stops the ``mpigaserver`` program."""
-        if self.proc:
-            try:
-                privutil.terminateProcess(self.proc, feedbackObject = self.feedback)
-            except Exception as e:
-                print("Ignoring exception when terminating mpigaserver: " + str(e))
-
-    def __del__(self):
-        self.destroy()
-
-class LocalCSProcessInverter(Inverter):
-    """This inverter uses a similar approach as :class:`ClientServerProcessInverter`,
-    but also starts the ``gaserver`` process and a number of ``gahelper`` processes
-    itself, on the same host. This can also help to speed up calculations, by dividing
-    them over a number of processes on the same computer. It will not have the same
-    performance as MPI, but may still be better than using the 
-    :class:`single process <SingleProcessInverter>` approach, especially when the
-    calculations become more involved."""
-
-    def __init__(self, numProcesses = None, feedbackObject = None, serverHelperDebugLevel = 0, connectionDelay = 5):
-        """Initializes an instance of this class, optionally setting the number of
-        helper processes to use explicitly to `numProcesses`. A specific :mod:`feedback <grale.feedback>`
-        object can be specified for status updates. The verbosity of the output of the
-        ``gaserver`` process can be controller using `serverDebugLevel`"""
-
-        self.procs = [ ] # Do this eary, in case __del__ is called sooner than expected
-
-        numHelpers = _getNumHelpers(numProcesses)
-        if numHelpers < 1 or numHelpers > 256:
-            raise InverterException("The number of helper processes should be at least one, and at most 256")
-
-        # Obtain a port number to use, let's hope it will still be valid in a few seconds
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.bind(('0.0.0.0', 0))
-        bindIp, serverPort = s.getsockname()
-        del s
-
-        super(LocalCSProcessInverter, self).__init__([ "grale_invert_clientserver", "127.0.0.1", str(serverPort) ], 
-                                                      "Local client-server ({} helpers)".format(numHelpers),
-                                                      feedbackObject=feedbackObject)
-
-
-        from . import inversion
-        n = inversion._getModuleName("general")
-        moduleDir = inversion._getModuleDirectory(n)
-        
-        p = subprocess.Popen(["gaserver", str(serverHelperDebugLevel), str(serverPort), moduleDir ])
-        self.procs.append(p)
-        time.sleep(connectionDelay) # wait a short while before starting to connect the helpers
-
-        for i in range(numHelpers):
-            p = subprocess.Popen(["gahelper", str(serverHelperDebugLevel), "127.0.0.1", str(serverPort), moduleDir ])
-            self.procs.append(p)
-
-        time.sleep(0.5) # Wait a short while so that all helpers are completely detected
-    
-    def destroy(self):
-        """Stops the ``gaserver`` and ``gahelper`` programs."""
-        for proc in self.procs:
-            try:
-                privutil.terminateProcess(proc, feedbackObject = self.feedback)
-            except Exception as e:
-                print("Ignoring exception when terminating gaserver or gahelper: " + str(e))
-
-        self.procs = []
-
-    def __del__(self):
-        self.destroy()
-
-_defaultInverter = [ "singlecore" ]
+_defaultInverter = [ "threads" ]
 
 def getDefaultInverter():
     """Returns the default inverter to use when running the genetic algorithm
@@ -647,63 +525,41 @@ def createInverterFromString(inverter):
     """Creates on of the inverters based on the specified inverter name.
 
     Can be one of (case insensitive)
-    - "SingleCore"
-    - "GDB"
+    - "Threads"/"Threads:numthreads"
     - "MPI"/"MPI:numprocesses"
-    - "ClientServer"
-    - "LocalCS"/"LocalCS:numprocesses"
-    - "MPICS"/"MPICS:numprocesses"
 
     """
 
-    localCsNodesPrefix = "localcs:"
-    mpiNodesPrefix = "mpi:"
-    csMpiNodesPrefix = "mpics:"
-    newGAThreadsPrefix = "newga:"
-    newGAMPIPrefix = "mpinewga:"
+    mpiNodesPrefix = "oldmpi:"
+    newGAThreadsPrefix = "threads:"
+    newGAMPIPrefix = "mpi:"
 
-    if inverter.lower() == "newga":
-        return NewGAProcessInverter()
-
-    if inverter.lower() == "mpinewga":
-        return MPINewGAProcessInverter()
-
-    if inverter.lower() == "singlecore":
-        return SingleProcessInverter()
-
-    if inverter.lower() == "gdb":
-        return SingleProcessGdbInverter()
+    if inverter.lower() == "threads":
+        return ThreadsInverter()
 
     if inverter.lower() == "mpi":
         return MPIProcessInverter()
 
+    if inverter.lower() == "old":
+        return SingleProcessInverter()
+
+    # TODO: make this work with new engine
+    # if inverter.lower() == "gdb":
+    #     return SingleProcessGdbInverter()
+
+    if inverter.lower() == "oldmpi":
+        return OldMPIProcessInverter()
+
     if inverter.lower().startswith(newGAMPIPrefix):
         numNodes = int(inverter[len(newGAMPIPrefix):])
-        return MPINewGAProcessInverter(numNodes)
+        return MPIProcessInverter(numNodes)
 
     if inverter.lower().startswith(mpiNodesPrefix):
         numNodes = int(inverter[len(mpiNodesPrefix):])
-        return MPIProcessInverter(numNodes)
-
-    if inverter.lower() == "localcs":
-        return LocalCSProcessInverter()
+        return OldMPIProcessInverter(numNodes)
 
     if inverter.lower().startswith(newGAThreadsPrefix):
         numThreads = int(inverter[len(newGAThreadsPrefix):])
-        return NewGAProcessInverter(numThreads)
-
-    if inverter.lower().startswith(localCsNodesPrefix):
-        numNodes = int(inverter[len(localCsNodesPrefix):])
-        return LocalCSProcessInverter(numNodes)
-
-    if inverter.lower() == "mpics":
-        return MPICSProcessInverter()
-
-    if inverter.lower().startswith(csMpiNodesPrefix):
-        numNodes = int(inverter[len(csMpiNodesPrefix):])
-        return MPICSProcessInverter(numNodes)
-
-    if inverter.lower() == "clientserver":
-        return ClientServerProcessInverter()
+        return ThreadsInverter(numThreads)
 
     raise InverterException("The specified string '{}' cannot be interpreted as an inverter".format(inverter))

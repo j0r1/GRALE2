@@ -21,7 +21,7 @@ public:
 
 	~NewGACommunicatorThreads() { }
 protected:
-	string getVersionInfo() const override { return "MOGAL2 Thread based algorithm, " + to_string(m_numThreads) + " threads"; }
+	string getVersionInfo() const override { return "EATk Thread based algorithm, " + to_string(m_numThreads) + " threads"; }
 
 	bool_t getCalculator(const std::string &lensFitnessObjectType, const std::string &calculatorType,
 									grale::LensGACalculatorFactory &calcFactory, 

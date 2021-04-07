@@ -15,7 +15,7 @@ print(random.getstate())
 
 renderers.setDefaultLensPlaneRenderer("mpi") # threads, mpi, opencl, None or a Renderer object
 renderers.setDefaultMassRenderer("mpi") # threads, mpi, None, or a Renderer object
-inversion.setDefaultInverter("mpi") # singlecore, mpi, localcs, mpics, or an Inverter object
+inversion.setDefaultInverter("mpi") # threads, mpi, or an Inverter object
 
 plotutil.setDefaultAngularUnit(ANGLE_ARCSEC)
 

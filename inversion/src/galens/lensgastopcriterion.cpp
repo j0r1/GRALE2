@@ -10,14 +10,14 @@ using namespace errut;
 namespace grale
 {
 
-LensGAStropCriterion::LensGAStropCriterion(size_t maxGenerations,
+LensGAStopCriterion::LensGAStopCriterion(size_t maxGenerations,
 						const std::shared_ptr<LensGAGenomeMutation> &mutation)
 	: m_maxGenerations(maxGenerations), m_mutation(mutation)
 { 
 	m_numObjectives = 0; // means not initialized
 }
 
-bool_t LensGAStropCriterion::initialize(const LensFitnessObject &fitnessObject)
+bool_t LensGAStopCriterion::initialize(const LensFitnessObject &fitnessObject)
 {
 	if (m_numObjectives > 0)
 		return "Already initialized";
@@ -42,7 +42,7 @@ bool_t LensGAStropCriterion::initialize(const LensFitnessObject &fitnessObject)
 	return true;
 }
 
-void LensGAStropCriterion::updateMutationAndConvergenceInfo()
+void LensGAStopCriterion::updateMutationAndConvergenceInfo()
 {
 	float mutationSize = m_mutationSizes[m_convergenceFactorPos];
 	bool useAbsoluteMutation = (mutationSize < 0)?true:false;
@@ -54,12 +54,12 @@ void LensGAStropCriterion::updateMutationAndConvergenceInfo()
 	m_convergenceFactorPos++;
 
 	if (!useAbsoluteMutation)
-		cerr << "DEBUG: Setting small mutation with size " << to_string(mutationSize) << endl;
+		cout << "DEBUG: Setting small mutation with size " << to_string(mutationSize) << endl;
 	else
-		cerr << "DEBUG: Setting large mutations" << endl;
+		cout << "DEBUG: Setting large mutations" << endl;
 }
 
-bool_t LensGAStropCriterion::analyze(const std::vector<std::shared_ptr<eatk::Individual>> &currentBest, size_t generationNumber, bool &shouldStop)
+bool_t LensGAStopCriterion::analyze(const std::vector<std::shared_ptr<eatk::Individual>> &currentBest, size_t generationNumber, bool &shouldStop)
 {
 	if (m_numObjectives == 0)
 		return "Not initialized";
@@ -80,7 +80,7 @@ bool_t LensGAStropCriterion::analyze(const std::vector<std::shared_ptr<eatk::Ind
 	std::stringstream ss;
 	// Logging generation-1 for comparison with old code
 	ss << "Generation " << (generationNumber-1) << ": " << m_pFitnessHistory->getDebugInfo();
-	cerr << ss.str() << endl;
+	onReport(ss.str());
 
 	if (m_pFitnessHistory->isFinished())
 	{

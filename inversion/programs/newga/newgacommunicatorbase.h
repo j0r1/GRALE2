@@ -52,7 +52,6 @@ private:
     std::chrono::time_point<std::chrono::steady_clock> end;
 };
 
-
 class MyGA : public eatk::EvolutionaryAlgorithm
 {
 public:
@@ -157,6 +156,18 @@ private:
 	std::shared_ptr<eatk::FitnessComparison> m_cmp;
 };
 
+class Stop : public grale::LensGAStopCriterion
+{
+public:
+	Stop(size_t maxGenerations, const std::shared_ptr<grale::LensGAGenomeMutation> &mutation)
+		: grale::LensGAStopCriterion(maxGenerations, mutation) { }
+protected:
+	void onReport(const std::string &s)	const override
+	{
+		WriteLineStdout("GAMESSAGESTR:" + s);
+	}
+};
+
 // TODO: rename this, is from copy-paste
 class NewGACommunicatorBase : public InversionCommunicator
 {
@@ -241,7 +252,7 @@ protected:
 								factoryParamBytes, creation, calc)))
 			return "Can't get calculator: " + r.getErrorString();
 		
-		grale::LensGAStropCriterion stop(genomeCalculator->getMaximumNumberOfGenerations(), mutation);
+		Stop stop(genomeCalculator->getMaximumNumberOfGenerations(), mutation);
 		if (!(r = stop.initialize(genomeCalculator->getLensFitnessObject())))
 		{
 			calculatorCleanup();
