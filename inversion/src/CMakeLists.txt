@@ -33,21 +33,17 @@ set(HEADERS
 	galens/fitnesscomponent_weak.h
 	galens/fitnessutil.h
 	galens/inversionregistry.h
+	galens/lensgaindividual.h
+	galens/lensgagenomemutation.h
+	galens/lensgagenomecrossover.h
+	galens/lensgafitnesscomparison.h
+	galens/lensgasingleobjectivecrossover.h
+	galens/lensgastopcriterion.h
+	galens/lensgacrossoverbase.h
+	galens/lensgamultiobjectivecrossover.h
+	galens/lensgacalculatorregistry.h
+	galens/lensgagenomecalculator.h
 	)
-if (EATK_FOUND)
-	set(HEADERS ${HEADERS} 
-		galens/lensgaindividual.h
-		galens/lensgagenomemutation.h
-		galens/lensgagenomecrossover.h
-		galens/lensgafitnesscomparison.h
-		galens/lensgasingleobjectivecrossover.h
-		galens/lensgastopcriterion.h
-		galens/lensgacrossoverbase.h
-		galens/lensgamultiobjectivecrossover.h
-		galens/lensgacalculatorregistry.h
-		galens/lensgagenomecalculator.h
-		)
-endif()
 
 set(SOURCES
 	galens/backprojectmatrix.cpp
@@ -87,22 +83,17 @@ set(SOURCES
 
 	galens/inversionregistry.cpp
 	galens/lensfitnessobject_defaults.cpp
-	)
-
-if (EATK_FOUND)
-	set(SOURCES ${SOURCES} 
-		galens/lensgaindividual.cpp
-		galens/lensgagenomemutation.cpp
-		galens/lensgagenomecrossover.cpp
-		galens/lensgafitnesscomparison.cpp
-		galens/lensgasingleobjectivecrossover.cpp
-		galens/lensgastopcriterion.cpp
-		galens/lensgacrossoverbase.cpp
-		galens/lensgamultiobjectivecrossover.cpp
-		galens/lensgacalculatorregistry.cpp
-		galens/lensgaoldfactorywrapper.cpp
-	    )
-endif()
+	galens/lensgaindividual.cpp
+	galens/lensgagenomemutation.cpp
+	galens/lensgagenomecrossover.cpp
+	galens/lensgafitnesscomparison.cpp
+	galens/lensgasingleobjectivecrossover.cpp
+	galens/lensgastopcriterion.cpp
+	galens/lensgacrossoverbase.cpp
+	galens/lensgamultiobjectivecrossover.cpp
+	galens/lensgacalculatorregistry.cpp
+	galens/lensgaoldfactorywrapper.cpp
+    )
 
 if (MSVC)
 	set(CMAKE_DEBUG_POSTFIX _d)
