@@ -308,12 +308,12 @@ def _usageAndDefaultParamsHelper(moduleName, exeName, key):
 
 # TODO: this uses a more low level moduleName, should this be documented?
 def getInversionModuleUsage(moduleName):
-    usageBytes = _usageAndDefaultParamsHelper(moduleName, "grale_invert_usage", "USAGE")
+    usageBytes = _usageAndDefaultParamsHelper(moduleName, "grale_invert_usage_new", "USAGE")
     return usageBytes.decode()
 
 # TODO: this uses a more low level moduleName, should this be documented?
 def getInversionModuleDefaultConfigurationParameters(moduleName):
-    confBytes = _usageAndDefaultParamsHelper(moduleName, "grale_invert_confparamdefaults", "CONFPARAMDEFAULTS")
+    confBytes = _usageAndDefaultParamsHelper(moduleName, "grale_invert_confparamdefaults_new", "CONFPARAMDEFAULTS")
     if confBytes:
         return inversionparams.ConfigurationParameters.fromBytes(confBytes).asDict()
 
