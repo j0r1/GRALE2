@@ -7,6 +7,7 @@ import sipconfig
 from PyQt5 import QtCore
 import pprint
 import platform
+import glob
 
 prefix = None
 for a in sys.argv[1:]:
@@ -52,6 +53,7 @@ for x in [ "CXXFLAGS", "CFLAGS" ]:
 config.set_build_macros(macros)
 #pprint.pprint(config.build_macros())
 
+libSuffix = ""
 extraCppIncludes = [ ]
 extraLibraryDirs = [ ]
 extraSipIncludes = [ ]
@@ -65,6 +67,7 @@ if "CONDA_PREFIX" in os.environ:
     if platform.system() == "Windows":
         extraLibraryDirs.append(os.path.join(os.environ["CONDA_PREFIX"], "Library", "lib"))
         extraSipIncludes.append("-I" + os.path.join(os.environ["CONDA_PREFIX"], "sip", "PyQt5"))
+
     else:
         extraLibraryDirs.append(os.path.join(os.environ["CONDA_PREFIX"], "lib"))
         extraSipIncludes.append("-I" + os.path.join(os.environ["CONDA_PREFIX"], "share", "sip", "PyQt5"))
@@ -76,6 +79,18 @@ if "QT5LIBDIRS" in os.environ:
 if "QT5INCLUDES" in os.environ:
     extraCppIncludes += os.environ["QT5INCLUDES"].split(":")
 
+if "CONDA_PREFIX" in os.environ and platform.system() == "Windows":
+    # It appears that on windows, with conda-forge, eg qt5widgets_conda.lib is used
+    for l in extraLibraryDirs:
+        fl = glob.glob(os.path.join(l, "Qt5Widgets*.lib"))
+        if fl:
+            n = os.path.basename(fl[0])
+            libSuffix = n[10:-4]
+            break
+    else:
+        raise Exception("No library suffix could be detected")
+    print("Detected library suffix '{}'".format(libSuffix))
+
 sipFlags = QtCore.PYQT_CONFIGURATION["sip_flags"].split()
 print("Generating C++ code for PyQt5 bindings")
 subprocess.check_call([config.sip_bin, "-c", ".", "-b", build_file] + extraSipIncludes + sipFlags + [ "cppqt.sip"])
@@ -83,5 +98,5 @@ subprocess.check_call([config.sip_bin, "-c", ".", "-b", build_file] + extraSipIn
 makefile = sipconfig.SIPModuleMakefile(config, build_file)
 makefile.extra_include_dirs = extraCppIncludes
 makefile.extra_lib_dirs = extraLibraryDirs
-makefile.extra_libs = [ "Qt5Widgets", "Qt5Core", "Qt5Gui" ]
+makefile.extra_libs = [ "Qt5Widgets" + libSuffix, "Qt5Core" + libSuffix, "Qt5Gui" + libSuffix ]
 makefile.generate()

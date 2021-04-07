@@ -187,7 +187,7 @@ or
         sys.exit(-1)
 
     if not "NOCONDAINSTALL" in os.environ:
-        condaPacks = [ "ipython", "jupyter", "astropy", "sip", "pyqt", "cython", "numpy", "scipy", "matplotlib",
+        condaPacks = [ "ipython", "jupyter", "astropy", "pyqt5-sip", "pyqt", "cython", "numpy", "scipy", "matplotlib",
                        "shapely", "PyOpenGL", "ipywidgets", "cmake" ]
 
         if os.name != "nt":
