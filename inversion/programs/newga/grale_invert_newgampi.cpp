@@ -1,5 +1,6 @@
 #include <mpi.h>
 #include "newgacommunicatorbase.h"
+#include "inversionregistry.h"
 #include <eatk/mpieventdistributor.h>
 #include <eatk/mpipopulationfitnesscalculation.h>
 #include <eatk/singlethreadedpopulationfitnesscalculation.h>
@@ -148,6 +149,7 @@ int main(int argc, char *argv[])
 	MPI_Comm_size(MPI_COMM_WORLD, &worldSize);
 	MPI_Comm_rank(MPI_COMM_WORLD, &myRank);
 
+	grale::registerDefaultInversionComponents();
 	grale::LOG.init(argv[0]);
 	
 	if (myRank == 0)

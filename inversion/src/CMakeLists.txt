@@ -32,6 +32,7 @@ set(HEADERS
 	galens/fitnesscomponent_dens.h
 	galens/fitnesscomponent_weak.h
 	galens/fitnessutil.h
+	galens/inversionregistry.h
 	)
 if (EATK_FOUND)
 	set(HEADERS ${HEADERS} 
@@ -83,6 +84,9 @@ set(SOURCES
 	galens/fitnesscomponent_dens.cpp
 	galens/fitnesscomponent_caustic.cpp
 	galens/fitnesscomponent_defl.cpp	
+
+	galens/inversionregistry.cpp
+	galens/lensfitnessobject_defaults.cpp
 	)
 
 if (EATK_FOUND)

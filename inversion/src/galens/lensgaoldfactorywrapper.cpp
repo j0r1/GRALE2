@@ -133,19 +133,13 @@ public:
 	}
 };
 
-class CalculatorRegistrar
+void registerWrapperCalculators()
 {
-public:
-	CalculatorRegistrar()
-	{
-		LensGACalculatorRegistry::instance().registerCalculatorFactory("singleplanecpu",
-			make_unique<GeneralFactory<LensInversionGAFactorySinglePlaneCPU,LensInversionParametersSinglePlaneCPU,LensInversionGAFactoryParamsSinglePlaneCPU>>());
+	LensGACalculatorRegistry::instance().registerCalculatorFactory("singleplanecpu",
+		make_unique<GeneralFactory<LensInversionGAFactorySinglePlaneCPU,LensInversionParametersSinglePlaneCPU,LensInversionGAFactoryParamsSinglePlaneCPU>>());
 
-		LensGACalculatorRegistry::instance().registerCalculatorFactory("multiplanegpu",
-			make_unique<GeneralFactory<LensInversionGAFactoryMultiPlaneGPU,LensInversionParametersMultiPlaneGPU,LensInversionGAFactoryParamsMultiPlaneGPU>>());
-	}
-};
-
-CalculatorRegistrar calculatorRegistrar;
+	LensGACalculatorRegistry::instance().registerCalculatorFactory("multiplanegpu",
+		make_unique<GeneralFactory<LensInversionGAFactoryMultiPlaneGPU,LensInversionParametersMultiPlaneGPU,LensInversionGAFactoryParamsMultiPlaneGPU>>());
+}
 
 }

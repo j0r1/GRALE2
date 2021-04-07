@@ -24,6 +24,7 @@ LensGACalculatorRegistry &LensGACalculatorRegistry::instance()
 
 bool_t LensGACalculatorRegistry::registerCalculatorFactory(const std::string &name, unique_ptr<LensGACalculatorFactory> factory)
 {
+	cerr << "DEBUG: Registering " << name << endl;
 	if (!factory.get())
 		return "Attempting to register null as factory";
 

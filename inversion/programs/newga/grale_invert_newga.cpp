@@ -1,4 +1,6 @@
 #include "newgacommunicatorbase.h"
+#include "inversionregistry.h"
+
 #ifndef WIN32
 #include <fcntl.h>
 #include <unistd.h>
@@ -65,6 +67,8 @@ private:
 
 int main(int argc, char *argv[])
 {
+	grale::registerDefaultInversionComponents();
+
 	grale::LOG.init(argv[0]);
 #ifndef WIN32
 	// This was added to be able to launch instance in gdb, in which case
