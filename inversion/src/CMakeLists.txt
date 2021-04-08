@@ -14,8 +14,6 @@ set(HEADERS
 	galens/mpcudabackprojector.h
 	galens/lensinversiongafactorycommon.h
 	prob/randomnumbergenerator.h
-	prob/probabilitydistribution.h
-	prob/simpleuniformdistribution.h
 
 	galens/pointgroupstorage.h
 	galens/fitnesscomponent.h
@@ -55,7 +53,6 @@ set(SOURCES
 	galens/mpcudabackprojector.cpp
 	galens/lensinversiongafactorycommon.cpp
 	prob/randomnumbergenerator.cpp
-	prob/probabilitydistribution.cpp
 
 	galens/lensfitnessobject.cpp
 	galens/lensfitnessgeneral.cpp

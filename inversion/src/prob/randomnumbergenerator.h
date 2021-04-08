@@ -28,14 +28,14 @@
 #define GRALE_RANDOMNUMBERGENERATOR_H
 
 #include "graleconfig.h"
-#include <mogal/randomnumbergenerator.h>
+#include <stdint.h>
 #include <gsl/gsl_rng.h>
 #include <stdlib.h>
 
 namespace grale
 {
 
-class GRALE_IMPORTEXPORT RandomNumberGenerator : public mogal::RandomNumberGenerator
+class GRALE_IMPORTEXPORT RandomNumberGenerator
 {
 public:
 	RandomNumberGenerator();
@@ -43,6 +43,8 @@ public:
 	double pickRandomNumber() const;
 	uint32_t getSeed() const { return m_seed; }
 private:
+	static uint32_t pickSeed();
+
 	mutable gsl_rng *m_pRng;
 	uint32_t m_seed;
 };

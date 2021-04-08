@@ -29,6 +29,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <iostream>
+#include <random>
 
 #include "debugnew.h"
 
@@ -58,6 +59,14 @@ RandomNumberGenerator::~RandomNumberGenerator()
 double RandomNumberGenerator::pickRandomNumber() const
 {
 	return gsl_rng_uniform(m_pRng);
+}
+
+uint32_t RandomNumberGenerator::pickSeed()
+{
+	std::random_device rd;
+  uint32_t seed = rd();
+
+  return seed;
 }
 
 } // end namespace
