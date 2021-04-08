@@ -51,7 +51,7 @@ weakMassScale = 1e15*MASS_SUN
 
 sheetType = "nosheet"
 
-inversion.setDefaultInverter("mpi")
+inversion.setDefaultInverter("threads")
 
 weakRegSize = 30*ANGLE_ARCMIN 
 strongRegSize = 120*ANGLE_ARCSEC

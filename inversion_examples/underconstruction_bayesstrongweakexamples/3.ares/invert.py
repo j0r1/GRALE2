@@ -47,7 +47,7 @@ def getEllInfo():
     return imgDat
 
 sheetType = "genome"
-inversion.setDefaultInverter("mpi")
+inversion.setDefaultInverter("threads")
 
 def lineAnalyzer(line):
     x, y, src, img, z = map(float, line.split())

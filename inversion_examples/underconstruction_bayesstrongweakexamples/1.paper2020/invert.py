@@ -51,7 +51,7 @@ ellImg = getWeakData(partial = partialWL) if weakSubDiv else None
 
 sheetType = "nosheet" # or "genome"
 
-inversion.setDefaultInverter("mpi")
+inversion.setDefaultInverter("threads")
 
 iws = inversion.InversionWorkSpace(z_lens, strongSize)
 for i in images.readInputImagesFile("images.txt", True):

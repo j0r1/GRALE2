@@ -16,9 +16,9 @@ print(random.getstate())
 
 V = lambda x, y: np.array([x,y], dtype=np.double)
 
-renderers.setDefaultLensPlaneRenderer("mpi") # threads, mpi, opencl, None or a Renderer object
-renderers.setDefaultMassRenderer("mpi") # threads, mpi, None, or a Renderer object
-inversion.setDefaultInverter("mpi") # threads, mpi or an Inverter object
+renderers.setDefaultLensPlaneRenderer("threads") # threads, mpi, opencl, None or a Renderer object
+renderers.setDefaultMassRenderer("threads") # threads, mpi, None, or a Renderer object
+inversion.setDefaultInverter("threads") # threads, mpi or an Inverter object
 plotutil.setDefaultAngularUnit(ANGLE_ARCSEC)
 
 z_lens = 0.4

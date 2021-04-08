@@ -7,7 +7,7 @@
 from grale.all import *
 import random
 
-inversion.setDefaultInverter("mpi")
+inversion.setDefaultInverter("threads")
 
 # These are the lens parameters that were used in making the model
 cosm = cosmology.Cosmology(0.70, 0.27, 0, 0.73)
