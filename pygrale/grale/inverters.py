@@ -393,7 +393,7 @@ class ThreadsInverter(Inverter):
         numThreads = _getNumHelpers(numThreads)
         super(ThreadsInverter, self).__init__([ "grale_invert_newga" ],
                                                      "Thread based inverter",
-                                                     extraEnv = { "NUMTHREADS": str(numThreads) },
+                                                     extraEnv = { "GRALE_NUMTHREADS": str(numThreads) },
                                                      feedbackObject=feedbackObject)
 
 def _createRandomTmpPath(length = 16):
@@ -456,24 +456,25 @@ class MPIProcessInverter(Inverter):
         except Exception as e:
             pass
 
-# TODO: make this work with new engine
-# class SingleProcessGdbInverter(Inverter):
-#     """If this inverter is used, a single process, single core method is used
-#     which is started using the debugger `GDB <https://www.gnu.org/software/gdb/>`_.
-#     To be able to interact with GDB, it is started in an `xterm <https://en.wikipedia.org/wiki/Xterm>`_
-#     process. This is meant to make debugging this multi-process architecure 
-#     somewhat easier."""
-#     def __init__(self, feedbackObject = None):
-#         """Initializes an instance of this class; a specific :mod:`feedback <grale.feedback>`
-#         object can be specified for status updates."""
-#         self.pipePair = privutil.PipePair() # Keep it for the lifetime of this object
-#         pp = self.pipePair
-#         super(SingleProcessGdbInverter, self).__init__([ "xterm", "-e", 
-#                                                          "gdb grale_invert_single -ex 'set args {} {}' ; echo sleeping 10 seconds; sleep 10".format(pp.wrFileName, pp.rdFileName),
-#                                                          ], 
-#                                                          "Single process GDB", feedbackObject=feedbackObject, 
-#                                                          readDescriptor=pp.rdPipeDesc, 
-#                                                          writeDescriptor=pp.wrPipeDesc)
+# TODO: allow multiple threads as well?
+class SingleProcessGdbInverter(Inverter):
+    """If this inverter is used, a single process, single core method is used
+    which is started using the debugger `GDB <https://www.gnu.org/software/gdb/>`_.
+    To be able to interact with GDB, it is started in an `xterm <https://en.wikipedia.org/wiki/Xterm>`_
+    process. This is meant to make debugging this multi-process architecure 
+    somewhat easier."""
+    def __init__(self, feedbackObject = None):
+        """Initializes an instance of this class; a specific :mod:`feedback <grale.feedback>`
+        object can be specified for status updates."""
+        self.pipePair = privutil.PipePair() # Keep it for the lifetime of this object
+        pp = self.pipePair
+        super(SingleProcessGdbInverter, self).__init__([ "xterm", "-e", 
+                                                         "gdb grale_invert_newga -ex 'set args {} {}' ; echo sleeping 10 seconds; sleep 10".format(pp.wrFileName, pp.rdFileName),
+                                                         ], 
+                                                         "Single process GDB", feedbackObject=feedbackObject,
+                                                         extraEnv = { "GRALE_NUMTHREADS": "1" },
+                                                         readDescriptor=pp.rdPipeDesc, 
+                                                         writeDescriptor=pp.wrPipeDesc)
 
 def _getNumHelpers(n):
     if n is None or n < 1:
@@ -510,9 +511,8 @@ def createInverterFromString(inverter):
     if inverter.lower() == "mpi":
         return MPIProcessInverter()
 
-    # TODO: make this work with new engine
-    # if inverter.lower() == "gdb":
-    #     return SingleProcessGdbInverter()
+    if inverter.lower() == "gdb":
+        return SingleProcessGdbInverter()
 
     if inverter.lower().startswith(mpiPrefix):
         numNodes = int(inverter[len(mpiPrefix):])

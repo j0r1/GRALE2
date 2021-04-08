@@ -88,8 +88,8 @@ int main(int argc, char *argv[])
 #endif // WIN32
 
 	size_t numThreads = 1;
-	if (getenv("NUMTHREADS"))
-		numThreads = stoi(getenv("NUMTHREADS"));
+	if (getenv("GRALE_NUMTHREADS"))
+		numThreads = stoi(getenv("GRALE_NUMTHREADS"));
 
 	NewGACommunicatorThreads comm(numThreads);
 
