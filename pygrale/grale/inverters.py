@@ -100,7 +100,7 @@ class Inverter(object):
     def onStartedProcess(self, proc):
         pass
 
-    def invert(self, moduleName, populationSize, gaParams, lensInversionParameters, returnNds):
+    def invert(self, moduleName, calcType, populationSize, gaParams, lensInversionParameters, returnNds):
 
         errFile = tempfile.TemporaryFile("w+t") if not debugDirectStderr else None
         proc = None
@@ -136,7 +136,8 @@ class Inverter(object):
             self.version = line[len(invId):]
             self.onStatus("Version info: " + self.version)
 
-            io.writeLine("MODULE:{}".format(moduleName))
+            io.writeLine("FITNESSOBJECT:{}".format(moduleName))
+            io.writeLine("CALCULATOR:{}".format(calcType))
             io.writeLine("POPULATIONSIZE:{}".format(populationSize))
 
             if not gaParams:
@@ -251,7 +252,7 @@ class Inverter(object):
         except Exception as e:
             print("Warning: ignoring exception ({}) in onProgress".format(e))
 
-def _commonModuleCommunication(moduleName, exeName, callback, **callbackArgs):
+def _commonModuleCommunication(moduleName, calcType, exeName, callback, **callbackArgs):
 
     errFile = tempfile.TemporaryFile("w+t") if not debugDirectStderr else None
     try:
@@ -271,7 +272,8 @@ def _commonModuleCommunication(moduleName, exeName, callback, **callbackArgs):
 
         version = line[len(invId):]
 
-        io.writeLine("MODULE:" + moduleName)
+        io.writeLine("FITNESSOBJECT:" + moduleName)
+        io.writeLine("CALCULATOR:" + calcType)
 
         retVal = callback(io, **callbackArgs)
 
@@ -298,16 +300,16 @@ def _usageAndDefaultParamsHelper(moduleName, exeName, key):
 
         return retVal
 
-    retVal = _commonModuleCommunication(moduleName, exeName, f)
+    retVal = _commonModuleCommunication(moduleName, "(notused)", exeName, f)
 
     return retVal
 
-# TODO: this uses a more low level moduleName, should this be documented?
+# TODO: should this be documented?
 def getInversionModuleUsage(moduleName):
     usageBytes = _usageAndDefaultParamsHelper(moduleName, "grale_invert_usage_new", "USAGE")
     return usageBytes.decode()
 
-# TODO: this uses a more low level moduleName, should this be documented?
+# TODO: should this be documented?
 def getInversionModuleDefaultConfigurationParameters(moduleName):
     confBytes = _usageAndDefaultParamsHelper(moduleName, "grale_invert_confparamdefaults_new", "CONFPARAMDEFAULTS")
     if confBytes:
@@ -315,7 +317,6 @@ def getInversionModuleDefaultConfigurationParameters(moduleName):
 
     return None
 
-# TODO: this uses a more low level moduleName, should this be documented?
 # if lens is None and bpImages is None, only the fitness description is returned
 # if lens is set, it is used to backproject the images
 # if bpImages is set, they are assumed to be the backprojected images
@@ -381,7 +382,7 @@ def calculateFitness(moduleName, inputImages, zd, fitnessObjectParameters, lens 
 
         return fitness, description
 
-    fitness, description = _commonModuleCommunication(moduleName, "grale_invert_calcfitness_new", f)
+    fitness, description = _commonModuleCommunication(moduleName, "(notused)", "grale_invert_calcfitness_new", f)
 
     return (fitness, description)
 

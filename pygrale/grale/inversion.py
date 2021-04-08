@@ -3,10 +3,6 @@ most straightforward method is to use the class :class:`InversionWorkSpace`,
 which keeps track of the settings and provides an easier interface to
 the other functions. For absolute control however, the individual functions
 can still be used.
-
-This module will try do determine automatically where the inversion libraries
-to be used in the genetic algorithm are to be found. If the environment
-variable ``GRALE2_MODULEPATH`` is set, then this path will always be used.
 """
 from __future__ import print_function
 from . import constants as CT
@@ -85,56 +81,18 @@ def estimateStrongLensingMass(Dd, images, skipParamCheck = False):
     massEstimate /= count
     return massEstimate        
 
+# TODO: remove this
 def _getModuleName(n):
-    prefix = "libgalens_"
-    suffix = ".so"
-    s = platform.system()
-    if s == "Windows":
-        suffix = ".dll"
-        prefix = "galens_"
-    elif s == "Darwin":
-        suffix = ".dylib"
+    raise InversionException("Internal error: _getModuleName should no longer be used")
 
-    return prefix + n + suffix
-
+# TODO: remove this
 def _getModuleDirectory(n):
-    module = _getModuleName("general")
-    modKeyName = "GRALE2_MODULEPATH"
-    if modKeyName in os.environ:
-        return os.environ[modKeyName]
-
-    condaPrefKey = "CONDA_PREFIX"
-    if condaPrefKey in os.environ:
-        for s in [ "bin", "lib" ]:
-            p = os.path.join(os.environ[condaPrefKey], s)
-            n = os.path.join(p, module)
-            if os.path.exists(n):
-                os.environ[modKeyName] = p # Also set the environment variable
-                return p
-
-    # Check if we can find the modules in PATH, or lib dir based on path
-    if "PATH" in os.environ:
-        subDirs = [ None, [ "..", "lib" ], [ "..", "lib64" ] ]
-        for path in os.environ["PATH"].split(os.pathsep):
-            for s in subDirs:
-                if s is not None:
-                    p = os.path.join(path, *s)
-                else:
-                    p = path
-                            
-                n = os.path.join(p, module)
-                if os.path.exists(n):
-                    os.environ[modKeyName] = p # Also set the environment variable
-                    return p
-            
-    raise InversionException("Path with modules not found (GRALE2_MODULEPATH not set, and not detected in other directory)")
+    raise InversionException("Internal error: _getModuleDirectory should no longer be used")
 
 def getDefaultModuleParameters(moduleName = "general"):
     """For the specified module name, query the default parameters."""
 
-    n = _getModuleName(moduleName)
-    _getModuleDirectory(n) # So that GRALE2_MODULEPATH gets set
-    return inverters.getInversionModuleDefaultConfigurationParameters(n)
+    return inverters.getInversionModuleDefaultConfigurationParameters(moduleName)
 
 def getDefaultGeneticAlgorithmParameters():
     """Returns the default parameters for the genetic algorithm that's used in lens inversion."""
@@ -144,9 +102,7 @@ def getInversionModuleUsage(moduleName = "general"):
     """Returns a usage description that's provided by the specified genetic algorithm 
     module. The usage information for the ``general`` module can be viewed here: :ref:`usage <usage-module-general>`
     """
-    n = _getModuleName(moduleName)
-    _getModuleDirectory(n) # So that GRALE2_MODULEPATH gets set
-    return inverters.getInversionModuleUsage(n)
+    return inverters.getInversionModuleUsage(moduleName)
 
 def _mergeModuleParameters(fitnessObjectParameters, moduleName, cosmology):
     fullFitnessObjParams = getDefaultModuleParameters(moduleName)
@@ -183,9 +139,6 @@ def calculateFitness(inputImages, zd, fitnessObjectParameters, lensOrBackProject
        for which the positions have already been mapped onto the source plane.
      - `moduleName`: name of the inversion module for the genetic algorithm.
     """
-    n = _getModuleName(moduleName)
-    _getModuleDirectory(n) # So that GRALE2_MODULEPATH gets set
-
     # Merge fitnessObjectParameters with defaults
     fullFitnessObjParams = _mergeModuleParameters(fitnessObjectParameters, moduleName, cosmology)
 
@@ -202,9 +155,9 @@ def calculateFitness(inputImages, zd, fitnessObjectParameters, lensOrBackProject
     except:
         pass
 
-    return inverters.calculateFitness(n, inputImages, zd, fullFitnessObjParams, lens=lens, bpImages=bpImages)
+    return inverters.calculateFitness(moduleName, inputImages, zd, fullFitnessObjParams, lens=lens, bpImages=bpImages)
 
-def _invertCommon(inverter, feedbackObject, moduleName, fitnessObjectParameters,
+def _invertCommon(inverter, feedbackObject, moduleName, calcType, fitnessObjectParameters,
                   massScale, DdAndZd, inputImages, getParamsFunction,
                   popSize, geneticAlgorithmParameters, returnNds, cosmology):
 
@@ -212,11 +165,6 @@ def _invertCommon(inverter, feedbackObject, moduleName, fitnessObjectParameters,
     Dd, zd = DdAndZd if DdAndZd else (None, float("NaN"))
 
     inverter, feedbackObject = privutil.initInverterAndFeedback(inverter, feedbackObject)
-
-    n = _getModuleName(moduleName)
-    _getModuleDirectory(n) # So that GRALE2_MODULEPATH gets set
-    feedbackObject.onStatus("Full module name is: " + n)
-    feedbackObject.onStatus("Detected module path is: " + _getModuleDirectory(n))
 
     # Merge fitnessObjectParameters with defaults
     fullFitnessObjParams = _mergeModuleParameters(fitnessObjectParameters, moduleName, cosmology)
@@ -238,9 +186,9 @@ def _invertCommon(inverter, feedbackObject, moduleName, fitnessObjectParameters,
     #       is not yet integrated in mogal. Once it is, this should be removed
     # By setting the last parameter to None, no calculation is performed and only the
     # fitness components are returned.
-    dummyFitness, fitnessComponentDescription = inverters.calculateFitness(n, inputImages, zd, fullFitnessObjParams, None) 
+    dummyFitness, fitnessComponentDescription = inverters.calculateFitness(moduleName, inputImages, zd, fullFitnessObjParams, None) 
 
-    result = inverter.invert(n, popSize, geneticAlgorithmParameters, params, returnNds)
+    result = inverter.invert(moduleName, calcType, popSize, geneticAlgorithmParameters, params, returnNds)
 
     # TODO: this should be removed when the TODO above is fixed
     if not returnNds:
@@ -379,7 +327,7 @@ def invertMultiPlane(cosmology, inputImages, basisLensesAndRedshifts, popSize, m
                 fullFitnessObjParams, maximumGenerations, allowNegativeValues,
                 massScaleSearchType, deviceIndex)
 
-    return _invertCommon(inverter, feedbackObject, moduleName, fitnessObjectParameters,
+    return _invertCommon(inverter, feedbackObject, moduleName, "multiplanegpu", fitnessObjectParameters,
                   massScale, None, inputImages, getParamsFunction, popSize,
                   geneticAlgorithmParameters, returnNds, cosmology)
 
@@ -509,7 +457,7 @@ def invert(inputImages, basisFunctions, zd, Dd, popSize, moduleName = "general",
                                                          Dd, zd, massScale, allowNegativeValues, baseLens, 
                                                          sheetSearch, fullFitnessObjParams, massScaleSearchType)
 
-    return _invertCommon(inverter, feedbackObject, moduleName, fitnessObjectParameters,
+    return _invertCommon(inverter, feedbackObject, moduleName, "singleplanecpu", fitnessObjectParameters,
                   massScale, [Dd, zd], inputImages, getParamsFunction, popSize,
                   geneticAlgorithmParameters, returnNds, cosmology)
 

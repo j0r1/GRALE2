@@ -8,7 +8,6 @@
 #include "gaparameters.h"
 #include "lensinversiongafactorycommon.h"
 #include "lensinversiongenome.h"
-#include "galensmodule.h"
 #include "gravitationallens.h"
 #include "utils.h"
 #include "lensgaindividual.h"
@@ -16,8 +15,6 @@
 #include <serut/memoryserializer.h>
 #include <serut/vectorserializer.h>
 #include <serut/dummyserializer.h>
-#include <mogal/geneticalgorithm.h>
-#include <mogal/gamodule.h>
 #include <memory>
 #include <iostream>
 #include <string>
@@ -51,7 +48,7 @@ bool_t InversionCommunicator::readLineWithPrefix(const string &prefix, string &v
 		return "Error reading line with prefix '" + prefix + "': " + r.getErrorString();
 
 	if (!startsWith(line, prefix2))
-		return "The read line does not start with prefix " + prefix2;
+		return "The read line does not start with prefix " + prefix2 + " (" + line + ")";
 	value = line.substr(prefix2.length());
 	return true;
 }
@@ -98,21 +95,17 @@ bool_t InversionCommunicator::run()
 	if (!(r = WriteLineStdout("GAINVERTER:" + getVersionInfo())))
 		return "Unable to send identification: " + r.getErrorString();
 
-	string moduleFile;
-	if (!(r = readLineWithPrefix("MODULE", moduleFile, 60000)))
-		return "Error reading module name: " + r.getErrorString();
+	string lensFitnessObjectType;
+	if (!(r = readLineWithPrefix("FITNESSOBJECT", lensFitnessObjectType, 60000)))
+		return "Error reading fitnessObject name: " + r.getErrorString();
 
-	// TODO: get these from parameters
-	string lensFitnessObjectType = "general";
-	string calculatorType = "singleplanecpu";
+	string calculatorType;
+	if (!(r = readLineWithPrefix("CALCULATOR", calculatorType, 60000)))
+		return "Error reading calculator type: " + r.getErrorString();
 
 	unique_ptr<LensFitnessObject> fitObj = LensFitnessObjectRegistry::instance().createFitnessObject(lensFitnessObjectType);
 	if (!fitObj.get())
 		return "No fitness object with name '" + lensFitnessObjectType + "' is known";
-
-	// GALensModule module;
-	// if (!module.open(moduleDir, moduleFile))
-	// 	return "Unable to open " + moduleFile + " in directory " + moduleDir + ": " + module.getErrorString();
 
 	if (!(r = runModule(lensFitnessObjectType, move(fitObj), calculatorType)))
 		return r;
