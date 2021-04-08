@@ -4,7 +4,7 @@
 #include "lensfitnessobject.h"
 #include "imagesbackprojector.h"
 #include "precalculatedbackprojector.h"
-#include "lensinversiongafactoryparamssingleplanecpu.h"
+#include "lensinversionparameterssingleplanecpu.h"
 #include "gravitationallens.h"
 #include "imagesdataextended.h"
 #include "configurationparameters.h"
@@ -70,7 +70,7 @@ bool_t CalcFitnessCommunicator::runModule(const std::string &lensFitnessObjectTy
 	if (!(r = readLineAndBytesWithPrefix("GAFACTORYPARAMS", factoryParamBytes, 10000)))
 		return "Error reading GA factory parameters: " + r.getErrorString();
 
-	LensInversionGAFactoryParamsSinglePlaneCPU factoryParams;
+	LensInversionParametersSinglePlaneCPU factoryParams;
 	if (!(r = loadFromBytes(factoryParams, factoryParamBytes)))
 		return "Unable to load GA factory parameters from received data: " + r.getErrorString();
 

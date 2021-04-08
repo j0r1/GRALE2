@@ -18,7 +18,7 @@ between the C++ code and Python could be provided thanks to the
 
 The basic idea is to put things that only depend on [GSL](https://www.gnu.org/software/gsl/),
 [SerUt](https://github.com/j0r1/SerUt) and [ErrUt](https://github.com/j0r1/ErrUt) in the
-core library, and the things that need [MOGAL](https://github.com/j0r1/MOGAL), and possibly 
+core library, and the things that need [EATk](https://github.com/j0r1/EATk), and possibly 
 [MPI](https://en.wikipedia.org/wiki/Message_Passing_Interface) in the inversion
 library. The Python modules should only link against the core lib, thereby
 avoiding a possible dependency on MPI. Interaction with e.g. MPI will be done 
@@ -59,10 +59,7 @@ the libraries, for which you'll need a few dependencies:
    ([GitHub](https://github.com/j0r1/ErrUt) link)
  - Serialization utilities in [SerUt](https://research.edm.uhasselt.be/jori/serut)
    ([GitHub](https://github.com/j0r1/SerUt) link)
- - Platform independent network functions in [ENUt](https://research.edm.uhasselt.be/enut)
-   ([GitHub](https://github.com/j0r1/ENUt) link)
- - The multi-objective genetic algorithm library [MOGAL](https://research.edm.uhasselt.be/jori/mogal)
-   ([GitHub](https://github.com/j0r1/MOGAL) link)
+ - The evolutionary algorithm toolkit [EATk](https://github.com/j0r1/EATk)
  - [GSL](https://www.gnu.org/software/gsl/), the GNU Scientific Library
 
 Optionally, an MPI implementation can be very useful to speed up calculations; e.g.

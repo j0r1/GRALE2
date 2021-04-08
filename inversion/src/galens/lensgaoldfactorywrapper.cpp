@@ -2,7 +2,6 @@
 #include "lensgacalculatorregistry.h"
 #include "lensinversiongafactorysingleplanecpu.h"
 #include "lensinversiongafactorymultiplanegpu.h"
-#include "lensinversiongafactoryparamssingleplanecpu.h"
 #include "lensfitnessobject.h"
 #include "lensfitnessgeneral.h"
 #include "lensgacalculatorregistry.h"
@@ -43,7 +42,7 @@ private:
 	unique_ptr<LensFitnessObject> m_fitObj;
 };
 
-template<class T, class P1, class P2>
+template<class T, class P1>
 class GAFactoryWrapperLensGAGenomeCalculator: public LensGAGenomeCalculator
 {
 public:
@@ -58,11 +57,7 @@ public:
 		if (!params.write(ser))
 			return "Error serializing parameters: " + params.getErrorString();
 		
-		P2 gaParams;
-		if (!gaParams.read(ser))
-			return "Error re-reading parameters: " + gaParams.getErrorString();
-
-		if (!m_helperFactory->init(&gaParams))
+		if (!m_helperFactory->init(&params))
 			return "Can't init helper factory: " + m_helperFactory->getErrorString();
 
 		return true;
@@ -97,7 +92,7 @@ private:
 	unique_ptr<GAFactoryHelper<T>> m_helperFactory;
 };
 
-template<class T, class P1, class P2>
+template<class T, class P1>
 class GeneralFactory : public LensGACalculatorFactory
 {
 public:
@@ -109,7 +104,7 @@ public:
 	std::unique_ptr<LensGAGenomeCalculator> createCalculatorInstance(unique_ptr<LensFitnessObject> fitObj) override
 	{
 		auto helper = make_unique<GAFactoryHelper<T>>(move(fitObj));
-		auto wrapper = make_unique<GAFactoryWrapperLensGAGenomeCalculator<T,P1,P2>>(move(helper));
+		auto wrapper = make_unique<GAFactoryWrapperLensGAGenomeCalculator<T,P1>>(move(helper));
 		return wrapper;
 	}
 };
@@ -117,10 +112,10 @@ public:
 void registerWrapperCalculators()
 {
 	LensGACalculatorRegistry::instance().registerCalculatorFactory("singleplanecpu",
-		make_unique<GeneralFactory<LensInversionGAFactorySinglePlaneCPU,LensInversionParametersSinglePlaneCPU,LensInversionGAFactoryParamsSinglePlaneCPU>>());
+		make_unique<GeneralFactory<LensInversionGAFactorySinglePlaneCPU,LensInversionParametersSinglePlaneCPU>>());
 
 	LensGACalculatorRegistry::instance().registerCalculatorFactory("multiplanegpu",
-		make_unique<GeneralFactory<LensInversionGAFactoryMultiPlaneGPU,LensInversionParametersMultiPlaneGPU,LensInversionGAFactoryParamsMultiPlaneGPU>>());
+		make_unique<GeneralFactory<LensInversionGAFactoryMultiPlaneGPU,LensInversionParametersMultiPlaneGPU>>());
 }
 
 }

@@ -13,38 +13,12 @@
 namespace grale
 {
 
-class LensInversionGAFactoryParamsMultiPlaneGPU;
+class LensInversionParametersMultiPlaneGPU;
 class LensInversionGenome;
 class ImagesDataExtended;
 class GravitationalLens;
 class LensFitnessObject;
 class ConfigurationParameters;
-
-class LensInversionGAFactoryParamsMultiPlaneGPU : public mogal::GAFactoryParams
-{
-public:
-	LensInversionGAFactoryParamsMultiPlaneGPU();
-	LensInversionGAFactoryParamsMultiPlaneGPU(const LensInversionGAFactoryParamsMultiPlaneGPU &src);
-	LensInversionGAFactoryParamsMultiPlaneGPU(const LensInversionParametersMultiPlaneGPU &params);
-	~LensInversionGAFactoryParamsMultiPlaneGPU();
-
-	const Cosmology &getCosmology() const													{ return m_params.getCosmology(); }
-	const std::vector<double> &getLensRedshifts() const										{ return m_params.getLensRedshifts(); }
-	const std::vector<std::vector<std::shared_ptr<LensInversionBasisLensInfo>>> &getBasisLenses() const { return m_params.getBasisLenses(); }
-	const std::vector<std::shared_ptr<ImagesDataExtended>> &getSourceImages() const			{ return m_params.getSourceImages(); }
-	double getMassEstimate() const															{ return m_params.getMassEstimate(); }
-	bool useMassSheetBasisFunctions() const													{ return m_params.useMassSheetBasisFunctions(); }
-	const ConfigurationParameters *getFitnessObjectParameters() const						{ return m_params.getFitnessObjectParameters(); }
-	int getMaximumNumberOfGenerations() const												{ return m_params.getMaximumNumberOfGenerations(); }
-	bool getAllowNegativeWeights() const													{ return m_params.getAllowNegativeWeights(); }
-	const ScaleSearchParameters &getMassScaleSearchParameters() const			   		{ return m_params.getMassScaleSearchParameters(); }
-	int getDeviceIndex() const																{ return m_params.getDeviceIndex(); }
-
-	bool write(serut::SerializationInterface &si) const override;
-	bool read(serut::SerializationInterface &si) override;
-private:
-	LensInversionParametersMultiPlaneGPU m_params;
-};
 
 // NOTE: the virtual inheritance is again very important!
 class GRALE_IMPORTEXPORT LensInversionGAFactoryMultiPlaneGPU : public LensInversionGAFactoryCommon
@@ -53,7 +27,7 @@ public:
 	LensInversionGAFactoryMultiPlaneGPU();
 	~LensInversionGAFactoryMultiPlaneGPU();
 
-	bool init(const mogal::GAFactoryParams *p) override;
+	bool init(const LensInversionParametersBase *p) override;
 
 	GravitationalLens *createLens(const std::vector<float> &basisFunctionWeights,
 	                                      const std::vector<float> &sheetValues,
@@ -74,7 +48,7 @@ private:
 	bool scaleWeights(float scaleFactor);
 	bool checkCUDAInit();
 
-	std::unique_ptr<LensInversionGAFactoryParamsMultiPlaneGPU> m_currentParams;
+	std::unique_ptr<LensInversionParametersMultiPlaneGPU> m_currentParams;
 	std::shared_ptr<MPCUDABackProjector> m_cudaBpShort, m_cudaBpFull;
 
 	std::vector<float> m_lensRedshifts;

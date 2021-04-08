@@ -24,7 +24,7 @@
 */
 
 #include "lensinversiongafactorysingleplanecpu.h"
-#include "lensinversiongafactoryparamssingleplanecpu.h"
+#include "lensinversionparameterssingleplanecpu.h"
 #include "compositelens.h"
 #include "masssheetlens.h"
 #include "lensfitnessobject.h"
@@ -88,7 +88,7 @@ LensInversionGAFactorySinglePlaneCPU::~LensInversionGAFactorySinglePlaneCPU()
 	clear();
 }
 
-bool LensInversionGAFactorySinglePlaneCPU::init(const mogal::GAFactoryParams *p)
+bool LensInversionGAFactorySinglePlaneCPU::init(const LensInversionParametersBase *p)
 {
 	if (m_pCurrentParams.get() != 0)
 	{
@@ -102,7 +102,7 @@ bool LensInversionGAFactorySinglePlaneCPU::init(const mogal::GAFactoryParams *p)
 		return false;
 	}
 	
-	const LensInversionGAFactoryParamsSinglePlaneCPU *p2 = dynamic_cast<const LensInversionGAFactoryParamsSinglePlaneCPU *>(p);
+	const LensInversionParametersSinglePlaneCPU *p2 = dynamic_cast<const LensInversionParametersSinglePlaneCPU *>(p);
 	if (!p2)
 	{
 		setErrorString("Invalid type of GA factory parameters");

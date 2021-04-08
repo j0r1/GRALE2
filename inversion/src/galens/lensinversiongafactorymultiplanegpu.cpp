@@ -11,44 +11,6 @@ using namespace std;
 namespace grale
 {
 
-LensInversionGAFactoryParamsMultiPlaneGPU::LensInversionGAFactoryParamsMultiPlaneGPU()
-{
-}
-
-LensInversionGAFactoryParamsMultiPlaneGPU::LensInversionGAFactoryParamsMultiPlaneGPU(const LensInversionGAFactoryParamsMultiPlaneGPU &src)
-{
-	m_params = src.m_params;
-}
-
-LensInversionGAFactoryParamsMultiPlaneGPU::LensInversionGAFactoryParamsMultiPlaneGPU(const LensInversionParametersMultiPlaneGPU &params)
-{
-	m_params = params;
-}
-
-LensInversionGAFactoryParamsMultiPlaneGPU::~LensInversionGAFactoryParamsMultiPlaneGPU()
-{
-}
-
-bool LensInversionGAFactoryParamsMultiPlaneGPU::write(serut::SerializationInterface &si) const
-{
-	if (!m_params.write(si))
-	{
-		setErrorString(m_params.getErrorString());
-		return false;
-	}
-	return true;
-}
-
-bool LensInversionGAFactoryParamsMultiPlaneGPU::read(serut::SerializationInterface &si)
-{
-	if (!m_params.read(si))
-	{
-		setErrorString(m_params.getErrorString());
-		return false;
-	}
-	return true;
-}
-
 LensInversionGAFactoryMultiPlaneGPU::LensInversionGAFactoryMultiPlaneGPU()
 {
 
@@ -59,9 +21,9 @@ LensInversionGAFactoryMultiPlaneGPU::~LensInversionGAFactoryMultiPlaneGPU()
 
 }
 
-bool LensInversionGAFactoryMultiPlaneGPU::init(const mogal::GAFactoryParams *p)
+bool LensInversionGAFactoryMultiPlaneGPU::init(const LensInversionParametersBase *p)
 {
-	auto pParams = dynamic_cast<const LensInversionGAFactoryParamsMultiPlaneGPU *>(p);
+	auto pParams = dynamic_cast<const LensInversionParametersMultiPlaneGPU *>(p);
 	if (!pParams)
 	{
 		setErrorString("Specified parameters are not of the correct type");
@@ -120,7 +82,7 @@ bool LensInversionGAFactoryMultiPlaneGPU::init(const mogal::GAFactoryParams *p)
 						pParams->getMassScaleSearchParameters()))
 		return false;
 
-	m_currentParams = make_unique<LensInversionGAFactoryParamsMultiPlaneGPU>(*pParams);
+	m_currentParams = make_unique<LensInversionParametersMultiPlaneGPU>(*pParams);
 	return true;
 }
 
@@ -417,8 +379,7 @@ bool LensInversionGAFactoryMultiPlaneGPU::checkCUDAInit()
 	}
 	m_cudaInitAttempted = true;
 
-	//const LensInversionGAFactoryParamsMultiPlaneGPU *pParams = dynamic_cast<const LensInversionGAFactoryParamsMultiPlaneGPU *>(getCurrentParameters());
-	const LensInversionGAFactoryParamsMultiPlaneGPU *pParams = nullptr; // TODO: redo this
+	const LensInversionParametersMultiPlaneGPU *pParams = m_currentParams.get();
 	if (!pParams)
 	{
 		setErrorString("Unexpected: parameters is null, we should already have checked this");

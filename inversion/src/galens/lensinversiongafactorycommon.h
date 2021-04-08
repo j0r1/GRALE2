@@ -5,7 +5,6 @@
 #include "lensinversionparameterssingleplanecpu.h"
 #include "lensfitnessobject.h"
 #include "vector2d.h"
-#include <mogal/gafactorydefaults.h>
 #include <vector>
 #include <list>
 #include <memory>
@@ -15,7 +14,7 @@
 namespace grale
 {
 
-class LensInversionGAFactoryParamsSinglePlaneCPU;
+class LensInversionParametersBase;
 class ImagesDataExtended;
 class GravitationalLens;
 class LensFitnessObject;
@@ -23,13 +22,12 @@ class ConfigurationParameters;
 
 // NOTE: the virtual inheritance is again very important!
 class GRALE_IMPORTEXPORT LensInversionGAFactoryCommon : public errut::ErrorBase
-/* : public virtual mogal::GAFactory */
 {
 public:
 	LensInversionGAFactoryCommon();
 	~LensInversionGAFactoryCommon();
 
-	virtual bool init(const mogal::GAFactoryParams *p) = 0;
+	virtual bool init(const LensInversionParametersBase *p) = 0;
 
 	bool allowNegativeValues() const								{ return m_allowNegativeValues; }
 	bool useLogarithmicScaleSearch() const { return true; }
@@ -78,7 +76,6 @@ protected:
 							 const ScaleSearchParameters &searchParams);
 
 private:
-	void onCurrentBest(const std::list<mogal::Genome *> &bestGenomes);
 	void onGeneticAlgorithmStart();
 
 	RandomNumberGenerator m_rndGen;
@@ -95,7 +92,6 @@ private:
 	std::unique_ptr<LensFitnessObject> m_fitnessObject;
 
 	// To be able to debug the scale factor search
-	void onSortedPopulation(const std::vector<mogal::GenomeWrapper> &population);
 	std::fstream m_scaleSearchFileStream;
 	std::stringstream m_scaleSearchStringStream;
 	std::vector<std::pair<float,float>> m_searchedPoints;

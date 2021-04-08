@@ -142,16 +142,6 @@ void LensInversionGAFactoryCommon::onGeneticAlgorithmStart()
 	}
 }
 
-void LensInversionGAFactoryCommon::onCurrentBest(const list<mogal::Genome *> &bestGenomes)
-{
-	stringstream ss;
-	ss << "Current best:";
-	for (auto g : bestGenomes)
-		ss << "( " << g->getFitnessDescription() << ")";
-
-	sendMessage(ss.str());
-}
-
 static float LogTrans(float x) { return LN(x); }
 static float ExpTrans(float x) { return EXP(x); }
 static float IdentityTrans(float x) { return x; }
@@ -293,6 +283,8 @@ bool LensInversionGAFactoryCommon::calculateFitness(const vector<float> &basisFu
 	return true;
 }
 
+// TODO: make this available again
+/*
 void LensInversionGAFactoryCommon::onSortedPopulation(const std::vector<mogal::GenomeWrapper> &population)
 {
 	if (m_scaleSearchFileStream.is_open())
@@ -302,5 +294,6 @@ void LensInversionGAFactoryCommon::onSortedPopulation(const std::vector<mogal::G
 		m_scaleSearchFileStream << "]," << endl;
 	}
 }
+*/
 
 } // end namespace

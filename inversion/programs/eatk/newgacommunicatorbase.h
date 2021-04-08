@@ -3,7 +3,6 @@
 #include "log.h"
 #include "inputoutput.h"
 #include "gaparameters.h"
-#include "lensinversiongafactoryparamssingleplanecpu.h"
 #include "lensinversiongafactorycommon.h"
 #include "inversioncommunicatornewga.h"
 #include "gslrngwrapper.h"

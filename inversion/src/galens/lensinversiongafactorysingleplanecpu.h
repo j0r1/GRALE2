@@ -30,15 +30,13 @@
 #include "randomnumbergenerator.h"
 #include "backprojectmatrix.h"
 #include "vector2d.h"
-#include "lensinversiongafactoryparamssingleplanecpu.h"
+#include "lensinversionparameterssingleplanecpu.h"
 #include <vector>
 #include <memory>
 
 namespace grale
 {
 
-class LensInversionGAFactoryParamsSinglePlaneCPU;
-class LensInversionGenome;
 class ImagesDataExtended;
 class GravitationalLens;
 class LensFitnessObject;
@@ -50,7 +48,7 @@ public:
 	LensInversionGAFactorySinglePlaneCPU();
 	~LensInversionGAFactorySinglePlaneCPU();
 
-	bool init(const mogal::GAFactoryParams *p);
+	bool init(const LensInversionParametersBase *p);
 
 	GravitationalLens *createLens(const std::vector<float> &basisFunctionWeights,
 	                                      const std::vector<float> &sheetValues,
@@ -67,7 +65,7 @@ private:
 					  const GravitationalLens *pBaseLens, const GravitationalLens *pSheetLens, 
 					  const ConfigurationParameters *pFitnessObjectParams);
 
-	std::unique_ptr<LensInversionGAFactoryParamsSinglePlaneCPU> m_pCurrentParams;
+	std::unique_ptr<LensInversionParametersSinglePlaneCPU> m_pCurrentParams;
 
 	std::vector<std::pair<std::shared_ptr<GravitationalLens>, Vector2D<double> > > m_basisLenses;
 	std::shared_ptr<GravitationalLens> m_sheetLens;
