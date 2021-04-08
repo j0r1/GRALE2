@@ -455,17 +455,6 @@ class MPIProcessInverter(Inverter):
         except Exception as e:
             pass
 
-class SingleProcessInverter(Inverter):
-    """If this inverter is used, a single process, single core method is used. For
-    a very simple inversion problem this may still be the most performant though.
-    It is always available, irrespective of the platform you're working on."""
-
-    def __init__(self, feedbackObject = None):
-        """Initializes an instance of this class; a specific :mod:`feedback <grale.feedback>`
-        object can be specified for status updates."""
-
-        super(SingleProcessInverter, self).__init__([ "grale_invert_single" ], "Single process (deprecated)", feedbackObject=feedbackObject)
-
 # TODO: make this work with new engine
 # class SingleProcessGdbInverter(Inverter):
 #     """If this inverter is used, a single process, single core method is used
@@ -484,25 +473,6 @@ class SingleProcessInverter(Inverter):
 #                                                          "Single process GDB", feedbackObject=feedbackObject, 
 #                                                          readDescriptor=pp.rdPipeDesc, 
 #                                                          writeDescriptor=pp.wrPipeDesc)
-
-class OldMPIProcessInverter(Inverter):
-    """If MPI is available for your platform, this inverter will use the MPI system
-    to distribute the calculations over the available processes."""
-
-    def __init__(self, numProcesses = None, feedbackObject = None):
-        """Initializes an instance of this class, optionally setting the number of
-        MPI processes to use explicitly to `numProcesses`. A specific :mod:`feedback <grale.feedback>`
-        object can be specified for status updates."""
-
-        # Using stdin/stdout does not seem to work well for MPI (at least not openmpi),
-        # so we'll use a different set of pipes
-        self.pipePair = privutil.PipePair() # Keep it for the lifetime of this object
-        pp = self.pipePair
-
-        npArgs = [ ] if numProcesses is None else [ "-np", str(numProcesses) ]
-        super(OldMPIProcessInverter, self).__init__( [ "mpirun" ] + npArgs + [ "grale_invert_mpi", pp.wrFileName, pp.rdFileName ], 
-                                                  "Old MPI inverter (deprecated)", feedbackObject=feedbackObject, 
-                                                  readDescriptor = pp.rdPipeDesc, writeDescriptor = pp.wrPipeDesc)
 
 def _getNumHelpers(n):
     if n is None or n < 1:
@@ -530,9 +500,8 @@ def createInverterFromString(inverter):
 
     """
 
-    mpiNodesPrefix = "oldmpi:"
-    newGAThreadsPrefix = "threads:"
-    newGAMPIPrefix = "mpi:"
+    threadsPrefix = "threads:"
+    mpiPrefix = "mpi:"
 
     if inverter.lower() == "threads":
         return ThreadsInverter()
@@ -540,26 +509,16 @@ def createInverterFromString(inverter):
     if inverter.lower() == "mpi":
         return MPIProcessInverter()
 
-    if inverter.lower() == "old":
-        return SingleProcessInverter()
-
     # TODO: make this work with new engine
     # if inverter.lower() == "gdb":
     #     return SingleProcessGdbInverter()
 
-    if inverter.lower() == "oldmpi":
-        return OldMPIProcessInverter()
-
-    if inverter.lower().startswith(newGAMPIPrefix):
-        numNodes = int(inverter[len(newGAMPIPrefix):])
+    if inverter.lower().startswith(mpiPrefix):
+        numNodes = int(inverter[len(mpiPrefix):])
         return MPIProcessInverter(numNodes)
 
-    if inverter.lower().startswith(mpiNodesPrefix):
-        numNodes = int(inverter[len(mpiNodesPrefix):])
-        return OldMPIProcessInverter(numNodes)
-
-    if inverter.lower().startswith(newGAThreadsPrefix):
-        numThreads = int(inverter[len(newGAThreadsPrefix):])
+    if inverter.lower().startswith(threadsPrefix):
+        numThreads = int(inverter[len(threadsPrefix):])
         return ThreadsInverter(numThreads)
 
     raise InverterException("The specified string '{}' cannot be interpreted as an inverter".format(inverter))
