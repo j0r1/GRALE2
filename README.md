@@ -94,11 +94,3 @@ The following Python packages and programs will definitely be useful:
  - Triangulations are made using the [triangle](http://www.cs.cmu.edu/~quake/triangle.html)
    program, which allows one to create constrained triangulations.
 
-If you're also interested in performing lens inversions, you'll need to compile
-the inversion modules for the genetic algorithm as well. These are not compiled
-automatically, but are provided in the subdirectory `inversion_modules`, where
-the CMake build system can again be used to build them. You can either install
-them on your system, or set the `GRALE2_MODULEPATH` environment variable to inform
-the inversion scripts where to find them. This environment variable can also be
-used in case they are not automatically detected after installation.
-
