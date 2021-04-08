@@ -213,8 +213,10 @@ protected:
 								genomeCalculator->getNumberOfObjectives(),
 								std::make_shared<grale::LensGAFitnessComparison>());
 
-		std::shared_ptr<eatk::RandomNumberGenerator> rng = std::make_shared<GslRNGWrapper>();
+		std::shared_ptr<GslRNGWrapper> rng = std::make_shared<GslRNGWrapper>();
 		MyGA ga;
+
+		WriteLineStdout("GAMESSAGESTR:RNG SEED: " + std::to_string(rng->getSeed()));
 
 		auto mutation = std::make_shared<grale::LensGAGenomeMutation>(rng, 
 					   1.0, // chance multiplier; has always been set to one
@@ -268,9 +270,10 @@ protected:
 		calculatorCleanup();
 
 		m_best = cross->getBestIndividuals();
-		std::cout << "Best: " << std::endl;
-		for (auto &b: m_best)
-			std::cout << b->fitness()->toString() << std::endl;
+
+		// std::cout << "Best: " << std::endl;
+		// for (auto &b: m_best)
+		// 	std::cout << b->fitness()->toString() << std::endl;
 
 		return true;
 	}

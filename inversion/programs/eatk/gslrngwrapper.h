@@ -19,6 +19,7 @@ public:
 		exit(-1);
 		return 0;
 	}
+	uint32_t getSeed() const { return m_rng.getSeed(); }
 private:
 	grale::RandomNumberGenerator m_rng;
 };

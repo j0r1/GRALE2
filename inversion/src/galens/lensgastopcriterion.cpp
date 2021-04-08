@@ -15,6 +15,7 @@ LensGAStopCriterion::LensGAStopCriterion(size_t maxGenerations,
 	: m_maxGenerations(maxGenerations), m_mutation(mutation)
 { 
 	m_numObjectives = 0; // means not initialized
+	m_lastFitnessReportTime = chrono::steady_clock::now();
 }
 
 bool_t LensGAStopCriterion::initialize(const LensFitnessObject &fitnessObject)
@@ -94,6 +95,20 @@ bool_t LensGAStopCriterion::analyze(const std::vector<std::shared_ptr<eatk::Indi
 
 	if (generationNumber > m_maxGenerations)
 		shouldStop = true;
+
+	auto now = chrono::steady_clock::now();
+	// For similarity of the logs, in MOGAL a 10 second interval was used
+	if (shouldStop || chrono::duration_cast<chrono::milliseconds>(now - m_lastFitnessReportTime).count() > 10000)
+	{
+		m_lastFitnessReportTime = now;
+
+		// Report ND set		
+		stringstream ss;
+		ss << "Current best:";
+		for (auto &f : currentBest)
+			ss << "( " << f->fitness()->toString() << ")";
+		onReport(ss.str());
+	}
 
 	return true;
 }

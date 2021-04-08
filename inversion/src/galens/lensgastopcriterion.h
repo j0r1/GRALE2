@@ -4,6 +4,7 @@
 #include "lensgagenomemutation.h"
 #include "multifitnesshistory.h"
 #include <eatk/stopcriterion.h>
+#include <chrono>
 
 namespace grale
 {
@@ -30,6 +31,8 @@ private:
 	std::vector<double> m_mutationSizes;
 	std::unique_ptr<MultiFitnessHistory> m_pFitnessHistory;
 	int m_convergenceFactorPos;
+
+	std::chrono::time_point<std::chrono::steady_clock> m_lastFitnessReportTime;
 };
 
 }

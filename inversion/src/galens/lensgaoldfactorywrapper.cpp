@@ -26,7 +26,7 @@ public:
 	// Fr now, we're not going to create new one, just use the previously set one
 	LensFitnessObject *createFitnessObject() override
 	{
-		cout << "GAFactoryHelpen: createFitnessObject " << (void*)m_fitObj.get() << endl;
+		// cout << "GAFactoryHelper: createFitnessObject " << (void*)m_fitObj.get() << endl;
 		if (!m_fitObj.get())
 		{
 			setErrorString("LensFitnessObject was already retrieved");
