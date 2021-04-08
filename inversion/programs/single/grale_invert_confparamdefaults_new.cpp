@@ -1,7 +1,6 @@
 #include "inversionregistry.h"
 #include "inversioncommunicatornewga.h"
 #include "inputoutput.h"
-#include "galensmodule.h"
 #include "lensfitnessobject.h"
 #include "configurationparameters.h"
 #include <serut/memoryserializer.h>

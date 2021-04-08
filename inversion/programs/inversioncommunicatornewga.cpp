@@ -7,7 +7,6 @@
 #include "inputoutput.h"
 #include "gaparameters.h"
 #include "lensinversiongafactorycommon.h"
-#include "lensinversiongenome.h"
 #include "gravitationallens.h"
 #include "utils.h"
 #include "lensgaindividual.h"

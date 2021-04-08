@@ -6,7 +6,6 @@
 #include "lensfitnessobject.h"
 #include "lensfitnessgeneral.h"
 #include "lensgacalculatorregistry.h"
-#include <mogal/gafactorymultiobjective.h>
 #include <serut/vectorserializer.h>
 
 using namespace std;
@@ -16,7 +15,7 @@ namespace grale
 {
 
 template<class T>
-class GAFactoryHelper : public T, public mogal::GAFactoryMultiObjective
+class GAFactoryHelper : public T
 {
 public:
 	GAFactoryHelper(unique_ptr<LensFitnessObject> fitObj)
@@ -29,35 +28,17 @@ public:
 		// cout << "GAFactoryHelper: createFitnessObject " << (void*)m_fitObj.get() << endl;
 		if (!m_fitObj.get())
 		{
-			setErrorString("LensFitnessObject was already retrieved");
+			T::setErrorString("LensFitnessObject was already retrieved");
 			return nullptr;
 		}
 		auto obj = m_fitObj.release(); // The caller will take care of this
 		return obj;
 	}
 
-	bool subInit(LensFitnessObject *pFitnessObject)
-	{
-		int numFitness = pFitnessObject->getNumberOfFitnessComponents();
-		setNumberOfFitnessComponents(numFitness);
-		return true;
-	}
-
-	void onGeneticAlgorithmStep(int generation,  
-								bool *generationInfoChanged, bool *stopAlgorithm)
-	{
-		sendMessage("Should not be called");
-		*stopAlgorithm = true;
-	}
-
 	float getChanceMultiplier() { return 1.0f; }
 	bool useAbsoluteMutation() { return true; }
 	float getMutationAmplitude() { return 0.0f; }
 
-	mogal::Genome *selectPreferredGenome(const std::list<mogal::Genome *> &nonDominatedSet) const
-	{
-		return nullptr;
-	}
 private:
 	unique_ptr<LensFitnessObject> m_fitObj;
 };

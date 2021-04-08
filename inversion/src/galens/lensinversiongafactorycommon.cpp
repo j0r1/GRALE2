@@ -1,5 +1,4 @@
 #include "lensinversiongafactorycommon.h"
-#include "lensinversiongenome.h"
 #include "configurationparameters.h"
 #include "utils.h"
 #include <limits>
@@ -115,38 +114,18 @@ bool LensInversionGAFactoryCommon::initializeLensFitnessObject(double z_d,
 	reducedImagesVector.insert(reducedImagesVector.end(), reducedImages.begin(), reducedImages.end());
 	shortImagesVector.insert(shortImagesVector.end(), shortImages.begin(), shortImages.end());
 
-	// TODO: for now this has to be done in a subclass, as the actual factory
-	//       may have either a single objective GA as parent, or a multi-objective
-	//       one. The single objecive factory doesn't have the member function to
-	//       set the number of fitness components
-	//setNumberOfFitnessComponents(m_pFitnessObject->getNumberOfFitnessComponents());
-
-	// This should at least perform the setNumberOfFitnessComponents call
-	if (!subInit(m_fitnessObject.get()))
-		return false;
-
 	return true;
 }
 
 
 void LensInversionGAFactoryCommon::sendMessage(const std::string &s)
 {
-	if (getCurrentAlgorithm())
-		GAFactory::sendMessage(s);
-	else // queue for later
-	{
-		cerr << "Queue: " << s << endl;
-		m_queuedMessages.push_back(s);
-	}
+	cerr << "Queue: " << s << endl;
 }
 
 void LensInversionGAFactoryCommon::onGeneticAlgorithmStart()
 {
-	// Send the messages that were previously queued
-	for (auto &s : m_queuedMessages)
-		GAFactory::sendMessage(s);
-
-	m_queuedMessages.clear();
+	// TODO: move this to constructor
 
 	// To debug the mass scale search
 	string fileName;
@@ -154,102 +133,13 @@ void LensInversionGAFactoryCommon::onGeneticAlgorithmStart()
 	{
 		m_scaleSearchFileStream.open(fileName, ios_base::out);
 		if (!m_scaleSearchFileStream.is_open())
-			sendMessage("WARNING: couldn't open 'GRALE_DEBUG_MASSCALESEARCH' debug file '" + fileName + "'");
+			cerr << "WARNING: couldn't open 'GRALE_DEBUG_MASSCALESEARCH' debug file '" + fileName + "'" << endl;
 		else
 		{
 			m_scaleSearchFileStream.precision(10);
 			m_scaleSearchFileStream << "# " << m_massScaleSearchParams.toString() << endl;
 		}
 	}
-}
-
-mogal::Genome *LensInversionGAFactoryCommon::createNewGenome() const
-{
-	assert(m_numBasisFunctions > 0);
-	return new LensInversionGenome(const_cast<LensInversionGAFactoryCommon*>(this), m_numBasisFunctions, m_numSheetValues);
-}
-
-bool LensInversionGAFactoryCommon::writeGenome(serut::SerializationInterface &si, const mogal::Genome *g) const
-{
-	const LensInversionGenome *g2 = (const LensInversionGenome *)g;
-
-	if (!si.writeFloats(g2->getBasisFunctionWeights()))
-	{
-		setErrorString(si.getErrorString());
-		return false;
-	}
-	if (!si.writeFloats(g2->getSheetValues()))
-	{
-		setErrorString(si.getErrorString());
-		return false;
-	}
-	return true;
-}
-
-bool LensInversionGAFactoryCommon::readGenome(serut::SerializationInterface &si, mogal::Genome **g) const
-{
-	assert(m_numBasisFunctions > 0);
-	std::vector<float> basisFunctionWeights(m_numBasisFunctions);
-	std::vector<float> sheetValues(m_numSheetValues);
-
-	if (!si.readFloats(basisFunctionWeights))
-	{
-		setErrorString(si.getErrorString());
-		return false;
-	}
-	if (!si.readFloats(sheetValues))
-	{
-		setErrorString(si.getErrorString());
-		return false;
-	}
-	// This moves weights and sheetValues
-	*g = new LensInversionGenome(const_cast<LensInversionGAFactoryCommon*>(this), basisFunctionWeights, sheetValues);
-	return true;
-}
-
-bool LensInversionGAFactoryCommon::writeGenomeFitness(serut::SerializationInterface &si, const mogal::Genome *g) const
-{
-	const LensInversionGenome *g2 = (const LensInversionGenome *)g;
-	int num = getNumberOfFitnessComponents();
-	const float *f = g2->getFitnessValues();
-
-	if (!si.writeFloats(f, num))
-	{
-		setErrorString(si.getErrorString());
-		return false;
-	}
-	if (!si.writeFloat(g2->getScaleFactor()))
-	{
-		setErrorString(si.getErrorString());
-		return false;
-	}
-	return true;
-}
-
-bool LensInversionGAFactoryCommon::readGenomeFitness(serut::SerializationInterface &si, mogal::Genome *g) const
-{
-	LensInversionGenome *g2 = (LensInversionGenome *)g;
-	int num = getNumberOfFitnessComponents();
-	float x[GRIDLENSINVERSIONGENOMEBASE_MAXFITNESSCOMP+1];
-
-	if (!si.readFloats(x, num+1))
-	{
-		setErrorString(si.getErrorString());
-		return false;
-	}
-	g2->setFitnessValues(x);
-	g2->setScaleFactor(x[num]);
-	return true;
-}
-
-bool LensInversionGAFactoryCommon::writeCommonGenerationInfo(serut::SerializationInterface &si) const
-{
-	return true;
-}
-
-bool LensInversionGAFactoryCommon::readCommonGenerationInfo(serut::SerializationInterface &si)
-{
-	return true;
 }
 
 void LensInversionGAFactoryCommon::onCurrentBest(const list<mogal::Genome *> &bestGenomes)

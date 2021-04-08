@@ -44,19 +44,14 @@ class GravitationalLens;
 class LensFitnessObject;
 class ConfigurationParameters;
 
-// NOTE: the virtual inheritance is again very important!
-class GRALE_IMPORTEXPORT LensInversionGAFactorySinglePlaneCPU : public virtual LensInversionGAFactoryCommon
+class GRALE_IMPORTEXPORT LensInversionGAFactorySinglePlaneCPU : public LensInversionGAFactoryCommon
 {
 public:
 	LensInversionGAFactorySinglePlaneCPU();
 	~LensInversionGAFactorySinglePlaneCPU();
 
-	mogal::GAFactoryParams *createParamsInstance() const;
-	const mogal::GAFactoryParams *getCurrentParameters() const;
-
 	bool init(const mogal::GAFactoryParams *p);
 
-	GravitationalLens *createLens(const LensInversionGenome &genome, std::string &errStr) const override;
 	GravitationalLens *createLens(const std::vector<float> &basisFunctionWeights,
 	                                      const std::vector<float> &sheetValues,
 										  float scaleFactor,

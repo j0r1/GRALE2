@@ -14,10 +14,8 @@
 #include "lensgafitnesscomparison.h"
 #include "lensgasingleobjectivecrossover.h"
 #include "lensgamultiobjectivecrossover.h"
-#include "galensmodule.h"
 #include "lensgastopcriterion.h"
 #include <serut/memoryserializer.h>
-#include <mogal/geneticalgorithm.h>
 #include <eatk/evolutionaryalgorithm.h>
 #include <eatk/singlethreadedpopulationfitnesscalculation.h>
 #include <eatk/multithreadedpopulationfitnesscalculation.h>

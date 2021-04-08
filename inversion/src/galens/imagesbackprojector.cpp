@@ -32,10 +32,6 @@
 #include <serut/dummyserializer.h>
 #include <serut/memoryserializer.h>
 #include <limits>
-
-#define NOMINMAX
-#include "galensmodule.h" // includes windows.h, causes problems with std::min and std::max
-
 #include <iostream>
 
 #include "debugnew.h"

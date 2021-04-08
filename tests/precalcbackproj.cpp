@@ -1,3 +1,5 @@
+#include "inversionregistry.h"
+#include "lensfitnessobject.h"
 #include "backprojectmatrix.h"
 #include "imagesbackprojector.h"
 #include "precalculatedbackprojector.h"
@@ -8,7 +10,6 @@
 #include "imagesdataextended.h"
 #include "compositelens.h"
 #include "masssheetlens.h"
-#include "galensmodule.h"
 #include "lensfitnessobject.h"
 #include "lensinversionparameterssingleplanecpu.h"
 #include <vector>
@@ -52,6 +53,8 @@ void process(int N, const float *v1, double s1, const float *v2, double s2, doub
 
 int main(int argc, char *argv[])
 {
+	registerDefaultInversionComponents();
+
 	RandomNumberGenerator rng;
 	DeflectionMatrix matrix;
 	vector<ImagesDataExtended *> images;
@@ -227,14 +230,7 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 
-	GALensModule module;
-	if (!module.open("", argv[1]))
-	{
-		cerr << "Unable to open module " << argv[1] << ":" << module.getErrorString() << endl;
-		return -1;
-	}
-
-	LensFitnessObject *pLFO = module.createFitnessObject();
+	unique_ptr<LensFitnessObject> pLFO = LensFitnessObjectRegistry::instance().createFitnessObject(argv[1]);
 	ConfigurationParameters *pConfParams = pLFO->getDefaultParametersInstance();
 
 	list<ImagesDataExtended *> imagesList;

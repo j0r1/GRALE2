@@ -25,7 +25,6 @@
 
 #include "lensinversiongafactorysingleplanecpu.h"
 #include "lensinversiongafactoryparamssingleplanecpu.h"
-#include "lensinversiongenome.h"
 #include "compositelens.h"
 #include "masssheetlens.h"
 #include "lensfitnessobject.h"
@@ -87,16 +86,6 @@ void LensInversionGAFactorySinglePlaneCPU::clear()
 LensInversionGAFactorySinglePlaneCPU::~LensInversionGAFactorySinglePlaneCPU()
 {
 	clear();
-}
-
-mogal::GAFactoryParams *LensInversionGAFactorySinglePlaneCPU::createParamsInstance() const
-{
-	return new LensInversionGAFactoryParamsSinglePlaneCPU();
-}
-
-const mogal::GAFactoryParams *LensInversionGAFactorySinglePlaneCPU::getCurrentParameters() const
-{
-	return m_pCurrentParams.get();
 }
 
 bool LensInversionGAFactorySinglePlaneCPU::init(const mogal::GAFactoryParams *p)
@@ -215,13 +204,6 @@ GravitationalLens *LensInversionGAFactorySinglePlaneCPU::createLens(const std::v
 
 	// Note that this lens does not include any base lens that might be set
 	return pLens;
-}
-
-
-GravitationalLens *LensInversionGAFactorySinglePlaneCPU::createLens(const LensInversionGenome &genome,
-                                                              std::string &errStr) const
-{
-	return createLens(genome.getBasisFunctionWeights(), genome.getSheetValues(), genome.getScaleFactor(), errStr);
 }
 
 // This is some very old code, haven't used this for a long time. I'm just leaving this

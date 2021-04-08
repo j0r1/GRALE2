@@ -59,16 +59,6 @@ LensInversionGAFactoryMultiPlaneGPU::~LensInversionGAFactoryMultiPlaneGPU()
 
 }
 
-mogal::GAFactoryParams *LensInversionGAFactoryMultiPlaneGPU::createParamsInstance() const
-{
-	return new LensInversionGAFactoryParamsMultiPlaneGPU();
-}
-
-const mogal::GAFactoryParams *LensInversionGAFactoryMultiPlaneGPU::getCurrentParameters() const
-{
-	return m_currentParams.get();
-}
-
 bool LensInversionGAFactoryMultiPlaneGPU::init(const mogal::GAFactoryParams *p)
 {
 	auto pParams = dynamic_cast<const LensInversionGAFactoryParamsMultiPlaneGPU *>(p);
@@ -322,11 +312,6 @@ GravitationalLens *LensInversionGAFactoryMultiPlaneGPU::createLens(const std::ve
 	return containerLens.release();
 }
 
-GravitationalLens *LensInversionGAFactoryMultiPlaneGPU::createLens(const LensInversionGenome &genome, std::string &errStr) const
-{
-	return createLens(genome.getBasisFunctionWeights(), genome.getSheetValues(), genome.getScaleFactor(), errStr);
-}
-
 void LensInversionGAFactoryMultiPlaneGPU::convertGenomeSheetValuesToDensities(const vector<float> &sheetValues,
 																			  vector<float> &sheetDensities) const
 {
@@ -432,7 +417,8 @@ bool LensInversionGAFactoryMultiPlaneGPU::checkCUDAInit()
 	}
 	m_cudaInitAttempted = true;
 
-	const LensInversionGAFactoryParamsMultiPlaneGPU *pParams = dynamic_cast<const LensInversionGAFactoryParamsMultiPlaneGPU *>(getCurrentParameters());
+	//const LensInversionGAFactoryParamsMultiPlaneGPU *pParams = dynamic_cast<const LensInversionGAFactoryParamsMultiPlaneGPU *>(getCurrentParameters());
+	const LensInversionGAFactoryParamsMultiPlaneGPU *pParams = nullptr; // TODO: redo this
 	if (!pParams)
 	{
 		setErrorString("Unexpected: parameters is null, we should already have checked this");

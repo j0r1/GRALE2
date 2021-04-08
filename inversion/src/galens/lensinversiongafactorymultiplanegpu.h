@@ -47,18 +47,14 @@ private:
 };
 
 // NOTE: the virtual inheritance is again very important!
-class GRALE_IMPORTEXPORT LensInversionGAFactoryMultiPlaneGPU : public virtual LensInversionGAFactoryCommon
+class GRALE_IMPORTEXPORT LensInversionGAFactoryMultiPlaneGPU : public LensInversionGAFactoryCommon
 {
 public:
 	LensInversionGAFactoryMultiPlaneGPU();
 	~LensInversionGAFactoryMultiPlaneGPU();
 
-	mogal::GAFactoryParams *createParamsInstance() const override;
-	const mogal::GAFactoryParams *getCurrentParameters() const override;
-
 	bool init(const mogal::GAFactoryParams *p) override;
 
-	GravitationalLens *createLens(const LensInversionGenome &genome, std::string &errStr) const override;
 	GravitationalLens *createLens(const std::vector<float> &basisFunctionWeights,
 	                                      const std::vector<float> &sheetValues,
 										  float scaleFactor,

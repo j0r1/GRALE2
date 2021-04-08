@@ -3,7 +3,6 @@
 #include "graleconfig.h"
 #include "randomnumbergenerator.h"
 #include "lensinversionparameterssingleplanecpu.h"
-#include "lensinversiongenome.h"
 #include "lensfitnessobject.h"
 #include "vector2d.h"
 #include <mogal/gafactorydefaults.h>
@@ -23,27 +22,15 @@ class LensFitnessObject;
 class ConfigurationParameters;
 
 // NOTE: the virtual inheritance is again very important!
-class GRALE_IMPORTEXPORT LensInversionGAFactoryCommon : public virtual mogal::GAFactory
+class GRALE_IMPORTEXPORT LensInversionGAFactoryCommon : public errut::ErrorBase
+/* : public virtual mogal::GAFactory */
 {
 public:
 	LensInversionGAFactoryCommon();
 	~LensInversionGAFactoryCommon();
 
-	mogal::Genome *createNewGenome() const;
+	virtual bool init(const mogal::GAFactoryParams *p) = 0;
 
-	size_t getMaximalFitnessSize() const							{ return sizeof(float)*(1+GRIDLENSINVERSIONGENOMEBASE_MAXFITNESSCOMP); }
-	size_t getMaximalGenomeSize() const								{ return (m_numBasisFunctions+m_numSheetValues)*sizeof(float); }
-
-	bool writeGenome(serut::SerializationInterface &si, const mogal::Genome *g) const;
-	bool readGenome(serut::SerializationInterface &si, mogal::Genome **g) const;
-	bool writeGenomeFitness(serut::SerializationInterface &si, const mogal::Genome *g) const;
-	bool readGenomeFitness(serut::SerializationInterface &si, mogal::Genome *g) const;
-	bool writeCommonGenerationInfo(serut::SerializationInterface &si) const;
-	bool readCommonGenerationInfo(serut::SerializationInterface &si);
-
-	bool hasFloatingPointFitnessValues() const 						{ return true; }
-
-	const mogal::RandomNumberGenerator *getRandomNumberGenerator() const { return &m_rndGen; }
 	bool allowNegativeValues() const								{ return m_allowNegativeValues; }
 	bool useLogarithmicScaleSearch() const { return true; }
 
@@ -52,7 +39,6 @@ public:
 	virtual float getMutationAmplitude() = 0;
 
 	// TODO: vector<shared_prt<GravitationalLens>>, createLenses
-	virtual GravitationalLens *createLens(const LensInversionGenome &genome, std::string &errStr) const = 0;
 	virtual GravitationalLens *createLens(const std::vector<float> &basisFunctionWeights,
 	                                      const std::vector<float> &sheetValues,
 										  float scaleFactor,
@@ -75,10 +61,9 @@ public:
 	LensFitnessObject &getFitnessObject() { return *(m_fitnessObject.get()); }
 	int getMaximumNumberOfGenerations() const						{ return m_maxGenerations; }
 
+	size_t getNumberOfFitnessComponents() { return getFitnessObject().getNumberOfFitnessComponents(); }
 protected:
 	virtual LensFitnessObject *createFitnessObject() = 0; // implemented in module
-	// This should at least set the number of fitness components
-	virtual bool subInit(LensFitnessObject *pFitnessObject) = 0;
 
 	bool initializeLensFitnessObject(double z_d,
 		const std::vector<std::shared_ptr<ImagesDataExtended>> &images,
@@ -93,8 +78,8 @@ protected:
 							 const ScaleSearchParameters &searchParams);
 
 private:
-	void onCurrentBest(const std::list<mogal::Genome *> &bestGenomes) override;
-	void onGeneticAlgorithmStart() override;
+	void onCurrentBest(const std::list<mogal::Genome *> &bestGenomes);
+	void onGeneticAlgorithmStart();
 
 	RandomNumberGenerator m_rndGen;
 	int m_numBasisFunctions, m_numSheetValues, m_maxGenerations;
@@ -110,7 +95,7 @@ private:
 	std::unique_ptr<LensFitnessObject> m_fitnessObject;
 
 	// To be able to debug the scale factor search
-	void onSortedPopulation(const std::vector<mogal::GenomeWrapper> &population) override;
+	void onSortedPopulation(const std::vector<mogal::GenomeWrapper> &population);
 	std::fstream m_scaleSearchFileStream;
 	std::stringstream m_scaleSearchStringStream;
 	std::vector<std::pair<float,float>> m_searchedPoints;
