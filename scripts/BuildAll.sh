@@ -119,7 +119,7 @@ fi
 SITEPACKAGES=`echo "$PREFIX"/lib/python*/site-packages/`
 echo "SITEPACKAGES=$SITEPACKAGES"
 
-for p in ErrUt SerUt ENUt MOGAL EATk GRALE2 ; do
+for p in ErrUt SerUt EATk GRALE2 ; do
 	cd "$PREFIX/src"
 	if ! [ -e $p ] ; then
 		echo "Cloning $p"
