@@ -272,15 +272,7 @@ and re-run this script.
         else:
             configureAndInstall()
 
-    print("Building inversion modules")
-    os.chdir(os.path.join("..", "inversion_modules"))
-    if not os.path.exists("build"):
-        os.mkdir("build")
-    os.chdir("build")
-
-    configureAndInstall()
-
-    os.chdir(os.path.join("..", "..", "pygrale"))
+    os.chdir(os.path.join("..", "pygrale"))
     subprocess.check_call(["python", "setup.py", "build", "install"])
 
 if __name__ == "__main__":

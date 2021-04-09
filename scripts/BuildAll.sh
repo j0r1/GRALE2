@@ -145,16 +145,6 @@ for p in ErrUt SerUt ENUt MOGAL EATk GRALE2 ; do
 	make install
 done
 
-echo "Building inversion modules"
-cd "$PREFIX/src/GRALE2/inversion_modules"
-if ! [ -e "build" ] ; then
-	mkdir build
-fi
-cd build
-cmake .. -DCMAKE_BUILD_TYPE=release -DCMAKE_INSTALL_PREFIX="$PREFIX" -DCMAKE_FIND_ROOT_PATH="$PREFIX" -DCMAKE_INSTALL_RPATH="$PREFIX/lib" -DLIBRARY_INSTALL_DIR="$PREFIX/lib" $CMAKE_EXTRA_OPTS
-make -j $NUMCORES
-make install
-
 BUILDPYQT="no"
 if [ -z "$NOQT" ] ; then
 	PYVER=`python --version 2>&1|cut -f 2 -d " "|cut -f 1 -d .`
