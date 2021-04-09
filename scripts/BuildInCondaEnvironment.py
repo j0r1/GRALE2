@@ -188,7 +188,7 @@ or
 
     if not "NOCONDAINSTALL" in os.environ:
         condaPacks = [ "ipython", "jupyter", "astropy", "pyqt5-sip", "pyqt", "cython", "numpy", "scipy", "matplotlib",
-                       "shapely", "PyOpenGL", "ipywidgets", "cmake" ]
+                       "shapely", "pyopengl", "ipywidgets", "cmake" ]
 
         if os.name != "nt":
             condaPacks.append("compilers")
@@ -199,14 +199,23 @@ or
             if os.name != "nt":
                 condaPacks.append("openmpi")
 
-        print("Installing {} from conda-forge".format(" ".join(condaPacks)))
-        
-        cmd = [ "conda", "install", "-y", "-c", "conda-forge" ] + condaPacks
-        subprocess.check_call(" ".join(cmd), shell=True)
+        remainingCondaPacks = [ ]
+        for i in condaPacks:
+            if not i in startPacks:
+                remainingCondaPacks.append(i)
 
-        newPacks = getInstalledCondaPackages()
-        if not "compilers" in startPacks and "compilers" in newPacks:
-            print("""
+        condaPacks = remainingCondaPacks
+        if not condaPacks:
+            print("All required conda packages seem to be installed, continuing...")
+        else:
+            print("Installing {} from conda-forge".format(" ".join(condaPacks)))
+            
+            cmd = [ "conda", "install", "-y", "-c", "conda-forge" ] + condaPacks
+            subprocess.check_call(" ".join(cmd), shell=True)
+
+            newPacks = getInstalledCondaPackages()
+            if not "compilers" in startPacks and "compilers" in newPacks:
+                print("""
 The conda-forge compilers package appears to be newly installed. Please exit 
 and reactivate this conda environment so that the compiler will be detected
 correctly in the subsequent build.
@@ -219,7 +228,7 @@ Run:
 and re-run this script.
 
 """.format(os.environ["CONDA_DEFAULT_ENV"]))
-            sys.exit(-1)
+                sys.exit(-1)
 
 
     extraOpts = [] if not "CMAKE_EXTRA_OPTS" in os.environ else os.environ["CMAKE_EXTRA_OPTS"].split()
@@ -239,7 +248,7 @@ and re-run this script.
 
     if not buildDir:
 
-        for p in [ "ErrUt", "SerUt", "ENUt", "MOGAL", "EATk", "GRALE2" ]:
+        for p in [ "ErrUt", "SerUt", "EATk", "GRALE2" ]:
             os.chdir(D)
             if not os.path.exists(p):
                 print("Cloning {}".format(p))
