@@ -187,6 +187,13 @@ or
         sys.exit(-1)
 
     if not "NOCONDAINSTALL" in os.environ:
+
+        if "triangle" in startPacks:
+            print("'triangle' is already installed, continuing...")
+        else:
+            print("Installing 'triangle' binary")
+            subprocess.check_call("conda install -c jori -y triangle", shell=True)
+
         condaPacks = [ "ipython", "jupyter", "astropy", "pyqt5-sip", "pyqt", "cython", "numpy", "scipy", "matplotlib",
                        "shapely", "pyopengl", "ipywidgets", "cmake" ]
 
