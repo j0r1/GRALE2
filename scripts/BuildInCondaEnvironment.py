@@ -14,7 +14,7 @@ or
 This script attempts to compile PyGrale in an existing conda environment.
 
 On Windows, you'll need to install the Visual Studio 2017 build tools from 
-https://www.visualstudio.com/downloads/#build-tools-for-visual-studio-2017
+https://visualstudio.microsoft.com/thank-you-downloading-visual-studio/?sku=BuildTools&rel=15
 (see also
 https://stackoverflow.com/questions/57795314/are-visual-studio-2017-build-tools-still-available-for-download)
 Then, in the start menu select "x64 Native Tools Command Prompt for VS2017",

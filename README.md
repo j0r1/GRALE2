@@ -3,12 +3,12 @@ GRALE2: pygrale
 
 GRALE is a project to allow you to simulate and invert
 [gravitational lenses](https://en.wikipedia.org/wiki/Gravitational_lens).
-The [first generation](http://research.edm.uhasselt.be/jori/grale) of GRALE
+The [first generation](https://research.edm.uhasselt.be/jori/page/Physics/GraleV1.html) of GRALE
 consisted of C++ libraries and an interactive program called _GRALESHELL_
 with which many useful commands could be executed without having to write
 a program yourself using the C++ libraries.
 
-The new generation _GRALE2_ consists of a trimmed down set of core libraries
+This new generation _GRALE2_ consists of a trimmed down set of core libraries
 that are still written in C++, together with [Python](http://www.python.org)
 bindings to provide the same functionality: _pygrale_. The idea is that the core 
 code is still written in the fast low-level C++ language, but to make everything
@@ -34,31 +34,15 @@ can be viewed [online](http://research.edm.uhasselt.be/jori/grale2)
 Installation
 ------------
 
-### Using conda ###
-
-The easiest way to install pygrale is using the [conda](http://conda.pydata.org/docs/intro.html)
-tool of the [Anaconda Python](https://www.anaconda.com/) distribution. To
-create a separate environment (recommended) for GRALE, just 
-run the command:
-
-    conda create -n grale -c jori pygrale grale2modules
-
-This then creates the environment called `grale`, in which all of the necessary
-components are installed. This should work on all platforms.
-
-### Manual build ###
-
-Alternatively, you can build everything yourself. On GNU/Linux, you may find the
-script [BuildAll.sh](https://github.com/j0r1/GRALE2/blob/master/scripts/BuildAll.sh)
-useful.
+The [documentation](http://research.edm.uhasselt.be/jori/grale2) describes how
+you can use the provided [scripts](https://github.com/j0r1/GRALE2/tree/master/scripts)
+to get your own copy working.
 
 To really do everything yourself, the first step is to compile
-the libraries, for which you'll need a few dependencies:
+the GRALE C++ libraries, for which you'll need a few dependencies:
 
- - Error utilities in [ErrUt](https://research.edm.uhasselt.be/jori/errut) 
-   ([GitHub](https://github.com/j0r1/ErrUt) link)
- - Serialization utilities in [SerUt](https://research.edm.uhasselt.be/jori/serut)
-   ([GitHub](https://github.com/j0r1/SerUt) link)
+ - Error utilities in [ErrUt](https://github.com/j0r1/ErrUt)
+ - Serialization utilities in [SerUt](https://github.com/j0r1/SerUt)
  - The evolutionary algorithm toolkit [EATk](https://github.com/j0r1/EATk)
  - [GSL](https://www.gnu.org/software/gsl/), the GNU Scientific Library
 

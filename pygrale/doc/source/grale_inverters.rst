@@ -17,7 +17,7 @@ InverterException
 
 Inverters
 ---------
-.. autoclass:: SingleProcessInverter
+.. autoclass:: ThreadsInverter
 
    .. automethod:: __init__
 
@@ -26,18 +26,6 @@ Inverters
    .. automethod:: __init__
 
 .. autoclass:: MPIProcessInverter
-
-   .. automethod:: __init__
-
-.. autoclass:: ClientServerProcessInverter
-
-   .. automethod:: __init__
-
-.. autoclass:: MPICSProcessInverter
-
-   .. automethod:: __init__
-
-.. autoclass:: LocalCSProcessInverter
 
    .. automethod:: __init__
 
