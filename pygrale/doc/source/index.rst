@@ -19,6 +19,11 @@ between the C++ code and Python could be provided thanks to the
 
 This documentation is about the Python bindings only.
 
+Tutorial
+--------
+
+Continue to the :ref:`tutorial`.
+
 .. _installation:
 
 Installation
@@ -147,15 +152,115 @@ left off.
 If all goes well, this automatically clones the needed git repositories, compiles
 the source code, and installs everything in the conda environment.
 
-Building on a supercomputer with BuildAll.sh
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Building with BuildAll.sh, e.g. on a supercomputer
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-TODO
+The `BuildAll.sh` script is intended for a Linux based environment, although
+you might be able to use it on OS X as well. This does not make use of a conda
+environment, but will create a standard Python
+`virtual environment (virtualenv) <https://docs.python.org/3/tutorial/venv.html>`_,
+in which several other packages will be installed using `pip <https://pypi.org/project/pip/>`_,
+and in which the GRALE source code will be compiled and installed. To obtain
+the script, either clone the git repository, or download it directly from the
+`script directory <https://github.com/j0r1/GRALE2/tree/master/scripts>`_
+(and set the executable flag with ``chmod u+x BuildAll.sh``)
 
-Tutorial
---------
+Other than Python itself, the following things need to be available:
 
-Continue to the :ref:`tutorial`.
+ - a C/C++ compiler
+ - `CMake <https://cmake.org/>`_
+ - `the git version control system <https://git-scm.com/>`_
+ - `GSL, the GNU Scientific library <https://www.gnu.org/software/gsl/>`_
+
+Not really required to get something to work, but definitely needed if you
+want to use the compute resources from multiple nodes at the same time, is
+an `MPI <https://en.wikipedia.org/wiki/Message_Passing_Interface>`_ implementation.
+
+On a supercomputer, you'll typically need to activate these things using some
+module system. For example, on one cluster I need to perform the following
+commands to activate these ingredients::
+
+     module load Python/3.6.4-intel-2018a    # A recent Python interpreter
+     module load iimpi/2018a                 # The Intel compiler and Intel MPI tools
+     module load CMake/3.13.3
+     # git is available by default, no module needs to be loaded
+     module load GSL/2.4-GCCcore-6.4.0
+
+On another, the following modules need to be loaded::
+
+    # A recent Python version is available by default
+    module load gcc/8.2.0                    # The GNU C/C++ compilers
+    module load cmake/3.10.2
+    # git is available by default, no module needs to be loaded
+    module load gsl/2.5
+    module load ompi/4.0.0/gnu-8.2.0-centos7 # The OpenMPI MPI implementation
+
+
+The `BuildAll.sh` script takes one argument, a directory which will be used to
+set up the Python virtual environment in, as well as in which the source code
+will be downloaded and the compiled code will be installed, e.g.::
+
+    ./BuildAll.sh /path/to/new/virtualenv/directory
+
+Some environment variables can be used to affect parts of the build process,
+for a complete overview just run `BuildAll.sh` without any arguments. We'll
+explore some of them next. On one system, I needed to make sure that the Intel compiler 
+was used, and running
+
+.. code-block::
+
+    export CC=icc
+    export CXX=icc
+    
+before executing the script made sure that this was the case. Similarly, on another
+system I needed to enforce that `gcc` and `g++` were used as compilers, which could
+be done by first setting
+
+.. code-block::
+
+    export CC=gcc
+    export CXX=g++
+
+Making the CMake build system detect the correct version of GSL sometimes also
+required some extra work. In one case, the correct GSL library directory needed to
+be specified, which can be done with the help of the `gsl-config` utility that comes 
+with a GSL installation::
+
+    export CMAKE_EXTRA_OPTS="-DADDITIONAL_LIBRARIES_CORE=-L`gsl-config --prefix`/lib"
+
+On another system, all the paths to the GSL include files and libraries needed
+to be specified explicitly::
+
+    export CMAKE_EXTRA_OPTS="-DGSL_INCLUDE_DIR=/path/to/gsl/include -DGSL_CBLAS_LIBRARY=/path/to/libgslcblas.so -DGSL_LIBRARY=/path/to/libgsl.so"
+
+By default, the build system will try to run as many things as possible in parallel,
+to speed up the process. If you're running the script on a login node for example, that's
+shared with other users, you may want to limit the number of parallel processes. This
+can be done with, e.g.::
+
+    export NUMCORES=4
+
+The build script will try to detect if Qt5 is available, and if so, download the
+compatible Qt interface for Python (`PyQt5 <https://riverbankcomputing.com/software/pyqt>`_).
+This is needed to run the :ref:`GRALE Editor <graleeditor>`. Typically you don't
+need this GUI program on the supercomputer however, just on your local machine.
+You can bypass this step entirely, even if Qt5 is detected, by setting::
+
+    export NOQT=1
+
+When the script was able to successfully build everything, it ends with a line
+that shows you how to enable this Python environment with the GRALE tools
+installed, something like::
+
+    source /path/to/new/virtualenv/directory/bin/activategrale
+
+Note that before running this, e.g. when logging on to the supercomputer
+again, or in a Slurm or TORQUE/PBS job description, you'll need to load
+the same modules again (instead of the CMake one, that's only needed for
+building the source code).
+
+`Let me know <mailto:jori.liesenborgs@gmail.com?subject=Building_GRALE>`_
+how it goes! I'd be happy to help out if you're having problems.
 
 Indices and tables
 ------------------

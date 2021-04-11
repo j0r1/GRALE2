@@ -3,6 +3,9 @@
 GRALE Editor
 ============
 
+**Note:** this page is far from complete, the most complete description of
+what it can do can be found in the :ref:`tutorial <tut-graleeditor>`.
+
 The GRALE Editor is a Graphical User Interface (GUI) tool to help create
 and visualize input that's going to be used for gravitational lens inversions.
 
