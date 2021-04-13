@@ -7,26 +7,11 @@ set(HEADERS
 	galens/lensinversiongafactorysingleplanecpu.h
 	galens/lensinversiongafactorymultiplanegpu.h
 	galens/imagesbackprojector.h
-	galens/lensfitnessobject.h
 	galens/multifitnesshistory.h
 	galens/projectedimagesinterface.h
 	galens/precalculatedbackprojector.h
 	galens/mpcudabackprojector.h
 	galens/lensinversiongafactorycommon.h
-	prob/randomnumbergenerator.h
-
-	galens/pointgroupstorage.h
-	galens/fitnesscomponent.h
-	galens/fitnesscomponent_caustic.h
-	galens/fitnesscomponent_null.h
-	galens/fitnesscomponent_overlap.h
-	galens/fitnesscomponent_time.h
-	galens/lensfitnessgeneral.h
-	galens/numericgradientcalculator.h
-	galens/fitnesscomponent_defl.h
-	galens/fitnesscomponent_dens.h
-	galens/fitnesscomponent_weak.h
-	galens/fitnessutil.h
 	galens/inversionregistry.h
 	galens/lensgaindividual.h
 	galens/lensgagenomemutation.h
@@ -38,6 +23,20 @@ set(HEADERS
 	galens/lensgamultiobjectivecrossover.h
 	galens/lensgacalculatorregistry.h
 	galens/lensgagenomecalculator.h
+	prob/randomnumbergenerator.h
+	fitness/lensfitnessobject.h
+	fitness/numericgradientcalculator.h
+	fitness/pointgroupstorage.h
+	fitness/fitnesscomponent.h
+	fitness/fitnesscomponent_caustic.h
+	fitness/fitnesscomponent_null.h
+	fitness/fitnesscomponent_overlap.h
+	fitness/fitnesscomponent_time.h
+	fitness/lensfitnessgeneral.h
+	fitness/fitnesscomponent_defl.h
+	fitness/fitnesscomponent_dens.h
+	fitness/fitnesscomponent_weak.h
+	fitness/fitnessutil.h
 	)
 
 set(SOURCES
@@ -52,28 +51,7 @@ set(SOURCES
 	galens/precalculatedbackprojector.cpp
 	galens/mpcudabackprojector.cpp
 	galens/lensinversiongafactorycommon.cpp
-	prob/randomnumbergenerator.cpp
-
-	galens/lensfitnessobject.cpp
-	galens/lensfitnessgeneral.cpp
-	galens/fitnesscomponent.cpp
-	galens/fitnessutil_overlap.cpp
-	galens/fitnessutil_null.cpp
-	galens/fitnessutil_weak.cpp
-	galens/fitnessutil_time.cpp
-	galens/fitnessutil_caustic.cpp
-	galens/pointgroupstorage.cpp
-	galens/numericgradientcalculator.cpp
-	galens/fitnesscomponent_overlap.cpp
-	galens/fitnesscomponent_null.cpp
-	galens/fitnesscomponent_weak.cpp
-	galens/fitnesscomponent_time.cpp
-	galens/fitnesscomponent_dens.cpp
-	galens/fitnesscomponent_caustic.cpp
-	galens/fitnesscomponent_defl.cpp	
-
 	galens/inversionregistry.cpp
-	galens/lensfitnessobject_defaults.cpp
 	galens/lensgaindividual.cpp
 	galens/lensgagenomemutation.cpp
 	galens/lensgagenomecrossover.cpp
@@ -84,6 +62,25 @@ set(SOURCES
 	galens/lensgamultiobjectivecrossover.cpp
 	galens/lensgacalculatorregistry.cpp
 	galens/lensgaoldfactorywrapper.cpp
+	prob/randomnumbergenerator.cpp
+	fitness/numericgradientcalculator.cpp
+	fitness/lensfitnessobject.cpp
+	fitness/lensfitnessgeneral.cpp
+	fitness/fitnesscomponent.cpp
+	fitness/fitnessutil_overlap.cpp
+	fitness/fitnessutil_null.cpp
+	fitness/fitnessutil_weak.cpp
+	fitness/fitnessutil_time.cpp
+	fitness/fitnessutil_caustic.cpp
+	fitness/pointgroupstorage.cpp
+	fitness/fitnesscomponent_overlap.cpp
+	fitness/fitnesscomponent_null.cpp
+	fitness/fitnesscomponent_weak.cpp
+	fitness/fitnesscomponent_time.cpp
+	fitness/fitnesscomponent_dens.cpp
+	fitness/fitnesscomponent_caustic.cpp
+	fitness/fitnesscomponent_defl.cpp	
+	fitness/lensfitnessobject_defaults.cpp
     )
 
 if (MSVC)
