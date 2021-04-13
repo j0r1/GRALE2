@@ -15,7 +15,8 @@ LensFitnessObjectRegistry &LensFitnessObjectRegistry::instance()
     
     s_instance = unique_ptr<LensFitnessObjectRegistry>(new LensFitnessObjectRegistry());
 
-    // TODO: register defaults?
+    // Register defaults
+	registerDefaultLensFitnessObjects();
 
     return *s_instance;
 }

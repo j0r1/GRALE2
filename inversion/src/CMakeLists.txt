@@ -12,7 +12,6 @@ set(HEADERS
 	galens/precalculatedbackprojector.h
 	galens/mpcudabackprojector.h
 	galens/lensinversiongafactorycommon.h
-	galens/inversionregistry.h
 	galens/lensgaindividual.h
 	galens/lensgagenomemutation.h
 	galens/lensgagenomecrossover.h
@@ -51,7 +50,6 @@ set(SOURCES
 	galens/precalculatedbackprojector.cpp
 	galens/mpcudabackprojector.cpp
 	galens/lensinversiongafactorycommon.cpp
-	galens/inversionregistry.cpp
 	galens/lensgaindividual.cpp
 	galens/lensgagenomemutation.cpp
 	galens/lensgagenomecrossover.cpp

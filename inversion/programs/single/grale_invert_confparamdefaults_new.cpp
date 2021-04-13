@@ -1,4 +1,3 @@
-#include "inversionregistry.h"
 #include "inversioncommunicatornewga.h"
 #include "inputoutput.h"
 #include "lensfitnessobject.h"
@@ -56,7 +55,6 @@ protected:
 
 int main(int argc, char *argv[])
 {
-    grale::registerDefaultInversionComponents();
 	ConfDefaultsCommunicator comm;
 
 	bool_t r = comm.run();

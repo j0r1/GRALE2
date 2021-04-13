@@ -1,4 +1,3 @@
-#include "inversionregistry.h"
 #include "lensfitnessobject.h"
 #include "backprojectmatrix.h"
 #include "imagesbackprojector.h"
@@ -53,8 +52,6 @@ void process(int N, const float *v1, double s1, const float *v2, double s2, doub
 
 int main(int argc, char *argv[])
 {
-	registerDefaultInversionComponents();
-
 	RandomNumberGenerator rng;
 	DeflectionMatrix matrix;
 	vector<ImagesDataExtended *> images;

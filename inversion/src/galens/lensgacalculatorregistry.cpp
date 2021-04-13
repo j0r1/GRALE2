@@ -1,4 +1,5 @@
 #include "lensgacalculatorregistry.h"
+#include "lensgaoldfactorywrapper.h"
 #include <cstdlib>
 #include <iostream>
 
@@ -17,7 +18,8 @@ LensGACalculatorRegistry &LensGACalculatorRegistry::instance()
 
 	s_instance = std::move(unique_ptr<LensGACalculatorRegistry>(new LensGACalculatorRegistry()));
 
-	// TODO: register defaults here?
+	// Register defaults here
+	registerWrapperCalculators();
 
 	return *s_instance;
 }

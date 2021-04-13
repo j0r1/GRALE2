@@ -1,4 +1,3 @@
-#include "inversionregistry.h"
 #include "inversioncommunicatornewga.h"
 #include "inputoutput.h"
 #include "lensfitnessobject.h"
@@ -172,7 +171,6 @@ bool_t CalcFitnessCommunicator::runModule(const std::string &lensFitnessObjectTy
 
 int main(int argc, char *argv[])
 {
-	grale::registerDefaultInversionComponents();
 	CalcFitnessCommunicator comm;
 
 	bool_t r = comm.run();
