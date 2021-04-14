@@ -1,5 +1,4 @@
 #include "lensgacalculatorregistry.h"
-#include "lensgaoldfactorywrapper.h"
 #include <cstdlib>
 #include <iostream>
 
@@ -8,6 +7,8 @@ using namespace errut;
 
 namespace grale
 {
+
+void registerWrapperCalculators();
 
 std::unique_ptr<LensGACalculatorRegistry> LensGACalculatorRegistry::s_instance;
 

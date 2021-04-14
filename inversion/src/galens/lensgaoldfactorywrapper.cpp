@@ -33,11 +33,6 @@ public:
 		auto obj = m_fitObj.release(); // The caller will take care of this
 		return obj;
 	}
-
-	float getChanceMultiplier() { return 1.0f; }
-	bool useAbsoluteMutation() { return true; }
-	float getMutationAmplitude() { return 0.0f; }
-
 private:
 	unique_ptr<LensFitnessObject> m_fitObj;
 };
@@ -67,7 +62,7 @@ public:
 	{
 		string errStr = "unknown error";
 
-		lens = move(unique_ptr<GravitationalLens>(m_helperFactory->createLens(genome.m_weights, genome.m_sheets, genome.m_scaleFactor, errStr)));
+		lens = move(m_helperFactory->createLens(genome.m_weights, genome.m_sheets, genome.m_scaleFactor, errStr));
 		if (!lens.get())
 			return errStr;
 		return true;

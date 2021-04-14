@@ -32,12 +32,7 @@ public:
 	bool allowNegativeValues() const								{ return m_allowNegativeValues; }
 	bool useLogarithmicScaleSearch() const { return true; }
 
-	virtual float getChanceMultiplier() = 0;
-	virtual bool useAbsoluteMutation() = 0;
-	virtual float getMutationAmplitude() = 0;
-
-	// TODO: vector<shared_prt<GravitationalLens>>, createLenses
-	virtual GravitationalLens *createLens(const std::vector<float> &basisFunctionWeights,
+	virtual std::unique_ptr<GravitationalLens> createLens(const std::vector<float> &basisFunctionWeights,
 	                                      const std::vector<float> &sheetValues,
 										  float scaleFactor,
 										  std::string &errStr) const = 0;
@@ -58,7 +53,6 @@ public:
 
 	LensFitnessObject &getFitnessObject() { return *(m_fitnessObject.get()); }
 	int getMaximumNumberOfGenerations() const						{ return m_maxGenerations; }
-
 	size_t getNumberOfFitnessComponents() { return getFitnessObject().getNumberOfFitnessComponents(); }
 protected:
 	virtual LensFitnessObject *createFitnessObject() = 0; // implemented in module

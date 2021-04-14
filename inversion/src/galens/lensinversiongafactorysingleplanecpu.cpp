@@ -174,13 +174,12 @@ bool LensInversionGAFactorySinglePlaneCPU::init(const LensInversionParametersBas
 	return true;
 }
 
-GravitationalLens *LensInversionGAFactorySinglePlaneCPU::createLens(const std::vector<float> &basisFunctionWeights,
+unique_ptr<GravitationalLens> LensInversionGAFactorySinglePlaneCPU::createLens(const std::vector<float> &basisFunctionWeights,
 	                                      const std::vector<float> &sheetValues,
 										  float scaleFactor,
 										  std::string &errStr) const
 {
 	CompositeLensParams lensParams;
-	CompositeLens *pLens;
 
 	float sheetValue = 0;
 	if (sheetValues.size() > 0)
@@ -199,8 +198,12 @@ GravitationalLens *LensInversionGAFactorySinglePlaneCPU::createLens(const std::v
 	if (m_sheetLens.get())
 		lensParams.addLens(sheetValue, Vector2D<double>(0,0), 0, *m_sheetLens.get());
 
-	pLens = new CompositeLens();
-	pLens->init(m_basisLenses[0].first->getLensDistance(), &lensParams);
+	auto pLens = make_unique<CompositeLens>();
+	if (!pLens->init(m_basisLenses[0].first->getLensDistance(), &lensParams))
+	{
+		errStr = "Can't init composite lens: " + pLens->getErrorString();
+		return nullptr;
+	}
 
 	// Note that this lens does not include any base lens that might be set
 	return pLens;

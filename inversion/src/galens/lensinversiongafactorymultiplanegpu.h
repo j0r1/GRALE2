@@ -29,7 +29,7 @@ public:
 
 	bool init(const LensInversionParametersBase *p) override;
 
-	GravitationalLens *createLens(const std::vector<float> &basisFunctionWeights,
+	std::unique_ptr<GravitationalLens> createLens(const std::vector<float> &basisFunctionWeights,
 	                                      const std::vector<float> &sheetValues,
 										  float scaleFactor,
 										  std::string &errStr) const override;

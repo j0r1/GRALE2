@@ -195,7 +195,7 @@ bool LensInversionGAFactoryMultiPlaneGPU::analyzeSourceImages(const vector<share
 	return true;
 }
 
-GravitationalLens *LensInversionGAFactoryMultiPlaneGPU::createLens(const std::vector<float> &basisFunctionWeights,
+unique_ptr<GravitationalLens> LensInversionGAFactoryMultiPlaneGPU::createLens(const std::vector<float> &basisFunctionWeights,
 	                                      const std::vector<float> &sheetValues,
 										  float scaleFactor,
 										  std::string &errStr) const
@@ -271,7 +271,7 @@ GravitationalLens *LensInversionGAFactoryMultiPlaneGPU::createLens(const std::ve
 		return nullptr;
 	}
 
-	return containerLens.release();
+	return containerLens;
 }
 
 void LensInversionGAFactoryMultiPlaneGPU::convertGenomeSheetValuesToDensities(const vector<float> &sheetValues,
