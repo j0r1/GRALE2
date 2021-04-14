@@ -32,8 +32,6 @@ bool LensInversionGAFactoryCommon::setCommonParameters(int numSheetValues,
 							double massUnit, double targetMass,
 							const ScaleSearchParameters &searchParams)
 {
-	sendMessage("RNG SEED: " + std::to_string(m_rndGen.getSeed()));
-
 	m_numBasisFunctions = (int)basisFunctionMasses.size();
 	if (m_numBasisFunctions == 0)
 	{
@@ -118,9 +116,9 @@ bool LensInversionGAFactoryCommon::initializeLensFitnessObject(double z_d,
 }
 
 
-void LensInversionGAFactoryCommon::sendMessage(const std::string &s)
+void LensInversionGAFactoryCommon::sendMessage(const std::string &s) const
 {
-	cerr << "Queue: " << s << endl;
+	// Should be implemented in derived class
 }
 
 void LensInversionGAFactoryCommon::onGeneticAlgorithmStart()

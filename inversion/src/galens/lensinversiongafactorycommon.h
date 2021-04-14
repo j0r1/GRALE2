@@ -1,7 +1,6 @@
 #pragma once
 
 #include "graleconfig.h"
-#include "randomnumbergenerator.h"
 #include "lensinversionparameterssingleplanecpu.h"
 #include "lensfitnessobject.h"
 #include "vector2d.h"
@@ -37,7 +36,8 @@ public:
 										  float scaleFactor,
 										  std::string &errStr) const = 0;
 
-	void sendMessage(const std::string &s);
+	// Override this in derived class
+	virtual void sendMessage(const std::string &s) const;
 
 	bool calculateFitness(const std::vector<float> &basisFunctionWeights,
 						  const std::vector<float> &sheetValues,
@@ -72,7 +72,6 @@ protected:
 private:
 	void onGeneticAlgorithmStart();
 
-	RandomNumberGenerator m_rndGen;
 	int m_numBasisFunctions, m_numSheetValues, m_maxGenerations;
 	bool m_allowNegativeValues;
 	ScaleSearchParameters m_massScaleSearchParams;
@@ -80,8 +79,6 @@ private:
 	// In units of the specified mass unit
 	std::vector<float> m_basisFunctionMasses;
 	float m_targetMass;
-
-	std::vector<std::string> m_queuedMessages;
 
 	std::unique_ptr<LensFitnessObject> m_fitnessObject;
 

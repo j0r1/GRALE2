@@ -24,6 +24,16 @@ using namespace serut;
 using namespace errut;
 using namespace grale;
 
+class MyCalcLogger : public grale::LensGAGenomeCalculatorLogger
+{
+public:
+	void log(const std::string &s) const override
+	{
+		WriteLineStdout("GAMESSAGESTR:" + s);
+	}
+};
+
+
 InversionCommunicator::InversionCommunicator()
 {
 #ifdef WIN32
@@ -165,6 +175,9 @@ bool_t InversionCommunicator::runModule(const std::string &lensFitnessObjectType
 		return "Can't load calculator parameters from received data: " + r.getErrorString();
 
 	shared_ptr<grale::LensGAGenomeCalculator> calculatorInstance = pCalculatorFactory->createCalculatorInstance(move(fitnessObject));
+	auto logger = make_shared<MyCalcLogger>();
+	calculatorInstance->setLogger(logger);
+
 	if (!(r = calculatorInstance->init(*calculatorParams)))
 		return "Unable to initialize calculator: " + r.getErrorString();
 

@@ -13,13 +13,18 @@ using namespace errut;
 namespace grale
 {
 
-template<class T>
+template<class T, class P1>
+class GAFactoryWrapperLensGAGenomeCalculator;
+
+template<class T, class P1>
 class GAFactoryHelper : public T
 {
 public:
 	GAFactoryHelper(unique_ptr<LensFitnessObject> fitObj)
-		: m_fitObj(move(fitObj)) { }
+		: m_fitObj(move(fitObj)), m_pParent(nullptr) { }
 	GAFactoryHelper() { }
+
+	void setParent(GAFactoryWrapperLensGAGenomeCalculator<T,P1> *pParent) { m_pParent = pParent; }
 
 	// Fr now, we're not going to create new one, just use the previously set one
 	LensFitnessObject *createFitnessObject() override
@@ -33,16 +38,28 @@ public:
 		auto obj = m_fitObj.release(); // The caller will take care of this
 		return obj;
 	}
+
+	void sendMessage(const string &s) const override
+	{
+		if (!m_pParent)
+			cerr << s << endl;
+		else
+			m_pParent->log(s);
+	}
 private:
 	unique_ptr<LensFitnessObject> m_fitObj;
+	GAFactoryWrapperLensGAGenomeCalculator<T,P1> *m_pParent;
 };
 
 template<class T, class P1>
 class GAFactoryWrapperLensGAGenomeCalculator: public LensGAGenomeCalculator
 {
 public:
-	GAFactoryWrapperLensGAGenomeCalculator(unique_ptr<GAFactoryHelper<T>> helper)
-		: m_helperFactory(move(helper)) { }
+	GAFactoryWrapperLensGAGenomeCalculator(unique_ptr<GAFactoryHelper<T,P1>> helper)
+		: m_helperFactory(move(helper))
+	{
+		m_helperFactory->setParent(this);
+	}
 
 	bool_t init(const LensInversionParametersBase &params) override
 	{
@@ -84,7 +101,7 @@ public:
 		return true;		
 	}
 private:
-	unique_ptr<GAFactoryHelper<T>> m_helperFactory;
+	unique_ptr<GAFactoryHelper<T,P1>> m_helperFactory;
 };
 
 template<class T, class P1>
@@ -98,7 +115,7 @@ public:
 
 	std::unique_ptr<LensGAGenomeCalculator> createCalculatorInstance(unique_ptr<LensFitnessObject> fitObj) override
 	{
-		auto helper = make_unique<GAFactoryHelper<T>>(move(fitObj));
+		auto helper = make_unique<GAFactoryHelper<T,P1>>(move(fitObj));
 		auto wrapper = make_unique<GAFactoryWrapperLensGAGenomeCalculator<T,P1>>(move(helper));
 		return wrapper;
 	}
