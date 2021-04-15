@@ -3,6 +3,7 @@
 #include "graleconfig.h"
 #include "lensgagenomemutation.h"
 #include "multifitnesshistory.h"
+#include "lensgaconvergenceparameters.h"
 #include <eatk/stopcriterion.h>
 #include <chrono>
 
@@ -14,10 +15,9 @@ class LensFitnessObject;
 class LensGAStopCriterion : public eatk::StopCriterion
 {
 public:
-	LensGAStopCriterion(size_t maxGenerations,
-						const std::shared_ptr<LensGAGenomeMutation> &mutation);
+	LensGAStopCriterion(const std::shared_ptr<LensGAGenomeMutation> &mutation);
 
-	errut::bool_t initialize(const LensFitnessObject &fitnessObject);
+	errut::bool_t initialize(size_t numObjectives, const LensGAConvergenceParameters &convParams);
 	errut::bool_t analyze(const std::vector<std::shared_ptr<eatk::Individual>> &currentBest, size_t generationNumber, bool &shouldStop) override;
 protected:
 	virtual void onReport(const std::string &s)	const { }

@@ -10,28 +10,27 @@ using namespace errut;
 namespace grale
 {
 
-LensGAStopCriterion::LensGAStopCriterion(size_t maxGenerations,
-						const std::shared_ptr<LensGAGenomeMutation> &mutation)
-	: m_maxGenerations(maxGenerations), m_mutation(mutation)
+LensGAStopCriterion::LensGAStopCriterion(const std::shared_ptr<LensGAGenomeMutation> &mutation)
+	: m_mutation(mutation)
 { 
 	m_numObjectives = 0; // means not initialized
 	m_lastFitnessReportTime = chrono::steady_clock::now();
 }
 
-bool_t LensGAStopCriterion::initialize(const LensFitnessObject &fitnessObject)
+bool_t LensGAStopCriterion::initialize(size_t numObjectives, const LensGAConvergenceParameters &convParams)
 {
+	if (numObjectives < 1)
+		return "Number of objectives must be at least one";
+
 	if (m_numObjectives > 0)
 		return "Already initialized";
 
-	auto pFitnessObject = dynamic_cast<const LensFitnessGeneral*>(&fitnessObject);
-	if (!pFitnessObject)
-		return "Not a LensFitnessGeneral object";
+	m_numObjectives = numObjectives;
+	m_maxGenerations = convParams.getMaximumNumberOfGenerations();
 
-	m_numObjectives = fitnessObject.getNumberOfFitnessComponents();
-
-	int histSize = pFitnessObject->getConvergenceHistorySize();
-	m_fitnessConvergenceFactors = pFitnessObject->getConvergenceFactors();
-	m_mutationSizes = pFitnessObject->getConvergenceSmallMutationSizes();
+	int histSize = convParams.getConvergenceHistorySize();
+	m_fitnessConvergenceFactors = convParams.getConvergenceFactors();
+	m_mutationSizes = convParams.getConvergenceSmallMutationSizes();
 
 	if (m_fitnessConvergenceFactors.size() != m_mutationSizes.size() || m_fitnessConvergenceFactors.size() < 1)
 		return "Unexpected: invalid convergence or mutation settings (should have been checked before)";

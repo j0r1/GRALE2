@@ -14,6 +14,8 @@
 #include "lensgasingleobjectivecrossover.h"
 #include "lensgamultiobjectivecrossover.h"
 #include "lensgastopcriterion.h"
+#include "lensfitnessgeneral.h"
+#include "lensgaconvergenceparameters.h"
 #include <serut/memoryserializer.h>
 #include <eatk/evolutionaryalgorithm.h>
 #include <eatk/singlethreadedpopulationfitnesscalculation.h>
@@ -156,8 +158,8 @@ private:
 class Stop : public grale::LensGAStopCriterion
 {
 public:
-	Stop(size_t maxGenerations, const std::shared_ptr<grale::LensGAGenomeMutation> &mutation)
-		: grale::LensGAStopCriterion(maxGenerations, mutation) { }
+	Stop(const std::shared_ptr<grale::LensGAGenomeMutation> &mutation)
+		: grale::LensGAStopCriterion(mutation) { }
 protected:
 	void onReport(const std::string &s)	const override
 	{
@@ -251,8 +253,22 @@ protected:
 								factoryParamBytes, creation, calc)))
 			return "Can't get calculator: " + r.getErrorString();
 		
-		Stop stop(genomeCalculator->getMaximumNumberOfGenerations(), mutation);
-		if (!(r = stop.initialize(genomeCalculator->getLensFitnessObject())))
+		Stop stop(mutation);
+
+		// TODO: workaround until convergence parameters are transmitted
+		const grale::LensFitnessGeneral *generalObj = dynamic_cast<const grale::LensFitnessGeneral *>(&genomeCalculator->getLensFitnessObject());
+		if (!generalObj)
+			return "TODO: for now the lens fitness object must be of type 'general'";
+
+		grale::LensGAConvergenceParameters convParams;
+		convParams.setMaximumNumberOfGenerations(genomeCalculator->getMaximumNumberOfGenerations());
+		convParams.setHistorySize(generalObj->getConvergenceHistorySize());
+		convParams.setConvergenceFactorsAndMutationSizes(
+			generalObj->getConvergenceFactors(),
+			generalObj->getConvergenceSmallMutationSizes()
+		);
+
+		if (!(r = stop.initialize(genomeCalculator->getNumberOfObjectives(), convParams)))
 		{
 			calculatorCleanup();
 			return "Error initializing convergence checker: " + r.getErrorString();
