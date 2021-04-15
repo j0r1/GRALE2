@@ -4,7 +4,7 @@ side of the code, and the C++ one.
 """
 from libcpp.string cimport string
 from libcpp.vector cimport vector
-from libcpp.memory cimport shared_ptr, make_shared
+from libcpp.memory cimport shared_ptr, make_shared, unique_ptr, make_unique
 from libcpp cimport bool as cbool
 from cpython.array cimport array,clone
 import cython
@@ -29,6 +29,7 @@ cimport grale.gaparameters as gaparameters
 cimport grale.lensinversionbasislensinfo as lensinversionbasislensinfo
 cimport grale.scalesearchparameters as scalesearchparameters
 cimport grale.cppcosmology as cppcosmology
+cimport grale.lensgaconverenceparameters as lensgaconverenceparameters
 
 include "stringwrappers.pyx"
 
@@ -287,7 +288,7 @@ cdef class LensInversionParametersSinglePlaneCPU(object):
     # - gridInfoOrBasisFunctions:
     #   either a dictionary { "gridSquares": grid squares, "useWeights": flag, "basisFunction": basis type }
     #   or a list of basisfunction info [ { "lens": lens model, "mass": relevant lensing mass, "center": center }, ... ]
-    def __init__(self, maxGen, imageList, gridInfoOrBasisFunctions, Dd, zd, massScale,
+    def __init__(self, imageList, gridInfoOrBasisFunctions, Dd, zd, massScale,
                  allowNegativeValues = False, baseLens = None, sheetSearch = "nosheet",
                  fitnessObjectParameters = None, massScaleSearchType = "regular"):
         """__init__(maxGen, imageList, gridInfoOrBasisFunctions, Dd, zd, massScale, allowNegativeValues = False, baseLens = None, sheetSearch = "nosheet", fitnessObjectParameters = None,  massScaleSearchType = "regular")
@@ -295,8 +296,6 @@ cdef class LensInversionParametersSinglePlaneCPU(object):
         Creates an instance containing the input for the lens inversion method.
 
         Parameters:
-         - `maxGen`: The maximum number of generations in the genetic algorithm. Intended as a fail-safe
-           to prevent the algorithm from running indefinitely.
          - `imageList`: this describes the input images, and should be a list of dictionaries where 
            each dictionary has the following entries:
 
@@ -482,7 +481,8 @@ cdef class LensInversionParametersSinglePlaneCPU(object):
                 else:
                     raise InversionParametersException("Unknown basis function type '{}', should be 'plummer', 'gaussian' or 'square'".format(basisFunction))
 
-                self.m_pParams = new lensinversionparameterssingleplanecpu.LensInversionParametersSinglePlaneCPU(maxGen, imgVector, gridSquares,
+                # TODO: remove the first 1 (max generations)
+                self.m_pParams = new lensinversionparameterssingleplanecpu.LensInversionParametersSinglePlaneCPU(1, imgVector, gridSquares,
                                                 Dd, zd, massScale, useWeights, basisFunctionType, allowNegativeValues,
                                                 pBaseLens, sheetLensModel.get(), pFitnessObjectParameters, deref(scaleSearchParams.get()))
 
@@ -505,7 +505,8 @@ cdef class LensInversionParametersSinglePlaneCPU(object):
 
                     LensInversionParametersSinglePlaneCPU._appendHelper(basisLensInfo, pBasisLensModel, cx, cy, relevantLensingMass)
 
-                self.m_pParams = new lensinversionparameterssingleplanecpu.LensInversionParametersSinglePlaneCPU(maxGen, imgVector, basisLensInfo,
+                # TODO: remove the first 1 (max generations)
+                self.m_pParams = new lensinversionparameterssingleplanecpu.LensInversionParametersSinglePlaneCPU(1, imgVector, basisLensInfo,
                                                 Dd, zd, massScale, allowNegativeValues, pBaseLens, sheetLensModel.get(), 
                                                 pFitnessObjectParameters, deref(scaleSearchParams.get()))
             else:
@@ -635,7 +636,7 @@ cdef class LensInversionParametersMultiPlaneGPU(object):
 
     def __init__(self, cosmology = cosmology.Cosmology(0.7, 0.3, 0, 0.7),
                  basisLensesAndRedshifts = [], imagesAndRedshifts = [],
-                 massEstimate = 0, sheetSearch = "nosheet", fitnessObjectParameters = None, maxGen = 0,
+                 massEstimate = 0, sheetSearch = "nosheet", fitnessObjectParameters = None,
                  allowNegativeWeights = False, massScaleSearchType = "regular",
                  deviceIndex = "rotate"):
         """__init__(cosmology = cosmology.Cosmology(0.7, 0.3, 0, 0.7), basisLensesAndRedshifts = [], imagesAndRedshifts = [], massEstimate = 0, sheetSearch = "nosheet", fitnessObjectParameters = None, maxGen = 0, allowNegativeWeights = False, massScaleSearchType = "regular", deviceIndex = "rotate")
@@ -657,8 +658,6 @@ cdef class LensInversionParametersMultiPlaneGPU(object):
          - `sheetSearch`: can be ``nosheet`` or ``genome``.
          - `fitnessObjectParameters`: parameters that should be passed to the inversion 
            module that will be used.
-         - `maxGen`: The maximum number of generations in the genetic algorithm. Intended as a fail-safe
-           to prevent the algorithm from running indefinitely.
          - `allowNegativeWeights`: by default, only positive weights will be assigned to
            the basis functions used in the optimization. If negative weights are allowed
            as well, this can be set to ``True``.
@@ -789,7 +788,7 @@ cdef class LensInversionParametersMultiPlaneGPU(object):
             massEstimate,
             useSheet,
             pFitnessObjectParameters,
-            maxGen,
+            0, # TODO: max generations, should no longer be needed
             allowNegativeWeights,
             deref(scaleSearchParams.get()),
             devIdx)
@@ -820,5 +819,81 @@ cdef class LensInversionParametersMultiPlaneGPU(object):
 
         if not self.m_pParams.write(vSer):
             raise InversionParametersException(S(self.m_pParams.getErrorString()))
+
+        return <bytes>vSer.getBufferPointer()[0:vSer.getBufferSize()]
+
+class ConvergenceParametersException(Exception):
+    """This exception is raised in case somethings goes wrong in the
+    :class:`ConvergenceParameters` class."""
+    pass
+
+cdef class ConvergenceParameters(object):
+    """TODO"""
+
+    cdef unique_ptr[lensgaconverenceparameters.LensGAConvergenceParameters] m_params
+    cdef lensgaconverenceparameters.LensGAConvergenceParameters *m_pParams
+
+    def __cinit__(self):
+        self.m_params = make_unique[lensgaconverenceparameters.LensGAConvergenceParameters]()
+        self.m_pParams = self.m_params.get()
+
+    def __init__(self, parameterDict = None):
+        if not parameterDict:
+            # Defaults
+            parameterDict = {
+                "maximumgenerations": 16384,
+                "historysize": 250,
+                "convergencefactors": [  0.1, 0.05 ],
+                "smallmutationsizes": [ -1.0, 0.1 ]  # Negative means large mutation
+            }
+        self.fromDict(parameterDict)
+
+    def fromDict(self, d):
+        
+        cdef vector[double] factors, sizes;
+
+        knownKeys = [ "maximumgenerations",
+                      "historysize",
+                      "convergencefactors",
+                      "smallmutationsizes"]
+
+        for k in d:
+            if not k in knownKeys:
+                raise ConvergenceParametersException("Unknown key {}, known are {}".format(k, knownKeys))
+
+        self.m_pParams.setMaximumNumberOfGenerations(d["maximumgenerations"])
+        self.m_pParams.setHistorySize(d["historysize"])
+
+        for i in d["convergencefactors"]:
+            factors.push_back(i)
+        for i in d["smallmutationsizes"]:
+            sizes.push_back(i)
+        
+        if factors.size() != sizes.size():
+            raise ConvergenceParametersException("Number of convergence factors must equal the small mutation sizes")
+
+        if not self.m_pParams.setConvergenceFactorsAndMutationSizes(factors, sizes):
+            raise ConvergenceParametersException(S(self.m_pParams.getErrorString()))
+
+
+    def toDict(self):
+        d = { }
+        d["maximumgenerations"] = self.m_pParams.getMaximumNumberOfGenerations()
+        d["historysize"] = self.m_pParams.getConvergenceHistorySize()
+
+        d["convergencefactors"] = [ self.m_pParams.getConvergenceFactors()[i] for i in range(self.m_pParams.getConvergenceFactors().size()) ]
+        d["smallmutationsizes"] = [ self.m_pParams.getConvergenceSmallMutationSizes()[i] for i in range(self.m_pParams.getConvergenceSmallMutationSizes().size()) ]
+
+        return d
+
+    def toBytes(self):
+        """toBytes()
+
+        Returns a byte array that stores the settings contained in this instance.
+        """
+        cdef serut.VectorSerializer vSer
+
+        if not self.m_pParams.write(vSer):
+            raise ConvergenceParametersException(S(self.m_pParams.getErrorString()))
 
         return <bytes>vSer.getBufferPointer()[0:vSer.getBufferSize()]

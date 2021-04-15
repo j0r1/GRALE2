@@ -11,6 +11,7 @@
 #include "utils.h"
 #include "lensgaindividual.h"
 #include "lensfitnessobject.h"
+#include "lensgaconvergenceparameters.h"
 #include <serut/memoryserializer.h>
 #include <serut/vectorserializer.h>
 #include <serut/dummyserializer.h>
@@ -152,6 +153,10 @@ bool_t InversionCommunicator::runModule(const std::string &lensFitnessObjectType
 	if (!(r = readLineAndBytesWithPrefix("GAFACTORYPARAMS", calcParamBytes, 10000)))
 		return "Error reading GA factory parameters: " + r.getErrorString();
 
+	vector<uint8_t> convParamsBytes;
+	if (!(r = readLineAndBytesWithPrefix("CONVERGENCEPARAMS", convParamsBytes, 10000)))
+		return "Error reading convergence parameters: " + r.getErrorString();
+
 	string runStr;
 	if (!(r = ReadLineStdin(10000, runStr)))
 		return "Unable to read 'RUN' command: " + r.getErrorString();
@@ -174,6 +179,10 @@ bool_t InversionCommunicator::runModule(const std::string &lensFitnessObjectType
 	if (!(r = loadFromBytes(*calculatorParams, calcParamBytes)))
 		return "Can't load calculator parameters from received data: " + r.getErrorString();
 
+	LensGAConvergenceParameters convParams;
+	if (!(r = loadFromBytes(convParams, convParamsBytes)))
+		return "Unable to load convergence parameters from received data: " + r.getErrorString();
+
 	shared_ptr<grale::LensGAGenomeCalculator> calculatorInstance = pCalculatorFactory->createCalculatorInstance(move(fitnessObject));
 	auto logger = make_shared<MyCalcLogger>();
 	calculatorInstance->setLogger(logger);
@@ -182,7 +191,7 @@ bool_t InversionCommunicator::runModule(const std::string &lensFitnessObjectType
 		return "Unable to initialize calculator: " + r.getErrorString();
 
 	if (!(r = runGA(popSize, lensFitnessObjectType, calculatorType, *pCalculatorFactory,
-	                calculatorInstance, calcParamBytes, gaParams)))
+	                calculatorInstance, calcParamBytes, gaParams, convParams)))
 		return r;
 
 	LOG(Log::DBG, "Finished runGA");
@@ -199,7 +208,8 @@ bool_t InversionCommunicator::runModule(const std::string &lensFitnessObjectType
 bool_t InversionCommunicator::runGA(int popSize, const std::string &lensFitnessObjectType, 
 	                     const std::string &calcType, grale::LensGACalculatorFactory &calcFactory,
 						 const std::shared_ptr<grale::LensGAGenomeCalculator> &genomeCalculator,
-						 const std::vector<uint8_t> &factoryParamBytes, const grale::GAParameters &params)
+						 const std::vector<uint8_t> &factoryParamBytes, const grale::GAParameters &params,
+						 const grale::LensGAConvergenceParameters &convParams)
 {
 	return "Not implemented in base class";
 }

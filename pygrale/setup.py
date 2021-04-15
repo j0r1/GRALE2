@@ -80,7 +80,7 @@ if platform.system() == "Windows":
     libraries += [ "gslcblas" ]
 else:
     libraries += [ "gslcblas" ]
-    extraFlags += [ "-std=c++11" ]
+    extraFlags += [ "-std=c++14" ]
 
 if "CONDA_BUILD" in os.environ or "CONDA_PREFIX" in os.environ:
     prefix = None

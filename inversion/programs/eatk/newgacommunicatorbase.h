@@ -203,7 +203,8 @@ protected:
 	                     grale::LensGACalculatorFactory &calcFactory, 
 						 const std::shared_ptr<grale::LensGAGenomeCalculator> &genomeCalculator,
 						 const std::vector<uint8_t> &factoryParamBytes,
-						 const grale::GAParameters &params)
+						 const grale::GAParameters &params,
+						 const grale::LensGAConvergenceParameters &convParams)
 	{
 
 		errut::bool_t r;
@@ -254,20 +255,6 @@ protected:
 			return "Can't get calculator: " + r.getErrorString();
 		
 		Stop stop(mutation);
-
-		// TODO: workaround until convergence parameters are transmitted
-		const grale::LensFitnessGeneral *generalObj = dynamic_cast<const grale::LensFitnessGeneral *>(&genomeCalculator->getLensFitnessObject());
-		if (!generalObj)
-			return "TODO: for now the lens fitness object must be of type 'general'";
-
-		grale::LensGAConvergenceParameters convParams;
-		convParams.setMaximumNumberOfGenerations(genomeCalculator->getMaximumNumberOfGenerations());
-		convParams.setHistorySize(generalObj->getConvergenceHistorySize());
-		convParams.setConvergenceFactorsAndMutationSizes(
-			generalObj->getConvergenceFactors(),
-			generalObj->getConvergenceSmallMutationSizes()
-		);
-
 		if (!(r = stop.initialize(genomeCalculator->getNumberOfObjectives(), convParams)))
 		{
 			calculatorCleanup();

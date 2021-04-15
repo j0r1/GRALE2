@@ -100,7 +100,7 @@ class Inverter(object):
     def onStartedProcess(self, proc):
         pass
 
-    def invert(self, moduleName, calcType, populationSize, gaParams, lensInversionParameters, returnNds):
+    def invert(self, moduleName, calcType, populationSize, gaParams, lensInversionParameters, returnNds, convergenceParams):
 
         errFile = tempfile.TemporaryFile("w+t") if not debugDirectStderr else None
         proc = None
@@ -152,6 +152,11 @@ class Inverter(object):
             factoryParamsLen = len(factoryParams)
             io.writeLine("GAFACTORYPARAMS:{}".format(factoryParamsLen))
             io.writeBytes(factoryParams)
+
+            convParams = convergenceParams.toBytes()
+            convParamsLen = len(convParams)
+            io.writeLine("CONVERGENCEPARAMS:{}".format(convParamsLen))
+            io.writeBytes(convParams)
 
             if not returnNds:
                 io.writeLine("RUN")
@@ -344,7 +349,7 @@ def calculateFitness(moduleName, inputImages, zd, fitnessObjectParameters, lens 
         g = grid.createUniformGrid(1, [0,0], 1) # Just a dummy grid
         g = grid._fractionalGridToRealGrid(g)
         Dd = 1.0 if not lens else lens.getLensDistance()
-        params = inversionparams.LensInversionParametersSinglePlaneCPU(1, inputImages, { "gridSquares": g },
+        params = inversionparams.LensInversionParametersSinglePlaneCPU(inputImages, { "gridSquares": g },
                                                              Dd, zd, 1.0, baseLens = None, 
                                                              fitnessObjectParameters=fitnessObjectParameters)
 

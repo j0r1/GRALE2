@@ -15,6 +15,7 @@ namespace grale
 	class LensInversionGAFactoryCommon;
 	class GALensModule;
 	class GAParameters;
+	class LensGAConvergenceParameters;
 }
 
 class InversionCommunicator
@@ -37,7 +38,8 @@ protected:
 	                     grale::LensGACalculatorFactory &calcFactory, 
 						 const std::shared_ptr<grale::LensGAGenomeCalculator> &genomeCalculator,
 						 const std::vector<uint8_t> &factoryParamBytes,
-						 const grale::GAParameters &params);
+						 const grale::GAParameters &params,
+						 const grale::LensGAConvergenceParameters &convParams);
 
 	bool_t readLineWithPrefix(const std::string &prefix, std::string &value, int timeoutMSec);
 	bool_t readLineWithPrefix(const std::string &prefix, int &value, int timeoutMSec);
