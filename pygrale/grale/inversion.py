@@ -81,14 +81,6 @@ def estimateStrongLensingMass(Dd, images, skipParamCheck = False):
     massEstimate /= count
     return massEstimate        
 
-# TODO: remove this
-def _getModuleName(n):
-    raise InversionException("Internal error: _getModuleName should no longer be used")
-
-# TODO: remove this
-def _getModuleDirectory(n):
-    raise InversionException("Internal error: _getModuleDirectory should no longer be used")
-
 def getDefaultModuleParameters(moduleName = "general"):
     """For the specified module name, query the default parameters."""
 
