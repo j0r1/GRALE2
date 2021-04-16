@@ -63,8 +63,8 @@ numGen = 2000
 lens, _, _ = iws.invertBasisFunctions(popSize,
     massScaleSearchType="nosearch",
     massScale=totalFakeMass, # Not used for 'nosearch' but something must be set
-    fitnessObjectParameters={
-        "convergence_history_size": numGen,
+    convergenceParameters={
+        "historysize": numGen,
     },
     maximumGenerations=numGen,
     baseLens=baseLens,

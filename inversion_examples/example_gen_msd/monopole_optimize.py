@@ -68,14 +68,16 @@ lens, _, _ = iws.invertBasisFunctions(popSize,
     # Needed to make the GA look for a more appropriate scale factor
     massScale=totalFakeMass,
     fitnessObjectParameters={
-        # We'll add an extra step in the convergence checks, that allows
-        # some smaller modifications to the basis functions as well
-        "convergence_smallmutation_sizes": np.array([-1.0,0.1,0.02]),
-        "convergence_factors": np.array([0.1,0.05,0.01]),
         # This makes sure that the rescaling in the GA looks for the
         # best deflection angle fitness; otherwise the kappa threshold
         # (used to avoid negative densities) would be used.
         "scalepriority_deflectionangle": 0
+    },
+    convergenceParameters={
+        # We'll add an extra step in the convergence checks, that allows
+        # some smaller modifications to the basis functions as well
+        "smallmutationsizes": [-1.0,0.1,0.02],
+        "convergencefactors": [0.1,0.05,0.01]
     },
     baseLens=baseLens,
     allowNegativeValues=True,
