@@ -481,8 +481,7 @@ cdef class LensInversionParametersSinglePlaneCPU(object):
                 else:
                     raise InversionParametersException("Unknown basis function type '{}', should be 'plummer', 'gaussian' or 'square'".format(basisFunction))
 
-                # TODO: remove the first 1 (max generations)
-                self.m_pParams = new lensinversionparameterssingleplanecpu.LensInversionParametersSinglePlaneCPU(1, imgVector, gridSquares,
+                self.m_pParams = new lensinversionparameterssingleplanecpu.LensInversionParametersSinglePlaneCPU(imgVector, gridSquares,
                                                 Dd, zd, massScale, useWeights, basisFunctionType, allowNegativeValues,
                                                 pBaseLens, sheetLensModel.get(), pFitnessObjectParameters, deref(scaleSearchParams.get()))
 
@@ -505,8 +504,7 @@ cdef class LensInversionParametersSinglePlaneCPU(object):
 
                     LensInversionParametersSinglePlaneCPU._appendHelper(basisLensInfo, pBasisLensModel, cx, cy, relevantLensingMass)
 
-                # TODO: remove the first 1 (max generations)
-                self.m_pParams = new lensinversionparameterssingleplanecpu.LensInversionParametersSinglePlaneCPU(1, imgVector, basisLensInfo,
+                self.m_pParams = new lensinversionparameterssingleplanecpu.LensInversionParametersSinglePlaneCPU(imgVector, basisLensInfo,
                                                 Dd, zd, massScale, allowNegativeValues, pBaseLens, sheetLensModel.get(), 
                                                 pFitnessObjectParameters, deref(scaleSearchParams.get()))
             else:
@@ -788,7 +786,6 @@ cdef class LensInversionParametersMultiPlaneGPU(object):
             massEstimate,
             useSheet,
             pFitnessObjectParameters,
-            0, # TODO: max generations, should no longer be needed
             allowNegativeWeights,
             deref(scaleSearchParams.get()),
             devIdx)

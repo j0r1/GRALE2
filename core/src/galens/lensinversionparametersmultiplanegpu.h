@@ -22,7 +22,6 @@ public:
 		double massEstimate,
 		bool useMassSheets,
 		const ConfigurationParameters *pFitnessObjectParameters,
-		int maxGenerations,
 		bool allowNegativeWeights,
 		const ScaleSearchParameters &massScaleSearchParams,
 		int deviceIndex);
@@ -35,7 +34,6 @@ public:
 	double getMassEstimate() const                                                  { return m_massEstimate; }
 	bool useMassSheetBasisFunctions() const                                         { return m_useSheets; }
 	const ConfigurationParameters *getFitnessObjectParameters() const				{ return m_fitnessObjectParams.get(); }
-	int getMaximumNumberOfGenerations() const                                       { return m_maxGenerations; }
 	bool getAllowNegativeWeights() const                                            { return m_allowNeg; }
 	const ScaleSearchParameters &getMassScaleSearchParameters() const               { return m_scaleSearchParams; }
 	int getDeviceIndex() const                                                      { return m_deviceIdx; }
@@ -51,7 +49,6 @@ private:
 	double m_massEstimate;
 	bool m_useSheets;
 	std::shared_ptr<ConfigurationParameters> m_fitnessObjectParams;
-	int m_maxGenerations;
 	bool m_allowNeg;
 	ScaleSearchParameters m_scaleSearchParams;
 	int m_deviceIdx;

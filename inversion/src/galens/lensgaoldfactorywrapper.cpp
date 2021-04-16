@@ -89,8 +89,6 @@ public:
 	bool allowNegativeValues() const override { return m_helperFactory->allowNegativeValues(); }
 	size_t getNumberOfBasisFunctions() const override { return m_helperFactory->getNumberOfBasisFunctions(); }
 	size_t getNumberOfSheets() const override { return m_helperFactory->getNumberOfSheets(); }
-	size_t getMaximumNumberOfGenerations() const override { return m_helperFactory->getMaximumNumberOfGenerations(); }
-	const LensFitnessObject &getLensFitnessObject() const override { return m_helperFactory->getFitnessObject(); }
 
 	bool_t calculate(const eatk::Genome &genome, eatk::Fitness &fitness) override
 	{

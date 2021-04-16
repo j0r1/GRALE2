@@ -52,7 +52,6 @@ public:
 	size_t getNumberOfSheets() const { return (size_t)m_numSheetValues; }
 
 	LensFitnessObject &getFitnessObject() { return *(m_fitnessObject.get()); }
-	int getMaximumNumberOfGenerations() const						{ return m_maxGenerations; }
 	size_t getNumberOfFitnessComponents() { return getFitnessObject().getNumberOfFitnessComponents(); }
 protected:
 	virtual LensFitnessObject *createFitnessObject() = 0; // implemented in module
@@ -63,7 +62,7 @@ protected:
 		std::vector<ImagesDataExtended*> &reducedImages,
 		std::vector<ImagesDataExtended*> &shortImages);
 
-	bool setCommonParameters(int numSheetValues, int maxGenerations,
+	bool setCommonParameters(int numSheetValues,
 							 bool allowNeg,
 							 const std::vector<double> &basisFunctionMasses,
 							 double massUnit, double targetMass,
@@ -72,7 +71,7 @@ protected:
 private:
 	void onGeneticAlgorithmStart();
 
-	int m_numBasisFunctions, m_numSheetValues, m_maxGenerations;
+	int m_numBasisFunctions, m_numSheetValues;
 	bool m_allowNegativeValues;
 	ScaleSearchParameters m_massScaleSearchParams;
 

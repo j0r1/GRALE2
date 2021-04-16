@@ -8,7 +8,6 @@ namespace grale
 LensInversionParametersMultiPlaneGPU::LensInversionParametersMultiPlaneGPU()
 	: m_massEstimate(0),
 	  m_useSheets(false),
-	  m_maxGenerations(0),
 	  m_allowNeg(false),
 	  m_deviceIdx(0)
 {
@@ -22,7 +21,6 @@ LensInversionParametersMultiPlaneGPU::LensInversionParametersMultiPlaneGPU(const
 	double massEstimate,
 	bool useMassSheets,
 	const ConfigurationParameters *pFitnessObjectParameters,
-	int maxGenerations,
 	bool allowNegativeWeights,
 	const ScaleSearchParameters &massScaleSearchParams,
 	int deviceIndex)
@@ -61,7 +59,6 @@ LensInversionParametersMultiPlaneGPU::LensInversionParametersMultiPlaneGPU(const
 	m_useSheets = useMassSheets;
 	if (pFitnessObjectParameters)
 		m_fitnessObjectParams = make_shared<ConfigurationParameters>(*pFitnessObjectParameters);
-	m_maxGenerations = maxGenerations;
 	m_allowNeg = allowNegativeWeights;
 	m_scaleSearchParams = massScaleSearchParams;
 	m_deviceIdx = deviceIndex;
@@ -126,14 +123,13 @@ bool LensInversionParametersMultiPlaneGPU::write(serut::SerializationInterface &
 		}
 	}
 
-	int32_t intProps[4] = { 
+	int32_t intProps[3] = { 
 		(m_useSheets)?1:0,
 		(m_fitnessObjectParams.get())?1:0,
-		m_maxGenerations,
 		(m_allowNeg)?1:0
 	};
 
-	if (!si.writeDouble(m_massEstimate) || !si.writeInt32s(intProps, 4))
+	if (!si.writeDouble(m_massEstimate) || !si.writeInt32s(intProps, 3))
 	{
 		setErrorString("Unable to write mass estimate or properties: " + si.getErrorString());
 		return false;
@@ -238,8 +234,8 @@ bool LensInversionParametersMultiPlaneGPU::read(serut::SerializationInterface &s
 		m_images.push_back(img);
 	}
 
-	int32_t intProps[4];
-	if (!si.readDouble(&m_massEstimate) || !si.readInt32s(intProps, 4))
+	int32_t intProps[3];
+	if (!si.readDouble(&m_massEstimate) || !si.readInt32s(intProps, 3))
 	{
 		setErrorString("Can't read mass estimate or properties: " + si.getErrorString());
 		return false;
@@ -247,8 +243,7 @@ bool LensInversionParametersMultiPlaneGPU::read(serut::SerializationInterface &s
 
 	m_useSheets = (intProps[0] == 0)?false:true;
 	bool haveFitnessObjectParams = (intProps[1] == 0)?false:true;
-	m_maxGenerations = intProps[2];
-	m_allowNeg = (intProps[3] == 0)?false:true;
+	m_allowNeg = (intProps[2] == 0)?false:true;
 
 	if (haveFitnessObjectParams)
 	{

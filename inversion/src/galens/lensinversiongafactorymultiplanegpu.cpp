@@ -76,7 +76,7 @@ bool LensInversionGAFactoryMultiPlaneGPU::init(const LensInversionParametersBase
 	}
 
 	// Call setCommonParameters
-	if (!setCommonParameters(m_sheetMultipliers.size(), pParams->getMaximumNumberOfGenerations(),
+	if (!setCommonParameters(m_sheetMultipliers.size(),
 						pParams->getAllowNegativeWeights(), m_basisFunctionMasses,
 						pParams->getMassEstimate(), pParams->getMassEstimate(),
 						pParams->getMassScaleSearchParameters()))

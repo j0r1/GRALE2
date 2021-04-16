@@ -26,7 +26,7 @@ cdef extern from "grale/lensinversionparameterssingleplanecpu.h" namespace "gral
 cdef extern from "grale/lensinversionparameterssingleplanecpu.h" namespace "grale":
     cdef cppclass LensInversionParametersSinglePlaneCPU(errut.ErrorBase):
         LensInversionParametersSinglePlaneCPU()
-        LensInversionParametersSinglePlaneCPU(int maxgenerations,
+        LensInversionParametersSinglePlaneCPU(
                      const vector[shared_ptr[imagesdataextended.ImagesDataExtended]] &images, 
                      const vector[lensinversionbasislensinfo.LensInversionBasisLensInfo] &basisLenses, 
                      double D_d,
@@ -38,7 +38,7 @@ cdef extern from "grale/lensinversionparameterssingleplanecpu.h" namespace "gral
                      const configurationparameters.ConfigurationParameters *pFitnessObjectParams,
                      scalesearchparameters.ScaleSearchParameters &scaleSearchParams)
 
-        LensInversionParametersSinglePlaneCPU(int maxgenerations,
+        LensInversionParametersSinglePlaneCPU(
                      const vector[shared_ptr[imagesdataextended.ImagesDataExtended]] &images, 
                      const vector[grid.GridSquare] &gridsquares, 
                      double D_d,

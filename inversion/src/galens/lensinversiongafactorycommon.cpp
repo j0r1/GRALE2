@@ -16,7 +16,6 @@ LensInversionGAFactoryCommon::LensInversionGAFactoryCommon()
 {
   	m_numBasisFunctions = 0;
 	m_numSheetValues = 0;
-	m_maxGenerations = 0;
 	m_allowNegativeValues = false;
 }
 
@@ -26,7 +25,6 @@ LensInversionGAFactoryCommon::~LensInversionGAFactoryCommon()
 }
 
 bool LensInversionGAFactoryCommon::setCommonParameters(int numSheetValues, 
-							int maxGenerations,
 							bool allowNeg,
 							const std::vector<double> &basisFunctionMasses,
 							double massUnit, double targetMass,
@@ -40,7 +38,6 @@ bool LensInversionGAFactoryCommon::setCommonParameters(int numSheetValues,
 	}
 
 	m_numSheetValues = numSheetValues;
-	m_maxGenerations = maxGenerations;
 	m_allowNegativeValues = allowNeg;
 
 	m_basisFunctionMasses.clear();

@@ -152,7 +152,6 @@ bool LensInversionGAFactorySinglePlaneCPU::init(const LensInversionParametersBas
 		return false;
 	}
 	
-	int maxGenerations = m_pCurrentParams->getMaximumNumberOfGenerations();
 	bool allowNegativeValues = m_pCurrentParams->allowNegativeValues();
 	auto massScaleSearchParams = m_pCurrentParams->getMassScaleSearchParameters();
 	double massScale = m_pCurrentParams->getMassScale();
@@ -161,7 +160,7 @@ bool LensInversionGAFactorySinglePlaneCPU::init(const LensInversionParametersBas
 	for (const auto &bl : basisLenses)
 		basisFunctionMasses.push_back(bl.m_relevantLensingMass);
 
-	if (!setCommonParameters(numSheetValues, maxGenerations, allowNegativeValues,
+	if (!setCommonParameters(numSheetValues, allowNegativeValues,
 	                         basisFunctionMasses,
 							 massScale, massScale,
 							 massScaleSearchParams))

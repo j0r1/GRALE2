@@ -57,7 +57,7 @@ public:
 	// be rescaled so that the total mass corresponds to the mass scale, and
 	// then a search is done for another scale factor that provides the best
 	// fitness value
-	LensInversionParametersSinglePlaneCPU(int maxGenerations,
+	LensInversionParametersSinglePlaneCPU(
 			const std::vector<std::shared_ptr<ImagesDataExtended>> &images,
 			const std::vector<LensInversionBasisLensInfo> &basisLenses,
 			double D_d,
@@ -69,7 +69,7 @@ public:
 			const ConfigurationParameters *pFitnessObjectParams = nullptr,
 			const ScaleSearchParameters &massScaleSearchParams = ScaleSearchParameters(false));
 
-	LensInversionParametersSinglePlaneCPU(int maxgenerations,
+	LensInversionParametersSinglePlaneCPU(
 					 const std::vector<std::shared_ptr<ImagesDataExtended>> &images, 
 	                 const std::vector<GridSquare> &gridsquares, 
 					 double D_d,
@@ -88,7 +88,6 @@ public:
 	~LensInversionParametersSinglePlaneCPU();
 
 	LensInversionParametersSinglePlaneCPU &operator=(const LensInversionParametersSinglePlaneCPU &src)	{ copyFrom(src); return *this;}
-	int getMaximumNumberOfGenerations() const										{ return m_maxGenerations; }
 	double getD_d() const															{ return m_Dd; }
 	double getZ_d() const															{ return m_zd; }
 	double getMassScale() const														{ return m_massScale; }
@@ -110,7 +109,7 @@ public:
 	static std::shared_ptr<GravitationalLens> createDefaultSheetLens(MassSheetSearchType t, double Dd);
 private:
 	void copyFrom(const LensInversionParametersSinglePlaneCPU &src);
-	void commonConstructor(int maxGenerations,
+	void commonConstructor(
 			const std::vector<std::shared_ptr<ImagesDataExtended>> &images,
 			double D_d,
 			double z_d,
@@ -126,7 +125,6 @@ private:
 	void clear();
 	void printBasisLenses();
 
-	int m_maxGenerations;
 	double m_Dd, m_massScale, m_zd;
 	std::vector<std::shared_ptr<ImagesDataExtended>> m_images;
 	bool m_allowNegative;

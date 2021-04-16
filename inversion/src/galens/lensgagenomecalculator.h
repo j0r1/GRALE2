@@ -30,12 +30,6 @@ public:
 	virtual size_t getNumberOfBasisFunctions() const = 0;
 	virtual size_t getNumberOfSheets() const = 0;
 
-	// TODO: move this to GA parameters/stop criterion
-	virtual size_t getMaximumNumberOfGenerations() const = 0;
-	// TODO: should not be needed anymore after stop criterion parameters are
-	//	   moved from lensfitnessgeneral
-	virtual const LensFitnessObject &getLensFitnessObject() const = 0;
-
 	void log(const std::string &s) const
 	{
 		if (m_logger.get()) 

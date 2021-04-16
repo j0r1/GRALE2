@@ -75,10 +75,9 @@ bool_t CalcFitnessCommunicator::runModule(const std::string &lensFitnessObjectTy
 
 	// We're just abusing the factory parameters to get the images, check
 	// that we're using some dummy settings to be sure that this is the purpose
-	if (factoryParams.getMaximumNumberOfGenerations() != 1 ||
-		factoryParams.getBasisLenses().size() != 1 ||
+	if (factoryParams.getBasisLenses().size() != 1 ||
 		factoryParams.getBaseLens() != nullptr)
-		return "Expecting dummy settings for max number of generations, grid and base lens";
+		return "Expecting dummy settings for grid and base lens";
 
 	auto &f = fitnessObject;
 	if (!f.get())

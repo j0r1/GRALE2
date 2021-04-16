@@ -24,7 +24,6 @@ cdef extern from "grale/lensinversionparametersmultiplanegpu.h" namespace "grale
             double massEstimate,
             bool useMassSheets,
             const configurationparameters.ConfigurationParameters *pFitnessObjectParams,
-            int maxGenerations,
             bool allowNegativeWeights,
             const scalesearchparameters.ScaleSearchParameters &scaleSearchParams,
             int deviceIndex)

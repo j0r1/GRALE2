@@ -82,7 +82,7 @@ LensInversionParametersSinglePlaneCPU::LensInversionParametersSinglePlaneCPU()
 	zero();
 }
 
-void LensInversionParametersSinglePlaneCPU::commonConstructor(int maxGenerations,
+void LensInversionParametersSinglePlaneCPU::commonConstructor(
 			const vector<shared_ptr<ImagesDataExtended>> &images,
 			double D_d,
 			double z_d,
@@ -95,7 +95,6 @@ void LensInversionParametersSinglePlaneCPU::commonConstructor(int maxGenerations
 {
 	zero();
 
-	m_maxGenerations = maxGenerations;
 	m_allowNegative = allowNegativeValues;
 
 	m_Dd = D_d;
@@ -118,7 +117,7 @@ void LensInversionParametersSinglePlaneCPU::commonConstructor(int maxGenerations
 	m_scaleSearchParams = massScaleSearchParams;
 }
 
-LensInversionParametersSinglePlaneCPU::LensInversionParametersSinglePlaneCPU(int maxGenerations,
+LensInversionParametersSinglePlaneCPU::LensInversionParametersSinglePlaneCPU(
 			const vector<shared_ptr<ImagesDataExtended>> &images,
 			const vector<LensInversionBasisLensInfo> &basisLenses,
 			double D_d,
@@ -130,14 +129,14 @@ LensInversionParametersSinglePlaneCPU::LensInversionParametersSinglePlaneCPU(int
 			const ConfigurationParameters *pFitnessObjectParams,
 			const ScaleSearchParameters &massScaleSearchParams)
 {
-	commonConstructor(maxGenerations, images, D_d, z_d, massScale, allowNegativeValues, pBaseLens,
+	commonConstructor(images, D_d, z_d, massScale, allowNegativeValues, pBaseLens,
 			          pSheetLens, pFitnessObjectParams, massScaleSearchParams);
 
 	m_basisLenses = basisLenses;
 	printBasisLenses();
 }
 
-LensInversionParametersSinglePlaneCPU::LensInversionParametersSinglePlaneCPU(int maxGenerations,
+LensInversionParametersSinglePlaneCPU::LensInversionParametersSinglePlaneCPU(
 		const vector<shared_ptr<ImagesDataExtended>> &images,
 		const vector<GridSquare> &gridsquares,
 		double D_d, double z_d, double massScale,
@@ -148,7 +147,7 @@ LensInversionParametersSinglePlaneCPU::LensInversionParametersSinglePlaneCPU(int
 		const ConfigurationParameters *pFitnessObjectParams,
 		const ScaleSearchParameters &massScaleSearchParams)
 {
-	commonConstructor(maxGenerations, images, D_d, z_d, massScale, allowNegativeValues, pBaseLens,
+	commonConstructor(images, D_d, z_d, massScale, allowNegativeValues, pBaseLens,
 			          pSheetLens, pFitnessObjectParams, massScaleSearchParams);
 
 	buildBasisLenses(gridsquares, b, useweights);
@@ -162,11 +161,6 @@ LensInversionParametersSinglePlaneCPU::~LensInversionParametersSinglePlaneCPU()
 
 bool LensInversionParametersSinglePlaneCPU::write(serut::SerializationInterface &si) const
 {
-	if (!si.writeInt32(m_maxGenerations))
-	{
-		setErrorString(si.getErrorString());
-		return false;
-	}
 	if (!si.writeDouble(m_Dd))
 	{
 		setErrorString(si.getErrorString());
@@ -295,7 +289,6 @@ void LensInversionParametersSinglePlaneCPU::clear()
 
 void LensInversionParametersSinglePlaneCPU::zero()
 {
-	m_maxGenerations = 0;
 	m_Dd = 0;
 	m_massScale = 0;
 	m_zd = 0;
@@ -308,15 +301,6 @@ void LensInversionParametersSinglePlaneCPU::zero()
 bool LensInversionParametersSinglePlaneCPU::read(serut::SerializationInterface &si)
 {
 	clear();
-
-	int32_t maxgen;
-
-	if (!si.readInt32(&maxgen))
-	{
-		setErrorString(si.getErrorString());
-		return false;
-	}
-	m_maxGenerations = (int)maxgen;
 	
 	if (!si.readDouble(&m_Dd))
 	{
@@ -474,7 +458,7 @@ LensInversionParametersSinglePlaneCPU *LensInversionParametersSinglePlaneCPU::cr
 		imagesCopy.push_back(imgCopy);
 	}
 
-	return new LensInversionParametersSinglePlaneCPU(m_maxGenerations, imagesCopy, copiedBasisLenses,
+	return new LensInversionParametersSinglePlaneCPU(imagesCopy, copiedBasisLenses,
 			                               m_Dd, m_zd, m_massScale, m_allowNegative,
 										   m_pBaseLens.get(), m_pSheetLens.get(), m_pParams.get(),
 										   m_scaleSearchParams);
@@ -590,7 +574,6 @@ shared_ptr<GravitationalLens> LensInversionParametersSinglePlaneCPU::createDefau
 
 void LensInversionParametersSinglePlaneCPU::copyFrom(const LensInversionParametersSinglePlaneCPU &src)
 {
-	m_maxGenerations = src.m_maxGenerations;
 	m_Dd = src.m_Dd;
 	m_massScale = src.m_massScale;
 	m_zd = src.m_zd;
