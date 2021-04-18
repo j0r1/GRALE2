@@ -237,18 +237,17 @@ void TypedParameter::copyFrom(const TypedParameter &src)
 
 ConfigurationParameters::ConfigurationParameters()
 { 
-	m_pParameters = new map<string, ParamWithMarker>();
+	m_pParameters = make_unique<map<string, ParamWithMarker>>();
 }
 
 ConfigurationParameters::ConfigurationParameters(const ConfigurationParameters &cfg) 
 {
-	m_pParameters = new map<string, ParamWithMarker>();
+	m_pParameters = make_unique<map<string, ParamWithMarker>>();
 	copyFrom(cfg);
 }
 
 ConfigurationParameters::~ConfigurationParameters()							
 { 
-	delete m_pParameters;
 }
 
 #define CONFIGURATIONPARAMETERSID 0x43464750

@@ -4,6 +4,7 @@
 
 #include <errut/errorbase.h>
 #include <string>
+#include <memory>
 #include <stdint.h>
 
 typedef void* cl_command_queue;
@@ -76,7 +77,7 @@ private:
 	cl_command_queue m_queue;
 	cl_program m_program;
 	cl_kernel m_kernel;
-	cl_device_id *m_pDevices;
+	std::unique_ptr<cl_device_id []> m_pDevices;
 	int m_deviceIndex;
 
 	void *m_pModule;

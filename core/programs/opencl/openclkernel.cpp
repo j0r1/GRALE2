@@ -17,7 +17,6 @@ OpenCLKernel::OpenCLKernel()
 	m_queue = 0;
 	m_program = 0;
 	m_kernel = 0;
-	m_pDevices = 0;
 
 	clBuildProgram = nullptr;
 	clCreateCommandQueue = nullptr;
@@ -134,11 +133,11 @@ bool OpenCLKernel::init(const string &libraryName)
 		return false;
 	}
 
-	m_pDevices = new cl_device_id [numDevices];
+	m_pDevices = make_unique<cl_device_id[]>(numDevices);
 
-	clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, numDevices, m_pDevices, NULL);
+	clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, numDevices, m_pDevices.get(), NULL);
 
-	m_context = clCreateContext(0, 1, m_pDevices, NULL, NULL, &err);
+	m_context = clCreateContext(0, 1, m_pDevices.get(), NULL, NULL, &err);
 	if (err != CL_SUCCESS)
 	{
 		setErrorString(string("Can't create OpenCL context: ") + getCLErrorString(err));
@@ -205,13 +204,12 @@ bool OpenCLKernel::loadKernel(const string &programString, const string &kernelN
 
 			clGetProgramBuildInfo(m_program, m_pDevices[m_deviceIndex], CL_PROGRAM_BUILD_LOG, 0, 0, &logLength);
 
-			char *pLog = new char[logLength+1];
+			unique_ptr<char []> pLog = make_unique<char[]>(logLength+1);
 
-			clGetProgramBuildInfo(m_program, m_pDevices[m_deviceIndex], CL_PROGRAM_BUILD_LOG, logLength, pLog, 0);
+			clGetProgramBuildInfo(m_program, m_pDevices[m_deviceIndex], CL_PROGRAM_BUILD_LOG, logLength, pLog.get(), 0);
 			pLog[logLength] = 0;
 
-			failLog = string(pLog);
-			delete [] pLog;
+			failLog = string(pLog.get());
 
 			clReleaseProgram(m_program);
 			m_program = 0;
@@ -276,14 +274,12 @@ void OpenCLKernel::releaseAll()
 		clReleaseCommandQueue(m_queue);
 	if (m_context)
 		clReleaseContext(m_context);
-	if (m_pDevices)
-		delete [] m_pDevices;
 
 	m_context = 0;
 	m_queue = 0;
 	m_program = 0;
 	m_kernel = 0;
-	m_pDevices = 0;
+	m_pDevices = nullptr;
 }
 
 string OpenCLKernel::getCLErrorString(int errNum)

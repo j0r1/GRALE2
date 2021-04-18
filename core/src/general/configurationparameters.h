@@ -31,6 +31,7 @@
 #include <errut/errorbase.h>
 #include <serut/serializationinterface.h>
 #include <map>
+#include <memory>
 
 namespace grale
 {
@@ -215,7 +216,7 @@ private:
 		bool m_marker;
 	};
 
-	std::map<std::string, ParamWithMarker> *m_pParameters;
+	std::unique_ptr<std::map<std::string, ParamWithMarker>> m_pParameters;
 };
 
 } // end namespace

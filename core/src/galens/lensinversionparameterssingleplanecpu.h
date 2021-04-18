@@ -104,7 +104,7 @@ public:
 
 	const std::vector<LensInversionBasisLensInfo> &getBasisLenses() const			{ return m_basisLenses; }
 
-	LensInversionParametersSinglePlaneCPU *createCopy() const;
+	std::unique_ptr<LensInversionParametersSinglePlaneCPU> createCopy() const;
 
 	static std::shared_ptr<GravitationalLens> createDefaultSheetLens(MassSheetSearchType t, double Dd);
 private:

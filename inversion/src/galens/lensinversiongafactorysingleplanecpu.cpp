@@ -1,4 +1,5 @@
 /*
+#if 0
 
   This file is a part of GRALE, a library to facilitate the simulation
   and inversion of gravitational lenses.
@@ -109,7 +110,7 @@ bool LensInversionGAFactorySinglePlaneCPU::init(const LensInversionParametersBas
 		return false;
 	}
 
-	m_pCurrentParams.reset(p2->createCopy());
+	m_pCurrentParams = p2->createCopy();
 	assert(m_pCurrentParams.get());
 
 	auto basisLenses = m_pCurrentParams->getBasisLenses();

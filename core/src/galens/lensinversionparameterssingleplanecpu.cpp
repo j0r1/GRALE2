@@ -331,7 +331,7 @@ bool LensInversionParametersSinglePlaneCPU::read(serut::SerializationInterface &
 	
 	for (int32_t i = 0 ; i < numimages ; i++)
 	{
-		shared_ptr<ImagesDataExtended> img(new ImagesDataExtended());
+		shared_ptr<ImagesDataExtended> img = make_shared<ImagesDataExtended>();
 		if (!img->read(si))
 		{
 			setErrorString(img->getErrorString());
@@ -426,8 +426,8 @@ bool LensInversionParametersSinglePlaneCPU::read(serut::SerializationInterface &
 	}
 	return true;
 }
-	
-LensInversionParametersSinglePlaneCPU *LensInversionParametersSinglePlaneCPU::createCopy() const
+
+unique_ptr<LensInversionParametersSinglePlaneCPU> LensInversionParametersSinglePlaneCPU::createCopy() const
 {
 	vector<LensInversionBasisLensInfo> copiedBasisLenses;
 
@@ -449,7 +449,7 @@ LensInversionParametersSinglePlaneCPU *LensInversionParametersSinglePlaneCPU::cr
 	for (const auto &img : m_images)
 	{
 		assert(img.get());
-		shared_ptr<ImagesDataExtended> imgCopy(new ImagesDataExtended(*img.get()));
+		shared_ptr<ImagesDataExtended> imgCopy = make_shared<ImagesDataExtended>(*img);
 		if (!imgCopy.get())
 		{
 			setErrorString("Unable to create copy of an images data set: " + imgCopy->getErrorString());
@@ -458,12 +458,11 @@ LensInversionParametersSinglePlaneCPU *LensInversionParametersSinglePlaneCPU::cr
 		imagesCopy.push_back(imgCopy);
 	}
 
-	return new LensInversionParametersSinglePlaneCPU(imagesCopy, copiedBasisLenses,
+	return make_unique<LensInversionParametersSinglePlaneCPU>(imagesCopy, copiedBasisLenses,
 			                               m_Dd, m_zd, m_massScale, m_allowNegative,
 										   m_pBaseLens.get(), m_pSheetLens.get(), m_pParams.get(),
 										   m_scaleSearchParams);
 }
-
 
 void LensInversionParametersSinglePlaneCPU::buildBasisLenses(const vector<GridSquare> &squares,
                                                    BasisFunctionType basisFunctionType,
@@ -527,14 +526,14 @@ void LensInversionParametersSinglePlaneCPU::buildBasisLenses(const vector<GridSq
 		{
 			PlummerLensParams lensParams(massScale * massWeights[squareNumber], gridSize);
 
-			pLens = shared_ptr<GravitationalLens>(new PlummerLens());
+			pLens = make_shared<PlummerLens>();
 			returnValue = pLens->init(D_d, &lensParams);
 		}
 		else if (basisFunctionType == LensInversionParametersSinglePlaneCPU::GaussBasis)
 		{
 			GaussLensParams lensParams(massScale * massWeights[squareNumber], gridSize);
 
-			pLens = shared_ptr<GravitationalLens>(new GaussLens());
+			pLens = make_shared<GaussLens>();
 			returnValue = pLens->init(D_d, &lensParams);
 		}
 		else // Squares
@@ -543,7 +542,7 @@ void LensInversionParametersSinglePlaneCPU::buildBasisLenses(const vector<GridSq
 
 			SquareLensParams lensParams(massScale * massWeights[squareNumber], gridSize);
 
-			pLens = shared_ptr<GravitationalLens>(new SquareLens());
+			pLens = make_shared<SquareLens>();
 			returnValue = pLens->init(D_d, &lensParams);
 		}
 
@@ -565,7 +564,7 @@ shared_ptr<GravitationalLens> LensInversionParametersSinglePlaneCPU::createDefau
 	if (t == Genome)
 	{
 		MassSheetLensParams params(Dd, 1.1, 1); // should give the same behaviour als the old mass sheet implementation
-		lens.reset(new MassSheetLens());
+		lens = make_shared<MassSheetLens>();
 		lens->init(Dd, &params);
 	}
 

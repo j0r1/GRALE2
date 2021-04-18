@@ -66,6 +66,7 @@ public:
 	ImagesData();
 	ImagesData(const ImagesData &data)						{ copyFrom(data); }
 	virtual ~ImagesData();
+	
 	ImagesData *createCopy() const;
 
 	bool create(int numImages, bool intensities, bool shearInfo);
