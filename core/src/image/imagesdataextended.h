@@ -29,7 +29,7 @@
 
 #include "graleconfig.h"
 #include "imagesdata.h"
-#include <map>
+#include <memory>
 
 namespace grale
 {
@@ -80,7 +80,7 @@ private:
 	void copyFrom(const ImagesDataExtended &dat);
 
 	double m_Ds, m_Dds;
-	ConfigurationParameters *m_pExtraParam;
+	std::unique_ptr<ConfigurationParameters> m_pExtraParam;
 };
 
 } // end namespace

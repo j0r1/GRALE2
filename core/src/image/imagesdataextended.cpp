@@ -36,34 +36,33 @@ namespace grale
 
 ImagesDataExtended::ImagesDataExtended()
 { 
-	m_pExtraParam = new ConfigurationParameters();
+	m_pExtraParam = make_unique<ConfigurationParameters>();
 	m_Ds = 0;
 	m_Dds = 0; 
 }
 
 ImagesDataExtended::ImagesDataExtended(const ImagesDataExtended &dat) : ImagesData(dat)
 {
-	m_pExtraParam = new ConfigurationParameters();
+	m_pExtraParam = make_unique<ConfigurationParameters>();
 	copyFrom(dat);
 }
 
 ImagesDataExtended::ImagesDataExtended(const ImagesData &dat) : ImagesData(dat)
 {
-	m_pExtraParam = new ConfigurationParameters();
+	m_pExtraParam = make_unique<ConfigurationParameters>();
 	m_Ds = 0;
 	m_Dds = 0; 
 }
 
 ImagesDataExtended::ImagesDataExtended(double Ds, double Dds)
 {
-	m_pExtraParam = new ConfigurationParameters();
+	m_pExtraParam = make_unique<ConfigurationParameters>();
 	m_Ds = Ds;
 	m_Dds = Dds;
 }
 
 ImagesDataExtended::~ImagesDataExtended()							
 { 
-	delete m_pExtraParam;
 }
 
 #define IMAGESDATAEXTENDEDID 0x41544451

@@ -58,16 +58,11 @@ ImagePlane::ImagePlane()
 
 ImagePlane::~ImagePlane()
 {
-	delete m_pRealLens;
-	delete m_pGridLens;
-	delete m_pAlphaxxFunction;
-	delete m_pAlphayyFunction;
-	delete m_pAlphaxyFunction;
 }
 
 bool ImagePlane::init(const LensPlane *lensplane, double Ds, double Dds)
 {
-	if (m_pRealLens)
+	if (m_pRealLens.get())
 	{
 		setErrorString("Already initialized");
 		return false;
@@ -84,14 +79,14 @@ bool ImagePlane::init(const LensPlane *lensplane, double Ds, double Dds)
 		return false;
 	}
 	
-	m_pRealLens = lensplane->getLens()->createCopy();
-	if (m_pRealLens == 0)
+	m_pRealLens = unique_ptr<GravitationalLens>(lensplane->getLens()->createCopy());
+	if (m_pRealLens.get() == nullptr)
 	{
 		setErrorString("Unable to create copy of the lens: " + lensplane->getLens()->getErrorString());
 		return false;
 	}
-	m_pGridLens = lensplane->createDeflectionGridLens();
-	if (m_pGridLens == 0)
+	m_pGridLens = unique_ptr<GravitationalLens>(lensplane->createDeflectionGridLens());
+	if (!m_pGridLens.get())
 	{
 		setErrorString("Unable to create deflection grid based lens: " + m_pGridLens->getErrorString());
 		return false;
@@ -167,9 +162,9 @@ bool ImagePlane::init(const LensPlane *lensplane, double Ds, double Dds)
 			m_caustics.push_back(caustPart);
 	}
 
-	m_pAlphaxxFunction = new GridFunction(&(m_alphaxx[0]), bottomleft, topright, numx, numy);
-	m_pAlphayyFunction = new GridFunction(&(m_alphayy[0]), bottomleft, topright, numx, numy);
-	m_pAlphaxyFunction = new GridFunction(&(m_alphaxy[0]), bottomleft, topright, numx, numy);
+	m_pAlphaxxFunction = make_unique<GridFunction>(&(m_alphaxx[0]), bottomleft, topright, numx, numy);
+	m_pAlphayyFunction = make_unique<GridFunction>(&(m_alphayy[0]), bottomleft, topright, numx, numy);
+	m_pAlphaxyFunction = make_unique<GridFunction>(&(m_alphaxy[0]), bottomleft, topright, numx, numy);
 	
 	//setFeedbackStatus("Finished");
 	return true;	
@@ -648,7 +643,7 @@ bool ImagePlane::staticTraceBetaApproximately(Vector2Dd beta, vector<Vector2Dd> 
 
 bool ImagePlane::traceThetaApproximately(Vector2Dd theta, Vector2Dd *pBeta) const
 {
-	if (!m_pGridLens)
+	if (!m_pGridLens.get())
 	{
 		setErrorString("Grid based lens does not exist, not initialized successfully");
 		return false;

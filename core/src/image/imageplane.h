@@ -36,6 +36,7 @@
 #include <stdio.h>
 #include <vector>
 #include <string>
+#include <memory>
 
 namespace grale
 {
@@ -52,7 +53,7 @@ public:
 
 	bool init(const LensPlane *lensplane, double Ds, double Dds);
 	bool isInit() const										{ if (m_pRealLens == 0) return false; return true; }
-	const GravitationalLens *getLens() const				{ return m_pRealLens; }
+	const GravitationalLens *getLens() const				{ return m_pRealLens.get(); }
 
     double getDs() const                                    { return m_Ds; }
     double getDds() const                                   { return m_Dds; }
@@ -100,17 +101,17 @@ private:
                                           std::vector<Vector2DdPlus> &pointSourceInfo);
 	static double getSurfaceBrightness(const std::vector<SourceImage *> &sources, Vector2Dd beta);
 
-	GravitationalLens *m_pRealLens;
-	GravitationalLens *m_pGridLens;
+	std::unique_ptr<GravitationalLens> m_pRealLens;
+	std::unique_ptr<GravitationalLens> m_pGridLens;
 	double m_Dds, m_Ds;
 	
 	std::vector<Vector2Dd > m_betas;
 	std::vector<double> m_alphaxx;
 	std::vector<double> m_alphayy;
 	std::vector<double> m_alphaxy;
-	GridFunction *m_pAlphaxxFunction;
-	GridFunction *m_pAlphayyFunction;
-	GridFunction *m_pAlphaxyFunction;
+	std::unique_ptr<GridFunction> m_pAlphaxxFunction;
+	std::unique_ptr<GridFunction> m_pAlphayyFunction;
+	std::unique_ptr<GridFunction> m_pAlphaxyFunction;
 	std::vector<std::vector<Vector2Dd> > m_criticalLines;
 	std::vector<std::vector<Vector2Dd> > m_caustics;
 	
