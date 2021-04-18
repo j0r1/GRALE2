@@ -67,8 +67,6 @@ public:
 	ImagesData(const ImagesData &data)						{ copyFrom(data); }
 	virtual ~ImagesData();
 	
-	ImagesData *createCopy() const;
-
 	bool create(int numImages, bool intensities, bool shearInfo);
 	bool create(int numImages, const std::vector<PropertyName> &properties);
 

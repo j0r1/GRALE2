@@ -72,21 +72,6 @@ void ImagesData::clear()
 	m_topRight = Vector2D<double>(0,0);
 }
 
-ImagesData *ImagesData::createCopy() const
-{
-	ImagesData *imgdata = new ImagesData();
-
-	imgdata->m_properties = m_properties;
-	imgdata->m_images = m_images;
-	imgdata->m_imagePointProperties = m_imagePointProperties;
-	imgdata->m_groupPoints = m_groupPoints;
-	imgdata->m_triangulations = m_triangulations;
-	imgdata->m_topRight = m_topRight;
-	imgdata->m_bottomLeft = m_bottomLeft;
-
-	return imgdata;
-}
-
 bool ImagesData::create(int numImages, const vector<PropertyName> &properties)
 {
 	if (numImages < 0)
