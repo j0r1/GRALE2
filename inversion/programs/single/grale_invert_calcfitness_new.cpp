@@ -119,7 +119,7 @@ bool_t CalcFitnessCommunicator::runModule(const std::string &lensFitnessObjectTy
 			if (!(r = loadFromBytes(lensWrapper, lensParams)))
 				return "Error loading lens: " + lensWrapper.getErrorString();
 
-			iface.reset(new ImagesBackProjector(*lensWrapper.get(), images, z_d, false));
+			iface = make_unique<ImagesBackProjector>(*lensWrapper.get(), images, z_d, false);
 		}
 		else // precalculated
 		{
@@ -136,17 +136,18 @@ bool_t CalcFitnessCommunicator::runModule(const std::string &lensFitnessObjectTy
 				if (!(r = readLineAndBytesWithPrefix("IMGDATA", imgDataBytes, 10000)))
 					return "Error reading backprojected image data bytes: " + r.getErrorString();
 
-				shared_ptr<ImagesData> imgDat(new ImagesData());
+				shared_ptr<ImagesData> imgDat = make_shared<ImagesData>();
 				if (!(r = loadFromBytes(*(imgDat.get()), imgDataBytes)))
 					return "Couldn't load images data set from bytes: " + r.getErrorString();
 				bpImagesVectorSharedPtr.push_back(imgDat);
 				bpImagesVector.push_back(imgDat.get());
 			}
 
-			PreCalculatedBackProjector *pBp = new PreCalculatedBackProjector();
-			iface.reset(pBp);
+			auto pBp = make_unique<PreCalculatedBackProjector>();
 			if (!pBp->init(imagesVector, bpImagesVector))
 				return "Couldn't initialize pre-calculated backprojector interface: " + pBp->getErrorString();
+
+			iface = move(pBp);
 		}
 
 		vector<float> fitnessComp(f->getNumberOfFitnessComponents());
