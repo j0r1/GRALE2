@@ -53,10 +53,7 @@ bool PreCalculatedBackProjector::init(const std::vector<ImagesData *> &images,
 		vector<unique_ptr<ImagesDataExtended>> imagesVectorAutoDelete;
 
 		for (auto it : images)
-		{
-			unique_ptr<ImagesDataExtended> img { new ImagesDataExtended(*it) };
-			imagesVectorAutoDelete.push_back(move(img));
-		}
+			imagesVectorAutoDelete.push_back(make_unique<ImagesDataExtended>(*it));
 
 		for (auto &it : imagesVectorAutoDelete)
 			imagesVector.push_back(it.get());

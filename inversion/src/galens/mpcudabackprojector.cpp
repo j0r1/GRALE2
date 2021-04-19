@@ -14,7 +14,6 @@ MPCUDABackProjector::MPCUDABackProjector()
 
 MPCUDABackProjector::~MPCUDABackProjector()
 {
-	delete m_pMPCU;
 }
 
 bool MPCUDABackProjector::init(const string &libraryPath, int deviceIndex,
@@ -79,17 +78,17 @@ bool MPCUDABackProjector::init(const string &libraryPath, int deviceIndex,
 		}
 	}
 
-	m_pMPCU = new MultiPlaneCUDA();
-	if (!m_pMPCU->init(libraryPath, deviceIndex, m_angularScale, cosmology.getH(),
+	auto pMPCU = make_unique<MultiPlaneCUDA>();
+	if (!pMPCU->init(libraryPath, deviceIndex, m_angularScale, cosmology.getH(),
 					   cosmology.getOmegaM(), cosmology.getOmegaR(),
 					   cosmology.getOmegaV(), cosmology.getW(),
 					   lensRedshifts, fixedPlummerParams, sourceRedshifts, m_thetas))
 	{
-		setErrorString("Unable to initialize multi-plane CUDA based calculator: " + m_pMPCU->getErrorString());
-		delete m_pMPCU;
-		m_pMPCU = nullptr;
+		setErrorString("Unable to initialize multi-plane CUDA based calculator: " + pMPCU->getErrorString());
 		return false;
 	}
+
+	m_pMPCU = move(pMPCU);
 
 	return true;
 }

@@ -29,6 +29,7 @@
 
 #include "graleconfig.h"
 #include "fitnesshistory.h"
+#include <memory>
 
 namespace grale
 {
@@ -48,7 +49,7 @@ public:
 	void printDebugInfo();
 	std::string getDebugInfo();
 public:
-	std::vector<FitnessHistory *> m_fitnessHistories;
+	std::vector<std::unique_ptr<FitnessHistory>> m_fitnessHistories;
 };
 
 } // end namespace

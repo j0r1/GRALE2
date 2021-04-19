@@ -30,19 +30,19 @@
 
 #include "debugnew.h"
 
+using namespace std;
+
 namespace grale
 {
 
 MultiFitnessHistory::MultiFitnessHistory(int numFitnessComponents, int historySize, float threshold)
 {
 	for (int i = 0 ; i < numFitnessComponents ; i++)
-		m_fitnessHistories.push_back(new FitnessHistory(historySize, threshold));
+		m_fitnessHistories.push_back(make_unique<FitnessHistory>(historySize, threshold));
 }
 
 MultiFitnessHistory::~MultiFitnessHistory()
 {
-	for (int i = 0 ; i < m_fitnessHistories.size() ; i++)
-		delete m_fitnessHistories[i];
 }
 
 void MultiFitnessHistory::reset(int historySize, float threshold)

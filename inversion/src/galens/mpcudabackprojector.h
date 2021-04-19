@@ -73,7 +73,7 @@ public:
 private:
 	static double getAngularScale(const std::vector<ImagesDataExtended*> &images);
 
-	MultiPlaneCUDA *m_pMPCU;
+	std::unique_ptr<MultiPlaneCUDA> m_pMPCU;
 	std::vector<std::vector<Vector2D<float>>> m_thetas;
 	double m_angularScale;
 };
