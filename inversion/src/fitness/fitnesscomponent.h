@@ -10,6 +10,7 @@
 #include "polygon2d.h"
 #include "discretefunction.h"
 #include <vector>
+#include <memory>
 
 namespace grale
 {
@@ -59,10 +60,10 @@ private:
 class FitnessComponent : public errut::ErrorBase
 {
 protected:
-	FitnessComponent(const std::string &name, FitnessComponentCache *pCache);
+	FitnessComponent(const std::string &name, const std::shared_ptr<FitnessComponentCache> &pCache);
 public:
 	~FitnessComponent();
-	virtual FitnessComponent *createShortCopy() const = 0;
+	virtual std::unique_ptr<FitnessComponent> createShortCopy() const = 0;
 
 	void setPriority(int p)																{ m_priority = p; }
 	int getPriority() const																{ return m_priority; }
@@ -94,13 +95,13 @@ protected:
 	void addImagesDataIndex(int idx);
 	void addRecognizedTypeName(const std::string &n);
 	void addToUsedImagesCount(int c);
-	FitnessComponentCache *getCache()													{ return m_pCache; }
+	FitnessComponentCache *getCache()													{ return m_pCache.get(); }
 private:
 	int m_priority;
 	int m_usedImagesCount;
 	std::vector<int> m_usedImagesDataIndices;
 	std::vector<std::string> m_recognizedTypeNames;
-	FitnessComponentCache *m_pCache;
+	std::shared_ptr<FitnessComponentCache> m_pCache;
 	int m_priorityIndex;
 };
 

@@ -12,7 +12,7 @@ namespace grale
 
 // FitnessComponent_KappaThreshold
 
-FitnessComponent_KappaThreshold::FitnessComponent_KappaThreshold(FitnessComponentCache *pCache) 
+FitnessComponent_KappaThreshold::FitnessComponent_KappaThreshold(const std::shared_ptr<FitnessComponentCache> &pCache) 
 	: FitnessComponent("kappathreshold", pCache)
 {
 	addRecognizedTypeName("kappathresholdmin");
@@ -80,7 +80,7 @@ bool FitnessComponent_KappaThreshold::calculateFitness(const ProjectedImagesInte
 
 // FitnessComponent_KappaGradient
 
-FitnessComponent_KappaGradient::FitnessComponent_KappaGradient(FitnessComponentCache *pCache)
+FitnessComponent_KappaGradient::FitnessComponent_KappaGradient(const std::shared_ptr<FitnessComponentCache> &pCache)
 	: FitnessComponent("kappagradient", pCache),
 	  m_srcIdx(-1)
 {

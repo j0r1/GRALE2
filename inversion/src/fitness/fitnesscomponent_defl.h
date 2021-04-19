@@ -9,9 +9,9 @@ namespace grale
 class FitnessComponent_DeflectionAngle : public FitnessComponent
 {
 public:
-	FitnessComponent_DeflectionAngle(FitnessComponentCache *pCache);
+	FitnessComponent_DeflectionAngle(const std::shared_ptr<FitnessComponentCache> &pCache);
 	~FitnessComponent_DeflectionAngle();
-	FitnessComponent *createShortCopy() const override { return new FitnessComponent_DeflectionAngle(nullptr); }
+	std::unique_ptr<FitnessComponent> createShortCopy() const override { return std::make_unique<FitnessComponent_DeflectionAngle>(nullptr); }
 
 	bool inspectImagesData(int idx, const ImagesDataExtended &imgDat,
 			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,

@@ -9,9 +9,9 @@ namespace grale
 class FitnessComponent_NullSpacePointImages : public FitnessComponent
 {
 public:
-	FitnessComponent_NullSpacePointImages(FitnessComponentCache *pCache);
+	FitnessComponent_NullSpacePointImages(const std::shared_ptr<FitnessComponentCache> &pCache);
 	~FitnessComponent_NullSpacePointImages();
-	FitnessComponent *createShortCopy() const override { return new FitnessComponent_NullSpacePointImages(nullptr); }
+	std::unique_ptr<FitnessComponent> createShortCopy() const override { return std::make_unique<FitnessComponent_NullSpacePointImages>(nullptr); }
 
 	bool inspectImagesData(int idx, const ImagesDataExtended &imgDat,
 			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
@@ -36,9 +36,9 @@ private:
 class FitnessComponent_NullSpaceExtendedImages : public FitnessComponent
 {
 public:
-	FitnessComponent_NullSpaceExtendedImages(FitnessComponentCache *pCache);
+	FitnessComponent_NullSpaceExtendedImages(const std::shared_ptr<FitnessComponentCache> &pCache);
 	~FitnessComponent_NullSpaceExtendedImages();
-	FitnessComponent *createShortCopy() const override { return new FitnessComponent_NullSpaceExtendedImages(nullptr); }
+	std::unique_ptr<FitnessComponent> createShortCopy() const override { return std::make_unique<FitnessComponent_NullSpaceExtendedImages>(nullptr); }
 
 	bool inspectImagesData(int idx, const ImagesDataExtended &imgDat,
 			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,

@@ -10,9 +10,9 @@ namespace grale
 class FitnessComponent_PointImagesOverlap : public FitnessComponent
 {
 public:
-	FitnessComponent_PointImagesOverlap(FitnessComponentCache *pCache);
+	FitnessComponent_PointImagesOverlap(const std::shared_ptr<FitnessComponentCache> &pCache);
 	~FitnessComponent_PointImagesOverlap();
-	FitnessComponent *createShortCopy() const override { return new FitnessComponent_PointImagesOverlap(nullptr); }
+	std::unique_ptr<FitnessComponent> createShortCopy() const override { return std::make_unique<FitnessComponent_PointImagesOverlap>(nullptr); }
 
 	bool inspectImagesData(int idx, const ImagesDataExtended &imgDat,
 			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
@@ -39,9 +39,9 @@ private:
 class FitnessComponent_PointGroupOverlap : public FitnessComponent
 {
 public:
-	FitnessComponent_PointGroupOverlap(FitnessComponentCache *pCache);
+	FitnessComponent_PointGroupOverlap(const std::shared_ptr<FitnessComponentCache> &pCache);
 	~FitnessComponent_PointGroupOverlap();
-	FitnessComponent *createShortCopy() const override { return new FitnessComponent_PointGroupOverlap(nullptr); }
+	std::unique_ptr<FitnessComponent> createShortCopy() const override { return std::make_unique<FitnessComponent_PointGroupOverlap>(nullptr); }
 
 	bool inspectImagesData(int idx, const ImagesDataExtended &imgDat,
 			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
@@ -61,9 +61,9 @@ private:
 class FitnessComponent_ExtendedImagesOverlap : public FitnessComponent
 {
 public:
-	FitnessComponent_ExtendedImagesOverlap(FitnessComponentCache *pCache);
+	FitnessComponent_ExtendedImagesOverlap(const std::shared_ptr<FitnessComponentCache> &pCache);
 	~FitnessComponent_ExtendedImagesOverlap();
-	FitnessComponent *createShortCopy() const override { return new FitnessComponent_ExtendedImagesOverlap(nullptr); }
+	std::unique_ptr<FitnessComponent> createShortCopy() const override { return std::make_unique<FitnessComponent_ExtendedImagesOverlap>(nullptr); }
 
 	bool inspectImagesData(int idx, const ImagesDataExtended &imgDat,
 			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,

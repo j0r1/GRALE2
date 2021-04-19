@@ -9,7 +9,7 @@ namespace grale
 
 // FitnessComponent_CausticPenalty
 
-FitnessComponent_CausticPenalty::FitnessComponent_CausticPenalty(FitnessComponentCache *pCache)
+FitnessComponent_CausticPenalty::FitnessComponent_CausticPenalty(const std::shared_ptr<FitnessComponentCache> &pCache)
 	: FitnessComponent("causticpenalty", pCache)
 {
 	addRecognizedTypeName("causticgrid");

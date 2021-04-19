@@ -9,9 +9,9 @@ namespace grale
 class FitnessComponent_CausticPenalty : public FitnessComponent
 {
 public:
-	FitnessComponent_CausticPenalty(FitnessComponentCache *pCache);
+	FitnessComponent_CausticPenalty(const std::shared_ptr<FitnessComponentCache> &pCache);
 	~FitnessComponent_CausticPenalty();
-	FitnessComponent *createShortCopy() const override { return new FitnessComponent_CausticPenalty(nullptr); }
+	std::unique_ptr<FitnessComponent> createShortCopy() const override { return std::make_unique<FitnessComponent_CausticPenalty>(nullptr); }
 
 	bool inspectImagesData(int idx, const ImagesDataExtended &imgDat,
 			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,

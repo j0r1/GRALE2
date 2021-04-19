@@ -13,7 +13,7 @@ namespace grale
 
 // FitnessComponent_PointImagesOverlap
 
-FitnessComponent_PointImagesOverlap::FitnessComponent_PointImagesOverlap(FitnessComponentCache *pCache) 
+FitnessComponent_PointImagesOverlap::FitnessComponent_PointImagesOverlap(const std::shared_ptr<FitnessComponentCache> &pCache) 
 	: FitnessComponent("pointimageoverlap", pCache)
 {
 	addRecognizedTypeName("pointimages");
@@ -224,7 +224,7 @@ bool FitnessComponent_PointImagesOverlap::calculateFitness(const ProjectedImages
 
 // FitnessComponent_PointGroupOverlap
 
-FitnessComponent_PointGroupOverlap::FitnessComponent_PointGroupOverlap(FitnessComponentCache *pCache) 
+FitnessComponent_PointGroupOverlap::FitnessComponent_PointGroupOverlap(const std::shared_ptr<FitnessComponentCache> &pCache) 
 	: FitnessComponent("pointgroupoverlap", pCache)
 {
 	addRecognizedTypeName("pointgroupimages");
@@ -321,7 +321,7 @@ bool FitnessComponent_PointGroupOverlap::calculateFitness(const ProjectedImagesI
 
 // FitnessComponent_ExtendedImagesOverlap
 
-FitnessComponent_ExtendedImagesOverlap::FitnessComponent_ExtendedImagesOverlap(FitnessComponentCache *pCache) 
+FitnessComponent_ExtendedImagesOverlap::FitnessComponent_ExtendedImagesOverlap(const std::shared_ptr<FitnessComponentCache> &pCache) 
 	: FitnessComponent("extendedimageoverlap", pCache)
 {
 	addRecognizedTypeName("extendedimages");

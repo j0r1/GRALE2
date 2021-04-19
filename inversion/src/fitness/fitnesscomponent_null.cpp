@@ -11,7 +11,7 @@ namespace grale
 
 // FitnessComponent_NullSpacePointImages
 
-FitnessComponent_NullSpacePointImages::FitnessComponent_NullSpacePointImages(FitnessComponentCache *pCache) 
+FitnessComponent_NullSpacePointImages::FitnessComponent_NullSpacePointImages(const std::shared_ptr<FitnessComponentCache> &pCache) 
 	: FitnessComponent("pointimagenull", pCache)
 {
 	addRecognizedTypeName("pointimages");
@@ -216,7 +216,7 @@ bool FitnessComponent_NullSpacePointImages::calculateFitness(const ProjectedImag
 
 // FitnessComponent_NullSpaceExtendedImages
 
-FitnessComponent_NullSpaceExtendedImages::FitnessComponent_NullSpaceExtendedImages(FitnessComponentCache *pCache) 
+FitnessComponent_NullSpaceExtendedImages::FitnessComponent_NullSpaceExtendedImages(const std::shared_ptr<FitnessComponentCache> &pCache) 
 	: FitnessComponent("extendedimagenull", pCache)
 {
 	addRecognizedTypeName("extendedimages");

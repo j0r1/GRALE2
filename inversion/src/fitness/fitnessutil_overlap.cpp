@@ -598,15 +598,14 @@ float calculateOverlapFitness_Extended(const PointGroupStorage &pointGroups, con
 // Create one point group for the point images
 shared_ptr<ImagesDataExtended> addGroupsToPointImages(const ImagesDataExtended &imgDat, string &errStr)
 {
-	shared_ptr<ImagesDataExtended> Bad;
-	shared_ptr<ImagesDataExtended> grpDat0 { new ImagesDataExtended(imgDat) };
+	shared_ptr<ImagesDataExtended> grpDat0 = make_shared<ImagesDataExtended>(imgDat);
 	ImagesData &grpDat = *grpDat0.get();
 	bool hasPt = false;
 
 	if (grpDat.getNumberOfGroups() != 0)
 	{
 		errStr = "Image already contains point groups";
-		return Bad;
+		return nullptr;
 	}
 
 	int newGrp = grpDat.addGroup();
@@ -617,7 +616,7 @@ shared_ptr<ImagesDataExtended> addGroupsToPointImages(const ImagesDataExtended &
 		if (numPts != 1)
 		{
 			errStr = "Image id " + to_string(img) + " has " + to_string(numPts) + " points (should be exactly 1)";
-			return Bad;
+			return nullptr;
 		}
 
 		grpDat.addGroupPoint(newGrp, img, 0);
@@ -627,7 +626,7 @@ shared_ptr<ImagesDataExtended> addGroupsToPointImages(const ImagesDataExtended &
 	if (!hasPt)
 	{
 		errStr = "No points were present, no groups could be added";
-		return Bad;
+		return nullptr;
 	}
 	return grpDat0;
 }

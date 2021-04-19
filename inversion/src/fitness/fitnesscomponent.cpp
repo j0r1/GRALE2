@@ -87,7 +87,7 @@ bool FitnessComponentCache::getEstimatedSourceScale(int idx, float &scale)
 	return true;
 }
 
-FitnessComponent::FitnessComponent(const string &name, FitnessComponentCache *pCache) : errut::ErrorBase(name)
+FitnessComponent::FitnessComponent(const string &name, const shared_ptr<FitnessComponentCache> &pCache) : errut::ErrorBase(name)
 {
 	m_pCache = pCache;
 	m_priority = numeric_limits<int>::max();

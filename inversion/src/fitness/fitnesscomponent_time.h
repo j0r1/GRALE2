@@ -11,9 +11,9 @@ class FitnessComponent_TimeDelay : public FitnessComponent
 public:
 	enum TDFitnessType { Paper2009, NoSrc };
 
-	FitnessComponent_TimeDelay(FitnessComponentCache *pCache);
+	FitnessComponent_TimeDelay(const std::shared_ptr<FitnessComponentCache> &pCache);
 	~FitnessComponent_TimeDelay();
-	FitnessComponent *createShortCopy() const override { return new FitnessComponent_TimeDelay(nullptr); }
+	std::unique_ptr<FitnessComponent> createShortCopy() const override { return std::make_unique<FitnessComponent_TimeDelay>(nullptr); }
 
 	bool inspectImagesData(int idx, const ImagesDataExtended &imgDat,
 			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,

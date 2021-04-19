@@ -228,14 +228,14 @@ int main(int argc, char *argv[])
 	}
 
 	unique_ptr<LensFitnessObject> pLFO = LensFitnessObjectRegistry::instance().createFitnessObject(argv[1]);
-	ConfigurationParameters *pConfParams = pLFO->getDefaultParametersInstance();
+	auto pConfParams = pLFO->getDefaultParametersInstance();
 
 	list<ImagesDataExtended *> imagesList;
 	for (auto i : images)
 		imagesList.push_back(i);
 	list<ImagesDataExtended *> dummy;
 
-	if (!pLFO->init(z_d, imagesList, dummy, pConfParams))
+	if (!pLFO->init(z_d, imagesList, dummy, pConfParams.get()))
 	{
 		cerr << "Unable to initialize lens fitness object: " << pLFO->getErrorString() << endl;
 		return -1;

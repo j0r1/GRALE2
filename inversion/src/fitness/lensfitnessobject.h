@@ -31,6 +31,7 @@
 
 #include "graleconfig.h"
 #include "projectedimagesinterface.h"
+#include "configurationparameters.h"
 #include <errut/errorbase.h>
 #include <errut/booltype.h>
 #include <vector>
@@ -43,7 +44,6 @@ namespace grale
 {
 	
 class ImagesDataExtended;
-class ConfigurationParameters;
 
 /** This class is a base class for fitness calculation code in the GA. */
 class GRALE_IMPORTEXPORT LensFitnessObject : public errut::ErrorBase 
@@ -80,7 +80,7 @@ public:
 
 	/** In case the lens fitness object uses additional parameters for initialization,
 	 *  an instance containing the defaults can be created this way. */
-	virtual ConfigurationParameters *getDefaultParametersInstance() const { return nullptr; }
+	virtual std::unique_ptr<ConfigurationParameters> getDefaultParametersInstance() const { return nullptr; }
 
 	/** Obtain a usage description for this LensFitnessObject implementation. */
 	virtual std::string getUsage() const = 0;

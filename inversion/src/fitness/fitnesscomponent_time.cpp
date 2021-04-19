@@ -13,7 +13,7 @@ namespace grale
 
 // FitnessComponent_TimeDelay
 
-FitnessComponent_TimeDelay::FitnessComponent_TimeDelay(FitnessComponentCache *pCache) 
+FitnessComponent_TimeDelay::FitnessComponent_TimeDelay(const std::shared_ptr<FitnessComponentCache> &pCache) 
 	: FitnessComponent("timedelay", pCache),
 	  m_fitnessType(NoSrc)
 {

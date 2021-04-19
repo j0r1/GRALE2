@@ -47,10 +47,8 @@ namespace grale
 LensFitnessGeneral::LensFitnessGeneral()
 {
 	m_initialized = false;
-	m_pShortComponent = 0;
-	m_deleteShortComponent = true;
 	m_numFitnessComponents = 0;
-	m_pCache = 0;
+	m_pCache = nullptr;
 }
 
 LensFitnessGeneral::~LensFitnessGeneral()
@@ -60,13 +58,7 @@ LensFitnessGeneral::~LensFitnessGeneral()
 
 void LensFitnessGeneral::clear()
 {
-	if (m_deleteShortComponent)
-		delete m_pShortComponent;
-	m_pShortComponent = 0;
-	m_deleteShortComponent = true;
-
-	for (size_t i = 0 ; i < m_totalComponents.size() ; i++)
-		delete m_totalComponents[i];
+	m_pShortComponent = nullptr;
 	m_totalComponents.clear();
 
 	m_totalInverse = false;
@@ -89,9 +81,7 @@ void LensFitnessGeneral::clear()
 	m_shortShearFlags.clear();
 	m_shortConvergenceFlags.clear();
 
-	delete m_pCache;
-	m_pCache = 0;
-
+	m_pCache = nullptr;
 	m_cosmology = nullptr;
 }
 
@@ -105,18 +95,18 @@ inline bool reduceFlags(const vector<bool> &flags)
 	return false;
 }
 
-void removeEmpty(vector<FitnessComponent *> &comp)
+void removeEmpty(vector<shared_ptr<FitnessComponent>> &comp)
 {
-	vector<FitnessComponent *> newComp;
+	vector<shared_ptr<FitnessComponent>> newComp;
 
 	for (size_t i = 0 ; i < comp.size() ; i++)
 	{
-		FitnessComponent *pComp = comp[i];
-		if (pComp)
+		shared_ptr<FitnessComponent> &pComp = comp[i];
+		if (pComp.get())
 			newComp.push_back(pComp);
 	}
 
-	comp = newComp;
+	swap(comp, newComp);
 }
 
 #define COMPONENT_POINTOVERLAP_IDX				0
@@ -148,37 +138,37 @@ static const vector<string> componentNames {
 	"deflectionangle"
 };
 
-vector<FitnessComponent*> getAllComponents(FitnessComponentCache *pCache)
+vector<shared_ptr<FitnessComponent>> getAllComponents(const shared_ptr<FitnessComponentCache> &pCache)
 {
 	return {
-		new FitnessComponent_PointImagesOverlap(pCache),
-		new FitnessComponent_ExtendedImagesOverlap(pCache),
-		new FitnessComponent_PointGroupOverlap(pCache),
-		new FitnessComponent_WeakLensing(pCache),
-		new FitnessComponent_NullSpacePointImages(pCache),
-		new FitnessComponent_NullSpaceExtendedImages(pCache),
-		new FitnessComponent_TimeDelay(pCache),
-		new FitnessComponent_KappaThreshold(pCache),
-		new FitnessComponent_CausticPenalty(pCache),
-		new FitnessComponent_KappaGradient(pCache),
-		new FitnessComponent_WeakLensing_Bayes(pCache),
-		new FitnessComponent_DeflectionAngle(pCache)
+		make_shared<FitnessComponent_PointImagesOverlap>(pCache),
+		make_shared<FitnessComponent_ExtendedImagesOverlap>(pCache),
+		make_shared<FitnessComponent_PointGroupOverlap>(pCache),
+		make_shared<FitnessComponent_WeakLensing>(pCache),
+		make_shared<FitnessComponent_NullSpacePointImages>(pCache),
+		make_shared<FitnessComponent_NullSpaceExtendedImages>(pCache),
+		make_shared<FitnessComponent_TimeDelay>(pCache),
+		make_shared<FitnessComponent_KappaThreshold>(pCache),
+		make_shared<FitnessComponent_CausticPenalty>(pCache),
+		make_shared<FitnessComponent_KappaGradient>(pCache),
+		make_shared<FitnessComponent_WeakLensing_Bayes>(pCache),
+		make_shared<FitnessComponent_DeflectionAngle>(pCache)
 	};
 }
 
-FitnessComponent *LensFitnessGeneral::totalToShort(const vector<FitnessComponent *> &total, vector<int> &shortImageIndices,
+unique_ptr<FitnessComponent> LensFitnessGeneral::totalToShort(const vector<shared_ptr<FitnessComponent>> &total, vector<int> &shortImageIndices,
 							   const ConfigurationParameters &params)
 {
 	assert(componentNames.size() == COMPONENT_IDX_MAX);
 	assert(componentNames.size() == total.size());
 
-	map<int, vector<FitnessComponent *>> priorityMap;
+	map<int, vector<shared_ptr<FitnessComponent>>> priorityMap;
 
 	// Build a map of the priorities
 	for (int compIdx = 0 ; compIdx < componentNames.size() ; compIdx++)
 	{
 		string compName = componentNames[compIdx];
-		FitnessComponent *pComp = total[compIdx];
+		const shared_ptr<FitnessComponent> &pComp = total[compIdx];
 		string keyName = "scalepriority_" + compName;
 
 		int priority = 0;
@@ -188,7 +178,7 @@ FitnessComponent *LensFitnessGeneral::totalToShort(const vector<FitnessComponent
 			return nullptr;
 		}
 
-		if (!pComp)
+		if (!pComp.get())
 			continue;
 
 		if (pComp->getObjectName() != compName)
@@ -216,27 +206,27 @@ FitnessComponent *LensFitnessGeneral::totalToShort(const vector<FitnessComponent
 	}
 
 	auto components = priorityMap[priorityKeys[0]]; // Use the components with the lowest priority
-	sort(components.begin(), components.end(), [](FitnessComponent *c1, FitnessComponent *c2)
+	sort(components.begin(), components.end(), [](const shared_ptr<FitnessComponent> &c1, const shared_ptr<FitnessComponent> &c2)
 	{
-		if (c1 == nullptr)
+		if (c1.get() == nullptr)
 			return false;
-		if (c2 == nullptr)
+		if (c2.get() == nullptr)
 			return true;
 		return c1->getNumberOfUsedImages() > c2->getNumberOfUsedImages();
 	});
 
-	assert(components.size() > 0 && components[0] != nullptr);
+	assert(components.size() > 0 && components[0].get() != nullptr);
 	
-	FitnessComponent *pShortComp = components[0];
-
+	shared_ptr<FitnessComponent> &pShortComp = components[0];
 	shortImageIndices = pShortComp->getUsedImagesDataIndices();
 	return pShortComp->createShortCopy();
 }
 
-bool componentSortFunction(const FitnessComponent *pComp1, const FitnessComponent *pComp2)
+bool componentSortFunction(const shared_ptr<FitnessComponent> &pComp1,
+                           const shared_ptr<FitnessComponent> &pComp2)
 {
-	assert(pComp1);
-	assert(pComp2);
+	assert(pComp1.get());
+	assert(pComp2.get());
 
 	if (pComp1->getPriority() < pComp2->getPriority())
 		return true;
@@ -250,9 +240,9 @@ bool componentSortFunction(const FitnessComponent *pComp1, const FitnessComponen
 	return false;
 }
 
-ConfigurationParameters *LensFitnessGeneral::getDefaultParametersInstance() const
+unique_ptr<ConfigurationParameters> LensFitnessGeneral::getDefaultParametersInstance() const
 {
-	ConfigurationParameters *pParams = new ConfigurationParameters();
+	auto pParams = make_unique<ConfigurationParameters>();
 
 	pParams->setParameterEmpty("general_cosmology");
 
@@ -297,12 +287,12 @@ ConfigurationParameters *LensFitnessGeneral::getDefaultParametersInstance() cons
 	return pParams;
 }
 
-bool LensFitnessGeneral::setFitnessOptions(FitnessComponent *pComp, const ConfigurationParameters *pParams)
+bool LensFitnessGeneral::setFitnessOptions(FitnessComponent &pComp, const ConfigurationParameters *pParams)
 {
 	vector<string> allKeys;
 	pParams->getAllKeys(allKeys);
 
-	string fitnessOptionStart = "fitness_" + pComp->getObjectName() + "_";
+	string fitnessOptionStart = "fitness_" + pComp.getObjectName() + "_";
 	for (auto &k : allKeys)
 	{
 		if (k.find(fitnessOptionStart) == 0) // key starts with this
@@ -311,9 +301,9 @@ bool LensFitnessGeneral::setFitnessOptions(FitnessComponent *pComp, const Config
 			TypedParameter tp;
 
 			pParams->getParameter(k, tp);
-			if (!pComp->processFitnessOption(optionName, tp))
+			if (!pComp.processFitnessOption(optionName, tp))
 			{
-				setErrorString("Unable to process fitness option '" + k + "': " + pComp->getErrorString());
+				setErrorString("Unable to process fitness option '" + k + "': " + pComp.getErrorString());
 				return false;
 			}
 		}
@@ -359,9 +349,9 @@ bool LensFitnessGeneral::processGeneralParameters(const ConfigurationParameters 
 bool LensFitnessGeneral::processComponentParameters(const ConfigurationParameters *pParams)
 {
 	// Set priorities and component specific fitness options
-	for (FitnessComponent *pComp : m_totalComponents)
+	for (auto &pComp : m_totalComponents)
 	{
-		assert(pComp);
+		assert(pComp.get());
 		string keyName = "priority_" + pComp->getObjectName();
 
 		int priority = 0;
@@ -372,7 +362,7 @@ bool LensFitnessGeneral::processComponentParameters(const ConfigurationParameter
 		}
 
 		pComp->setPriority(priority);
-		if (!setFitnessOptions(pComp, pParams))
+		if (!setFitnessOptions(*pComp, pParams))
 			return false;
 	}
 
@@ -384,7 +374,7 @@ set<string> LensFitnessGeneral::getSupportedTypeNames()
 	set<string> supportedNames;
 	for (size_t i = 0 ; i < m_totalComponents.size() ; i++)
 	{
-		FitnessComponent *pComp = m_totalComponents[i];
+		shared_ptr<FitnessComponent> &pComp = m_totalComponents[i];
 		assert(pComp);
 
 		vector<string> names = pComp->getRecognizedTypeNames();
@@ -415,8 +405,7 @@ bool LensFitnessGeneral::init(double z_d, std::list<ImagesDataExtended *> &image
 	clear();
 
 	// Using unique_ptr make sure it gets deleted on return (in case of an error)
-	unique_ptr<FitnessComponentCache> cacheSmart(new FitnessComponentCache(images.size()));
-	FitnessComponentCache *pCache = cacheSmart.get();
+	auto pCache = make_shared<FitnessComponentCache>(images.size());
 
 	// Clear the config markers (to check if there are unused config options)
 	for (auto pImg : images)
@@ -457,19 +446,19 @@ bool LensFitnessGeneral::init(double z_d, std::list<ImagesDataExtended *> &image
 	// reuse an already existing component, and discard the copy
 	m_pShortComponent = totalToShort(m_totalComponents, shortIndices, *pParams);
 	// Check that we have something to base the mass scale on
-	if (m_pShortComponent == nullptr)
+	if (!m_pShortComponent.get())
 		return false; // error string has been set
 
 	// TODO: find something better to report
 	cerr << "DBG: shortComponent = " << m_pShortComponent->getObjectName() << endl;
 
 	// Also set the possibly different fitness options
-	setFitnessOptions(m_pShortComponent, pParams);
+	setFitnessOptions(*m_pShortComponent, pParams);
 
 	buildShortImagesList(images, shortIndices, shortImages);
 
 	// Run the shortImages through the newly created m_pShortComponent
-	vector<FitnessComponent *> shortComponentVector { m_pShortComponent };
+	vector<shared_ptr<FitnessComponent>> shortComponentVector { m_pShortComponent };
 	if (!inspectImagesByComponents(shortImages, shortComponentVector,
 			m_shortDeflectionFlags,
 			m_shortDerivativeFlags,
@@ -504,14 +493,10 @@ bool LensFitnessGeneral::init(double z_d, std::list<ImagesDataExtended *> &image
 		// We can use the same 'short' version as the total one
 		// (we've already checked that a short version can be created, so
 		// this can now only be the remaining fitness components)
-		if (m_deleteShortComponent)
-			delete m_pShortComponent;
 
 		assert(m_totalComponents.size() == 1);
 		m_pShortComponent = m_totalComponents[0];
-		assert(m_pShortComponent);
-
-		m_deleteShortComponent = false; // don't delete things twice!
+		assert(m_pShortComponent.get());
 		
 		shortImages.clear(); // Make sure the caller knows we're not using a separate list
 	}
@@ -535,9 +520,9 @@ bool LensFitnessGeneral::init(double z_d, std::list<ImagesDataExtended *> &image
 
 	// TODO: should find something better than stdout
 	cerr << "FITNESS COMPONENT ORDER: ";
-	for (const FitnessComponent *pComp : m_totalComponents)
+	for (auto &pComp : m_totalComponents)
 	{
-		assert(pComp);
+		assert(pComp.get());
 		cerr << pComp->getObjectName() << " ";
 	}
 	cerr << endl;
@@ -549,8 +534,7 @@ bool LensFitnessGeneral::init(double z_d, std::list<ImagesDataExtended *> &image
 
 	m_fitnessComponentDescription = ss.str();
 
-	// We don't want the cache to be deleted, extract it from the smart pointer
-	m_pCache = cacheSmart.release();
+	m_pCache = pCache;
 
 	m_initialized = true;
 
@@ -611,7 +595,7 @@ bool LensFitnessGeneral::checkImagesDataParameters(list<ImagesDataExtended *> &i
 }
 
 bool LensFitnessGeneral::inspectImagesByComponents(list<ImagesDataExtended *> &images,
-	vector<FitnessComponent *> &components,
+	vector<shared_ptr<FitnessComponent>> &components,
 	vector<bool> &deflectionFlags,
 	vector<bool> &derivativeFlags,
 	vector<bool> &potentialFlags,
@@ -643,7 +627,7 @@ bool LensFitnessGeneral::inspectImagesByComponents(list<ImagesDataExtended *> &i
 
 		for (auto pComp : components)
 		{
-			assert(pComp);
+			assert(pComp.get());
 
 			bool needDefl = false, needDeflDeriv = false, needPotential = false,
 				 needInvMag = false, needShear = false, needConv = false;
@@ -692,14 +676,11 @@ bool LensFitnessGeneral::finalizeAndCleanUnusedComponents(float z_d, const Cosmo
 {
 	for (size_t i = 0 ; i < m_totalComponents.size() ; i++)
 	{
-		FitnessComponent *pComp = m_totalComponents[i];
-		assert(pComp);
+		shared_ptr<FitnessComponent> &pComp = m_totalComponents[i];
+		assert(pComp.get());
 
 		if (pComp->getUsedImagesDataIndices().size() == 0)
-		{
-			delete pComp;
-			m_totalComponents[i] = 0;
-		}
+			m_totalComponents[i] = nullptr;
 		else
 		{
 			//cerr << "Long finalize for " << pComp->getObjectName() << endl;
@@ -789,7 +770,7 @@ void LensFitnessGeneral::buildShortImagesList(list<ImagesDataExtended *> &images
 
 bool LensFitnessGeneral::calculateMassScaleFitness(const ProjectedImagesInterface &iface, float &fitness) const
 {
-	assert(m_pShortComponent);
+	assert(m_pShortComponent.get());
 
 	// it's possible that this cache is used by the short component
 	// (it may be a pointer to one of the m_totalComponents), so
@@ -816,8 +797,8 @@ bool LensFitnessGeneral::calculateOverallFitness(const ProjectedImagesInterface 
 
 	for (int i = 0 ; i < m_numFitnessComponents ; i++)
 	{
-		FitnessComponent *pComp = m_calculationOrderComponents[i];
-		assert(pComp);
+		const shared_ptr<FitnessComponent> &pComp = m_calculationOrderComponents[i];
+		assert(pComp.get());
 
 		float f = numeric_limits<float>::max();
 

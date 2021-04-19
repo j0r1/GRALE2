@@ -16,7 +16,7 @@ namespace grale
 
 // FitnessComponent_WeakLensing
 
-FitnessComponent_WeakLensing::FitnessComponent_WeakLensing(FitnessComponentCache *pCache) 
+FitnessComponent_WeakLensing::FitnessComponent_WeakLensing(const std::shared_ptr<FitnessComponentCache> &pCache) 
 	: FitnessComponent("weaklensing", pCache)
 {
 	addRecognizedTypeName("sheardata");
@@ -122,7 +122,7 @@ bool FitnessComponent_WeakLensing::calculateFitness(const ProjectedImagesInterfa
 
 // FitnessComponent_WeakLensing_Bayes
 
-FitnessComponent_WeakLensing_Bayes::FitnessComponent_WeakLensing_Bayes(FitnessComponentCache *pCache) 
+FitnessComponent_WeakLensing_Bayes::FitnessComponent_WeakLensing_Bayes(const std::shared_ptr<FitnessComponentCache> &pCache) 
 	: FitnessComponent("bayesweaklensing", pCache)
 {
 	addRecognizedTypeName("bayesellipticities");

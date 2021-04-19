@@ -12,7 +12,7 @@ namespace grale
 
 // FitnessComponent_DeflectionAngle
 
-FitnessComponent_DeflectionAngle::FitnessComponent_DeflectionAngle(FitnessComponentCache *pCache)
+FitnessComponent_DeflectionAngle::FitnessComponent_DeflectionAngle(const std::shared_ptr<FitnessComponentCache> &pCache)
 	: FitnessComponent("deflectionangle", pCache)
 {
 	addRecognizedTypeName("deflectionangles");

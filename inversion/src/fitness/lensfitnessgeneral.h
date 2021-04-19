@@ -47,7 +47,7 @@ public:
 	          std::list<ImagesDataExtended *> &shortImages, const ConfigurationParameters *pParams) override;
 	std::string getUsage() const override;
 
-	ConfigurationParameters *getDefaultParametersInstance() const override;
+	std::unique_ptr<ConfigurationParameters> getDefaultParametersInstance() const override;
 	std::string getFitnessComponentsDescription() const						{ return m_fitnessComponentDescription; }
 	int getImagesGroupSize() const											{ return 1; }
 
@@ -79,12 +79,12 @@ private:
 	void clear();
 	bool processGeneralParameters(const ConfigurationParameters *pParams);
 	bool processComponentParameters(const ConfigurationParameters *pParams);
-	bool setFitnessOptions(FitnessComponent *pComp, const ConfigurationParameters *pParams);
+	bool setFitnessOptions(FitnessComponent &pComp, const ConfigurationParameters *pParams);
 	std::set<std::string> getSupportedTypeNames();
 	bool checkImagesDataParameters(std::list<ImagesDataExtended *> &images);
 	bool inspectImagesByComponents(
 		std::list<ImagesDataExtended *> &images,
-		std::vector<FitnessComponent *> &components,
+		std::vector<std::shared_ptr<FitnessComponent>> &components,
 		std::vector<bool> &deflectionFlags,
 		std::vector<bool> &derivativeFlags,
 		std::vector<bool> &potentialFlags,
@@ -95,7 +95,7 @@ private:
 	bool checkUnusedImagesDataParameters(std::list<ImagesDataExtended *> &images);
 	bool checkAllImagesUsed(std::list<ImagesDataExtended *> &images);
 	bool finalizeAndCleanUnusedComponents(float z_d, const Cosmology *pCosmology);
-	FitnessComponent *totalToShort(const std::vector<FitnessComponent *> &total, std::vector<int> &shortImageIndices,
+	std::unique_ptr<FitnessComponent> totalToShort(const std::vector<std::shared_ptr<FitnessComponent>> &total, std::vector<int> &shortImageIndices,
 							       const ConfigurationParameters &params);
 	void buildShortImagesList(std::list<ImagesDataExtended *> &images,
 		const std::vector<int> &shortIndices,
@@ -111,11 +111,10 @@ private:
 	std::vector<bool> m_shortDeflectionFlags, m_shortDerivativeFlags, m_shortPotentialFlags;
 	std::vector<bool> m_shortInverseFlags, m_shortShearFlags, m_shortConvergenceFlags;
 
-	std::vector<FitnessComponent *> m_totalComponents, m_calculationOrderComponents;
-	FitnessComponent *m_pShortComponent;
-	bool m_deleteShortComponent;
+	std::vector<std::shared_ptr<FitnessComponent>> m_totalComponents, m_calculationOrderComponents;
+	std::shared_ptr<FitnessComponent> m_pShortComponent;
 
-	FitnessComponentCache *m_pCache;
+	std::shared_ptr<FitnessComponentCache> m_pCache;
 	std::string m_fitnessComponentDescription;
 
 	std::shared_ptr<Cosmology> m_cosmology;

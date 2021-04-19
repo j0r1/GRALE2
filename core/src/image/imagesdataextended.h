@@ -29,13 +29,13 @@
 
 #include "graleconfig.h"
 #include "imagesdata.h"
+#include "configurationparameters.h"
 #include <memory>
 
 namespace grale
 {
 
 class TypedParameter;
-class ConfigurationParameters;
 
 class GRALE_IMPORTEXPORT ImagesDataExtended : public ImagesData
 {
