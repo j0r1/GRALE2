@@ -49,7 +49,7 @@ namespace grale
 
 LensPlane::LensPlane()
 {
-	m_pLens = 0;
+	m_pLens = nullptr;
 	
 	m_numx = 0;
 	m_numy = 0;
@@ -60,32 +60,31 @@ LensPlane::LensPlane()
 
 LensPlane::~LensPlane()
 {
-	delete m_pLens;
 }
 
-GravitationalLens *LensPlane::commonInitChecks(const GravitationalLens *pLens, Vector2Dd bl, Vector2Dd tr, 
-                                               int xp, int yp, bool copyLens)
+bool LensPlane::commonInitChecks(const GravitationalLens *pLens, Vector2Dd bl, Vector2Dd tr, 
+                                               int xp, int yp)
 {
 	if (m_init)
 	{
 		setErrorString("Already initialized");
-		return 0;
+		return false;
 	}
 	
 	if (xp < 2 || yp < 2)
 	{
 		setErrorString("Number of X and Y points should be at least 2");
-		return 0;
+		return false;
 	}
 	if (xp > 100000 && yp > 100000)
 	{
 		setErrorString("Number of X and Y points should be at most 100000");
-		return 0;
+		return false;
 	}
 	if (pLens == 0)
 	{
 		setErrorString("No lens was specified");
-		return 0;
+		return false;
 	}
 	
 	double width,height;
@@ -96,21 +95,8 @@ GravitationalLens *LensPlane::commonInitChecks(const GravitationalLens *pLens, V
 	if (width < 0.0 || height < 0.0)
 	{
 		setErrorString("Specified coordinates imply a negative width or height");
-		return 0;
+		return false;
 	}
-
-	GravitationalLens *pLensCopy = 0;
-	if (copyLens)
-	{
-		pLensCopy = pLens->createCopy();
-		if (pLensCopy == 0)
-		{
-			setErrorString("Unable to create a copy of the lens");
-			return 0;
-		}
-	}
-	else
-		pLensCopy = (GravitationalLens *)pLens; // TODO: make this cleaner, just to signal ok
 
 	m_numx = xp;
 	m_numy = yp;
@@ -128,21 +114,13 @@ GravitationalLens *LensPlane::commonInitChecks(const GravitationalLens *pLens, V
 	m_bottomleft = bl;
 	m_topright = tr;
 
-	return pLensCopy;
-}
-
-bool LensPlane::init(const GravitationalLens *pLens, Vector2Dd bl, Vector2Dd tr, int xp, int yp)
-{
-	GravitationalLens *pLensCopy = commonInitChecks(pLens, bl, tr, xp, yp, true);
-	if (!pLensCopy)
-		return false;
-
-	return initInternal(pLensCopy, bl, tr, xp, yp);
+	return true;
 }
 
 bool LensPlane::init(SerializationInterface &lensData, Vector2Dd bl, Vector2Dd tr, int xp, int yp)
 {
 	GravitationalLens *pLensCopy = 0;
+	unique_ptr<GravitationalLens> lens;
 	string errStr;
 
 	if (!GravitationalLens::read(lensData, &pLensCopy, errStr))
@@ -150,16 +128,16 @@ bool LensPlane::init(SerializationInterface &lensData, Vector2Dd bl, Vector2Dd t
 		setErrorString("Unable to create lens from data: " + errStr);
 		return false;
 	}
-	if (!commonInitChecks(pLensCopy, bl, tr, xp, yp, false))
-	{
-		delete pLensCopy;
-		return false;
-	}
+	assert(pLensCopy);
+	lens.reset(pLensCopy);
 
-	return initInternal(pLensCopy, bl, tr, xp, yp);
+	if (!commonInitChecks(lens.get(), bl, tr, xp, yp))
+		return false;
+
+	return initInternal(move(lens), bl, tr, xp, yp);
 }
 
-bool LensPlane::initInternal(GravitationalLens *pLensCopy, Vector2Dd bl, Vector2Dd tr, int xp, int yp)
+bool LensPlane::initInternal(unique_ptr<GravitationalLens> pLensCopy, Vector2Dd bl, Vector2Dd tr, int xp, int yp)
 {
 	double width,height;
 
@@ -193,7 +171,6 @@ bool LensPlane::initInternal(GravitationalLens *pLensCopy, Vector2Dd bl, Vector2
 			if (!pLensCopy->getAlphaVector(theta,&a))
 			{
 				setErrorString(std::string("Error raytracing theta vector: ") + pLensCopy->getErrorString());
-				delete pLensCopy;
 				return false;
 			}
 			
@@ -204,7 +181,6 @@ bool LensPlane::initInternal(GravitationalLens *pLensCopy, Vector2Dd bl, Vector2
 			if (!pLensCopy->getAlphaVectorDerivatives(theta,axx,ayy,axy))
 			{
 				setErrorString(std::string("Error getting alpha derivatives for theta vector: ") + pLensCopy->getErrorString());
-				delete pLensCopy;
 				return false;
 			}
 			m_alphaxx[index] = axx;
@@ -226,25 +202,16 @@ bool LensPlane::initInternal(GravitationalLens *pLensCopy, Vector2Dd bl, Vector2
 	setFeedbackStatus("Finished");
 
 	m_init = true;
-	m_pLens = pLensCopy;
+	m_pLens = move(pLensCopy);
 	
 	return true;
-}
-
-bool LensPlane::init(const GravitationalLens *pLens, Vector2Dd bl, Vector2Dd tr, int xp, int yp,
-					 SerializationInterface &renderedData)
-{
-	GravitationalLens *pLensCopy = commonInitChecks(pLens, bl, tr, xp, yp, true);
-	if (!pLensCopy)
-		return false;
-
-	return initInternal(pLensCopy, bl, tr, xp, yp, renderedData);
 }
 	
 bool LensPlane::init(SerializationInterface &lensData, Vector2Dd bl, Vector2Dd tr, int xp, int yp,
                      SerializationInterface &renderedData)
 {
 	GravitationalLens *pLensCopy = 0;
+	unique_ptr<GravitationalLens> lens;
 	string errStr;
 
 	if (!GravitationalLens::read(lensData, &pLensCopy, errStr))
@@ -253,17 +220,17 @@ bool LensPlane::init(SerializationInterface &lensData, Vector2Dd bl, Vector2Dd t
 		return false;
 	}
 
-	if (!commonInitChecks(pLensCopy, bl, tr, xp, yp, false))
-	{
-		delete pLensCopy;
-		return false;
-	}
+	assert(pLensCopy);
+	lens.reset(pLensCopy);
 
-	return initInternal(pLensCopy, bl, tr, xp, yp, renderedData);
+	if (!commonInitChecks(lens.get(), bl, tr, xp, yp))
+		return false;
+
+	return initInternal(move(lens), bl, tr, xp, yp, renderedData);
 }
 
 
-bool LensPlane::initInternal(GravitationalLens *pLensCopy, Vector2Dd bl, Vector2Dd tr, int xp, int yp,
+bool LensPlane::initInternal(unique_ptr<GravitationalLens> pLensCopy, Vector2Dd bl, Vector2Dd tr, int xp, int yp,
 		                     SerializationInterface &renderedData)
 {
 	double width,height;
@@ -295,7 +262,6 @@ bool LensPlane::initInternal(GravitationalLens *pLensCopy, Vector2Dd bl, Vector2
 			if (!renderedData.readDoubles(d, 5))
 			{
 				setErrorString("Unable to read deflection data or derivatives from rendered data: " + renderedData.getErrorString());
-				delete pLensCopy;
 				return false;
 			}
 
@@ -309,12 +275,10 @@ bool LensPlane::initInternal(GravitationalLens *pLensCopy, Vector2Dd bl, Vector2
 	setFeedbackStatus("Finished");
 
 	m_init = true;
-	m_pLens = pLensCopy;
+	m_pLens = move(pLensCopy);
 	
 	return true;
 }
-
-
 
 #define LENSPLANEID			0x414C504C
 
@@ -458,6 +422,7 @@ bool LensPlane::read(SerializationInterface &si,LensPlane **ip,std::string &errs
 	width = topright.getX()-bottomleft.getX();
 	height = topright.getY()-bottomleft.getY();
 	
+	plane->m_pLens = unique_ptr<GravitationalLens>(lens);
 	plane->m_xstep = width/((double)(numx-1));
 	plane->m_ystep = height/((double)(numy-1));
 	plane->m_numx = numx;
@@ -468,7 +433,6 @@ bool LensPlane::read(SerializationInterface &si,LensPlane **ip,std::string &errs
 	plane->m_alphaxx = alphaxx;
 	plane->m_alphayy = alphayy;
 	plane->m_alphaxy = alphaxy;
-	plane->m_pLens = lens;
 	plane->m_init = true;
 
 	*ip = plane;
@@ -512,19 +476,17 @@ bool LensPlane::scaleDeflections(double factor)
 		return false;
 	}
 
-	CompositeLens *pNewLens = new CompositeLens();
+	unique_ptr<GravitationalLens> pNewLens = make_unique<CompositeLens>();
 
 	if (!pNewLens->init(m_pLens->getLensDistance(), &newParams))
 	{
 		setErrorString(std::string("Couldn't create scaled version of the lens: ") + newParams.getErrorString());
-		delete pNewLens;
 		return false;
 	}
 
 	// Ok, got the new lens. Now store it and scale the deflections
 
-	delete m_pLens;
-	m_pLens = pNewLens;
+	m_pLens = move(pNewLens);
 
 	int index = 0;
 	for (int y = 0 ; y < m_numy ; y++)

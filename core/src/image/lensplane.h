@@ -35,6 +35,7 @@
 #include <list>
 #include <string>
 #include <vector>
+#include <memory>
 
 namespace grale
 {
@@ -48,12 +49,6 @@ public:
 	LensPlane();
 	virtual ~LensPlane();
 
-	bool init(const GravitationalLens *pLens, Vector2Dd bottomLeft, Vector2Dd topRight,
-			  int xpoints,int ypoints);
-
-	bool init(const GravitationalLens *pLens, Vector2Dd bottomLeft, Vector2Dd topRight,
-			  int xpoints, int ypoints, serut::SerializationInterface &renderedData);
-
 	bool init(serut::SerializationInterface &lensData, Vector2Dd bottomLeft, Vector2Dd topRight,
 	          int xpoints,int ypoints);
 
@@ -61,7 +56,7 @@ public:
 			  int xpoints, int ypoints, serut::SerializationInterface &renderedData);
 
 	bool isInit() const									{ return m_init; }
-	const GravitationalLens *getLens() const						{ return m_pLens; }
+	const GravitationalLens *getLens() const						{ return m_pLens.get(); }
 
 	GravitationalLens *createDeflectionGridLens() const;
 	
@@ -92,14 +87,14 @@ protected:
 	virtual void setFeedbackStatus(const std::string &msg)					{ }
 	virtual void setFeedbackPercentage(int pct)						{ }
 private:
-	GravitationalLens *commonInitChecks(const GravitationalLens *pLens, Vector2Dd bl, Vector2Dd tr, 
-                                        int xp, int yp, bool copyLens);
+	bool commonInitChecks(const GravitationalLens *pLens, Vector2Dd bl, Vector2Dd tr, 
+                                        int xp, int yp);
 
-	bool initInternal(GravitationalLens *pLensCopy, Vector2Dd bl, Vector2Dd tr, int xp, int yp);
-	bool initInternal(GravitationalLens *pLensCopy, Vector2Dd bl, Vector2Dd tr, int xp, int yp,
+	bool initInternal(std::unique_ptr<GravitationalLens> pLensCopy, Vector2Dd bl, Vector2Dd tr, int xp, int yp);
+	bool initInternal(std::unique_ptr<GravitationalLens> pLensCopy, Vector2Dd bl, Vector2Dd tr, int xp, int yp,
 	                  serut::SerializationInterface &renderedData);
 
-	GravitationalLens *m_pLens;
+	std::unique_ptr<GravitationalLens> m_pLens;
 	
 	std::vector<Vector2Dd > m_alphas;
 	std::vector<double> m_alphaxx, m_alphayy, m_alphaxy;
