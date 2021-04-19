@@ -38,7 +38,7 @@ class GRALE_IMPORTEXPORT PointSource : public SourceImage
 public:
 	PointSource(Vector2Dd angularpos, double brightnessScale);
 	~PointSource();
-	SourceImage *createCopy() const;
+	std::unique_ptr<SourceImage> createCopy() const override;
 protected:
 	double getIntensityInternal(Vector2Dd diff) const		{ return 1.0; }
 	double getMaxRadius() const						{ return 0; }

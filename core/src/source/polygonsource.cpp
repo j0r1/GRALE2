@@ -28,6 +28,8 @@
 
 #include "debugnew.h"
 
+using namespace std;
+
 namespace grale
 {
 	
@@ -41,9 +43,9 @@ PolygonSource::~PolygonSource()
 {
 }
 
-SourceImage *PolygonSource::createCopy() const
+unique_ptr<SourceImage> PolygonSource::createCopy() const
 {
-	return new PolygonSource(getAngularPosition(), polygon, getAngle(), getBrightnessScale());
+	return make_unique<PolygonSource>(getAngularPosition(), polygon, getAngle(), getBrightnessScale());
 }
 	
 double PolygonSource::getIntensityInternal(Vector2Dd diff) const

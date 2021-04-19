@@ -41,7 +41,7 @@ public:
 	~EllipticalSource();
 	void setFade(bool f)							{ fade = f; }
     bool getFade() const                            { return fade; }
-	SourceImage *createCopy() const;
+	std::unique_ptr<SourceImage> createCopy() const override;
 protected:
 	double getIntensityInternal(Vector2Dd diff) const;
 	double getMaxRadius() const						{ return A; }

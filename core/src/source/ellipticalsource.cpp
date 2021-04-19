@@ -28,6 +28,8 @@
 
 #include "debugnew.h"
 
+using namespace std;
+
 namespace grale
 {
 
@@ -43,9 +45,9 @@ EllipticalSource::~EllipticalSource()
 {
 }
 
-SourceImage *EllipticalSource::createCopy() const
+unique_ptr<SourceImage> EllipticalSource::createCopy() const
 {
-	EllipticalSource *src = new EllipticalSource(getAngularPosition(), A, e, getAngle(), getBrightnessScale());
+	auto src = make_unique<EllipticalSource>(getAngularPosition(), A, e, getAngle(), getBrightnessScale());
 	src->fade = fade;
 	return src;
 }

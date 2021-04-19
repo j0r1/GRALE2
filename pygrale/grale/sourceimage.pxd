@@ -1,5 +1,6 @@
 from libcpp cimport bool
 from libcpp.vector cimport vector
+from libcpp.memory cimport unique_ptr
 
 cimport grale.vector2d
 cimport grale.errut
@@ -22,7 +23,7 @@ cdef extern from "grale/sourceimage.h" namespace "grale":
     cdef cppclass SourceImage(ErrorBase):
 
         SourceType getSourceType()
-        SourceImage *createCopy()
+        unique_ptr[SourceImage] createCopy()
 
         double getIntensity(Vector2Dd beta)
         bool isSourceInRange(Vector2Dd beta, double radius)

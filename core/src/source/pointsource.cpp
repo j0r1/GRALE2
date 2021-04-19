@@ -28,6 +28,8 @@
 
 #include "debugnew.h"
 
+using namespace std;
+
 namespace grale
 {
 
@@ -39,9 +41,9 @@ PointSource::~PointSource()
 {
 }
 
-SourceImage *PointSource::createCopy() const
+unique_ptr<SourceImage> PointSource::createCopy() const
 {
-	PointSource *pSrc = new PointSource(getAngularPosition(), getBrightnessScale());
+	auto pSrc = make_unique<PointSource>(getAngularPosition(), getBrightnessScale());
 	return pSrc;
 }
 

@@ -38,7 +38,7 @@ class GRALE_IMPORTEXPORT CircularSource : public SourceImage
 public:
 	CircularSource(Vector2Dd angularpos, double angularradius, double brightnessScale);
 	~CircularSource();
-	SourceImage *createCopy() const;
+	std::unique_ptr<SourceImage> createCopy() const override;
 	double getAngularRadius() const						{ return radius; }
 	void setAngularRadius(double r)						{ radius = r; radius2 = r*r; }
 	void setFade(bool f)								{ fade = f; }

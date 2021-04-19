@@ -40,7 +40,7 @@ public:
 	PolygonSource(Vector2Dd angularpos, const Polygon2D<double> &p, double rotangle, double brightnessScale);
 	~PolygonSource();
 
-	SourceImage *createCopy() const;
+	std::unique_ptr<SourceImage> createCopy() const override;
 protected:
 	double getIntensityInternal(Vector2Dd diff) const;
 	double getMaxRadius() const						{ return m_maxRadius; }

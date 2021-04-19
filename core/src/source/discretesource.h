@@ -45,7 +45,7 @@ public:
 	bool setData(const std::vector<double> &values, int numX, int numY,
 			     double angularWidth, double angularHeight);
 	
-	SourceImage *createCopy() const;
+	std::unique_ptr<SourceImage> createCopy() const override;
 protected:
 	double getIntensityInternal(Vector2D<double> diff) const;
 	double getMaxRadius() const									{ return m_maxRadius; }

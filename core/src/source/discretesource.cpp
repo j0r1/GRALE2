@@ -29,6 +29,8 @@
 
 #include "debugnew.h"
 
+using namespace std;
+
 namespace grale
 {
 
@@ -73,9 +75,9 @@ bool DiscreteSource::setData(const std::vector<double> &data, int numX, int numY
 	return true;
 }
 
-SourceImage *DiscreteSource::createCopy() const
+unique_ptr<SourceImage> DiscreteSource::createCopy() const
 {
-	DiscreteSource *pNewSrc = new DiscreteSource(getAngularPosition(), getAngle(), getBrightnessScale());
+	auto pNewSrc = make_unique<DiscreteSource>(getAngularPosition(), getAngle(), getBrightnessScale());
 
 	pNewSrc->m_data = m_data;
 	pNewSrc->m_numX = m_numX;

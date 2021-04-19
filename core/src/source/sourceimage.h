@@ -32,6 +32,7 @@
 #include "vector2d.h"
 #include <errut/errorbase.h>
 #include <string>
+#include <memory>
 
 namespace grale
 {
@@ -49,7 +50,7 @@ public:
 	SourceType getSourceType() const					{ return stype; }
 	
 	// creates an unattached copy
-	virtual SourceImage *createCopy() const = 0;
+	virtual std::unique_ptr<SourceImage> createCopy() const = 0;
 		
 	double getIntensity(Vector2Dd beta) const;
 	bool isSourceInRange(Vector2Dd beta, double radius) const; 
@@ -71,8 +72,6 @@ private:
 	double angle,theta;
 	SourceType stype;
 	double m_brightnessScale;
-	
-	friend class SourcePlane;
 };
 
 inline double SourceImage::getIntensity(Vector2Dd beta) const

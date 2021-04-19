@@ -28,6 +28,8 @@
 
 #include "debugnew.h"
 
+using namespace std;
+
 namespace grale
 {
 
@@ -42,9 +44,9 @@ CircularSource::~CircularSource()
 {
 }
 
-SourceImage *CircularSource::createCopy() const
+unique_ptr<SourceImage> CircularSource::createCopy() const
 {
-	CircularSource *src = new CircularSource(getAngularPosition(), radius, getBrightnessScale());
+	auto src = make_unique<CircularSource>(getAngularPosition(), radius, getBrightnessScale());
 	src->fade = fade;
 	return src;
 }
