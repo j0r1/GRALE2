@@ -29,6 +29,7 @@
 
 #include "graleconfig.h"
 #include "vector2d.h"
+#include "gravitationallens.h"
 #include <serut/serializationinterface.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -58,7 +59,7 @@ public:
 	bool isInit() const									{ return m_init; }
 	const GravitationalLens *getLens() const						{ return m_pLens.get(); }
 
-	GravitationalLens *createDeflectionGridLens() const;
+	std::unique_ptr<GravitationalLens> createDeflectionGridLens() const;
 	
 	bool scaleDeflections(double factor);
 	int getNumXPoints() const								{ return m_numx; }
@@ -75,8 +76,8 @@ public:
 	bool getIndices(Vector2Dd v,int *xpos,int *ypos) const;
 
 	bool write(serut::SerializationInterface &si) const;
-	static bool read(serut::SerializationInterface &si,LensPlane **ip,std::string &errstr);
-	static bool load(const std::string &fname,LensPlane **ip,std::string &errstr);
+	static bool read(serut::SerializationInterface &si, std::unique_ptr<LensPlane> &ip,std::string &errstr);
+	static bool load(const std::string &fname, std::unique_ptr<LensPlane> &ip, std::string &errstr);
 	bool save(const std::string &fname) const;
 
 	const std::vector<Vector2Dd> &getAlphas() const						{ return m_alphas; }

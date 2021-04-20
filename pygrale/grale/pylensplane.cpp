@@ -35,8 +35,8 @@ bool PyLensPlane::createDeflectionGridLens(const LensPlane *lp, std::vector<uint
 		return false;
 	}
 
-	GravitationalLens *pLens = lp->createDeflectionGridLens();
-	if (!pLens)
+	unique_ptr<GravitationalLens> pLens = lp->createDeflectionGridLens();
+	if (!pLens.get())
 	{
 		errStr = lp->getErrorString();
 		return false;
@@ -47,11 +47,9 @@ bool PyLensPlane::createDeflectionGridLens(const LensPlane *lp, std::vector<uint
 	if (!pLens->write(vs))
 	{
 		errStr = "Unable to serialize lens: " + pLens->getErrorString();
-		delete pLens;
 		return false;
 	}
 
-	delete pLens;
 	data = vs.getBuffer();
 
 	return true;

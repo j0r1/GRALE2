@@ -85,7 +85,7 @@ bool ImagePlane::init(const LensPlane *lensplane, double Ds, double Dds)
 		setErrorString("Unable to create copy of the lens: " + lensplane->getLens()->getErrorString());
 		return false;
 	}
-	m_pGridLens = unique_ptr<GravitationalLens>(lensplane->createDeflectionGridLens());
+	m_pGridLens = lensplane->createDeflectionGridLens();
 	if (!m_pGridLens.get())
 	{
 		setErrorString("Unable to create deflection grid based lens: " + m_pGridLens->getErrorString());

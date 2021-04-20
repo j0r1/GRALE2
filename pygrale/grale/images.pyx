@@ -26,6 +26,8 @@ from libcpp.string cimport string
 from libcpp.vector cimport vector
 from libcpp.pair cimport pair
 from libcpp cimport bool as cbool
+from libcpp.memory cimport unique_ptr, make_unique
+
 from cython.operator cimport dereference as deref
 import cython
 import random
@@ -944,28 +946,23 @@ class LensPlaneException(Exception):
     pass
 
 cdef class LensPlane:
-    cdef lensplane.LensPlane *m_pLensPlane
+    cdef unique_ptr[lensplane.LensPlane] m_pLensPlane
     cdef object feedback
 
+    cdef lensplane.LensPlane* _lensPlane(self):
+        return self.m_pLensPlane.get()
+
     cdef _check(self):
-        if self.m_pLensPlane == NULL:
+        if self.m_pLensPlane.get() == NULL:
             raise LensPlaneException("No internal lens plane has been set")
 
     cdef void _swapLensPlanes(LensPlane l1, LensPlane l2):
-        cdef lensplane.LensPlane *pTmp = l1.m_pLensPlane
+        
         cdef object tmpFeedback = l1.feedback
-
-        l1.m_pLensPlane = l2.m_pLensPlane
-        l2.m_pLensPlane = pTmp
-
         l1.feedback = l2.feedback
         l2.feedback = tmpFeedback
 
-    def __cinit__(self):
-        self.m_pLensPlane = NULL
-
-    def __dealloc__(self):
-        del self.m_pLensPlane
+        l1.m_pLensPlane.swap(l2.m_pLensPlane)
 
     def __init__(self, lens, bottomLeft, topRight, int numX, int numY, renderer = "default", feedbackObject = "default"):
         """__init__(lens, bottomLeft, topRight, numX, numY, renderer = "default", feedbackObject = "default")
@@ -986,7 +983,8 @@ cdef class LensPlane:
         if lens is None and bottomLeft is None and topRight is None:
             return
 
-        self.m_pLensPlane = new lensplane.PyLensPlane(self)
+        # Got error with make_unique: Python object cannot be passed as a varargs parameter
+        self.m_pLensPlane = unique_ptr[lensplane.LensPlane](new lensplane.PyLensPlane(self))
 
         cdef serut.MemorySerializer *m = NULL
         cdef serut.MemorySerializer *m2 = NULL
@@ -1006,16 +1004,16 @@ cdef class LensPlane:
             m = new serut.MemorySerializer(buf.data.as_voidptr, len(lensData), NULL, 0)
 
             if renderer is None:
-                if not self.m_pLensPlane.init(deref(m), Vector2Dd(bottomLeft[0], bottomLeft[1]), Vector2Dd(topRight[0], topRight[1]),
+                if not self._lensPlane().init(deref(m), Vector2Dd(bottomLeft[0], bottomLeft[1]), Vector2Dd(topRight[0], topRight[1]),
                                               numX, numY):
-                    raise LensPlaneException("Unable to initialize lens plane: " + S(self.m_pLensPlane.getErrorString()))
+                    raise LensPlaneException("Unable to initialize lens plane: " + S(self._lensPlane().getErrorString()))
             else:
                 b = renderer.render(lensData, bottomLeft, topRight, numX, numY)
                 buf2 = chararrayfrombytes(b)
                 m2 = new serut.MemorySerializer(buf2.data.as_voidptr, len(b), NULL, 0)
-                if not self.m_pLensPlane.init(deref(m), Vector2Dd(bottomLeft[0], bottomLeft[1]), Vector2Dd(topRight[0], topRight[1]),
+                if not self._lensPlane().init(deref(m), Vector2Dd(bottomLeft[0], bottomLeft[1]), Vector2Dd(topRight[0], topRight[1]),
                                               numX, numY, deref(m2)):
-                    raise LensPlaneException("Unable to initialize lens plane: " + S(self.m_pLensPlane.getErrorString()))
+                    raise LensPlaneException("Unable to initialize lens plane: " + S(self._lensPlane().getErrorString()))
         finally:
             del m
             del m2
@@ -1032,7 +1030,7 @@ cdef class LensPlane:
 
         self._check()
 
-        if not lensplane.PyLensPlane.getLensBytes(self.m_pLensPlane, buf, errStr):
+        if not lensplane.PyLensPlane.getLensBytes(self._lensPlane(), buf, errStr):
             raise LensPlaneException(S(errStr))
 
         return lenses.GravitationalLens.fromBytes(<bytes>(&buf[0])[:len(buf)])
@@ -1049,7 +1047,7 @@ cdef class LensPlane:
 
         self._check()
 
-        if not lensplane.PyLensPlane.createDeflectionGridLens(self.m_pLensPlane, buf, errStr):
+        if not lensplane.PyLensPlane.createDeflectionGridLens(self._lensPlane(), buf, errStr):
             raise LensPlaneException(S(errStr))
 
         return lenses.GravitationalLens.fromBytes(<bytes>(&buf[0])[:len(buf)])
@@ -1075,10 +1073,10 @@ cdef class LensPlane:
 
         self._check()
 
-        bl = self.m_pLensPlane.getBottomLeft()
-        tr = self.m_pLensPlane.getTopRight()
-        xpoints = self.m_pLensPlane.getNumXPoints()
-        ypoints = self.m_pLensPlane.getNumYPoints()
+        bl = self._lensPlane().getBottomLeft()
+        tr = self._lensPlane().getTopRight()
+        xpoints = self._lensPlane().getNumXPoints()
+        ypoints = self._lensPlane().getNumYPoints()
 
         obj = { }
         obj["bottomleft"] = np.array([bl.getX(), bl.getY()])
@@ -1103,14 +1101,14 @@ cdef class LensPlane:
 
         self._check()
 
-        xpoints = self.m_pLensPlane.getNumXPoints()
-        ypoints = self.m_pLensPlane.getNumYPoints()
+        xpoints = self._lensPlane().getNumXPoints()
+        ypoints = self._lensPlane().getNumYPoints()
         
         alphax = np.empty([ypoints, xpoints], dtype = np.double)
         alphay = np.empty([ypoints, xpoints], dtype = np.double)
         for y in range(ypoints):
             for x in range(xpoints):
-                alpha = self.m_pLensPlane.getAlpha(x, y)
+                alpha = self._lensPlane().getAlpha(x, y)
                 alphax[y,x] = alpha.getX()
                 alphay[y,x] = alpha.getY()
 
@@ -1133,14 +1131,14 @@ cdef class LensPlane:
         axx = 0
         ayy = 0
         axy = 0
-        xpoints = self.m_pLensPlane.getNumXPoints()
-        ypoints = self.m_pLensPlane.getNumYPoints()
+        xpoints = self._lensPlane().getNumXPoints()
+        ypoints = self._lensPlane().getNumYPoints()
         alphaxx = np.zeros([ypoints, xpoints], dtype = np.double)
         alphayy = np.zeros([ypoints, xpoints], dtype = np.double)
         alphaxy = np.zeros([ypoints, xpoints], dtype = np.double)
         for y in range(ypoints):
             for x in range(xpoints):
-                self.m_pLensPlane.getAlphaDerivatives(x, y, axx, ayy, axy)
+                self._lensPlane().getAlphaDerivatives(x, y, axx, ayy, axy)
                 alphaxx[y,x] = axx
                 alphayy[y,x] = ayy
                 alphaxy[y,x] = axy
@@ -1154,8 +1152,8 @@ cdef class LensPlane:
         """
         self._check()
 
-        if not self.m_pLensPlane.save(B(fileName)):
-            raise LensPlaneException(S(self.m_pLensPlane.getErrorString()))
+        if not self._lensPlane().save(B(fileName)):
+            raise LensPlaneException(S(self._lensPlane().getErrorString()))
 
     @staticmethod
     def load(fileName):
@@ -1165,13 +1163,13 @@ cdef class LensPlane:
         If successful, this returns the newly loaded instance.
         """
         cdef string errorString
-        cdef lensplane.LensPlane *pLensPlane = NULL
+        cdef unique_ptr[lensplane.LensPlane] pLensPlane
 
-        if not lensplane.LensPlane.load(B(fileName), cython.address(pLensPlane), errorString):
+        if not lensplane.LensPlane.load(B(fileName), pLensPlane, errorString):
             raise LensPlaneException(S(errorString))
 
         lensPlane = LensPlane(None, None, None, 0, 0)
-        lensPlane.m_pLensPlane = pLensPlane
+        lensPlane.m_pLensPlane.swap(pLensPlane)
 
         return lensPlane
 
@@ -1199,16 +1197,16 @@ cdef class LensPlane:
         cdef array[char] buf = chararrayfrombytes(b)
         cdef serut.MemorySerializer *m = new serut.MemorySerializer(buf.data.as_voidptr, len(b), NULL, 0)
         cdef string errorString
-        cdef lensplane.LensPlane *pLensPlane = NULL
+        cdef unique_ptr[lensplane.LensPlane] pLensPlane
 
-        if not lensplane.LensPlane.read(deref(m), cython.address(pLensPlane), errorString):
+        if not lensplane.LensPlane.read(deref(m), pLensPlane, errorString):
             del m
             raise LensPlaneException(S(errorString))
 
         del m
 
         lensPlane = LensPlane(None, None, None, 0, 0)
-        lensPlane.m_pLensPlane = pLensPlane
+        lensPlane.m_pLensPlane.swap(pLensPlane)
 
         return lensPlane
 
@@ -1221,8 +1219,8 @@ cdef class LensPlane:
 
         self._check()
 
-        if not self.m_pLensPlane.write(vSer):
-            raise ImagesDataException(S(self.m_pLensPlane.getErrorString()))
+        if not self._lensPlane().write(vSer):
+            raise ImagesDataException(S(self._lensPlane().getErrorString()))
 
         return <bytes>vSer.getBufferPointer()[0:vSer.getBufferSize()]
 
@@ -1238,17 +1236,17 @@ class ImagePlaneException(Exception):
     pass
 
 cdef class ImagePlane:
-    cdef imageplane.ImagePlane *m_pImgPlane
+    cdef unique_ptr[imageplane.ImagePlane] m_pImgPlane
     # Store the original lens plane (or better, a copy) and the distances to
     # be able to pickle
     cdef object m_lensPlane 
     cdef double m_Ds, m_Dds
 
     def __cinit__(self):
-        self.m_pImgPlane = new imageplane.ImagePlane()
+        self.m_pImgPlane = make_unique[imageplane.ImagePlane]()
 
-    def __dealloc__(self):
-        del self.m_pImgPlane
+    cdef imageplane.ImagePlane *_imgPlane(self):
+        return self.m_pImgPlane.get()
 
     def __init__(self, LensPlane lensplane, double Ds, double Dds):
         """__init__(lensplane, Ds, Dds)
@@ -1261,8 +1259,8 @@ cdef class ImagePlane:
         self._internalConstructor(lensplane, Ds, Dds)
 
     def _internalConstructor(self, LensPlane lensplane, double Ds, double Dds):
-        if not self.m_pImgPlane.init(<imageplane.LensPlane*>lensplane.m_pLensPlane, Ds, Dds):
-            raise ImagePlaneException("Unable to initialize image plane: " + S(self.m_pImgPlane.getErrorString()))
+        if not self._imgPlane().init(<imageplane.LensPlane*>lensplane._lensPlane(), Ds, Dds):
+            raise ImagePlaneException("Unable to initialize image plane: " + S(self._imgPlane().getErrorString()))
 
         # Store the constructor values
         import copy
@@ -1275,14 +1273,14 @@ cdef class ImagePlane:
 
         Returns the ``Ds`` parameter that was specified in the constructor.
         """
-        return self.m_pImgPlane.getDs()
+        return self._imgPlane().getDs()
 
     def getDds(self):
         """getDds()
 
         Returns the ``Dds`` parameter that was specified in the constructor.
         """
-        return self.m_pImgPlane.getDds()
+        return self._imgPlane().getDds()
 
     def getCriticalLines(self):
         """getCriticalLines()
@@ -1291,7 +1289,7 @@ cdef class ImagePlane:
         image plane. Each entry in the list is itself a list of 2D points, describing
         a connected part of a critical line.
         """
-        cdef vector[vector[imageplane.Vector2Dd]] segments = self.m_pImgPlane.getCriticalLineSegments()
+        cdef vector[vector[imageplane.Vector2Dd]] segments = self._imgPlane().getCriticalLineSegments()
         
         return ImagePlane._segsToList(segments)
 
@@ -1313,7 +1311,7 @@ cdef class ImagePlane:
         image plane. Each entry in the list is itself a list of 2D points, describing
         a connected part of a caustic.
         """
-        cdef vector[vector[imageplane.Vector2Dd]] segments = self.m_pImgPlane.getCausticSegments()
+        cdef vector[vector[imageplane.Vector2Dd]] segments = self._imgPlane().getCausticSegments()
         
         return ImagePlane._segsToList(segments)
 
@@ -1325,7 +1323,7 @@ cdef class ImagePlane:
         """
         cdef vector[imageplane.Vector2Dd] thetas
 
-        self.m_pImgPlane.traceBeta(imageplane.Vector2Dd(beta[0], beta[1]), thetas)
+        self._imgPlane().traceBeta(imageplane.Vector2Dd(beta[0], beta[1]), thetas)
         return [ np.array([t.getX(), t.getY()]) for t in thetas ]
 
     def getRenderInfo(self):
@@ -1357,12 +1355,12 @@ cdef class ImagePlane:
         cdef Vector2Dd bl, tr
         cdef int xpoints, ypoints, xpixels, ypixels
 
-        bl = self.m_pImgPlane.getBottomLeft()
-        tr = self.m_pImgPlane.getTopRight()
-        xpoints = self.m_pImgPlane.getNumXPoints()
-        ypoints = self.m_pImgPlane.getNumYPoints()
-        xpixels = self.m_pImgPlane.getNumXPixels()
-        ypixels = self.m_pImgPlane.getNumYPixels()
+        bl = self._imgPlane().getBottomLeft()
+        tr = self._imgPlane().getTopRight()
+        xpoints = self._imgPlane().getNumXPoints()
+        ypoints = self._imgPlane().getNumYPoints()
+        xpixels = self._imgPlane().getNumXPixels()
+        ypixels = self._imgPlane().getNumYPixels()
 
         obj = { }
         obj["bottomleft"] = np.array([bl.getX(), bl.getY()])
@@ -1395,8 +1393,8 @@ cdef class ImagePlane:
         A subsequent call to `invert_yaxis <https://matplotlib.org/api/_as_gen/matplotlib.axes.Axes.invert_yaxis.html>`_
         might be useful.
         """
-        cdef int numX = self.m_pImgPlane.getNumXPixels()
-        cdef int numY = self.m_pImgPlane.getNumYPixels()
+        cdef int numX = self._imgPlane().getNumXPixels()
+        cdef int numY = self._imgPlane().getNumYPixels()
         cdef int x, y, storeY
         cdef vector[sourceimage.SourceImage *] sources
         cdef sourceimage.SourceImage *pSrc = NULL
@@ -1414,7 +1412,7 @@ cdef class ImagePlane:
 
         for y in range(numY):
             for x in range(numX):
-                plane[y,x] = self.m_pImgPlane.getSourceIntensityAccurate(sources, x, y, subSamples)
+                plane[y,x] = self._imgPlane().getSourceIntensityAccurate(sources, x, y, subSamples)
 
         return plane
     
@@ -1439,8 +1437,8 @@ cdef class ImagePlane:
         A subsequent call to `invert_yaxis <https://matplotlib.org/api/_as_gen/matplotlib.axes.Axes.invert_yaxis.html>`_
         might be useful.
         """
-        cdef int numX = self.m_pImgPlane.getNumXPixels()
-        cdef int numY = self.m_pImgPlane.getNumYPixels()
+        cdef int numX = self._imgPlane().getNumXPixels()
+        cdef int numY = self._imgPlane().getNumYPixels()
         cdef int x, y, storeY
         cdef vector[sourceimage.SourceImage *] sources
         cdef sourceimage.SourceImage *pSrc = NULL
@@ -1458,7 +1456,7 @@ cdef class ImagePlane:
 
         for y in range(numY):
             for x in range(numX):
-                plane[y,x] = self.m_pImgPlane.getImageIntensityAccurate(sources, x, y, subSamples)
+                plane[y,x] = self._imgPlane().getImageIntensityAccurate(sources, x, y, subSamples)
 
         return plane
 
@@ -1553,8 +1551,8 @@ cdef class ImagePlane:
         regions is returned. Each region is itself a list of 2D coordinates describing
         the centers of the pixels.
         """
-        numX = self.m_pImgPlane.getNumXPixels()
-        numY = self.m_pImgPlane.getNumYPixels()
+        numX = self._imgPlane().getNumXPixels()
+        numY = self._imgPlane().getNumYPixels()
 
         ri = self.getRenderInfo()
         bl = ri["bottomleft"]
@@ -1615,8 +1613,8 @@ cdef class ImagePlane:
         cdef np.ndarray[double, ndim=2] betas = np.zeros((reshapedThetas.shape[0], reshapedThetas.shape[1]))
         cdef int num, i
 
-        bottomLeft = self.m_pImgPlane.getBottomLeft()
-        topRight = self.m_pImgPlane.getTopRight()
+        bottomLeft = self._imgPlane().getBottomLeft()
+        topRight = self._imgPlane().getTopRight()
 
         num = betas.shape[0]
         for i in range(num):
@@ -1624,8 +1622,8 @@ cdef class ImagePlane:
             if theta.getX() < bottomLeft.getX() or theta.getY() < bottomLeft.getY() or theta.getX() > topRight.getX() or theta.getY() > topRight.getY():
                 raise ImagePlaneException("Not all points lie withing the image plane boundaries")
 
-            if not self.m_pImgPlane.traceThetaApproximately(theta, cython.address(beta)):
-                raise ImagePlaneException(S(self.m_pImgPlane.getErrorString()))
+            if not self._imgPlane().traceThetaApproximately(theta, cython.address(beta)):
+                raise ImagePlaneException(S(self._imgPlane().getErrorString()))
 
             betas[i,0] = beta.getX()
             betas[i,1] = beta.getY()

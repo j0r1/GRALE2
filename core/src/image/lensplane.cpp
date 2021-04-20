@@ -344,7 +344,7 @@ bool LensPlane::write(SerializationInterface &si) const
 	return true;
 }
 
-bool LensPlane::read(SerializationInterface &si,LensPlane **ip,std::string &errstr)
+bool LensPlane::read(SerializationInterface &si, unique_ptr<LensPlane> &ip,std::string &errstr)
 {
 	int32_t id;
 	Vector2Dd bottomleft,topright;
@@ -417,7 +417,7 @@ bool LensPlane::read(SerializationInterface &si,LensPlane **ip,std::string &errs
 
 	double width,height;
 
-	LensPlane *plane = new LensPlane();
+	unique_ptr<LensPlane> plane = make_unique<LensPlane>();
 	
 	width = topright.getX()-bottomleft.getX();
 	height = topright.getY()-bottomleft.getY();
@@ -435,12 +435,12 @@ bool LensPlane::read(SerializationInterface &si,LensPlane **ip,std::string &errs
 	plane->m_alphaxy = alphaxy;
 	plane->m_init = true;
 
-	*ip = plane;
+	ip = move(plane);
 	
 	return true;
 }
 
-bool LensPlane::load(const std::string &fname,LensPlane **ip,std::string &errstr)
+bool LensPlane::load(const std::string &fname, unique_ptr<LensPlane> &ip,std::string &errstr)
 {
 	FileSerializer fs;
 	bool status;
@@ -505,7 +505,7 @@ bool LensPlane::scaleDeflections(double factor)
 	return true;
 }
 
-GravitationalLens *LensPlane::createDeflectionGridLens() const
+unique_ptr<GravitationalLens> LensPlane::createDeflectionGridLens() const
 {
 	int totalNum = m_numx*m_numy;
 	std::vector<double> alphaX(totalNum), alphaY(totalNum);
@@ -517,13 +517,12 @@ GravitationalLens *LensPlane::createDeflectionGridLens() const
 	}
 
 	DeflectionGridLensParams lensParams(alphaX, alphaY, m_numx, m_numy, m_bottomleft, m_topright);
-	DeflectionGridLens *pNewLens = new DeflectionGridLens();
+	auto pNewLens = make_unique<DeflectionGridLens>();
 
 	if (!pNewLens->init(m_pLens->getLensDistance(), &lensParams))
 	{
 		setErrorString(std::string("Couldn't initialize deflection grid lens: ") + pNewLens->getErrorString());
-		delete pNewLens;
-		return 0;
+		return nullptr;
 	}
 
 	return pNewLens;

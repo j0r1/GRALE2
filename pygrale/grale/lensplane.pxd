@@ -1,6 +1,7 @@
 from libcpp.string cimport string
 from libcpp cimport bool
 from libcpp.vector cimport vector
+from libcpp.memory cimport unique_ptr
 
 cimport grale.vector2d as vector2d
 cimport grale.serut as serut
@@ -29,10 +30,10 @@ cdef extern from "grale/lensplane.h" namespace "grale":
         Vector2Dd getIndexCoordinate(int xpos,int ypos) const
 
         @staticmethod
-        bool load(const string &fname, LensPlane **ip, string &errstr)
+        bool load(const string &fname, unique_ptr[LensPlane] &ip, string &errstr)
         bool save(const string &fname) const
         @staticmethod
-        bool read(serut.SerializationInterface &si, LensPlane **ip, string &errstr)
+        bool read(serut.SerializationInterface &si, unique_ptr[LensPlane] &ip, string &errstr)
         bool write(serut.SerializationInterface &si) const
 
 cdef extern from "pylensplane.h":
