@@ -52,7 +52,7 @@ public:
 	int getNumX() const											{ return m_numX; }
 	int getNumY() const											{ return m_numY; }
 
-	GravitationalLensParams *createCopy() const;
+	std::unique_ptr<GravitationalLensParams> createCopy() const;
 	bool write(serut::SerializationInterface &si) const;
 	bool read(serut::SerializationInterface &si);
 private:

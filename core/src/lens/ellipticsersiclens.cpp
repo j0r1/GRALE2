@@ -74,9 +74,9 @@ bool EllipticSersicLensParams::read(serut::SerializationInterface &si)
 	return true;
 }
 
-GravitationalLensParams *EllipticSersicLensParams::createCopy() const
+std::unique_ptr<GravitationalLensParams> EllipticSersicLensParams::createCopy() const
 {
-	return new EllipticSersicLensParams(m_centralDensity, m_angularScale, m_sersicIndex, m_ellipticity);
+	return std::make_unique<EllipticSersicLensParams>(m_centralDensity, m_angularScale, m_sersicIndex, m_ellipticity);
 }
 
 class CircularSersicProfile : public CircularLensProfile

@@ -31,9 +31,9 @@
 namespace grale
 {
 
-GravitationalLensParams *MassDiskLensParams::createCopy() const
+std::unique_ptr<GravitationalLensParams> MassDiskLensParams::createCopy() const
 { 
-	return new MassDiskLensParams(m_density, m_angularRadius); 
+	return std::make_unique<MassDiskLensParams>(m_density, m_angularRadius); 
 }
 
 bool MassDiskLensParams::write(serut::SerializationInterface &si) const

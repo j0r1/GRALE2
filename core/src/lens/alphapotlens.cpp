@@ -85,9 +85,9 @@ bool AlphaPotLensParams::read(serut::SerializationInterface &si)
 	return true;
 }
 
-GravitationalLensParams *AlphaPotLensParams::createCopy() const
+std::unique_ptr<GravitationalLensParams> AlphaPotLensParams::createCopy() const
 {
-	return new AlphaPotLensParams(m_b, m_s, m_q, m_K2, m_alpha);
+	return std::make_unique<AlphaPotLensParams>(m_b, m_s, m_q, m_K2, m_alpha);
 }
 
 AlphaPotLens::AlphaPotLens() : GravitationalLens(AlphaPot)

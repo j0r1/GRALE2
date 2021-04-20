@@ -69,9 +69,9 @@ bool EllipticNFWLensParams::read(serut::SerializationInterface &si)
 	return true;
 }
 
-GravitationalLensParams *EllipticNFWLensParams::createCopy() const
+std::unique_ptr<GravitationalLensParams> EllipticNFWLensParams::createCopy() const
 {
-	return new EllipticNFWLensParams(m_densityScale3D, m_angularRadiusScale, m_ellipticity);
+	return std::make_unique<EllipticNFWLensParams>(m_densityScale3D, m_angularRadiusScale, m_ellipticity);
 }
 
 class CircularNFWProfile : public CircularLensProfile

@@ -56,7 +56,7 @@ public:
 	/** Returns the currently set width. */
 	double getAngularWidth() const								{ return m_angularWidth; }
 
-	GravitationalLensParams *createCopy() const;
+	std::unique_ptr<GravitationalLensParams> createCopy() const;
 	bool write(serut::SerializationInterface &si) const;
 	bool read(serut::SerializationInterface &si);
 private:

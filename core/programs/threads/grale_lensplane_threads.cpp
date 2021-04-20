@@ -42,14 +42,17 @@ bool_t ThreadsRenderer::renderGrid(const vector<uint8_t> &lensData, Gravitationa
 	vector<string> errMsg(nt);
 	vector<bool> errors(nt, false);
 	vector<GravitationalLens *> lenses;
+	vector<shared_ptr<GravitationalLens>> allocatedLenses;
 
 	lenses.push_back(pLens);
 	for (int i = 1 ; i < nt ; i++)
 	{
-		GravitationalLens *pLensCopy = pLens->createCopy();
-		if (!pLensCopy)
+		unique_ptr<GravitationalLens> pLensCopy = pLens->createCopy();
+		if (!pLensCopy.get())
 			return "Unable to create copy of lens: " + pLens->getErrorString();
-		lenses.push_back(pLensCopy);
+		
+		allocatedLenses.push_back(move(pLensCopy));
+		lenses.push_back(allocatedLenses.back().get());
 	}
 
 	int rootCount = 0;
@@ -104,7 +107,6 @@ bool_t ThreadsRenderer::renderGrid(const vector<uint8_t> &lensData, Gravitationa
 
 	setProgress(numY, numY);
 
-	// TODO: should really clean up the lens copies, but we're exiting the program anyway
 	for (int i = 1 ; i < nt ; i++)
 	{
 		if (errors[i])
@@ -135,14 +137,17 @@ bool_t ThreadsRenderer::renderPointVector(const std::vector<uint8_t> &lensData, 
 	vector<string> errMsg(nt);
 	vector<bool> errors(nt, false);
 	vector<GravitationalLens *> lenses;
+	vector<shared_ptr<GravitationalLens>> allocatedLenses;
 
 	lenses.push_back(pLens);
 	for (int i = 1 ; i < nt ; i++)
 	{
-		GravitationalLens *pLensCopy = pLens->createCopy();
+		unique_ptr<GravitationalLens> pLensCopy = pLens->createCopy();
 		if (!pLensCopy)
 			return "Unable to create copy of lens: " + pLens->getErrorString();
-		lenses.push_back(pLensCopy);
+		
+		allocatedLenses.push_back(move(pLensCopy));
+		lenses.push_back(allocatedLenses.back().get());
 	}
 
 	auto threadFunction = [&](int threadIdx)
@@ -193,7 +198,6 @@ bool_t ThreadsRenderer::renderPointVector(const std::vector<uint8_t> &lensData, 
 
 	setProgress(pixelsToRenderApprox, pixelsToRenderApprox);
 
-	// TODO: should really clean up the lens copies, but we're exiting the program anyway
 	for (int i = 1 ; i < nt ; i++)
 	{
 		if (errors[i])

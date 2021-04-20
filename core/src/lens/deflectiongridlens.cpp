@@ -54,7 +54,7 @@ DeflectionGridLensParams::DeflectionGridLensParams(const std::vector<double> &al
 	m_topRight = topRight;
 }
 
-GravitationalLensParams *DeflectionGridLensParams::createCopy() const
+std::unique_ptr<GravitationalLensParams> DeflectionGridLensParams::createCopy() const
 {
 	int totalSize = m_width*m_height;
 	
@@ -64,7 +64,7 @@ GravitationalLensParams *DeflectionGridLensParams::createCopy() const
 		return 0;
 	}
 
-	return new DeflectionGridLensParams(m_alphaX, m_alphaY, m_width, m_height, m_bottomLeft, m_topRight);
+	return std::make_unique<DeflectionGridLensParams>(m_alphaX, m_alphaY, m_width, m_height, m_bottomLeft, m_topRight);
 }
 
 bool DeflectionGridLensParams::write(serut::SerializationInterface &si) const

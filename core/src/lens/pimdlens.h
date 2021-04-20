@@ -42,7 +42,7 @@ public:
 
 	bool write(serut::SerializationInterface &si) const;
 	bool read(serut::SerializationInterface &si);
-	GravitationalLensParams *createCopy() const;
+	std::unique_ptr<GravitationalLensParams> createCopy() const;
 
 	double getCentralDensity() const							{ return m_sigma0; }
 	double getCoreRadius() const								{ return m_coreRadius; }

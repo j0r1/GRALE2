@@ -73,14 +73,11 @@ GravitationalLens::GravitationalLens(GravitationalLens::LensType t)
 {
 	m_init = false;
 	m_lensType = t; 
-	m_pParameters = 0;
 	m_Dd = 0;
 }
 
 GravitationalLens::~GravitationalLens()
 {
-	if (m_pParameters != 0)
-		delete m_pParameters;
 }
 
 bool GravitationalLens::init(double D_d, const GravitationalLensParams *pLensParams)
@@ -96,22 +93,18 @@ bool GravitationalLens::init(double D_d, const GravitationalLensParams *pLensPar
 	if (pLensParams != 0)
 	{
 		m_pParameters = pLensParams->createCopy();
-		if (m_pParameters == 0)
+		if (m_pParameters.get() == 0)
 		{
 			setErrorString("Can't create copy of the lens parameters");
 			return false;
 		}
 	}
 	else
-		m_pParameters = 0;
+		m_pParameters = nullptr;
 	
 	if (!processParameters(pLensParams))
 	{
-		if (m_pParameters != 0)
-		{
-			delete m_pParameters;
-			m_pParameters = 0;
-		}
+		m_pParameters = nullptr; // free this immediately
 		return false;
 	}
 
@@ -322,7 +315,7 @@ bool GravitationalLens::write(serut::SerializationInterface &si) const
 		return false;
 	}
 
-	if (m_pParameters == 0)
+	if (m_pParameters.get() == nullptr)
 		gotParams = 0;
 	else
 		gotParams = 1;
@@ -352,7 +345,7 @@ bool GravitationalLens::write(serut::SerializationInterface &si) const
 		setErrorString("Error writing lens parameters");
 		return false;
 	}
-	if (m_pParameters)
+	if (m_pParameters.get())
 	{
 		if (!m_pParameters->write(si))
 		{
@@ -363,10 +356,10 @@ bool GravitationalLens::write(serut::SerializationInterface &si) const
 	return true;
 }
 
-bool GravitationalLens::read(serut::SerializationInterface &si, GravitationalLens **pLens,std::string &errorString)
+bool GravitationalLens::read(serut::SerializationInterface &si, std::unique_ptr<GravitationalLens> &pLens,std::string &errorString)
 {
-	GravitationalLens *pTmpLens;
-	GravitationalLensParams *pParams = 0;
+	unique_ptr<GravitationalLens> pTmpLens;
+	unique_ptr<GravitationalLensParams> pParams;
 	int32_t id, gotParams, lensNumber;
 	double Dd, derivDistScale;
 	
@@ -407,120 +400,120 @@ bool GravitationalLens::read(serut::SerializationInterface &si, GravitationalLen
 	switch (lensNumber)
 	{
 	case LENSNUMBER_POINTMASS:
-		pTmpLens = new PointmassLens();
-		pParams = new PointmassLensParams();
+		pTmpLens = make_unique<PointmassLens>();
+		pParams = make_unique<PointmassLensParams>();
 		break;
 	case LENSNUMBER_SIS:
-		pTmpLens = new SISLens();
-		pParams = new SISLensParams();
+		pTmpLens = make_unique<SISLens>();
+		pParams = make_unique<SISLensParams>();
 		break;
 	case LENSNUMBER_GAUSSIAN:
-		pTmpLens = new GaussLens();
-		pParams = new GaussLensParams();
+		pTmpLens = make_unique<GaussLens>();
+		pParams = make_unique<GaussLensParams>();
 		break;
 	case LENSNUMBER_PLUMMER:
-		pTmpLens = new PlummerLens();
-		pParams = new PlummerLensParams();
+		pTmpLens = make_unique<PlummerLens>();
+		pParams = make_unique<PlummerLensParams>();
 		break;
 	case LENSNUMBER_MULTIPLEPLUMMERS:
-		pTmpLens = new MultiplePlummerLens();
-		pParams = new MultiplePlummerLensParams();
+		pTmpLens = make_unique<MultiplePlummerLens>();
+		pParams = make_unique<MultiplePlummerLensParams>();
 		break;
 	case LENSNUMBER_NSIE:
-		pTmpLens = new NSIELens();
-		pParams = new NSIELensParams();
+		pTmpLens = make_unique<NSIELens>();
+		pParams = make_unique<NSIELensParams>();
 		break;
 	case LENSNUMBER_NSIS:
-		pTmpLens = new NSISLens();
-		pParams = new NSISLensParams();
+		pTmpLens = make_unique<NSISLens>();
+		pParams = make_unique<NSISLensParams>();
 		break;
 	case LENSNUMBER_SIE:
-		pTmpLens = new SIELens();
-		pParams = new SIELensParams();
+		pTmpLens = make_unique<SIELens>();
+		pParams = make_unique<SIELensParams>();
 		break;
 	case LENSNUMBER_SQUARE:
-		pTmpLens = new SquareLens();
-		pParams = new SquareLensParams();
+		pTmpLens = make_unique<SquareLens>();
+		pParams = make_unique<SquareLensParams>();
 		break;
 	case LENSNUMBER_MULTIPLESQUARES:
-		pTmpLens = new MultipleSquareLens();
-		pParams = new MultipleSquareLensParams();
+		pTmpLens = make_unique<MultipleSquareLens>();
+		pParams = make_unique<MultipleSquareLensParams>();
 		break;
 	case LENSNUMBER_MULTIPLEGAUSSIANS:
-		pTmpLens = new MultipleGaussLens();
-		pParams = new MultipleGaussLensParams();
+		pTmpLens = make_unique<MultipleGaussLens>();
+		pParams = make_unique<MultipleGaussLensParams>();
 		break;
 	case LENSNUMBER_MASSSHEET:
-		pTmpLens = new MassSheetLens();
-		pParams = new MassSheetLensParams();
+		pTmpLens = make_unique<MassSheetLens>();
+		pParams = make_unique<MassSheetLensParams>();
 		break;
 	case LENSNUMBER_COMPOSITE:
-		pTmpLens = new CompositeLens();
-		pParams = new CompositeLensParams();
+		pTmpLens = make_unique<CompositeLens>();
+		pParams = make_unique<CompositeLensParams>();
 		break;
 	case LENSNUMBER_MASSDISK:
-		pTmpLens = new MassDiskLens();
-		pParams = new MassDiskLensParams();
+		pTmpLens = make_unique<MassDiskLens>();
+		pParams = make_unique<MassDiskLensParams>();
 		break;
 	case LENSNUMBER_PROFILE:
-		pTmpLens = new ProfileLens();
-		pParams = new ProfileLensParams();
+		pTmpLens = make_unique<ProfileLens>();
+		pParams = make_unique<ProfileLensParams>();
 		break;
 	case LENSNUMBER_POLYNOMIALMASSPROFILE:
-		pTmpLens = new PolynomialMassProfileLens();
-		pParams = new PolynomialMassProfileLensParams();
+		pTmpLens = make_unique<PolynomialMassProfileLens>();
+		pParams = make_unique<PolynomialMassProfileLensParams>();
 		break;
 	case LENSNUMBER_MULTIPLEWENDLANDLENS:
-		pTmpLens = new MultipleWendlandLens();
-		pParams = new MultipleWendlandLensParams();
+		pTmpLens = make_unique<MultipleWendlandLens>();
+		pParams = make_unique<MultipleWendlandLensParams>();
 		break;
 	case LENSNUMBER_DEFLECTIONGRIDLENS:
-		pTmpLens = new DeflectionGridLens();
-		pParams = new DeflectionGridLensParams();
+		pTmpLens = make_unique<DeflectionGridLens>();
+		pParams = make_unique<DeflectionGridLensParams>();
 		break;
 	case LENSNUMBER_NFW:
-		pTmpLens = new NFWLens();
-		pParams = new NFWLensParams();
+		pTmpLens = make_unique<NFWLens>();
+		pParams = make_unique<NFWLensParams>();
 		break;
 	case LENSNUMBER_ELLNFW:
-		pTmpLens = new EllipticNFWLens();
-		pParams = new EllipticNFWLensParams();
+		pTmpLens = make_unique<EllipticNFWLens>();
+		pParams = make_unique<EllipticNFWLensParams>();
 		break;
 	case LENSNUMBER_SERSIC:
-		pTmpLens = new SersicLens();
-		pParams = new SersicLensParams();
+		pTmpLens = make_unique<SersicLens>();
+		pParams = make_unique<SersicLensParams>();
 		break;
 	case LENSNUMBER_ELLSERSIC:
-		pTmpLens = new EllipticSersicLens();
-		pParams = new EllipticSersicLensParams();
+		pTmpLens = make_unique<EllipticSersicLens>();
+		pParams = make_unique<EllipticSersicLensParams>();
 		break;
 	case LENSNUMBER_PIEMD:
-		pTmpLens = new PIEMDLens();
-		pParams = new PIEMDLensParams();
+		pTmpLens = make_unique<PIEMDLens>();
+		pParams = make_unique<PIEMDLensParams>();
 		break;
 	case LENSNUMBER_PIMD:
-		pTmpLens = new PIMDLens();
-		pParams = new PIMDLensParams();
+		pTmpLens = make_unique<PIMDLens>();
+		pParams = make_unique<PIMDLensParams>();
 		break;
 	case LENSNUMBER_ALPHAPOT:
-		pTmpLens = new AlphaPotLens();
-		pParams = new AlphaPotLensParams();
+		pTmpLens = make_unique<AlphaPotLens>();
+		pParams = make_unique<AlphaPotLensParams>();
 		break;
 	case LENSNUMBER_HARMONIC:
-		pTmpLens = new HarmonicLens();
-		pParams = new HarmonicLensParams();
+		pTmpLens = make_unique<HarmonicLens>();
+		pParams = make_unique<HarmonicLensParams>();
 		break;
 	case LENSNUMBER_POTENTIALGRID:
-		pTmpLens = new PotentialGridLens();
-		pParams = new PotentialGridLensParams();
+		pTmpLens = make_unique<PotentialGridLens>();
+		pParams = make_unique<PotentialGridLensParams>();
 		break;
 	case LENSNUMBER_CIRCULARPIECES:
-		pTmpLens = new CircularPiecesLens();
-		pParams = new CircularPiecesLensParams();
+		pTmpLens = make_unique<CircularPiecesLens>();
+		pParams = make_unique<CircularPiecesLensParams>();
 		break;
 	case LENSNUMBER_MULTIPLANECONTAINER:
-		pTmpLens = new MultiPlaneContainer();
-		pParams = new MultiPlaneContainerParams();
+		pTmpLens = make_unique<MultiPlaneContainer>();
+		pParams = make_unique<MultiPlaneContainerParams>();
 		break;
 	default:
 		errorString = std::string("Can't recognize lens type");
@@ -533,32 +526,26 @@ bool GravitationalLens::read(serut::SerializationInterface &si, GravitationalLen
 	{
 		if (!pParams->read(si))
 		{
-			delete pTmpLens;
-			delete pParams;
 			errorString = std::string("Error reading lens parameters");
 			return false;
 		}
-		initStatus = pTmpLens->init(Dd, pParams);
+		initStatus = pTmpLens->init(Dd, pParams.get());
 	}
 	else
 		initStatus = pTmpLens->init(Dd, 0);
 	
-	if (pParams)
-		delete pParams;
-
 	if (!initStatus)
 	{
-		errorString = std::string(std::string("Couldn't initialize the new lens: ") + pTmpLens->getErrorString());
-		delete pTmpLens;
+		errorString = "Couldn't initialize the new lens: " + pTmpLens->getErrorString();
 		return false;
 	}
 	//cerr << "derivDistScale = " << derivDistScale << endl;
 	pTmpLens->m_derivDistScale = derivDistScale;
-	*pLens = pTmpLens;
+	pLens = move(pTmpLens);
 	return true;
 }
 
-bool GravitationalLens::load(const std::string &fileName, GravitationalLens **pLens, std::string &errorString)
+bool GravitationalLens::load(const std::string &fileName, unique_ptr<GravitationalLens> &pLens, std::string &errorString)
 {
 	serut::FileSerializer fs;
 
@@ -603,7 +590,7 @@ bool GravitationalLens::getProjectedPotential(double D_s, double D_ds, Vector2D<
 	return false;
 }
 
-GravitationalLens *GravitationalLens::createCopy() const
+unique_ptr<GravitationalLens> GravitationalLens::createCopy() const
 {
 	serut::DummySerializer dumSer;
 
@@ -623,10 +610,10 @@ GravitationalLens *GravitationalLens::createCopy() const
 		return 0;
 	}
 
-	GravitationalLens *pLens = 0;
+	unique_ptr<GravitationalLens> pLens;
 	std::string errStr;
 
-	if (!GravitationalLens::read(memSer, &pLens, errStr))
+	if (!GravitationalLens::read(memSer, pLens, errStr))
 	{
 		setErrorString(std::string("Couldn't recreate the lens from the data in the memory buffer: ") + errStr);
 		return 0;

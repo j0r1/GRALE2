@@ -49,7 +49,7 @@ public:
 	double getPhiX() const																{ return m_phiX; }
 	double getPhiY() const																{ return m_phiY; }
 	
-	GravitationalLensParams *createCopy() const;
+	std::unique_ptr<GravitationalLensParams> createCopy() const;
 	bool write(serut::SerializationInterface &si) const;
 	bool read(serut::SerializationInterface &si);
 private:

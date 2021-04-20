@@ -93,7 +93,7 @@ public:
 	const std::vector<CircularPieceInfo> &getPiecesInfo() const								{ return m_pieces; }
 	const std::vector<double> &getInterpolationFunctionCoefficients() const					{ return m_coeffs; }
 
-	GravitationalLensParams *createCopy() const;
+	std::unique_ptr<GravitationalLensParams> createCopy() const;
 	bool write(serut::SerializationInterface &si) const;
 	bool read(serut::SerializationInterface &si);
 private:

@@ -229,9 +229,9 @@ bool CompositeLensParams::read(serut::SerializationInterface &si)
 	return true;
 }
 
-GravitationalLensParams *CompositeLensParams::createCopy() const
+std::unique_ptr<GravitationalLensParams> CompositeLensParams::createCopy() const
 {
-	CompositeLensParams *pParams = new CompositeLensParams();
+	std::unique_ptr<CompositeLensParams> pParams = std::make_unique<CompositeLensParams>();
 
 	for (auto it = m_lensInfo.begin() ; it != m_lensInfo.end() ; ++it)
 	{
@@ -272,16 +272,17 @@ bool CompositeLens::processParameters(const GravitationalLensParams *pLensParams
 	{
 		const CompositeLensParams::LensInfo *pLensInfo = (*it);
 		serut::MemorySerializer mSer(pLensInfo->getData(), pLensInfo->getDataLength(), 0, 0);
-		GravitationalLens *pLens = 0;
+		std::unique_ptr<GravitationalLens> pLens;
 		std::string errStr;
 		
-		if (!GravitationalLens::read(mSer, &pLens, errStr))
+		if (!GravitationalLens::read(mSer, pLens, errStr))
 		{
 			setErrorString(std::string("Couldn't initialize a lens component: ") + errStr);
 			return false;
 		}
 
-		m_lenses.push_back(pLens);
+		// TODO: fix this!
+		m_lenses.push_back(pLens.release());
 		m_positions.push_back(pLensInfo->getPosition());
 		m_factors.push_back(pLensInfo->getFactor());
 		m_origAngles.push_back(pLensInfo->getAngle());

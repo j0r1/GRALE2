@@ -55,16 +55,15 @@ bool MultiPlaneContainerParams::add(GravitationalLens *pLens, double z)
 	return true;
 }
 
-GravitationalLensParams *MultiPlaneContainerParams::createCopy() const
+std::unique_ptr<GravitationalLensParams> MultiPlaneContainerParams::createCopy() const
 {
-	MultiPlaneContainerParams *pCopy = new MultiPlaneContainerParams();
+	std::unique_ptr<MultiPlaneContainerParams> pCopy = std::make_unique<MultiPlaneContainerParams>();
 	for (auto lensZ : m_lensesAndRedshifts)
 	{
 		// The .get() will cause a copy to be made
 		if (!pCopy->add(lensZ.first.get(), lensZ.second))
 		{
 			setErrorString("Error copying sublens: " + pCopy->getErrorString());
-			delete pCopy;
 			return nullptr;
 		}
 	}
@@ -111,16 +110,16 @@ bool MultiPlaneContainerParams::read(serut::SerializationInterface &si)
 	m_lensesAndRedshifts.clear();
 	for (int32_t i = 0 ; i < num ; i++)
 	{
-		GravitationalLens *pLens = nullptr;
+		std::unique_ptr<GravitationalLens> pLens;
 		string errStr;
 
-		if (!GravitationalLens::read(si, &pLens, errStr))
+		if (!GravitationalLens::read(si, pLens, errStr))
 		{
 			setErrorString("Unable to read a contained lens: " + errStr);
 			return false;
 		}
 
-		shared_ptr<GravitationalLens> lens(pLens);
+		shared_ptr<GravitationalLens> lens(move(pLens));
 		double z;
 
 		if (!si.readDouble(&z))

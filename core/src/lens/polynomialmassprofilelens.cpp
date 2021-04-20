@@ -294,9 +294,9 @@ PolynomialTimeDelayLensParams::~PolynomialTimeDelayLensParams()
 {
 }
 
-GravitationalLensParams *PolynomialMassProfileLensParams::createCopy() const
+std::unique_ptr<GravitationalLensParams> PolynomialMassProfileLensParams::createCopy() const
 {
-	PolynomialMassProfileLensParams *pNewParams = new PolynomialMassProfileLensParams();
+	std::unique_ptr<PolynomialMassProfileLensParams> pNewParams = std::make_unique<PolynomialMassProfileLensParams>();
 	pNewParams->m_polynomialParts = m_polynomialParts;
 	return pNewParams;
 }

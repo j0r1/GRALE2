@@ -32,9 +32,9 @@
 namespace grale
 {
 
-GravitationalLensParams *PlummerLensParams::createCopy() const
+std::unique_ptr<GravitationalLensParams> PlummerLensParams::createCopy() const
 {
-	return new PlummerLensParams(lensmass,angwidth);
+	return std::make_unique<PlummerLensParams>(lensmass,angwidth);
 }
 
 bool PlummerLensParams::write(serut::SerializationInterface &si) const

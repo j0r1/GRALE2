@@ -38,22 +38,22 @@ public:
 
 	bool read(serut::SerializationInterface &s)
 	{
-		GravitationalLens *pLens = nullptr;
+		unique_ptr<GravitationalLens> pLens;
 		string errorString;
 
-		if (!GravitationalLens::read(s, &pLens, errorString))
+		if (!GravitationalLens::read(s, pLens, errorString))
 		{
 			setErrorString(errorString);
 			return false;
 		}
 
-		m_lens.reset(pLens);
+		m_lens = move(pLens);
 		return true;
 	}
 
-	GravitationalLens *get() const { return m_lens.get(); }
+	const shared_ptr<GravitationalLens> get() const { return m_lens; }
 private:
-	unique_ptr<GravitationalLens> m_lens;
+	shared_ptr<GravitationalLens> m_lens;
 };
 
 bool_t CalcFitnessCommunicator::runModule(const std::string &lensFitnessObjectType, 
@@ -119,7 +119,7 @@ bool_t CalcFitnessCommunicator::runModule(const std::string &lensFitnessObjectTy
 			if (!(r = loadFromBytes(lensWrapper, lensParams)))
 				return "Error loading lens: " + lensWrapper.getErrorString();
 
-			iface = make_unique<ImagesBackProjector>(*lensWrapper.get(), images, z_d, false);
+			iface = make_unique<ImagesBackProjector>(lensWrapper.get(), images, z_d);
 		}
 		else // precalculated
 		{

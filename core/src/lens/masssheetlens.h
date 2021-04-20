@@ -45,7 +45,7 @@ public:
 	MassSheetLensParams(double density)						{ m_density = density; }
 	MassSheetLensParams(double Dd, double Ds, double Dds)				{ m_density = (SPEED_C*SPEED_C/(4.0*CONST_PI*CONST_G*Dd))*(Ds/Dds); }
 	double getDensity() const							{ return m_density; }
-	GravitationalLensParams *createCopy() const;
+	std::unique_ptr<GravitationalLensParams> createCopy() const;
 	bool write(serut::SerializationInterface &si) const;
 	bool read(serut::SerializationInterface &si);
 private:

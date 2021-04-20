@@ -7,9 +7,9 @@
 namespace grale
 {
 
-GravitationalLensParams *HarmonicLensParams::createCopy() const
+std::unique_ptr<GravitationalLensParams> HarmonicLensParams::createCopy() const
 {
-	return new HarmonicLensParams(m_sigma0, m_k, m_l, m_phiX, m_phiY);
+	return std::make_unique<HarmonicLensParams>(m_sigma0, m_k, m_l, m_phiX, m_phiY);
 }
 
 bool HarmonicLensParams::write(serut::SerializationInterface &si) const

@@ -343,13 +343,13 @@ bool LensInversionParametersSinglePlaneCPU::read(serut::SerializationInterface &
 	for (int32_t i = 0 ; i < numBasisFunctions ; i++)
 	{
 		string errStr;
-		GravitationalLens *pBasisFunction = nullptr;
-		if (!GravitationalLens::read(si, &pBasisFunction, errStr))
+		unique_ptr<GravitationalLens> pBasisFunction;
+		if (!GravitationalLens::read(si, pBasisFunction, errStr))
 		{
 			setErrorString("Unable to read basis lens model: " + errStr);
 			return false;
 		}
-		shared_ptr<GravitationalLens> basisLens(pBasisFunction);
+		shared_ptr<GravitationalLens> basisLens(move(pBasisFunction));
 
 		double centerAndMass[3];
 		if (!si.readDoubles(centerAndMass, 3))
@@ -381,11 +381,11 @@ bool LensInversionParametersSinglePlaneCPU::read(serut::SerializationInterface &
 		if (val != 0)
 		{
 			string errStr;
-			GravitationalLens *pTmpLens = nullptr;
+			unique_ptr<GravitationalLens> pTmpLens;
 
-			if (!GravitationalLens::read(si, &pTmpLens, errStr))
+			if (!GravitationalLens::read(si, pTmpLens, errStr))
 				return "Couldn't read lens: " + errStr; 
-			pLens = shared_ptr<GravitationalLens>(pTmpLens);
+			pLens = shared_ptr<GravitationalLens>(move(pTmpLens));
 		}
 		return true;
 	};

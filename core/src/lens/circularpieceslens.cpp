@@ -16,7 +16,7 @@ CircularPiecesLensParams::CircularPiecesLensParams(const vector<CircularPieceInf
 {
 }
 
-GravitationalLensParams *CircularPiecesLensParams::createCopy() const
+std::unique_ptr<GravitationalLensParams> CircularPiecesLensParams::createCopy() const
 {
 	vector<CircularPieceInfo> pieces;
 	for (auto &p : m_pieces)
@@ -40,7 +40,7 @@ GravitationalLensParams *CircularPiecesLensParams::createCopy() const
 				           p.getPotentialScale(), p.getPotentialOffset() });
 	}
 
-	CircularPiecesLensParams *pNewParams = new CircularPiecesLensParams();
+	std::unique_ptr<CircularPiecesLensParams> pNewParams = std::make_unique<CircularPiecesLensParams>();
 	std::swap(pieces, pNewParams->m_pieces);
 	pNewParams->m_coeffs = m_coeffs;
 	return pNewParams;
@@ -101,16 +101,16 @@ bool CircularPiecesLensParams::read(serut::SerializationInterface &si)
 
 	for (int32_t i = 0 ; i < numPieces ; i++)
 	{
-		GravitationalLens *pLens = nullptr;
+		std::unique_ptr<GravitationalLens> pLens;
 		string errStr;
 
-		if (!GravitationalLens::read(si, &pLens, errStr))
+		if (!GravitationalLens::read(si, pLens, errStr))
 		{
 			setErrorString("Couldn't read a lens model");
 			return false;
 		}
 
-		shared_ptr<GravitationalLens> lens(pLens);
+		shared_ptr<GravitationalLens> lens = move(pLens);
 		double v[4];
 
 		if (!si.readDoubles(v, 4))
@@ -165,8 +165,9 @@ bool CircularPiecesLens::processParameters(const GravitationalLensParams *pLensP
 	}
 
 	// Create copy to get own instances of the lenses
-	CircularPiecesLensParams *pCopy = static_cast<CircularPiecesLensParams*>(pParams->createCopy());
-	shared_ptr<CircularPiecesLensParams> params(pCopy);
+	unique_ptr<GravitationalLensParams> paramsCopy = pParams->createCopy();
+	// We'll release the pointer and store it in a shared_ptr immediately
+	shared_ptr<CircularPiecesLensParams> params(static_cast<CircularPiecesLensParams*>(paramsCopy.release()));
 	auto pieces = params->getPiecesInfo();
 
 	if (pieces[0].getStartRadius() != 0)

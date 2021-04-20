@@ -186,15 +186,15 @@ int main(void)
 			cerr << "Couldn't init mass sheet lens" << endl;
 		compParams.addLens(sheetFactor, Vector2Dd(0,0), 0, l);
 	}
-	CompositeLens compLens;
-	if (!compLens.init(D_d, &compParams))
+	auto compLens = make_shared<CompositeLens>();
+	if (!compLens->init(D_d, &compParams))
 		cerr << "Couldn't init composite lens" << endl;
 
 	list<ImagesDataExtended *> imageList;
 	for (auto i : images)
 		imageList.push_back(i);
 
-	ImagesBackProjector bpSlow(compLens, imageList, z_d, false);
+	ImagesBackProjector bpSlow(compLens, imageList, z_d);
 
 	double angScaleMatrix = bpMatrix.getAngularScale()/ANGLE_ARCSEC;
 	cout << "angScaleMatrix = " << angScaleMatrix << endl; 

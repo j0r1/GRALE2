@@ -31,9 +31,9 @@
 namespace grale
 {
 
-GravitationalLensParams *MassSheetLensParams::createCopy() const
+std::unique_ptr<GravitationalLensParams> MassSheetLensParams::createCopy() const
 { 
-	return new MassSheetLensParams(m_density); 
+	return std::make_unique<MassSheetLensParams>(m_density); 
 }
 
 bool MassSheetLensParams::write(serut::SerializationInterface &si) const

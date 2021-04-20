@@ -22,7 +22,7 @@ public:
 	const GravitationalLens &getLens(int idx) const;
 	double getRedshift(int idx) const;
 
-	GravitationalLensParams *createCopy() const;
+	std::unique_ptr<GravitationalLensParams> createCopy() const;
 	bool write(serut::SerializationInterface &si) const;
 	bool read(serut::SerializationInterface &si);
 private:

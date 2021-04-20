@@ -46,7 +46,7 @@ public:
 	MassDiskLensParams(double Dd, double Ds, double Dds, double angularRadius)	{ m_density = (SPEED_C*SPEED_C/(4.0*CONST_PI*CONST_G*Dd))*(Ds/Dds); m_angularRadius = angularRadius; }
 	double getDensity() const							{ return m_density; }
 	double getAngularRadius() const							{ return m_angularRadius; }
-	GravitationalLensParams *createCopy() const;
+	std::unique_ptr<GravitationalLensParams> createCopy() const;
 	bool write(serut::SerializationInterface &si) const;
 	bool read(serut::SerializationInterface &si);
 private:

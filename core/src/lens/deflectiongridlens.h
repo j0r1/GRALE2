@@ -54,7 +54,7 @@ public:
 	Vector2D<double> getBottomLeft() const							{ return m_bottomLeft; }
 	Vector2D<double> getTopRight() const							{ return m_topRight; }
 
-	GravitationalLensParams *createCopy() const;
+	std::unique_ptr<GravitationalLensParams> createCopy() const;
 	bool write(serut::SerializationInterface &si) const;
 	bool read(serut::SerializationInterface &si);
 private:

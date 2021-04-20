@@ -69,9 +69,9 @@ bool SersicLensParams::read(serut::SerializationInterface &si)
 	return true;
 }
 
-GravitationalLensParams *SersicLensParams::createCopy() const
+std::unique_ptr<GravitationalLensParams> SersicLensParams::createCopy() const
 {
-	return new SersicLensParams(m_centralDensity, m_angularScale, m_sersicIndex);
+	return std::make_unique<SersicLensParams>(m_centralDensity, m_angularScale, m_sersicIndex);
 }
 
 SersicLens::SersicLens() : SymmetricLens(GravitationalLens::Sersic)

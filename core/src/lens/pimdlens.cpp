@@ -72,9 +72,9 @@ bool PIMDLensParams::read(serut::SerializationInterface &si)
 	return true;
 }
 
-GravitationalLensParams *PIMDLensParams::createCopy() const
+std::unique_ptr<GravitationalLensParams> PIMDLensParams::createCopy() const
 {
-	return new PIMDLensParams(m_sigma0, m_coreRadius, m_scaleRadius);
+	return std::make_unique<PIMDLensParams>(m_sigma0, m_coreRadius, m_scaleRadius);
 }
 
 

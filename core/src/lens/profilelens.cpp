@@ -32,9 +32,9 @@
 namespace grale
 {
 	
-GravitationalLensParams *ProfileLensParams::createCopy() const
+std::unique_ptr<GravitationalLensParams> ProfileLensParams::createCopy() const
 { 
-	return new ProfileLensParams(m_endRadius, m_profile); 
+	return std::make_unique<ProfileLensParams>(m_endRadius, m_profile);
 }
 
 bool ProfileLensParams::write(serut::SerializationInterface &si) const

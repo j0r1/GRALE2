@@ -35,9 +35,9 @@
 namespace grale
 {
 
-GravitationalLensParams *MultipleSquareLensParams::createCopy() const
+std::unique_ptr<GravitationalLensParams> MultipleSquareLensParams::createCopy() const
 {
-	return new MultipleSquareLensParams(m_lensInfo);
+	return std::make_unique<MultipleSquareLensParams>(m_lensInfo);
 }
 
 bool MultipleSquareLensParams::write(serut::SerializationInterface &si) const

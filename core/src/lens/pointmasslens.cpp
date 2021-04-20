@@ -32,9 +32,9 @@
 namespace grale
 {
 
-GravitationalLensParams *PointmassLensParams::createCopy() const
+std::unique_ptr<GravitationalLensParams> PointmassLensParams::createCopy() const
 {
-	return new PointmassLensParams(lensmass);
+	return std::make_unique<PointmassLensParams>(lensmass);
 }
 
 bool PointmassLensParams::write(serut::SerializationInterface &si) const

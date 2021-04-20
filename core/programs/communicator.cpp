@@ -86,16 +86,15 @@ bool_t Communicator::render()
 	else
 		return "Invalid rendertype, should be GRID or POINTVECTOR, but is '" + parts[1] + "'";
 
-	GravitationalLens *pLens = 0;
+	unique_ptr<GravitationalLens> pLens;
 	{
 		MemorySerializer mSer(&(lensBytes[0]), lensSize, 0, 0);
 		string errStr;
 
-		if (!GravitationalLens::read(mSer, &pLens, errStr))
+		if (!GravitationalLens::read(mSer, pLens, errStr))
 			return "Couldn't create lens from received data";
 	}
-	// Just to make sure the lens is automatically deleted
-	unique_ptr<GravitationalLens> lensAutoDelete(pLens);
+
 	vector<double> renderPoints;
 
 	if (useGridMethod)
@@ -128,7 +127,7 @@ bool_t Communicator::render()
 
 		setStatus("Rendering grid data");
 
-		if (!(r = renderGrid(lensBytes, pLens, bottomLeft.getX(), bottomLeft.getY(), dX, dY, numX, numY, renderPoints)))
+		if (!(r = renderGrid(lensBytes, pLens.get(), bottomLeft.getX(), bottomLeft.getY(), dX, dY, numX, numY, renderPoints)))
 			return "Unable to render lens properties on specified grid: " + r.getErrorString();
 	}
 	else
@@ -141,7 +140,7 @@ bool_t Communicator::render()
 
 		setStatus("Rendering based on points vector");
 
-		if (!(r = renderPointVector(lensBytes, pLens, inputPoints, renderPoints)))
+		if (!(r = renderPointVector(lensBytes, pLens.get(), inputPoints, renderPoints)))
 			return "Unable to render lens properties on specified grid: " + r.getErrorString();
 	}
 

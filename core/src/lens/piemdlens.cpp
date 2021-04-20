@@ -79,9 +79,9 @@ bool PIEMDLensParams::read(serut::SerializationInterface &si)
 	return true;
 }
 
-GravitationalLensParams *PIEMDLensParams::createCopy() const
+std::unique_ptr<GravitationalLensParams> PIEMDLensParams::createCopy() const
 {
-	return new PIEMDLensParams(m_sigma0, m_coreRadius, m_scaleRadius, m_epsilon);
+	return std::make_unique<PIEMDLensParams>(m_sigma0, m_coreRadius, m_scaleRadius, m_epsilon);
 }
 
 PIEMDLens::PIEMDLens() : GravitationalLens(PIEMD)

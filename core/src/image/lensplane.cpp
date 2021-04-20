@@ -119,17 +119,15 @@ bool LensPlane::commonInitChecks(const GravitationalLens *pLens, Vector2Dd bl, V
 
 bool LensPlane::init(SerializationInterface &lensData, Vector2Dd bl, Vector2Dd tr, int xp, int yp)
 {
-	GravitationalLens *pLensCopy = 0;
 	unique_ptr<GravitationalLens> lens;
 	string errStr;
 
-	if (!GravitationalLens::read(lensData, &pLensCopy, errStr))
+	if (!GravitationalLens::read(lensData, lens, errStr))
 	{
 		setErrorString("Unable to create lens from data: " + errStr);
 		return false;
 	}
-	assert(pLensCopy);
-	lens.reset(pLensCopy);
+	assert(lens.get());
 
 	if (!commonInitChecks(lens.get(), bl, tr, xp, yp))
 		return false;
@@ -210,18 +208,15 @@ bool LensPlane::initInternal(unique_ptr<GravitationalLens> pLensCopy, Vector2Dd 
 bool LensPlane::init(SerializationInterface &lensData, Vector2Dd bl, Vector2Dd tr, int xp, int yp,
                      SerializationInterface &renderedData)
 {
-	GravitationalLens *pLensCopy = 0;
 	unique_ptr<GravitationalLens> lens;
 	string errStr;
 
-	if (!GravitationalLens::read(lensData, &pLensCopy, errStr))
+	if (!GravitationalLens::read(lensData, lens, errStr))
 	{
 		setErrorString("Unable to create lens from data: " + errStr);
 		return false;
 	}
-
-	assert(pLensCopy);
-	lens.reset(pLensCopy);
+	assert(lens.get());
 
 	if (!commonInitChecks(lens.get(), bl, tr, xp, yp))
 		return false;
@@ -406,10 +401,10 @@ bool LensPlane::read(SerializationInterface &si, unique_ptr<LensPlane> &ip,std::
 		alphaxy[i] = array[4];
 	}
 	
-	GravitationalLens *lens;
+	std::unique_ptr<GravitationalLens> lens;
 	std::string errstr2;
 
-	if (!GravitationalLens::read(si,&lens,errstr2))
+	if (!GravitationalLens::read(si,lens,errstr2))
 	{
 		errstr = std::string(std::string("Error reading the lens plane's associated lens: ") + errstr2);
 		return false;
@@ -422,7 +417,7 @@ bool LensPlane::read(SerializationInterface &si, unique_ptr<LensPlane> &ip,std::
 	width = topright.getX()-bottomleft.getX();
 	height = topright.getY()-bottomleft.getY();
 	
-	plane->m_pLens = unique_ptr<GravitationalLens>(lens);
+	plane->m_pLens = move(lens);
 	plane->m_xstep = width/((double)(numx-1));
 	plane->m_ystep = height/((double)(numy-1));
 	plane->m_numx = numx;

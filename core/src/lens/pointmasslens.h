@@ -52,7 +52,7 @@ public:
 	/** Returns the currently set mass. */
 	double getLensMass() const							{ return lensmass; }
 	
-	GravitationalLensParams *createCopy() const;
+	std::unique_ptr<GravitationalLensParams> createCopy() const;
 	bool write(serut::SerializationInterface &si) const;
 	bool read(serut::SerializationInterface &si);
 private:

@@ -66,9 +66,9 @@ bool NFWLensParams::read(serut::SerializationInterface &si)
 	return true;
 }
 
-GravitationalLensParams *NFWLensParams::createCopy() const
+std::unique_ptr<GravitationalLensParams> NFWLensParams::createCopy() const
 {
-	return new NFWLensParams(m_densityScale3D, m_angularRadiusScale);
+	return std::make_unique<NFWLensParams>(m_densityScale3D, m_angularRadiusScale);
 }
 
 NFWLens::NFWLens() : SymmetricLens(GravitationalLens::NFW)

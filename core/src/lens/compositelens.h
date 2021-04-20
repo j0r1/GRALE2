@@ -49,7 +49,7 @@ public:
 	bool write(serut::SerializationInterface &si) const;
 	bool read(serut::SerializationInterface &si);
 	const std::vector<LensInfo *> &getLensInfo() const						{ return m_lensInfo; }
-	GravitationalLensParams *createCopy() const;
+	std::unique_ptr<GravitationalLensParams> createCopy() const;
 private:
 	std::vector<LensInfo *> m_lensInfo;
 };

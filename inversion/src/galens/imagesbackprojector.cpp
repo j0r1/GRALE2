@@ -41,8 +41,8 @@ using namespace std;
 namespace grale
 {
 
-ImagesBackProjector::ImagesBackProjector(GravitationalLens &lens, const std::list<ImagesDataExtended *> &images, 
-		                         double z_d, bool copyLens)
+ImagesBackProjector::ImagesBackProjector(const shared_ptr<GravitationalLens> &lens, const std::list<ImagesDataExtended *> &images,
+		                         double z_d)
 {
 	std::list<ImagesDataExtended *>::const_iterator it;
 	std::vector<ImagesDataExtended *> imagesVector(images.size());
@@ -132,23 +132,12 @@ ImagesBackProjector::ImagesBackProjector(GravitationalLens &lens, const std::lis
 		}
 	}
 
-	if (copyLens)
-	{
-		m_pLens = lens.createCopy();
-		m_deleteLens = true;
-	}
-	else
-	{
-		m_pLens = &lens;
-		m_deleteLens = false;
-	}
+	m_pLens = lens;
 	m_zd = z_d;
 }
 
 ImagesBackProjector::~ImagesBackProjector()
 {
-	if (m_deleteLens)
-		delete m_pLens;
 }
 
 float ImagesBackProjector::getTimeDelay(int sourceNumber, int imageNumber, int pointNumber, Vector2D<float> scaledBeta) const

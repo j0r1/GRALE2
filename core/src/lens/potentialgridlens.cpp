@@ -27,9 +27,9 @@ PotentialGridLensParams::~PotentialGridLensParams()
 {
 }
 
-GravitationalLensParams *PotentialGridLensParams::createCopy() const
+std::unique_ptr<GravitationalLensParams> PotentialGridLensParams::createCopy() const
 {
-	return new PotentialGridLensParams(m_bottomLeft, m_topRight, m_values, m_numX, m_numY);
+	return std::make_unique<PotentialGridLensParams>(m_bottomLeft, m_topRight, m_values, m_numX, m_numY);
 }
 
 bool PotentialGridLensParams::write(serut::SerializationInterface &si) const

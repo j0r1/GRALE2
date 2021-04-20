@@ -36,9 +36,9 @@
 namespace grale
 {
 
-GravitationalLensParams *MultiplePlummerLensParams::createCopy() const
+std::unique_ptr<GravitationalLensParams> MultiplePlummerLensParams::createCopy() const
 {
-	return new MultiplePlummerLensParams(m_lensInfo);
+	return std::make_unique<MultiplePlummerLensParams>(m_lensInfo);
 }
 
 bool MultiplePlummerLensParams::write(serut::SerializationInterface &si) const

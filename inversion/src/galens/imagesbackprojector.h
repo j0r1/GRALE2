@@ -38,6 +38,7 @@
 #include <vector>
 #include <list>
 #include <string>
+#include <memory>
 
 namespace grale
 {
@@ -59,7 +60,7 @@ public:
 	 *  \param copyLens If true, a copy of the lens model is created and stored internally.
 	 *                  Otherwise, a pointer to the lens model is stored.
 	 */
-	ImagesBackProjector(GravitationalLens &lens, const std::list<ImagesDataExtended *> &images, double z_d, bool copyLens); 
+	ImagesBackProjector(const std::shared_ptr<GravitationalLens> &lens, const std::list<ImagesDataExtended *> &images, double z_d); 
 	~ImagesBackProjector();
 	
 	double getLensDistance() const;
@@ -109,9 +110,8 @@ private:
 	mutable std::vector<std::vector<float> > m_potential;
 	double m_angularScale;
 
-	GravitationalLens *m_pLens;
+	std::shared_ptr<GravitationalLens> m_pLens;
 	double m_zd;
-	bool m_deleteLens;
 };
 
 } // end namespace

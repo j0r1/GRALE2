@@ -56,7 +56,7 @@ public:
 	/** Returns the currently set angular core radius. */
 	double getAngularCoreRadius() const					{ return corerad; }
 
-	GravitationalLensParams *createCopy() const;
+	std::unique_ptr<GravitationalLensParams> createCopy() const;
 	bool write(serut::SerializationInterface &si) const;
 	bool read(serut::SerializationInterface &si);
 private:

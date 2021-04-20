@@ -33,9 +33,9 @@
 namespace grale
 {
 
-GravitationalLensParams *GaussLensParams::createCopy() const
+std::unique_ptr<GravitationalLensParams> GaussLensParams::createCopy() const
 {
-	return new GaussLensParams(m_mass, m_angularWidth);
+	return std::make_unique<GaussLensParams>(m_mass, m_angularWidth);
 }
 
 bool GaussLensParams::write(serut::SerializationInterface &si) const

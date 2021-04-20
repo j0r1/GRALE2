@@ -42,9 +42,9 @@ namespace grale
 
 // Parameters
 
-GravitationalLensParams *MultipleWendlandLensParams::createCopy() const
+std::unique_ptr<GravitationalLensParams> MultipleWendlandLensParams::createCopy() const
 {
-	return new MultipleWendlandLensParams(m_phiXInfo, m_phiYInfo);
+	return std::make_unique<MultipleWendlandLensParams>(m_phiXInfo, m_phiYInfo);
 }
 
 bool MultipleWendlandLensParams::write(serut::SerializationInterface &si) const

@@ -52,7 +52,7 @@ public:
 	/** Returns the currently set velocity dispersion. */
 	double getVelocityDispersion() const					{ return dispersion; }
 
-	GravitationalLensParams *createCopy() const;
+	std::unique_ptr<GravitationalLensParams> createCopy() const;
 	bool write(serut::SerializationInterface &si) const;
 	bool read(serut::SerializationInterface &si);
 private:

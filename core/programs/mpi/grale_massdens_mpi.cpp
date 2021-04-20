@@ -246,11 +246,11 @@ void MPIRenderer::runMPIHelper()
 
 	MPI_Bcast(pLensData, lensSize, MPI_BYTE, 0, MPI_COMM_WORLD);
 
-	GravitationalLens *pLens = 0;
+	unique_ptr<GravitationalLens> pLens;
 	MemorySerializer mSer(&(lensData[0]), lensSize, 0, 0);
 	string errStr;
 
-	if (!GravitationalLens::read(mSer, &pLens, errStr))
+	if (!GravitationalLens::read(mSer, pLens, errStr))
 	{
 		cerr << errStr << endl;
 		MPI_Abort(MPI_COMM_WORLD, -1);
@@ -269,14 +269,14 @@ void MPIRenderer::runMPIHelper()
 		// Let each node render it's parts
 		vector<int> offsets;
 		vector<double> nodeResults;
-		renderNodeResults(0, pLens, dParams[0], dParams[1], dParams[2], dParams[3], iParams[0], iParams[1], nodeResults, offsets, NULL);
+		renderNodeResults(0, pLens.get(), dParams[0], dParams[1], dParams[2], dParams[3], iParams[0], iParams[1], nodeResults, offsets, NULL);
 	}
 	else
 	{
 		int numXY = 0;
 		MPI_Bcast(&numXY, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
-		renderNodeResults(0, pLens, numXY, 0, 0);
+		renderNodeResults(0, pLens.get(), numXY, 0, 0);
 	}
 }
 

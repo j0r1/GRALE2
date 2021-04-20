@@ -35,6 +35,7 @@
 #include "vector2d.h"
 #include <serut/serializationinterface.h>
 #include <string>
+#include <memory>
 
 namespace grale
 {
@@ -53,7 +54,7 @@ public:
 	virtual bool read(serut::SerializationInterface &si)							{ setErrorString("Not implemented"); return false; }
 
 	/** Creates a copy of the parameters. */
-	virtual GravitationalLensParams *createCopy() const = 0;
+	virtual std::unique_ptr<GravitationalLensParams> createCopy() const = 0;
 };
 
 /** Base class for gravitational lens implementations. */
@@ -162,7 +163,7 @@ public:
 			                   double *pPotentialValue) const;
 	
 	/** Returns a pointer to a copy of the lens parameters used in the GravitationalLens::init function. */
-	const GravitationalLensParams *getLensParameters() const				{ return m_pParameters; }
+	const GravitationalLensParams *getLensParameters() const				{ return m_pParameters.get(); }
 
 	/** Sets a distance scale to be used when estimating the derivatives of the 
 	 *  function beta(theta) numerically.
@@ -176,7 +177,7 @@ public:
 	 *  \c lens; an error message is stored in \c errstr if the function is not
 	 *  successful.
 	 */
-	static bool read(serut::SerializationInterface &si, GravitationalLens **pLens, std::string &errorString);
+	static bool read(serut::SerializationInterface &si, std::unique_ptr<GravitationalLens> &pLens, std::string &errorString);
 
 	/** Writes the current lens to a file. */
 	bool save(const std::string &fileName) const;
@@ -184,10 +185,10 @@ public:
 	/** Loads a lens instance from a file and stores the lens in \c lens. an error 
 	 *  message is stored in \c errstr if the function is not successful.
 	 */
-	static bool load(const std::string &fileName, GravitationalLens **pLens, std::string &errorString);
+	static bool load(const std::string &fileName, std::unique_ptr<GravitationalLens> &pLens, std::string &errorString);
 
 	/** Creates a copy of the current lens instance. */
-	GravitationalLens *createCopy() const;
+	std::unique_ptr<GravitationalLens> createCopy() const;
 
 	// TODO: experimental
 	// OpenCL stuff
@@ -224,7 +225,7 @@ private:
 	bool m_init;
 	double m_Dd;
 	LensType m_lensType;
-	GravitationalLensParams *m_pParameters;
+	std::unique_ptr<GravitationalLensParams> m_pParameters;
 	double m_derivDistScale;
 };
 

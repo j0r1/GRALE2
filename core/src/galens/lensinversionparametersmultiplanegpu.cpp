@@ -195,15 +195,15 @@ bool LensInversionParametersMultiPlaneGPU::read(serut::SerializationInterface &s
 		for (int32_t j = 0 ; j < numBasisLenses ; j++)
 		{
 			string errStr;
-			GravitationalLens *pLens;
+			unique_ptr<GravitationalLens> pLens;
 
-			if (!GravitationalLens::read(si, &pLens, errStr))
+			if (!GravitationalLens::read(si, pLens, errStr))
 			{
 				setErrorString("Can't read a basis lens: " + errStr);
 				return false;
 			}
 
-			shared_ptr<GravitationalLens> basisLens(pLens);
+			shared_ptr<GravitationalLens> basisLens(move(pLens));
 			double values[3];
 
 			if (!si.readDoubles(values, 3))
