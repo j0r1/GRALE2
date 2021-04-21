@@ -2,8 +2,6 @@
 #include "potentialgridlens.h"
 #include "constants.h"
 
-#include "debugnew.h"
-
 using namespace std;
 
 namespace grale

@@ -26,8 +26,6 @@
 #include "graleconfig.h"
 #include "ellipticalsource.h"
 
-#include "debugnew.h"
-
 using namespace std;
 
 namespace grale

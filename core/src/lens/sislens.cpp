@@ -27,8 +27,6 @@
 #include "sislens.h"
 #include "constants.h"
 
-#include "debugnew.h"
-
 namespace grale
 {
 

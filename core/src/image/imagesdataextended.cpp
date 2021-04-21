@@ -27,8 +27,6 @@
 #include "imagesdataextended.h"
 #include "configurationparameters.h"
 
-#include "debugnew.h"
-
 using namespace std;
 
 namespace grale

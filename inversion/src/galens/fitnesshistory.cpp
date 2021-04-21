@@ -26,8 +26,6 @@
 #include "fitnesshistory.h"
 #include "mathfunctions.h"
 
-#include "debugnew.h"
-
 namespace grale
 {
 

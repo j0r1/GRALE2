@@ -31,8 +31,6 @@
 // TODO: FOR DEBUGGING
 #include <stdio.h>
 
-#include "debugnew.h"
-
 namespace grale
 {
 

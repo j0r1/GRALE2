@@ -27,8 +27,6 @@
 #include "projectedimagesinterface.h"
 #include "imagesdataextended.h"
 
-#include "debugnew.h"
-
 namespace grale
 {
 

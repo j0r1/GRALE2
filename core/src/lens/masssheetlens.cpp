@@ -26,8 +26,6 @@
 #include "graleconfig.h"
 #include "masssheetlens.h"
 
-#include "debugnew.h"
-
 namespace grale
 {
 

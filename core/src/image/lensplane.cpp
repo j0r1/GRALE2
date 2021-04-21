@@ -39,8 +39,6 @@
 #include <assert.h>
 #include <iostream>
 
-#include "debugnew.h"
-
 using namespace serut;
 using namespace std;
 

@@ -42,8 +42,6 @@
 #include <sys/types.h>
 #endif // SHOWEVOLUTION
 
-#include "debugnew.h"
-
 using namespace std;
 
 namespace grale

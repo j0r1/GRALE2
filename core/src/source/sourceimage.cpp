@@ -26,8 +26,6 @@
 #include "graleconfig.h"
 #include "sourceimage.h"
 
-#include "debugnew.h"
-
 namespace grale
 {
 

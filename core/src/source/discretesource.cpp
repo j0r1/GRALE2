@@ -27,8 +27,6 @@
 #include "discretesource.h"
 #include <string.h>
 
-#include "debugnew.h"
-
 using namespace std;
 
 namespace grale

@@ -28,8 +28,6 @@
 #include "constants.h"
 #include <iostream>
 
-#include "debugnew.h"
-
 namespace grale
 {
 

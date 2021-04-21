@@ -27,8 +27,6 @@
 #include "nsielens.h"
 #include "constants.h"
 
-#include "debugnew.h"
-
 namespace grale
 {
 

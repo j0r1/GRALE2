@@ -28,8 +28,6 @@
 #include <iostream>
 #include <sstream>
 
-#include "debugnew.h"
-
 using namespace std;
 
 namespace grale

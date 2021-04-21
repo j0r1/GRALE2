@@ -27,8 +27,6 @@
 #include "pointmasslens.h"
 #include "constants.h"
 
-#include "debugnew.h"
-
 namespace grale
 {
 

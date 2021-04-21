@@ -26,8 +26,6 @@
 #include "graleconfig.h"
 #include "real1dfunctionintegrator.h"
 
-#include "debugnew.h"
-
 namespace grale
 {
 

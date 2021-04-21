@@ -31,8 +31,6 @@
 #include <string.h>
 #include <stdio.h>
 
-#include "debugnew.h"
-
 namespace grale
 {
 

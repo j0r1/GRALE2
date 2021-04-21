@@ -3,8 +3,6 @@
 #include "constants.h"
 #include <limits>
 
-#include "debugnew.h"
-
 using namespace std;
 
 namespace grale

@@ -35,8 +35,6 @@
 	#include <gsl/gsl_errno.h>
 #endif // GRALECONFIG_SUPPORT_INTELIPP
 
-#include "debugnew.h"
-
 namespace grale
 {
 
