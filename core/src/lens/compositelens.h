@@ -48,10 +48,10 @@ public:
 	bool addLens(double factor, Vector2D<double> position, double angle, const GravitationalLens &lens);
 	bool write(serut::SerializationInterface &si) const;
 	bool read(serut::SerializationInterface &si);
-	const std::vector<LensInfo *> &getLensInfo() const						{ return m_lensInfo; }
+	const std::vector<std::shared_ptr<LensInfo>> &getLensInfo() const						{ return m_lensInfo; }
 	std::unique_ptr<GravitationalLensParams> createCopy() const;
 private:
-	std::vector<LensInfo *> m_lensInfo;
+	std::vector<std::shared_ptr<LensInfo>> m_lensInfo;
 };
 
 // TODO
@@ -96,7 +96,7 @@ public:
 	bool getProjectedPotential(double D_s, double D_ds, Vector2D<double> theta, double *pPotentialValue) const;
 
 	int getNumberOfSubLenses() const								{ return m_lenses.size(); }
-	const GravitationalLens *getSubLens(int i) const				{ return m_lenses[i]; }
+	const GravitationalLens *getSubLens(int i) const				{ return m_lenses[i].get(); }
 	Vector2D<double> getSubLensPosition(int i) const				{ return m_positions[i]; }
 	double getSubLensAngle(int i) const								{ return m_angles[i]; }
 	double getSubLensAngleOriginal(int i) const						{ return m_origAngles[i]; }
@@ -114,7 +114,7 @@ private:
 	
 	void findCLSubroutines(std::string &prog, std::vector<std::string> &otherRoutineNames, int recursionLevel, int &maxRecursionLevel) const;
 
-	std::vector<GravitationalLens *> m_lenses;
+	std::vector<std::shared_ptr<GravitationalLens>> m_lenses;
 	std::vector<Vector2D<double> > m_positions;
 	std::vector<double> m_angles;
 	std::vector<double> m_origAngles;

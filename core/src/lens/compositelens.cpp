@@ -39,7 +39,7 @@ namespace grale
 class CompositeLensParams::LensInfo
 {
 public:
-	LensInfo(double factor, Vector2D<double> position, double angle, uint8_t *pData, int dataLength);
+	LensInfo(double factor, Vector2D<double> position, double angle, std::vector<uint8_t> &pData);
 	~LensInfo();
 	double getFactor() const;
 	double getAngle() const;
@@ -50,22 +50,19 @@ private:
 	double m_factor;
 	double m_angle;
 	Vector2D<double> m_position;
-	int m_dataLength;
-	uint8_t *m_pData;
+	std::vector<uint8_t> m_pData;
 };
 
-CompositeLensParams::LensInfo::LensInfo(double factor, Vector2D<double> position, double angle, uint8_t *pData, int dataLength)
+CompositeLensParams::LensInfo::LensInfo(double factor, Vector2D<double> position, double angle, std::vector<uint8_t> &pData)
 {
 	m_factor = factor;
 	m_position = position;
 	m_angle = angle;
-	m_pData = pData;
-	m_dataLength = dataLength;
+	swap(m_pData, pData);
 }
 		
 CompositeLensParams::LensInfo::~LensInfo()
 {
-	delete [] m_pData;
 }
 
 double CompositeLensParams::LensInfo::getFactor() const
@@ -85,12 +82,12 @@ Vector2D<double> CompositeLensParams::LensInfo::getPosition() const
 
 const uint8_t *CompositeLensParams::LensInfo::getData() const
 { 
-	return m_pData; 
+	return m_pData.data(); 
 }
 
 int CompositeLensParams::LensInfo::getDataLength() const
 { 
-	return m_dataLength; 
+	return (int)m_pData.size(); 
 }
 
 CompositeLensParams::CompositeLensParams()
@@ -99,9 +96,6 @@ CompositeLensParams::CompositeLensParams()
 
 CompositeLensParams::~CompositeLensParams()
 {
-	for (size_t i = 0 ; i < m_lensInfo.size() ; i++)
-		delete m_lensInfo[i];
-	m_lensInfo.clear();
 }
 
 bool CompositeLensParams::addLens(double factor, Vector2D<double> position, double angle, const GravitationalLens &lens)
@@ -114,12 +108,12 @@ bool CompositeLensParams::addLens(double factor, Vector2D<double> position, doub
 		return false;
 	}
 
-	uint8_t *pData = new uint8_t[dumSer.getBytesWritten()];
-	serut::MemorySerializer memSer(0, 0, pData, dumSer.getBytesWritten());
+	std::vector<uint8_t> pData(dumSer.getBytesWritten());
+	serut::MemorySerializer memSer(0, 0, pData.data(), (int)pData.size());
 	
 	lens.write(memSer);
 	
-	m_lensInfo.push_back(new LensInfo(factor, position, angle, pData, dumSer.getBytesWritten()));
+	m_lensInfo.push_back(std::make_shared<LensInfo>(factor, position, angle, pData));
 	
 	return true;
 }
@@ -134,7 +128,7 @@ bool CompositeLensParams::write(serut::SerializationInterface &si) const
 
 	for (auto it = m_lensInfo.begin() ; it != m_lensInfo.end() ; ++it)
 	{
-		const LensInfo *pLensInfo = (*it);
+		const LensInfo *pLensInfo = it->get();
 
 		if (!si.writeDouble(pLensInfo->getFactor()))
 		{
@@ -172,8 +166,6 @@ bool CompositeLensParams::write(serut::SerializationInterface &si) const
 
 bool CompositeLensParams::read(serut::SerializationInterface &si)
 {
-	for (size_t i = 0 ; i < m_lensInfo.size() ; i++)
-		delete m_lensInfo[i];
 	m_lensInfo.clear();
 
 	int32_t numLenses = 0;
@@ -214,16 +206,15 @@ bool CompositeLensParams::read(serut::SerializationInterface &si)
 			return false;
 		}
 
-		uint8_t *pData = new uint8_t[dataLength];
+		std::vector<uint8_t> pData(dataLength);
 
-		if (!si.readBytes(pData, dataLength))
+		if (!si.readBytes(pData.data(), (int)pData.size()))
 		{
-			delete [] pData;
 			setErrorString(std::string("Couldn't read lens data: ") + si.getErrorString());
 			return false;
 		}
 
-		m_lensInfo.push_back(new LensInfo(factor, position, angle, pData, dataLength));
+		m_lensInfo.push_back(std::make_shared<LensInfo>(factor, position, angle, pData));
 	}
 
 	return true;
@@ -235,12 +226,12 @@ std::unique_ptr<GravitationalLensParams> CompositeLensParams::createCopy() const
 
 	for (auto it = m_lensInfo.begin() ; it != m_lensInfo.end() ; ++it)
 	{
-		const LensInfo *pLensInfo = (*it);
-		uint8_t *pData = new uint8_t[pLensInfo->getDataLength()];
+		const LensInfo *pLensInfo = it->get();
+		std::vector<uint8_t> pData(pLensInfo->getDataLength());
 
-		memcpy(pData, pLensInfo->getData(), pLensInfo->getDataLength());
-		pParams->m_lensInfo.push_back(new LensInfo(pLensInfo->getFactor(), pLensInfo->getPosition(), pLensInfo->getAngle(),
-		                                           pData, pLensInfo->getDataLength()));
+		memcpy(pData.data(), pLensInfo->getData(), pLensInfo->getDataLength());
+		pParams->m_lensInfo.push_back(std::make_shared<LensInfo>(pLensInfo->getFactor(), pLensInfo->getPosition(), pLensInfo->getAngle(),
+		                                           pData));
 	}
 
 	return pParams;
@@ -252,8 +243,6 @@ CompositeLens::CompositeLens() : GravitationalLens(GravitationalLens::Composite)
 
 CompositeLens::~CompositeLens()
 {
-	for (int i = 0 ; i < m_lenses.size() ; i++)
-		delete m_lenses[i];
 }
 
 bool CompositeLens::processParameters(const GravitationalLensParams *pLensParams)
@@ -270,7 +259,7 @@ bool CompositeLens::processParameters(const GravitationalLensParams *pLensParams
 	
 	for (auto it = lensInfo.begin() ; it != lensInfo.end() ; ++it)
 	{
-		const CompositeLensParams::LensInfo *pLensInfo = (*it);
+		const CompositeLensParams::LensInfo *pLensInfo = it->get();
 		serut::MemorySerializer mSer(pLensInfo->getData(), pLensInfo->getDataLength(), 0, 0);
 		std::unique_ptr<GravitationalLens> pLens;
 		std::string errStr;
@@ -281,8 +270,7 @@ bool CompositeLens::processParameters(const GravitationalLensParams *pLensParams
 			return false;
 		}
 
-		// TODO: fix this!
-		m_lenses.push_back(pLens.release());
+		m_lenses.push_back(move(pLens));
 		m_positions.push_back(pLensInfo->getPosition());
 		m_factors.push_back(pLensInfo->getFactor());
 		m_origAngles.push_back(pLensInfo->getAngle());
@@ -555,7 +543,7 @@ void CompositeLens::findCLSubroutines(std::string &prog, std::vector<std::string
 
 		if (lensNumber == getLensType()) // another composite lens
 		{
-			const CompositeLens *pNextCompLens = (const CompositeLens *)(m_lenses[i]);
+			const CompositeLens *pNextCompLens = (const CompositeLens *)(m_lenses[i].get());
 
 			pNextCompLens->findCLSubroutines(prog, otherRoutineNames, recursionLevel+1, maxRecursionLevel);
 		}
