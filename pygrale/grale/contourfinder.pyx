@@ -6,6 +6,7 @@ specific contour levels in the mass map of a gravitational lens."""
 
 from libcpp.vector cimport vector
 from libcpp cimport bool as cbool
+from libcpp.memory cimport unique_ptr, make_unique
 from cython.operator cimport dereference as deref
 import cython
 import numpy as np
@@ -28,13 +29,10 @@ cdef class ContourFinder:
     :func:`findContour` member function to calculate a specific
     contour."""
 
-    cdef cppcontourfinder.MultiContourFinder *m_pContourFinder
+    cdef unique_ptr[cppcontourfinder.MultiContourFinder] m_pContourFinder
 
-    def __cinit__(self):
-        self.m_pContourFinder = NULL
-
-    def __dealloc__(self):
-        del self.m_pContourFinder
+    cdef cppcontourfinder.MultiContourFinder * _contourFinder(self):
+        return self.m_pContourFinder.get()
 
     def __init__(self, np.ndarray[double, ndim=2] values, bottomLeft, topRight):
         """__init__(values, bottomleft, topright)
@@ -70,10 +68,10 @@ cdef class ContourFinder:
             for x in range(numX):
                 valueVector[x+offset] = values[y,x]
         
-        self.m_pContourFinder = new cppcontourfinder.MultiContourFinder(valueVector, bl, tr, numX, numY)
+        self.m_pContourFinder = make_unique[cppcontourfinder.MultiContourFinder](valueVector, bl, tr, numX, numY)
 
     def _check(self):
-        if self.m_pContourFinder == NULL:
+        if self.m_pContourFinder.get() == NULL:
             raise ContourFinderException("No internal contour finder instance was allocated")
 
     def findContour(self, level):
@@ -87,7 +85,7 @@ cdef class ContourFinder:
         cdef int i, j
 
         self._check()
-        contour = self.m_pContourFinder.findContour(level)
+        contour = self._contourFinder().findContour(level)
 
         contourParts = [ ]
         for i in range(int(contour.size())):
@@ -118,10 +116,10 @@ cdef class ContourFinder:
         for l in levels:
             vecLevels.push_back(l)
 
-        if not self.m_pContourFinder.findContours(vecLevels, numThreads):
-            raise ContourFinderException(S(self.m_pContourFinder.getErrorString()))
+        if not self._contourFinder().findContours(vecLevels, numThreads):
+            raise ContourFinderException(S(self._contourFinder().getErrorString()))
 
-        contours = self.m_pContourFinder.getContours()
+        contours = self._contourFinder().getContours()
 
         levelData = [ ]
         for l in range(int(contours.size())):
