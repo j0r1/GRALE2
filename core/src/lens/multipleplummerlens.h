@@ -82,7 +82,7 @@ protected:
 private:
 	double getDerivAlphaTheta(int i,int j,Vector2D<double> theta) const;
 	
-	PlummerLensInfo *lensinfo;
+	std::vector<PlummerLensInfo> lensinfo;
 	double scalefactor;
 	double totalmass;
 	int numlenses;

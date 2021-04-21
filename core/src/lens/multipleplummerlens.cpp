@@ -100,13 +100,10 @@ bool MultiplePlummerLensParams::read(serut::SerializationInterface &si)
 
 MultiplePlummerLens::MultiplePlummerLens() : GravitationalLens(GravitationalLens::MultiplePlummers)
 {
-	lensinfo = 0;
 }
 
 MultiplePlummerLens::~MultiplePlummerLens()
 {
-	if (lensinfo)
-		delete [] lensinfo;
 }
 
 bool MultiplePlummerLens::processParameters(const GravitationalLensParams *params)
@@ -121,7 +118,7 @@ bool MultiplePlummerLens::processParameters(const GravitationalLensParams *param
 	int i;
 
 	numlenses = p->getLensInfo().size();
-	lensinfo = new PlummerLensInfo[numlenses];
+	lensinfo.resize(numlenses);
 
 	totalmass = 0;
 	auto it = p->getLensInfo().begin();

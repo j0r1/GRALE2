@@ -97,13 +97,10 @@ bool MultipleGaussLensParams::read(serut::SerializationInterface &si)
 
 MultipleGaussLens::MultipleGaussLens() : GravitationalLens(GravitationalLens::MultipleGaussians)
 {
-	lensinfo = 0;
 }
 
 MultipleGaussLens::~MultipleGaussLens()
 {
-	if (lensinfo)
-		delete [] lensinfo;
 }
 
 bool MultipleGaussLens::processParameters(const GravitationalLensParams *params)
@@ -118,7 +115,7 @@ bool MultipleGaussLens::processParameters(const GravitationalLensParams *params)
 	int i;
 
 	numlenses = p->getLensInfo().size();
-	lensinfo = new GaussLensInfo[numlenses];
+	lensinfo.resize(numlenses);
 
 	totalmass = 0;
 	auto it = p->getLensInfo().begin();

@@ -75,12 +75,12 @@ public:
 protected:
 	bool processParameters(const GravitationalLensParams *pLensParams);
 
-	GridFunction *m_pAxFunction, *m_pAyFunction;
+	std::unique_ptr<GridFunction> m_pAxFunction, m_pAyFunction;
 	std::vector<double> m_alphaX, m_alphaY;
 	double m_pixelWidth, m_pixelHeight;
 	double m_densFactor;
 	double m_x0, m_x1, m_y0, m_y1;
-	GridFunction *m_pPhiFromXFunction, *m_pPhiFromYFunction;
+	std::unique_ptr<GridFunction> m_pPhiFromXFunction, m_pPhiFromYFunction;
 	std::vector<double> m_phiFromX, m_phiFromY;
 };
 

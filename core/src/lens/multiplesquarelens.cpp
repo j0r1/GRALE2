@@ -99,13 +99,10 @@ bool MultipleSquareLensParams::read(serut::SerializationInterface &si)
 
 MultipleSquareLens::MultipleSquareLens() : GravitationalLens(GravitationalLens::MultipleSquares)
 {
-	lensinfo = 0;
 }
 
 MultipleSquareLens::~MultipleSquareLens()
 {
-	if (lensinfo)
-		delete [] lensinfo;
 }
 
 bool MultipleSquareLens::processParameters(const GravitationalLensParams *params)
@@ -120,7 +117,7 @@ bool MultipleSquareLens::processParameters(const GravitationalLensParams *params
 	int i;
 
 	numlenses = p->getLensInfo().size();
-	lensinfo = new SquareLensInfo[numlenses];
+	lensinfo.resize(numlenses);
 
 	totalmass = 0;
 

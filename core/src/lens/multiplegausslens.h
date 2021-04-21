@@ -78,7 +78,7 @@ private:
 	double getDeriv12(Vector2D<double> theta) const;
 	double getDeriv22(Vector2D<double> theta) const;
 	
-	GaussLensInfo *lensinfo;
+	std::vector<GaussLensInfo> lensinfo;
 	double scalefactor;
 	double totalmass;
 	int numlenses;

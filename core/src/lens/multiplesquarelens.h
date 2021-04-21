@@ -81,7 +81,7 @@ private:
 	static double deriv12(double x, double y) 					{ return 0.5*LN(x*x+y*y); }
 	static double potential(double x, double y)		 			{ return 0.5*(x*x*ATAN(y/x)+y*y*ATAN(x/y)+x*y*(LN(x*x+y*y))); }
 
-	SquareLensInfo *lensinfo;
+	std::vector<SquareLensInfo> lensinfo;
 	double scalefactor;
 	double totalmass;
 	int numlenses;

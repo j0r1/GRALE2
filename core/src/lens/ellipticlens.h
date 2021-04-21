@@ -83,7 +83,7 @@ protected:
 			   double relError,
 			   int limit);
 private:
-	Real2DFunction *m_pI, *m_pJ0, *m_pJ1, *m_pK0, *m_pK1, *m_pK2;
+	std::unique_ptr<Real2DFunction> m_pI, m_pJ0, m_pJ1, m_pK0, m_pK1, m_pK2;
 	CircularLensProfile *m_pProfile;
 	double m_q;
 };

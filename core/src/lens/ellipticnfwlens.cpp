@@ -134,13 +134,10 @@ private:
 
 EllipticNFWLens::EllipticNFWLens() : EllipticLens(GravitationalLens::EllipticNFW)
 {
-	m_pProfile = 0;
 }
 
 EllipticNFWLens::~EllipticNFWLens()
 {
-	if (m_pProfile)
-		delete m_pProfile;
 }
 
 bool EllipticNFWLens::processParameters(const GravitationalLensParams *pLensParams)
@@ -157,9 +154,9 @@ bool EllipticNFWLens::processParameters(const GravitationalLensParams *pLensPara
 	double rho_s = pParams->get3DDensityScale();
 	double theta_s = pParams->getAngularRadiusScale();
 
-	m_pProfile = new CircularNFWProfile(rho_s, theta_s, getLensDistance());
+	m_pProfile = std::make_unique<CircularNFWProfile>(rho_s, theta_s, getLensDistance());
 	
-	subInit(q, m_pProfile, 0, 1e-5, 1024);
+	subInit(q, m_pProfile.get(), 0, 1e-5, 1024);
 
 	return true;
 }

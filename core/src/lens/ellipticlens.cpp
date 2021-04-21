@@ -253,28 +253,10 @@ private:
 
 EllipticLens::EllipticLens(GravitationalLens::LensType t) : GravitationalLens(t)
 {
-	m_pI = 0;
-	m_pJ0 = 0;
-	m_pJ1 = 0;
-	m_pK0 = 0;
-	m_pK1 = 0;
-	m_pK2 = 0;
 }
 
 EllipticLens::~EllipticLens()
 {
-	if (m_pI)
-		delete m_pI;
-	if (m_pJ0)
-		delete m_pJ0;
-	if (m_pJ1)
-		delete m_pJ1;
-	if (m_pK0)
-		delete m_pK0;
-	if (m_pK1)
-		delete m_pK1;
-	if (m_pK2)
-		delete m_pK2;
 }
 
 bool EllipticLens::getAlphaVector(Vector2D<double> theta,Vector2D<double> *pAlpha) const
@@ -332,35 +314,15 @@ void EllipticLens::subInit(double q, CircularLensProfile *pProfile,
 			   double relError,
 			   int limit)
 {
-	if (m_pI)
-		delete m_pI;
-	if (m_pJ0)
-		delete m_pJ0;
-	if (m_pJ1)
-		delete m_pJ1;
-	if (m_pK0)
-		delete m_pK0;
-	if (m_pK1)
-		delete m_pK1;
-	if (m_pK2)
-		delete m_pK2;
-
-	m_pI = 0;
-	m_pJ0 = 0;
-	m_pJ1 = 0;
-	m_pK0 = 0;
-	m_pK1 = 0;
-	m_pK2 = 0;
-
 	m_q = q;
 	m_pProfile = pProfile;
 
-	m_pI = new EllFunction<IntegrandI>(q, absError, relError, limit, pProfile);
-	m_pJ0 = new EllFunction<IntegrandJ0>(q, absError, relError, limit, pProfile);
-	m_pJ1 = new EllFunction<IntegrandJ1>(q, absError, relError, limit, pProfile);
-	m_pK0 = new EllFunction<IntegrandK0>(q, absError, relError, limit, pProfile);
-	m_pK1 = new EllFunction<IntegrandK1>(q, absError, relError, limit, pProfile);
-	m_pK2 = new EllFunction<IntegrandK2>(q, absError, relError, limit, pProfile);
+	m_pI = std::make_unique<EllFunction<IntegrandI>>(q, absError, relError, limit, pProfile);
+	m_pJ0 = std::make_unique<EllFunction<IntegrandJ0>>(q, absError, relError, limit, pProfile);
+	m_pJ1 = std::make_unique<EllFunction<IntegrandJ1>>(q, absError, relError, limit, pProfile);
+	m_pK0 = std::make_unique<EllFunction<IntegrandK0>>(q, absError, relError, limit, pProfile);
+	m_pK1 = std::make_unique<EllFunction<IntegrandK1>>(q, absError, relError, limit, pProfile);
+	m_pK2 = std::make_unique<EllFunction<IntegrandK2>>(q, absError, relError, limit, pProfile);
 }
 
 } // end namespace

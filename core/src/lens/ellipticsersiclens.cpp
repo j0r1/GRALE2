@@ -131,13 +131,10 @@ private:
 
 EllipticSersicLens::EllipticSersicLens() : EllipticLens(EllipticSersic)
 {
-	m_pProfile = 0;
 }
 
 EllipticSersicLens::~EllipticSersicLens()
 {
-	if (m_pProfile)
-		delete m_pProfile;
 }
 
 bool EllipticSersicLens::processParameters(const GravitationalLensParams *pLensParams)
@@ -156,9 +153,9 @@ bool EllipticSersicLens::processParameters(const GravitationalLensParams *pLensP
 	double densityScale = pParams->getCentralDensity();
 	double n = pParams->getSersicIndex();
 
-	m_pProfile = new CircularSersicProfile(densityScale, angularScale, n, D_d);
+	m_pProfile = std::make_unique<CircularSersicProfile>(densityScale, angularScale, n, D_d);
 
-	subInit(q, m_pProfile, 0, 1e-5, 1024);
+	subInit(q, m_pProfile.get(), 0, 1e-5, 1024);
 
 	return true;
 }

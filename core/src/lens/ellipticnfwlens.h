@@ -61,7 +61,7 @@ public:
 private:
 	bool processParameters(const GravitationalLensParams *pLensParams);
 
-	CircularLensProfile *m_pProfile;
+	std::unique_ptr<CircularLensProfile> m_pProfile;
 };
 
 } // end namespace

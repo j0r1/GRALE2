@@ -164,18 +164,10 @@ bool DeflectionGridLensParams::read(serut::SerializationInterface &si)
 
 DeflectionGridLens::DeflectionGridLens() : GravitationalLens(DeflectionGrid)
 {
-	m_pAxFunction = nullptr;
-	m_pAyFunction = nullptr;
-	m_pPhiFromXFunction = nullptr;
-	m_pPhiFromYFunction = nullptr;
 }
 
 DeflectionGridLens::~DeflectionGridLens()
 {
-	delete m_pAxFunction;
-	delete m_pAyFunction;
-	delete m_pPhiFromXFunction;
-	delete m_pPhiFromYFunction;
 }
 
 bool DeflectionGridLens::processParameters(const GravitationalLensParams *pLensParams)
@@ -196,9 +188,9 @@ bool DeflectionGridLens::processParameters(const GravitationalLensParams *pLensP
 	m_alphaX = pParams->getAlphaX();
 	m_alphaY = pParams->getAlphaY();
 
-	m_pAxFunction = new GridFunction(&(m_alphaX[0]), bottomLeft, topRight, pParams->getWidth(), 
+	m_pAxFunction = make_unique<GridFunction>(&(m_alphaX[0]), bottomLeft, topRight, pParams->getWidth(), 
 			                 pParams->getHeight());
-	m_pAyFunction = new GridFunction(&(m_alphaY[0]), bottomLeft, topRight, pParams->getWidth(), 
+	m_pAyFunction = make_unique<GridFunction>(&(m_alphaY[0]), bottomLeft, topRight, pParams->getWidth(), 
 			                 pParams->getHeight());
 	m_densFactor = (SPEED_C*SPEED_C)/(getLensDistance()*8.0*CONST_PI*CONST_G);
 
@@ -256,7 +248,7 @@ bool DeflectionGridLens::processParameters(const GravitationalLensParams *pLensP
 		Vector2Dd bottomLeftExtraX { bottomLeft.getX()-dx*0.5, bottomLeft.getY() };
 		Vector2Dd topRightExtraX { topRight.getX()+dx*0.5, topRight.getY() };
 
-		m_pPhiFromXFunction = new GridFunction(&(m_phiFromX[0]), bottomLeftExtraX, topRightExtraX, W+1, H);
+		m_pPhiFromXFunction = make_unique<GridFunction>(&(m_phiFromX[0]), bottomLeftExtraX, topRightExtraX, W+1, H);
 	}
 	
 	{
@@ -295,7 +287,7 @@ bool DeflectionGridLens::processParameters(const GravitationalLensParams *pLensP
 		Vector2Dd bottomLeftExtraY { bottomLeft.getX(), bottomLeft.getY()-dy*0.5 };
 		Vector2Dd topRightExtraY { topRight.getX(), topRight.getY()+dy*0.5 };
 
-		m_pPhiFromYFunction = new GridFunction(&(m_phiFromY[0]), bottomLeftExtraY, topRightExtraY, W, H+1);
+		m_pPhiFromYFunction = make_unique<GridFunction>(&(m_phiFromY[0]), bottomLeftExtraY, topRightExtraY, W, H+1);
 	}
 
 	return true;
