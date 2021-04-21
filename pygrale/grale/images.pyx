@@ -65,20 +65,21 @@ cdef class ImagesData:
     and a triangulation of the points of an image. You can also add intensity
     information, time delay information and data about the shear."""
     
-    cdef imagesdata.ImagesData *m_pImgData
+    cdef unique_ptr[imagesdata.ImagesData] m_pImgData
+
+    cdef imagesdata.ImagesData * _imgData(self):
+        return self.m_pImgData.get()
 
     @staticmethod
     cdef imagesdata.ImagesData * _getImagesData(ImagesData img):
-        return img.m_pImgData
+        return img.m_pImgData.get()
 
     @staticmethod
     cdef void _swapImagesData(ImagesData i1, ImagesData i2):
-        cdef imagesdata.ImagesData *pTmp = i1.m_pImgData
-        i1.m_pImgData = i2.m_pImgData
-        i2.m_pImgData = pTmp
+        i1.m_pImgData.swap(i2.m_pImgData)
     
     def __cinit__(self):
-        self.m_pImgData = new imagesdata.ImagesData()
+        self.m_pImgData = make_unique[imagesdata.ImagesData]()
 
     propertyMapping = {
         "intensity": [ imagesdata.Intensity ],
@@ -164,20 +165,17 @@ cdef class ImagesData:
             props.push_back(i)
 
         # Not a special empty instance, initialize it
-        if not self.m_pImgData.create(numImages, props):
-            raise ImagesDataException(S(self.m_pImgData.getErrorString()))
-
-    def __dealloc__(self):
-        del self.m_pImgData
+        if not self._imgData().create(numImages, props):
+            raise ImagesDataException(S(self._imgData().getErrorString()))
 
     def addImage(self):
         """addImage()
 
         Add an image, and return the index that needs to be used to refer to this image."""
 
-        cdef imageNum = self.m_pImgData.addImage()
+        cdef imageNum = self._imgData().addImage()
         if imageNum < 0:
-            raise ImagesDataException(S(self.m_pImgData.getErrorString()))
+            raise ImagesDataException(S(self._imgData().getErrorString()))
         return imageNum
 
     def addPoint(self, int imageNum, position, **kwargs):
@@ -217,9 +215,9 @@ cdef class ImagesData:
             else:
                 raise ImagesDataException("Internal error: unexpected length {} of property names".format(len(propNameLen)))
 
-        pointNum = self.m_pImgData.addPoint(imageNum, p, props)
+        pointNum = self._imgData().addPoint(imageNum, p, props)
         if pointNum < 0:
-            raise ImagesDataException(S(self.m_pImgData.getErrorString()) + " (valid property names are {})".format(self.getKnownPropertyNames()))
+            raise ImagesDataException(S(self._imgData().getErrorString()) + " (valid property names are {})".format(self.getKnownPropertyNames()))
         return pointNum
 
     def addGroup(self):
@@ -229,9 +227,9 @@ cdef class ImagesData:
         can use an image group. This function creats a new group, and returns the identifier
         for the new group.
         """
-        cdef groupNum = self.m_pImgData.addGroup()
+        cdef groupNum = self._imgData().addGroup()
         if groupNum < 0:
-            raise ImagesDataException(S(self.m_pImgData.getErrorString()))
+            raise ImagesDataException(S(self._imgData().getErrorString()))
         return groupNum
 
     def addGroupPoint(self, int groupNumber, int imageIndex, int pointIndex):
@@ -246,8 +244,8 @@ cdef class ImagesData:
          - ``pointIndex``: the ID of the point itself
         """
 
-        if not self.m_pImgData.addGroupPoint(groupNumber, imageIndex, pointIndex):
-            raise ImagesDataException(S(self.m_pImgData.getErrorString()))
+        if not self._imgData().addGroupPoint(groupNumber, imageIndex, pointIndex):
+            raise ImagesDataException(S(self._imgData().getErrorString()))
 
     def addTimeDelayInfo(self, int imageIndex, int pointIndex, double timeDelay):
         """addTimeDelayInfo(imageIndex, pointIndex, timeDelay)
@@ -255,8 +253,8 @@ cdef class ImagesData:
         Specifies that the time delay ``timeDelay`` should be associated with the
         point with image ID ``imageIndex`` and point ID ``pointIndex``.
         """
-        if not self.m_pImgData.addTimeDelayInfo(imageIndex, pointIndex, timeDelay):
-            raise ImagesDataException(S(self.m_pImgData.getErrorString()))
+        if not self._imgData().addTimeDelayInfo(imageIndex, pointIndex, timeDelay):
+            raise ImagesDataException(S(self._imgData().getErrorString()))
 
     def addTriangle(self, int imageNumber, int index1, int index2, int index3):
         """addTriangle(imageNumber, index1, index2, index3)
@@ -266,8 +264,8 @@ cdef class ImagesData:
         ``imageNumber``, and that its three points are specified by
         point ID ``index1``, ``index2`` and  ``index3``.
         """
-        if not self.m_pImgData.addTriangle(imageNumber, index1, index2, index3):
-            raise ImagesDataException(S(self.m_pImgData.getErrorString()))
+        if not self._imgData().addTriangle(imageNumber, index1, index2, index3):
+            raise ImagesDataException(S(self._imgData().getErrorString()))
 
     @staticmethod
     def load(fileName):
@@ -280,8 +278,8 @@ cdef class ImagesData:
         img = ImagesData(_imagesDataRndId) # Make sure an empty instance is allocated
 
         # Try to load the data
-        if not img.m_pImgData.load(B(fileName)):
-            raise ImagesDataException(S(img.m_pImgData.getErrorString()))
+        if not img._imgData().load(B(fileName)):
+            raise ImagesDataException(S(img._imgData().getErrorString()))
 
         return img
 
@@ -290,8 +288,8 @@ cdef class ImagesData:
 
         Saves the current images data set to the file with name ``fileName``.
         """
-        if not self.m_pImgData.save(B(fileName)):
-            raise ImagesDataException(S(self.m_pImgData.getErrorString()))
+        if not self._imgData().save(B(fileName)):
+            raise ImagesDataException(S(self._imgData().getErrorString()))
 
     def getKnownPropertyNames(self, reduce=False):
         """getKnownPropertyNames(reduce=False)
@@ -326,7 +324,7 @@ cdef class ImagesData:
 
         props = ImagesData.propertyMapping[propertyName]
         for p in props:
-            if not self.m_pImgData.hasProperty(p):
+            if not self._imgData().hasProperty(p):
                 return False
         return True
 
@@ -335,21 +333,21 @@ cdef class ImagesData:
 
         Returns a boolean indicating if intensity information is present.
         """
-        return self.m_pImgData.hasIntensities()
+        return self._imgData().hasIntensities()
 
     def hasShearInfo(self):
         """hasShearInfo()
 
         Returns a boolean indicating if shear information is present.
         """
-        return self.m_pImgData.hasShearInfo()
+        return self._imgData().hasShearInfo()
 
     def hasTimeDelays(self):
         """hasTimeDelays()
 
         Returns a boolean indicating if time delay information is present.
         """
-        return self.m_pImgData.hasTimeDelays()
+        return self._imgData().hasTimeDelays()
     
     def getNumberOfImages(self):
         """getNumberOfImages()
@@ -357,15 +355,15 @@ cdef class ImagesData:
         Returns the number of images that are contained in this images data set.
         If this function returns ``Ni``, valid image IDs will range from 0 to ``Ni``-1.
         """
-        return self.m_pImgData.getNumberOfImages()
+        return self._imgData().getNumberOfImages()
 
     cdef _checkImageNumber(self, int i):
-        if i < 0 or i >= self.m_pImgData.getNumberOfImages():
+        if i < 0 or i >= self._imgData().getNumberOfImages():
             raise ImagesDataException("Invalid image number")
 
     cdef _checkImagePointNumber(self, int image, int point):
         self._checkImageNumber(image)
-        if point < 0 or point >= self.m_pImgData.getNumberOfImagePoints(image):
+        if point < 0 or point >= self._imgData().getNumberOfImagePoints(image):
             raise ImagesDataException("Invalid image point number")
 
     cdef _checkIntensities(self):
@@ -381,18 +379,18 @@ cdef class ImagesData:
             raise ImagesDataException("Property '{}' is not available in this data set".format(propertyName))
 
     cdef _checkGroupNumber(self, int group):
-        if group < 0 or group >= self.m_pImgData.getNumberOfGroups():
+        if group < 0 or group >= self._imgData().getNumberOfGroups():
             raise ImagesDataException("Invalid group number")
 
     cdef _checkGroupPoint(self, int group, int pointnr):
         cdef int np = 0
         self._checkGroupNumber(group)
-        np = self.m_pImgData.getNumberOfGroupPoints(group)
+        np = self._imgData().getNumberOfGroupPoints(group)
         if pointnr < 0 or pointnr >= np:
             raise ImagesDataException("Invalid group point number")
 
     cdef _checkTimeDelayIndex(self, int index):
-        if index < 0 or index >= self.m_pImgData.getNumberOfTimeDelays():
+        if index < 0 or index >= self._imgData().getNumberOfTimeDelays():
             raise ImagesDataException("Invalid time delay point index")
 
     def getNumberOfImagePoints(self, i):
@@ -403,7 +401,7 @@ cdef class ImagesData:
         to ``Np``-1.
         """
         self._checkImageNumber(i)
-        return self.m_pImgData.getNumberOfImagePoints(i)
+        return self._imgData().getNumberOfImagePoints(i)
 
     def getImagePointPosition(self, image, point):
         """getImagePointPosition(image, point)
@@ -411,7 +409,7 @@ cdef class ImagesData:
         Returns the position of the point with ID ``point`` in image with ID ``image``.
         """
         self._checkImagePointNumber(image, point)
-        pos = self.m_pImgData.getImagePointPosition(image, point)
+        pos = self._imgData().getImagePointPosition(image, point)
         return np.array([pos.getX(), pos.getY()])
 
     def setImagePointPosition(self, image, point, position):
@@ -423,7 +421,7 @@ cdef class ImagesData:
         cdef vector2d.Vector2Dd p = vector2d.Vector2Dd(position[0], position[1])
 
         self._checkImagePointNumber(image, point)
-        self.m_pImgData.setImagePointPosition(image, point, p)
+        self._imgData().setImagePointPosition(image, point, p)
 
     def getImagePointProperty(self, propertyName, image, point):
         """getImagePointProperty(propertyName, image, point)
@@ -433,7 +431,7 @@ cdef class ImagesData:
         """
         self._checkImagePointNumber(image, point)
         self._checkProperty(propertyName)
-        value = [ self.m_pImgData.getImagePointProperty(n, image, point) for n in ImagesData.propertyMapping[propertyName] ]
+        value = [ self._imgData().getImagePointProperty(n, image, point) for n in ImagesData.propertyMapping[propertyName] ]
         if len(value) == 1:
             return value[0]
         return np.array(value)
@@ -490,7 +488,7 @@ cdef class ImagesData:
         """
         self._checkImagePointNumber(image, point)
         self._checkIntensities()
-        return self.m_pImgData.getImagePointIntensity(image, point)
+        return self._imgData().getImagePointIntensity(image, point)
 
     def getShearComponent1(self, image, point):
         """getShearComponent1(image, point)
@@ -500,7 +498,7 @@ cdef class ImagesData:
         """
         self._checkImagePointNumber(image, point)
         self._checkShear()
-        return self.m_pImgData.getShearComponent1(image, point)
+        return self._imgData().getShearComponent1(image, point)
 
     def getShearComponent2(self, image, point):
         """getShearComponent2(image, point)
@@ -510,7 +508,7 @@ cdef class ImagesData:
         """
         self._checkImagePointNumber(image, point)
         self._checkShear()
-        return self.m_pImgData.getShearComponent2(image, point)
+        return self._imgData().getShearComponent2(image, point)
 
     def getShearWeight(self, image, point):
         """getShearWeight(image, point)
@@ -520,7 +518,7 @@ cdef class ImagesData:
         """
         self._checkImagePointNumber(image, point)
         self._checkShear()
-        return self.m_pImgData.getShearWeight(image, point)
+        return self._imgData().getShearWeight(image, point)
 
     def getShearComponents(self, image, point):
         """getShearComponents(image, point)
@@ -530,7 +528,7 @@ cdef class ImagesData:
         """
         self._checkImagePointNumber(image, point)
         self._checkShear()
-        return np.array([self.m_pImgData.getShearComponent1(image, point), self.m_pImgData.getShearComponent2(image, point)])
+        return np.array([self._imgData().getShearComponent1(image, point), self._imgData().getShearComponent2(image, point)])
 
     def getNumberOfGroups(self):
         """getNumberOfGroups()
@@ -539,7 +537,7 @@ cdef class ImagesData:
         is a set of corresponding points in several images. If ``Ng`` is returned,
         valid point group IDs range from 0 to ``Ng``-1.
         """
-        return self.m_pImgData.getNumberOfGroups()
+        return self._imgData().getNumberOfGroups()
 
     def getNumberOfGroupPoints(self, group):
         """getNumberOfGroupPoints(group)
@@ -548,7 +546,7 @@ cdef class ImagesData:
         is returned, valid group point indices range from 0 to ``Ngp``-1.
         """
         self._checkGroupNumber(group)
-        return self.m_pImgData.getNumberOfGroupPoints(group)
+        return self._imgData().getNumberOfGroupPoints(group)
 
     def getGroupPointIndices(self, group, pointnr):
         """getGroupPointIndices(group, pointnr)
@@ -560,7 +558,7 @@ cdef class ImagesData:
         cdef int img = 0
         cdef int point = 0
         self._checkGroupPoint(group, pointnr)
-        self.m_pImgData.getGroupPointIndices(group, pointnr, cython.address(img), cython.address(point))
+        self._imgData().getGroupPointIndices(group, pointnr, cython.address(img), cython.address(point))
         return (img, point)
 
     def getNumberOfTimeDelays(self):
@@ -569,7 +567,7 @@ cdef class ImagesData:
         Returns the number of time delays stored in this instance. If ``Nt`` is the value
         returned, valid time delay IDs range from 0 to ``Nt``-1.
         """
-        return self.m_pImgData.getNumberOfTimeDelays()
+        return self._imgData().getNumberOfTimeDelays()
 
     def getTimeDelay(self, index):
         """getTimeDelay(index)
@@ -583,7 +581,7 @@ cdef class ImagesData:
         cdef int pointnr = 0
         cdef double delay = 0
         self._checkTimeDelayIndex(index)
-        self.m_pImgData.getTimeDelay(index, cython.address(img), cython.address(pointnr), cython.address(delay))
+        self._imgData().getTimeDelay(index, cython.address(img), cython.address(pointnr), cython.address(delay))
         return (img, pointnr, delay)
 
     def hasTriangulation(self):
@@ -592,7 +590,7 @@ cdef class ImagesData:
         Returns a boolean indicating if this instance contains a triangulation of points
         within one or more images.
         """
-        return self.m_pImgData.hasTriangulation()
+        return self._imgData().hasTriangulation()
 
     def getTriangles(self, int image):
         """getTriangles(image)
@@ -602,8 +600,8 @@ cdef class ImagesData:
         """
         cdef vector[TriangleIndices] triangles
 
-        if not self.m_pImgData.getTriangles(image, triangles):
-            raise ImagesDataException(S(self.m_pImgData.getErrorString()))
+        if not self._imgData().getTriangles(image, triangles):
+            raise ImagesDataException(S(self._imgData().getErrorString()))
 
         l = [ ]
         for t in triangles:
@@ -616,7 +614,7 @@ cdef class ImagesData:
 
         Clears all triangulations in this images data instance.
         """
-        self.m_pImgData.clearTriangulation()
+        self._imgData().clearTriangulation()
 
     def getTopRightCorner(self):
         """getTopRightCorner()
@@ -624,7 +622,7 @@ cdef class ImagesData:
         Finds out what the rectangular area surrounded by all image points is, and returns
         the top right corner.
         """
-        cdef vector2d.Vector2Dd corner = self.m_pImgData.getTopRightCorner()
+        cdef vector2d.Vector2Dd corner = self._imgData().getTopRightCorner()
         return np.array([corner.getX(), corner.getY()])
 
     def getBottomLeftCorner(self):
@@ -633,7 +631,7 @@ cdef class ImagesData:
         Finds out what the rectangular area surrounded by all image points is, and returns
         the bottom left corner.
         """
-        cdef vector2d.Vector2Dd corner = self.m_pImgData.getBottomLeftCorner()
+        cdef vector2d.Vector2Dd corner = self._imgData().getBottomLeftCorner()
         return np.array([corner.getX(), corner.getY()])
 
     def centerOnPosition(self, double ra, double dec):
@@ -643,14 +641,14 @@ cdef class ImagesData:
         the first coordinate and declination as the second, this function recalculates
         all coordinates so that they are now specified relative to ``ra`` and ``dec``.
         """
-        self.m_pImgData.centerOnPosition(ra, dec)
+        self._imgData().centerOnPosition(ra, dec)
 
     def uncenterOnPosition(self, double ra, double dec):
         """uncenterOnPosition(ra, dec)
 
         Performs the inverse operation of :func:`centerOnPosition <grale.images.ImagesData.centerOnPosition>`
         """
-        self.m_pImgData.uncenterOnPosition(ra, dec)
+        self._imgData().uncenterOnPosition(ra, dec)
 
     def subtractIntensity(self, double v):
         """subtractIntensity()
@@ -658,7 +656,7 @@ cdef class ImagesData:
         For all intensities stored in this images data instance, the value ``v`` will
         be subtracted.
         """
-        self.m_pImgData.subtractIntensity(v)
+        self._imgData().subtractIntensity(v)
 
     def getConvexHull(self, image, asIndices = False):
         """getConvexHull(image, asIndices = False)
@@ -777,10 +775,10 @@ cdef class ImagesData:
         img = ImagesData(_imagesDataRndId) # Make sure an empty instance is allocated
 
         # Try to load the data
-        pImgDat2 = <imagesdata.ImagesData2 *>img.m_pImgData
+        pImgDat2 = <imagesdata.ImagesData2 *>img._imgData()
         if not pImgDat2.read2(deref(m)):
             del m
-            raise ImagesDataException(S(img.m_pImgData.getErrorString()))
+            raise ImagesDataException(S(img._imgData().getErrorString()))
         
         del m
         return img
@@ -791,10 +789,10 @@ cdef class ImagesData:
         Returns a binary representation of the current images data set."
         """
         cdef serut.VectorSerializer vSer
-        cdef imagesdata.ImagesData2 *pImgDat2 = <imagesdata.ImagesData2 *>self.m_pImgData
+        cdef imagesdata.ImagesData2 *pImgDat2 = <imagesdata.ImagesData2 *>self._imgData()
 
         if not pImgDat2.write2(vSer):
-            raise ImagesDataException(S(self.m_pImgData.getErrorString()))
+            raise ImagesDataException(S(self._imgData().getErrorString()))
 
         return <bytes>vSer.getBufferPointer()[0:vSer.getBufferSize()]
 
