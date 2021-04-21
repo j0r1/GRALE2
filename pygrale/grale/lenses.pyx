@@ -41,7 +41,7 @@ directly. Instead allocate a class derived from this; currently available are
 
 from libcpp.string cimport string
 from libcpp.vector cimport vector
-from libcpp.memory cimport shared_ptr
+from libcpp.memory cimport shared_ptr, unique_ptr, make_unique
 from libcpp cimport bool
 from libcpp.cast cimport dynamic_cast
 from cython.operator cimport dereference as deref
@@ -90,34 +90,25 @@ def getCriticalDensity(double Dd, double Ds, double Dds):
 cdef class GravitationalLens:
     """A base class for a gravitational lens."""
 
-    cdef gravitationallens.GravitationalLens *m_pLens
+    cdef unique_ptr[gravitationallens.GravitationalLens] m_pLens
+
+    cdef gravitationallens.GravitationalLens * _lens(self):
+        return self.m_pLens.get()
 
     @staticmethod
     cdef gravitationallens.GravitationalLens * _getLens(GravitationalLens l):
-        return l.m_pLens
+        return l.m_pLens.get()
 
     @staticmethod
     cdef void _swapLenses(GravitationalLens l1, GravitationalLens l2):
-        cdef gravitationallens.GravitationalLens *pTmp = l1.m_pLens
-        l1.m_pLens = l2.m_pLens
-        l2.m_pLens = pTmp
-
-    def __cinit__(self):
-        self.m_pLens = NULL
+        l1.m_pLens.swap(l2.m_pLens)
 
     def __init__(self, checkId = None):
         if checkId is None or checkId != _gravLensRndId:
             raise LensException("A 'GravitationalLens' object should not be allocated directly, only through subclasses.")
 
-    def __dealloc__(self):
-        del self.m_pLens
-
-    cdef _setLens(self, gravitationallens.GravitationalLens *pLens):
-        del self.m_pLens
-        self.m_pLens = pLens
-
     cdef _check(self):
-        if self.m_pLens == NULL:
+        if self._lens() == NULL:
             raise LensException("No internal lens object has been set")
     
     cdef _traceTheta1(self, double Ds, double Dds, np.ndarray[double, ndim=1] thetas):
@@ -130,8 +121,8 @@ cdef class GravitationalLens:
             l = thetas.shape[0]
             betas = np.zeros([l], dtype = np.double)
             for i in range(0,l,2):
-                if not self.m_pLens.traceTheta(Ds, Dds, Vector2Dd(thetas[i], thetas[i+1]), cython.address(beta)):
-                    raise LensException(S(self.m_pLens.getErrorString()))
+                if not self._lens().traceTheta(Ds, Dds, Vector2Dd(thetas[i], thetas[i+1]), cython.address(beta)):
+                    raise LensException(S(self._lens().getErrorString()))
                 betas[i] = beta.getX()
                 betas[i+1] = beta.getY()
         else:
@@ -149,8 +140,8 @@ cdef class GravitationalLens:
             l = thetas.shape[0]
             alphas = np.zeros([l], dtype = np.double)
             for i in range(0,l,2):
-                if not self.m_pLens.getAlphaVector(Vector2Dd(thetas[i], thetas[i+1]), cython.address(alpha)):
-                    raise LensException(S(self.m_pLens.getErrorString()))
+                if not self._lens().getAlphaVector(Vector2Dd(thetas[i], thetas[i+1]), cython.address(alpha)):
+                    raise LensException(S(self._lens().getErrorString()))
                 alphas[i] = alpha.getX()
                 alphas[i+1] = alpha.getY()
         else:
@@ -169,8 +160,8 @@ cdef class GravitationalLens:
             derivatives = np.zeros([(l//2)*3], dtype = np.double)
             j = 0
             for i in range(0,l,2):
-                if not self.m_pLens.getAlphaVectorDerivatives(Vector2Dd(thetas[i], thetas[i+1]), axx, ayy, axy):
-                    raise LensException(S(self.m_pLens.getErrorString()))
+                if not self._lens().getAlphaVectorDerivatives(Vector2Dd(thetas[i], thetas[i+1]), axx, ayy, axy):
+                    raise LensException(S(self._lens().getErrorString()))
                 derivatives[j] = axx
                 derivatives[j+1] = ayy
                 derivatives[j+2] = axy
@@ -190,7 +181,7 @@ cdef class GravitationalLens:
             invMags = np.zeros([(l//2)], dtype = np.double)
             j = 0
             for i in range(0,l,2):
-                invMags[j] = self.m_pLens.getInverseMagnification(Ds, Dds, Vector2Dd(thetas[i], thetas[i+1]))
+                invMags[j] = self._lens().getInverseMagnification(Ds, Dds, Vector2Dd(thetas[i], thetas[i+1]))
                 j += 1
         else:
             raise LensException("Bad 1D array dimensions, must be a multiple of two")
@@ -207,7 +198,7 @@ cdef class GravitationalLens:
             dens = np.zeros([(l//2)], dtype = np.double)
             j = 0
             for i in range(0,l,2):
-                dens[j] = self.m_pLens.getSurfaceMassDensity(Vector2Dd(thetas[i], thetas[i+1]))
+                dens[j] = self._lens().getSurfaceMassDensity(Vector2Dd(thetas[i], thetas[i+1]))
                 j += 1
         else:
             raise LensException("Bad 1D array dimensions, must be a multiple of two")
@@ -225,8 +216,8 @@ cdef class GravitationalLens:
             potential = np.zeros([(l//2)], dtype = np.double)
             j = 0
             for i in range(0,l,2):
-                if not self.m_pLens.getProjectedPotential(Ds, Dds, Vector2Dd(thetas[i], thetas[i+1]), cython.address(value)):
-                    raise LensException(S(self.m_pLens.getErrorString()))
+                if not self._lens().getProjectedPotential(Ds, Dds, Vector2Dd(thetas[i], thetas[i+1]), cython.address(value)):
+                    raise LensException(S(self._lens().getErrorString()))
 
                 potential[j] = value
                 j += 1
@@ -240,7 +231,7 @@ cdef class GravitationalLens:
         cdef int i,l
         cdef double value = 0
         cdef np.ndarray[double,ndim=1] profile
-        cdef gravitationallens.SymmetricLens *pSymLens = gravitationallens.SymmetricLens.cast(self.m_pLens)
+        cdef gravitationallens.SymmetricLens *pSymLens = gravitationallens.SymmetricLens.cast(self._lens())
         if not pSymLens:
             raise LensException("The lens needs to be a circularly symmetric lens type for this to work")
 
@@ -256,7 +247,7 @@ cdef class GravitationalLens:
         cdef int i,l
         cdef double value = 0
         cdef np.ndarray[double,ndim=1] profile
-        cdef gravitationallens.SymmetricLens *pSymLens = gravitationallens.SymmetricLens.cast(self.m_pLens)
+        cdef gravitationallens.SymmetricLens *pSymLens = gravitationallens.SymmetricLens.cast(self._lens())
         if not pSymLens:
             raise LensException("The lens needs to be a circularly symmetric lens type for this to work")
 
@@ -394,7 +385,7 @@ cdef class GravitationalLens:
 
                 for xi in range(numX):
                     x = x0 + dX*xi
-                    massMap[yi,xi] = self.m_pLens.getSurfaceMassDensity(Vector2Dd(x,y))
+                    massMap[yi,xi] = self._lens().getSurfaceMassDensity(Vector2Dd(x,y))
 
             feedbackObject.onProgress(100)
             feedbackObject.onStatus("Done")
@@ -452,7 +443,7 @@ cdef class GravitationalLens:
         this gravitational lens object.
         """
         self._check()
-        return self.m_pLens.getLensDistance()
+        return self._lens().getLensDistance()
 
     def setLensDistance(self, double Dd):
         """setLensDistance(Dd)
@@ -462,7 +453,7 @@ cdef class GravitationalLens:
         self._check()
         if Dd <= 0:
             raise LensException("Invalid distance")
-        self.m_pLens.setLensDistance(Dd)
+        self._lens().setLensDistance(Dd)
 
     def getTimeDelay(self, zd, Ds, Dds, theta, beta):
         r"""getTimeDelay(zd, Ds, Dds, thetas, beta)
@@ -492,7 +483,7 @@ cdef class GravitationalLens:
         diff2 = diff*diff
         diff2 = np.reshape(diff2, [totalElements//2, 2])
         distances = np.reshape(diff2[:,0] + diff2[:,1], potential.shape)
-        factor = self.m_pLens.getLensDistance() * (1.0 + zd) / constants.SPEED_C * (Ds/Dds)
+        factor = self._lens().getLensDistance() * (1.0 + zd) / constants.SPEED_C * (Ds/Dds)
         delay = (0.5*distances - potential)*factor
         return delay
 
@@ -504,7 +495,7 @@ cdef class GravitationalLens:
         using points that are this distance apart.
         """
         self._check()
-        self.m_pLens.setDerivativeAngularDistanceScale(scale)
+        self._lens().setDerivativeAngularDistanceScale(scale)
 
     def getCriticalDensity(self, double Ds, double Dds):
         """getCriticalDensity(Ds, Dds)
@@ -523,15 +514,15 @@ cdef class GravitationalLens:
         with name 'fileName'.
         """
         cdef string errorString
-        cdef gravitationallens.GravitationalLens *pLens = NULL
-        if not gravitationallens.GravitationalLens.load(B(fileName), cython.address(pLens), errorString):
+        cdef unique_ptr[gravitationallens.GravitationalLens] pLens
+        if not gravitationallens.GravitationalLens.load(B(fileName), pLens, errorString):
             raise LensException(S(errorString))
 
         return GravitationalLens._finalizeLoadedLens(pLens)
 
     @staticmethod
-    cdef _finalizeLoadedLens(gravitationallens.GravitationalLens *pLens):
-        cdef gravitationallens.LensType t = pLens.getLensType()
+    cdef _finalizeLoadedLens(unique_ptr[gravitationallens.GravitationalLens] &pLens):
+        cdef gravitationallens.LensType t = deref(pLens).getLensType()
         if t == gravitationallens.Gaussian:
             l = GaussLens(None, None)
         elif t == gravitationallens.MultiplePlummers:
@@ -593,7 +584,7 @@ cdef class GravitationalLens:
         else: # Unknown, can still use the interface
             l = GravitationalLens(_gravLensRndId)
 
-        l.m_pLens = pLens
+        l.m_pLens.swap(pLens)
         return l
 
     @staticmethod
@@ -605,11 +596,11 @@ cdef class GravitationalLens:
         """
         cdef array[char] buf = chararrayfrombytes(b)
         cdef serut.MemorySerializer *m = new serut.MemorySerializer(buf.data.as_voidptr, len(b), NULL, 0)
-        cdef gravitationallens.GravitationalLens *pLens = NULL
+        cdef unique_ptr[gravitationallens.GravitationalLens] pLens
         cdef string errorString
         
         try:
-            if not gravitationallens.GravitationalLens.read(deref(m), cython.address(pLens), errorString):
+            if not gravitationallens.GravitationalLens.read(deref(m), pLens, errorString):
                 raise LensException(S(errorString))
 
             return GravitationalLens._finalizeLoadedLens(pLens)
@@ -623,8 +614,8 @@ cdef class GravitationalLens:
         Can be loaded again using :func:`load`.
         """
         self._check()
-        if not self.m_pLens.save(B(fileName)):
-            raise LensException(S(self.m_pLens.getErrorString()))
+        if not self._lens().save(B(fileName)):
+            raise LensException(S(self._lens().getErrorString()))
 
     def toBytes(self):
         """toBytes()
@@ -635,8 +626,8 @@ cdef class GravitationalLens:
         cdef serut.VectorSerializer vSer
 
         self._check()
-        if not self.m_pLens.write(vSer):
-            raise LensException(S(self.m_pLens.getErrorString()))
+        if not self._lens().write(vSer):
+            raise LensException(S(self._lens().getErrorString()))
 
         return <bytes>vSer.getBufferPointer()[0:vSer.getBufferSize()]
 
@@ -649,23 +640,20 @@ cdef class GravitationalLens:
         return NULL
 
     def _lensInit(self, Dd, params):
-        cdef gravitationallens.GravitationalLensParams *lp = NULL
-        cdef gravitationallens.GravitationalLens *pLens = NULL
+        cdef unique_ptr[gravitationallens.GravitationalLensParams] lp
+        cdef unique_ptr[gravitationallens.GravitationalLens] pLens
 
         if Dd is None and params is None: # Don't initialize yet
             return
 
-        lp = self._allocParams(params)
-        pLens = self._allocLens()
+        lp = unique_ptr[gravitationallens.GravitationalLensParams](self._allocParams(params))
+        pLens = unique_ptr[gravitationallens.GravitationalLens](self._allocLens())
         
-        if not pLens.init(Dd, lp):
-            err = pLens.getErrorString()
-            del pLens
-            del lp
+        if not deref(pLens).init(Dd, lp.get()):
+            err = deref(pLens).getErrorString()
             raise LensException(S(err))
         
-        del lp
-        self._setLens(pLens)
+        self.m_pLens.swap(pLens)
 
     @staticmethod
     def _checkParams(params, names):
@@ -1235,7 +1223,7 @@ cdef class CompositeLens(GravitationalLens):
     def getLensParameters(self):
         cdef gravitationallens.CompositeLens *pCompLens
         cdef const gravitationallens.GravitationalLens *pSubLensConst
-        cdef gravitationallens.GravitationalLens *pSubLens
+        cdef unique_ptr[gravitationallens.GravitationalLens] pSubLens
         cdef int i, num
         cdef Vector2Dd pos
         
@@ -1250,9 +1238,11 @@ cdef class CompositeLens(GravitationalLens):
             pSubLensConst = pCompLens.getSubLens(i)
             if pSubLensConst == NULL:
                 raise LensException("Unexpected: a sublens is NULL")
+
             pSubLens = pSubLensConst.createCopy()
-            if pSubLens == NULL:
+            if pSubLens.get() == NULL:
                 raise LensException("Unexpected: can't create a copy of a sublens")
+
             pos = pCompLens.getSubLensPosition(i)
             params.append({
                 "lens": GravitationalLens._finalizeLoadedLens(pSubLens),
@@ -2520,7 +2510,7 @@ cdef class CircularPiecesLens(GravitationalLens):
                     raise LensException("Encountered unknown key '{}', expecting one of {}".format(k, allowedKeys))
 
             pLens = GravitationalLens._getLens(d["lens"])
-            lens.reset(pLens.createCopy())
+            lens.reset(pLens.createCopy().release())
 
             pieces.push_back(gravitationallens.CircularPieceInfo(lens, d["r0"], d["r1"], d["potentialScale"], d["potentialOffset"]))
 
@@ -2559,7 +2549,7 @@ cdef class CircularPiecesLens(GravitationalLens):
     def getLensParameters(self):
         cdef gravitationallens.CircularPiecesLensParamsPtrConst pParams
         cdef const gravitationallens.GravitationalLens *pSubLensConst
-        cdef gravitationallens.GravitationalLens *pSubLens
+        cdef unique_ptr[gravitationallens.GravitationalLens] pSubLens
         
         self._check()
         pParams = dynamic_cast[gravitationallens.CircularPiecesLensParamsPtrConst](GravitationalLens._getLens(self).getLensParameters())
@@ -2571,8 +2561,9 @@ cdef class CircularPiecesLens(GravitationalLens):
             pSubLensConst = pParams.getPiecesInfo()[i].getLens().get()
             if pSubLensConst == NULL:
                 raise LensException("Unexpected: a piece lens is NULL")
+            
             pSubLens = pSubLensConst.createCopy()
-            if pSubLens == NULL:
+            if pSubLens.get() == NULL:
                 raise LensException("Unextected: can't create a copy of a piece lens")
 
             piecesParams.append({
@@ -2637,7 +2628,7 @@ cdef class MultiPlaneContainer(GravitationalLens):
 
     def getLensParameters(self):
         cdef gravitationallens.MultiPlaneContainerParamsPtrConst pParams
-        cdef gravitationallens.GravitationalLens *pSubLens
+        cdef unique_ptr[gravitationallens.GravitationalLens] pSubLens
         cdef double z
         
         self._check()
@@ -2649,7 +2640,7 @@ cdef class MultiPlaneContainer(GravitationalLens):
         for i in range(pParams.getNumberOfLenses()):
             z = pParams.getRedshift(i)
             pSubLens = pParams.getLens(i).createCopy()
-            if pSubLens == NULL:
+            if pSubLens.get() == NULL:
                 raise LensException("Unexpected: can't create a copy of a contained lens")
 
             params.append({

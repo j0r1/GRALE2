@@ -1,6 +1,6 @@
 from libcpp.string cimport string
 from libcpp.vector cimport vector
-from libcpp.memory cimport shared_ptr
+from libcpp.memory cimport shared_ptr, unique_ptr
 from libcpp cimport bool
 
 cimport grale.vector2d as vector2d
@@ -69,7 +69,7 @@ cdef extern from "grale/gravitationallens.h" namespace "grale":
 
     cdef cppclass GravitationalLens(errut.ErrorBase):
         LensType getLensType()
-        GravitationalLens *createCopy() 
+        unique_ptr[GravitationalLens] createCopy() 
         bool init(double Dd, GravitationalLensParams *pParams)
         bool traceTheta(double Ds, double Dds, Vector2Dd theta, Vector2Dd *beta)
         bool getAlphaVector(Vector2Dd theta, Vector2Dd *alpha)
@@ -82,9 +82,9 @@ cdef extern from "grale/gravitationallens.h" namespace "grale":
         bool getProjectedPotential(double Ds, double Dds, Vector2Dd theta, double *pPotentialValue)
         void setDerivativeAngularDistanceScale(double distanceScale)
         @staticmethod
-        bool load(string fileName, GravitationalLens **pLens, string &errorString)
+        bool load(string fileName, unique_ptr[GravitationalLens] &pLens, string &errorString)
         @staticmethod
-        bool read(serut.SerializationInterface &si, GravitationalLens **pLens, string &errorString)
+        bool read(serut.SerializationInterface &si, unique_ptr[GravitationalLens] &pLens, string &errorString)
         bool save(string fileName)
         bool write(serut.SerializationInterface &si)
         const GravitationalLensParams *getLensParameters() const

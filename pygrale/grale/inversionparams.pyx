@@ -371,9 +371,9 @@ cdef class LensInversionParametersSinglePlaneCPU(object):
         cdef vector2d.Vector2Dd centerVector
         cdef lensinversionparameterssingleplanecpu.BasisFunctionType basisFunctionType
         cdef lensinversionparameterssingleplanecpu.MassSheetSearchType sheetSearchType
-        cdef gravitationallens.GravitationalLens *pBaseLens = NULL
-        cdef gravitationallens.GravitationalLens *pBasisLensModel = NULL
-        cdef gravitationallens.GravitationalLens *pSheetLensModel = NULL
+        cdef unique_ptr[gravitationallens.GravitationalLens] pBaseLens
+        cdef unique_ptr[gravitationallens.GravitationalLens] pBasisLensModel
+        cdef unique_ptr[gravitationallens.GravitationalLens] pSheetLensModel
         cdef shared_ptr[gravitationallens.GravitationalLens] sheetLensModel
         cdef configurationparameters.ConfigurationParameters *pFitnessObjectParameters = NULL
         cdef vector[lensinversionbasislensinfo.LensInversionBasisLensInfo] basisLensInfo
@@ -424,7 +424,7 @@ cdef class LensInversionParametersSinglePlaneCPU(object):
                 buf = chararrayfrombytes(lensBytes)
                 mSer = new serut.MemorySerializer(buf.data.as_voidptr, len(lensBytes), NULL, 0)
 
-                if not gravitationallens.GravitationalLens.read(deref(mSer), cython.address(pBaseLens), errorString):
+                if not gravitationallens.GravitationalLens.read(deref(mSer), pBaseLens, errorString):
                     del mSer
                     raise InversionParametersException(S(errorString))
 
@@ -442,13 +442,13 @@ cdef class LensInversionParametersSinglePlaneCPU(object):
                 buf = chararrayfrombytes(lensBytes)
                 mSer = new serut.MemorySerializer(buf.data.as_voidptr, len(lensBytes), NULL, 0)
 
-                if not gravitationallens.GravitationalLens.read(deref(mSer), cython.address(pSheetLensModel), errorString):
+                if not gravitationallens.GravitationalLens.read(deref(mSer), pSheetLensModel, errorString):
                     del mSer
                     raise InversionParametersException(S(errorString))
 
                 del mSer
                 mSer = NULL
-                sheetLensModel.reset(pSheetLensModel)
+                sheetLensModel.reset(pSheetLensModel.release())
             else:
                 raise InversionParametersException("Unknown sheet search type '{}', should be 'nosheet' or 'genome', or a lens model".format(sheetSearch))
 
@@ -483,7 +483,7 @@ cdef class LensInversionParametersSinglePlaneCPU(object):
 
                 self.m_pParams = new lensinversionparameterssingleplanecpu.LensInversionParametersSinglePlaneCPU(imgVector, gridSquares,
                                                 Dd, zd, massScale, useWeights, basisFunctionType, allowNegativeValues,
-                                                pBaseLens, sheetLensModel.get(), pFitnessObjectParameters, deref(scaleSearchParams.get()))
+                                                pBaseLens.get(), sheetLensModel.get(), pFitnessObjectParameters, deref(scaleSearchParams.get()))
 
             elif type(gridInfoOrBasisFunctions) == list:
 
@@ -495,7 +495,7 @@ cdef class LensInversionParametersSinglePlaneCPU(object):
                     buf = chararrayfrombytes(lensBytes)
                     mSer = new serut.MemorySerializer(buf.data.as_voidptr, len(lensBytes), NULL, 0)
 
-                    if not gravitationallens.GravitationalLens.read(deref(mSer), cython.address(pBasisLensModel), errorString):
+                    if not gravitationallens.GravitationalLens.read(deref(mSer), pBasisLensModel, errorString):
                         del mSer
                         raise InversionParametersException(S(errorString))
 
@@ -505,7 +505,7 @@ cdef class LensInversionParametersSinglePlaneCPU(object):
                     LensInversionParametersSinglePlaneCPU._appendHelper(basisLensInfo, pBasisLensModel, cx, cy, relevantLensingMass)
 
                 self.m_pParams = new lensinversionparameterssingleplanecpu.LensInversionParametersSinglePlaneCPU(imgVector, basisLensInfo,
-                                                Dd, zd, massScale, allowNegativeValues, pBaseLens, sheetLensModel.get(), 
+                                                Dd, zd, massScale, allowNegativeValues, pBaseLens.get(), sheetLensModel.get(), 
                                                 pFitnessObjectParameters, deref(scaleSearchParams.get()))
             else:
                 raise InversionParametersException("Unsupported type for gridInfoOrBasisFunctions parameter, should be dict or list")
@@ -513,14 +513,13 @@ cdef class LensInversionParametersSinglePlaneCPU(object):
         finally:
             # Clean up
             del mSer
-            del pBaseLens
 
     @staticmethod
     cdef _appendHelper(vector[lensinversionbasislensinfo.LensInversionBasisLensInfo] &basisLensInfo,
-                       gravitationallens.GravitationalLens *pLensModel, double cx, double cy, double relevantLensingMass):
+                       unique_ptr[gravitationallens.GravitationalLens] &pLensModel, double cx, double cy, double relevantLensingMass):
         cdef shared_ptr[gravitationallens.GravitationalLens] lensModel
         
-        lensModel.reset(pLensModel)
+        lensModel.reset(pLensModel.release())
         basisLensInfo.push_back(lensinversionbasislensinfo.LensInversionBasisLensInfo(lensModel, vector2d.Vector2Dd(cx, cy), relevantLensingMass))
 
     cdef _check(self):
@@ -687,7 +686,7 @@ cdef class LensInversionParametersMultiPlaneGPU(object):
         cdef shared_ptr[serut.MemorySerializer] mSer
         cdef array[char] buf
         cdef string errorString
-        cdef gravitationallens.GravitationalLens *pBasisLensModel = NULL
+        cdef unique_ptr[gravitationallens.GravitationalLens] pBasisLensModel
         cdef shared_ptr[gravitationallens.GravitationalLens] basisLensModel
         cdef shared_ptr[imagesdataextended.ImagesDataExtended] imgDat
         cdef vector[shared_ptr[imagesdataextended.ImagesDataExtended]] sourceImages
@@ -726,13 +725,12 @@ cdef class LensInversionParametersMultiPlaneGPU(object):
                 buf = chararrayfrombytes(lensBytes)
                 mSer.reset(new serut.MemorySerializer(buf.data.as_voidptr, len(lensBytes), NULL, 0))
 
-                if not gravitationallens.GravitationalLens.read(deref(mSer.get()), cython.address(pBasisLensModel), errorString):
+                if not gravitationallens.GravitationalLens.read(deref(mSer.get()), pBasisLensModel, errorString):
                     raise InversionParametersException(S(errorString))
-                basisLensModel.reset(pBasisLensModel)
+                basisLensModel.reset(pBasisLensModel.release())
 
-                curPlaneBasisLenses.push_back(
-                    shared_ptr[lensinversionbasislensinfo.LensInversionBasisLensInfo](
-                        new lensinversionbasislensinfo.LensInversionBasisLensInfo(
+                curPlaneBasisLenses.push_back(shared_ptr[lensinversionbasislensinfo.LensInversionBasisLensInfo](
+                    new lensinversionbasislensinfo.LensInversionBasisLensInfo(
                             basisLensModel,
                             vector2d.Vector2Dd(cx, cy), relevantLensingMass)))
 
