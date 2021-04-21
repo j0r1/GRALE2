@@ -3,6 +3,7 @@ treat a 2D NumPy array as a function. The notebook
 `gridtests.ipynb <_static/gridtests.ipynb>`_ shows some examples."""
 from libcpp.vector cimport vector
 from libcpp cimport bool as cbool
+from libcpp.memory cimport unique_ptr, make_unique
 from libc.math cimport sin, cos
 from cython.operator cimport dereference as deref
 import cython
@@ -37,12 +38,11 @@ cdef class GridFunction:
     `gridtests.ipynb <_static/gridtests.ipynb>`_ for some examples.
     """
 
-    cdef cppgridfunction.GridFunction *m_pGridFunction
+    cdef unique_ptr[cppgridfunction.GridFunction] m_pGridFunction
     cdef vector[double] m_values
     cdef double m_rotAngleRadians
 
     def __cinit__(self):
-        self.m_pGridFunction = NULL
         self.m_rotAngleRadians = 0.0
 
     # Region is rotated counterclockwise over rotationAngleRadians around bottomLeft
@@ -88,7 +88,7 @@ cdef class GridFunction:
             for x in range(numX):
                 self.m_values[x+offset] = values[y,x]
         
-        self.m_pGridFunction = new cppgridfunction.GridFunction(<double*>&(self.m_values[0]), bl, tr, numX, numY, asPixels)
+        self.m_pGridFunction = make_unique[cppgridfunction.GridFunction](<double*>&(self.m_values[0]), bl, tr, numX, numY, asPixels)
         self.m_rotAngleRadians = rotationAngleRadians
 
     @staticmethod
@@ -166,11 +166,8 @@ cdef class GridFunction:
         
         return GridFunction.createFromCorners(data, p0, p1, p2, asPixels)
 
-    def __dealloc__(self):
-        del self.m_pGridFunction
-
     def _check(self):
-        if self.m_pGridFunction == NULL:
+        if self.m_pGridFunction.get() == NULL:
             raise GridFunctionException("No internal grid function has been set")
 
     cdef _evaluate1D(self, np.ndarray[double, ndim=1] points, cbool _checkRegion):
@@ -179,7 +176,7 @@ cdef class GridFunction:
         cdef double value
         cdef np.ndarray[double,ndim=1] values
         cdef Vector2Dd point, diff
-        cdef cppgridfunction.GridFunction *pFunc = self.m_pGridFunction
+        cdef cppgridfunction.GridFunction *pFunc = self.m_pGridFunction.get()
         cdef cbool checkRegion = _checkRegion
         cdef Vector2Dd bl = pFunc.getBottomLeft()
         cdef Vector2Dd tr = pFunc.getTopRight()
