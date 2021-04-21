@@ -805,30 +805,27 @@ cdef class ImagesData:
 
 # For internal use
 cdef class ImagesDataExtended:
-    cdef imagesdataextended.ImagesDataExtended *m_pImgDataExt
+    cdef unique_ptr[imagesdataextended.ImagesDataExtended] m_pImgDataExt
 
-    def __cinit__(self):
-        self.m_pImgDataExt = NULL
+    cdef imagesdataextended.ImagesDataExtended * _imgDataExt(self):
+        return self.m_pImgDataExt.get()
 
     cdef _check(self):
-        if self.m_pImgDataExt == NULL:
+        if self.m_pImgDataExt.get() == NULL:
             raise ImagesDataException("No internal extended images data instance has been set")
 
     def __init__(self, ImagesData img):
         cdef imagesdata.ImagesData *pImgDat
         pImgDat = ImagesData._getImagesData(img)
-        self.m_pImgDataExt = new imagesdataextended.ImagesDataExtended(deref(pImgDat))
-
-    def __dealloc__(self):
-        del self.m_pImgDataExt
+        self.m_pImgDataExt = make_unique[imagesdataextended.ImagesDataExtended](deref(pImgDat))
 
     def setDs(self, Ds):
         self._check()
-        self.m_pImgDataExt.setDs(Ds)
+        self._imgDataExt().setDs(Ds)
 
     def setDds(self, Dds):
         self._check()
-        self.m_pImgDataExt.setDds(Dds)
+        self._imgDataExt().setDds(Dds)
 
     def setExtraParameter(self, key, value):
         cdef string bKey
@@ -846,16 +843,16 @@ cdef class ImagesDataExtended:
 
         if type(value) == bool:
             bvalue = value
-            self.m_pImgDataExt.setExtraParameter(bKey, bvalue)
+            self._imgDataExt().setExtraParameter(bKey, bvalue)
         elif type(value) == int:
             ivalue = value
-            self.m_pImgDataExt.setExtraParameter(bKey, ivalue)
+            self._imgDataExt().setExtraParameter(bKey, ivalue)
         elif type(value) == float:
             dvalue = value
-            self.m_pImgDataExt.setExtraParameter(bKey, dvalue)
+            self._imgDataExt().setExtraParameter(bKey, dvalue)
         else: # assume it's a string
             svalue = B(value)
-            self.m_pImgDataExt.setExtraParameter(bKey, svalue)
+            self._imgDataExt().setExtraParameter(bKey, svalue)
 
     def getExtraParameters(self):
         cdef vector[string] keys;
@@ -864,10 +861,10 @@ cdef class ImagesDataExtended:
         retObj = { }
 
         self._check()
-        self.m_pImgDataExt.getAllExtraParameterKeys(keys)
+        self._imgDataExt().getAllExtraParameterKeys(keys)
         for key in keys:
-            if not self.m_pImgDataExt.getExtraParameter(key, param):
-                raise ImagesDataException(S(self.m_pImgDataExt.getErrorString()))
+            if not self._imgDataExt().getExtraParameter(key, param):
+                raise ImagesDataException(S(self._imgDataExt().getErrorString()))
 
             strKey = S(key)
             if param.isBoolean():
@@ -885,35 +882,33 @@ cdef class ImagesDataExtended:
     
     def clearExtraParameters(self):
         self._check()
-        self.m_pImgDataExt.clearExtraParameters()
+        self._imgDataExt().clearExtraParameters()
 
     @staticmethod
     def fromBytes(bytes b):
         cdef array[char] buf = chararrayfrombytes(b)
         cdef serut.MemorySerializer *m = new serut.MemorySerializer(buf.data.as_voidptr, len(b), NULL, 0)
-        cdef imagesdataextended.ImagesDataExtended *pImgDat = NULL
+        cdef unique_ptr[imagesdataextended.ImagesDataExtended] pImgDat
         cdef string errorString
         
         try:
-            pImgDat = new imagesdataextended.ImagesDataExtended()
-            if not pImgDat.read(deref(m)):
-                errorString = pImgDat.getErrorString()
-                del pImgDat
+            pImgDat = make_unique[imagesdataextended.ImagesDataExtended]()
+            if not deref(pImgDat).read(deref(m)):
+                errorString = deref(pImgDat).getErrorString()
                 raise ImagesDataException(S(errorString))
         finally:
             del m
 
         imgDat = ImagesDataExtended(ImagesData(1))
-        del imgDat.m_pImgDataExt
-        imgDat.m_pImgDataExt = pImgDat
+        imgDat.m_pImgDataExt.swap(pImgDat)
         return imgDat
 
     def toBytes(self):
         cdef serut.VectorSerializer vSer
 
         self._check()
-        if not self.m_pImgDataExt.write(vSer):
-            raise ImagesDataException(S(self.m_pImgDataExt.getErrorString()))
+        if not self._imgDataExt().write(vSer):
+            raise ImagesDataException(S(self._imgDataExt().getErrorString()))
 
         return <bytes>vSer.getBufferPointer()[0:vSer.getBufferSize()]
 
