@@ -595,17 +595,14 @@ cdef class GravitationalLens:
         by :func:`toBytes`.
         """
         cdef array[char] buf = chararrayfrombytes(b)
-        cdef serut.MemorySerializer *m = new serut.MemorySerializer(buf.data.as_voidptr, len(b), NULL, 0)
+        cdef unique_ptr[serut.MemorySerializer] m = make_unique[serut.MemorySerializer](buf.data.as_voidptr, len(b), <void*>NULL, 0)
         cdef unique_ptr[gravitationallens.GravitationalLens] pLens
         cdef string errorString
         
-        try:
-            if not gravitationallens.GravitationalLens.read(deref(m), pLens, errorString):
-                raise LensException(S(errorString))
+        if not gravitationallens.GravitationalLens.read(deref(m), pLens, errorString):
+            raise LensException(S(errorString))
 
-            return GravitationalLens._finalizeLoadedLens(pLens)
-        finally:
-            del m
+        return GravitationalLens._finalizeLoadedLens(pLens)
 
     def save(self, fileName):
         """save(fileName)
