@@ -769,7 +769,7 @@ cdef class ImagesData:
         an images data set, and returns the new instance if successful.
         """
         cdef array[char] buf = chararrayfrombytes(b)
-        cdef serut.MemorySerializer *m = new serut.MemorySerializer(buf.data.as_voidptr, len(b), NULL, 0)
+        cdef unique_ptr[serut.MemorySerializer] m = make_unique[serut.MemorySerializer](buf.data.as_voidptr, len(b), <void *>NULL, 0)
         cdef imagesdata.ImagesData2 *pImgDat
 
         img = ImagesData(_imagesDataRndId) # Make sure an empty instance is allocated
@@ -777,10 +777,8 @@ cdef class ImagesData:
         # Try to load the data
         pImgDat2 = <imagesdata.ImagesData2 *>img._imgData()
         if not pImgDat2.read2(deref(m)):
-            del m
             raise ImagesDataException(S(img._imgData().getErrorString()))
         
-        del m
         return img
 
     def toBytes(self):
@@ -887,17 +885,14 @@ cdef class ImagesDataExtended:
     @staticmethod
     def fromBytes(bytes b):
         cdef array[char] buf = chararrayfrombytes(b)
-        cdef serut.MemorySerializer *m = new serut.MemorySerializer(buf.data.as_voidptr, len(b), NULL, 0)
+        cdef unique_ptr[serut.MemorySerializer] m = make_unique[serut.MemorySerializer](buf.data.as_voidptr, len(b), <void *>NULL, 0)
         cdef unique_ptr[imagesdataextended.ImagesDataExtended] pImgDat
         cdef string errorString
         
-        try:
-            pImgDat = make_unique[imagesdataextended.ImagesDataExtended]()
-            if not deref(pImgDat).read(deref(m)):
-                errorString = deref(pImgDat).getErrorString()
-                raise ImagesDataException(S(errorString))
-        finally:
-            del m
+        pImgDat = make_unique[imagesdataextended.ImagesDataExtended]()
+        if not deref(pImgDat).read(deref(m)):
+            errorString = deref(pImgDat).getErrorString()
+            raise ImagesDataException(S(errorString))
 
         imgDat = ImagesDataExtended(ImagesData(1))
         imgDat.m_pImgDataExt.swap(pImgDat)
@@ -979,8 +974,8 @@ cdef class LensPlane:
         # Got error with make_unique: Python object cannot be passed as a varargs parameter
         self.m_pLensPlane = unique_ptr[lensplane.LensPlane](new lensplane.PyLensPlane(self))
 
-        cdef serut.MemorySerializer *m = NULL
-        cdef serut.MemorySerializer *m2 = NULL
+        cdef unique_ptr[serut.MemorySerializer] m
+        cdef unique_ptr[serut.MemorySerializer] m2
         cdef array[char] buf
         cdef array[char] buf2
 
@@ -994,7 +989,7 @@ cdef class LensPlane:
         try:
             lensData = lens.toBytes()
             buf = chararrayfrombytes(lensData)
-            m = new serut.MemorySerializer(buf.data.as_voidptr, len(lensData), NULL, 0)
+            m = make_unique[serut.MemorySerializer](buf.data.as_voidptr, len(lensData), <void *>NULL, 0)
 
             if renderer is None:
                 if not self._lensPlane().init(deref(m), Vector2Dd(bottomLeft[0], bottomLeft[1]), Vector2Dd(topRight[0], topRight[1]),
@@ -1003,13 +998,11 @@ cdef class LensPlane:
             else:
                 b = renderer.render(lensData, bottomLeft, topRight, numX, numY)
                 buf2 = chararrayfrombytes(b)
-                m2 = new serut.MemorySerializer(buf2.data.as_voidptr, len(b), NULL, 0)
+                m2 = make_unique[serut.MemorySerializer](buf2.data.as_voidptr, len(b), <void *>NULL, 0)
                 if not self._lensPlane().init(deref(m), Vector2Dd(bottomLeft[0], bottomLeft[1]), Vector2Dd(topRight[0], topRight[1]),
                                               numX, numY, deref(m2)):
                     raise LensPlaneException("Unable to initialize lens plane: " + S(self._lensPlane().getErrorString()))
         finally:
-            del m
-            del m2
             self.feedback = None
 
     def getLens(self):
@@ -1188,15 +1181,12 @@ cdef class LensPlane:
         a lens plane instance, and returns the new instance if successful.
         """
         cdef array[char] buf = chararrayfrombytes(b)
-        cdef serut.MemorySerializer *m = new serut.MemorySerializer(buf.data.as_voidptr, len(b), NULL, 0)
+        cdef unique_ptr[serut.MemorySerializer] m = make_unique[serut.MemorySerializer](buf.data.as_voidptr, len(b), <void *>NULL, 0)
         cdef string errorString
         cdef unique_ptr[lensplane.LensPlane] pLensPlane
 
         if not lensplane.LensPlane.read(deref(m), pLensPlane, errorString):
-            del m
             raise LensPlaneException(S(errorString))
-
-        del m
 
         lensPlane = LensPlane(None, None, None, 0, 0)
         lensPlane.m_pLensPlane.swap(pLensPlane)
