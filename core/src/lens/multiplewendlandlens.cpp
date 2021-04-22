@@ -26,14 +26,9 @@
 #include "graleconfig.h"
 #include "multiplewendlandlens.h"
 #include "constants.h"
-
-#ifdef GRALECONFIG_SUPPORT_INTELIPP
-	#include <ippm.h>
-#else
-	#include <gsl/gsl_matrix.h>
-	#include <gsl/gsl_linalg.h>
-	#include <gsl/gsl_errno.h>
-#endif // GRALECONFIG_SUPPORT_INTELIPP
+#include <gsl/gsl_matrix.h>
+#include <gsl/gsl_linalg.h>
+#include <gsl/gsl_errno.h>
 
 namespace grale
 {
@@ -161,75 +156,6 @@ bool MultipleWendlandLensParams::matchDeflections(const std::vector<Vector2D<dou
 
 	int numDataPoints = deflectionPoints.size()*2; // data for both x and y
 
-#ifdef GRALECONFIG_SUPPORT_INTELIPP
-	std::vector<double> phiMatrix(numDataPoints*numDataPoints);
-	std::vector<double> tmpMatrix(numDataPoints*numDataPoints);
-	std::vector<int> perm(numDataPoints);
-	std::vector<double> angles(numDataPoints);
-	std::vector<double> coefficients(numDataPoints);
-
-	for (int i = 0 ; i < numDataPoints ; i += 2)
-	{
-		Vector2D<double> point = deflectionPoints[i/2];
-
-		for (int j = 0 ; j < numDataPoints ; j += 2)
-		{
-			Vector2D<double> centerPoint = deflectionPoints[j/2];
-			Vector2D<double> scaledDiff = (point-centerPoint)/angularScale;
-			double r2 = scaledDiff.getLengthSquared();
-			double r = scaledDiff.getLength();
-
-			if (r2 < 1.0)
-			{
-				phiMatrix[j+i*numDataPoints] = MultipleWendlandLens::phiXX(r, r2, scaledDiff.getX(), scaledDiff.getY());
-				phiMatrix[j+1+i*numDataPoints] = MultipleWendlandLens::phiXY(r, r2, scaledDiff.getX(), scaledDiff.getY()); 
-				phiMatrix[j+(i+1)*numDataPoints] = MultipleWendlandLens::phiXY(r, r2, scaledDiff.getX(), scaledDiff.getY());
-				phiMatrix[j+1+(i+1)*numDataPoints] = MultipleWendlandLens::phiYY(r, r2, scaledDiff.getX(), scaledDiff.getY());
-			}
-			else
-			{
-				phiMatrix[j+i*numDataPoints] = 0;
-				phiMatrix[j+1+i*numDataPoints] = 0;
-				phiMatrix[j+(i+1)*numDataPoints] = 0;
-				phiMatrix[j+1+(i+1)*numDataPoints] = 0;
-			}
-		}
-
-		angles[i] = deflectionAngles[i/2].getX()/angularScale;
-		angles[i+1] = deflectionAngles[i/2].getY()/angularScale;
-	}
-
-	IppStatus status;
-	char str[1024];
-
-	status = ippmLUDecomp_m_64f(&(phiMatrix[0]), numDataPoints*sizeof(double), 1*sizeof(double), &(perm[0]), &(tmpMatrix[0]), numDataPoints*sizeof(double), 1*sizeof(double), numDataPoints);
-	if (status != ippStsNoErr)
-	{
-		sprintf(str, "Can't calculate LU decomposition (error code %d)", (int)status);
-		setErrorString(str);
-		return false;
-	}
-
-	status = ippmLUBackSubst_mv_64f(&(tmpMatrix[0]), numDataPoints*sizeof(double), 1*sizeof(double), &(perm[0]), &(angles[0]), 1*sizeof(double), &(coefficients[0]), 1*sizeof(double), numDataPoints);
-	if (status != ippStsNoErr)
-	{
-		sprintf(str, "Can't solve linear system using LU decomposition (error code %d)", (int)status);
-		setErrorString(str);
-		return false;
-	}
-
-	m_phiXInfo.clear();
-	m_phiYInfo.clear();
-
-	for (int i = 0 ; i < deflectionPoints.size() ; i++)
-	{
-		double ca = coefficients[i*2];
-		double cb = coefficients[i*2+1];
-
-		m_phiXInfo.push_back(WendlandLensInfo(ca, angularScale, deflectionPoints[i]));
-		m_phiYInfo.push_back(WendlandLensInfo(cb, angularScale, deflectionPoints[i]));
-	}
-#else // GSL version
 	gsl_matrix *pPhiMatrix = gsl_matrix_alloc(numDataPoints, numDataPoints);
 	gsl_vector *pAnglesVector = gsl_vector_alloc(numDataPoints);
 	gsl_vector *pCoeffVector = gsl_vector_alloc(numDataPoints);
@@ -301,7 +227,6 @@ bool MultipleWendlandLensParams::matchDeflections(const std::vector<Vector2D<dou
 	gsl_vector_free(pAnglesVector);
 	gsl_vector_free(pCoeffVector);
 	gsl_permutation_free(pPermut);
-#endif // GRALECONFIG_SUPPORT_INTELIPP
 	return true;
 }
 
