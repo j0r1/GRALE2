@@ -9,6 +9,7 @@ at the moment).
 from libcpp.string cimport string
 from libcpp.vector cimport vector
 from libcpp cimport bool as cbool
+from libcpp.memory cimport unique_ptr, make_unique
 from cython.operator cimport dereference as deref
 import os
 import copy
@@ -86,7 +87,7 @@ def _findLibraryPath():
 
 cdef class MultiPlaneCUDA:
     
-    cdef multiplanecudacxx.MultiPlaneCUDA *m_pMPCuda
+    cdef unique_ptr[multiplanecudacxx.MultiPlaneCUDA] m_pMPCuda
     cdef double m_angularUnit
     cdef vector[vector[float]] m_massFactors
     cdef vector[float] m_sheetDensities
@@ -95,15 +96,15 @@ cdef class MultiPlaneCUDA:
     cdef object m_plummerParameters
     cdef object m_initialSheetDensities
 
+    cdef multiplanecudacxx.MultiPlaneCUDA *_mpCuda(self):
+        return self.m_pMPCuda.get()
+
     def __cinit__(self):
-        self.m_pMPCuda = new multiplanecudacxx.MultiPlaneCUDA()
+        self.m_pMPCuda = make_unique[multiplanecudacxx.MultiPlaneCUDA]()
         self.m_angularUnit = 0
         self.m_calculated = False
         self.m_numSources = 0
         self.m_plummerParameters = None
-
-    def __dealloc__(self):
-        del self.m_pMPCuda
 
     def __init__(self, lensesAndRedshifts, thetasAndSourceRedshifts, cosmology="default", libraryPath = None, deviceIdx = -1):
         """__init__(lensesAndRedshifts, thetasAndSourceRedshifts, cosmology="default", libraryPath=None)
@@ -210,11 +211,11 @@ cdef class MultiPlaneCUDA:
                 rescaledThetas[idx][i] = Vector2Df(thetas[i][0], thetas[i][1])
 
         cp = cosmology.getParameters()
-        if not self.m_pMPCuda.init(B(libraryPath), deviceIdx, self.m_angularUnit, 
+        if not self._mpCuda().init(B(libraryPath), deviceIdx, self.m_angularUnit, 
                                    cp["h"], cp["Omega_m"], cp["Omega_r"], cp["Omega_v"], cp["w"],
                                    lensRedshifts, fixedPlummerParameters,
                                    sourceRedshifts, rescaledThetas):
-            raise MultiPlaneCUDAException(S(self.m_pMPCuda.getErrorString()))
+            raise MultiPlaneCUDAException(S(self._mpCuda().getErrorString()))
     
         self.m_numSources = rescaledThetas.size()
 
@@ -261,8 +262,8 @@ cdef class MultiPlaneCUDA:
             for i in range(self.m_sheetDensities.size()):
                 self.m_sheetDensities[i] = sheetDensities[i];
 
-        if not self.m_pMPCuda.calculateSourcePositions(self.m_massFactors, self.m_sheetDensities):
-            raise MultiPlaneCUDAException(S(self.m_pMPCuda.getErrorString()))
+        if not self._mpCuda().calculateSourcePositions(self.m_massFactors, self.m_sheetDensities):
+            raise MultiPlaneCUDAException(S(self._mpCuda().getErrorString()))
 
         self.m_calculated = True
 
@@ -277,12 +278,12 @@ cdef class MultiPlaneCUDA:
         return betas
 
     cdef _getSourcePositions(self, int srcIdx):
-        cdef const vector[Vector2Df] *pPos = self.m_pMPCuda.getSourcePositions(srcIdx)
+        cdef const vector[Vector2Df] *pPos = self._mpCuda().getSourcePositions(srcIdx)
 
         if not self.m_calculated:
             raise MultiPlaneCUDAException("Nothing has been calculated yet")
         if pPos == NULL:
-            raise MultiPlaneCUDAException(S(self.m_pMPCuda.getErrorString()))
+            raise MultiPlaneCUDAException(S(self._mpCuda().getErrorString()))
         
         return self._sourcePositionConversion(deref(pPos))
 

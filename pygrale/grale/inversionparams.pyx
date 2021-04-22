@@ -42,14 +42,17 @@ cdef class ConfigurationParameters(object):
     """This class describes configuration parameters for a specific lens inversion
     module. It is the Python link to the similarly named C++ class."""
 
-    cdef configurationparameters.ConfigurationParameters *m_pParams
+    cdef unique_ptr[configurationparameters.ConfigurationParameters] m_pParams
 
     def __cinit__(self):
-        self.m_pParams = new configurationparameters.ConfigurationParameters()
+        self.m_pParams = make_unique[configurationparameters.ConfigurationParameters]()
+
+    cdef configurationparameters.ConfigurationParameters * _params(self):
+        return self.m_pParams.get()
 
     @staticmethod
     cdef configurationparameters.ConfigurationParameters * _getConfigurationParameters(confParams):
-        return confParams.m_pParams
+        return confParams.m_pParams.get()
 
     def __init__(self, parameterDict = None):
         """__init__(parameterDict = None)
@@ -90,22 +93,22 @@ cdef class ConfigurationParameters(object):
                 keyValue = B(key)
                 val = parameterDict[key]
                 if val is None:
-                    self.m_pParams.setParameterEmpty(keyValue)
+                    self._params().setParameterEmpty(keyValue)
                     continue
 
                 if not isArr(val):
                     if type(val) is int:
                         intValue = val
-                        self.m_pParams.setParameter(keyValue, intValue)
+                        self._params().setParameter(keyValue, intValue)
                     elif type(val) in (str,unicode):
                         strValue = B(val)
-                        self.m_pParams.setParameter(keyValue, strValue)
+                        self._params().setParameter(keyValue, strValue)
                     elif type(val) is float:
                         doubleValue = val
-                        self.m_pParams.setParameter(keyValue, doubleValue)
+                        self._params().setParameter(keyValue, doubleValue)
                     elif type(val) is bool:
                         boolValue = val
-                        self.m_pParams.setParameter(keyValue, boolValue)
+                        self._params().setParameter(keyValue, boolValue)
                     else:
                         raise ConfigurationParametersException("Key '{}' has unsupported value type '{}'".format(key,type(val)))
                 
@@ -117,7 +120,7 @@ cdef class ConfigurationParameters(object):
                                 raise ConfigurationParametersException("Expecting all list elements to be of type string but '{}' is of type '{}'".format(i, type(i)))
     
                             stringValues.push_back(B(i))
-                        self.m_pParams.setParameter(keyValue, stringValues)
+                        self._params().setParameter(keyValue, stringValues)
                     else: # Check type of array
                         if len(val.shape) != 1:
                             raise ConfigurationParametersException("Expecting a one dimensional array, but found {} dimensions".format(len(val.shape)))
@@ -127,27 +130,24 @@ cdef class ConfigurationParameters(object):
                             intValues.resize(intArray.shape[0])
                             for idx in range(intArray.shape[0]):
                                 intValues[idx] = intArray[idx]
-                            self.m_pParams.setParameter(keyValue, intValues)
+                            self._params().setParameter(keyValue, intValues)
 
                         elif val.dtype == np.float64:
                             realArray = val
                             doubleValues.resize(realArray.shape[0])
                             for idx in range(realArray.shape[0]):
                                 doubleValues[idx] = realArray[idx]                                
-                            self.m_pParams.setParameter(keyValue, doubleValues)
+                            self._params().setParameter(keyValue, doubleValues)
 
                         elif  val.dtype == np.bool:
                             boolArray = val
                             boolValues.resize(boolArray.shape[0])
                             for idx in range(boolArray.shape[0]):
                                 boolValues[idx] = boolArray[idx]
-                            self.m_pParams.setParameter(keyValue, boolValues)
+                            self._params().setParameter(keyValue, boolValues)
                         else:                        
                             raise ConfigurationParametersException("Unknown array type, expecting bool, int32 or float64, but got {}".format(val.dtype))
     
-    def __dealloc__(self):
-        del self.m_pParams
-
     def asDict(self):
         """asDict()
 
@@ -165,10 +165,10 @@ cdef class ConfigurationParameters(object):
         cdef int i
 
         d = { }
-        self.m_pParams.getAllKeys(keys)
+        self._params().getAllKeys(keys)
         for k in keys:
             kStr = S(k)
-            param = self.m_pParams.getParameter(k)
+            param = self._params().getParameter(k)
             if param == NULL:
                 raise ConfigurationParametersException("Unable to get parameter for key '{}'".format(kStr))
 
@@ -229,18 +229,15 @@ cdef class ConfigurationParameters(object):
         """
         cdef configurationparameters.ConfigurationParameters *pParams = NULL
         cdef array[char] buf = chararrayfrombytes(paramBytes)
-        cdef serut.MemorySerializer *m = new serut.MemorySerializer(buf.data.as_voidptr, len(paramBytes), NULL, 0)
+        cdef unique_ptr[serut.MemorySerializer] m = make_unique[serut.MemorySerializer](buf.data.as_voidptr, len(paramBytes), <void*>NULL, 0)
 
-        try:
-            params = ConfigurationParameters({})
-            pParams = ConfigurationParameters._getConfigurationParameters(params)
-                
-            if not pParams.read(deref(m)):
-                raise ConfigurationParametersException(S(pParams.getErrorString()))
+        params = ConfigurationParameters({})
+        pParams = ConfigurationParameters._getConfigurationParameters(params)
+            
+        if not pParams.read(deref(m)):
+            raise ConfigurationParametersException(S(pParams.getErrorString()))
 
-            return params
-        finally:
-            del m
+        return params
 
 class InversionParametersException(Exception):
     """This exception is raised if something goes wrong with the lens inversion
@@ -272,13 +269,7 @@ cdef class LensInversionParametersSinglePlaneCPU(object):
     """An internal representation of the parameters for the lens inversion
     procedure, needed to communicate with the C++ based inversion code."""
     
-    cdef lensinversionparameterssingleplanecpu.LensInversionParametersSinglePlaneCPU *m_pParams
-
-    def __cinit__(self):
-        self.m_pParams = NULL
-
-    def __dealloc__(self):
-        del self.m_pParams
+    cdef unique_ptr[lensinversionparameterssingleplanecpu.LensInversionParametersSinglePlaneCPU] m_pParams
 
     # each entry in imageList should be a dict with
     # - "images"
@@ -364,7 +355,7 @@ cdef class LensInversionParametersSinglePlaneCPU(object):
 
         cdef vector[shared_ptr[imagesdataextended.ImagesDataExtended]] imgVector
         cdef vector[grid.GridSquare] gridSquares
-        cdef serut.MemorySerializer *mSer = NULL
+        cdef unique_ptr[serut.MemorySerializer] mSer
         cdef array[char] buf
         cdef shared_ptr[imagesdataextended.ImagesDataExtended] pImgDat
         cdef string errorString
@@ -379,140 +370,123 @@ cdef class LensInversionParametersSinglePlaneCPU(object):
         cdef vector[lensinversionbasislensinfo.LensInversionBasisLensInfo] basisLensInfo
         cdef shared_ptr[scalesearchparameters.ScaleSearchParameters] scaleSearchParams
 
-        try:
-            # Build the list of extended images
-            for imgInfo in imageList:
-                imgData = images.ImagesDataExtended(imgInfo["images"])
-                imgData.setDs(imgInfo["Ds"])
-                imgData.setDds(imgInfo["Dds"])
-                
-                if "params" in imgInfo:
-                    params = imgInfo["params"]
-                    paramsSet = False
-                    # try a list first, for backward compatibility
-                    try:
-                        for i in range(len(params)):
-                            imgData.setExtraParameter(str(i), params[i])
-                        paramsSet = True
-                    except:
-                        pass
+        # Build the list of extended images
+        for imgInfo in imageList:
+            imgData = images.ImagesDataExtended(imgInfo["images"])
+            imgData.setDs(imgInfo["Ds"])
+            imgData.setDds(imgInfo["Dds"])
+            
+            if "params" in imgInfo:
+                params = imgInfo["params"]
+                paramsSet = False
+                # try a list first, for backward compatibility
+                try:
+                    for i in range(len(params)):
+                        imgData.setExtraParameter(str(i), params[i])
+                    paramsSet = True
+                except:
+                    pass
 
-                    if not paramsSet:
-                        # Try it as a dictionary
-                        for key in params:
-                            imgData.setExtraParameter(key, params[key])
-        
-                # Now that we have the Python ImagesDataExtended object, use
-                # toBytes and MemorySerializer to recreate the C++ object
-                imgBytes = imgData.toBytes()
-                buf = chararrayfrombytes(imgBytes)
-                mSer = new serut.MemorySerializer(buf.data.as_voidptr, len(imgBytes), NULL, 0)
+                if not paramsSet:
+                    # Try it as a dictionary
+                    for key in params:
+                        imgData.setExtraParameter(key, params[key])
+    
+            # Now that we have the Python ImagesDataExtended object, use
+            # toBytes and MemorySerializer to recreate the C++ object
+            imgBytes = imgData.toBytes()
+            buf = chararrayfrombytes(imgBytes)
+            mSer = make_unique[serut.MemorySerializer](buf.data.as_voidptr, len(imgBytes), <void*>NULL, 0)
 
-                pImgDat.reset(new imagesdataextended.ImagesDataExtended())
-                if not pImgDat.get().read(deref(mSer)):
-                    errorString = pImgDat.get().getErrorString()
-                    raise InversionParametersException(S(errorString))
+            pImgDat.reset(new imagesdataextended.ImagesDataExtended())
+            if not pImgDat.get().read(deref(mSer)):
+                errorString = pImgDat.get().getErrorString()
+                raise InversionParametersException(S(errorString))
 
-                imgVector.push_back(pImgDat)    
+            imgVector.push_back(pImgDat)    
 
-                del mSer
-                mSer = NULL
+        # Load a base lens if specified
+        if baseLens:
+            lensBytes = baseLens.toBytes()
+            buf = chararrayfrombytes(lensBytes)
+            mSer = make_unique[serut.MemorySerializer](buf.data.as_voidptr, len(lensBytes), <void*>NULL, 0)
 
-            # Load a base lens if specified
-            if baseLens:
-                lensBytes = baseLens.toBytes()
-                buf = chararrayfrombytes(lensBytes)
-                mSer = new serut.MemorySerializer(buf.data.as_voidptr, len(lensBytes), NULL, 0)
+            if not gravitationallens.GravitationalLens.read(deref(mSer), pBaseLens, errorString):
+                raise InversionParametersException(S(errorString))
 
-                if not gravitationallens.GravitationalLens.read(deref(mSer), pBaseLens, errorString):
-                    del mSer
-                    raise InversionParametersException(S(errorString))
+        # Check the sheet search type
+        if sheetSearch == "nosheet":
+            sheetSearchType = lensinversionparameterssingleplanecpu.NoSheet
+        elif sheetSearch == "genome":
+            sheetSearchType = lensinversionparameterssingleplanecpu.Genome
+            sheetLensModel = lensinversionparameterssingleplanecpu.LensInversionParametersSinglePlaneCPU.createDefaultSheetLens(sheetSearchType, Dd)
+        elif isinstance(sheetSearch, lenses.GravitationalLens):
+            lensBytes = sheetSearch.toBytes()
+            buf = chararrayfrombytes(lensBytes)
+            mSer = make_unique[serut.MemorySerializer](buf.data.as_voidptr, len(lensBytes), <void*>NULL, 0)
 
-                del mSer
-                mSer = NULL
+            if not gravitationallens.GravitationalLens.read(deref(mSer), pSheetLensModel, errorString):
+                raise InversionParametersException(S(errorString))
 
-            # Check the sheet search type
-            if sheetSearch == "nosheet":
-                sheetSearchType = lensinversionparameterssingleplanecpu.NoSheet
-            elif sheetSearch == "genome":
-                sheetSearchType = lensinversionparameterssingleplanecpu.Genome
-                sheetLensModel = lensinversionparameterssingleplanecpu.LensInversionParametersSinglePlaneCPU.createDefaultSheetLens(sheetSearchType, Dd)
-            elif isinstance(sheetSearch, lenses.GravitationalLens):
-                lensBytes = sheetSearch.toBytes()
-                buf = chararrayfrombytes(lensBytes)
-                mSer = new serut.MemorySerializer(buf.data.as_voidptr, len(lensBytes), NULL, 0)
+            sheetLensModel.reset(pSheetLensModel.release())
+        else:
+            raise InversionParametersException("Unknown sheet search type '{}', should be 'nosheet' or 'genome', or a lens model".format(sheetSearch))
 
-                if not gravitationallens.GravitationalLens.read(deref(mSer), pSheetLensModel, errorString):
-                    del mSer
-                    raise InversionParametersException(S(errorString))
+        if fitnessObjectParameters:
+            fitnessObjectParametersObj = ConfigurationParameters(fitnessObjectParameters)
+            pFitnessObjectParameters = ConfigurationParameters._getConfigurationParameters(fitnessObjectParametersObj)
 
-                del mSer
-                mSer = NULL
-                sheetLensModel.reset(pSheetLensModel.release())
+        scaleSearchParams.reset(_getMassScaleSearchParameters(massScaleSearchType))
+
+        if type(gridInfoOrBasisFunctions) == dict:
+            gridSquareList = gridInfoOrBasisFunctions["gridSquares"]
+            basisFunction = gridInfoOrBasisFunctions["basisFunction"] if "basisFunction" in gridInfoOrBasisFunctions else "plummer"
+            useWeights = gridInfoOrBasisFunctions["useWeights"] if "useWeights" in gridInfoOrBasisFunctions else False
+
+            # Build the grid square vector
+            for square in gridSquareList:
+                cx, cy = square["center"]
+                s = square["size"]
+
+                centerVector = vector2d.Vector2Dd(float(cx), float(cy))
+                gridSquares.push_back(grid.GridSquare(centerVector, float(s)))
+
+            # Check the basis function type
+            if basisFunction == "plummer": 
+                basisFunctionType = lensinversionparameterssingleplanecpu.PlummerBasis
+            elif basisFunction == "gaussian": 
+                basisFunctionType = lensinversionparameterssingleplanecpu.GaussBasis
+            elif basisFunction == "square":
+                basisFunctionType = lensinversionparameterssingleplanecpu.SquareBasis
             else:
-                raise InversionParametersException("Unknown sheet search type '{}', should be 'nosheet' or 'genome', or a lens model".format(sheetSearch))
+                raise InversionParametersException("Unknown basis function type '{}', should be 'plummer', 'gaussian' or 'square'".format(basisFunction))
 
-            if fitnessObjectParameters:
-                fitnessObjectParametersObj = ConfigurationParameters(fitnessObjectParameters)
-                pFitnessObjectParameters = ConfigurationParameters._getConfigurationParameters(fitnessObjectParametersObj)
+            self.m_pParams = unique_ptr[lensinversionparameterssingleplanecpu.LensInversionParametersSinglePlaneCPU](
+                    new lensinversionparameterssingleplanecpu.LensInversionParametersSinglePlaneCPU(imgVector, gridSquares,
+                                            Dd, zd, massScale, useWeights, basisFunctionType, allowNegativeValues,
+                                            pBaseLens.get(), sheetLensModel.get(), pFitnessObjectParameters, deref(scaleSearchParams.get())) )
 
-            scaleSearchParams.reset(_getMassScaleSearchParameters(massScaleSearchType))
+        elif type(gridInfoOrBasisFunctions) == list:
 
-            if type(gridInfoOrBasisFunctions) == dict:
-                gridSquareList = gridInfoOrBasisFunctions["gridSquares"]
-                basisFunction = gridInfoOrBasisFunctions["basisFunction"] if "basisFunction" in gridInfoOrBasisFunctions else "plummer"
-                useWeights = gridInfoOrBasisFunctions["useWeights"] if "useWeights" in gridInfoOrBasisFunctions else False
+            for entry in gridInfoOrBasisFunctions:
+                cx, cy = entry["center"]
+                relevantLensingMass = entry["mass"]
 
-                # Build the grid square vector
-                for square in gridSquareList:
-                    cx, cy = square["center"]
-                    s = square["size"]
+                lensBytes = entry["lens"].toBytes()
+                buf = chararrayfrombytes(lensBytes)
+                mSer = make_unique[serut.MemorySerializer](buf.data.as_voidptr, len(lensBytes), <void*>NULL, 0)
 
-                    centerVector = vector2d.Vector2Dd(float(cx), float(cy))
-                    gridSquares.push_back(grid.GridSquare(centerVector, float(s)))
+                if not gravitationallens.GravitationalLens.read(deref(mSer), pBasisLensModel, errorString):
+                    raise InversionParametersException(S(errorString))
 
-                # Check the basis function type
-                if basisFunction == "plummer": 
-                    basisFunctionType = lensinversionparameterssingleplanecpu.PlummerBasis
-                elif basisFunction == "gaussian": 
-                    basisFunctionType = lensinversionparameterssingleplanecpu.GaussBasis
-                elif basisFunction == "square":
-                    basisFunctionType = lensinversionparameterssingleplanecpu.SquareBasis
-                else:
-                    raise InversionParametersException("Unknown basis function type '{}', should be 'plummer', 'gaussian' or 'square'".format(basisFunction))
+                LensInversionParametersSinglePlaneCPU._appendHelper(basisLensInfo, pBasisLensModel, cx, cy, relevantLensingMass)
 
-                self.m_pParams = new lensinversionparameterssingleplanecpu.LensInversionParametersSinglePlaneCPU(imgVector, gridSquares,
-                                                Dd, zd, massScale, useWeights, basisFunctionType, allowNegativeValues,
-                                                pBaseLens.get(), sheetLensModel.get(), pFitnessObjectParameters, deref(scaleSearchParams.get()))
-
-            elif type(gridInfoOrBasisFunctions) == list:
-
-                for entry in gridInfoOrBasisFunctions:
-                    cx, cy = entry["center"]
-                    relevantLensingMass = entry["mass"]
-
-                    lensBytes = entry["lens"].toBytes()
-                    buf = chararrayfrombytes(lensBytes)
-                    mSer = new serut.MemorySerializer(buf.data.as_voidptr, len(lensBytes), NULL, 0)
-
-                    if not gravitationallens.GravitationalLens.read(deref(mSer), pBasisLensModel, errorString):
-                        del mSer
-                        raise InversionParametersException(S(errorString))
-
-                    del mSer
-                    mSer = NULL
-
-                    LensInversionParametersSinglePlaneCPU._appendHelper(basisLensInfo, pBasisLensModel, cx, cy, relevantLensingMass)
-
-                self.m_pParams = new lensinversionparameterssingleplanecpu.LensInversionParametersSinglePlaneCPU(imgVector, basisLensInfo,
-                                                Dd, zd, massScale, allowNegativeValues, pBaseLens.get(), sheetLensModel.get(), 
-                                                pFitnessObjectParameters, deref(scaleSearchParams.get()))
-            else:
-                raise InversionParametersException("Unsupported type for gridInfoOrBasisFunctions parameter, should be dict or list")
-
-        finally:
-            # Clean up
-            del mSer
+            self.m_pParams = unique_ptr[lensinversionparameterssingleplanecpu.LensInversionParametersSinglePlaneCPU](
+                    new lensinversionparameterssingleplanecpu.LensInversionParametersSinglePlaneCPU(imgVector, basisLensInfo,
+                                            Dd, zd, massScale, allowNegativeValues, pBaseLens.get(), sheetLensModel.get(), 
+                                            pFitnessObjectParameters, deref(scaleSearchParams.get())) )
+        else:
+            raise InversionParametersException("Unsupported type for gridInfoOrBasisFunctions parameter, should be dict or list")
 
     @staticmethod
     cdef _appendHelper(vector[lensinversionbasislensinfo.LensInversionBasisLensInfo] &basisLensInfo,
@@ -523,7 +497,7 @@ cdef class LensInversionParametersSinglePlaneCPU(object):
         basisLensInfo.push_back(lensinversionbasislensinfo.LensInversionBasisLensInfo(lensModel, vector2d.Vector2Dd(cx, cy), relevantLensingMass))
 
     cdef _check(self):
-        if self.m_pParams == NULL:
+        if self.m_pParams.get() == NULL:
             raise InversionParametersException("Internal error: LensInversionParametersSinglePlaneCPU instance has not been set")
 
     @staticmethod
@@ -534,22 +508,16 @@ cdef class LensInversionParametersSinglePlaneCPU(object):
         the inverse function of :func:`toBytes`.
         """
         cdef array[char] buf = chararrayfrombytes(b)
-        cdef serut.MemorySerializer *m = new serut.MemorySerializer(buf.data.as_voidptr, len(b), NULL, 0)
-        cdef lensinversionparameterssingleplanecpu.LensInversionParametersSinglePlaneCPU *pParams = NULL
+        cdef unique_ptr[serut.MemorySerializer] m = make_unique[serut.MemorySerializer](buf.data.as_voidptr, len(b), <void*>NULL, 0)
+        cdef unique_ptr[lensinversionparameterssingleplanecpu.LensInversionParametersSinglePlaneCPU] pParams = make_unique[lensinversionparameterssingleplanecpu.LensInversionParametersSinglePlaneCPU]()
         
-        try:
-            pParams = new lensinversionparameterssingleplanecpu.LensInversionParametersSinglePlaneCPU()
-            if not pParams.read(deref(m)):
-                errStr = S(pParams.getErrorString())
-                del pParams
-                raise InversionParametersException(errStr)
+        if not deref(pParams).read(deref(m)):
+            raise InversionParametersException(S(deref(pParams).getErrorString()))
 
-            r = LensInversionParametersSinglePlaneCPU(0, [], [], 0, 0, 0)
-            r.m_pParams = pParams
+        r = LensInversionParametersSinglePlaneCPU(0, [], [], 0, 0, 0)
+        r.m_pParams.swap(pParams)
 
-            return r
-        finally:
-            del m
+        return r
 
     def toBytes(self):
         """toBytes()
@@ -560,24 +528,18 @@ cdef class LensInversionParametersSinglePlaneCPU(object):
         cdef serut.VectorSerializer vSer
 
         self._check()
-        if not self.m_pParams.write(vSer):
-            raise InversionParametersException(S(self.m_pParams.getErrorString()))
+        if not deref(self.m_pParams).write(vSer):
+            raise InversionParametersException(S(deref(self.m_pParams).getErrorString()))
 
         return <bytes>vSer.getBufferPointer()[0:vSer.getBufferSize()]
 
 cdef class GAParameters(object):
     """General parameters for the genetic algorithm."""
     
-    cdef gaparameters.GAParameters *m_pParams
-
-    def __cinit__(self):
-        self.m_pParams = NULL
-
-    def __dealloc__(self):
-        del self.m_pParams
+    cdef unique_ptr[gaparameters.GAParameters] m_pParams
 
     cdef _check(self):
-        if self.m_pParams == NULL:
+        if self.m_pParams.get() == NULL:
             raise InversionParametersException("Internal error: GAParameters instance has not been set")
 
     def __init__(self, selectionpressure = 2.5, elitism = True, alwaysincludebest = True, crossoverrate = 0.9):
@@ -589,7 +551,7 @@ cdef class GAParameters(object):
         of the library that's used for the genetic algorithm.
 
         """
-        self.m_pParams = new gaparameters.GAParameters(selectionpressure, elitism, alwaysincludebest, crossoverrate)
+        self.m_pParams = unique_ptr[gaparameters.GAParameters](new gaparameters.GAParameters(selectionpressure, elitism, alwaysincludebest, crossoverrate))
 
     def getSettings(self):
         """getSettings()
@@ -598,10 +560,10 @@ cdef class GAParameters(object):
         """
         self._check()
         r = { }
-        r["selectionpressure"] = self.m_pParams.getSelectionPressure()
-        r["elitism"] = self.m_pParams.getUseElitism()
-        r["alwaysincludebest"] = self.m_pParams.getAlwaysIncludeBest()
-        r["crossoverrate"] = self.m_pParams.getCrossOverRate()
+        r["selectionpressure"] = deref(self.m_pParams).getSelectionPressure()
+        r["elitism"] = deref(self.m_pParams).getUseElitism()
+        r["alwaysincludebest"] = deref(self.m_pParams).getAlwaysIncludeBest()
+        r["crossoverrate"] = deref(self.m_pParams).getCrossOverRate()
 
         return r
 
@@ -614,8 +576,8 @@ cdef class GAParameters(object):
         cdef serut.VectorSerializer vSer
 
         self._check()
-        if not self.m_pParams.write(vSer):
-            raise InversionParametersException(S(self.m_pParams.getErrorString()))
+        if not deref(self.m_pParams).write(vSer):
+            raise InversionParametersException(S(deref(self.m_pParams).getErrorString()))
 
         return <bytes>vSer.getBufferPointer()[0:vSer.getBufferSize()]
 
@@ -623,13 +585,7 @@ cdef class LensInversionParametersMultiPlaneGPU(object):
     """An internal representation of the parameters for the lens multi-plane inversion
     procedure, needed to communicate with the C++ based inversion code."""
     
-    cdef lensinversionparametersmultiplanegpu.LensInversionParametersMultiPlaneGPU *m_pParams
-
-    def __cinit__(self):
-        self.m_pParams = NULL
-
-    def __dealloc__(self):
-        del self.m_pParams
+    cdef unique_ptr[lensinversionparametersmultiplanegpu.LensInversionParametersMultiPlaneGPU] m_pParams
 
     def __init__(self, cosmology = cosmology.Cosmology(0.7, 0.3, 0, 0.7),
                  basisLensesAndRedshifts = [], imagesAndRedshifts = [],
@@ -776,17 +732,18 @@ cdef class LensInversionParametersMultiPlaneGPU(object):
                 raise InversionParametersException("Device index can't be negative")
             devIdx = deviceIndex
 
-        self.m_pParams = new lensinversionparametersmultiplanegpu.LensInversionParametersMultiPlaneGPU(
-            cosm,
-            lensRedshifts,
-            basisLenses,
-            sourceImages,
-            massEstimate,
-            useSheet,
-            pFitnessObjectParameters,
-            allowNegativeWeights,
-            deref(scaleSearchParams.get()),
-            devIdx)
+        self.m_pParams = unique_ptr[lensinversionparametersmultiplanegpu.LensInversionParametersMultiPlaneGPU](
+            new lensinversionparametersmultiplanegpu.LensInversionParametersMultiPlaneGPU(
+                cosm,
+                lensRedshifts,
+                basisLenses,
+                sourceImages,
+                massEstimate,
+                useSheet,
+                pFitnessObjectParameters,
+                allowNegativeWeights,
+                deref(scaleSearchParams.get()),
+                devIdx))
 
     @staticmethod
     def fromBytes(bytes b):
@@ -796,11 +753,11 @@ cdef class LensInversionParametersMultiPlaneGPU(object):
         the inverse function of :func:`toBytes`.
         """
         cdef array[char] buf = chararrayfrombytes(b)
-        cdef shared_ptr[serut.MemorySerializer] m = shared_ptr[serut.MemorySerializer](new serut.MemorySerializer(buf.data.as_voidptr, len(b), NULL, 0))
+        cdef unique_ptr[serut.MemorySerializer] m = make_unique[serut.MemorySerializer](buf.data.as_voidptr, len(b), <void*>NULL, 0)
 
         r = LensInversionParametersMultiPlaneGPU()
-        if not r.m_pParams.read(deref(m)):
-            raise InversionParametersException(S(r.m_pParams.getErrorString()))
+        if not deref(r.m_pParams).read(deref(m)):
+            raise InversionParametersException(S(deref(r.m_pParams).getErrorString()))
 
         return r
 
@@ -812,8 +769,8 @@ cdef class LensInversionParametersMultiPlaneGPU(object):
         """
         cdef serut.VectorSerializer vSer
 
-        if not self.m_pParams.write(vSer):
-            raise InversionParametersException(S(self.m_pParams.getErrorString()))
+        if not deref(self.m_pParams).write(vSer):
+            raise InversionParametersException(S(deref(self.m_pParams).getErrorString()))
 
         return <bytes>vSer.getBufferPointer()[0:vSer.getBufferSize()]
 
