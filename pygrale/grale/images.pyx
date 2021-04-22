@@ -1643,20 +1643,14 @@ cdef class SourceImage:
 
     It should not be instantiated directly, but only through one of the subclasses.
     """
-    cdef sourceimage.SourceImage *m_pSrc
+    cdef unique_ptr[sourceimage.SourceImage] m_pSrc
 
     @staticmethod
     cdef sourceimage.SourceImage * _getSourceImage(SourceImage s):
-        return s.m_pSrc
-
-    def __cinit__(self):
-        self.m_pSrc = NULL
-
-    def __dealloc__(self):
-        del self.m_pSrc
+        return s.m_pSrc.get()
 
     cdef _check(self):
-        if self.m_pSrc == NULL:
+        if self.m_pSrc.get() == NULL:
             raise SourceImageException("No internal source image has been set")
 
     def getAngularPosition(self):
@@ -1667,7 +1661,7 @@ cdef class SourceImage:
         cdef Vector2Dd pos
         
         self._check()
-        pos = self.m_pSrc.getAngularPosition()
+        pos = deref(self.m_pSrc).getAngularPosition()
         return np.array([pos.getX(), pos.getY()])
 
     def addToAngularPosition(self, p):
@@ -1676,7 +1670,7 @@ cdef class SourceImage:
         Adds a 2D vector to the position of this source in the source plane.
         """
         self._check()
-        self.m_pSrc.addToAngularPosition(Vector2Dd(p[0], p[1]))
+        deref(self.m_pSrc).addToAngularPosition(Vector2Dd(p[0], p[1]))
 
     def setAngularPosition(self, p):
         """setAngularPosition(p)
@@ -1684,7 +1678,7 @@ cdef class SourceImage:
         Sets the 2D position of the source in the source plane to some value.
         """
         self._check()
-        self.m_pSrc.setAngularPosition(Vector2Dd(p[0], p[1]))
+        deref(self.m_pSrc).setAngularPosition(Vector2Dd(p[0], p[1]))
 
     def addToAngle(self, ang):
         """addToAngle(ang)
@@ -1693,7 +1687,7 @@ cdef class SourceImage:
         must be specified in degrees.
         """
         self._check()
-        self.m_pSrc.addToAngle(float(ang))
+        deref(self.m_pSrc).addToAngle(float(ang))
 
     def setAngle(self, ang):
         """setAngle(ang)
@@ -1702,7 +1696,7 @@ cdef class SourceImage:
         in degrees.
         """
         self._check()
-        self.m_pSrc.setAngle(float(ang))
+        deref(self.m_pSrc).setAngle(float(ang))
 
     def getAngle(self):
         """getAngle()
@@ -1710,7 +1704,7 @@ cdef class SourceImage:
         Returns the rotation angle for the source shape, specified in degrees.
         """
         self._check()
-        return self.m_pSrc.getAngle()
+        return deref(self.m_pSrc).getAngle()
 
     def getMaximumRadius(self):
         """getMaximumRadius()
@@ -1718,7 +1712,7 @@ cdef class SourceImage:
         Returns the radius outside of which the source does not produce any light."
         """
         self._check()
-        return self.m_pSrc.getMaxRadius()
+        return deref(self.m_pSrc).getMaxRadius()
 
     def getIntensity(self, p):
         """getIntensity(p)
@@ -1738,7 +1732,7 @@ cdef class SourceImage:
             intens = np.zeros([(l//2)], dtype = np.double)
             j = 0
             for i in range(0,l,2):
-                intens[j] = self.m_pSrc.getIntensity(Vector2Dd(positions[i], positions[i+1]))
+                intens[j] = deref(self.m_pSrc).getIntensity(Vector2Dd(positions[i], positions[i+1]))
                 j += 1
         else:
             raise SourceImageException("Bad 1D array dimensions, must be a multiple of two")
@@ -1780,16 +1774,16 @@ cdef class CircularSource(SourceImage):
         cdef double r = float(angularRadius)
         cdef double s = float(brightnessScale)
         cdef cbool f = fade
-        cdef sourceimage.CircularSource *pSrc = new sourceimage.CircularSource(pos, r, s)
+        cdef unique_ptr[sourceimage.CircularSource] pSrc = make_unique[sourceimage.CircularSource](pos, r, s)
 
-        pSrc.setFade(f)
-        self.m_pSrc = pSrc
+        deref(pSrc).setFade(f)
+        self.m_pSrc.reset(pSrc.release())
 
     cdef sourceimage.CircularSource * _src(self):
         self._check()
-        if self.m_pSrc.getSourceType() != sourceimage.Circle:
+        if deref(self.m_pSrc).getSourceType() != sourceimage.Circle:
             raise SourceImageException("Internal error: source image is not of type CircularSource")
-        return <sourceimage.CircularSource *>self.m_pSrc
+        return <sourceimage.CircularSource *>self.m_pSrc.get()
 
     def getAngularRadius(self):
         """getAngularRadius()
@@ -1839,16 +1833,16 @@ cdef class EllipticalSource(SourceImage):
         cdef double s = float(brightnessScale)
         cdef double ang = float(angle)
         cdef cbool f = fade
-        cdef sourceimage.EllipticalSource *pSrc = new sourceimage.EllipticalSource(pos, axis, ecc, ang, s)
+        cdef unique_ptr[sourceimage.EllipticalSource] pSrc = make_unique[sourceimage.EllipticalSource](pos, axis, ecc, ang, s)
 
-        pSrc.setFade(f)
-        self.m_pSrc = pSrc
+        deref(pSrc).setFade(f)
+        self.m_pSrc.reset(pSrc.release())
 
     cdef sourceimage.EllipticalSource * _src(self):
         self._check()
-        if self.m_pSrc.getSourceType() != sourceimage.Ellipse:
+        if deref(self.m_pSrc).getSourceType() != sourceimage.Ellipse:
             raise SourceImageException("Internal error: source image is not of type EllipticalSource")
-        return <sourceimage.EllipticalSource *>self.m_pSrc
+        return <sourceimage.EllipticalSource *>self.m_pSrc.get()
 
     def setFade(self, cbool f):
         """setFade(f)
@@ -1900,8 +1894,7 @@ cdef class PolygonSource(SourceImage):
 
         polygon.init(polyPoints, calcHull)
 
-        cdef sourceimage.PolygonSource *pSrc = new sourceimage.PolygonSource(pos, polygon, ang, s)
-        self.m_pSrc = pSrc
+        self.m_pSrc = unique_ptr[sourceimage.SourceImage](new sourceimage.PolygonSource(pos, polygon, ang, s))
 
 cdef class DiscreteSource(SourceImage):
     def __init__(self, np.ndarray[double,ndim=2] data, angularWidth, angularHeight,
@@ -1922,28 +1915,24 @@ cdef class DiscreteSource(SourceImage):
         cdef double s = float(brightnessScale)
         cdef vector[double] dataVector
         cdef int numX, numY, x, y, p
-        cdef sourceimage.DiscreteSource *pSrc = new sourceimage.DiscreteSource(pos, a, s)
+        cdef unique_ptr[sourceimage.DiscreteSource] pSrc = make_unique[sourceimage.DiscreteSource](pos, a, s)
     
-        try:
-            if data is None:
-                raise SourceImageException("Grid data for source may not be None")
+        if data is None:
+            raise SourceImageException("Grid data for source may not be None")
 
-            numY = data.shape[0]
-            numX = data.shape[1]
-            dataVector.resize(numX*numY)
-            p = 0
-            for y in range(numY):
-                for x in range(numX):
-                    dataVector[p] = data[y,x]
-                    p += 1
+        numY = data.shape[0]
+        numX = data.shape[1]
+        dataVector.resize(numX*numY)
+        p = 0
+        for y in range(numY):
+            for x in range(numX):
+                dataVector[p] = data[y,x]
+                p += 1
 
-            if not pSrc.setData(dataVector, numX, numY, w, h):
-                raise LensPlaneException(S(pSrc.getErrorString()))
+        if not deref(pSrc).setData(dataVector, numX, numY, w, h):
+            raise LensPlaneException(S(deref(pSrc).getErrorString()))
 
-            self.m_pSrc = pSrc
-        except:
-            del pSrc
-            raise
+        self.m_pSrc.reset(pSrc.release())
 
 cdef class PointSource(SourceImage):
     def __init__(self, position, brightnessScale = 1.0):
@@ -1954,7 +1943,7 @@ cdef class PointSource(SourceImage):
         cdef Vector2Dd pos = Vector2Dd(position[0], position[1])
         cdef double s = float(brightnessScale)
 
-        self.m_pSrc = new sourceimage.PointSource(pos, s)
+        self.m_pSrc = unique_ptr[sourceimage.SourceImage](new sourceimage.PointSource(pos, s))
 
 # import some things from a pure python module, to avoid recompilation if something
 # changes there.
