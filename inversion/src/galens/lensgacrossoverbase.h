@@ -58,7 +58,8 @@ protected:
 protected:
 	std::shared_ptr<eatk::RandomNumberGenerator> m_rng;
 	grale::LensGAGenomeCrossover m_cross;
-	double m_beta, m_bestWithMutation, m_bestWithoutMutation, m_crossoverRate;
+	bool m_bestWithMutation, m_bestWithoutMutation;
+	double m_beta, m_crossoverRate;
 	std::shared_ptr<eatk::GenomeMutation> m_mutation;
 };
 
