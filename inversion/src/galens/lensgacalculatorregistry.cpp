@@ -1,4 +1,6 @@
 #include "lensgacalculatorregistry.h"
+#include "lensinversiongafactorysingleplanecpu.h"
+#include "lensinversiongafactorymultiplanegpu.h"
 #include <cstdlib>
 #include <iostream>
 
@@ -8,7 +10,30 @@ using namespace errut;
 namespace grale
 {
 
-void registerWrapperCalculators();
+template<class T, class P1>
+class GeneralFactory : public LensGACalculatorFactory
+{
+public:
+	std::unique_ptr<LensInversionParametersBase> createParametersInstance() override
+	{
+		return make_unique<P1>();
+	}
+
+	std::unique_ptr<LensGAGenomeCalculator> createCalculatorInstance(unique_ptr<LensFitnessObject> fitObj) override
+	{
+		auto inst = make_unique<T>(move(fitObj));
+		return inst;
+	}
+};
+
+void registerWrapperCalculators()
+{
+	LensGACalculatorRegistry::instance().registerCalculatorFactory("singleplanecpu",
+		make_unique<GeneralFactory<LensInversionGAFactorySinglePlaneCPU,LensInversionParametersSinglePlaneCPU>>());
+
+	LensGACalculatorRegistry::instance().registerCalculatorFactory("multiplanegpu",
+		make_unique<GeneralFactory<LensInversionGAFactoryMultiPlaneGPU,LensInversionParametersMultiPlaneGPU>>());
+}
 
 std::unique_ptr<LensGACalculatorRegistry> LensGACalculatorRegistry::s_instance;
 

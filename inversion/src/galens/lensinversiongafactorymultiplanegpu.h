@@ -24,10 +24,10 @@ class ConfigurationParameters;
 class GRALE_IMPORTEXPORT LensInversionGAFactoryMultiPlaneGPU : public LensInversionGAFactoryCommon
 {
 public:
-	LensInversionGAFactoryMultiPlaneGPU();
+	LensInversionGAFactoryMultiPlaneGPU(std::unique_ptr<LensFitnessObject> fitObj);
 	~LensInversionGAFactoryMultiPlaneGPU();
 
-	bool init(const LensInversionParametersBase *p) override;
+	errut::bool_t init(const LensInversionParametersBase &p) override;
 
 	std::unique_ptr<GravitationalLens> createLens(const std::vector<float> &basisFunctionWeights,
 	                                      const std::vector<float> &sheetValues,

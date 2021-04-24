@@ -45,10 +45,10 @@ class ConfigurationParameters;
 class GRALE_IMPORTEXPORT LensInversionGAFactorySinglePlaneCPU : public LensInversionGAFactoryCommon
 {
 public:
-	LensInversionGAFactorySinglePlaneCPU();
+	LensInversionGAFactorySinglePlaneCPU(std::unique_ptr<LensFitnessObject> fitObj);
 	~LensInversionGAFactorySinglePlaneCPU();
 
-	bool init(const LensInversionParametersBase *p);
+	errut::bool_t init(const LensInversionParametersBase &p);
 
 	std::unique_ptr<GravitationalLens> createLens(const std::vector<float> &basisFunctionWeights,
 	                                      const std::vector<float> &sheetValues,

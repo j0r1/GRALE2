@@ -6,11 +6,13 @@
 #include <sstream>
 
 using namespace std;
+using namespace errut;
 
 namespace grale
 {
 
-LensInversionGAFactoryCommon::LensInversionGAFactoryCommon()
+LensInversionGAFactoryCommon::LensInversionGAFactoryCommon(unique_ptr<LensFitnessObject> fitObj)
+	: m_fitnessObject(move(fitObj))
 {
   	m_numBasisFunctions = 0;
 	m_numSheetValues = 0;
@@ -69,11 +71,6 @@ bool LensInversionGAFactoryCommon::initializeLensFitnessObject(double z_d,
 	for (auto i : images)
 		reducedImages.push_back(i.get());
 
-	auto pFitnessObject = createFitnessObject();
-	if (pFitnessObject == 0)
-		return false; // error string should be set in the createFitnessObject function
-	m_fitnessObject.reset(pFitnessObject);
-
 	ConfigurationParameters fitnesObjectParams;
 	if (pFitnessObjectParams)
 		fitnesObjectParams = *pFitnessObjectParams;
@@ -113,9 +110,11 @@ bool LensInversionGAFactoryCommon::initializeLensFitnessObject(double z_d,
 
 void LensInversionGAFactoryCommon::sendMessage(const std::string &s) const
 {
-	// Should be implemented in derived class
+	log(s);
 }
 
+// TODO: re-enable this
+#if 0
 void LensInversionGAFactoryCommon::onGeneticAlgorithmStart()
 {
 	// TODO: move this to constructor
@@ -134,10 +133,30 @@ void LensInversionGAFactoryCommon::onGeneticAlgorithmStart()
 		}
 	}
 }
+#endif
 
 static float LogTrans(float x) { return LN(x); }
 static float ExpTrans(float x) { return EXP(x); }
 static float IdentityTrans(float x) { return x; }
+
+bool_t LensInversionGAFactoryCommon::createLens(const LensGAGenome &genome, unique_ptr<GravitationalLens> &lens) const
+{
+	string errStr = "unknown error";
+
+	lens = move(createLens(genome.m_weights, genome.m_sheets, genome.m_scaleFactor, errStr));
+	if (!lens.get())
+		return errStr;
+	return true;
+}
+
+bool_t LensInversionGAFactoryCommon::calculate(const eatk::Genome &genome, eatk::Fitness &fitness)
+{
+	const LensGAGenome &g = static_cast<const LensGAGenome&>(genome);
+	LensGAFitness &f = static_cast<LensGAFitness&>(fitness);
+	if (!calculateFitness(g.m_weights, g.m_sheets, f.m_scaleFactor, f.m_fitnesses.data()))
+		return "Unable to calculate fitness: " + getErrorString();
+	return true;		
+}
 
 bool LensInversionGAFactoryCommon::calculateFitness(const vector<float> &basisFunctionWeights,
 													const vector<float> &sheetValues,

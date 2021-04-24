@@ -3,6 +3,7 @@
 #include "graleconfig.h"
 #include "lensinversionparameterssingleplanecpu.h"
 #include "lensfitnessobject.h"
+#include "lensgagenomecalculator.h"
 #include "vector2d.h"
 #include <vector>
 #include <list>
@@ -19,48 +20,34 @@ class GravitationalLens;
 class LensFitnessObject;
 class ConfigurationParameters;
 
-// NOTE: the virtual inheritance is again very important!
-class GRALE_IMPORTEXPORT LensInversionGAFactoryCommon : public errut::ErrorBase
+class GRALE_IMPORTEXPORT LensInversionGAFactoryCommon : public LensGAGenomeCalculator, public errut::ErrorBase
 {
 public:
-	LensInversionGAFactoryCommon();
+	LensInversionGAFactoryCommon(std::unique_ptr<LensFitnessObject> fitObj);
 	~LensInversionGAFactoryCommon();
 
-	virtual bool init(const LensInversionParametersBase *p) = 0;
-
-	bool allowNegativeValues() const								{ return m_allowNegativeValues; }
+	bool allowNegativeValues() const override								{ return m_allowNegativeValues; }
 	bool useLogarithmicScaleSearch() const { return true; }
 
-	virtual std::unique_ptr<GravitationalLens> createLens(const std::vector<float> &basisFunctionWeights,
-	                                      const std::vector<float> &sheetValues,
-										  float scaleFactor,
-										  std::string &errStr) const = 0;
-
-	// Override this in derived class
-	virtual void sendMessage(const std::string &s) const;
-
-	bool calculateFitness(const std::vector<float> &basisFunctionWeights,
-						  const std::vector<float> &sheetValues,
-						  float &scaleFactor,
-						  float *pFitnessValues);
+	errut::bool_t createLens(const LensGAGenome &genome, std::unique_ptr<GravitationalLens> &lens) const;
+	errut::bool_t calculate(const eatk::Genome &genome, eatk::Fitness &fitness);
 
 	virtual bool initializeNewCalculation(const std::vector<float> &basisFunctionWeights, const std::vector<float> &sheetValues) = 0;
 	virtual bool calculateMassScaleFitness(float scaleFactor, float &fitness) = 0;
 	virtual bool calculateTotalFitness(float scaleFactor, float *pFitnessValues) = 0;
 
-	size_t getNumberOfBasisFunctions() const { return (size_t)m_numBasisFunctions; }
-	size_t getNumberOfSheets() const { return (size_t)m_numSheetValues; }
+	size_t getNumberOfBasisFunctions() const override { return (size_t)m_numBasisFunctions; }
+	size_t getNumberOfSheets() const override { return (size_t)m_numSheetValues; }
 
-	LensFitnessObject &getFitnessObject() { return *(m_fitnessObject.get()); }
-	size_t getNumberOfFitnessComponents() { return getFitnessObject().getNumberOfFitnessComponents(); }
+	size_t getNumberOfObjectives() const override { return m_fitnessObject->getNumberOfFitnessComponents(); }
+
+	// TODO: use general log method
+	void sendMessage(const std::string &s) const;
 protected:
-	virtual LensFitnessObject *createFitnessObject() = 0; // implemented in module
-
-	bool initializeLensFitnessObject(double z_d,
-		const std::vector<std::shared_ptr<ImagesDataExtended>> &images,
-		const ConfigurationParameters *pFitnessObjectParameters,
-		std::vector<ImagesDataExtended*> &reducedImages,
-		std::vector<ImagesDataExtended*> &shortImages);
+	virtual std::unique_ptr<GravitationalLens> createLens(const std::vector<float> &basisFunctionWeights,
+	                                      const std::vector<float> &sheetValues,
+										  float scaleFactor,
+										  std::string &errStr) const = 0;
 
 	bool setCommonParameters(int numSheetValues,
 							 bool allowNeg,
@@ -68,8 +55,20 @@ protected:
 							 double massUnit, double targetMass,
 							 const ScaleSearchParameters &searchParams);
 
+	LensFitnessObject &getFitnessObject() { return *(m_fitnessObject.get()); }
+
+	bool initializeLensFitnessObject(double z_d,
+		const std::vector<std::shared_ptr<ImagesDataExtended>> &images,
+		const ConfigurationParameters *pFitnessObjectParameters,
+		std::vector<ImagesDataExtended*> &reducedImages,
+		std::vector<ImagesDataExtended*> &shortImages);
 private:
-	void onGeneticAlgorithmStart();
+	bool calculateFitness(const std::vector<float> &basisFunctionWeights,
+						  const std::vector<float> &sheetValues,
+						  float &scaleFactor,
+						  float *pFitnessValues);
+
+	// void onGeneticAlgorithmStart(); // TODO: re-enable this
 
 	int m_numBasisFunctions, m_numSheetValues;
 	bool m_allowNegativeValues;

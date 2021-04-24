@@ -7,11 +7,13 @@
 #include <assert.h>
 
 using namespace std;
+using namespace errut;
 
 namespace grale
 {
 
-LensInversionGAFactoryMultiPlaneGPU::LensInversionGAFactoryMultiPlaneGPU()
+LensInversionGAFactoryMultiPlaneGPU::LensInversionGAFactoryMultiPlaneGPU(unique_ptr<LensFitnessObject> fitObj)
+	: LensInversionGAFactoryCommon(move(fitObj))
 {
 
 }
@@ -21,34 +23,28 @@ LensInversionGAFactoryMultiPlaneGPU::~LensInversionGAFactoryMultiPlaneGPU()
 
 }
 
-bool LensInversionGAFactoryMultiPlaneGPU::init(const LensInversionParametersBase *p)
+bool_t LensInversionGAFactoryMultiPlaneGPU::init(const LensInversionParametersBase &p)
 {
-	auto pParams = dynamic_cast<const LensInversionParametersMultiPlaneGPU *>(p);
+	auto pParams = dynamic_cast<const LensInversionParametersMultiPlaneGPU *>(&p);
 	if (!pParams)
-	{
-		setErrorString("Specified parameters are not of the correct type");
-		return false;
-	}
+		return "Specified parameters are not of the correct type";
 
 	if (!getenv("GRALE_MPCUDA_LIBRARY", m_libraryPath))
-	{
-		setErrorString("Environment variable GRALE_MPCUDA_LIBRARY for the helper library is not set");
-		return false;
-	}
+		return "Environment variable GRALE_MPCUDA_LIBRARY for the helper library is not set";
 
 	if (!analyzeLensBasisFunctions(pParams->getLensRedshifts(), pParams->getBasisLenses()))
-		return false;
+		return getErrorString(); // TODO
 
 	m_images.clear();
 	if (!analyzeSourceImages(pParams->getSourceImages(), pParams->getCosmology(), m_images))
-		return false;
+		return getErrorString(); // TODO
 
 	// These are the ones to actually use
 	m_reducedImages.clear();
 	m_shortImages.clear();
 	if (!initializeLensFitnessObject(numeric_limits<double>::quiet_NaN(), m_images, pParams->getFitnessObjectParameters(),
 									 m_reducedImages, m_shortImages))
-		return false;
+		return getErrorString(); // TODO
 
 	// We're going to init CUDA later, only when we actually need it. The way the code
 	// is structured now, extra factory instances could be created (well at least one),
@@ -80,7 +76,7 @@ bool LensInversionGAFactoryMultiPlaneGPU::init(const LensInversionParametersBase
 						pParams->getAllowNegativeWeights(), m_basisFunctionMasses,
 						pParams->getMassEstimate(), pParams->getMassEstimate(),
 						pParams->getMassScaleSearchParameters()))
-		return false;
+		return getErrorString(); // TODO
 
 	m_currentParams = make_unique<LensInversionParametersMultiPlaneGPU>(*pParams);
 	return true;

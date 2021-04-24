@@ -43,6 +43,7 @@
 #endif // SHOWEVOLUTION
 
 using namespace std;
+using namespace errut;
 
 namespace grale
 {
@@ -67,7 +68,8 @@ private:
 	LensInversionGAFactorySinglePlaneCPU *m_pFactory;
 };
 
-LensInversionGAFactorySinglePlaneCPU::LensInversionGAFactorySinglePlaneCPU()
+LensInversionGAFactorySinglePlaneCPU::LensInversionGAFactorySinglePlaneCPU(unique_ptr<LensFitnessObject> fitObj)
+	: LensInversionGAFactoryCommon(move(fitObj))
 {
 }
 
@@ -87,26 +89,14 @@ LensInversionGAFactorySinglePlaneCPU::~LensInversionGAFactorySinglePlaneCPU()
 	clear();
 }
 
-bool LensInversionGAFactorySinglePlaneCPU::init(const LensInversionParametersBase *p)
+bool_t LensInversionGAFactorySinglePlaneCPU::init(const LensInversionParametersBase &p)
 {
 	if (m_pCurrentParams.get() != 0)
-	{
-		setErrorString("Already initialized");
-		return false;
-	}
+		return "Already initialized";
 
-	if (p == 0)
-	{
-		setErrorString("Specified parameters can't be null");
-		return false;
-	}
-	
-	const LensInversionParametersSinglePlaneCPU *p2 = dynamic_cast<const LensInversionParametersSinglePlaneCPU *>(p);
+	const LensInversionParametersSinglePlaneCPU *p2 = dynamic_cast<const LensInversionParametersSinglePlaneCPU *>(&p);
 	if (!p2)
-	{
-		setErrorString("Invalid type of GA factory parameters");
-		return false;
-	}
+		return "Invalid type of GA factory parameters";
 
 	m_pCurrentParams = p2->createCopy();
 	assert(m_pCurrentParams.get());
@@ -114,11 +104,10 @@ bool LensInversionGAFactorySinglePlaneCPU::init(const LensInversionParametersBas
 	auto basisLenses = m_pCurrentParams->getBasisLenses();
 	if (basisLenses.size() == 0)
 	{
-		setErrorString("Unable to get basis lenses: " + m_pCurrentParams->getErrorString());
 		clear();
-		return false;
+		return "Unable to get basis lenses: " + m_pCurrentParams->getErrorString();
 	}
-
+	
 	for (const auto &bl : basisLenses)
 	{
 		m_basisLenses.push_back( { bl.m_pLens, bl.m_center });
@@ -126,9 +115,8 @@ bool LensInversionGAFactorySinglePlaneCPU::init(const LensInversionParametersBas
 		double m = bl.m_relevantLensingMass;
 		if (m < 0) // TODO: allow this to be overridden
 		{
-			setErrorString("A basis lens has a negative strong lensing mass");
 			clear();
-			return false;
+			return "A basis lens has a negative strong lensing mass";
 		}
 	}
 
@@ -148,7 +136,7 @@ bool LensInversionGAFactorySinglePlaneCPU::init(const LensInversionParametersBas
 	{
 		// Error string is already set
 		clear();
-		return false;
+		return getErrorString(); // TODO
 	}
 	
 	bool allowNegativeValues = m_pCurrentParams->allowNegativeValues();
@@ -166,7 +154,7 @@ bool LensInversionGAFactorySinglePlaneCPU::init(const LensInversionParametersBas
 	{
 		clear();
 		// Error string was already set
-		return false;
+		return getErrorString(); // TODO
 	}
 
 	return true;
