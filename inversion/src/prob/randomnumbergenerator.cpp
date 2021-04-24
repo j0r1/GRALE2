@@ -54,17 +54,22 @@ RandomNumberGenerator::~RandomNumberGenerator()
 	gsl_rng_free(m_pRng);
 }
 
-double RandomNumberGenerator::pickRandomNumber() const
+double RandomNumberGenerator::getRandomDouble()
 {
 	return gsl_rng_uniform(m_pRng);
+}
+
+uint32_t RandomNumberGenerator::getRandomUint32()
+{
+	return (uint32_t)gsl_rng_uniform_int(m_pRng, (unsigned long int)0xffffffff);
 }
 
 uint32_t RandomNumberGenerator::pickSeed()
 {
 	std::random_device rd;
-  uint32_t seed = rd();
+	uint32_t seed = rd();
 
-  return seed;
+	return seed;
 }
 
 } // end namespace

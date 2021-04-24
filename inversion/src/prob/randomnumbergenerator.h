@@ -28,6 +28,7 @@
 #define GRALE_RANDOMNUMBERGENERATOR_H
 
 #include "graleconfig.h"
+#include <eatk/randomnumbergenerator.h>
 #include <stdint.h>
 #include <gsl/gsl_rng.h>
 #include <stdlib.h>
@@ -35,12 +36,16 @@
 namespace grale
 {
 
-class GRALE_IMPORTEXPORT RandomNumberGenerator
+class GRALE_IMPORTEXPORT RandomNumberGenerator : public eatk::RandomNumberGenerator
 {
 public:
 	RandomNumberGenerator();
 	~RandomNumberGenerator();
-	double pickRandomNumber() const;
+
+    double getRandomDouble() override;
+    float getRandomFloat() override { return (float)getRandomDouble(); }
+	uint32_t getRandomUint32() override;
+
 	uint32_t getSeed() const { return m_seed; }
 private:
 	static uint32_t pickSeed();

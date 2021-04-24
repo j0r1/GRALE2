@@ -13,7 +13,7 @@ using namespace serut;
 
 int pickInt(RandomNumberGenerator &rnd, const int m)
 {
-    return (int)(rnd.pickRandomNumber()*m);
+    return (int)(rnd.getRandomDouble()*m);
 }
 
 bool_t addPointsToImages(RandomNumberGenerator &rnd, ImagesData &imgDat, const vector<ImagesData::PropertyName> &props)
@@ -33,10 +33,10 @@ bool_t addPointsToImages(RandomNumberGenerator &rnd, ImagesData &imgDat, const v
         {
             // Fill in new property values
             for (auto &pv : propValues)
-                pv.second = rnd.pickRandomNumber();
+                pv.second = rnd.getRandomDouble();
 
-            const double x = rnd.pickRandomNumber();
-            const double y = rnd.pickRandomNumber();
+            const double x = rnd.getRandomDouble();
+            const double y = rnd.getRandomDouble();
             if (imgDat.addPoint(i, { x, y }, propValues) < 0)
                 return "Error adding point: " + imgDat.getErrorString();
         }
@@ -138,7 +138,7 @@ bool_t addTimeDelays(RandomNumberGenerator &rnd, ImagesData &imgDat)
             continue;
         
         const int ptIdx = pickInt(rnd, numPts);
-        const double delay = rnd.pickRandomNumber();
+        const double delay = rnd.getRandomDouble();
 
         if (!imgDat.addTimeDelayInfo(imgIdx, ptIdx, delay))
             return "Can't add time delay: " + imgDat.getErrorString();

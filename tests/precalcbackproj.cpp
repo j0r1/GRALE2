@@ -66,7 +66,7 @@ int main(int argc, char *argv[])
 
 	for (int i = 0 ; i < NSOURCES ; i++) // images
 	{
-		double frac = (rng.pickRandomNumber()*0.4+0.5);
+		double frac = (rng.getRandomDouble()*0.4+0.5);
 		ImagesDataExtended *pImg = new ImagesDataExtended(1.0, frac);
 
 		int Nimg = 3;
@@ -77,17 +77,17 @@ int main(int argc, char *argv[])
 		{
 			for (int k = 0 ; k < 5 ; k++)
 			{
-				double x = (rng.pickRandomNumber()*2.0-1.0)*30*ANGLE_ARCSEC;
-				double y = (rng.pickRandomNumber()*2.0-1.0)*30*ANGLE_ARCSEC;
-				double intens = rng.pickRandomNumber();
-				double shear1 = rng.pickRandomNumber();
-				double shear2 = rng.pickRandomNumber();
+				double x = (rng.getRandomDouble()*2.0-1.0)*30*ANGLE_ARCSEC;
+				double y = (rng.getRandomDouble()*2.0-1.0)*30*ANGLE_ARCSEC;
+				double intens = rng.getRandomDouble();
+				double shear1 = rng.getRandomDouble();
+				double shear2 = rng.getRandomDouble();
 				Vector2Dd pt(x, y);
 				Vector2Dd shear(shear1, shear2);
 
 				int idx = pImg->addPoint(j, pt, intens, shear);
 
-				double td = rng.pickRandomNumber()*50;
+				double td = rng.getRandomDouble()*50;
 				pImg->addTimeDelayInfo(j, idx, td);
 			}
 		}
@@ -102,12 +102,12 @@ int main(int argc, char *argv[])
 	double z_d = 0.7;
 
 	GravitationalLens *pBaseLens = nullptr;
-	if (rng.pickRandomNumber() < 0.5)
+	if (rng.getRandomDouble() < 0.5)
 	{
-		double x = (rng.pickRandomNumber()*2.0-1.0)*25*ANGLE_ARCSEC;
-		double y = (rng.pickRandomNumber()*2.0-1.0)*25*ANGLE_ARCSEC;
-		double w = (rng.pickRandomNumber()*0.25+0.75)*20*ANGLE_ARCSEC;
-		double mass = (rng.pickRandomNumber()*0.9+0.1)*MASS_SOLAR*1e11;
+		double x = (rng.getRandomDouble()*2.0-1.0)*25*ANGLE_ARCSEC;
+		double y = (rng.getRandomDouble()*2.0-1.0)*25*ANGLE_ARCSEC;
+		double w = (rng.getRandomDouble()*0.25+0.75)*20*ANGLE_ARCSEC;
+		double mass = (rng.getRandomDouble()*0.9+0.1)*MASS_SOLAR*1e11;
 		MultiplePlummerLensParams params({PlummerLensInfo(mass, w, {x, y})});
 
 		pBaseLens = new MultiplePlummerLens();
@@ -118,7 +118,7 @@ int main(int argc, char *argv[])
 	else
 		cerr << "Not using base lens" << endl;
 
-	bool useMassSheet = (rng.pickRandomNumber() < 0.5)?true:false;
+	bool useMassSheet = (rng.getRandomDouble() < 0.5)?true:false;
 	shared_ptr<GravitationalLens> sheetLens;
 	if (useMassSheet)
 	{
@@ -136,12 +136,12 @@ int main(int argc, char *argv[])
 	vector<pair<shared_ptr<GravitationalLens>, Vector2Dd>> basisLenses;
 	for (int i = 0 ; i < NLENSES ; i++) // lenses
 	{
-		double x = (rng.pickRandomNumber()*2.0-1.0)*15*ANGLE_ARCSEC;
-		double y = (rng.pickRandomNumber()*2.0-1.0)*15*ANGLE_ARCSEC;
+		double x = (rng.getRandomDouble()*2.0-1.0)*15*ANGLE_ARCSEC;
+		double y = (rng.getRandomDouble()*2.0-1.0)*15*ANGLE_ARCSEC;
 		Vector2Dd ctr(x,y);
 
-		double w = (rng.pickRandomNumber()*0.9+0.1)*7*ANGLE_ARCSEC;
-		double mass = (rng.pickRandomNumber()*0.9+0.1)*MASS_SOLAR*1e13;
+		double w = (rng.getRandomDouble()*0.9+0.1)*7*ANGLE_ARCSEC;
+		double mass = (rng.getRandomDouble()*0.9+0.1)*MASS_SOLAR*1e13;
 		PlummerLensParams params(mass, w);
 		shared_ptr<GravitationalLens> pLens(new PlummerLens());
 		if (!pLens->init(D_d, &params))
@@ -158,14 +158,14 @@ int main(int argc, char *argv[])
 
 	vector<float> weights(basisLenses.size());
 	for (auto &w : weights)
-		w = (float)(rng.pickRandomNumber()*0.5+0.5);
+		w = (float)(rng.getRandomDouble()*0.5+0.5);
 
 	if (!matrix.calculateBasisMatrixProducts(weights, true, true, true))
 		cerr << "Couldn't calculate matrix product" << endl;
 
 	bpMatrix.storeDeflectionMatrixResults();
-	double scaleFactor = rng.pickRandomNumber()+0.5;
-	double sheetFactor = rng.pickRandomNumber()+0.3;
+	double scaleFactor = rng.getRandomDouble()+0.5;
+	double sheetFactor = rng.getRandomDouble()+0.3;
 	bpMatrix.calculate(scaleFactor, sheetFactor);
 
 	// Build corresponding composite lens

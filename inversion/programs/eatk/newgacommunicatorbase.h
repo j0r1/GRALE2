@@ -5,7 +5,6 @@
 #include "gaparameters.h"
 #include "lensinversiongafactorycommon.h"
 #include "inversioncommunicatornewga.h"
-#include "gslrngwrapper.h"
 #include "constants.h"
 #include "lensgaindividual.h"
 #include "lensgagenomemutation.h"
@@ -16,6 +15,7 @@
 #include "lensgastopcriterion.h"
 #include "lensfitnessgeneral.h"
 #include "lensgaconvergenceparameters.h"
+#include "randomnumbergenerator.h"
 #include <serut/memoryserializer.h>
 #include <eatk/evolutionaryalgorithm.h>
 #include <eatk/singlethreadedpopulationfitnesscalculation.h>
@@ -213,7 +213,7 @@ protected:
 								genomeCalculator->getNumberOfObjectives(),
 								std::make_shared<grale::LensGAFitnessComparison>());
 
-		std::shared_ptr<GslRNGWrapper> rng = std::make_shared<GslRNGWrapper>();
+		std::shared_ptr<grale::RandomNumberGenerator> rng = std::make_shared<grale::RandomNumberGenerator>();
 		MyGA ga;
 
 		WriteLineStdout("GAMESSAGESTR:RNG SEED: " + std::to_string(rng->getSeed()));
