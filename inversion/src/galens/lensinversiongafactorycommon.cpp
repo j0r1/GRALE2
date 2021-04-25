@@ -24,7 +24,7 @@ LensInversionGAFactoryCommon::~LensInversionGAFactoryCommon()
 
 }
 
-bool LensInversionGAFactoryCommon::setCommonParameters(int numSheetValues, 
+bool_t LensInversionGAFactoryCommon::setCommonParameters(int numSheetValues, 
 							bool allowNeg,
 							const std::vector<double> &basisFunctionMasses,
 							double massUnit, double targetMass,
@@ -32,10 +32,7 @@ bool LensInversionGAFactoryCommon::setCommonParameters(int numSheetValues,
 {
 	m_numBasisFunctions = (int)basisFunctionMasses.size();
 	if (m_numBasisFunctions == 0)
-	{
-		setErrorString("No basis function masses specified");
-		return false;
-	}
+		return "No basis function masses specified";
 
 	m_numSheetValues = numSheetValues;
 	m_allowNegativeValues = allowNeg;
@@ -59,7 +56,7 @@ bool LensInversionGAFactoryCommon::setCommonParameters(int numSheetValues,
 	return true;
 }
 
-bool LensInversionGAFactoryCommon::initializeLensFitnessObject(double z_d,
+bool_t LensInversionGAFactoryCommon::initializeLensFitnessObject(double z_d,
 	const std::vector<std::shared_ptr<ImagesDataExtended>> &images,
 	const ConfigurationParameters *pFitnessObjectParams,
 	vector<ImagesDataExtended*> &reducedImagesVector,
@@ -77,10 +74,7 @@ bool LensInversionGAFactoryCommon::initializeLensFitnessObject(double z_d,
 
 	fitnesObjectParams.clearRetrievalMarkers();
 	if (!m_fitnessObject->init(z_d, reducedImages, shortImages, &fitnesObjectParams))
-	{
-		setErrorString(m_fitnessObject->getErrorString());
-		return false;
-	}
+		return m_fitnessObject->getErrorString();
 
 	// Check that all keys in the fitness object parameters are actually used
 	vector<string> unusedKeys;
@@ -93,8 +87,7 @@ bool LensInversionGAFactoryCommon::initializeLensFitnessObject(double z_d,
 		ss << "Some parameters that were specified for the lens fitness object were not used:";
 		for (auto &k : unusedKeys)
 			ss << " " << k;
-		setErrorString(ss.str());
-		return false;
+		return ss.str();
 	}
 
 	shortImagesVector.clear();
@@ -153,12 +146,14 @@ bool_t LensInversionGAFactoryCommon::calculate(const eatk::Genome &genome, eatk:
 {
 	const LensGAGenome &g = static_cast<const LensGAGenome&>(genome);
 	LensGAFitness &f = static_cast<LensGAFitness&>(fitness);
-	if (!calculateFitness(g.m_weights, g.m_sheets, f.m_scaleFactor, f.m_fitnesses.data()))
-		return "Unable to calculate fitness: " + getErrorString();
+
+	auto r = calculateFitness(g.m_weights, g.m_sheets, f.m_scaleFactor, f.m_fitnesses.data());
+	if (!r)
+		return "Unable to calculate fitness: " + r.getErrorString();
 	return true;		
 }
 
-bool LensInversionGAFactoryCommon::calculateFitness(const vector<float> &basisFunctionWeights,
+bool_t LensInversionGAFactoryCommon::calculateFitness(const vector<float> &basisFunctionWeights,
 													const vector<float> &sheetValues,
 													float &scaleFactor,
 													float *pFitnessValues
@@ -172,9 +167,10 @@ bool LensInversionGAFactoryCommon::calculateFitness(const vector<float> &basisFu
 	}
 
 	int numBasisFunctions = basisFunctionWeights.size();
+	bool_t r;
 
-	if (!initializeNewCalculation(basisFunctionWeights, sheetValues))
-		return false;
+	if (!(r = initializeNewCalculation(basisFunctionWeights, sheetValues)))
+		return "Can't initialize new calculation: " + r.getErrorString();
 
 	// TODO: adjust mass scale depending on sheet value?
 
@@ -236,9 +232,8 @@ bool LensInversionGAFactoryCommon::calculateFitness(const vector<float> &basisFu
 			{
 				float realScale = IT(s);
 				float f;
-				
-				if (!calculateMassScaleFitness(realScale, f))
-					return false;
+				if (!(r = calculateMassScaleFitness(realScale, f)))
+					return "Can't calculate mass scale fitness: " + r.getErrorString();
 
 				if (f < currentBestFitness)
 				{
@@ -248,7 +243,6 @@ bool LensInversionGAFactoryCommon::calculateFitness(const vector<float> &basisFu
 
 				if (m_scaleSearchFileStream.is_open()) // To debug/illustrate the scale search
 					m_searchedPoints.push_back({ realScale, f});
-
 			}
 
 			startValue = currentBestScaleFactor-stepsize;
@@ -273,8 +267,8 @@ bool LensInversionGAFactoryCommon::calculateFitness(const vector<float> &basisFu
 	}
 
 	// Do the final (possibly multi-component) fitness evaluation
-	if (!calculateTotalFitness(scaleFactor, pFitnessValues))
-		return false;
+	if (!(r = calculateTotalFitness(scaleFactor, pFitnessValues)))
+		return "Can't calculate total fitness: " + r.getErrorString();
 
 	// To debug the mass scale search
 	if (m_scaleSearchFileStream.is_open())

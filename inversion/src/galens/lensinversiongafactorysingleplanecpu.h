@@ -55,12 +55,12 @@ public:
 										  float scaleFactor,
 										  std::string &errStr) const override;
 
-	bool initializeNewCalculation(const std::vector<float> &masses, const std::vector<float> &sheetValues) override;
-	bool calculateMassScaleFitness(float scaleFactor, float &fitness) override;
-	bool calculateTotalFitness(float scaleFactor, float *pFitnessValues) override;
+	errut::bool_t initializeNewCalculation(const std::vector<float> &masses, const std::vector<float> &sheetValues) override;
+	errut::bool_t calculateMassScaleFitness(float scaleFactor, float &fitness) override;
+	errut::bool_t calculateTotalFitness(float scaleFactor, float *pFitnessValues) override;
 private:
 	void clear();
-	bool localSubInit(double z_d, const std::vector<std::shared_ptr<ImagesDataExtended>> &images, 
+	errut::bool_t localSubInit(double z_d, const std::vector<std::shared_ptr<ImagesDataExtended>> &images, 
 	                  const std::vector<std::pair<std::shared_ptr<GravitationalLens>, Vector2D<double> > > &basisLenses,
 					  const GravitationalLens *pBaseLens, const GravitationalLens *pSheetLens, 
 					  const ConfigurationParameters *pFitnessObjectParams);

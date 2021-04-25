@@ -34,19 +34,19 @@ public:
 										  float scaleFactor,
 										  std::string &errStr) const override;
 
-	bool initializeNewCalculation(const std::vector<float> &basisFunctionWeights, const std::vector<float> &sheetValues) override;
-	bool calculateMassScaleFitness(float scaleFactor, float &fitness) override;
-	bool calculateTotalFitness(float scaleFactor, float *pFitnessValues) override;
+	errut::bool_t initializeNewCalculation(const std::vector<float> &basisFunctionWeights, const std::vector<float> &sheetValues) override;
+	errut::bool_t calculateMassScaleFitness(float scaleFactor, float &fitness) override;
+	errut::bool_t calculateTotalFitness(float scaleFactor, float *pFitnessValues) override;
 private:
-	bool analyzeLensBasisFunctions(const std::vector<double> redshifts,
+	errut::bool_t analyzeLensBasisFunctions(const std::vector<double> redshifts,
 								   const std::vector<std::vector<std::shared_ptr<LensInversionBasisLensInfo>>> &basisLenses);
-	bool analyzeSourceImages(const std::vector<std::shared_ptr<ImagesDataExtended>> &sourceImages,
+	errut::bool_t analyzeSourceImages(const std::vector<std::shared_ptr<ImagesDataExtended>> &sourceImages,
 							 const Cosmology &cosmology,
 							 std::vector<std::shared_ptr<ImagesDataExtended>> &imagesVector);
 	void convertGenomeSheetValuesToDensities(const std::vector<float> &sheetValues,
 											 std::vector<float> &sheetDensities) const;
-	bool scaleWeights(float scaleFactor);
-	bool checkCUDAInit();
+	void scaleWeights(float scaleFactor);
+	errut::bool_t checkCUDAInit();
 
 	std::unique_ptr<LensInversionParametersMultiPlaneGPU> m_currentParams;
 	std::shared_ptr<MPCUDABackProjector> m_cudaBpShort, m_cudaBpFull;

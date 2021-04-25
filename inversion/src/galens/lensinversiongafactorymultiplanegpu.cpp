@@ -32,19 +32,21 @@ bool_t LensInversionGAFactoryMultiPlaneGPU::init(const LensInversionParametersBa
 	if (!getenv("GRALE_MPCUDA_LIBRARY", m_libraryPath))
 		return "Environment variable GRALE_MPCUDA_LIBRARY for the helper library is not set";
 
-	if (!analyzeLensBasisFunctions(pParams->getLensRedshifts(), pParams->getBasisLenses()))
-		return getErrorString(); // TODO
+	bool_t r;
+
+	if (!(r = analyzeLensBasisFunctions(pParams->getLensRedshifts(), pParams->getBasisLenses())))
+		return r;
 
 	m_images.clear();
-	if (!analyzeSourceImages(pParams->getSourceImages(), pParams->getCosmology(), m_images))
-		return getErrorString(); // TODO
+	if (!(r = analyzeSourceImages(pParams->getSourceImages(), pParams->getCosmology(), m_images)))
+		return r;
 
 	// These are the ones to actually use
 	m_reducedImages.clear();
 	m_shortImages.clear();
-	if (!initializeLensFitnessObject(numeric_limits<double>::quiet_NaN(), m_images, pParams->getFitnessObjectParameters(),
-									 m_reducedImages, m_shortImages))
-		return getErrorString(); // TODO
+	if (!(r = initializeLensFitnessObject(numeric_limits<double>::quiet_NaN(), m_images, pParams->getFitnessObjectParameters(),
+									 m_reducedImages, m_shortImages)))
+		return r;
 
 	// We're going to init CUDA later, only when we actually need it. The way the code
 	// is structured now, extra factory instances could be created (well at least one),
@@ -72,30 +74,24 @@ bool_t LensInversionGAFactoryMultiPlaneGPU::init(const LensInversionParametersBa
 	}
 
 	// Call setCommonParameters
-	if (!setCommonParameters(m_sheetMultipliers.size(),
+	if (!(r = setCommonParameters(m_sheetMultipliers.size(),
 						pParams->getAllowNegativeWeights(), m_basisFunctionMasses,
 						pParams->getMassEstimate(), pParams->getMassEstimate(),
-						pParams->getMassScaleSearchParameters()))
-		return getErrorString(); // TODO
+						pParams->getMassScaleSearchParameters())))
+		return r;
 
 	m_currentParams = make_unique<LensInversionParametersMultiPlaneGPU>(*pParams);
 	return true;
 }
 
-bool LensInversionGAFactoryMultiPlaneGPU::analyzeLensBasisFunctions(const vector<double> redshifts,
+bool_t LensInversionGAFactoryMultiPlaneGPU::analyzeLensBasisFunctions(const vector<double> redshifts,
 						  const vector<vector<shared_ptr<LensInversionBasisLensInfo>>> &basisLenses)
 {
 	if (redshifts.size() == 0)
-	{
-		setErrorString("No lens planes present");
-		return false;
-	}
+		return "No lens planes present";
 
 	if (redshifts.size() != basisLenses.size())
-	{
-		setErrorString("Incompatible number of redshifts (" + to_string(redshifts.size()) + ") and lens planes (" + to_string(basisLenses.size()) + ")");
-		return false;
-	}
+		return "Incompatible number of redshifts (" + to_string(redshifts.size()) + ") and lens planes (" + to_string(basisLenses.size()) + ")";
 
 	// Store the doubles in a float vector
 	m_lensRedshifts.clear();
@@ -109,10 +105,7 @@ bool LensInversionGAFactoryMultiPlaneGPU::analyzeLensBasisFunctions(const vector
 	for (auto &plane : basisLenses)
 	{
 		if (plane.size() == 0)
-		{
-			setErrorString("A lens plane without basis functions is present");
-			return false;
-		}
+			return "A lens plane without basis functions is present";
 
 		// Just create the right sizes for these vectors
 		m_scaledPlaneWeights.push_back(vector<float>(plane.size(), 0));
@@ -124,24 +117,15 @@ bool LensInversionGAFactoryMultiPlaneGPU::analyzeLensBasisFunctions(const vector
 		for (auto &bl : plane)
 		{
 			if (bl->m_relevantLensingMass < 0)
-			{
-				setErrorString("A basis lens was found to have a negative strong lensing mass");
-				return false;
-			}
+				return "A basis lens was found to have a negative strong lensing mass";
 
 			const PlummerLens *pPlummerLens = dynamic_cast<const PlummerLens *>(bl->m_pLens.get());
 			if (!pPlummerLens)
-			{
-				setErrorString("Not all basis functions appear to be Plummer lens models");
-				return false;
-			}
+				return "Not all basis functions appear to be Plummer lens models";
 
 			const PlummerLensParams *pParams = dynamic_cast<const PlummerLensParams *>(pPlummerLens->getLensParameters());
 			if (!pParams)
-			{
-				setErrorString("Unexpected: couldn't get Plummer lens parameters");
-				return false;
-			}
+				return "Unexpected: couldn't get Plummer lens parameters";
 
 			plummers.push_back(PlummerLensInfo { pParams->getLensMass(), pParams->getAngularWidth(), bl->m_center });
 			m_basisFunctionMasses.push_back(bl->m_relevantLensingMass);
@@ -151,15 +135,12 @@ bool LensInversionGAFactoryMultiPlaneGPU::analyzeLensBasisFunctions(const vector
 	return true;
 }
 
-bool LensInversionGAFactoryMultiPlaneGPU::analyzeSourceImages(const vector<shared_ptr<ImagesDataExtended>> &sourceImages,
+bool_t LensInversionGAFactoryMultiPlaneGPU::analyzeSourceImages(const vector<shared_ptr<ImagesDataExtended>> &sourceImages,
 						 const Cosmology &cosmology,
 						 vector<shared_ptr<ImagesDataExtended>> &imagesVector)
 {
 	if (sourceImages.size() == 0)
-	{
-		setErrorString("No images present");
-		return false;
-	}
+		return "No images present";
 
 	imagesVector.clear();
 	
@@ -170,16 +151,10 @@ bool LensInversionGAFactoryMultiPlaneGPU::analyzeSourceImages(const vector<share
 
 		double z;
 		if (!img->hasExtraParameter("z") || !img->getExtraParameter("z", z))
-		{
-			setErrorString("Images data set " + to_string(count) + " does not contain the redshift 'z' parameter");
-			return false;
-		}
+			return "Images data set " + to_string(count) + " does not contain the redshift 'z' parameter";
 
 		if (img->getDds() != 0 || img->getDs() != 0)
-		{
-			setErrorString("Images data set " + to_string(count) + " does not have Dds and Ds set to zero, required for the multi-plane inversion");
-			return false;
-		}
+			return "Images data set " + to_string(count) + " does not have Dds and Ds set to zero, required for the multi-plane inversion";
 
 		// Calculate Ds from redshift, and set it in a copy
 		double Ds = cosmology.getAngularDiameterDistance(z);
@@ -226,7 +201,7 @@ unique_ptr<GravitationalLens> LensInversionGAFactoryMultiPlaneGPU::createLens(co
 			if (!planeLensParams.addLens(basisFunctionWeights[basisFunctionWeightIdx++]*scale,
 									bf->m_center, 0, *(bf->m_pLens.get())))
 			{
-				setErrorString("Unable to add basis function to composite lens: " + planeLensParams.getErrorString());
+				errStr = "Unable to add basis function to composite lens: " + planeLensParams.getErrorString();
 				return nullptr;
 			}
 		}
@@ -239,12 +214,12 @@ unique_ptr<GravitationalLens> LensInversionGAFactoryMultiPlaneGPU::createLens(co
 
 			if (!sheetLens.init(Dd, &sheetParams))
 			{
-				setErrorString("Could not initialize a mass sheet lens: " + sheetLens.getErrorString());
+				errStr = "Could not initialize a mass sheet lens: " + sheetLens.getErrorString();
 				return nullptr;
 			}
 			if (!planeLensParams.addLens(1.0, Vector2Dd(0, 0), 0, sheetLens))
 			{
-				setErrorString("Unable to add sheet lens to composite lens: " + planeLensParams.getErrorString());
+				errStr = "Unable to add sheet lens to composite lens: " + planeLensParams.getErrorString();
 				return nullptr;
 			}
 		}
@@ -252,7 +227,7 @@ unique_ptr<GravitationalLens> LensInversionGAFactoryMultiPlaneGPU::createLens(co
 		auto compLens = make_shared<CompositeLens>();
 		if (!compLens->init(Dd, &planeLensParams))
 		{
-			setErrorString("Unable to create a composite lens for a lens plane: " + compLens->getErrorString());
+			errStr = "Unable to create a composite lens for a lens plane: " + compLens->getErrorString();
 			return nullptr;
 		}
 		containerParams.add(compLens, z);
@@ -263,7 +238,7 @@ unique_ptr<GravitationalLens> LensInversionGAFactoryMultiPlaneGPU::createLens(co
 	unique_ptr<MultiPlaneContainer> containerLens = make_unique<MultiPlaneContainer>();
 	if (!containerLens->init(0, &containerParams)) // Dd must be set to 0!
 	{
-		setErrorString("Unable to initialize the multi-plane container: " + containerLens->getErrorString());
+		errStr = "Unable to initialize the multi-plane container: " + containerLens->getErrorString();
 		return nullptr;
 	}
 
@@ -280,7 +255,7 @@ void LensInversionGAFactoryMultiPlaneGPU::convertGenomeSheetValuesToDensities(co
 		sheetDensities[i] = sheetValues[i]*m_sheetMultipliers[i];
 }
 
-bool LensInversionGAFactoryMultiPlaneGPU::initializeNewCalculation(const std::vector<float> &basisFunctionWeights, const std::vector<float> &sheetValues)
+bool_t LensInversionGAFactoryMultiPlaneGPU::initializeNewCalculation(const std::vector<float> &basisFunctionWeights, const std::vector<float> &sheetValues)
 {
 	convertGenomeSheetValuesToDensities(sheetValues, m_sheetDensities);
 
@@ -298,7 +273,7 @@ bool LensInversionGAFactoryMultiPlaneGPU::initializeNewCalculation(const std::ve
 	return true;
 }
 
-bool LensInversionGAFactoryMultiPlaneGPU::scaleWeights(float scaleFactor)
+void LensInversionGAFactoryMultiPlaneGPU::scaleWeights(float scaleFactor)
 {
 	assert(m_basePlaneWeights.size() == m_scaledPlaneWeights.size());
 	for (size_t i = 0 ; i  < m_scaledPlaneWeights.size() ; i++)
@@ -310,79 +285,60 @@ bool LensInversionGAFactoryMultiPlaneGPU::scaleWeights(float scaleFactor)
 		for (size_t j = 0 ; j < scaledPlane.size() ; j++)
 			scaledPlane[j] = scaleFactor*basePlane[j];
 	}
-
-	return true;
 }
 
-bool LensInversionGAFactoryMultiPlaneGPU::calculateMassScaleFitness(float scaleFactor, float &fitness)
+bool_t LensInversionGAFactoryMultiPlaneGPU::calculateMassScaleFitness(float scaleFactor, float &fitness)
 {
-	if (!checkCUDAInit())
-		return false;
+	bool_t r;
+	if (!(r = checkCUDAInit()))
+		return r;
 
-	if (!scaleWeights(scaleFactor))
-		return false;
+	scaleWeights(scaleFactor);
 
 	assert(m_cudaBpShort.get());
 	if (!m_cudaBpShort->calculateSourcePositions(m_scaledPlaneWeights, m_sheetDensities))
-	{
-		setErrorString("Error back-projecting images: " + m_cudaBpShort->getErrorString());
-		return false;
-	}
+		return "Error back-projecting images: " + m_cudaBpShort->getErrorString();
 
 	LensFitnessObject &fitnessObject = getFitnessObject();
 	if (!fitnessObject.calculateMassScaleFitness(*m_cudaBpShort, fitness))
-	{
-		setErrorString("Unable to calculate fitness for mass scale: " + fitnessObject.getErrorString());
-		return false;
-	}
+		return "Unable to calculate fitness for mass scale: " + fitnessObject.getErrorString();
 	return true;
 }
 
-bool LensInversionGAFactoryMultiPlaneGPU::calculateTotalFitness(float scaleFactor, float *pFitnessValues)
+bool_t LensInversionGAFactoryMultiPlaneGPU::calculateTotalFitness(float scaleFactor, float *pFitnessValues)
 {
-	if (!checkCUDAInit())
-		return false;
+	bool_t r;
+	if (!(r = checkCUDAInit()))
+		return r;
 
-	if (!scaleWeights(scaleFactor))
-		return false;
+	scaleWeights(scaleFactor);
 
 	assert(m_cudaBpFull.get());
 	if (!m_cudaBpFull->calculateSourcePositions(m_scaledPlaneWeights, m_sheetDensities))
-	{
-		setErrorString("Error back-projecting images: " + m_cudaBpFull->getErrorString());
-		return false;
-	}
+		return "Error back-projecting images: " + m_cudaBpFull->getErrorString();
 
 	LensFitnessObject &fitnessObject = getFitnessObject();
 	if (!fitnessObject.calculateOverallFitness(*m_cudaBpFull, pFitnessValues))
-	{
-		setErrorString("Unable to calculate full fitness: " + fitnessObject.getErrorString());
-		return false;
-	}
+		return "Unable to calculate full fitness: " + fitnessObject.getErrorString();
 
 	return true;
 }
 
-bool LensInversionGAFactoryMultiPlaneGPU::checkCUDAInit()
+bool_t LensInversionGAFactoryMultiPlaneGPU::checkCUDAInit()
 {
 	if (m_cudaInitialized)
 		return true;
 
 	if (m_cudaInitAttempted)
-	{
-		setErrorString("CUDA initialization has failed previously");
-		return false;
-	}
+		return "CUDA initialization has failed previously";
+
 	m_cudaInitAttempted = true;
 
 	const LensInversionParametersMultiPlaneGPU *pParams = m_currentParams.get();
 	if (!pParams)
-	{
-		setErrorString("Unexpected: parameters is null, we should already have checked this");
-		return false;
-	}
+		return "Unexpected: parameters is null, we should already have checked this";
 
-	auto createBackProjector = [this, pParams](auto imgs, int devIdx=-1) -> shared_ptr<MPCUDABackProjector>
+	auto createBackProjector = [this, pParams](auto imgs, string &errStr, int devIdx=-1) -> shared_ptr<MPCUDABackProjector>
 	{
 		vector<float> sourceRedshifts;
 		for (auto i : imgs)
@@ -390,7 +346,7 @@ bool LensInversionGAFactoryMultiPlaneGPU::checkCUDAInit()
 			double z;
 			if (!i->hasExtraParameter("z") || !i->getExtraParameter("z", z))
 			{
-				setErrorString("Unexpected: no 'z' parameter in images data instance");
+				errStr = "Unexpected: no 'z' parameter in images data instance";
 				return nullptr;
 			}
 			sourceRedshifts.push_back((float)z);
@@ -403,24 +359,25 @@ bool LensInversionGAFactoryMultiPlaneGPU::checkCUDAInit()
 		if (!bp->init(m_libraryPath, devIdx, pParams->getCosmology(), 
 					  m_lensRedshifts, m_basisLenses, sourceRedshifts, imgs))
 		{
-			setErrorString("Unable to initialize CUDA based backprojector: " + bp->getErrorString());
+			errStr = "Unable to initialize CUDA based backprojector: " + bp->getErrorString();
 			return nullptr;
 		}
 		return bp;
 	};
 
 	// Allocate backprojector for reducedImages
-	m_cudaBpFull = createBackProjector(m_reducedImages);
+	string errStr = "Unknown error";
+	m_cudaBpFull = createBackProjector(m_reducedImages, errStr);
 	if (!m_cudaBpFull.get())
-		return false;
+		return errStr;
 
 	if (m_shortImages.size() > 0) // We can speed up the scale search with a smaller set of images
 	{
 		// Make sure that we're using the same device, we won't be calculating
 		// short and full versions at the same time
-		m_cudaBpShort = createBackProjector(m_shortImages, m_cudaBpFull->getDeviceIndex());
+		m_cudaBpShort = createBackProjector(m_shortImages, errStr, m_cudaBpFull->getDeviceIndex());
 		if (!m_cudaBpShort.get())
-			return false;
+			return errStr;
 	}
 	else // use the same
 		m_cudaBpShort = m_cudaBpFull;

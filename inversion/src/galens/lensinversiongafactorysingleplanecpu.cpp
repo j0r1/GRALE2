@@ -130,13 +130,13 @@ bool_t LensInversionGAFactorySinglePlaneCPU::init(const LensInversionParametersB
 	else // no sheet
 		m_sheetLens.reset();
 
+	bool_t r;
 	// perform sub-initialization
-	if (!localSubInit(p2->getZ_d(), p2->getImages(), m_basisLenses, p2->getBaseLens(), pSheetLens, 
-				m_pCurrentParams->getFitnessObjectParameters()))
+	if (!(r = localSubInit(p2->getZ_d(), p2->getImages(), m_basisLenses, p2->getBaseLens(), pSheetLens, 
+				m_pCurrentParams->getFitnessObjectParameters())))
 	{
-		// Error string is already set
 		clear();
-		return getErrorString(); // TODO
+		return r;
 	}
 	
 	bool allowNegativeValues = m_pCurrentParams->allowNegativeValues();
@@ -147,14 +147,13 @@ bool_t LensInversionGAFactorySinglePlaneCPU::init(const LensInversionParametersB
 	for (const auto &bl : basisLenses)
 		basisFunctionMasses.push_back(bl.m_relevantLensingMass);
 
-	if (!setCommonParameters(numSheetValues, allowNegativeValues,
+	if (!(r = setCommonParameters(numSheetValues, allowNegativeValues,
 	                         basisFunctionMasses,
 							 massScale, massScale,
-							 massScaleSearchParams))
+							 massScaleSearchParams)))
 	{
 		clear();
-		// Error string was already set
-		return getErrorString(); // TODO
+		return r;
 	}
 
 	return true;
@@ -243,23 +242,21 @@ void GridLensInversionGAFactoryBase::onSortedPopulation(const std::vector<mogal:
 
 #endif // SHOWEVOLUTION
 
-bool LensInversionGAFactorySinglePlaneCPU::localSubInit(double z_d, const vector<shared_ptr<ImagesDataExtended>> &images, 
+bool_t LensInversionGAFactorySinglePlaneCPU::localSubInit(double z_d, const vector<shared_ptr<ImagesDataExtended>> &images, 
 	                  const vector<pair<shared_ptr<GravitationalLens>, Vector2D<double> > > &basisLenses,
                       const GravitationalLens *pBaseLens, const GravitationalLens *pSheetLens, 
 					  const ConfigurationParameters *pFitnessObjectParams)
 {
 	vector<ImagesDataExtended*> reducedImagesVector;
 	vector<ImagesDataExtended*> shortImagesVector;
+	bool_t r;
 
-	if (!initializeLensFitnessObject(z_d, images, pFitnessObjectParams, reducedImagesVector, shortImagesVector))
-		return false;
+	if (!(r = initializeLensFitnessObject(z_d, images, pFitnessObjectParams, reducedImagesVector, shortImagesVector)))
+		return r;
 
 	m_pDeflectionMatrix = make_unique<GADeflectionMatrix>(this);
 	if (!m_pDeflectionMatrix->startInit())
-	{
-		setErrorString(m_pDeflectionMatrix->getErrorString());
-		return false;
-	}
+		return "Can't start deflection matrix initialization: " + m_pDeflectionMatrix->getErrorString();
 
 	std::vector<bool> totalDeflectionFlags, totalDerivativeFlags, totalPotentialFlags;
 
@@ -267,13 +264,10 @@ bool LensInversionGAFactorySinglePlaneCPU::localSubInit(double z_d, const vector
 	fitnessObject.getTotalCalcFlags(totalDeflectionFlags, totalDerivativeFlags, totalPotentialFlags);
 	
 	m_pTotalBPMatrix = make_shared<BackProjectMatrix>();
-	if (!m_pTotalBPMatrix->startInit(z_d, basisLenses[0].first->getLensDistance(), m_pDeflectionMatrix.get(),
+	if (!(r = m_pTotalBPMatrix->startInit(z_d, basisLenses[0].first->getLensDistance(), m_pDeflectionMatrix.get(),
 				         reducedImagesVector, totalDeflectionFlags, totalDerivativeFlags, 
-					 totalPotentialFlags, pBaseLens, pSheetLens))
-	{
-		setErrorString(m_pTotalBPMatrix->getErrorString());
-		return false;
-	}
+					 totalPotentialFlags, pBaseLens, pSheetLens)))
+		return "Can't start back projection matrix initialization: " + m_pTotalBPMatrix->getErrorString();
 
 	if (shortImagesVector.size() > 0) // Ok, can improve speed in mass-scale calculation
 	{
@@ -282,54 +276,39 @@ bool LensInversionGAFactorySinglePlaneCPU::localSubInit(double z_d, const vector
 		fitnessObject.getShortCalcFlags(shortDeflectionFlags, shortDerivativeFlags, shortPotentialFlags);
 
 		m_pShortBPMatrix = make_shared<BackProjectMatrix>();
-		if (!m_pShortBPMatrix->startInit(z_d, basisLenses[0].first->getLensDistance(), m_pDeflectionMatrix.get(),
+		if (!(r = m_pShortBPMatrix->startInit(z_d, basisLenses[0].first->getLensDistance(), m_pDeflectionMatrix.get(),
 						 shortImagesVector, shortDeflectionFlags, shortDerivativeFlags, 
-						 shortPotentialFlags, pBaseLens, pSheetLens))
-		{
-			setErrorString(m_pShortBPMatrix->getErrorString());
-			return false;
-		}
+						 shortPotentialFlags, pBaseLens, pSheetLens)))
+			return "Can't start short back projection matrix initialization: " + r.getErrorString();
 	}
 	else
 		m_pShortBPMatrix = m_pTotalBPMatrix;
 
 	bool err = false;
 
-	if (!m_pDeflectionMatrix->endInit(basisLenses))
-	{
-		setErrorString(m_pDeflectionMatrix->getErrorString());
-		return false;
-	}
+	if (!(r = m_pDeflectionMatrix->endInit(basisLenses)))
+		return "Can't end deflection matrix initialization: " + m_pDeflectionMatrix->getErrorString();
 
 	if (!m_pTotalBPMatrix->endInit())
-	{
-		setErrorString(m_pTotalBPMatrix->getErrorString());
-		return false;
-	}
+		return "Can't end total backprojection matrix initialization: " + m_pTotalBPMatrix->getErrorString();
 
 	if (m_pShortBPMatrix.get() != m_pTotalBPMatrix.get())
 	{
 		if (!m_pShortBPMatrix->endInit())
-		{
-			setErrorString(m_pShortBPMatrix->getErrorString());
-			return false;
-		}
+			return "Can't end short backprojection matrix initialization: " + m_pShortBPMatrix->getErrorString();
 	}
 
 	return true;
 }
 
-bool LensInversionGAFactorySinglePlaneCPU::initializeNewCalculation(const vector<float> &basisFunctionWeights, const vector<float> &sheetValues)
+bool_t LensInversionGAFactorySinglePlaneCPU::initializeNewCalculation(const vector<float> &basisFunctionWeights, const vector<float> &sheetValues)
 {
 	if (sheetValues.size() == 0)
 		m_sheetScale = 0;
 	else if (sheetValues.size() == 1)
 		m_sheetScale = sheetValues[0];
 	else
-	{
-		cerr << "Unexpected: got more (" << sheetValues.size() << ") mass sheet contributions than expected" << endl;
-		return false;
-	}
+		return "Unexpected: got more (" + to_string(sheetValues.size()) + ") mass sheet contributions than expected";
 	
 	m_pDeflectionMatrix->calculateBasisMatrixProducts(basisFunctionWeights, true, true, true);
 	m_pTotalBPMatrix->storeDeflectionMatrixResults();
@@ -337,7 +316,7 @@ bool LensInversionGAFactorySinglePlaneCPU::initializeNewCalculation(const vector
 	return true;
 }
 
-bool LensInversionGAFactorySinglePlaneCPU::calculateMassScaleFitness(float scaleFactor, float &fitness)
+bool_t LensInversionGAFactorySinglePlaneCPU::calculateMassScaleFitness(float scaleFactor, float &fitness)
 {
 	LensFitnessObject &fitnessFunction = getFitnessObject();
 
@@ -350,14 +329,12 @@ bool LensInversionGAFactorySinglePlaneCPU::calculateMassScaleFitness(float scale
 		m_pShortBPMatrix->calculateConvergence(*(fitnessFunction.getShortConvergenceFlags()));
 
 	if (!fitnessFunction.calculateMassScaleFitness(*m_pShortBPMatrix, fitness))
-	{
-		cerr << "ERROR: Unable to calculate mass scale fitness: " << fitnessFunction.getErrorString() << endl;
-		return false;
-	}
+		return "Unable to calculate mass scale fitness: " + fitnessFunction.getErrorString();
+
 	return true;
 }
 
-bool LensInversionGAFactorySinglePlaneCPU::calculateTotalFitness(float scaleFactor, float *pFitnessValues)
+bool_t LensInversionGAFactorySinglePlaneCPU::calculateTotalFitness(float scaleFactor, float *pFitnessValues)
 {
 	LensFitnessObject &fitnessFunction = getFitnessObject();
 
@@ -370,10 +347,7 @@ bool LensInversionGAFactorySinglePlaneCPU::calculateTotalFitness(float scaleFact
 		m_pTotalBPMatrix->calculateConvergence(*(fitnessFunction.getTotalConvergenceFlags()));
 
 	if (!fitnessFunction.calculateOverallFitness(*m_pTotalBPMatrix, pFitnessValues))
-	{
-		cerr << "ERROR: Unable to calculate full fitness: " << fitnessFunction.getErrorString() << endl;
-		return false;
-	}
+		return "Unable to calculate full fitness: " + fitnessFunction.getErrorString();
 
 	return true;
 }

@@ -20,7 +20,7 @@ class GravitationalLens;
 class LensFitnessObject;
 class ConfigurationParameters;
 
-class GRALE_IMPORTEXPORT LensInversionGAFactoryCommon : public LensGAGenomeCalculator, public errut::ErrorBase
+class GRALE_IMPORTEXPORT LensInversionGAFactoryCommon : public LensGAGenomeCalculator
 {
 public:
 	LensInversionGAFactoryCommon(std::unique_ptr<LensFitnessObject> fitObj);
@@ -32,9 +32,9 @@ public:
 	errut::bool_t createLens(const LensGAGenome &genome, std::unique_ptr<GravitationalLens> &lens) const;
 	errut::bool_t calculate(const eatk::Genome &genome, eatk::Fitness &fitness);
 
-	virtual bool initializeNewCalculation(const std::vector<float> &basisFunctionWeights, const std::vector<float> &sheetValues) = 0;
-	virtual bool calculateMassScaleFitness(float scaleFactor, float &fitness) = 0;
-	virtual bool calculateTotalFitness(float scaleFactor, float *pFitnessValues) = 0;
+	virtual errut::bool_t initializeNewCalculation(const std::vector<float> &basisFunctionWeights, const std::vector<float> &sheetValues) = 0;
+	virtual errut::bool_t calculateMassScaleFitness(float scaleFactor, float &fitness) = 0;
+	virtual errut::bool_t calculateTotalFitness(float scaleFactor, float *pFitnessValues) = 0;
 
 	size_t getNumberOfBasisFunctions() const override { return (size_t)m_numBasisFunctions; }
 	size_t getNumberOfSheets() const override { return (size_t)m_numSheetValues; }
@@ -49,7 +49,7 @@ protected:
 										  float scaleFactor,
 										  std::string &errStr) const = 0;
 
-	bool setCommonParameters(int numSheetValues,
+	errut::bool_t setCommonParameters(int numSheetValues,
 							 bool allowNeg,
 							 const std::vector<double> &basisFunctionMasses,
 							 double massUnit, double targetMass,
@@ -57,13 +57,13 @@ protected:
 
 	LensFitnessObject &getFitnessObject() { return *(m_fitnessObject.get()); }
 
-	bool initializeLensFitnessObject(double z_d,
+	errut::bool_t initializeLensFitnessObject(double z_d,
 		const std::vector<std::shared_ptr<ImagesDataExtended>> &images,
 		const ConfigurationParameters *pFitnessObjectParameters,
 		std::vector<ImagesDataExtended*> &reducedImages,
 		std::vector<ImagesDataExtended*> &shortImages);
 private:
-	bool calculateFitness(const std::vector<float> &basisFunctionWeights,
+	errut::bool_t calculateFitness(const std::vector<float> &basisFunctionWeights,
 						  const std::vector<float> &sheetValues,
 						  float &scaleFactor,
 						  float *pFitnessValues);
