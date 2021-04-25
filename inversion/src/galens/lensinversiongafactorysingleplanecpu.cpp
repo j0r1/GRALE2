@@ -62,7 +62,7 @@ public:
 private:
 	void log(const string &s) override
 	{
-		m_pFactory->sendMessage(s);
+		m_pFactory->log(s);
 	}
 
 	LensInversionGAFactorySinglePlaneCPU *m_pFactory;

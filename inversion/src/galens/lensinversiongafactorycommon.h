@@ -40,9 +40,6 @@ public:
 	size_t getNumberOfSheets() const override { return (size_t)m_numSheetValues; }
 
 	size_t getNumberOfObjectives() const override { return m_fitnessObject->getNumberOfFitnessComponents(); }
-
-	// TODO: use general log method
-	void sendMessage(const std::string &s) const;
 protected:
 	virtual std::unique_ptr<GravitationalLens> createLens(const std::vector<float> &basisFunctionWeights,
 	                                      const std::vector<float> &sheetValues,

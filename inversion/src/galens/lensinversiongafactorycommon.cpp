@@ -45,13 +45,13 @@ bool_t LensInversionGAFactoryCommon::setCommonParameters(int numSheetValues,
 
 	m_massScaleSearchParams = searchParams;
 	if (m_massScaleSearchParams == ScaleSearchParameters(true))
-		sendMessage("Using wide scale factor search");
+		log("Using wide scale factor search");
 	else if (m_massScaleSearchParams == ScaleSearchParameters(false))
-		sendMessage("Using normal scale factor search");
+		log("Using normal scale factor search");
 	else if (m_massScaleSearchParams.getNumberOfIterations() <= 0)
-		sendMessage("Not using any extra mass scale search");
+		log("Not using any extra mass scale search");
 	else
-		sendMessage("Using custom scaling parameters: " + m_massScaleSearchParams.toString());
+		log("Using custom scaling parameters: " + m_massScaleSearchParams.toString());
 
 	return true;
 }
@@ -98,12 +98,6 @@ bool_t LensInversionGAFactoryCommon::initializeLensFitnessObject(double z_d,
 	shortImagesVector.insert(shortImagesVector.end(), shortImages.begin(), shortImages.end());
 
 	return true;
-}
-
-
-void LensInversionGAFactoryCommon::sendMessage(const std::string &s) const
-{
-	log(s);
 }
 
 // TODO: re-enable this
