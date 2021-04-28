@@ -76,13 +76,53 @@ class IOWrapper(timed_or_untimed_io.IO):
         self.f.write(b)
         return super(IOWrapper, self).writeBytes(b)
 
+# Returns either None (to use the default setting of Popen) or adds extraEnv to the current
+# environment variables
+def _mergeExtraEnvironmentVariables(extraEnv):
+    env = None
+    if extraEnv is not None:
+        env = { }
+        for n in os.environ:
+            env[n] = os.environ[n]
+
+        for n in extraEnv:
+            env[n] = extraEnv[n]
+
+    return env
+
+def _writeParameters(io, paramName, paramBytes):
+    io.writeLine("{}:{}".format(paramName,len(paramBytes)))
+    io.writeBytes(paramBytes)
+
+def _readString(io, prefix, operation = lambda x: x):
+    prefix += ":"
+    line = io.readLine(30)
+    if not line.startswith(prefix):
+        raise InverterException("Unexpected identifier from inverter process: '{}'".format(line))
+    return operation(line[len(prefix):])
+
+def _readInteger(io, prefix):
+    return _readString(io, prefix, lambda x: int(x))
+
+def _terminateProcess(proc, feedbackObject):
+    try:
+        proc.stdin.close()
+        proc.stdout.close()
+    except:
+        pass
+    time.sleep(0.1)
+    try:
+        privutil.terminateProcess(proc, feedbackObject = feedbackObject)
+    except Exception as e:
+        if debugOutput:
+            print("Ignoring exception when terminating program: " + str(e))
+
 class Inverter(object):
     def __init__(self, args, inversionType, extraEnv = None, feedbackObject = None, readDescriptor = None, 
                  writeDescriptor = None):
         self.invType = inversionType
         self.args = args
         self.extraEnv = extraEnv
-        self.version = ""
         self.feedback = feedbackObject
         self.readDescriptor = readDescriptor
         self.writeDescriptor = writeDescriptor
@@ -100,140 +140,108 @@ class Inverter(object):
     def onStartedProcess(self, proc):
         pass
 
-    def invert(self, moduleName, calcType, populationSize, gaParams, lensInversionParameters, returnNds, convergenceParams):
+    def _startProcess(self, extraEnv):
 
-        errFile = tempfile.TemporaryFile("w+t") if not debugDirectStderr else None
-        proc = None
         try:
-            env = None
-            if self.extraEnv is not None:
-                env = { }
-                for n in os.environ:
-                    env[n] = os.environ[n]
-
-                for n in self.extraEnv:
-                    env[n] = self.extraEnv[n]
-
-            #print(self.args)
+            errFile = tempfile.TemporaryFile("w+t") if not debugDirectStderr else None
+            env = _mergeExtraEnvironmentVariables(extraEnv)
             proc = subprocess.Popen(self.args, stdin = subprocess.PIPE, stdout = subprocess.PIPE, env = env, stderr = errFile)
             self.onStartedProcess(proc)
+            return (proc, errFile)
         except Exception as e:
-            raise InverterException("Unable to start inversion process: {}".format(e)) 
+            raise InverterException("Unable to start inversion process: {}".format(e))
+
+    def _getIO(self, proc):
+        inFd = proc.stdin.fileno() if self.writeDescriptor is None else self.writeDescriptor
+        outFd = proc.stdout.fileno() if self.readDescriptor is None else self.readDescriptor
+
+        io = timed_or_untimed_io.IO(outFd, inFd) if not debugCaptureProcessCommandsFile else IOWrapper(outFd, inFd, debugCaptureProcessCommandsFile)
+        return io
+
+    def _waitForInverterIdentification(self, io):
+        line = io.readLine(30)
+        invId = "GAINVERTER:"
+        if not line.startswith(invId):
+            raise InverterException("Unexpected idenficiation from inverter process: '{}'".format(line))
+
+        version = line[len(invId):]
+        self.onStatus("Version info: " + version)
+
+    def _writeInverterParameters(self, io, moduleName, calcType, populationSize,
+                                 gaParams, lensInversionParameters, convergenceParams):
+        io.writeLine("FITNESSOBJECT:{}".format(moduleName))
+        io.writeLine("CALCULATOR:{}".format(calcType))
+        io.writeLine("POPULATIONSIZE:{}".format(populationSize))
+
+        if not gaParams: gaParams = { }
+        gaParamsBytes = inversionparams.GAParameters(**gaParams).toBytes()
+
+        _writeParameters(io, "GAPARAMS", gaParamsBytes)
+        _writeParameters(io, "GAFACTORYPARAMS", lensInversionParameters.toBytes())
+        _writeParameters(io, "CONVERGENCEPARAMS", convergenceParams.toBytes())
+
+    def _run(self, io, returnNds):
+        
+        io.writeLine("RUN" if not returnNds else "RUN:NDS")
+        
+        # TODO: currently, status or progress are not used
+        statusStr = "STATUS:"
+        critId = "CRITERIA:"
+
+        while True:
+            line = io.readLine(communicationTimeout) # Wait at most five minutes
+            #print(line)
+            if line.startswith(statusStr):
+                s = line[len(statusStr):]
+                self.onStatus(s)
+            elif line.startswith(critId):
+                break
+            else:
+                print(line)
+                #raise InverterException("Unexpected line '{}'".format(line))
+            
+        fitnessCriteria = line[len(critId):].strip().split(" ")
+        return fitnessCriteria
+
+    def invert(self, moduleName, calcType, populationSize, gaParams, lensInversionParameters, returnNds, convergenceParams):
+
+        proc, errFile = self._startProcess(self.extraEnv)
 
         try:
             self.onStatus("Using inversion process for type: " + self.invType)
-
-            inFd = proc.stdin.fileno() if self.writeDescriptor is None else self.writeDescriptor
-            outFd = proc.stdout.fileno() if self.readDescriptor is None else self.readDescriptor
-
-            io = timed_or_untimed_io.IO(outFd, inFd) if not debugCaptureProcessCommandsFile else IOWrapper(outFd, inFd, debugCaptureProcessCommandsFile)
-
-            line = io.readLine(30)
-            invId = "GAINVERTER:"
-            if not line.startswith(invId):
-                raise InverterException("Unexpected idenficiation from inverter process: '{}'".format(line))
-
-            self.version = line[len(invId):]
-            self.onStatus("Version info: " + self.version)
-
-            io.writeLine("FITNESSOBJECT:{}".format(moduleName))
-            io.writeLine("CALCULATOR:{}".format(calcType))
-            io.writeLine("POPULATIONSIZE:{}".format(populationSize))
-
-            if not gaParams:
-                gaParams = { }
-            gaParamsBytes = inversionparams.GAParameters(**gaParams).toBytes()
-
-            gaParamsSize = len(gaParamsBytes)
-            io.writeLine("GAPARAMS:{}".format(gaParamsSize))
-            io.writeBytes(gaParamsBytes)
-
-            factoryParams = lensInversionParameters.toBytes()
-            factoryParamsLen = len(factoryParams)
-            io.writeLine("GAFACTORYPARAMS:{}".format(factoryParamsLen))
-            io.writeBytes(factoryParams)
-
-            convParams = convergenceParams.toBytes()
-            convParamsLen = len(convParams)
-            io.writeLine("CONVERGENCEPARAMS:{}".format(convParamsLen))
-            io.writeBytes(convParams)
-
-            if not returnNds:
-                io.writeLine("RUN")
-            else:
-                io.writeLine("RUN:NDS")
             
-            # TODO: currently, status or progress are not used
-            statusStr = "STATUS:"
-            resultStr = "RESULT:"
-            critId = "CRITERIA:"
-            numSolsStr = "NUMSOLS:"
-            fitId = "FITNESS:"
+            io = self._getIO(proc)
+            self._waitForInverterIdentification(io)
 
-            while True:
-                line = io.readLine(communicationTimeout) # Wait at most five minutes
-                #print(line)
-                if line.startswith(statusStr):
-                    s = line[len(statusStr):]
-                    self.onStatus(s)
-                elif line.startswith(critId):
-                    break
-                else:
-                    print(line)
-                    #raise InverterException("Unexpected line '{}'".format(line))
-                
-            fitnessCriteria = line[len(critId):].strip().split(" ")
+            self._writeInverterParameters(io, moduleName, calcType, populationSize,
+                                          gaParams, lensInversionParameters, convergenceParams)
 
-            line = io.readLine(30)
-            if not line.startswith(numSolsStr):
-                raise InverterException("Unexpected identifier from inverter process: '{}'".format(line))
-            numSols = int(line[len(numSolsStr):])
+            # Actually run the inversion
+            fitnessCriteria = self._run(io, returnNds)
+
+            numSols = _readInteger(io, "NUMSOLS")
+            self.onStatus("Expecting {} solutions".format(numSols))
 
             sols = []
-            # TODO status message?
-            print("Expecting {} solutions from line '{}'".format(numSols, line.strip()))
-            for i in range(numSols):
-                line = io.readLine(30)
-                print("Read line '{}'".format(line))
-                if not line.startswith(resultStr):
-                    raise InverterException("Unexpected identifier from inverter process: '{}'".format(line))
-
-                numBytes = int(line[len(resultStr):])
-                # Read the resulting lens
-                lensData = io.readBytes(numBytes)
-
-                line = io.readLine(30)
-                print("Read line '{}'".format(line))
-                if not line.startswith(fitId):
-                    raise InverterException("Unexpected identifier from inverter process: '{}'".format(line))
-                fitnessValues = [ float(x) for x in line[len(fitId):].strip().split(" ") ]
+            for _ in range(numSols):
+                numBytes = _readInteger(io, "RESULT")
+                lensData = io.readBytes(numBytes) # Read the resulting lens
+                fitnessValues = _readString(io, "FITNESS", lambda l: [ float(x) for x in l.strip().split(" ") ])
 
                 sols.append((lenses.GravitationalLens.fromBytes(lensData), fitnessValues))
 
-            print("Writing EXIT")
+            # print("Writing EXIT")
             io.writeLine("EXIT")
 
-            print("Waiting for process to finish...")
-            #proc.wait()
+            self.onStatus("Waiting for process to finish...")
             privutil._wait(proc, 1)
-            print("Done waiting")
         except InverterException:
             raise
         except Exception as e:
             errLine = _getErrorLineFromErrFile(errFile)
             raise InverterException(errLine)
         finally:
-            try:
-                proc.stdin.close()
-                proc.stdout.close()
-            except:
-                pass
-            time.sleep(0.1)
-            try:
-                privutil.terminateProcess(proc, feedbackObject = self.feedback)
-            except Exception as e:
-                if debugOutput:
-                    print("Ignoring exception when terminating program: " + str(e))
+            _terminateProcess(proc, self.feedback)
         
         if returnNds:
             return(sols, fitnessCriteria)
