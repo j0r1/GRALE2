@@ -36,7 +36,7 @@ if not hasattr(subprocess, 'STARTUPINFO'): # Not Windows: can't use 'poll' there
 else:
     #print("Using untimed IO")
     from . import untimedio as timed_or_untimed_io
-
+from . import privutil
 import struct
 import time
 import tempfile
@@ -90,18 +90,8 @@ class Renderer(object):
     def _renderCommon(self, lensData):
 
         errFile = tempfile.TemporaryFile("w+t") if not debugDirectStderr else None
-        proc = None
         try:
-            env = None
-            if self.extraEnv is not None:
-                env = { }
-                for n in os.environ:
-                    env[n] = os.environ[n]
-
-                for n in self.extraEnv:
-                    env[n] = self.extraEnv[n]
-
-            #print(self.args)
+            env = privutil._mergeExtraEnvironmentVariables(self.extraEnv)
             proc = subprocess.Popen(self.args, stdin = subprocess.PIPE, stdout = subprocess.PIPE, env = env, stderr = errFile)
         except Exception as e:
             raise RendererException("Unable to start renderer process (is render type supported?): {}".format(e)) 
@@ -183,37 +173,10 @@ class Renderer(object):
         except RendererException:
             raise
         except Exception as e:
-            errFile.flush()
-            errFile.seek(0)
-            errData = errFile.read()
-            errLines = [ l.strip() for l in errData.splitlines() if len(l.strip()) > 0 ]
-            if len(errLines) > 0:
-                errLine = "Last line from error log: " + errLines[-1]
-            else:
-                errLine = "Something went wrong, but don't know what"
-            raise RendererException(errLine)
+            raise RendererException(privutil._getErrorLineFromErrFile(errFile, debugOutput))
         finally:
-            try:
-                proc.stdin.close()
-                proc.stdout.close()
-            except:
-                pass
-            time.sleep(0.1)
-            try:
-                from . import privutil
-                privutil.terminateProcess(proc, feedbackObject = self.feedback)
-            except Exception as e:
-                if debugOutput:
-                    print("Ignoring exception when terminating program: " + str(e))
+            privutil._closeStdInOutAndterminateProcess(proc, self.feedback, debugOutput)
         
-            if debugOutput: # for debugging
-                errFile.flush()
-                errFile.seek(0)
-                errData = errFile.read()
-                print()
-                print("LOG:")
-                print(errData)
-
         return renderData
 
     def onStatus(self, s):

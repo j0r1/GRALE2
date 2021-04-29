@@ -295,3 +295,48 @@ def _wait(proc, maxtime):
             break
         time.sleep(0.1)
 
+# Returns either None (to use the default setting of Popen) or adds extraEnv to the current
+# environment variables
+def _mergeExtraEnvironmentVariables(extraEnv):
+    env = None
+    if extraEnv is not None:
+        env = { }
+        for n in os.environ:
+            env[n] = os.environ[n]
+
+        for n in extraEnv:
+            env[n] = extraEnv[n]
+
+    return env
+
+def _getErrorLineFromErrFile(errFile, debugOutput):
+    if not errFile:
+        return "No error file was opened, can't get more specific error line"
+
+    errFile.flush()
+    errFile.seek(0)
+    errData = errFile.read()
+    if debugOutput:
+        print("DEBUG: full contents of error log:")
+        print(errData)
+
+    errLines = [ l.strip() for l in errData.splitlines() if len(l.strip()) > 0 ]
+    if len(errLines) > 0:
+        errLine = "Last line from error log: " + errLines[-1]
+    else:
+        errLine = "Something went wrong, but don't know what"
+    return errLine
+
+def _closeStdInOutAndterminateProcess(proc, feedbackObject, debugOutput):
+    try:
+        proc.stdin.close()
+        proc.stdout.close()
+    except:
+        pass
+    time.sleep(0.1)
+    try:
+        privutil.terminateProcess(proc, feedbackObject = feedbackObject)
+    except Exception as e:
+        if debugOutput:
+            print("Ignoring exception when terminating program: " + str(e))
+

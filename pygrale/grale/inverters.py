@@ -49,24 +49,6 @@ class InverterException(Exception):
     """An exception that's generated if something goes wrong in this module."""
     pass
 
-def _getErrorLineFromErrFile(errFile):
-    if not errFile:
-        return "No error file was opened, can't get more specific error line"
-
-    errFile.flush()
-    errFile.seek(0)
-    errData = errFile.read()
-    if debugOutput:
-        print("DEBUG: full contents of error log:")
-        print(errData)
-
-    errLines = [ l.strip() for l in errData.splitlines() if len(l.strip()) > 0 ]
-    if len(errLines) > 0:
-        errLine = "Last line from error log: " + errLines[-1]
-    else:
-        errLine = "Something went wrong, but don't know what"
-    return errLine
-
 class IOWrapper(timed_or_untimed_io.IO):
     def __init__(self, outFD, inFD, fname):
         self.f = open(fname, "wb")
@@ -75,20 +57,6 @@ class IOWrapper(timed_or_untimed_io.IO):
     def writeBytes(self, b):
         self.f.write(b)
         return super(IOWrapper, self).writeBytes(b)
-
-# Returns either None (to use the default setting of Popen) or adds extraEnv to the current
-# environment variables
-def _mergeExtraEnvironmentVariables(extraEnv):
-    env = None
-    if extraEnv is not None:
-        env = { }
-        for n in os.environ:
-            env[n] = os.environ[n]
-
-        for n in extraEnv:
-            env[n] = extraEnv[n]
-
-    return env
 
 def _writeParameters(io, paramName, paramBytes):
     io.writeLine("{}:{}".format(paramName,len(paramBytes)))
@@ -104,18 +72,23 @@ def _readString(io, prefix, operation = lambda x: x):
 def _readInteger(io, prefix):
     return _readString(io, prefix, lambda x: int(x))
 
-def _terminateProcess(proc, feedbackObject):
+def _startProcess(args, extraEnv):
     try:
-        proc.stdin.close()
-        proc.stdout.close()
-    except:
-        pass
-    time.sleep(0.1)
-    try:
-        privutil.terminateProcess(proc, feedbackObject = feedbackObject)
+        errFile = tempfile.TemporaryFile("w+t") if not debugDirectStderr else None
+        env = privutil._mergeExtraEnvironmentVariables(extraEnv)
+        proc = subprocess.Popen(args, stdin = subprocess.PIPE, stdout = subprocess.PIPE, env = env, stderr = errFile)
+        return (proc, errFile)
     except Exception as e:
-        if debugOutput:
-            print("Ignoring exception when terminating program: " + str(e))
+        raise InverterException("Unable to start inversion process: {}".format(e))
+
+def _waitForInverterIdentification(io):
+    line = io.readLine(30)
+    invId = "GAINVERTER:"
+    if not line.startswith(invId):
+        raise InverterException("Unexpected idenficiation from inverter process: '{}'".format(line))
+
+    version = line[len(invId):]
+    return version
 
 class Inverter(object):
     def __init__(self, args, inversionType, extraEnv = None, feedbackObject = None, readDescriptor = None, 
@@ -140,32 +113,12 @@ class Inverter(object):
     def onStartedProcess(self, proc):
         pass
 
-    def _startProcess(self, extraEnv):
-
-        try:
-            errFile = tempfile.TemporaryFile("w+t") if not debugDirectStderr else None
-            env = _mergeExtraEnvironmentVariables(extraEnv)
-            proc = subprocess.Popen(self.args, stdin = subprocess.PIPE, stdout = subprocess.PIPE, env = env, stderr = errFile)
-            self.onStartedProcess(proc)
-            return (proc, errFile)
-        except Exception as e:
-            raise InverterException("Unable to start inversion process: {}".format(e))
-
     def _getIO(self, proc):
         inFd = proc.stdin.fileno() if self.writeDescriptor is None else self.writeDescriptor
         outFd = proc.stdout.fileno() if self.readDescriptor is None else self.readDescriptor
 
         io = timed_or_untimed_io.IO(outFd, inFd) if not debugCaptureProcessCommandsFile else IOWrapper(outFd, inFd, debugCaptureProcessCommandsFile)
         return io
-
-    def _waitForInverterIdentification(self, io):
-        line = io.readLine(30)
-        invId = "GAINVERTER:"
-        if not line.startswith(invId):
-            raise InverterException("Unexpected idenficiation from inverter process: '{}'".format(line))
-
-        version = line[len(invId):]
-        self.onStatus("Version info: " + version)
 
     def _writeInverterParameters(self, io, moduleName, calcType, populationSize,
                                  gaParams, lensInversionParameters, convergenceParams):
@@ -205,13 +158,15 @@ class Inverter(object):
 
     def invert(self, moduleName, calcType, populationSize, gaParams, lensInversionParameters, returnNds, convergenceParams):
 
-        proc, errFile = self._startProcess(self.extraEnv)
+        proc, errFile = _startProcess(self.args, self.extraEnv)
 
         try:
+            self.onStartedProcess(proc)
             self.onStatus("Using inversion process for type: " + self.invType)
             
             io = self._getIO(proc)
-            self._waitForInverterIdentification(io)
+            version = _waitForInverterIdentification(io)
+            self.onStatus("Version info: " + version)
 
             self._writeInverterParameters(io, moduleName, calcType, populationSize,
                                           gaParams, lensInversionParameters, convergenceParams)
@@ -238,10 +193,9 @@ class Inverter(object):
         except InverterException:
             raise
         except Exception as e:
-            errLine = _getErrorLineFromErrFile(errFile)
-            raise InverterException(errLine)
+            raise InverterException(privutil._getErrorLineFromErrFile(errFile, debugOutput))
         finally:
-            _terminateProcess(proc, self.feedback)
+            privutil._closeStdInOutAndterminateProcess(proc, self.feedback, debugOutput)
         
         if returnNds:
             return(sols, fitnessCriteria)
@@ -267,23 +221,11 @@ class Inverter(object):
 
 def _commonModuleCommunication(moduleName, calcType, exeName, callback, **callbackArgs):
 
-    errFile = tempfile.TemporaryFile("w+t") if not debugDirectStderr else None
-    try:
-        proc = subprocess.Popen([exeName], stdin = subprocess.PIPE, stdout = subprocess.PIPE, stderr=errFile)
-    except Exception as e:
-        raise InverterException("Unable to start process '{}': {}".format(exeName, e)) 
-
-    inFd = proc.stdin.fileno()
-    outFd = proc.stdout.fileno()
-    io = timed_or_untimed_io.IO(outFd, inFd)
+    proc, errFile = _startProcess([exeName], None)
+    io = timed_or_untimed_io.IO(proc.stdout.fileno(), proc.stdin.fileno())
 
     try:
-        line = io.readLine(30)
-        invId = "GAINVERTER:"
-        if not line.startswith(invId):
-            raise InverterException("Unexpected idenficiation from process '{}': '{}'".format(exeName, line))
-
-        version = line[len(invId):]
+        _waitForInverterIdentification(io)
 
         io.writeLine("FITNESSOBJECT:" + moduleName)
         io.writeLine("CALCULATOR:" + calcType)
@@ -292,8 +234,7 @@ def _commonModuleCommunication(moduleName, calcType, exeName, callback, **callba
 
         io.writeLine("EXIT")
     except Exception as e:
-        errLine = _getErrorLineFromErrFile(errFile)
-        raise InverterException(errLine)
+        raise InverterException(privutil._getErrorLineFromErrFile(errFile, debugOutput))
 
     return retVal
 
@@ -304,14 +245,8 @@ def _usageAndDefaultParamsHelper(moduleName, exeName, key):
         if not line.startswith(key + ":"):
             raise InverterException("Process '{}' didn't respond with expected '{}'".format(exeName, key))
 
-        idx = line.find(":")
-        numBytes = int(line[idx+1:])
-        
-        retVal = None
-        if numBytes > 0:
-            retVal = io.readBytes(numBytes)
-
-        return retVal
+        numBytes = int(line[line.find(":")+1:])
+        return None if numBytes <= 0 else io.readBytes(numBytes)
 
     retVal = _commonModuleCommunication(moduleName, "(notused)", exeName, f)
 
