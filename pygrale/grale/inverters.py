@@ -397,12 +397,12 @@ class ThreadsInverter(Inverter):
                                                      feedbackObject=feedbackObject)
 
 def _createRandomTmpPath(length = 16):
-    import random
     import string
+    import numpy as np
 
     tmpDir = tempfile.gettempdir()
     chars = string.ascii_letters + string.digits
-    return os.path.join(tmpDir, "".join([ chars[random.randint(0, len(chars)-1)] for i in range(length) ]))
+    return os.path.join(tmpDir, "".join(map(lambda x: chars[x], np.random.randint(0,len(chars),length))))
 
 def _createBoundUnixSocket(socketPath):
     import socket
