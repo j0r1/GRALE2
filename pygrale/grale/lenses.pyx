@@ -68,6 +68,8 @@ ctypedef vector2d.Vector2Dd Vector2Dd
 
 cdef int _numCalculationThreads = 0
 
+experimentalThreads = False
+
 class LensException(Exception):
     """This exception is raised if something goes wrong in the :class:`GravitationalLens` derived classes."""
     pass
@@ -134,6 +136,121 @@ cdef class GravitationalLens:
         cdef Vector2Dd beta
         cdef np.ndarray[double,ndim=1] betas
         cdef int l,i
+
+        if thetas.shape[0] % 2 == 0:
+            l = thetas.shape[0]
+            betas = np.zeros([l], dtype = np.double)
+            for i in range(0,l,2):
+                if not self._lens().traceTheta(Ds, Dds, Vector2Dd(thetas[i], thetas[i+1]), cython.address(beta)):
+                    raise LensException(S(self._lens().getErrorString()))
+                betas[i] = beta.getX()
+                betas[i+1] = beta.getY()
+        else:
+            raise LensException("Bad 1D array dimensions, must be a multiple of two")
+
+        return betas
+
+    cdef _getAlphaVector1(self, np.ndarray[double, ndim=1] thetas):
+        
+        cdef Vector2Dd alpha
+        cdef np.ndarray[double,ndim=1] alphas
+        cdef int l,i
+
+        if thetas.shape[0] % 2 == 0:
+            l = thetas.shape[0]
+            alphas = np.zeros([l], dtype = np.double)
+            for i in range(0,l,2):
+                if not self._lens().getAlphaVector(Vector2Dd(thetas[i], thetas[i+1]), cython.address(alpha)):
+                    raise LensException(S(self._lens().getErrorString()))
+                alphas[i] = alpha.getX()
+                alphas[i+1] = alpha.getY()
+        else:
+            raise LensException("Bad 1D array dimensions, must be a multiple of two")
+
+        return alphas
+
+    cdef _getAlphaVectorDerivatives1(self, np.ndarray[double, ndim=1] thetas):
+        
+        cdef double axx = 0, ayy = 0, axy = 0
+        cdef np.ndarray[double,ndim=1] derivatives
+        cdef int l,i,j
+
+        if thetas.shape[0] % 2 == 0:
+            l = thetas.shape[0]
+            derivatives = np.zeros([(l//2)*3], dtype = np.double)
+            j = 0
+            for i in range(0,l,2):
+                if not self._lens().getAlphaVectorDerivatives(Vector2Dd(thetas[i], thetas[i+1]), axx, ayy, axy):
+                    raise LensException(S(self._lens().getErrorString()))
+                derivatives[j] = axx
+                derivatives[j+1] = ayy
+                derivatives[j+2] = axy
+                j += 3
+        else:
+            raise LensException("Bad 1D array dimensions, must be a multiple of two")
+
+        return derivatives
+
+    cdef _getInverseMagnification1(self, double Ds, double Dds, np.ndarray[double, ndim=1] thetas):
+        
+        cdef np.ndarray[double,ndim=1] invMags
+        cdef int l,i,j
+
+        if thetas.shape[0] % 2 == 0:
+            l = thetas.shape[0]
+            invMags = np.zeros([(l//2)], dtype = np.double)
+            j = 0
+            for i in range(0,l,2):
+                invMags[j] = self._lens().getInverseMagnification(Ds, Dds, Vector2Dd(thetas[i], thetas[i+1]))
+                j += 1
+        else:
+            raise LensException("Bad 1D array dimensions, must be a multiple of two")
+
+        return invMags
+
+    cdef _getSurfaceMassDensity1(self, np.ndarray[double, ndim=1] thetas):
+        
+        cdef np.ndarray[double,ndim=1] dens
+        cdef int l,i,j
+
+        if thetas.shape[0] % 2 == 0:
+            l = thetas.shape[0]
+            dens = np.zeros([(l//2)], dtype = np.double)
+            j = 0
+            for i in range(0,l,2):
+                dens[j] = self._lens().getSurfaceMassDensity(Vector2Dd(thetas[i], thetas[i+1]))
+                j += 1
+        else:
+            raise LensException("Bad 1D array dimensions, must be a multiple of two")
+
+        return dens
+
+    cdef _getProjectedPotential1(self, double Ds, double Dds, np.ndarray[double, ndim=1] thetas):
+        
+        cdef np.ndarray[double,ndim=1] potential
+        cdef int l,i,j
+        cdef double value = 0
+
+        if thetas.shape[0] % 2 == 0:
+            l = thetas.shape[0]
+            potential = np.zeros([(l//2)], dtype = np.double)
+            j = 0
+            for i in range(0,l,2):
+                if not self._lens().getProjectedPotential(Ds, Dds, Vector2Dd(thetas[i], thetas[i+1]), cython.address(value)):
+                    raise LensException(S(self._lens().getErrorString()))
+
+                potential[j] = value
+                j += 1
+        else:
+            raise LensException("Bad 1D array dimensions, must be a multiple of two")
+
+        return potential
+
+    cdef _traceTheta1_new(self, double Ds, double Dds, np.ndarray[double, ndim=1] thetas):
+        
+        cdef Vector2Dd beta
+        cdef np.ndarray[double,ndim=1] betas
+        cdef int l,i
         cdef double *pThetaX
         cdef double *pThetaY
         cdef double *pBetaX
@@ -141,6 +258,8 @@ cdef class GravitationalLens:
         cdef size_t thetaStride, betaStride
         cdef string errStr
         cdef size_t numTreads = getNumberOfCalculationThreads()
+
+        print("_traceTheta1_new")
 
         if thetas.shape[0] % 2 == 0:
             pThetaX = &thetas[0]
@@ -151,8 +270,8 @@ cdef class GravitationalLens:
             pBetaX = &betas[0]
             pBetaY = &betas[1]
 
-            thetaStride = &thetas[2] - &thetas[0]
-            betaStride = &betas[2] - &betas[0]
+            thetaStride = 2
+            betaStride = 2
 
             if not threadcalc.threadsTraceTheta(deref(self._lens()), errStr,
                     Ds, Dds, pThetaX, pThetaY, thetaStride, pBetaX, pBetaY, betaStride,
@@ -164,7 +283,7 @@ cdef class GravitationalLens:
 
         return betas
 
-    cdef _getAlphaVector1(self, np.ndarray[double, ndim=1] thetas):
+    cdef _getAlphaVector1_new(self, np.ndarray[double, ndim=1] thetas):
         
         cdef Vector2Dd alpha
         cdef np.ndarray[double,ndim=1] alphas
@@ -177,6 +296,8 @@ cdef class GravitationalLens:
         cdef string errStr
         cdef size_t numTreads = getNumberOfCalculationThreads()
 
+        print("_getAlphaVector1_new")
+
         if thetas.shape[0] % 2 == 0:
             pThetaX = &thetas[0]
             pThetaY = &thetas[1]
@@ -186,8 +307,8 @@ cdef class GravitationalLens:
             pAlphaX = &alphas[0]
             pAlphaY = &alphas[1]
 
-            thetaStride = &thetas[2] - &thetas[0]
-            alphaStride = &alphas[2] - &alphas[0]
+            thetaStride = 2
+            alphaStride = 2
 
             if not threadcalc.threadsGetAlphaVector(deref(self._lens()), errStr,
                     pThetaX, pThetaY, thetaStride, pAlphaX, pAlphaY, alphaStride,
@@ -198,7 +319,7 @@ cdef class GravitationalLens:
 
         return alphas
 
-    cdef _getAlphaVectorDerivatives1(self, np.ndarray[double, ndim=1] thetas):
+    cdef _getAlphaVectorDerivatives1_new(self, np.ndarray[double, ndim=1] thetas):
         
         cdef double axx = 0, ayy = 0, axy = 0
         cdef np.ndarray[double,ndim=1] derivatives
@@ -212,6 +333,8 @@ cdef class GravitationalLens:
         cdef string errStr
         cdef size_t numTreads = getNumberOfCalculationThreads()
 
+        print("_getAlphaVectorDerivatives1_new")
+
         if thetas.shape[0] % 2 == 0:
             pThetaX = &thetas[0]
             pThetaY = &thetas[1]
@@ -222,8 +345,8 @@ cdef class GravitationalLens:
             pAlphaYY = &derivatives[1]
             pAlphaXY = &derivatives[2]
 
-            thetaStride = &thetas[2] - &thetas[0]
-            alphaStride = &derivatives[3] - &derivatives[0]
+            thetaStride = 2
+            alphaStride = 3
 
             if not threadcalc.threadsGetAlphaVectorDerivatives(deref(self._lens()), errStr,
                     pThetaX, pThetaY, thetaStride, pAlphaXX, pAlphaYY, pAlphaXY, alphaStride,
@@ -234,7 +357,7 @@ cdef class GravitationalLens:
 
         return derivatives
 
-    cdef _getInverseMagnification1(self, double Ds, double Dds, np.ndarray[double, ndim=1] thetas):
+    cdef _getInverseMagnification1_new(self, double Ds, double Dds, np.ndarray[double, ndim=1] thetas):
         
         cdef np.ndarray[double,ndim=1] invMags
         cdef int l,i,j
@@ -245,6 +368,8 @@ cdef class GravitationalLens:
         cdef string errStr
         cdef size_t numTreads = getNumberOfCalculationThreads()
 
+        print("_getInverseMagnification1_new")
+
         if thetas.shape[0] % 2 == 0:
             pThetaX = &thetas[0]
             pThetaY = &thetas[1]
@@ -253,8 +378,8 @@ cdef class GravitationalLens:
             invMags = np.zeros([(l//2)], dtype = np.double)
             pInvMag = &invMags[0]
 
-            thetaStride = &thetas[2] - &thetas[0]
-            invStride = &invMags[1] - &invMags[0]
+            thetaStride = 2
+            invStride = 1
             
             if not threadcalc.threadsGetInverseMagnification(deref(self._lens()), errStr,
                     Ds, Dds, pThetaX, pThetaY, thetaStride, pInvMag, invStride,
@@ -265,7 +390,7 @@ cdef class GravitationalLens:
 
         return invMags
 
-    cdef _getSurfaceMassDensity1(self, np.ndarray[double, ndim=1] thetas):
+    cdef _getSurfaceMassDensity1_new(self, np.ndarray[double, ndim=1] thetas):
         
         cdef np.ndarray[double,ndim=1] dens
         cdef int l,i,j
@@ -276,6 +401,8 @@ cdef class GravitationalLens:
         cdef string errStr
         cdef size_t numTreads = getNumberOfCalculationThreads()
 
+        print("_getSurfaceMassDensity1_new")
+
         if thetas.shape[0] % 2 == 0:
             pThetaX = &thetas[0]
             pThetaY = &thetas[1]
@@ -285,8 +412,8 @@ cdef class GravitationalLens:
             
             pDens = &dens[0]
 
-            thetaStride = &thetas[2] - &thetas[0]
-            densStride = &dens[1] - &dens[0]
+            thetaStride = 2
+            densStride = 1
             
             if not threadcalc.threadsGetSurfaceMassDensity(deref(self._lens()), errStr,
                     pThetaX, pThetaY, thetaStride, pDens, densStride,
@@ -297,7 +424,7 @@ cdef class GravitationalLens:
 
         return dens
 
-    cdef _getProjectedPotential1(self, double Ds, double Dds, np.ndarray[double, ndim=1] thetas):
+    cdef _getProjectedPotential1_new(self, double Ds, double Dds, np.ndarray[double, ndim=1] thetas):
         
         cdef np.ndarray[double,ndim=1] potential
         cdef int l,i,j
@@ -309,6 +436,8 @@ cdef class GravitationalLens:
         cdef string errStr
         cdef size_t numTreads = getNumberOfCalculationThreads()
 
+        print("_getProjectedPotential1_new")
+
         if thetas.shape[0] % 2 == 0:
             pThetaX = &thetas[0]
             pThetaY = &thetas[1]
@@ -318,8 +447,8 @@ cdef class GravitationalLens:
             
             pPot = &potential[0]
 
-            thetaStride = &thetas[2] - &thetas[0]
-            potStride = &potential[1] - &potential[0]
+            thetaStride = 2
+            potStride = 1
 
             if not threadcalc.threadsGetProjectedPotential(deref(self._lens()), errStr,
                     Ds, Dds, pThetaX, pThetaY, thetaStride, pPot, potStride,
@@ -390,7 +519,7 @@ cdef class GravitationalLens:
         to the angular diameter distances Ds and Dds.
         """
         thetas = np.array(thetas)
-        return self._reshapeAndCall1D(lambda x : self._traceTheta1(float(Ds), float(Dds), x), thetas, 2, 2)
+        return self._reshapeAndCall1D(lambda x : self._traceTheta1_new(float(Ds), float(Dds), x) if experimentalThreads else self._traceTheta1(float(Ds), float(Dds), x), thetas, 2, 2)
 
     def getAlphaVector(self, thetas):
         """getAlphaVector(thetas)
@@ -398,7 +527,7 @@ cdef class GravitationalLens:
         Returns the deflection angles at the positions in 'thetas'.
         """
         thetas = np.array(thetas)
-        return self._reshapeAndCall1D(lambda x : self._getAlphaVector1(x), thetas, 2, 2)
+        return self._reshapeAndCall1D(lambda x : self._getAlphaVector1_new(x) if experimentalThreads else self._getAlphaVector1(x), thetas, 2, 2)
 
     def getAlphaVectorDerivatives(self, thetas):
         r"""getAlphaVectorDerivatives(thetas)
@@ -416,7 +545,7 @@ cdef class GravitationalLens:
 
         """
         thetas = np.array(thetas)
-        return self._reshapeAndCall1D(lambda x : self._getAlphaVectorDerivatives1(x), thetas, 2, 3)
+        return self._reshapeAndCall1D(lambda x : self._getAlphaVectorDerivatives1_new(x) if experimentalThreads else self._getAlphaVectorDerivatives1(x), thetas, 2, 3)
 
     def getInverseMagnification(self, Ds, Dds, thetas):
         """getInverseMagnification(Ds, Dds, thetas)
@@ -425,7 +554,7 @@ cdef class GravitationalLens:
         plane with angular diameter distances Ds and Dds.
         """
         thetas = np.array(thetas)
-        return self._reshapeAndCall1D(lambda x : self._getInverseMagnification1(float(Ds), float(Dds), x), thetas, 2, 1)
+        return self._reshapeAndCall1D(lambda x : self._getInverseMagnification1_new(float(Ds), float(Dds), x) if experimentalThreads else self._getInverseMagnification1(float(Ds), float(Dds), x), thetas, 2, 1)
 
     def getSurfaceMassDensity(self, thetas):
         """getSurfaceMassDensity(thetas)
@@ -434,7 +563,7 @@ cdef class GravitationalLens:
         in 'thetas'.
         """
         thetas = np.array(thetas)
-        return self._reshapeAndCall1D(lambda x : self._getSurfaceMassDensity1(x), thetas, 2, 1)
+        return self._reshapeAndCall1D(lambda x : self._getSurfaceMassDensity1_new(x) if experimentalThreads else self._getSurfaceMassDensity1(x), thetas, 2, 1)
 
     def getSurfaceMassDensityMap(self, bottomLeft, topRight, int numX, int numY, feedbackObject = "default", renderer = "default", reduceToPixels = True):
         """getSurfaceMassDensityMap(bottomLeft, topRight, numX, numY, feedbackObject = "default", renderer = "default", reduceToPixels = True)
@@ -520,7 +649,7 @@ cdef class GravitationalLens:
         distances Ds and Dds, measured at the positions in 'thetas'.
         """
         thetas = np.array(thetas)
-        return self._reshapeAndCall1D(lambda x : self._getProjectedPotential1(float(Ds), float(Dds), x), thetas, 2, 1)
+        return self._reshapeAndCall1D(lambda x : self._getProjectedPotential1_new(float(Ds), float(Dds), x) if experimentalThreads else self._getProjectedPotential1(float(Ds), float(Dds), x), thetas, 2, 1)
 
     def getRadialMassProfile(self, thetaRadii):
         """getRadialMassProfile(thetaRadii)
