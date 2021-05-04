@@ -127,7 +127,7 @@ if "CXX" in os.environ and os.environ["CXX"].startswith("ccache"):
 
 extensions = [
     Extension("grale.lenses", 
-        [ "grale/lenses.pyx" ],
+        [ "grale/lenses.pyx", "grale/threadslenscalc.cpp" ],
         include_dirs = extraIncludes,
         libraries = libraries,
         library_dirs = libDirs,

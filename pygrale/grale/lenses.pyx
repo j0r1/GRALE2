@@ -54,19 +54,37 @@ import random
 from . import constants
 from . import privutil
 import copy
+import multiprocessing
 
 cimport grale.gravitationallens as gravitationallens
 cimport grale.vector2d as vector2d
 cimport grale.serut as serut
+cimport grale.cppthreadslenscalc as threadcalc
 
 include "stringwrappers.pyx"
 
 ctypedef np.ndarray ndarray
 ctypedef vector2d.Vector2Dd Vector2Dd
 
+cdef int _numCalculationThreads = 0
+
 class LensException(Exception):
     """This exception is raised if something goes wrong in the :class:`GravitationalLens` derived classes."""
     pass
+
+def setNumberOfCalculationThreads(int n):
+    """TODO"""
+    if n < 0:
+        raise LensException("Number of calculation threads must be at least zero (zero means all possible threads)")
+    global _numCalculationThreads
+    _numCalculationThreads = n
+
+def getNumberOfCalculationThreads():
+    """TODO"""
+    global _numCalculationThreads
+    if _numCalculationThreads == 0:
+        _numCalculationThreads = multiprocessing.cpu_count()
+    return _numCalculationThreads
 
 # We use a random number as an identifier to make sure that GravitationalLens
 # isn't allocated on its own, but only through subclassing
@@ -116,15 +134,31 @@ cdef class GravitationalLens:
         cdef Vector2Dd beta
         cdef np.ndarray[double,ndim=1] betas
         cdef int l,i
+        cdef double *pThetaX
+        cdef double *pThetaY
+        cdef double *pBetaX
+        cdef double *pBetaY
+        cdef size_t thetaStride, betaStride
+        cdef string errStr
+        cdef size_t numTreads = getNumberOfCalculationThreads()
 
         if thetas.shape[0] % 2 == 0:
+            pThetaX = &thetas[0]
+            pThetaY = &thetas[1]
+            
             l = thetas.shape[0]
             betas = np.zeros([l], dtype = np.double)
-            for i in range(0,l,2):
-                if not self._lens().traceTheta(Ds, Dds, Vector2Dd(thetas[i], thetas[i+1]), cython.address(beta)):
-                    raise LensException(S(self._lens().getErrorString()))
-                betas[i] = beta.getX()
-                betas[i+1] = beta.getY()
+            pBetaX = &betas[0]
+            pBetaY = &betas[1]
+
+            thetaStride = &thetas[2] - &thetas[0]
+            betaStride = &betas[2] - &betas[0]
+
+            if not threadcalc.threadsTraceTheta(deref(self._lens()), errStr,
+                    Ds, Dds, pThetaX, pThetaY, thetaStride, pBetaX, pBetaY, betaStride,
+                    l//2, numTreads):
+                raise LensException(S(errStr))
+
         else:
             raise LensException("Bad 1D array dimensions, must be a multiple of two")
 
@@ -135,15 +169,30 @@ cdef class GravitationalLens:
         cdef Vector2Dd alpha
         cdef np.ndarray[double,ndim=1] alphas
         cdef int l,i
+        cdef double *pThetaX
+        cdef double *pThetaY
+        cdef double *pAlphaX
+        cdef double *pAlphaY
+        cdef size_t thetaStride, alphaStride
+        cdef string errStr
+        cdef size_t numTreads = getNumberOfCalculationThreads()
 
         if thetas.shape[0] % 2 == 0:
+            pThetaX = &thetas[0]
+            pThetaY = &thetas[1]
+
             l = thetas.shape[0]
             alphas = np.zeros([l], dtype = np.double)
-            for i in range(0,l,2):
-                if not self._lens().getAlphaVector(Vector2Dd(thetas[i], thetas[i+1]), cython.address(alpha)):
-                    raise LensException(S(self._lens().getErrorString()))
-                alphas[i] = alpha.getX()
-                alphas[i+1] = alpha.getY()
+            pAlphaX = &alphas[0]
+            pAlphaY = &alphas[1]
+
+            thetaStride = &thetas[2] - &thetas[0]
+            alphaStride = &alphas[2] - &alphas[0]
+
+            if not threadcalc.threadsGetAlphaVector(deref(self._lens()), errStr,
+                    pThetaX, pThetaY, thetaStride, pAlphaX, pAlphaY, alphaStride,
+                    l//2, numTreads):
+                raise LensException(S(errStr))
         else:
             raise LensException("Bad 1D array dimensions, must be a multiple of two")
 
@@ -154,18 +203,32 @@ cdef class GravitationalLens:
         cdef double axx = 0, ayy = 0, axy = 0
         cdef np.ndarray[double,ndim=1] derivatives
         cdef int l,i,j
+        cdef double *pThetaX
+        cdef double *pThetaY
+        cdef double *pAlphaXX
+        cdef double *pAlphaYY
+        cdef double *pAlphaXY
+        cdef size_t thetaStride, alphaStride
+        cdef string errStr
+        cdef size_t numTreads = getNumberOfCalculationThreads()
 
         if thetas.shape[0] % 2 == 0:
+            pThetaX = &thetas[0]
+            pThetaY = &thetas[1]
+
             l = thetas.shape[0]
             derivatives = np.zeros([(l//2)*3], dtype = np.double)
-            j = 0
-            for i in range(0,l,2):
-                if not self._lens().getAlphaVectorDerivatives(Vector2Dd(thetas[i], thetas[i+1]), axx, ayy, axy):
-                    raise LensException(S(self._lens().getErrorString()))
-                derivatives[j] = axx
-                derivatives[j+1] = ayy
-                derivatives[j+2] = axy
-                j += 3
+            pAlphaXX = &derivatives[0]
+            pAlphaYY = &derivatives[1]
+            pAlphaXY = &derivatives[2]
+
+            thetaStride = &thetas[2] - &thetas[0]
+            alphaStride = &derivatives[3] - &derivatives[0]
+
+            if not threadcalc.threadsGetAlphaVectorDerivatives(deref(self._lens()), errStr,
+                    pThetaX, pThetaY, thetaStride, pAlphaXX, pAlphaYY, pAlphaXY, alphaStride,
+                    l//2, numTreads):
+                raise LensException(S(errStr))
         else:
             raise LensException("Bad 1D array dimensions, must be a multiple of two")
 
@@ -175,14 +238,28 @@ cdef class GravitationalLens:
         
         cdef np.ndarray[double,ndim=1] invMags
         cdef int l,i,j
+        cdef double *pThetaX
+        cdef double *pThetaY
+        cdef double *pInvMag
+        cdef size_t thetaStride, invStride
+        cdef string errStr
+        cdef size_t numTreads = getNumberOfCalculationThreads()
 
         if thetas.shape[0] % 2 == 0:
+            pThetaX = &thetas[0]
+            pThetaY = &thetas[1]
+            
             l = thetas.shape[0]
             invMags = np.zeros([(l//2)], dtype = np.double)
-            j = 0
-            for i in range(0,l,2):
-                invMags[j] = self._lens().getInverseMagnification(Ds, Dds, Vector2Dd(thetas[i], thetas[i+1]))
-                j += 1
+            pInvMag = &invMags[0]
+
+            thetaStride = &thetas[2] - &thetas[0]
+            invStride = &invMags[1] - &invMags[0]
+            
+            if not threadcalc.threadsGetInverseMagnification(deref(self._lens()), errStr,
+                    Ds, Dds, pThetaX, pThetaY, thetaStride, pInvMag, invStride,
+                    l//2, numTreads):
+                raise LensException(S(errStr))
         else:
             raise LensException("Bad 1D array dimensions, must be a multiple of two")
 
@@ -192,14 +269,29 @@ cdef class GravitationalLens:
         
         cdef np.ndarray[double,ndim=1] dens
         cdef int l,i,j
+        cdef double *pThetaX
+        cdef double *pThetaY
+        cdef double *pDens
+        cdef size_t thetaStride, densStride
+        cdef string errStr
+        cdef size_t numTreads = getNumberOfCalculationThreads()
 
         if thetas.shape[0] % 2 == 0:
+            pThetaX = &thetas[0]
+            pThetaY = &thetas[1]
+
             l = thetas.shape[0]
             dens = np.zeros([(l//2)], dtype = np.double)
-            j = 0
-            for i in range(0,l,2):
-                dens[j] = self._lens().getSurfaceMassDensity(Vector2Dd(thetas[i], thetas[i+1]))
-                j += 1
+            
+            pDens = &dens[0]
+
+            thetaStride = &thetas[2] - &thetas[0]
+            densStride = &dens[1] - &dens[0]
+            
+            if not threadcalc.threadsGetSurfaceMassDensity(deref(self._lens()), errStr,
+                    pThetaX, pThetaY, thetaStride, pDens, densStride,
+                    l//2, numTreads):
+                raise LensException(S(errStr))
         else:
             raise LensException("Bad 1D array dimensions, must be a multiple of two")
 
@@ -210,17 +302,29 @@ cdef class GravitationalLens:
         cdef np.ndarray[double,ndim=1] potential
         cdef int l,i,j
         cdef double value = 0
+        cdef double *pThetaX
+        cdef double *pThetaY
+        cdef double *pPot
+        cdef size_t thetaStride, potStride
+        cdef string errStr
+        cdef size_t numTreads = getNumberOfCalculationThreads()
 
         if thetas.shape[0] % 2 == 0:
+            pThetaX = &thetas[0]
+            pThetaY = &thetas[1]
+            
             l = thetas.shape[0]
             potential = np.zeros([(l//2)], dtype = np.double)
-            j = 0
-            for i in range(0,l,2):
-                if not self._lens().getProjectedPotential(Ds, Dds, Vector2Dd(thetas[i], thetas[i+1]), cython.address(value)):
-                    raise LensException(S(self._lens().getErrorString()))
+            
+            pPot = &potential[0]
 
-                potential[j] = value
-                j += 1
+            thetaStride = &thetas[2] - &thetas[0]
+            potStride = &potential[1] - &potential[0]
+
+            if not threadcalc.threadsGetProjectedPotential(deref(self._lens()), errStr,
+                    Ds, Dds, pThetaX, pThetaY, thetaStride, pPot, potStride,
+                    l//2, numTreads):
+                raise LensException(S(errStr))
         else:
             raise LensException("Bad 1D array dimensions, must be a multiple of two")
 
