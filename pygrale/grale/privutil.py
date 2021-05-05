@@ -335,7 +335,7 @@ def _closeStdInOutAndterminateProcess(proc, feedbackObject, debugOutput):
         pass
     time.sleep(0.1)
     try:
-        privutil.terminateProcess(proc, feedbackObject = feedbackObject)
+        terminateProcess(proc, feedbackObject = feedbackObject)
     except Exception as e:
         if debugOutput:
             print("Ignoring exception when terminating program: " + str(e))
