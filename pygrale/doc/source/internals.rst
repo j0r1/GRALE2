@@ -18,6 +18,13 @@ documentation.
 
    .. automethod:: __init__
 
+.. autoclass:: ConvergenceParametersException
+
+.. autoclass:: ConvergenceParameters
+   :members:
+
+   .. automethod:: __init__
+
 .. autoclass:: InversionParametersException
 
 .. autoclass:: LensInversionParametersSinglePlaneCPU

@@ -130,6 +130,7 @@ def calculateFitness(inputImages, zd, fitnessObjectParameters, lensOrBackProject
        fitness measures should be calculated, or a similar list as `inputImages`,
        for which the positions have already been mapped onto the source plane.
      - `moduleName`: name of the inversion module for the genetic algorithm.
+     - `cosmology`: the cosmological model to use.
     """
     # Merge fitnessObjectParameters with defaults
     fullFitnessObjParams = _mergeModuleParameters(fitnessObjectParameters, moduleName, cosmology)
@@ -274,10 +275,10 @@ def invertMultiPlane(cosmology, inputImages, basisLensesAndRedshifts, popSize, m
         - `firstIterationSteps`
         - `nextIterationSteps`
 
-     - `maximumGenerations`: if the genetic algorithm didn't stop by itself after
-       this many generations, stop it anyway. To test an inversion script completely,
-       it can be useful to temporarily stop the genetic algorithm after only a small
-       number of generations so that the code doesn't take long to run.
+     - `convergenceParameters`: controls the different stages in the genetic algorithm
+       by setting the dictionary that's used to initialize a 
+       :class:`ConvergenceParameters <grale.inversionparams.ConvergenceParameters>`
+       instance.
 
      - `geneticAlgorithmParameters`: a dictionary with general genetic algorithm parameters
        that should be changed from their defaults. Known names and their defaults are
@@ -298,7 +299,7 @@ def invertMultiPlane(cosmology, inputImages, basisLensesAndRedshifts, popSize, m
 
      - `deviceIndex`: this multi-plane inversion uses a GPU to back-project the image
        data, and by setting a specific number, a specific device can be specified. To
-       allow multiple GPUs to be used automatically, you can leave this to ``"auto"``
+       allow multiple GPUs to be used automatically, you can leave this to ``"rotate"``
        and use an :mod:`inverter <grale.inverters>` with as many processes as you have
        GPUs.
 
@@ -306,6 +307,12 @@ def invertMultiPlane(cosmology, inputImages, basisLensesAndRedshifts, popSize, m
        module for more information.
 
      - `feedbackObject`: can be used to specify a particular :ref:`feedback mechanism <feedback>`.
+
+     - `maximumGenerations`: if the genetic algorithm didn't stop by itself after
+       this many generations, stop it anyway. To test an inversion script completely,
+       it can be useful to temporarily stop the genetic algorithm after only a small
+       number of generations so that the code doesn't take long to run (this is now
+       actually merged into the `convergenceParameters`)
     """
         
     if massScale == "auto" or massScale == "auto_nocheck":
@@ -424,10 +431,10 @@ def invert(inputImages, basisFunctions, zd, Dd, popSize, moduleName = "general",
         - `firstIterationSteps`
         - `nextIterationSteps`
 
-     - `maximumGenerations`: if the genetic algorithm didn't stop by itself after
-       this many generations, stop it anyway. To test an inversion script completely,
-       it can be useful to temporarily stop the genetic algorithm after only a small
-       number of generations so that the code doesn't take long to run.
+     - `convergenceParameters`: controls the different stages in the genetic algorithm
+       by setting the dictionary that's used to initialize a 
+       :class:`ConvergenceParameters <grale.inversionparams.ConvergenceParameters>`
+       instance.
 
      - `geneticAlgorithmParameters`: a dictionary with general genetic algorithm parameters
        that should be changed from their defaults. Known names and their defaults are
@@ -453,6 +460,12 @@ def invert(inputImages, basisFunctions, zd, Dd, popSize, moduleName = "general",
 
      - `cosmology`: depending on the inversion algorithm, it may be necessary to specify a
        cosmological model.
+
+     - `maximumGenerations`: if the genetic algorithm didn't stop by itself after
+       this many generations, stop it anyway. To test an inversion script completely,
+       it can be useful to temporarily stop the genetic algorithm after only a small
+       number of generations so that the code doesn't take long to run (this is now
+       actually merged into the `convergenceParameters`)
     """
 
     def getParamsFunction(fullFitnessObjParams, massScale):
@@ -483,6 +496,8 @@ def defaultLensModelFunction(operation, operationInfo, parameters):
      - ``totalmass``: the mass scale for the entire lensing region. In case it's
        ``"auto"``, it will be estimated from the images stored in the
        :class:`InversionWorkSpace` instance.
+
+    TODO: the real explanation of 'rescale' appears to be lost now
     """
 
     if operation == "start":
@@ -865,7 +880,7 @@ class InversionWorkSpace(object):
         which will be used to set the `sizefactor`, `rescale` and `basistype` parameters
         in the `initialParameters` of the
         :func:`addBasisFunctionsBasedOnCurrentGrid <grale.inversion.InversionWorkSpace.addBasisFunctionsBasedOnCurrentGrid>`
-        call that's used internally.
+        call that's used internally. (TODO: also refer to defaultLensModelFunction)
 
         If the same arguments need to be set for each call of this method, you can use
         :func:`setDefaultInversionArguments` to set them. Note that the options passed
@@ -1032,7 +1047,7 @@ class InversionWorkSpace(object):
         """The goal of this function is to add basis functions based on the
         grid that's currently stored. The conversion of grid cells to basis
         functions is done using the function specified in
-        `lensModelFunction`.
+        `lensModelFunction`. (TODO: also refer to defaultLensModelFunction)
         
         This function takes three arguments:
 
