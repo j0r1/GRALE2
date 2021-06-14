@@ -491,13 +491,21 @@ def defaultLensModelFunction(operation, operationInfo, parameters):
      - ``sizefactor``: a specific value can be set here which converts the grid square
        size to a width of the basis function. The default value depends on the basis
        function type: 1.7 ``for plummer`` and 1.0 for the two others.
-     - ``rescale``: defaults to ``False``, and has the same meaning as
-       `rescaleBasisFunctions` in the documentation of :func:`invert`.
+     - ``rescale`` (default is ``False``): by default, the weight of a basis function is a
+       measure of its total mass. This implies that smaller grid cells will correspond
+       to larger densities, i.e. if you set all weights of the basis functions to the
+       same value, the regions with smaller grid cells will have a considerably larger
+       density. Since the usual approach will be to subdivide the regions that contain
+       more mass into smaller grid cells, this does make sense and appears to produce
+       very good results in most cases. To make this effect less
+       pronounced, you can set this parameter to ``True``, and the basis functions will
+       be rescaled. The smaller grid cells will still have higher densities, but not
+       as much as before (in case square basis functions were used, equal weights would
+       generate equal densities irrespective of the grid size).
      - ``totalmass``: the mass scale for the entire lensing region. In case it's
        ``"auto"``, it will be estimated from the images stored in the
        :class:`InversionWorkSpace` instance.
 
-    TODO: the real explanation of 'rescale' appears to be lost now
     """
 
     if operation == "start":
