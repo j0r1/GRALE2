@@ -213,7 +213,6 @@ public:
 	// } LensQuantities;
 	virtual std::string getCLProgram(std::string &subRoutineName) const;
 
-	virtual int getCLSubLenses() const								{ return -1; }
 protected:
 	/** Specific lens implementations implement this function to process the parameters
 	 *  specified in the GravitationalLens::init function.

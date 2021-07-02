@@ -456,7 +456,7 @@ bool CompositeLens::getCLParameterCounts(int *pNumIntParams, int *pNumFloatParam
 			return false;
 		}
 
-		intCount += 4; // sublenses, lens type, number of int parameters and float parameters for this lens
+		intCount += 3; // lens type, number of int parameters and float parameters for this lens
 		intCount += numSubInt;
 
 		floatCount += 4; // position, angle and scale factor
@@ -489,7 +489,6 @@ bool CompositeLens::getCLParameters(double deflectionScale, double potentialScal
 
 		int lensNumber = m_lenses[i]->getLensType();
 
-		pIntParams[intOffset++] = m_lenses[i]->getCLSubLenses();
 		pIntParams[intOffset++] = lensNumber;
 		pIntParams[intOffset++] = numSubInt;
 		pIntParams[intOffset++] = numSubFloat;
@@ -583,12 +582,11 @@ std::string CompositeLens::getCLProgram(const std::vector<std::string> &subRouti
 	prog += "\n";
 	prog += "	for (int i = 0 ; i < numSubLenses ; i++)\n";
 	prog += "	{\n";
-	prog += "		int numCLSublenses = pIntParams[intOffset];\n";
-	prog += "		int lensNumber = pIntParams[intOffset+1];\n";
-	prog += "		int numIntParams = pIntParams[intOffset+2];\n";
-	prog += "		int numFloatParams = pIntParams[intOffset+3];\n";
+	prog += "		int lensNumber = pIntParams[intOffset];\n";
+	prog += "		int numIntParams = pIntParams[intOffset+1];\n";
+	prog += "		int numFloatParams = pIntParams[intOffset+2];\n";
 	prog += "\n";
-	prog += "		intOffset += 4;\n";
+	prog += "		intOffset += 3;\n";
 	prog += "\n";
 	prog += "		float xPos = pFloatParams[floatOffset];\n";
 	prog += "		float yPos = pFloatParams[floatOffset+1];\n";
@@ -660,22 +658,6 @@ std::string CompositeLens::getCLProgram(const std::vector<std::string> &subRouti
 	prog += "}\n";
 
 	return prog;
-}
-
-int CompositeLens::getCLSubLenses() const
-{
-	int sum = 0;
-
-	for (int i = 0 ; i < m_lenses.size() ; i++)
-	{
-		int num = m_lenses[i]->getCLSubLenses();
-
-		if (num < 1) // can't handle the num == 0 case yet
-			return -1;
-
-		sum += num;
-	}
-	return sum;
 }
 
 } // end namespace

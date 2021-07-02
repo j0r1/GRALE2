@@ -106,7 +106,6 @@ public:
 	bool getCLParameterCounts(int *pNumIntParams, int *pNumFloatParams) const;
 	bool getCLParameters(double deflectionScale, double potentialScale, int *pIntParams, float *pFloatParams) const;
 	std::string getCLProgram(std::string &subRoutineName) const;
-	int getCLSubLenses() const;
 protected:
 	bool processParameters(const GravitationalLensParams *pLensParams);
 private:
