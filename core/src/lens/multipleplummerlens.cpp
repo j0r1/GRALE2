@@ -245,13 +245,13 @@ bool MultiplePlummerLens::getCLParameters(double deflectionScale, double potenti
 	return true;
 }
 
-std::string MultiplePlummerLens::getCLProgram(std::string &subRoutineName) const
+std::string MultiplePlummerLens::getCLProgram(std::string &subRoutineName, bool derivatives, bool potential) const
 {
 	std::string prog;
 
 	prog += "LensQuantities clMultiplePlummerLensProgram(float2 coord, __global const int *pIntParams, __global const float *pFloatParams)\n";
 	prog += "{\n";
-	prog += "	LensQuantities r = { 0, 0, 0, 0, 0, 0} ;\n";
+	prog += "	LensQuantities r = { 0 } ;\n";
 	prog += "	int numLenses = pIntParams[0];\n";
 	prog += "\n";
 	prog += "	for (int i = 0 ; i < numLenses ; i++)\n";
@@ -268,10 +268,14 @@ std::string MultiplePlummerLens::getCLProgram(std::string &subRoutineName) const
 	prog += "\n";
 	prog += "		r.alphaX += factor*dx;\n";
 	prog += "		r.alphaY += factor*dy;\n";
-	prog += "		r.potential += pFloatParams[i*5+2]*log(denom);\n";
-	prog += "		r.axx += factor2*(-dx2+dy2+w2);\n";
-	prog += "		r.ayy += factor2*(+dx2-dy2+w2);\n";
-	prog += "		r.axy += factor2*(-2.0*dx*dy);\n";
+	if (potential)
+		prog += "		r.potential += pFloatParams[i*5+2]*log(denom);\n";
+	if (derivatives)
+	{
+		prog += "		r.axx += factor2*(-dx2+dy2+w2);\n";
+		prog += "		r.ayy += factor2*(+dx2-dy2+w2);\n";
+		prog += "		r.axy += factor2*(-2.0*dx*dy);\n";
+	}
 	prog += "	}\n";
 	prog += "\n";
 	prog += "	return r;\n";

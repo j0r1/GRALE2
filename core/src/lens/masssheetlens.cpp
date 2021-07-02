@@ -125,7 +125,7 @@ bool MassSheetLens::getCLParameters(double deflectionScale, double potentialScal
 	return true;
 }
 
-std::string MassSheetLens::getCLProgram(std::string &subRoutineName) const
+std::string MassSheetLens::getCLProgram(std::string &subRoutineName, bool derivatives, bool potential) const
 {
 	std::string program;
 
@@ -137,10 +137,14 @@ std::string MassSheetLens::getCLProgram(std::string &subRoutineName) const
 	program += "	LensQuantities r;\n";
 	program += "	r.alphaX = factor*coord.x;\n";
 	program += "	r.alphaY = factor*coord.y;\n";
-	program += "	r.potential = pFloatParams[1]*(coord.x*coord.x+coord.y*coord.y);\n";
-	program += "	r.axx = factor;\n";
-	program += "	r.ayy = factor;\n";
-	program += "	r.axy = 0;\n";
+	if (potential)
+		program += "	r.potential = pFloatParams[1]*(coord.x*coord.x+coord.y*coord.y);\n";
+	if (derivatives)
+	{
+		program += "	r.axx = factor;\n";
+		program += "	r.ayy = factor;\n";
+		program += "	r.axy = 0;\n";
+	}
 	program += "	return r;\n";
 	program += "}\n";
 

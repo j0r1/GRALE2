@@ -178,7 +178,7 @@ bool SquareLens::getCLParameters(double deflectionScale, double potentialScale, 
 	return true;
 }
 
-std::string SquareLens::getCLProgram(std::string &subRoutineName) const
+std::string SquareLens::getCLProgram(std::string &subRoutineName, bool derivatives, bool potential) const
 {
 	subRoutineName = "clSquareLensProgram";
 	std::string program;
@@ -226,10 +226,14 @@ std::string SquareLens::getCLProgram(std::string &subRoutineName) const
 	program += "\n";
 	program += "	r.alphaX = f*(clSquareLensPart_phix(x-a2, y-a2) + clSquareLensPart_phix(x+a2, y+a2) - clSquareLensPart_phix(x+a2, y-a2) - clSquareLensPart_phix(x-a2, y+a2));\n";
 	program += "	r.alphaY = f*(clSquareLensPart_phiy(x-a2, y-a2) + clSquareLensPart_phiy(x+a2, y+a2) - clSquareLensPart_phiy(x+a2, y-a2) - clSquareLensPart_phiy(x-a2, y+a2));\n";
-	program += "	r.potential = g*(clSquareLensPart_phi(x-a2, y-a2) + clSquareLensPart_phi(x+a2, y+a2) - clSquareLensPart_phi(x+a2, y-a2) - clSquareLensPart_phi(x-a2, y+a2));\n";
-	program += "	r.axx = f*(clSquareLensPart_phixx(x-a2, y-a2) + clSquareLensPart_phixx(x+a2, y+a2) - clSquareLensPart_phixx(x+a2, y-a2) - clSquareLensPart_phixx(x-a2, y+a2));\n";
-	program += "	r.ayy = f*(clSquareLensPart_phiyy(x-a2, y-a2) + clSquareLensPart_phiyy(x+a2, y+a2) - clSquareLensPart_phiyy(x+a2, y-a2) - clSquareLensPart_phiyy(x-a2, y+a2));\n";
-	program += "	r.axy = f*(clSquareLensPart_phixy(x-a2, y-a2) + clSquareLensPart_phixy(x+a2, y+a2) - clSquareLensPart_phixy(x+a2, y-a2) - clSquareLensPart_phixy(x-a2, y+a2));\n";
+	if (potential)
+		program += "	r.potential = g*(clSquareLensPart_phi(x-a2, y-a2) + clSquareLensPart_phi(x+a2, y+a2) - clSquareLensPart_phi(x+a2, y-a2) - clSquareLensPart_phi(x-a2, y+a2));\n";
+	if (derivatives)
+	{
+		program += "	r.axx = f*(clSquareLensPart_phixx(x-a2, y-a2) + clSquareLensPart_phixx(x+a2, y+a2) - clSquareLensPart_phixx(x+a2, y-a2) - clSquareLensPart_phixx(x-a2, y+a2));\n";
+		program += "	r.ayy = f*(clSquareLensPart_phiyy(x-a2, y-a2) + clSquareLensPart_phiyy(x+a2, y+a2) - clSquareLensPart_phiyy(x+a2, y-a2) - clSquareLensPart_phiyy(x-a2, y+a2));\n";
+		program += "	r.axy = f*(clSquareLensPart_phixy(x-a2, y-a2) + clSquareLensPart_phixy(x+a2, y+a2) - clSquareLensPart_phixy(x+a2, y-a2) - clSquareLensPart_phixy(x-a2, y+a2));\n";
+	}
 	program += "\n";
 	program += "	return r;\n";
 	program += "}\n";

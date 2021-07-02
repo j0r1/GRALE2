@@ -142,7 +142,7 @@ bool PlummerLens::getCLParameters(double deflectionScale, double potentialScale,
 	return true;
 }
 
-std::string PlummerLens::getCLProgram(std::string &subRoutineName) const
+std::string PlummerLens::getCLProgram(std::string &subRoutineName, bool derivatives, bool potential) const
 {
 	std::string program;
 
@@ -156,10 +156,14 @@ std::string PlummerLens::getCLProgram(std::string &subRoutineName) const
 	program += "	LensQuantities r;\n";
 	program += "	r.alphaX = factor*coord.x;\n";
 	program += "	r.alphaY = factor*coord.y;\n";
-	program += "	r.potential = pFloatParams[2]*log(denom);\n";
-	program += "	r.axx = factor2*(-coord.x*coord.x+coord.y*coord.y+pFloatParams[1]);\n";
-	program += "	r.ayy = factor2*(-coord.y*coord.y+coord.x*coord.x+pFloatParams[1]);\n";
-	program += "	r.axy = factor2*(-2.0*coord.x*coord.y);\n";
+	if (potential)
+		program += "	r.potential = pFloatParams[2]*log(denom);\n";
+	if (derivatives)
+	{
+		program += "	r.axx = factor2*(-coord.x*coord.x+coord.y*coord.y+pFloatParams[1]);\n";
+		program += "	r.ayy = factor2*(-coord.y*coord.y+coord.x*coord.x+pFloatParams[1]);\n";
+		program += "	r.axy = factor2*(-2.0*coord.x*coord.y);\n";
+	}
 	program += "	return r;\n";
 	program += "}\n";
 

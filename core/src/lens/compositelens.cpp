@@ -511,7 +511,7 @@ bool CompositeLens::getCLParameters(double deflectionScale, double potentialScal
 	return true;
 }
 
-std::string CompositeLens::getCLProgram(std::string &subRoutineName) const
+std::string CompositeLens::getCLProgram(std::string &subRoutineName, bool derivatives, bool potential) const
 {
 	int numOtherSubRoutines = GravitationalLens::MaxLensType;
 	int maxRecursionCount = 0;
@@ -524,7 +524,7 @@ std::string CompositeLens::getCLProgram(std::string &subRoutineName) const
 	findCLSubroutines(prog, otherRoutineNames, 0, maxRecursionCount);
 
 	for (int i = maxRecursionCount ; i >= 0 ; i--)
-		prog += getCLProgram(otherRoutineNames, i, maxRecursionCount);
+		prog += getCLProgram(otherRoutineNames, i, maxRecursionCount, derivatives, potential);
 
 	return prog;
 }
@@ -559,7 +559,8 @@ void CompositeLens::findCLSubroutines(std::string &prog, std::vector<std::string
 }
 
 std::string CompositeLens::getCLProgram(const std::vector<std::string> &subRoutineNames, 
-                                        int recursionLevel, int maxRecursion)
+                                        int recursionLevel, int maxRecursion,
+										bool derivatives, bool potential)
 {
 	std::string prog;
 
@@ -574,7 +575,7 @@ std::string CompositeLens::getCLProgram(const std::vector<std::string> &subRouti
 	}
 	prog += "(float2 coord, __global const int *pIntParams, __global const float *pFloatParams)\n";
 	prog += "{\n";
-	prog += "	LensQuantities zeroQuant = { 0, 0, 0, 0, 0, 0};\n";
+	prog += "	LensQuantities zeroQuant = { 0 };\n";
 	prog += "	LensQuantities r = zeroQuant ;\n";
 	prog += "	int numSubLenses = pIntParams[0];\n";
 	prog += "	int intOffset = 1;\n";
@@ -642,16 +643,23 @@ std::string CompositeLens::getCLProgram(const std::vector<std::string> &subRouti
 	prog += "		float ax = s.alphaX * scaleFactor;\n";
 	prog += "		float ay = s.alphaY * scaleFactor;\n";
 	prog += "\n";
-	prog += "		float axx0 = s.axx * scaleFactor;\n";
-	prog += "		float axy0 = s.axy * scaleFactor;\n";
-	prog += "		float ayy0 = s.ayy * scaleFactor;\n";
+	if (derivatives)
+	{
+		prog += "		float axx0 = s.axx * scaleFactor;\n";
+		prog += "		float axy0 = s.axy * scaleFactor;\n";
+		prog += "		float ayy0 = s.ayy * scaleFactor;\n";
+	}
 	prog += "\n";
 	prog += "		r.alphaX += (ax*ca-ay*sa);\n";
 	prog += "		r.alphaY += (ax*sa+ay*ca);\n";
-	prog += "		r.potential += s.potential * scaleFactor;\n";
-	prog += "		r.axx += axx0*ca2-2.0*axy0*csa+ayy0*sa2;\n";
-	prog += "		r.ayy += axx0*sa2+2.0*axy0*csa+ayy0*ca2;\n";
-	prog += "		r.axy += (axx0-ayy0)*csa+axy0*(2.0*ca2-1.0);\n";
+	if (potential)
+		prog += "		r.potential += s.potential * scaleFactor;\n";
+	if (derivatives)
+	{
+		prog += "		r.axx += axx0*ca2-2.0*axy0*csa+ayy0*sa2;\n";
+		prog += "		r.ayy += axx0*sa2+2.0*axy0*csa+ayy0*ca2;\n";
+		prog += "		r.axy += (axx0-ayy0)*csa+axy0*(2.0*ca2-1.0);\n";
+	}
 	prog += "	}\n";
 	prog += "\n";
 	prog += "	return r;\n";

@@ -124,7 +124,7 @@ bool SISLens::getCLParameters(double deflectionScale, double potentialScale, int
 	return true;
 }
 
-std::string SISLens::getCLProgram(std::string &subRoutineName) const
+std::string SISLens::getCLProgram(std::string &subRoutineName, bool derivatives, bool potential) const
 {
 	std::string program;
 
@@ -137,10 +137,14 @@ std::string SISLens::getCLProgram(std::string &subRoutineName) const
 	program += "	LensQuantities r;\n";
 	program += "	r.alphaX = factor*coord.x;\n";
 	program += "	r.alphaY = factor*coord.y;\n";
-	program += "	r.potential = pFloatParams[0]*l*pFloatParams[1];\n";
-	program += "	r.axx = factor*(1.0f-coord.x*coord.x/l2);\n";
-	program += "	r.ayy = factor*(1.0f-coord.y*coord.y/l2);\n";
-	program += "	r.axy = -factor*coord.x*coord.y/l2;\n";
+	if (potential)
+		program += "	r.potential = pFloatParams[0]*l*pFloatParams[1];\n";
+	if (derivatives)
+	{
+		program += "	r.axx = factor*(1.0f-coord.x*coord.x/l2);\n";
+		program += "	r.ayy = factor*(1.0f-coord.y*coord.y/l2);\n";
+		program += "	r.axy = -factor*coord.x*coord.y/l2;\n";
+	}
 	program += "	return r;\n";
 	program += "}\n";
 

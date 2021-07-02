@@ -105,11 +105,11 @@ public:
 	bool getSuggestedScales(double *pDeflectionScale, double *pPotentialScale) const;
 	bool getCLParameterCounts(int *pNumIntParams, int *pNumFloatParams) const;
 	bool getCLParameters(double deflectionScale, double potentialScale, int *pIntParams, float *pFloatParams) const;
-	std::string getCLProgram(std::string &subRoutineName) const;
+	std::string getCLProgram(std::string &subRoutineName, bool derivatives = true, bool potential = true) const override;
 protected:
 	bool processParameters(const GravitationalLensParams *pLensParams);
 private:
-	static std::string getCLProgram(const std::vector<std::string> &subRoutineNames, int recursionLevel, int maxRecursion);
+	static std::string getCLProgram(const std::vector<std::string> &subRoutineNames, int recursionLevel, int maxRecursion, bool derivatives, bool potential);
 	
 	void findCLSubroutines(std::string &prog, std::vector<std::string> &otherRoutineNames, int recursionLevel, int &maxRecursionLevel) const;
 
