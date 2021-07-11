@@ -89,6 +89,13 @@ cdef extern from "grale/gravitationallens.h" namespace "grale":
         bool write(serut.SerializationInterface &si)
         const GravitationalLensParams *getLensParameters() const
 
+        bool getSuggestedScales(double *pDeflectionScale, double *pPotentialScale) const
+        bool getCLParameterCounts(int *pNumIntParams, int *pNumFloatParams) const
+        bool getCLParameters(double deflectionScale, double potentialScale, int *pIntParams, float *pFloatParams) const
+        string getCLLensProgram(string &subRoutineName, bool derivatives, bool potential) const
+        string getCLProgram(string &subRoutineName, bool derivatives, bool potential) const
+        string getCLLensQuantitiesStructure(bool derivatives, bool potential) const
+
 cdef extern from "grale/symmetriclens.h" namespace "grale":
 
     cdef cppclass SymmetricLens(GravitationalLens):

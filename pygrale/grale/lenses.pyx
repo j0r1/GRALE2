@@ -720,6 +720,78 @@ cdef class GravitationalLens:
         delay = (0.5*distances - potential)*factor
         return delay
 
+    def getSuggestedScales(self):
+        """getSuggestedScales()
+
+        Returns a dictionary with suggested deflection and potential scales, which
+        can be used in the OpenCL routines to be able to calculate in single precision
+        floating point."""
+        cdef double defScale = 0, potScale = 0
+
+        self._check()
+        if not self._lens().getSuggestedScales(&defScale, &potScale):
+            raise LensException(S(self._lens().getErrorString()))
+        return { "deflectionscale": defScale, "potentialscale": potScale }
+
+    def getCLParameterCounts(self):
+        """getCLParameterCounts()
+
+        Returns a tuple containing the number of integer parameters and floating 
+        point parameters this lens's OpenCL implementation needs."""
+        cdef int numIntParams = 0, numFloatParams = 0
+
+        self._check()
+        if not self._lens().getCLParameterCounts(&numIntParams, &numFloatParams):
+            raise LensException(S(self._lens().getErrorString()))
+        return (numIntParams, numFloatParams)
+
+    def getCLParameters(self, deflectionscale, potentialscale):
+        """getCLParameters(deflectionscale, potentialscale)
+
+        Returns a tuple of integer and floating point parameters to use this lens in OpenCL,
+        expressed using the specified deflection and potential scales."""
+
+        cdef np.ndarray[np.float32_t,ndim=1] floatParams
+        cdef np.ndarray[np.int32_t,ndim=1] intParams
+
+        numIntParams, numFloatParams = self.getCLParameterCounts()
+        intParams = np.empty((numIntParams,),dtype=np.int32)
+        floatParams = np.empty((numFloatParams,),dtype=np.float32)
+        if not self._lens().getCLParameters(deflectionscale, potentialscale, <int*>intParams.data, <float*>floatParams.data):
+            raise LensException(S(self._lens().getErrorString()))
+        return (intParams, floatParams)
+
+    def getCLLensProgram(self, derivatives=True, potential=True):
+        """getCLLensProgram(derivatives=True, potential=True)
+
+        Returns a concatenation of :func:`getCLLensQuantitiesStructure` and
+        :func:`getCLProgram`"""
+        cdef string subName
+        
+        self._check()
+        program = self._lens().getCLLensProgram(subName, derivatives, potential)
+        return (S(subName), S(program))
+
+    def getCLProgram(self, derivatives=True, potential=True):
+        """getCLProgram(derivatives=True, potential=True)
+
+        Returns an OpenCL program to calculate the deflection and optionally
+        deflection derivatives and lensing potential, for this lens model."""
+        cdef string subName
+
+        self._check() 
+        program = self._lens().getCLProgram(subName, derivatives, potential)
+        return (S(subName), S(program))
+
+    def getCLLensQuantitiesStructure(self, derivatives=True, potential=True):
+        """getCLLensQuantitiesStructure(derivatives=True, potential=True)
+
+        The OpenCL routine returned by :func:`getCLProgram` returns a
+        structure, for which the code can be queried by this function.
+        """
+        self._check()
+        return S(self._lens().getCLLensQuantitiesStructure(derivatives, potential))
+
     def setDerivativeAngularDistanceScale(self, double scale):
         """setDerivativeAngularDistanceScale(scale)
         
