@@ -184,7 +184,7 @@ float2 {functionName}(float2 theta, __global const int *pIntParams, __global con
     //printf("{functionName}\\n");
 """.format(functionName=functionName)
 
-    def addCodeForType(t, num):
+    def addCodeForType(t, num, iCnt, fCnt):
         entry = neededBasisFunctionCode[t]
         code = """
     for (int i = 0 ; i < {Nlenses} ; i++)
@@ -199,48 +199,87 @@ float2 {functionName}(float2 theta, __global const int *pIntParams, __global con
         pWeights++;
         pCenters += 2;
 """.format(Nlenses=num, lensFunctionName=entry["functionname"])
-        if entry["intcount"]:
-            code += "        pIntParams += {};\n".format(entry["intcount"])
-        if entry["floatcount"]:
-            code += "        pFloatParams += {};\n".format(entry["floatcount"])
+        if iCnt:
+            code += "        pIntParams += {};\n".format(iCnt)
+        if fCnt:
+            code += "        pFloatParams += {};\n".format(fCnt)
         code += """
     }
 """
         return code
 
-    prevBfType, prevBfCounts = None, 0
+    prevBfType, prevBfCounts, prevIntCount, prevFloatCount = None, 0, None, None
     for bf,center in plane:
         t = type(bf)
+        fnName, fnCode = bf.getCLProgram(False, False)
+        
+        # For a compositelens, we'll add the code later (may need other sublenses or more recursion)
+        if t == lenses.CompositeLens:
+            fnCode = ""
+
+        iCnt, fCnt = bf.getCLParameterCounts()
+        #print("Type", t, iCnt, fCnt)
+        
         if not t in neededBasisFunctionCode:
-            fnName, fnCode = bf.getCLProgram(False, False)
-            iCnt, fCnt = bf.getCLParameterCounts()
             neededBasisFunctionCode[t] = {
                 "functionname": fnName,
                 "functioncode": fnCode,
-                "intcount": iCnt,
-                "floatcount": fCnt,
             }
-        else:
-            fnName = neededBasisFunctionCode[t]["functionname"]
 
-        if prevBfType != t:
+        if prevBfType != t or (prevBfType == t and (iCnt != prevIntCount or fCnt != prevFloatCount )):
+            #print(prevBfType, t, iCnt, prevIntCount, fCnt, prevFloatCount)
             if prevBfCounts:
-                code += addCodeForType(prevBfType, prevBfCounts)
-            prevBfType, prevBfCounts = t, 1
+                code += addCodeForType(prevBfType, prevBfCounts, prevIntCount, prevFloatCount)
+            prevBfType, prevBfCounts, prevIntCount, prevFloatCount = t, 1, iCnt, fCnt
         else:
             prevBfCounts += 1
 
     if prevBfCounts:
-        code += addCodeForType(prevBfType, prevBfCounts)
+        code += addCodeForType(prevBfType, prevBfCounts, prevIntCount, prevFloatCount)
 
     code += """
     return alpha;
 }""";
     return code
 
+def checkCompositeLenses(lensPlanes):
+
+    totalMaxRecurs = 0
+    totalSubCode = { }
+    totalSubLensArray = [ ]
+
+    for plane in lensPlanes:
+        for bf, center in plane:
+            if type(bf) != lenses.CompositeLens:
+                continue
+
+            maxRecurs, subCode, subLensArray = bf.findCLSubroutines(False, False)
+
+            totalMaxRecurs = max(totalMaxRecurs, maxRecurs)
+            for x in subCode:
+                totalSubCode[x] = subCode[x]
+
+            if not totalSubLensArray:
+                for i in subLensArray:
+                    totalSubLensArray.append(i)
+            else:
+                assert(len(subLensArray) == len(totalSubLensArray))
+                for i in range(len(subLensArray)):
+                    if not totalSubLensArray[i]:
+                        totalSubLensArray[i] = subLensArray[i]
+
+    #print("totalMaxRecurs", totalMaxRecurs)
+    #print("totalSubCode")
+    #pprint.pprint(totalSubCode)
+    #print("totalSubLensArray", totalSubLensArray)
+    return totalMaxRecurs, totalSubCode, totalSubLensArray
+
 # TODO: separate scale parameter ? mass sheet basis function that doesn't use this scale?
 
 def getMultiPlaneTraceCode(lensPlanes):
+
+    compRecurs, compSubroutineCode, compSubLensArray = checkCompositeLenses(lensPlanes)
+
     maxPlanes = len(lensPlanes)
 
     alphaCode = ""
@@ -311,10 +350,26 @@ float2 multiPlaneTrace(float2 theta, int numPlanes, __global const float *Dsrc, 
 }
 """
 
-    allCode = ""
+    # Merge composite lens subroutines with other subroutines
+    allSubRoutines = compSubroutineCode.copy()
     for t in neededBasisFunctionCode:
-        allCode += neededBasisFunctionCode[t]["functioncode"]
+        n, c = neededBasisFunctionCode[t]["functionname"], neededBasisFunctionCode[t]["functioncode"]
+        allSubRoutines[n] = c
+
+    # Add regular subroutines
+    allCode = ""
+    for n in allSubRoutines:
+        allCode += allSubRoutines[n]
+
+    # Add the CompositeLens code if needed
+    if compSubLensArray:
+        n, c = lenses.CompositeLens.getCompositeCLProgram(compSubLensArray, compRecurs, False, False)
+        allCode += c
+
+    # Add the code for the different lens planes
     allCode += alphaCode
+
+    # Add the overall trace code
     allCode += code
 
     return allCode
@@ -394,10 +449,12 @@ def getOpenCLData(cosm, zss, zds, lensplanes, angularScale):
             if len(fp) > 0:
                 floatParams += fp.tolist()
 
-    intParams.append(0) # To avoid a zero-length buffer
-    floatParams.append(0) # To avoid a zero-length buffer
+            print("Lens type", type(bf), "int params", ip, "float params", fp)
 
-    intParams = np.array(intParams, dtype=np.float32)
+    intParams.append(12345) # To avoid a zero-length buffer
+    floatParams.append(12345) # To avoid a zero-length buffer
+
+    intParams = np.array(intParams, dtype=np.int32)
     floatParams= np.array(floatParams, dtype=np.float32)
     weights = np.array(weights, dtype=np.float32)
     centers = np.array(centers, dtype=np.float32)
@@ -442,22 +499,44 @@ def main2():
     zds, lensplanes = [zd1, zd2, zd3 ], [ 
         [ (lenses.PlummerLens(cosm.getAngularDiameterDistance(zd1), { "mass": 1e14*MASS_SUN, "width": 2.0*ANGLE_ARCSEC }), V(1,0)*ANGLE_ARCSEC) ],
         [ (lenses.PlummerLens(cosm.getAngularDiameterDistance(zd2), { "mass": 2e14*MASS_SUN, "width": 1.5*ANGLE_ARCSEC }), V(0,1)*ANGLE_ARCSEC) ],
-        [ (lenses.PlummerLens(cosm.getAngularDiameterDistance(zd3), { "mass": 1.5e14*MASS_SUN, "width": 3.5*ANGLE_ARCSEC }), V(-1,-1)*ANGLE_ARCSEC) ],
+        [ (lenses.CompositeLens(cosm.getAngularDiameterDistance(zd3), [
+              { "lens": lenses.PlummerLens(cosm.getAngularDiameterDistance(zd3), { "mass": 1.5e14*MASS_SUN, "width": 3.5*ANGLE_ARCSEC }),
+                "factor": 0.5, "angle": 0, "x": ANGLE_ARCSEC, "y": 0 },
+              ]),
+          V(-1,-1)*ANGLE_ARCSEC),
+          (lenses.CompositeLens(cosm.getAngularDiameterDistance(zd3), [
+              { "lens": lenses.PlummerLens(cosm.getAngularDiameterDistance(zd3), { "mass": 1.5e14*MASS_SUN, "width": 3.5*ANGLE_ARCSEC }),
+                "factor": 0.5, "angle": 0, "x": -ANGLE_ARCSEC, "y": 0 },
+              ]),
+          V(-1,-1)*ANGLE_ARCSEC),
+          ],
     ]
 
     code = getMultiPlaneOCLProgram(lensplanes)
-    #    [ 
-    #        lenses.PlummerLens(1000*DIST_MPC, { "mass": 1e14*MASS_SUN, "width": 1*ANGLE_ARCSEC }),
-    #        lenses.PlummerLens(1000*DIST_MPC, { "mass": 0.5e14*MASS_SUN, "width": 2*ANGLE_ARCSEC }),
-    #        lenses.SISLens(1000*DIST_MPC, { "velocityDispersion": 300000 }),
-    #        lenses.MassSheetLens(1000*DIST_MPC, { "density": 3 }),
-    #    ],
-    #    [ 
-    #        lenses.PlummerLens(1200*DIST_MPC, { "mass": 1e14*MASS_SUN, "width": 1*ANGLE_ARCSEC }),
-    #        lenses.SISLens(1200*DIST_MPC, { "velocityDispersion": 300000 }),
-    #    ]
-    #]
-    #)
+    if False:
+        code = getMultiPlaneOCLProgram([
+            [ 
+                (lenses.PlummerLens(1000*DIST_MPC, { "mass": 1e14*MASS_SUN, "width": 1*ANGLE_ARCSEC }) , V(0,0)),
+                (lenses.PlummerLens(1000*DIST_MPC, { "mass": 0.5e14*MASS_SUN, "width": 2*ANGLE_ARCSEC }), V(0,0)),
+                (lenses.SISLens(1000*DIST_MPC, { "velocityDispersion": 300000 }), V(0,0)),
+                (lenses.MassSheetLens(1000*DIST_MPC, { "density": 3 }), V(0,0)),
+            ],
+            [ 
+                (lenses.PlummerLens(1200*DIST_MPC, { "mass": 1e14*MASS_SUN, "width": 1*ANGLE_ARCSEC }), V(0,0)),
+                (lenses.SISLens(1200*DIST_MPC, { "velocityDispersion": 300000 }), V(0,0)),
+            ],
+            [
+                (lenses.CompositeLens(1300*DIST_MPC, [ { "lens": lenses.PlummerLens(1300*DIST_MPC, { "mass": 1e14*MASS_SUN, "width": 1*ANGLE_ARCSEC }), "factor": 1, "x": 0, "y": 0, "angle": 0 }
+                    ]), V(0,0)),
+                (lenses.CompositeLens(1300*DIST_MPC, [ { "lens": lenses.PlummerLens(1300*DIST_MPC, { "mass": 1e14*MASS_SUN, "width": 1*ANGLE_ARCSEC }), "factor": 1, "x": 0, "y": 0, "angle": 0 }
+                    ]), V(1,1)),
+                (lenses.CompositeLens(1300*DIST_MPC, [ { "lens": lenses.SISLens(1300*DIST_MPC, { "velocityDispersion": 200000 }), "factor": 1, "x": 0, "y": 0, "angle": 0 }
+                    ]), V(0,0)),
+            ]
+        ]
+        )
+        print(code)
+        raise Exception("TODO")
 
     angularScale = ANGLE_ARCSEC
     thetas = (np.array([ V(5,5)*ANGLE_ARCSEC, V(-4,4)*ANGLE_ARCSEC, V(10,0)*ANGLE_ARCSEC ])/angularScale).astype(np.float32)
@@ -477,7 +556,9 @@ def main2():
     pprint.pprint(allNumPlanes)
     pprint.pprint(DsrcAll)
     pprint.pprint(Dmatrix)
+    print("Int params:")
     pprint.pprint(intParams)
+    print("Float params:")
     pprint.pprint(floatParams)
     pprint.pprint(weights)
     pprint.pprint(centers)
@@ -502,7 +583,11 @@ def main2():
     d_floatParamOffsets = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=floatParamOffsets)
     d_weightOffsets = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=weightOffsets)
 
-    #print(code)
+    print(code)
+    
+    #print("Using code from tst.cl")
+    #code = open("tst.cl", "rt").read()
+
     prg = cl.Program(ctx, code).build()
     calcBetas = prg.calculateBetas
 
