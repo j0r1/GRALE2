@@ -95,6 +95,10 @@ CompositeLens
 
    .. automethod:: __init__
 
+   .. automethod:: findCLSubroutines
+
+   .. automethod:: getCompositeCLProgram
+
 MassDiskLens
 ------------
 .. autoclass:: grale.lenses.MassDiskLens

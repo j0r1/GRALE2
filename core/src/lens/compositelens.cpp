@@ -235,6 +235,16 @@ std::unique_ptr<GravitationalLensParams> CompositeLensParams::createCopy() const
 	return pParams;
 }
 
+CompositeLens *CompositeLens::cast(GravitationalLens *pLens)
+{
+	return dynamic_cast<CompositeLens*>(pLens);
+}
+
+const CompositeLens *CompositeLens::cast(const GravitationalLens *pLens)
+{
+	return dynamic_cast<const CompositeLens*>(pLens);
+}
+
 CompositeLens::CompositeLens() : GravitationalLens(GravitationalLens::Composite)
 {
 }
@@ -513,23 +523,43 @@ bool CompositeLens::getCLParameters(double deflectionScale, double potentialScal
 
 std::string CompositeLens::getCLProgram(std::string &subRoutineName, bool derivatives, bool potential) const
 {
-	int numOtherSubRoutines = GravitationalLens::MaxLensType;
-	int maxRecursionCount = 0;
+	std::vector<std::string> otherRoutineNames;
+	std::map<std::string, std::string> subCodes;
+	int maxRecursionCount = findCLSubroutines(subCodes, otherRoutineNames, derivatives, potential);
+
 	std::string prog;
-	std::vector<std::string> otherRoutineNames(numOtherSubRoutines);
+	for (auto &kv : subCodes)
+		prog += kv.second;
 
-	otherRoutineNames[getLensType()] = "clCompositeLensProgram";
-	subRoutineName = otherRoutineNames[getLensType()];
-
-	findCLSubroutines(prog, otherRoutineNames, 0, maxRecursionCount);
-
-	for (int i = maxRecursionCount ; i >= 0 ; i--)
-		prog += getCLProgram(otherRoutineNames, i, maxRecursionCount, derivatives, potential);
+	prog += getCLProgram(subRoutineName, otherRoutineNames, maxRecursionCount, derivatives, potential);
 
 	return prog;
 }
 
-void CompositeLens::findCLSubroutines(std::string &prog, std::vector<std::string> &otherRoutineNames, int recursionLevel, int &maxRecursionLevel) const
+std::string CompositeLens::getCLProgram(std::string &subRoutineName, const std::vector<std::string> &otherRoutineNames, int maxRecursionCount, 
+		                                bool derivatives, bool potential)
+{
+	if (otherRoutineNames.size() != MaxLensType)
+		return "ERROR: otherRoutineNames must be of length " + std::to_string(MaxLensType);
+
+	subRoutineName = "clCompositeLensProgram";
+
+	std::string prog;
+	for (int i = maxRecursionCount ; i >= 0 ; i--)
+		prog += getCLProgram(otherRoutineNames, i, maxRecursionCount, derivatives, potential);
+	return prog;
+}
+
+int CompositeLens::findCLSubroutines(std::map<std::string,std::string> &subRoutineCodes, std::vector<std::string> &otherRoutineNames, bool derivatives, bool potential) const
+{
+	int maxRecursionCount = 0;
+	otherRoutineNames.resize(MaxLensType);
+	otherRoutineNames[getLensType()] = "clCompositeLensProgram";
+	findCLSubroutines(subRoutineCodes, otherRoutineNames, 0, maxRecursionCount, derivatives, potential);
+	return maxRecursionCount;
+}
+
+void CompositeLens::findCLSubroutines(std::map<std::string,std::string> &subCodes, std::vector<std::string> &otherRoutineNames, int recursionLevel, int &maxRecursionLevel, bool derivatives, bool potential) const
 {
 	if (recursionLevel > maxRecursionLevel)
 		maxRecursionLevel = recursionLevel;
@@ -542,17 +572,17 @@ void CompositeLens::findCLSubroutines(std::string &prog, std::vector<std::string
 		{
 			const CompositeLens *pNextCompLens = (const CompositeLens *)(m_lenses[i].get());
 
-			pNextCompLens->findCLSubroutines(prog, otherRoutineNames, recursionLevel+1, maxRecursionLevel);
+			pNextCompLens->findCLSubroutines(subCodes, otherRoutineNames, recursionLevel+1, maxRecursionLevel, derivatives, potential);
 		}
 		else
 		{
 			if (otherRoutineNames[lensNumber].length() == 0)
 			{
 				std::string subName;
-
-				prog += m_lenses[i]->getCLProgram(subName);
+				std::string prog = m_lenses[i]->getCLProgram(subName, derivatives, potential);
 
 				otherRoutineNames[lensNumber] = subName;
+				subCodes[subName] = prog;
 			}
 		}
 	}

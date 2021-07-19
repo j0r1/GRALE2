@@ -41,10 +41,11 @@ directly. Instead allocate a class derived from this; currently available are
 
 from libcpp.string cimport string
 from libcpp.vector cimport vector
+from libcpp.map cimport map as cmap
 from libcpp.memory cimport shared_ptr, unique_ptr, make_unique
 from libcpp cimport bool
 from libcpp.cast cimport dynamic_cast
-from cython.operator cimport dereference as deref
+from cython.operator cimport dereference as deref, postincrement
 import cython
 import numpy as np
 cimport numpy as np
@@ -1555,6 +1556,69 @@ cdef class CompositeLens(GravitationalLens):
             })
 
         return params
+
+    def findCLSubroutines(self, bool derivatives, bool potential):
+        """findCLSubroutines(derivatives, potential)
+
+        Analyzes the current CompositeLens instance, returns a tuple of:
+
+         - the recursion level needed (how many other CompositeLens levels 
+           it contains)
+         - a dictionary where the keys are subroutine names needed by the full
+           program (e.g. a plummer lens function) and the values are the actual
+           OpenCL programs for these subroutines
+         - an array where each entry is either the subroutine name for a sublens
+           or `None` if not needed.
+        
+        The recursion level and array can be fed into the :func:`getCompositeCLProgram`
+        function.
+        """
+
+        cdef int maxRecursion, i
+        cdef cmap[string, string] subRoutineCodes
+        cdef cmap[string, string].iterator it
+        cdef vector[string] otherRoutineNames
+        cdef const gravitationallens.CompositeLens *pLens = gravitationallens.CompositeLens.cast(self._lens())
+
+        if not pLens:
+            raise LensException("Internal error: this lens does not seem to be a CompositeLens")
+        
+        maxRecursion = pLens.findCLSubroutines(subRoutineCodes, otherRoutineNames, derivatives, potential)
+
+        subCodes = { }
+        it = subRoutineCodes.begin()
+        while it != subRoutineCodes.end():
+            subCodes[S(deref(it).first)] = S(deref(it).second)
+            postincrement(it)
+
+        otherRout = []
+        for i in range(otherRoutineNames.size()):
+            otherRout.append(S(otherRoutineNames[i]) if otherRoutineNames[i].length() > 0 else None)
+
+        return maxRecursion, subCodes, otherRout
+
+    @staticmethod
+    def getCompositeCLProgram(otherRoutineNames, int maxRecursion, bool derivatives, bool potential):
+        """getCompositeCLProgram(otherRoutineNames, maxRecursion, derivatives, potential)
+
+        Returns the name of the OpenCL function as well a the OpenCL program itself for a
+        CompositeLens where `maxRecursion` levels are needed, and calls to the subroutine 
+        names in `otherRoutineNames` need to be present. These two parameters are returned 
+        by the :func:`findCLSubroutines` function. The code for these other subroutines is 
+        not included."""
+
+        cdef vector[string] otherNames
+        cdef string subName, prog, empty
+
+        for s in otherRoutineNames:
+            if s:
+                otherNames.push_back(B(s))
+            else:
+                otherNames.push_back(empty)
+
+        prog = gravitationallens.CompositeLens.getCLProgram(subName, otherNames, maxRecursion, derivatives, potential)
+        return S(subName),S(prog)
+        
 
 cdef class MassDiskLens(GravitationalLens):
     """This models the gravitational lens effect of a disk with a constant

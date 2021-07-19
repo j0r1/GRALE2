@@ -34,6 +34,7 @@
 #include "graleconfig.h"
 #include "gravitationallens.h"
 #include <vector>
+#include <map>
 
 namespace grale
 {
@@ -89,6 +90,10 @@ class GRALE_IMPORTEXPORT CompositeLens : public GravitationalLens
 public:
 	CompositeLens();
 	~CompositeLens();
+
+	static CompositeLens *cast(GravitationalLens *pLens);
+	static const CompositeLens *cast(const GravitationalLens *pLens);
+
 	bool getAlphaVector(Vector2D<double> theta, Vector2D<double> *pAlpha) const;
 	double getSurfaceMassDensity(Vector2D<double> theta) const;
 	bool getAlphaVectorDerivatives(Vector2D<double> theta, double &axx, double &ayy, double &axy) const;
@@ -106,12 +111,17 @@ public:
 	bool getCLParameterCounts(int *pNumIntParams, int *pNumFloatParams) const;
 	bool getCLParameters(double deflectionScale, double potentialScale, int *pIntParams, float *pFloatParams) const;
 	std::string getCLProgram(std::string &subRoutineName, bool derivatives = true, bool potential = true) const override;
+
+	static std::string getCLProgram(std::string &subRoutineName, const std::vector<std::string> &otherRoutineNames, int maxRecursionCount, 
+		                     bool derivatives, bool potential);
+
+	// Returns maxRecursionCount
+	int findCLSubroutines(std::map<std::string,std::string> &subRoutineCodes, std::vector<std::string> &otherRoutineNames, bool derivatives, bool potential) const;
 protected:
 	bool processParameters(const GravitationalLensParams *pLensParams);
 private:
 	static std::string getCLProgram(const std::vector<std::string> &subRoutineNames, int recursionLevel, int maxRecursion, bool derivatives, bool potential);
-	
-	void findCLSubroutines(std::string &prog, std::vector<std::string> &otherRoutineNames, int recursionLevel, int &maxRecursionLevel) const;
+	void findCLSubroutines(std::map<std::string,std::string> &subRoutineCodes, std::vector<std::string> &otherRoutineNames, int recursionLevel, int &maxRecursionLevel, bool derivatives, bool potential) const;
 
 	std::vector<std::shared_ptr<GravitationalLens>> m_lenses;
 	std::vector<Vector2D<double> > m_positions;

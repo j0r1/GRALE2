@@ -1,5 +1,6 @@
 from libcpp.string cimport string
 from libcpp.vector cimport vector
+from libcpp.map cimport map as cmap
 from libcpp.memory cimport shared_ptr, unique_ptr
 from libcpp cimport bool
 
@@ -60,7 +61,8 @@ cdef extern from "grale/gravitationallens.h" namespace "grale::GravitationalLens
         Harmonic,
         PotentialGrid,
         CircularPieces,
-        MPContainer
+        MPContainer,
+        MaxLensType
 
 cdef extern from "grale/gravitationallens.h" namespace "grale":
 
@@ -240,6 +242,15 @@ cdef extern from "grale/compositelens.h" namespace "grale":
         Vector2Dd getSubLensPosition(int i) const
         double getSubLensAngleOriginal(int i) const
         double getSubLensFactor(int i) const
+
+        @staticmethod
+        CompositeLens *cast(GravitationalLens *pLens)
+
+        # Returns maxRecursion
+        int findCLSubroutines(cmap[string,string] &subRoutineCodes, vector[string] &otherRoutineNames, bool derivatives, bool potential) const
+        @staticmethod
+        string getCLProgram(string &subRoutineName, const vector[string] &otherRoutineNames, int maxRecursionCount, bool derivatives, bool potential)
+
     cdef cppclass CompositeLensParams(GravitationalLensParams):
         CompositeLensParams()
         bool addLens(double factor, Vector2Dd position, double angle, const GravitationalLens &lens)
