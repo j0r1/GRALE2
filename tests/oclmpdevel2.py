@@ -46,34 +46,46 @@ def getDistanceVector(z_s, z_ds, cosm):
 
     return Dsrc, usedPlanes
 
-
-
 # TODO: same types should be consecutive, will be much more performant
 def getAlphaCodeForPlane(functionName, plane, neededBasisFunctionCode):
 
     code = """
 float2 {functionName}(float2 theta, __global const int *pIntParams, __global const float *pFloatParams, __global const float *pWeights,
-                      __global const float *pCenters)
+                      __global const float *pCenters, float scalableFunctionWeight)
 {{
     float2 alpha = (float2)(0, 0);
     //printf("{functionName}\\n");
 """.format(functionName=functionName)
 
-    def addCodeForType(t, num, iCnt, fCnt):
-        entry = neededBasisFunctionCode[t]
-        code = """
+    def addCodeForLens(functionName, num, iCnt, fCnt, usePlaneScale):
+        code = ""
+
+        if num != 1:
+            code += """
     for (int i = 0 ; i < {Nlenses} ; i++)
+    """.format(Nlenses = num)
+
+        code += """
     {{
         const float2 center = (float2)(pCenters[0], pCenters[1]);
         //printf("center = %g %g\\n", center.x, center.y);
         LensQuantities l = {lensFunctionName}(theta-center, pIntParams, pFloatParams);
-        float w = *pWeights;
-        alpha.x += w*l.alphaX;
-        alpha.y += w*l.alphaY;
-    
+        const float w = *pWeights;
+ 
         pWeights++;
         pCenters += 2;
-""".format(Nlenses=num, lensFunctionName=entry["functionname"])
+""".format(lensFunctionName=functionName)
+        if usePlaneScale:
+            code += """
+        alpha.x += w*l.alphaX*scalableFunctionWeight;
+        alpha.y += w*l.alphaY*scalableFunctionWeight;
+"""
+        else:
+            code += """
+        alpha.x += w*l.alphaX;
+        alpha.y += w*l.alphaY;
+"""
+
         if iCnt:
             code += "        pIntParams += {};\n".format(iCnt)
         if fCnt:
@@ -104,13 +116,19 @@ float2 {functionName}(float2 theta, __global const int *pIntParams, __global con
         if prevBfType != t or (prevBfType == t and (iCnt != prevIntCount or fCnt != prevFloatCount )):
             #print(prevBfType, t, iCnt, prevIntCount, fCnt, prevFloatCount)
             if prevBfCounts:
-                code += addCodeForType(prevBfType, prevBfCounts, prevIntCount, prevFloatCount)
+                code += addCodeForLens(neededBasisFunctionCode[prevBfType]["functionname"], prevBfCounts, prevIntCount, prevFloatCount, True)
             prevBfType, prevBfCounts, prevIntCount, prevFloatCount = t, 1, iCnt, fCnt
         else:
             prevBfCounts += 1
 
     if prevBfCounts:
-        code += addCodeForType(prevBfType, prevBfCounts, prevIntCount, prevFloatCount)
+        code += addCodeForLens(neededBasisFunctionCode[prevBfType]["functionname"], prevBfCounts, prevIntCount, prevFloatCount, True)
+
+    if plane["unscaledlens"]:
+        bf, center = plane["unscaledlens"]
+        fnName, fnCode = bf.getCLProgram(False, False)
+        iCnt, fCnt = bf.getCLParameterCounts()
+        code += addCodeForLens(fnName, 1, iCnt, fCnt, False)
 
     code += """
     return alpha;
@@ -164,7 +182,8 @@ def getMultiPlaneTraceCode(lensPlanes):
 
 float2 getAlpha(int lpIdx, float2 theta, __global const int *pAllIntParams, __global const float *pAllFloatParams,
                 __global const float *pAllWeights, __global const float *pAllCenters, __global const int *pPlaneIntParamOffsets,
-                __global const int *pPlaneFloatParamOffsets, __global const int *pPlaneWeightOffsets)
+                __global const int *pPlaneFloatParamOffsets, __global const int *pPlaneWeightOffsets,
+                __global const float *pScalableFunctionWeights)
 {{
 
 """.format(maxPlanes=maxPlanes)
@@ -174,7 +193,7 @@ float2 getAlpha(int lpIdx, float2 theta, __global const int *pAllIntParams, __gl
         code += """
     if (lpIdx == {i})
         return getAlpha_{i}(theta, pAllIntParams + pPlaneIntParamOffsets[{i}], pAllFloatParams + pPlaneFloatParamOffsets[{i}],
-                            pAllWeights + pPlaneWeightOffsets[{i}], pAllCenters + pPlaneWeightOffsets[{i}]*2);
+                            pAllWeights + pPlaneWeightOffsets[{i}], pAllCenters + pPlaneWeightOffsets[{i}]*2, pScalableFunctionWeights[{i}]);
 """.format(i = i);
 
     code += """
@@ -185,7 +204,8 @@ float2 getAlpha(int lpIdx, float2 theta, __global const int *pAllIntParams, __gl
 float2 multiPlaneTrace(float2 theta, int numPlanes, __global const float *Dsrc, __global const float *Dmatrix,
                 __global const int *pAllIntParams, __global const float *pAllFloatParams, __global const float *pAllWeights,
                 __global const float *pAllCenters, __global const int *pPlaneIntParamOffsets,
-                __global const int *pPlaneFloatParamOffsets, __global const int *pPlaneWeightOffsets)
+                __global const int *pPlaneFloatParamOffsets, __global const int *pPlaneWeightOffsets,
+                __global const float *pScalableFunctionWeights)
 {
     float2 T[MAXPLANES];
     float2 alphas[MAXPLANES];
@@ -198,7 +218,7 @@ float2 multiPlaneTrace(float2 theta, int numPlanes, __global const float *Dsrc, 
         const int i = j-1;
         if (i >= 0)
         {
-            const float2 alpha = getAlpha(i, T[i], pAllIntParams, pAllFloatParams, pAllWeights, pAllCenters, pPlaneIntParamOffsets, pPlaneFloatParamOffsets, pPlaneWeightOffsets);
+            const float2 alpha = getAlpha(i, T[i], pAllIntParams, pAllFloatParams, pAllWeights, pAllCenters, pPlaneIntParamOffsets, pPlaneFloatParamOffsets, pPlaneWeightOffsets, pScalableFunctionWeights);
             alphas[i] = alpha;
 	        const float dfrac = Dmatrix[(i+1)*MAXPLANES + j]/Dmatrix[0 + j];
 
@@ -213,7 +233,7 @@ float2 multiPlaneTrace(float2 theta, int numPlanes, __global const float *Dsrc, 
     const int i = numPlanes-1;
     if (i >= 0)
     {
-        const float2 alpha = getAlpha(i, T[i], pAllIntParams, pAllFloatParams, pAllWeights, pAllCenters, pPlaneIntParamOffsets, pPlaneFloatParamOffsets, pPlaneWeightOffsets);
+        const float2 alpha = getAlpha(i, T[i], pAllIntParams, pAllFloatParams, pAllWeights, pAllCenters, pPlaneIntParamOffsets, pPlaneFloatParamOffsets, pPlaneWeightOffsets, pScalableFunctionWeights);
         const float dfrac = Dsrc[i+1]/Dsrc[0];
         beta -= dfrac * alpha;
     }
@@ -253,7 +273,8 @@ __kernel void calculateBetas(const int numPoints, __global const float *pThetas,
                                 __global const float *pAllIntParams, __global const float *pAllFloatParams,
                                 __global const float *pAllWeights, __global const float *pAllCenters,
                                 __global const int *pPlaneIntParamOffsets,
-                                __global const int *pPlaneFloatParamOffsets, __global const int *pPlaneWeightOffsets)
+                                __global const int *pPlaneFloatParamOffsets, __global const int *pPlaneWeightOffsets,
+                                __global const float *pScalableFunctionWeights)
 {
     const int i = get_global_id(0);
     if (i >= numPoints)
@@ -264,8 +285,8 @@ __kernel void calculateBetas(const int numPoints, __global const float *pThetas,
     __global const float *Dsrc = DsrcAll + (MAXPLANES+1)*i;
     const float2 beta = multiPlaneTrace(theta, pNumPlanes[i], Dsrc, Dmatrix,
                                         pAllIntParams, pAllFloatParams, pAllWeights, pAllCenters,
-                                        pPlaneIntParamOffsets,
-                                        pPlaneFloatParamOffsets, pPlaneWeightOffsets);
+                                        pPlaneIntParamOffsets, pPlaneFloatParamOffsets, pPlaneWeightOffsets,
+                                        pScalableFunctionWeights);
 
     pBetas[i*2+0] = beta.x;
     pBetas[i*2+1] = beta.y;
@@ -296,11 +317,13 @@ def getOpenCLData(cosm, zss, zds, lensplanes, angularScale):
     intParamOffsets = [ ]
     floatParamOffsets = [ ]
     weightOffsets = [ ]
+    planeWeights = [ ]
 
     for plane in lensplanes:
         intParamOffsets.append(len(intParams))
         floatParamOffsets.append(len(floatParams))
         weightOffsets.append(len(weights))
+        planeWeights.append(1.0)
 
         for bf, center in plane["scaledlenses"]:
             weights.append(1.0)
@@ -325,8 +348,9 @@ def getOpenCLData(cosm, zss, zds, lensplanes, angularScale):
     intParamOffsets = np.array(intParamOffsets, dtype=np.int32)
     floatParamOffsets = np.array(floatParamOffsets, dtype=np.int32)
     weightOffsets = np.array(weightOffsets, dtype=np.int32)
+    planeWeights = np.array(planeWeights, dtype=np.float32)
 
-    return allNumPlanes, DsrcAll, Dmatrix, intParams, floatParams, weights, centers, intParamOffsets, floatParamOffsets, weightOffsets
+    return allNumPlanes, DsrcAll, Dmatrix, intParams, floatParams, weights, centers, intParamOffsets, floatParamOffsets, weightOffsets, planeWeights
 
 class CPUMultiPlaneTracer(object):
     def __init__(self, zss, zds, lensplanes, cosm):
@@ -439,7 +463,7 @@ def main2():
     betas = np.zeros(thetas.shape, dtype=np.float32)
     assert(len(thetas) == len(zss))
 
-    allNumPlanes, DsrcAll, Dmatrix, intParams, floatParams, weights, centers, intParamOffsets, floatParamOffsets, weightOffsets = getOpenCLData(cosm, zss, zds, lensplanes, angularScale)
+    allNumPlanes, DsrcAll, Dmatrix, intParams, floatParams, weights, centers, intParamOffsets, floatParamOffsets, weightOffsets, planeWeights = getOpenCLData(cosm, zss, zds, lensplanes, angularScale)
 
     pprint.pprint(thetas)
     pprint.pprint(betas)
@@ -451,11 +475,18 @@ def main2():
     pprint.pprint(intParams)
     print("Float params:")
     pprint.pprint(floatParams)
+
+    print("Weights:")
+    weights = np.random.random(weights.shape).astype(np.float32)
     pprint.pprint(weights)
+    
     pprint.pprint(centers)
     pprint.pprint(intParamOffsets)
     pprint.pprint(floatParamOffsets)
     pprint.pprint(weightOffsets)
+    
+    planeWeights = np.random.random(planeWeights.shape).astype(np.float32)
+    pprint.pprint(planeWeights)
 
     ctx = cl.create_some_context()
     queue = cl.CommandQueue(ctx)
@@ -473,8 +504,9 @@ def main2():
     d_intParamOffsets = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=intParamOffsets)
     d_floatParamOffsets = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=floatParamOffsets)
     d_weightOffsets = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=weightOffsets)
+    d_planeWeights = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=planeWeights)
 
-    print(code)
+    #print(code)
     
     #print("Using code from tst.cl")
     #code = open("tst.cl", "rt").read()
@@ -485,7 +517,7 @@ def main2():
     calcBetas(queue, (len(zss),), None,
              np.int32(len(zss)), d_thetas, d_betas, d_numPlanes, 
              d_DsrcAll, d_Dmatrix, d_intParams, d_floatParams, d_weights, d_centers,
-             d_intParamOffsets, d_floatParamOffsets, d_weightOffsets)
+             d_intParamOffsets, d_floatParamOffsets, d_weightOffsets, d_planeWeights)
 
     cl.enqueue_copy(queue, betas, d_betas)
 
@@ -493,6 +525,8 @@ def main2():
     pprint.pprint(betas)
 
     tracer = CPUMultiPlaneTracer(zss, zds, lensplanes, cosm)
+    tracer.setAllWeights(weights.tolist())
+    tracer.setPlaneWeights(planeWeights.tolist())
     betas = tracer.trace(thetas)
     print("CPU:")
     print(betas)
