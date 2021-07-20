@@ -78,6 +78,7 @@ set(HEADERS
 	galens/scalesearchparameters.h
 	galens/gaparameters.h
 	galens/lensgaconvergenceparameters.h
+	opencl/openclkernel.h
 	thirdparty/WildMagic5/Wm5Assert.h
 	thirdparty/WildMagic5/Wm5Box2.h
 	thirdparty/WildMagic5/Wm5Box2.inl
@@ -166,6 +167,7 @@ set(SOURCES
 	galens/scalesearchparameters.cpp
 	galens/gaparameters.cpp
 	galens/lensgaconvergenceparameters.cpp
+	opencl/openclkernel.cpp
 	thirdparty/WildMagic5/Wm5Assert.cpp
 	thirdparty/WildMagic5/Wm5ConvexHull.cpp
 	thirdparty/WildMagic5/Wm5ConvexHull2.cpp

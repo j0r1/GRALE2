@@ -3,10 +3,10 @@
 #include "graleconfig.h"
 #include "lensinversiongafactorycommon.h"
 #include "randomnumbergenerator.h"
-#include "mpcudabackprojector.h"
 #include "vector2d.h"
 #include "lensinversionparametersmultiplanegpu.h"
 #include "lensinversionbasislensinfo.h"
+#include "plummerlensinfo.h"
 #include <vector>
 #include <memory>
 
@@ -34,6 +34,10 @@ public:
 										  float scaleFactor,
 										  std::string &errStr) const override;
 
+	// These a the EATK functions that we'll override to allow an async calculation
+	errut::bool_t startNewCalculation(const eatk::Genome &genome) override;
+	errut::bool_t pollCalculate(const eatk::Genome &genome, eatk::Fitness &fitness) override;
+
 	errut::bool_t initializeNewCalculation(const std::vector<float> &basisFunctionWeights, const std::vector<float> &sheetValues) override;
 	errut::bool_t calculateMassScaleFitness(float scaleFactor, float &fitness) override;
 	errut::bool_t calculateTotalFitness(float scaleFactor, float *pFitnessValues) override;
@@ -46,10 +50,8 @@ private:
 	void convertGenomeSheetValuesToDensities(const std::vector<float> &sheetValues,
 											 std::vector<float> &sheetDensities) const;
 	void scaleWeights(float scaleFactor);
-	errut::bool_t checkCUDAInit();
 
 	std::unique_ptr<LensInversionParametersMultiPlaneGPU> m_currentParams;
-	std::shared_ptr<MPCUDABackProjector> m_cudaBpShort, m_cudaBpFull;
 
 	std::vector<float> m_lensRedshifts;
 	std::vector<std::vector<PlummerLensInfo>> m_basisLenses;
@@ -62,9 +64,6 @@ private:
 
 	std::vector<std::shared_ptr<ImagesDataExtended>> m_images;
 	std::vector<ImagesDataExtended *> m_reducedImages, m_shortImages;
-	std::string m_libraryPath;
-	bool m_cudaInitialized;
-	bool m_cudaInitAttempted;
 };
 
 } // end namespace

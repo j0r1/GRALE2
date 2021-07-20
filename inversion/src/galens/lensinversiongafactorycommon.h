@@ -65,6 +65,12 @@ private:
 						  float &scaleFactor,
 						  float *pFitnessValues);
 
+	float getScalingMassSum(const std::vector<float> &basisFunctionWeights) const;
+	std::pair<float,float> getInitialStartStopValues(const std::vector<float> &basisFunctionWeights) const;
+	float getStepsAndStepSize(std::pair<float,float> startStopValue, int iteration, std::vector<std::pair<float,float>> &steps) const;
+	void updateStartStopValues(std::pair<float,float> &startStopValue, std::pair<float,float> startStopValue0, 
+										float currentBestScaleFactor, float stepsize) const;
+
 	// void onGeneticAlgorithmStart(); // TODO: re-enable this
 
 	int m_numBasisFunctions, m_numSheetValues;

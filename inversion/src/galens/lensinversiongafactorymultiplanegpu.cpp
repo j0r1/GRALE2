@@ -29,9 +29,6 @@ bool_t LensInversionGAFactoryMultiPlaneGPU::init(const LensInversionParametersBa
 	if (!pParams)
 		return "Specified parameters are not of the correct type";
 
-	if (!getenv("GRALE_MPCUDA_LIBRARY", m_libraryPath))
-		return "Environment variable GRALE_MPCUDA_LIBRARY for the helper library is not set";
-
 	bool_t r;
 
 	if (!(r = analyzeLensBasisFunctions(pParams->getLensRedshifts(), pParams->getBasisLenses())))
@@ -47,12 +44,6 @@ bool_t LensInversionGAFactoryMultiPlaneGPU::init(const LensInversionParametersBa
 	if (!(r = initializeLensFitnessObject(numeric_limits<double>::quiet_NaN(), m_images, pParams->getFitnessObjectParameters(),
 									 m_reducedImages, m_shortImages)))
 		return r;
-
-	// We're going to init CUDA later, only when we actually need it. The way the code
-	// is structured now, extra factory instances could be created (well at least one),
-	// causing more CUDA inits to happen than needed
-	m_cudaInitAttempted = false;
-	m_cudaInitialized = false;
 
 	// sheet densities, sheet multipliers
 	m_sheetDensities.clear();
@@ -289,101 +280,22 @@ void LensInversionGAFactoryMultiPlaneGPU::scaleWeights(float scaleFactor)
 
 bool_t LensInversionGAFactoryMultiPlaneGPU::calculateMassScaleFitness(float scaleFactor, float &fitness)
 {
-	bool_t r;
-	if (!(r = checkCUDAInit()))
-		return r;
-
-	scaleWeights(scaleFactor);
-
-	assert(m_cudaBpShort.get());
-	if (!m_cudaBpShort->calculateSourcePositions(m_scaledPlaneWeights, m_sheetDensities))
-		return "Error back-projecting images: " + m_cudaBpShort->getErrorString();
-
-	LensFitnessObject &fitnessObject = getFitnessObject();
-	if (!fitnessObject.calculateMassScaleFitness(*m_cudaBpShort, fitness))
-		return "Unable to calculate fitness for mass scale: " + fitnessObject.getErrorString();
-	return true;
+	return "ERROR: calculateMassScaleFitness is no longer used";
 }
 
 bool_t LensInversionGAFactoryMultiPlaneGPU::calculateTotalFitness(float scaleFactor, float *pFitnessValues)
 {
-	bool_t r;
-	if (!(r = checkCUDAInit()))
-		return r;
-
-	scaleWeights(scaleFactor);
-
-	assert(m_cudaBpFull.get());
-	if (!m_cudaBpFull->calculateSourcePositions(m_scaledPlaneWeights, m_sheetDensities))
-		return "Error back-projecting images: " + m_cudaBpFull->getErrorString();
-
-	LensFitnessObject &fitnessObject = getFitnessObject();
-	if (!fitnessObject.calculateOverallFitness(*m_cudaBpFull, pFitnessValues))
-		return "Unable to calculate full fitness: " + fitnessObject.getErrorString();
-
-	return true;
+	return "ERROR: calculateTotalFitness is no longer used";
 }
 
-bool_t LensInversionGAFactoryMultiPlaneGPU::checkCUDAInit()
+bool_t LensInversionGAFactoryMultiPlaneGPU::startNewCalculation(const eatk::Genome &genome)
 {
-	if (m_cudaInitialized)
-		return true;
+	return "TODO: implement startNewCalculation";
+}
 
-	if (m_cudaInitAttempted)
-		return "CUDA initialization has failed previously";
-
-	m_cudaInitAttempted = true;
-
-	const LensInversionParametersMultiPlaneGPU *pParams = m_currentParams.get();
-	if (!pParams)
-		return "Unexpected: parameters is null, we should already have checked this";
-
-	auto createBackProjector = [this, pParams](auto imgs, string &errStr, int devIdx=-1) -> shared_ptr<MPCUDABackProjector>
-	{
-		vector<float> sourceRedshifts;
-		for (auto i : imgs)
-		{
-			double z;
-			if (!i->hasExtraParameter("z") || !i->getExtraParameter("z", z))
-			{
-				errStr = "Unexpected: no 'z' parameter in images data instance";
-				return nullptr;
-			}
-			sourceRedshifts.push_back((float)z);
-		}
-
-		if (devIdx < 0)
-			devIdx = pParams->getDeviceIndex();
-
-		auto bp = make_shared<MPCUDABackProjector>();
-		if (!bp->init(m_libraryPath, devIdx, pParams->getCosmology(), 
-					  m_lensRedshifts, m_basisLenses, sourceRedshifts, imgs))
-		{
-			errStr = "Unable to initialize CUDA based backprojector: " + bp->getErrorString();
-			return nullptr;
-		}
-		return bp;
-	};
-
-	// Allocate backprojector for reducedImages
-	string errStr = "Unknown error";
-	m_cudaBpFull = createBackProjector(m_reducedImages, errStr);
-	if (!m_cudaBpFull.get())
-		return errStr;
-
-	if (m_shortImages.size() > 0) // We can speed up the scale search with a smaller set of images
-	{
-		// Make sure that we're using the same device, we won't be calculating
-		// short and full versions at the same time
-		m_cudaBpShort = createBackProjector(m_shortImages, errStr, m_cudaBpFull->getDeviceIndex());
-		if (!m_cudaBpShort.get())
-			return errStr;
-	}
-	else // use the same
-		m_cudaBpShort = m_cudaBpFull;
-
-	m_cudaInitialized = true;
-	return true;
+bool_t LensInversionGAFactoryMultiPlaneGPU::pollCalculate(const eatk::Genome &genome, eatk::Fitness &fitness)
+{
+	return "TODO: implement pollCalculate";
 }
 
 } // end namespace
