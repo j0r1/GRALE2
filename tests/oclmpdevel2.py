@@ -95,23 +95,25 @@ float2 {functionName}(float2 theta, __global const int *pIntParams, __global con
 """
         return code
 
-    prevBfType, prevBfCounts, prevIntCount, prevFloatCount = None, 0, None, None
-    for bf,center in plane["scaledlenses"]:
-        t = type(bf)
-        fnName, fnCode = bf.getCLProgram(False, False)
-        
+    def checkFunction(t, fnName, fnCode):
         # For a compositelens, we'll add the code later (may need other sublenses or more recursion)
         if t == lenses.CompositeLens:
             fnCode = ""
 
-        iCnt, fCnt = bf.getCLParameterCounts()
-        #print("Type", t, iCnt, fCnt)
-        
         if not t in neededBasisFunctionCode:
             neededBasisFunctionCode[t] = {
                 "functionname": fnName,
                 "functioncode": fnCode,
             }
+
+    prevBfType, prevBfCounts, prevIntCount, prevFloatCount = None, 0, None, None
+    for bf,center in plane["scaledlenses"]:
+        t = type(bf)
+        fnName, fnCode = bf.getCLProgram(False, False)
+        checkFunction(t, fnName, fnCode)
+
+        iCnt, fCnt = bf.getCLParameterCounts()
+        #print("Type", t, iCnt, fCnt)
 
         if prevBfType != t or (prevBfType == t and (iCnt != prevIntCount or fCnt != prevFloatCount )):
             #print(prevBfType, t, iCnt, prevIntCount, fCnt, prevFloatCount)
@@ -127,6 +129,8 @@ float2 {functionName}(float2 theta, __global const int *pIntParams, __global con
     if plane["unscaledlens"]:
         bf, center = plane["unscaledlens"]
         fnName, fnCode = bf.getCLProgram(False, False)
+        checkFunction(type(bf), fnName, fnCode)
+
         iCnt, fCnt = bf.getCLParameterCounts()
         code += addCodeForLens(fnName, 1, iCnt, fCnt, False)
 
@@ -144,7 +148,7 @@ def checkCompositeLenses(lensPlanes):
     for plane in lensPlanes:
         planeLenses = [ bf for bf, center in plane["scaledlenses"] ]
         if plane["unscaledlens"]:
-            planeLenses.append(plane["unscaledlens"])
+            planeLenses.append(plane["unscaledlens"][0])
 
         for bf in planeLenses:
             if type(bf) != lenses.CompositeLens:
@@ -325,7 +329,11 @@ def getOpenCLData(cosm, zss, zds, lensplanes, angularScale):
         weightOffsets.append(len(weights))
         planeWeights.append(1.0)
 
-        for bf, center in plane["scaledlenses"]:
+        allLenses = plane["scaledlenses"][:]
+        if plane["unscaledlens"]:
+            allLenses.append(plane["unscaledlens"])
+
+        for bf, center in allLenses:
             weights.append(1.0)
             centers.append(center/angularScale)
             ip, fp = bf.getCLParameters(angularScale, angularScale*angularScale)
@@ -335,8 +343,6 @@ def getOpenCLData(cosm, zss, zds, lensplanes, angularScale):
                 floatParams += fp.tolist()
 
             print("Lens type", type(bf), "int params", ip, "float params", fp)
-
-        # TODO: unscaled lens
 
     intParams.append(12345) # To avoid a zero-length buffer
     floatParams.append(12345) # To avoid a zero-length buffer
@@ -430,11 +436,11 @@ def main2():
 
     plane1 = {
         "scaledlenses": [ (lenses.PlummerLens(cosm.getAngularDiameterDistance(zd1), { "mass": 1e14*MASS_SUN, "width": 2.0*ANGLE_ARCSEC }), V(1,0)*ANGLE_ARCSEC) ],
-        "unscaledlens": None,
+        "unscaledlens": (lenses.MassSheetLens(cosm.getAngularDiameterDistance(zd1), { "density": 1.5 }), V(0,0)),
     }
     plane2 = {
         "scaledlenses": [ (lenses.PlummerLens(cosm.getAngularDiameterDistance(zd2), { "mass": 2e14*MASS_SUN, "width": 1.5*ANGLE_ARCSEC }), V(0,1)*ANGLE_ARCSEC) ],
-        "unscaledlens": None,
+        "unscaledlens": (lenses.MassSheetLens(cosm.getAngularDiameterDistance(zd2), { "density": 1.5 }), V(0,0)),
     }
     plane3 = {
         "scaledlenses": [ (lenses.CompositeLens(cosm.getAngularDiameterDistance(zd3), [
@@ -448,7 +454,7 @@ def main2():
               ]),
           V(-1,-1)*ANGLE_ARCSEC),
           ],
-        "unscaledlens": None,
+        "unscaledlens": (lenses.MassSheetLens(cosm.getAngularDiameterDistance(zd3), { "density": 1.5 }), V(0,0)),
     }
     zds, lensplanes = [zd1, zd2, zd3 ], [ plane1, plane2, plane3 ]
     code = getMultiPlaneOCLProgram(lensplanes)
