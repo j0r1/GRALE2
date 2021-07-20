@@ -100,6 +100,7 @@ bool OpenCLKernel::loadLibrary(const std::string &libraryName)
 	GETFUNCTION(clFinish)
 	GETFUNCTION(clEnqueueReadBuffer)
 	GETFUNCTION(clGetPlatformInfo)
+	GETFUNCTION(clGetDeviceInfo)
 
 	return true;
 }

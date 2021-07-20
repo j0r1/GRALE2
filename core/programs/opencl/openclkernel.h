@@ -26,6 +26,7 @@ typedef uint32_t cl_bool;
 typedef float cl_float;
 typedef struct { float x, y; } cl_float2;
 typedef cl_uint cl_platform_info;
+typedef cl_uint cl_device_info;
 
 #define CL_SUCCESS 0
 #define CL_DEVICE_TYPE_GPU (1 << 2)
@@ -34,6 +35,7 @@ typedef cl_uint cl_platform_info;
 #define CL_MEM_READ_ONLY                            (1 << 2)
 #define CL_MEM_COPY_HOST_PTR                        (1 << 5)
 #define CL_PLATFORM_NAME                            0x0902
+#define CL_DEVICE_NAME								0x102B
 
 class OpenCLKernel : public errut::ErrorBase
 {
@@ -58,6 +60,7 @@ public:
 	cl_int (*clGetDeviceIDs)(cl_platform_id platform, cl_device_type device_type, cl_uint num_entries, cl_device_id *devices, cl_uint *num_devices);
 	cl_int (*clGetPlatformIDs)(cl_uint num_entries, cl_platform_id *platforms, cl_uint *num_platforms);
 	cl_int (*clGetPlatformInfo)(cl_platform_id platform, cl_platform_info param_name, size_t param_value_size, void *param_value, size_t *param_value_size_ret);
+	cl_int (*clGetDeviceInfo)(cl_device_id device, cl_device_info param_name, size_t param_value_size, void *param_value, size_t *param_value_size_ret);
 
 	cl_int (*clGetProgramBuildInfo)(cl_program program, cl_device_id device, cl_program_build_info param_name, size_t param_value_size, void *param_value, size_t *param_value_size_ret);
 	cl_int (*clReleaseCommandQueue)(cl_command_queue command_queue);
