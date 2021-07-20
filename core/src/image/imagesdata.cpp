@@ -200,7 +200,7 @@ int ImagesData::addPoint(int imageNumber, Vector2Dd point, const vector<pair<Pro
 
 int ImagesData::addPoint(int imageNumber, Vector2D<double> point)
 {
-	return addPoint(imageNumber, point, {});
+	return addPoint(imageNumber, point, vector<pair<PropertyName, double>>{});
 }
 
 int ImagesData::addPoint(int imageNumber, Vector2D<double> point, double intensity)
