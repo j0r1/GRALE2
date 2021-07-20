@@ -347,7 +347,13 @@ int main(int argc, char *argv[])
 	getenv("GRALE_OPENCLLIB", library); // Doesn't change the value if environment variable not set
 
 	OpenCLKernel clKernel;
-	if (!clKernel.init(library))
+	if (!clKernel.loadLibrary(library))
+	{
+		cerr << "Unable to load OpenCL library: " << clKernel.getErrorString() << endl;
+		return -1;
+	}
+
+	if (!clKernel.init())
 	{
 		cerr << "Unable to initialize OpenCL: " << clKernel.getErrorString() << endl;
 		return -1;

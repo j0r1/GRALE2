@@ -4,7 +4,6 @@
 #include <dlfcn.h>
 #endif // GRALE_LOADLIBRARY
 #include "openclkernel.h"
-#include "inputoutput.h"
 #include <stdio.h>
 #include <iostream>
 
@@ -49,7 +48,7 @@ OpenCLKernel::~OpenCLKernel()
 #define LOADLIBRARY(x) (void*)LoadLibrary(x)
 #define SYMBOL(l, x) GetProcAddress((HMODULE)l, x)
 #define CLOSELIBRARY(x) FreeLibrary((HMODULE)x)
-#define GETERRORSTRING() (strprintf("Error code %d", (int)GetLastError()))
+#define GETERRORSTRING() ("Error code " + to_string((int)GetLastError()))
 #else
 #define LOADLIBRARY(x) dlopen(x, RTLD_LAZY)
 #define SYMBOL(l, x) dlsym(l, x)
@@ -57,15 +56,14 @@ OpenCLKernel::~OpenCLKernel()
 #define GETERRORSTRING() (string(dlerror()))
 #endif // GRALE_LOADLIBRARY
 
-bool OpenCLKernel::init(const string &libraryName)
+bool OpenCLKernel::loadLibrary(const std::string &libraryName)
 {
-	if (m_init)
+	if (m_pModule)
 	{
-		setErrorString("OpenCL kernel loader is already initialized");
+		setErrorString("A library has already been opened");
 		return false;
 	}
 
-	// TODO: Windows, OS X
 	m_pModule = LOADLIBRARY(libraryName.c_str());
 	if (m_pModule == nullptr)
 	{
@@ -101,6 +99,24 @@ bool OpenCLKernel::init(const string &libraryName)
 	GETFUNCTION(clEnqueueNDRangeKernel)
 	GETFUNCTION(clFinish)
 	GETFUNCTION(clEnqueueReadBuffer)
+	GETFUNCTION(clGetPlatformInfo)
+
+	return true;
+}
+
+bool OpenCLKernel::init()
+{
+	if (!m_pModule)
+	{
+		setErrorString("No OpenCL library has been initialized yet");
+		return false;
+	}
+
+	if (m_init)
+	{
+		setErrorString("OpenCL kernel loader is already initialized");
+		return false;
+	}
 
 	m_currentProgram = "";
 	m_currentKernel = "";
@@ -151,6 +167,7 @@ bool OpenCLKernel::init(const string &libraryName)
 	if (err != CL_SUCCESS)
 	{
 		setErrorString(string("Can't create OpenCL command queue: ") + getCLErrorString(err));
+		releaseAll();
 		return false;
 	}
 
@@ -244,14 +261,8 @@ bool OpenCLKernel::loadKernel(const string &programString, const string &kernelN
 	return true;
 }
 
-bool OpenCLKernel::destroy()
+void OpenCLKernel::destroy()
 {
-	if (!m_init)
-	{
-		setErrorString("OpenCL kernel loader was not initialized");
-		return false;
-	}
-
 	m_init = false;
 
 	m_currentProgram = "";
@@ -260,8 +271,10 @@ bool OpenCLKernel::destroy()
 	releaseAll();
 
 	if (m_pModule)
+	{
 		CLOSELIBRARY(m_pModule);
-	return true;
+		m_pModule = nullptr;
+	}
 }
 
 void OpenCLKernel::releaseAll()
@@ -284,6 +297,6 @@ void OpenCLKernel::releaseAll()
 
 string OpenCLKernel::getCLErrorString(int errNum)
 {
-	return strprintf("OpenCL error code %d", errNum);
+	return "OpenCL error code " + to_string(errNum);
 }
 

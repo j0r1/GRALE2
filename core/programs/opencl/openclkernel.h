@@ -25,6 +25,7 @@ typedef void* cl_event;
 typedef uint32_t cl_bool;
 typedef float cl_float;
 typedef struct { float x, y; } cl_float2;
+typedef cl_uint cl_platform_info;
 
 #define CL_SUCCESS 0
 #define CL_DEVICE_TYPE_GPU (1 << 2)
@@ -32,6 +33,7 @@ typedef struct { float x, y; } cl_float2;
 #define CL_MEM_WRITE_ONLY                           (1 << 1)
 #define CL_MEM_READ_ONLY                            (1 << 2)
 #define CL_MEM_COPY_HOST_PTR                        (1 << 5)
+#define CL_PLATFORM_NAME                            0x0902
 
 class OpenCLKernel : public errut::ErrorBase
 {
@@ -39,9 +41,10 @@ public:
 	OpenCLKernel();
 	~OpenCLKernel();
 
-	bool init(const std::string &libraryName);
+	bool loadLibrary(const std::string &libraryName);
+	bool init();
 	bool loadKernel(const std::string &program, const std::string &kernelName, std::string &failLog);
-	bool destroy();
+	void destroy();
 
 	cl_context getContext()										{ return m_context; }
 	cl_kernel getKernel() 										{ return m_kernel; }
@@ -54,6 +57,8 @@ public:
 	cl_program (*clCreateProgramWithSource)(cl_context context,	cl_uint count, const char **strings, const size_t *lengths, cl_int *errcode_ret);
 	cl_int (*clGetDeviceIDs)(cl_platform_id platform, cl_device_type device_type, cl_uint num_entries, cl_device_id *devices, cl_uint *num_devices);
 	cl_int (*clGetPlatformIDs)(cl_uint num_entries, cl_platform_id *platforms, cl_uint *num_platforms);
+	cl_int (*clGetPlatformInfo)(cl_platform_id platform, cl_platform_info param_name, size_t param_value_size, void *param_value, size_t *param_value_size_ret);
+
 	cl_int (*clGetProgramBuildInfo)(cl_program program, cl_device_id device, cl_program_build_info param_name, size_t param_value_size, void *param_value, size_t *param_value_size_ret);
 	cl_int (*clReleaseCommandQueue)(cl_command_queue command_queue);
 	cl_int (*clReleaseContext)(cl_context context);
@@ -66,8 +71,9 @@ public:
 	cl_int (*clEnqueueNDRangeKernel)(cl_command_queue command_queue, cl_kernel kernel, cl_uint work_dim, const size_t *global_work_offset, const size_t *global_work_size, const size_t *local_work_size, cl_uint num_events_in_wait_list, const cl_event *event_wait_list, cl_event *event);
 	cl_int (*clFinish)(cl_command_queue command_queue);
 	cl_int (*clEnqueueReadBuffer)(cl_command_queue command_queue, cl_mem buffer, cl_bool blocking_read, size_t offset, size_t cb, void *ptr, cl_uint num_events_in_wait_list, const cl_event *event_wait_list, cl_event *event);
-private:
+protected:
 	static std::string getCLErrorString(int errNum);
+private:
 	void releaseAll();
 
 	bool m_init;
