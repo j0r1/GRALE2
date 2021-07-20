@@ -3,7 +3,7 @@
 namespace grale
 {
 
-LensInversionBasisLensInfo::LensInversionBasisLensInfo(std::shared_ptr<GravitationalLens> &lens, Vector2Dd center, double relevantLensingMass)
+LensInversionBasisLensInfo::LensInversionBasisLensInfo(const std::shared_ptr<GravitationalLens> &lens, Vector2Dd center, double relevantLensingMass)
 	: m_pLens(lens), m_center(center), m_relevantLensingMass(relevantLensingMass)
 {
 }
