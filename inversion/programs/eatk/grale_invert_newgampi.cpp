@@ -19,10 +19,10 @@ using namespace errut;
 class NewGACommunicatorMPI : public NewGACommunicatorBase
 {
 public:
-	NewGACommunicatorMPI(size_t s) : m_size(s) { }
+	NewGACommunicatorMPI(size_t s, size_t numThreads) : m_size(s), m_numThreads(numThreads) { }
 	~NewGACommunicatorMPI() { }
 protected:
-	string getVersionInfo() const override { return "EATk MPI based algorithm, " + to_string(m_size) + " processes"; }
+	string getVersionInfo() const override { return "EATk MPI based algorithm, " + to_string(m_size) + " processes and " + to_string(m_numThreads) + " threads per process"; }
 
 	void calculatorCleanup() override
 	{
@@ -48,8 +48,11 @@ protected:
 		MPI_Bcast(&paramSize, 1, MPI_INT, 0, MPI_COMM_WORLD);
 		MPI_Bcast((void*)ser.getBufferPointer(), ser.getBufferSize(), MPI_BYTE, 0, MPI_COMM_WORLD);
 		
-		auto localCalc = make_shared<eatk::SingleThreadedPopulationFitnessCalculation>(genomeCalculator);
-		
+		std::shared_ptr<eatk::PopulationFitnessCalculation> localCalc;
+		if (!(r = getMultiThreadedPopulationCalculator(m_numThreads, lensFitnessObjectType, calculatorType,
+						                               calcFactory, genomeCalculator, factoryParamBytes, localCalc)))
+			return "Error creating calculator for MPI process: " + r.getErrorString();
+
 		// The event distribution mechanism uses a weak pointer, make sure this doesn't
 		// get deallocated too soon by storing it in the class instance
 		m_evtDist = make_shared<eatk::MPIEventDistributor>();
@@ -68,11 +71,11 @@ protected:
 		return true;
 	}
 private:
-	size_t m_size;
+	size_t m_size, m_numThreads;
 	std::shared_ptr<eatk::MPIEventDistributor> m_evtDist;
 };
 
-bool_t runHelper()
+bool_t runHelper(size_t numThreads)
 {
 	int paramsSize = 0;
 	MPI_Bcast(&paramsSize, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -100,12 +103,21 @@ bool_t runHelper()
 	if (!calculatorParams->read(mSer))
 		return "Internal error: unable to read factory parameters: " + calculatorParams->getErrorString();
 
+	VectorSerializer calcParamsBuffer;
+	if (!calculatorParams->write(calcParamsBuffer))
+		return "Error writing calculator parameters to buffer in helper process" + calculatorParams->getErrorString();
+	
 	bool_t r;
 	shared_ptr<grale::LensGAGenomeCalculator> calculatorInstance = pCalculatorFactory->createCalculatorInstance(move(fitObj));
 	if (!(r = calculatorInstance->init(*calculatorParams)))
 		return "Unable to initialize calculator: " + r.getErrorString();
 
-	auto localCalc = make_shared<eatk::SingleThreadedPopulationFitnessCalculation>(calculatorInstance);
+	std::shared_ptr<eatk::PopulationFitnessCalculation> localCalc;
+	if (!(r = NewGACommunicatorBase::getMultiThreadedPopulationCalculator(numThreads, lensFitnessObjectType, calculatorType,
+					                                                      *pCalculatorFactory, calculatorInstance, calcParamsBuffer.getBuffer(),
+																		  localCalc)))
+		return "Error creating calculator for MPI helper process: " + r.getErrorString();
+
 	auto dist = make_shared<eatk::MPIEventDistributor>();
 	auto calc = make_shared<eatk::MPIPopulationFitnessCalculation>(dist);
 
@@ -142,9 +154,13 @@ bool_t getConnectedSocket(const string &sockName, int &s)
 
 int main(int argc, char *argv[])
 {
-	int worldSize, myRank;
+	int requested = MPI_THREAD_FUNNELED;
+	int provided = -1;
+	MPI_Init_thread(&argc, &argv, requested, &provided);
+	if (provided != requested)
+		MPIABORT("ERROR: Unable to get the requested threading capabilities for MPI");
 
-	MPI_Init(&argc, &argv);
+	int worldSize, myRank;
 	MPI_Comm_size(MPI_COMM_WORLD, &worldSize);
 	MPI_Comm_rank(MPI_COMM_WORLD, &myRank);
 
@@ -155,11 +171,15 @@ int main(int argc, char *argv[])
 	else
 		grale::LOG(grale::Log::INF, "Helper node");
 
-	if (argc != 2)
-		MPIABORT("ERROR: the names of UNIX socket path is needed on command line");
+	if (argc != 3)
+		MPIABORT("ERROR: the name of UNIX socket path is needed on command line as well as the number of threads");
 
 	if (worldSize <= 1)
 		MPIABORT("ERROR: Need more than one process to be able to work");
+
+	int numThreads = stoi(argv[2]);
+	if (numThreads <= 0)
+		MPIABORT("ERROR: invalid number of thread (" + to_string(numThreads) + ") per MPI process");
 
 	if (myRank == 0)
 	{
@@ -175,14 +195,14 @@ int main(int argc, char *argv[])
 
 		cerr << "Starting MPI session with " << worldSize << " processes" << endl;
 
-		NewGACommunicatorMPI comm(worldSize);
+		NewGACommunicatorMPI comm(worldSize, (size_t)numThreads);
 
 		if (!(r = comm.run()))
 			MPIABORT("ERROR: " + r.getErrorString());
 	}
 	else
 	{
-		bool_t r = runHelper();
+		bool_t r = runHelper(numThreads);
 		if (!r)
 			MPIABORT("ERROR: " + r.getErrorString());
 	}

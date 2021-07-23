@@ -8,7 +8,8 @@ a (case insensitive) string, or as an instance of the available inverter
 classes. Available are:
 
  - "Threads"/"Threads:numthreads" or an instance of :class:`ThreadsInverter`
- - "MPI"/"MPI:numprocesses" or an instance of :class:`MPIProcessInverter`
+ - "MPI"/"MPI:numprocesses"/"MPI:numprocesses:numthreadsperprocess:extraoptions" or an
+   instance of :class:`MPIProcessInverter`
 
 """
 from __future__ import print_function
@@ -362,7 +363,7 @@ def _createBoundUnixSocket(socketPath):
 
 class MPIProcessInverter(Inverter):
 
-    def __init__(self, numProcesses = None, incomingConnectionTimeout = 10, feedbackObject = None):
+    def __init__(self, numProcesses = None, numThreadsPerProcess = 1, extraArgs = [], incomingConnectionTimeout = 10, feedbackObject = None):
 
         # Using stdin/stdout does not seem to work well for MPI (at least not openmpi),
         # so we'll use a UNIX socket        
@@ -373,7 +374,18 @@ class MPIProcessInverter(Inverter):
         self.incomingConnectionTimeout = incomingConnectionTimeout
 
         npArgs = [ ] if numProcesses is None else [ "-np", str(numProcesses) ]
-        super(MPIProcessInverter, self).__init__( [ "mpirun" ] + npArgs + [ "grale_invert_newgampi", self.socketPath ], 
+        npArgs += extraArgs
+
+        if numThreadsPerProcess > 1:
+            print("""
+WARNING: requesting more than one thread per MPI process. Depending on the
+         MPI implementation it's possible that extra options need to be set 
+         to be able to use the threads effectively. E.g. with openmpi the 
+         option "--bind-to socket" or "--bind-to none" may be necessary.
+         """)
+            time.sleep(2)
+
+        super(MPIProcessInverter, self).__init__( [ "mpirun" ] + npArgs + [ "grale_invert_newgampi", self.socketPath, str(numThreadsPerProcess) ], 
                                                   "MPI inverter", feedbackObject=feedbackObject)
 
     def onStartedProcess(self, proc):
@@ -446,7 +458,7 @@ def createInverterFromString(inverter):
 
     Can be one of (case insensitive)
     - "Threads"/"Threads:numthreads"
-    - "MPI"/"MPI:numprocesses"
+    - "MPI"/"MPI:numprocesses"/"MPI:numprocesses:numthreadsperprocess"
 
     """
 
@@ -463,8 +475,22 @@ def createInverterFromString(inverter):
         return SingleProcessGdbInverter()
 
     if inverter.lower().startswith(mpiPrefix):
-        numNodes = int(inverter[len(mpiPrefix):])
-        return MPIProcessInverter(numNodes)
+        rest = inverter[len(mpiPrefix):]
+        parts = rest.split(":")
+        extraArgs = []
+        if len(parts) == 1:
+            numThreadsPerProcess = 1
+            numNodes = int(parts[0])
+        else:
+            numNodes = int(parts[0]) if parts[0] else None
+            numThreadsPerProcess = int(parts[1])
+            if len(parts) == 2:
+                pass
+            elif len(parts) == 3:
+                extraArgs = parts[2].split(" ")
+            else:
+                raise InverterException("Unknown syntax for mpi inverter")
+        return MPIProcessInverter(numNodes, numThreadsPerProcess, extraArgs)
 
     if inverter.lower().startswith(threadsPrefix):
         numThreads = int(inverter[len(threadsPrefix):])

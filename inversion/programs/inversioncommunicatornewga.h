@@ -27,6 +27,8 @@ public:
 	virtual ~InversionCommunicator();
 
 	bool_t run();
+
+	template<class T> static  bool_t loadFromBytes(T &x, const std::vector<uint8_t> &bytes);
 protected:
 	virtual std::string getVersionInfo() const = 0;
 	virtual bool_t runModule(const std::string &lensFitnessObjectType, 
@@ -44,7 +46,6 @@ protected:
 	bool_t readLineWithPrefix(const std::string &prefix, std::string &value, int timeoutMSec);
 	bool_t readLineWithPrefix(const std::string &prefix, int &value, int timeoutMSec);
 	bool_t readLineAndBytesWithPrefix(const std::string &prefix, std::vector<uint8_t> &bytes, int timeoutMSec);
-	template<class T> static  bool_t loadFromBytes(T &x, const std::vector<uint8_t> &bytes);
 
 	virtual bool hasGeneticAlgorithm() const { return false; }
 	virtual void getAllBestGenomes(std::vector<std::shared_ptr<eatk::Individual>> &bestGenomes) { }
