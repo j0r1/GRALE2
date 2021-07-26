@@ -9,6 +9,7 @@
 #include "plummerlensinfo.h"
 #include <vector>
 #include <memory>
+#include <mutex>
 
 namespace grale
 {
@@ -60,6 +61,27 @@ private:
 
 	std::vector<std::shared_ptr<ImagesDataExtended>> m_images;
 	std::vector<ImagesDataExtended *> m_reducedImages, m_shortImages;
+
+	class State
+	{
+	public:
+		State() { }
+		void reset(std::pair<float,float> initialStartStopValues)
+		{
+			m_nextIteration = 0;
+			m_startStopValues = initialStartStopValues;
+			m_initialStartStopValues = initialStartStopValues;
+		}
+
+		std::pair<float,float> m_initialStartStopValues;
+		std::pair<float,float> m_startStopValues;
+		std::vector<std::pair<float,float>> m_steps;
+		float m_stepSize;
+		int m_nextIteration;
+	};
+
+	std::vector<State> m_calcStates;
+	std::mutex m_calcStateMutex;
 };
 
 } // end namespace

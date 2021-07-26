@@ -237,7 +237,7 @@ bool_t LensInversionGAFactoryCommon::calculateFitness(const vector<float> &basis
 	if (!(r = initializeNewCalculation(basisFunctionWeights, sheetValues)))
 		return "Can't initialize new calculation: " + r.getErrorString();
 
-	int numiterations = m_massScaleSearchParams.getNumberOfIterations();
+	int numiterations = getNumberOfCalculationIterations();
 	if (numiterations > 0) // Scale search requested
 	{
 		const auto startStopValueInitial = getInitialStartStopValues(basisFunctionWeights);

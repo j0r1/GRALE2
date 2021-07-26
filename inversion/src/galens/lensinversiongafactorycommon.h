@@ -59,6 +59,12 @@ protected:
 		const ConfigurationParameters *pFitnessObjectParameters,
 		std::vector<ImagesDataExtended*> &reducedImages,
 		std::vector<ImagesDataExtended*> &shortImages);
+
+	int getNumberOfCalculationIterations() const { return m_massScaleSearchParams.getNumberOfIterations(); }
+	std::pair<float,float> getInitialStartStopValues(const std::vector<float> &basisFunctionWeights) const;
+	float getStepsAndStepSize(std::pair<float,float> startStopValue, int iteration, std::vector<std::pair<float,float>> &steps) const;
+	void updateStartStopValues(std::pair<float,float> &startStopValue, std::pair<float,float> startStopValue0, 
+										float currentBestScaleFactor, float stepsize) const;
 private:
 	errut::bool_t calculateFitness(const std::vector<float> &basisFunctionWeights,
 						  const std::vector<float> &sheetValues,
@@ -66,10 +72,6 @@ private:
 						  float *pFitnessValues);
 
 	float getScalingMassSum(const std::vector<float> &basisFunctionWeights) const;
-	std::pair<float,float> getInitialStartStopValues(const std::vector<float> &basisFunctionWeights) const;
-	float getStepsAndStepSize(std::pair<float,float> startStopValue, int iteration, std::vector<std::pair<float,float>> &steps) const;
-	void updateStartStopValues(std::pair<float,float> &startStopValue, std::pair<float,float> startStopValue0, 
-										float currentBestScaleFactor, float stepsize) const;
 
 	// void onGeneticAlgorithmStart(); // TODO: re-enable this
 
