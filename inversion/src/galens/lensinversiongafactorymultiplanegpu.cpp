@@ -246,48 +246,6 @@ void LensInversionGAFactoryMultiPlaneGPU::convertGenomeSheetValuesToDensities(co
 		sheetDensities[i] = sheetValues[i]*m_sheetMultipliers[i];
 }
 
-bool_t LensInversionGAFactoryMultiPlaneGPU::initializeNewCalculation(const std::vector<float> &basisFunctionWeights, const std::vector<float> &sheetValues)
-{
-	convertGenomeSheetValuesToDensities(sheetValues, m_sheetDensities);
-
-	// Store the basis function weights with the same multi-plane structure
-	int idx = 0;
-	for (auto &planeWeights : m_basePlaneWeights)
-	{
-		for (auto &w : planeWeights)
-		{
-			assert(idx < basisFunctionWeights.size());
-			w = basisFunctionWeights[idx++];
-		}
-	}
-	assert(idx == basisFunctionWeights.size());
-	return true;
-}
-
-void LensInversionGAFactoryMultiPlaneGPU::scaleWeights(float scaleFactor)
-{
-	assert(m_basePlaneWeights.size() == m_scaledPlaneWeights.size());
-	for (size_t i = 0 ; i  < m_scaledPlaneWeights.size() ; i++)
-	{
-		auto &basePlane = m_basePlaneWeights[i];
-		auto &scaledPlane = m_scaledPlaneWeights[i];
-
-		assert(basePlane.size() == scaledPlane.size());
-		for (size_t j = 0 ; j < scaledPlane.size() ; j++)
-			scaledPlane[j] = scaleFactor*basePlane[j];
-	}
-}
-
-bool_t LensInversionGAFactoryMultiPlaneGPU::calculateMassScaleFitness(float scaleFactor, float &fitness)
-{
-	return "ERROR: calculateMassScaleFitness is no longer used";
-}
-
-bool_t LensInversionGAFactoryMultiPlaneGPU::calculateTotalFitness(float scaleFactor, float *pFitnessValues)
-{
-	return "ERROR: calculateTotalFitness is no longer used";
-}
-
 bool_t LensInversionGAFactoryMultiPlaneGPU::startNewCalculation(const eatk::Genome &genome)
 {
 	return "TODO: implement startNewCalculation";

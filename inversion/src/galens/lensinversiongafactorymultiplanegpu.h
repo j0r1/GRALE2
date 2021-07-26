@@ -37,10 +37,6 @@ public:
 	// These a the EATK functions that we'll override to allow an async calculation
 	errut::bool_t startNewCalculation(const eatk::Genome &genome) override;
 	errut::bool_t pollCalculate(const eatk::Genome &genome, eatk::Fitness &fitness) override;
-
-	errut::bool_t initializeNewCalculation(const std::vector<float> &basisFunctionWeights, const std::vector<float> &sheetValues) override;
-	errut::bool_t calculateMassScaleFitness(float scaleFactor, float &fitness) override;
-	errut::bool_t calculateTotalFitness(float scaleFactor, float *pFitnessValues) override;
 private:
 	errut::bool_t analyzeLensBasisFunctions(const std::vector<double> redshifts,
 								   const std::vector<std::vector<std::shared_ptr<LensInversionBasisLensInfo>>> &basisLenses);

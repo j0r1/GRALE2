@@ -32,9 +32,9 @@ public:
 	errut::bool_t createLens(const LensGAGenome &genome, std::unique_ptr<GravitationalLens> &lens) const;
 	errut::bool_t calculate(const eatk::Genome &genome, eatk::Fitness &fitness);
 
-	virtual errut::bool_t initializeNewCalculation(const std::vector<float> &basisFunctionWeights, const std::vector<float> &sheetValues) = 0;
-	virtual errut::bool_t calculateMassScaleFitness(float scaleFactor, float &fitness) = 0;
-	virtual errut::bool_t calculateTotalFitness(float scaleFactor, float *pFitnessValues) = 0;
+	virtual errut::bool_t initializeNewCalculation(const std::vector<float> &basisFunctionWeights, const std::vector<float> &sheetValues);
+	virtual errut::bool_t calculateMassScaleFitness(float scaleFactor, float &fitness);
+	virtual errut::bool_t calculateTotalFitness(float scaleFactor, float *pFitnessValues);
 
 	size_t getNumberOfBasisFunctions() const override { return (size_t)m_numBasisFunctions; }
 	size_t getNumberOfSheets() const override { return (size_t)m_numSheetValues; }
@@ -80,6 +80,7 @@ private:
 	// In units of the specified mass unit
 	std::vector<float> m_basisFunctionMasses;
 	float m_targetMass;
+	std::vector<std::pair<float,float>> m_tmpSteps; // To avoid reallocation
 
 	std::unique_ptr<LensFitnessObject> m_fitnessObject;
 

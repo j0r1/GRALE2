@@ -101,7 +101,8 @@ bool_t LensInversionGAFactoryCommon::initializeLensFitnessObject(double z_d,
 }
 
 // TODO: re-enable this
-#if 0
+//       Note that this is now a GenomeCalculator and that multiple instances can exist
+#if 0 
 void LensInversionGAFactoryCommon::onGeneticAlgorithmStart()
 {
 	// TODO: move this to constructor
@@ -223,12 +224,13 @@ bool_t LensInversionGAFactoryCommon::calculateFitness(const vector<float> &basis
 													float *pFitnessValues
 													)
 {
-	if (m_scaleSearchFileStream.is_open()) // For debugging
-	{
-		m_scaleSearchStringStream.clear();
-		m_scaleSearchStringStream.precision(10);
-		m_searchedPoints.clear();
-	}
+	// TODO: re-enable something similar
+	// if (m_scaleSearchFileStream.is_open()) // For debugging
+	// {
+	// 	m_scaleSearchStringStream.clear();
+	// 	m_scaleSearchStringStream.precision(10);
+	// 	m_searchedPoints.clear();
+	// }
 
 	bool_t r;
 
@@ -243,7 +245,7 @@ bool_t LensInversionGAFactoryCommon::calculateFitness(const vector<float> &basis
 
 		float currentBestFitness = std::numeric_limits<float>::max();
 		pair<float,float> currentBestStep;
-		vector<pair<float,float>> steps;
+		vector<pair<float,float>> &steps = m_tmpSteps;
 
  		for (int i = 0 ; i < numiterations ; i++)
 		{
@@ -261,8 +263,9 @@ bool_t LensInversionGAFactoryCommon::calculateFitness(const vector<float> &basis
 					currentBestStep = step;
 				}
 
-				if (m_scaleSearchFileStream.is_open()) // To debug/illustrate the scale search
-					m_searchedPoints.push_back({ step.second, f});
+				// TODO: re-enable something similar
+				// if (m_scaleSearchFileStream.is_open()) // To debug/illustrate the scale search
+				// 	m_searchedPoints.push_back({ step.second, f});
 			}
 
 			updateStartStopValues(startStopValue, startStopValueInitial, currentBestStep.first, stepsize);
@@ -270,23 +273,24 @@ bool_t LensInversionGAFactoryCommon::calculateFitness(const vector<float> &basis
 
 		scaleFactor = currentBestStep.second;
 
-		// To debug the mass scale search
-		if (m_scaleSearchFileStream.is_open())
-		{
-			std::sort(m_searchedPoints.begin(), m_searchedPoints.end(), [](auto x, auto y) { return x.first < y.first; });
-			m_scaleSearchStringStream << "{" << endl;
-			m_scaleSearchStringStream << " 'scaleFactor': " << scaleFactor << "," << endl;
-			float (*IT)(float x) = (useLogarithmicScaleSearch())?ExpTrans:IdentityTrans;
-			m_scaleSearchStringStream << " 'startValue0': " << IT(startStopValueInitial.first) << "," << endl;
-			m_scaleSearchStringStream << " 'stopValue0': " << IT(startStopValueInitial.second) << "," << endl;
-			m_scaleSearchStringStream << " 'startFactor': " << m_massScaleSearchParams.getStartFactor() << "," << endl;
-			m_scaleSearchStringStream << " 'stopFactor': " << m_massScaleSearchParams.getStopFactor() << "," << endl;
-			m_scaleSearchStringStream << " 'scaleSearch': [ " << endl;
-			for (auto x : m_searchedPoints)
-				m_scaleSearchStringStream << "[ " << x.first << ", " << x.second << " ]," << endl;
-			m_scaleSearchStringStream << " ]" << endl;
-			m_scaleSearchStringStream << "}," << endl;
-		}
+		// TODO: re-enable something similar
+		// // To debug the mass scale search
+		// if (m_scaleSearchFileStream.is_open())
+		// {
+		// 	std::sort(m_searchedPoints.begin(), m_searchedPoints.end(), [](auto x, auto y) { return x.first < y.first; });
+		// 	m_scaleSearchStringStream << "{" << endl;
+		// 	m_scaleSearchStringStream << " 'scaleFactor': " << scaleFactor << "," << endl;
+		// 	float (*IT)(float x) = (useLogarithmicScaleSearch())?ExpTrans:IdentityTrans;
+		// 	m_scaleSearchStringStream << " 'startValue0': " << IT(startStopValueInitial.first) << "," << endl;
+		// 	m_scaleSearchStringStream << " 'stopValue0': " << IT(startStopValueInitial.second) << "," << endl;
+		// 	m_scaleSearchStringStream << " 'startFactor': " << m_massScaleSearchParams.getStartFactor() << "," << endl;
+		// 	m_scaleSearchStringStream << " 'stopFactor': " << m_massScaleSearchParams.getStopFactor() << "," << endl;
+		// 	m_scaleSearchStringStream << " 'scaleSearch': [ " << endl;
+		// 	for (auto x : m_searchedPoints)
+		// 		m_scaleSearchStringStream << "[ " << x.first << ", " << x.second << " ]," << endl;
+		// 	m_scaleSearchStringStream << " ]" << endl;
+		// 	m_scaleSearchStringStream << "}," << endl;
+		// }
 	}
 	else // numiterations <= 0, no further scale factor determination requested
 	{
@@ -298,6 +302,21 @@ bool_t LensInversionGAFactoryCommon::calculateFitness(const vector<float> &basis
 		return "Can't calculate total fitness: " + r.getErrorString();
 
 	return true;
+}
+
+bool_t LensInversionGAFactoryCommon::initializeNewCalculation(const std::vector<float> &basisFunctionWeights, const std::vector<float> &sheetValues)
+{
+	return "ERROR: initializeNewCalculation does not have an implementation";
+}
+
+bool_t LensInversionGAFactoryCommon::calculateMassScaleFitness(float scaleFactor, float &fitness)
+{
+	return "ERROR: calculateMassScaleFitness does not have a default implementation";
+}
+
+bool_t LensInversionGAFactoryCommon::calculateTotalFitness(float scaleFactor, float *pFitnessValues)
+{
+	return "ERROR: calculateTotalFitness does not have a default implementation";
 }
 
 // TODO: make this available again
