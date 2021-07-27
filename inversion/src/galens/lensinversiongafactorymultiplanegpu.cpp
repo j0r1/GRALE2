@@ -3,6 +3,7 @@
 #include "compositelens.h"
 #include "masssheetlens.h"
 #include "plummerlens.h"
+#include "openclkernel.h"
 #include "utils.h"
 #include <assert.h>
 #include <mutex>
@@ -14,10 +15,13 @@ using namespace errut;
 namespace grale
 {
 
-class OpenCLCalculator
+class OpenCLCalculator : public OpenCLKernel
 {
 public:
-    static bool_t initInstance(int devIdx)
+    static bool_t initInstance(int devIdx, const std::vector<ImagesDataExtended *> &allImages,
+	                                       const std::vector<ImagesDataExtended *> &shortImages,
+										   const std::vector<float> &zds,
+										   const Cosmology &cosm)
 	{
 		lock_guard<mutex> guard(s_instanceMutex);
 
@@ -29,7 +33,7 @@ public:
 		s_initTried = true;
 
 		unique_ptr<OpenCLCalculator> oclCalc = make_unique<OpenCLCalculator>();
-		bool_t r = oclCalc->init(devIdx);
+		bool_t r = oclCalc->initAll(devIdx, allImages, shortImages, zds, cosm);
 		if (!r)
 			return "Can't init GPU: " + r.getErrorString();
 
@@ -137,13 +141,210 @@ public:
 
 	~OpenCLCalculator()
 	{
+		// TODO: cleanup!
 	}
 private:
-	bool_t init(int devIdx)
+	bool_t initAll(int devIdx, const std::vector<ImagesDataExtended *> &allImages,
+	                        const std::vector<ImagesDataExtended *> &shortImages,
+							const std::vector<float> &zds,
+							const Cosmology &cosm)
 	{
+		bool_t r;
+		if (!(r = initGPU(devIdx)))
+			return "Error initializing GPU: " + r.getErrorString();
+
+		m_angularScale = ANGLE_ARCSEC; // TODO: calculate something better?
+		m_potentialScale = ANGLE_ARCSEC*ANGLE_ARCSEC; // TODO
+
+		if (!(r = setupImages(allImages, shortImages)))
+			return "Can't setup images for GPU backprojection: " + r.getErrorString();
+
+		if (!(r = setupMultiPlaneDistanceMatrix(cosm, zds)))
+			return "Can't setup multi-plane distance matrix: " + r.getErrorString();
+
+		if (!(r = setupAngularDiameterDistances(cosm, zds, allImages, m_pDevDpointsAll, m_pDevUsedPlanesAll)))
+			return "Can't setup angular diameter distances for all points: " + r.getErrorString();
+		if (!m_shortImagesAreAllImages)
+		{
+			if (!(r = setupAngularDiameterDistances(cosm, zds, shortImages, m_pDevDpointsShort, m_pDevUsedPlanesShort)))
+				return "Can't setup angular diameter distances for short points: " + r.getErrorString();
+		}
+		else
+		{
+			m_pDevUsedPlanesShort = m_pDevUsedPlanesAll;
+			m_pDevUsedPlanesShort = m_pDevUsedPlanesAll;
+		}
+		
+
+
 		m_hasCalculated = true; // Causes the internal state to be reset
+
 		return true;
 	}
+
+	bool_t initGPU(int devIdx)
+	{
+		string library = getLibraryName();
+		if (!loadLibrary(library))
+			return "Can't load OpenCL library: " + getErrorString();
+		if (!OpenCLKernel::init(devIdx))
+			return "Can't init specified GPU device: " + getErrorString();
+		return true;
+	}
+
+	bool_t setupMultiPlaneDistanceMatrix(const Cosmology &cosm, const vector<float> &zds)
+	{
+		size_t numPlanes = zds.size();
+		size_t cols = numPlanes;
+		size_t rows = numPlanes+1;
+		
+		vector<float> Dij(rows*cols, numeric_limits<float>::quiet_NaN());
+		for (size_t j = 0 ; j < numPlanes ; j++)
+			Dij[0 + j] = (float)(cosm.getAngularDiameterDistance(zds[j])/DIST_MPC);
+
+		for (size_t i = 1 ; i <= numPlanes ; i++)
+		{
+			for (size_t j = i ; j < numPlanes ; j++)
+				Dij[i*cols + j] = (float)(cosm.getAngularDiameterDistance(zds[i-1], zds[j])/DIST_MPC);
+		}
+		
+		cl_int err;
+		m_pDevDmatrix = clCreateBuffer(getContext(), CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(float)*Dij.size(), Dij.data(), &err);
+		if (err != CL_SUCCESS)
+			return "Error uploading lens plane distance matrix to GPU";
+
+		cout << "Distance matrix uploaded: " << endl;
+		for (size_t i = 0 ; i <= numPlanes ; i++)
+		{
+			for (size_t j = 0 ; j < numPlanes ; j++)
+				cout << "\t" << Dij[cols*i+j];
+			cout << endl;
+		}
+		return true;
+	}
+
+	bool_t setupAngularDiameterDistances(const Cosmology &cosm, const vector<float> &zds,
+	                                     const vector<ImagesDataExtended*> &images,
+										 cl_mem &pDevDpoints, cl_mem &pDevUsedPlanes)
+	{
+		// Build the image points redshift vector
+		// TODO: For now, we're associating a zs to every single point, not just to the entire source
+		vector<float> zss;
+		for (auto img : images)
+		{
+			double zs = numeric_limits<double>::quiet_NaN();
+			img->getExtraParameter("z", zs);
+
+			int numImages = img->getNumberOfImages();
+			for (int i = 0 ; i < numImages ; i++)
+			{
+				int numPoints = img->getNumberOfImagePoints(i);
+				for (int p = 0 ; p < numPoints ; p++)
+					zss.push_back((float)zs);
+			}
+		}
+
+		size_t numPlanes = zds.size();
+		size_t numPoints = zss.size();
+
+		size_t numCols = numPlanes+1;
+		size_t numRows = numPoints;
+		vector<float> Dsources(numRows*numCols, numeric_limits<float>::quiet_NaN());
+		vector<cl_int> usedPlanes(numPoints);
+
+		for (size_t p = 0 ; p < numPoints ; p++)
+		{
+			float zs = zss[p];
+
+			Dsources[p*numCols + 0] = (float)(cosm.getAngularDiameterDistance(zs)/DIST_MPC);
+			size_t useCount = 0;
+			for (size_t i = 0 ; i < numPlanes ; i++)
+			{
+				if (zs > zds[i])
+				{
+					useCount++;
+					Dsources[p*numCols + (i+1)] = (float)(cosm.getAngularDiameterDistance(zds[i], zs)/DIST_MPC);
+				}
+			}
+			usedPlanes[p] = useCount;
+		}
+
+		cout << "Point distance info:" << endl;
+		for (size_t p = 0 ; p < numPoints ; p++)
+		{
+			cout << p << ") " << usedPlanes[p] << "|\t";
+			for (size_t i = 0 ; i < numCols ; i++)
+				cout << "\t" << Dsources[p*numCols + i];
+			cout << endl;
+		}
+		
+		// Upload info to GPU
+		cl_int err;
+		pDevDpoints = clCreateBuffer(getContext(), CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(float)*Dsources.size(), Dsources.data(), &err);
+		if (err != CL_SUCCESS)
+			return "Error uploading distances from lens planes to GPU";
+
+		pDevUsedPlanes = clCreateBuffer(getContext(), CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(float)*usedPlanes.size(), usedPlanes.data(), &err);
+		if (err != CL_SUCCESS)
+			return "Error uploading number of used lens planes to GPU";
+		
+		return true;
+	}
+
+	bool_t allocateAndUploadImages(const std::vector<ImagesDataExtended *> &images, cl_mem &pDevImages, size_t &numPoints)
+	{
+		vector<float> allCoordinates;
+		for (auto img : images)
+		{
+			int numImages = img->getNumberOfImages();
+			for (int i = 0 ; i < numImages ; i++)
+			{
+				int numPoints = img->getNumberOfImagePoints(i);
+				for (int p = 0 ; p < numPoints ; p++)
+				{
+					Vector2Dd pos = img->getImagePointPosition(i, p);
+					pos /= m_angularScale;
+					allCoordinates.push_back((float)pos.getX());
+					allCoordinates.push_back((float)pos.getY());
+				}
+			}
+		}
+
+		cl_int err;
+		pDevImages = clCreateBuffer(getContext(), CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(float)*allCoordinates.size(), allCoordinates.data(), &err);
+		if (err != CL_SUCCESS)
+			return "Error uploading image data to GPU";
+		
+		numPoints = allCoordinates.size()/2;
+		cout << "Uploaded coordinates for " << numPoints << " points to GPU" << endl;
+
+		return true;
+	}
+
+	bool_t setupImages(const std::vector<ImagesDataExtended *> &allImages,
+	                   const std::vector<ImagesDataExtended *> &shortImages)
+	{
+		bool_t r;
+		if (!(r = allocateAndUploadImages(allImages, m_pDevAllImages, m_numAllImagePoints)))
+			return r;
+
+		if (shortImages.size() == 0) // indicates that all images should be used
+		{
+			m_shortImagesAreAllImages = true;
+			m_pDevShortImages = m_pDevAllImages;
+			m_numShortImagePoints = m_numAllImagePoints;
+		}
+		else
+		{
+			m_shortImagesAreAllImages = false;
+			if (!(r = allocateAndUploadImages(shortImages, m_pDevShortImages, m_numShortImagePoints)))
+				return r;
+		}
+
+		return true;
+	}
+
+
 
 	class State
 	{
@@ -161,6 +362,16 @@ private:
 	vector<float> m_allFactors;
 	size_t m_uploadInfoCount;
 	DeviceStatus m_devStatus;
+
+	double m_angularScale, m_potentialScale;
+
+	bool m_shortImagesAreAllImages;
+	cl_mem m_pDevAllImages, m_pDevShortImages;
+	size_t m_numAllImagePoints, m_numShortImagePoints;
+
+	cl_mem m_pDevDmatrix;
+	cl_mem m_pDevDpointsAll, m_pDevDpointsShort;
+	cl_mem m_pDevUsedPlanesAll, m_pDevUsedPlanesShort;
 
 	static unique_ptr<OpenCLCalculator> s_pInstance;
 	static mutex s_instanceMutex;
@@ -236,12 +447,11 @@ bool_t LensInversionGAFactoryMultiPlaneGPU::init(const LensInversionParametersBa
 	// We'll init the GPU part here, so we can use it immediately later. This is
 	// a single instance for this process, to be used by the available threads.
 	// TODO: what if deviceIndex is different in different threads?
-	if (!(r = OpenCLCalculator::initInstance(pParams->getDeviceIndex())))
+	if (!(r = OpenCLCalculator::initInstance(pParams->getDeviceIndex(),
+	                                         m_reducedImages, m_shortImages,
+											 m_lensRedshifts,
+											 pParams->getCosmology())))
 		return r;
-
-	// TODO: we need to setup the backprojection for this particular layout
-	// TODO: we don't really want to do this multiple times (for each thread), doesn't
-	//       really matter that much, but doesn't feel very clean
 
 	m_currentParams = make_unique<LensInversionParametersMultiPlaneGPU>(*pParams);
 	return true;
@@ -255,6 +465,12 @@ bool_t LensInversionGAFactoryMultiPlaneGPU::analyzeLensBasisFunctions(const vect
 
 	if (redshifts.size() != basisLenses.size())
 		return "Incompatible number of redshifts (" + to_string(redshifts.size()) + ") and lens planes (" + to_string(basisLenses.size()) + ")";
+
+	for (size_t i = 1 ;  i < redshifts.size() ; i++)
+	{
+		if (redshifts[i] <= redshifts[i-1])
+			return "Lens redshifts must be in strictly increasing order (" + to_string(redshifts[i]) + " <= " + to_string(redshifts[i-1]) + ")";
+	}
 
 	// Store the doubles in a float vector
 	m_lensRedshifts.clear();

@@ -36,8 +36,8 @@ shared_ptr<LensInversionBasisLensInfo> positionedPlummer(double zd, double mass,
 shared_ptr<ImagesDataExtended> createRandomImages()
 {
 	auto img = make_shared<ImagesDataExtended>();
-	//size_t num = rng.getRandomUint32()%8 + 2;
-	size_t num = 2;
+	size_t num = rng.getRandomUint32()%8 + 2;
+	//size_t num = 2;
 	if (!img->create(num, {}))
 		throw runtime_error("Can't create image");
 	
@@ -74,7 +74,7 @@ int main(void)
 			positionedPlummer(zds[1], 3e13*MASS_SOLAR, 3.5*ANGLE_ARCSEC, { -1*ANGLE_ARCSEC, -1*ANGLE_ARCSEC })
 		}
 	};
-	vector<shared_ptr<ImagesDataExtended>> images(1) ; //(rng.getRandomUint32()%15 + 5); // 20 sources
+	vector<shared_ptr<ImagesDataExtended>> images(rng.getRandomUint32()%15 + 5); // 20 sources
 	for (auto &i : images)
 		i = createRandomImages();
 
@@ -83,7 +83,7 @@ int main(void)
 	ScaleSearchParameters searchParams(false);
 	LensInversionParametersMultiPlaneGPU invParams(cosm, zds, basisLenses, images, 
 	                                               1e14*MASS_SOLAR, false, confParams.get(),
-												   false, searchParams, -1);
+												   false, searchParams, 0);
 
 	bool_t r;
 	size_t numThreads = 4;
