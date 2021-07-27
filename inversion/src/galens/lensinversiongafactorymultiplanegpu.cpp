@@ -21,7 +21,10 @@ public:
     static bool_t initInstance(int devIdx, const std::vector<ImagesDataExtended *> &allImages,
 	                                       const std::vector<ImagesDataExtended *> &shortImages,
 										   const std::vector<float> &zds,
-										   const Cosmology &cosm)
+										   const Cosmology &cosm,
+										   const std::vector<std::vector<std::shared_ptr<LensInversionBasisLensInfo>>> &planeBasisLenses,
+										   const std::vector<std::shared_ptr<GravitationalLens>> &unscaledLensesPerPlane
+										   )
 	{
 		lock_guard<mutex> guard(s_instanceMutex);
 
@@ -33,7 +36,7 @@ public:
 		s_initTried = true;
 
 		unique_ptr<OpenCLCalculator> oclCalc = make_unique<OpenCLCalculator>();
-		bool_t r = oclCalc->initAll(devIdx, allImages, shortImages, zds, cosm);
+		bool_t r = oclCalc->initAll(devIdx, allImages, shortImages, zds, cosm, planeBasisLenses, unscaledLensesPerPlane);
 		if (!r)
 			return "Can't init GPU: " + r.getErrorString();
 
@@ -147,7 +150,9 @@ private:
 	bool_t initAll(int devIdx, const std::vector<ImagesDataExtended *> &allImages,
 	                        const std::vector<ImagesDataExtended *> &shortImages,
 							const std::vector<float> &zds,
-							const Cosmology &cosm)
+							const Cosmology &cosm,
+							const std::vector<std::vector<std::shared_ptr<LensInversionBasisLensInfo>>> &planeBasisLenses,
+							const std::vector<std::shared_ptr<GravitationalLens>> &unscaledLensesPerPlane)
 	{
 		bool_t r;
 		if (!(r = initGPU(devIdx)))
@@ -175,10 +180,288 @@ private:
 			m_pDevUsedPlanesShort = m_pDevUsedPlanesAll;
 		}
 		
-
+		if (!(r = setupBasisFunctions(planeBasisLenses, unscaledLensesPerPlane)))
+			return "Can't setup GPU code for basis functions: " + r.getErrorString();
 
 		m_hasCalculated = true; // Causes the internal state to be reset
 
+		return true;
+	}
+
+	bool_t analyzeCompositeLenses(const std::vector<std::vector<std::shared_ptr<LensInversionBasisLensInfo>>> &planeBasisLenses,
+							      const std::vector<std::shared_ptr<GravitationalLens>> &unscaledLensesPerPlane,
+								  map<string,string> &subRoutineCode,
+								  vector<string> &compLensSubRoutineNames,
+								  int &compLensRecursion
+								  )
+	{
+		vector<shared_ptr<GravitationalLens>> allLensModels;
+		for (auto &plane : planeBasisLenses)
+			for (auto &bl : plane)
+				allLensModels.push_back(bl->m_pLens);
+		for (auto &l : unscaledLensesPerPlane)
+			allLensModels.push_back(l);
+		
+		map<string,string> totalSubCode;
+		vector<string> totalSubNames;
+		int totalMaxRecurs = 0;
+
+		for (auto &l : allLensModels)
+		{
+			if (l->getLensType() != GravitationalLens::Composite)
+				continue;
+			const CompositeLens &compLens = static_cast<const CompositeLens&>(*l);
+
+			map<string,string> subCode;
+			vector<string> subNames;
+			int recurs = compLens.findCLSubroutines(subCode, subNames, false, false);
+
+			if (recurs > totalMaxRecurs)
+				totalMaxRecurs = recurs;
+
+			for (auto &it : subCode)
+				totalSubCode[it.first] = it.second;
+			
+			if (totalSubNames.size() == 0)
+				totalSubNames = subNames;
+			else
+			{
+				assert(totalSubNames.size() == subNames.size());
+				for (size_t i = 0 ; i < subNames.size() ; i++)
+				{
+					if (subNames[i].length() > 0)
+						totalSubNames[i] = subNames[i];
+				}
+			}
+		}
+	
+		swap(subRoutineCode, totalSubCode);
+		swap(compLensSubRoutineNames, totalSubNames);
+		compLensRecursion = totalMaxRecurs;
+
+		return true;
+	}
+
+	string getAlphaCodeForPlane(const string &functionName,
+		                        const std::vector<std::shared_ptr<LensInversionBasisLensInfo>> &basisLenses,
+								const GravitationalLens *pUnscaledLens,
+								map<string,string> &subRoutineCode)
+	{
+		auto addCodeForLens = [](const string &fname, int num, int iCnt, int fCnt, bool usePlaneScale) -> string
+		{
+			stringstream ss;
+
+			if (num > 1)
+				ss << "    for (int i = 0 ; i < " << num << " ; i++)\n";
+
+			ss << "    {\n";
+			ss << "        const float2 center = (float2)(pCenters[0], pCenters[1]);\n";
+			ss << "        LensQuantities l = " << fname << "(theta-center, pIntParams, pFloatParams);\n";
+			ss << "        const float w = *pWeights;\n";
+			ss << "\n";
+			ss << "        pWeights++;\n";
+        	ss << "        pCenters += 2;\n";
+			if (usePlaneScale)
+			{
+				ss << "        alpha.x += w*l.alphaX*scalableFunctionWeight;\n";
+        		ss << "        alpha.y += w*l.alphaY*scalableFunctionWeight;\n";
+			}
+			else
+			{
+				ss << "        alpha.x += w*l.alphaX;\n";
+        		ss << "        alpha.y += w*l.alphaY;\n";			
+			}
+			
+			if (iCnt > 0)
+				ss << "        pIntParams += " << iCnt << ";\n";
+			if (fCnt > 0)
+				ss << "        pFloatParams += " << fCnt << ";\n";
+			ss << "    }\n";
+
+			return ss.str();
+		};
+
+		stringstream codeStream;
+		codeStream << "float2 " << functionName << "(float2 theta, __global const int *pIntParams, __global const float *pFloatParams, __global const float *pWeights,\n"
+		           << "                              __global const float *pCenters, float scalableFunctionWeight)\n"
+				   << "{\n"
+				   << "    float2 alpha = (float2)(0, 0);\n";
+
+		auto saveCode = [&subRoutineCode](const GravitationalLens &l) -> string
+		{
+			string fnName;
+			string fnCode = l.getCLProgram(fnName, false, false);
+			if (l.getLensType() == GravitationalLens::Composite) // Code for compositelens will be added later
+				fnCode = "";
+			
+			subRoutineCode[fnName] = fnCode; // May overwrite, shouldn't matter, should be the same code
+			return fnName;
+		};
+
+		string prevBfName;
+		int prevBfType = -1, prevBfCount = 0, prevIntCount = -1, prevFloatCount = -1;
+		for (auto &bl : basisLenses)
+		{
+			string fnName = saveCode(*(bl->m_pLens));
+
+			int iCnt = -1, fCnt = -1;
+			bl->m_pLens->getCLParameterCounts(&iCnt, &fCnt);
+			
+			int t = bl->m_pLens->getLensType();
+			if (prevBfType != t || prevIntCount != iCnt || prevFloatCount != fCnt)
+			{
+				if (prevBfCount)
+					codeStream << addCodeForLens(prevBfName, prevBfCount, prevIntCount, prevFloatCount, true);
+				prevBfType = t;
+				prevBfCount = 1;
+				prevIntCount = iCnt;
+				prevFloatCount = fCnt;
+				prevBfName = fnName;
+			}
+			else
+				prevBfCount++;
+		}
+
+		if (prevBfCount)
+			codeStream << addCodeForLens(prevBfName, prevBfCount, prevIntCount, prevFloatCount, true);
+
+		if (pUnscaledLens)
+		{
+			string fnName = saveCode(*pUnscaledLens);
+			
+			int iCnt = -1, fCnt = -1;
+			pUnscaledLens->getCLParameterCounts(&iCnt, &fCnt);
+			codeStream << addCodeForLens(fnName, 1, iCnt, fCnt, false);
+		}
+
+		codeStream << "    return alpha;\n";
+		codeStream << "}\n";
+		return codeStream.str();
+	}
+
+	bool_t getMultiPlaneTraceCode(const std::vector<std::vector<std::shared_ptr<LensInversionBasisLensInfo>>> &planeBasisLenses,
+							      const std::vector<std::shared_ptr<GravitationalLens>> &unscaledLensesPerPlane,
+								  string &resultingCode)
+	{
+		map<string, string> subRoutineCode;
+		vector<string> compLensSubNames;
+		int compLensRecursion;
+		bool_t r;
+
+		// If there's one or more composite lenses among the basis lenses, the OpenCL code for that
+		// lens may itself need other simple lens models code'. Analyze this.
+		if (!(r = analyzeCompositeLenses(planeBasisLenses, unscaledLensesPerPlane, subRoutineCode, compLensSubNames, compLensRecursion)))
+			return "Error analyzing basis functions for composite lenses: " + r.getErrorString();
+
+		bool haveUnscaledLenses = (unscaledLensesPerPlane.size() > 0)?true:false;
+		assert((haveUnscaledLenses && (planeBasisLenses.size() == unscaledLensesPerPlane.size())) || (!haveUnscaledLenses && (unscaledLensesPerPlane.size() == 0)));
+
+		string alphaCode;
+		stringstream code;
+
+		code << "\n";
+		code << "#define MAXPLANES " << planeBasisLenses.size() << "\n";
+		code << "\n";
+		code << "float2 getAlpha(int lpIdx, float2 theta, __global const int *pAllIntParams, __global const float *pAllFloatParams,\n";
+		code << "                __global const float *pAllWeights, __global const float *pAllCenters, __global const int *pPlaneIntParamOffsets,\n";
+		code << "                __global const int *pPlaneFloatParamOffsets, __global const int *pPlaneWeightOffsets,\n";
+		code << "                __global const float *pScalableFunctionWeights)\n";
+		code << "{\n";
+		
+		for (size_t i = 0 ; i < planeBasisLenses.size() ; i++)
+		{
+			const GravitationalLens *pUnscaledLens = (haveUnscaledLenses)?unscaledLensesPerPlane[i].get():nullptr;
+
+			string alphaFnName = "getAlpha_" + to_string(i);
+			alphaCode += getAlphaCodeForPlane(alphaFnName, planeBasisLenses[i], pUnscaledLens, subRoutineCode);
+
+			code << "    if (lpIdx == " << i << ")";
+			code << "        return " << alphaFnName << "(theta, pAllIntParams + pPlaneIntParamOffsets[" << i << "], pAllFloatParams + pPlaneFloatParamOffsets[" << i << "],\n";
+			code << "                                     pAllWeights + pPlaneWeightOffsets[" << i << "], pAllCenters + pPlaneWeightOffsets[" << i << "]*2, pScalableFunctionWeights[" << i << "]);\n";
+		}
+		code << "    return (float2)(0.0f/0.0f, 0.0f/0.0f);\n";
+		code << "}\n";
+
+		code << R"XYZ(
+float2 multiPlaneTrace(float2 theta, int numPlanes, __global const float *Dsrc, __global const float *Dmatrix,
+                __global const int *pAllIntParams, __global const float *pAllFloatParams, __global const float *pAllWeights,
+                __global const float *pAllCenters, __global const int *pPlaneIntParamOffsets,
+                __global const int *pPlaneFloatParamOffsets, __global const int *pPlaneWeightOffsets,
+                __global const float *pScalableFunctionWeights)
+{
+    float2 T[MAXPLANES];
+    float2 alphas[MAXPLANES];
+
+    for (int j = 0 ; j < numPlanes ; j++)
+    {
+        T[j] = theta;
+        for (int i = 0 ; i < j-1 ; i++)
+            T[j] -= (Dmatrix[(i+1)*MAXPLANES + j]/Dmatrix[0 + j]) * alphas[i];
+        const int i = j-1;
+        if (i >= 0)
+        {
+            const float2 alpha = getAlpha(i, T[i], pAllIntParams, pAllFloatParams, pAllWeights, pAllCenters, pPlaneIntParamOffsets, pPlaneFloatParamOffsets, pPlaneWeightOffsets, pScalableFunctionWeights);
+            alphas[i] = alpha;
+	        const float dfrac = Dmatrix[(i+1)*MAXPLANES + j]/Dmatrix[0 + j];
+
+            T[j] -= dfrac * alpha;
+        }
+    }
+
+    float2 beta = theta;
+    for (int i = 0 ; i < numPlanes-1 ; i++)
+        beta -= (Dsrc[i+1]/Dsrc[0]) * alphas[i];
+
+    const int i = numPlanes-1;
+    if (i >= 0)
+    {
+        const float2 alpha = getAlpha(i, T[i], pAllIntParams, pAllFloatParams, pAllWeights, pAllCenters, pPlaneIntParamOffsets, pPlaneFloatParamOffsets, pPlaneWeightOffsets, pScalableFunctionWeights);
+        const float dfrac = Dsrc[i+1]/Dsrc[0];
+        beta -= dfrac * alpha;
+    }
+    return beta;
+}
+)XYZ";
+
+		string allCode = planeBasisLenses[0][0]->m_pLens->getCLLensQuantitiesStructure();
+		
+		// Add the code for all lens models
+		for (auto &it : subRoutineCode)
+			allCode += it.second;
+
+		// If there's a composite lens somewhere, we need to add code for this as well
+		if (compLensSubNames.size() > 0)
+		{
+			string fnName;
+			allCode += CompositeLens::getCLProgram(fnName, compLensSubNames, compLensRecursion, false, false);
+		}
+
+		allCode += alphaCode;
+		allCode += code.str();
+		resultingCode = allCode;
+		return true;
+	}
+	
+	bool_t setupBasisFunctions(const std::vector<std::vector<std::shared_ptr<LensInversionBasisLensInfo>>> &planeBasisLenses,
+							   const std::vector<std::shared_ptr<GravitationalLens>> &unscaledLensesPerPlane)
+	{
+		bool_t r;
+		string oclTraceCode;
+		
+		if (!(r = getMultiPlaneTraceCode(planeBasisLenses, unscaledLensesPerPlane, oclTraceCode)))
+			return "Unable to het multiplane OpenCL code: " + r.getErrorString();
+
+		cout << oclTraceCode << endl;
+
+		string dummyKernel = oclTraceCode + "__kernel void dummy() { }\n";
+		string faillog;
+		if (!loadKernel(dummyKernel, "dummy", faillog))
+		{
+			cerr << faillog << endl;
+			return "Error compiling kernel: " + getErrorString();
+		}
+
+		return "Under construction";
 		return true;
 	}
 
@@ -449,7 +732,10 @@ bool_t LensInversionGAFactoryMultiPlaneGPU::init(const LensInversionParametersBa
 	if (!(r = OpenCLCalculator::initInstance(pParams->getDeviceIndex(),
 	                                         m_reducedImages, m_shortImages,
 											 m_lensRedshifts,
-											 pParams->getCosmology())))
+											 pParams->getCosmology(),
+											 pParams->getBasisLenses(),
+											 m_unscaledBasisLenses
+											 )))
 		return r;
 
 	m_currentParams = make_unique<LensInversionParametersMultiPlaneGPU>(*pParams);
