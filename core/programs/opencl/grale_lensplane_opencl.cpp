@@ -333,19 +333,7 @@ __kernel void renderLensPlane(int numXY,
 
 int main(int argc, char *argv[])
 {
-#ifdef GRALE_LOADLIBRARY
-	string defaultLibrary = "opencl.dll";
-#else
-	#ifdef __APPLE__
-	string defaultLibrary = "/System/Library/Frameworks/OpenCL.framework/OpenCL";
-#else
-	string defaultLibrary = "libOpenCL.so";
-#endif // __APPLE
-#endif // GRALE_LOADLIBRARY
-
-	string library = defaultLibrary;
-	getenv("GRALE_OPENCLLIB", library); // Doesn't change the value if environment variable not set
-
+	string library = OpenCLKernel::getLibraryName();
 	OpenCLKernel clKernel;
 	if (!clKernel.loadLibrary(library))
 	{

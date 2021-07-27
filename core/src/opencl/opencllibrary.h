@@ -41,6 +41,8 @@ public:
 	OpenCLLibrary();
 	~OpenCLLibrary();
 
+	static std::string getLibraryName();
+
 	bool loadLibrary(const std::string &libraryName);
 	bool isOpen() const { return (m_pModule)?true:false; }
 
