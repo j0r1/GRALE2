@@ -274,7 +274,7 @@ def getMultiPlaneOCLProgram(lensplanes):
     code = lensplanes[0]["scaledlenses"][0][0].getCLLensQuantitiesStructure(False, False) + getMultiPlaneTraceCode(lensplanes) + """
 __kernel void calculateBetas(const int numPoints, __global const float *pThetas, __global float *pBetas, 
                                 __global const int *pNumPlanes, __global const float *DsrcAll, __global const float *Dmatrix,
-                                __global const float *pAllIntParams, __global const float *pAllFloatParams,
+                                __global const int *pAllIntParams, __global const float *pAllFloatParams,
                                 __global const float *pAllWeights, __global const float *pAllCenters,
                                 __global const int *pPlaneIntParamOffsets,
                                 __global const int *pPlaneFloatParamOffsets, __global const int *pPlaneWeightOffsets,

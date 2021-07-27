@@ -263,8 +263,8 @@ private:
         	ss << "        pCenters += 2;\n";
 			if (usePlaneScale)
 			{
-				ss << "        alpha.x += w*l.alphaX*scalableFunctionWeight;\n";
-        		ss << "        alpha.y += w*l.alphaY*scalableFunctionWeight;\n";
+				ss << "        alpha.x += w*l.alphaX*scalableFunctionScale;\n";
+        		ss << "        alpha.y += w*l.alphaY*scalableFunctionScale;\n";
 			}
 			else
 			{
@@ -283,7 +283,7 @@ private:
 
 		stringstream codeStream;
 		codeStream << "float2 " << functionName << "(float2 theta, __global const int *pIntParams, __global const float *pFloatParams, __global const float *pWeights,\n"
-		           << "                              __global const float *pCenters, float scalableFunctionWeight)\n"
+		           << "                              __global const float *pCenters, float scalableFunctionScale)\n"
 				   << "{\n"
 				   << "    float2 alpha = (float2)(0, 0);\n";
 
@@ -365,7 +365,7 @@ private:
 		code << "float2 getAlpha(int lpIdx, float2 theta, __global const int *pAllIntParams, __global const float *pAllFloatParams,\n";
 		code << "                __global const float *pAllWeights, __global const float *pAllCenters, __global const int *pPlaneIntParamOffsets,\n";
 		code << "                __global const int *pPlaneFloatParamOffsets, __global const int *pPlaneWeightOffsets,\n";
-		code << "                __global const float *pScalableFunctionWeights)\n";
+		code << "                float scalableFunctionScale)\n";
 		code << "{\n";
 		
 		for (size_t i = 0 ; i < planeBasisLenses.size() ; i++)
@@ -377,7 +377,7 @@ private:
 
 			code << "    if (lpIdx == " << i << ")";
 			code << "        return " << alphaFnName << "(theta, pAllIntParams + pPlaneIntParamOffsets[" << i << "], pAllFloatParams + pPlaneFloatParamOffsets[" << i << "],\n";
-			code << "                                     pAllWeights + pPlaneWeightOffsets[" << i << "], pAllCenters + pPlaneWeightOffsets[" << i << "]*2, pScalableFunctionWeights[" << i << "]);\n";
+			code << "                                     pAllWeights + pPlaneWeightOffsets[" << i << "], pAllCenters + pPlaneWeightOffsets[" << i << "]*2, scalableFunctionScale);\n";
 		}
 		code << "    return (float2)(0.0f/0.0f, 0.0f/0.0f);\n";
 		code << "}\n";
@@ -387,7 +387,7 @@ float2 multiPlaneTrace(float2 theta, int numPlanes, __global const float *Dsrc, 
                 __global const int *pAllIntParams, __global const float *pAllFloatParams, __global const float *pAllWeights,
                 __global const float *pAllCenters, __global const int *pPlaneIntParamOffsets,
                 __global const int *pPlaneFloatParamOffsets, __global const int *pPlaneWeightOffsets,
-                __global const float *pScalableFunctionWeights)
+                float scalableFunctionScale)
 {
     float2 T[MAXPLANES];
     float2 alphas[MAXPLANES];
@@ -400,7 +400,7 @@ float2 multiPlaneTrace(float2 theta, int numPlanes, __global const float *Dsrc, 
         const int i = j-1;
         if (i >= 0)
         {
-            const float2 alpha = getAlpha(i, T[i], pAllIntParams, pAllFloatParams, pAllWeights, pAllCenters, pPlaneIntParamOffsets, pPlaneFloatParamOffsets, pPlaneWeightOffsets, pScalableFunctionWeights);
+            const float2 alpha = getAlpha(i, T[i], pAllIntParams, pAllFloatParams, pAllWeights, pAllCenters, pPlaneIntParamOffsets, pPlaneFloatParamOffsets, pPlaneWeightOffsets, scalableFunctionScale);
             alphas[i] = alpha;
 	        const float dfrac = Dmatrix[(i+1)*MAXPLANES + j]/Dmatrix[0 + j];
 
@@ -415,7 +415,7 @@ float2 multiPlaneTrace(float2 theta, int numPlanes, __global const float *Dsrc, 
     const int i = numPlanes-1;
     if (i >= 0)
     {
-        const float2 alpha = getAlpha(i, T[i], pAllIntParams, pAllFloatParams, pAllWeights, pAllCenters, pPlaneIntParamOffsets, pPlaneFloatParamOffsets, pPlaneWeightOffsets, pScalableFunctionWeights);
+        const float2 alpha = getAlpha(i, T[i], pAllIntParams, pAllFloatParams, pAllWeights, pAllCenters, pPlaneIntParamOffsets, pPlaneFloatParamOffsets, pPlaneWeightOffsets, scalableFunctionScale);
         const float dfrac = Dsrc[i+1]/Dsrc[0];
         beta -= dfrac * alpha;
     }
@@ -451,11 +451,44 @@ float2 multiPlaneTrace(float2 theta, int numPlanes, __global const float *Dsrc, 
 		if (!(r = getMultiPlaneTraceCode(planeBasisLenses, unscaledLensesPerPlane, oclTraceCode)))
 			return "Unable to het multiplane OpenCL code: " + r.getErrorString();
 
-		cout << oclTraceCode << endl;
+		string kernel = oclTraceCode + R"XYZ(
+__kernel void calculateBetas(const int numPoints, const int numScaleWeights, __global const float *pThetas, __global float *pBetas, 
+                                __global const int *pNumPlanes, __global const float *DsrcAll, __global const float *Dmatrix,
+                                __global const int *pAllIntParams, __global const float *pAllFloatParams,
+                                __global const float *pAllWeights, __global const float *pAllCenters,
+                                __global const int *pPlaneIntParamOffsets,
+                                __global const int *pPlaneFloatParamOffsets, __global const int *pPlaneWeightOffsets,
+                                __global const float *pScalableFunctionScales)
+{
+    const int i = get_global_id(0);
+    if (i >= numPoints)
+        return;
 
-		string dummyKernel = oclTraceCode + "__kernel void dummy() { }\n";
+	const int j = get_global_id(1);
+	if (j >= numScaleWeights)
+		return;
+
+	// For each point, a number of scales will be used
+    const float2 theta = (float2)(pThetas[i*2+0], pThetas[i*2+1]);
+	const float scalableFunctionScale = pScalableFunctionScales[i * numScaleWeights + j];
+
+    // Each Dsrc is vector of MAXPLANES+1 length
+    __global const float *Dsrc = DsrcAll + (MAXPLANES+1)*i;
+    const float2 beta = multiPlaneTrace(theta, pNumPlanes[i], Dsrc, Dmatrix,
+                                        pAllIntParams, pAllFloatParams, pAllWeights, pAllCenters,
+                                        pPlaneIntParamOffsets, pPlaneFloatParamOffsets, pPlaneWeightOffsets,
+                                        scalableFunctionScale);
+
+	const int offset = (j*numPoints + i)*2;
+	pBetas[offset + 0] = beta.x;
+    pBetas[offset + 1] = beta.y;
+}
+)XYZ";
+
+		//cout << kernel << endl;
+
 		string faillog;
-		if (!loadKernel(dummyKernel, "dummy", faillog))
+		if (!loadKernel(kernel, "calculateBetas", faillog))
 		{
 			cerr << faillog << endl;
 			return "Error compiling kernel: " + getErrorString();
