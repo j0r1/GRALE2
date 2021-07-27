@@ -8,7 +8,7 @@ public:
 	OpenCLKernel();
 	~OpenCLKernel();
 
-	bool init();
+	bool init(int devIdx = 0);
 	bool loadKernel(const std::string &program, const std::string &kernelName, std::string &failLog);
 	void destroy();
 
@@ -27,6 +27,5 @@ private:
 	cl_command_queue m_queue;
 	cl_program m_program;
 	cl_kernel m_kernel;
-	std::unique_ptr<cl_device_id []> m_pDevices;
-	int m_deviceIndex;
+	cl_device_id m_device;
 };
