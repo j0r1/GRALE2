@@ -418,27 +418,26 @@ bool_t LensInversionGAFactoryMultiPlaneGPU::init(const LensInversionParametersBa
 									 m_reducedImages, m_shortImages)))
 		return r;
 
-	// sheet densities, sheet multipliers
-	m_sheetDensities.clear();
-	m_sheetMultipliers.clear();
+	// Currently for the mass sheet basis functions, may expand on this later
+	m_unscaledBasisLenses.clear();
 	if (pParams->useMassSheetBasisFunctions())
 	{
 		const auto &redshifts = pParams->getLensRedshifts();
 		const Cosmology &cosmology = pParams->getCosmology();
-		m_sheetDensities.resize(redshifts.size(), 0); // Just allocate some space
 
 		for (double z : redshifts)
 		{
 			double Dd = cosmology.getAngularDiameterDistance(z);
 			MassSheetLensParams params(Dd, 1.1, 1); // Same as in CPU case
-			
-			// A value of 1 in the genome will then correspond to this density
-			m_sheetMultipliers.push_back((float)params.getDensity());
+			shared_ptr<MassSheetLens> pSheetLens = make_shared<MassSheetLens>();
+			if (pSheetLens->init(Dd, &params))
+				return "Error creating one of the mass sheet basis functions: " + pSheetLens->getErrorString();
+			m_unscaledBasisLenses.push_back(pSheetLens);
 		}
 	}
 
 	// Call setCommonParameters
-	if (!(r = setCommonParameters(m_sheetMultipliers.size(),
+	if (!(r = setCommonParameters(m_unscaledBasisLenses.size(),
 						pParams->getAllowNegativeWeights(), m_basisFunctionMasses,
 						pParams->getMassEstimate(), pParams->getMassEstimate(),
 						pParams->getMassScaleSearchParameters())))
@@ -477,39 +476,23 @@ bool_t LensInversionGAFactoryMultiPlaneGPU::analyzeLensBasisFunctions(const vect
 	m_lensRedshifts.insert(m_lensRedshifts.end(), redshifts.begin(), redshifts.end());
 	
 	m_basisFunctionMasses.clear();
-	m_basisLenses.clear();
 
-	m_scaledPlaneWeights.clear();
-	m_basePlaneWeights.clear();
 	for (auto &plane : basisLenses)
 	{
 		if (plane.size() == 0)
 			return "A lens plane without basis functions is present";
-
-		// Just create the right sizes for these vectors
-		m_scaledPlaneWeights.push_back(vector<float>(plane.size(), 0));
-		m_basePlaneWeights.push_back(vector<float>(plane.size(), 0));
-
-		m_basisLenses.push_back(vector<PlummerLensInfo>());
-		auto &plummers = m_basisLenses.back();
 
 		for (auto &bl : plane)
 		{
 			if (bl->m_relevantLensingMass < 0)
 				return "A basis lens was found to have a negative strong lensing mass";
 
-			const PlummerLens *pPlummerLens = dynamic_cast<const PlummerLens *>(bl->m_pLens.get());
-			if (!pPlummerLens)
-				return "Not all basis functions appear to be Plummer lens models";
-
-			const PlummerLensParams *pParams = dynamic_cast<const PlummerLensParams *>(pPlummerLens->getLensParameters());
-			if (!pParams)
-				return "Unexpected: couldn't get Plummer lens parameters";
-
-			plummers.push_back(PlummerLensInfo { pParams->getLensMass(), pParams->getAngularWidth(), bl->m_center });
 			m_basisFunctionMasses.push_back(bl->m_relevantLensingMass);
 		}
 	}
+
+	// We'll need to re-analyze these later as well, to build up the OpenCL kernel and
+	// Upload the parameters
 
 	return true;
 }
@@ -556,10 +539,8 @@ unique_ptr<GravitationalLens> LensInversionGAFactoryMultiPlaneGPU::createLens(co
 	auto &redshifts = m_currentParams->getLensRedshifts();
 	assert(redshifts.size() == basisFunctions.size());
 
-	vector<float> sheetDensities(sheetValues.size());
 	assert((useSheets && sheetValues.size() == redshifts.size()) || (!useSheets && sheetValues.size() == 0));
 
-	convertGenomeSheetValuesToDensities(sheetValues, sheetDensities);
 	double scale = scaleFactor;
 	int basisFunctionWeightIdx = 0;
 
@@ -570,6 +551,7 @@ unique_ptr<GravitationalLens> LensInversionGAFactoryMultiPlaneGPU::createLens(co
 		double z = redshifts[planeIdx];
 		double Dd = cosm.getAngularDiameterDistance(z);
 		auto planeBasisFunctions = basisFunctions[planeIdx];
+		const GravitationalLens *pUnscaledBf = (useSheets)?m_unscaledBasisLenses[planeIdx].get():nullptr;
 		
 		CompositeLensParams planeLensParams;
 
@@ -587,16 +569,8 @@ unique_ptr<GravitationalLens> LensInversionGAFactoryMultiPlaneGPU::createLens(co
 
 		if (useSheets)
 		{
-			assert(planeIdx < sheetDensities.size());
-			MassSheetLensParams sheetParams(sheetDensities[planeIdx]);
-			MassSheetLens sheetLens;
-
-			if (!sheetLens.init(Dd, &sheetParams))
-			{
-				errStr = "Could not initialize a mass sheet lens: " + sheetLens.getErrorString();
-				return nullptr;
-			}
-			if (!planeLensParams.addLens(1.0, Vector2Dd(0, 0), 0, sheetLens))
+			assert(pUnscaledBf);
+			if (!planeLensParams.addLens(1.0, Vector2Dd(0, 0), 0, *pUnscaledBf))
 			{
 				errStr = "Unable to add sheet lens to composite lens: " + planeLensParams.getErrorString();
 				return nullptr;
@@ -623,17 +597,6 @@ unique_ptr<GravitationalLens> LensInversionGAFactoryMultiPlaneGPU::createLens(co
 
 	return containerLens;
 }
-
-void LensInversionGAFactoryMultiPlaneGPU::convertGenomeSheetValuesToDensities(const vector<float> &sheetValues,
-																			  vector<float> &sheetDensities) const
-{
-	assert(sheetValues.size() == m_sheetMultipliers.size());
-	assert(sheetValues.size() == sheetDensities.size());
-
-	for (size_t i = 0 ; i < sheetValues.size() ; i++)
-		sheetDensities[i] = sheetValues[i]*m_sheetMultipliers[i];
-}
-
 
 bool_t LensInversionGAFactoryMultiPlaneGPU::startNewCalculation(const eatk::Genome &genome)
 {

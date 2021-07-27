@@ -44,20 +44,12 @@ private:
 	errut::bool_t analyzeSourceImages(const std::vector<std::shared_ptr<ImagesDataExtended>> &sourceImages,
 							 const Cosmology &cosmology,
 							 std::vector<std::shared_ptr<ImagesDataExtended>> &imagesVector);
-	void convertGenomeSheetValuesToDensities(const std::vector<float> &sheetValues,
-											 std::vector<float> &sheetDensities) const;
-	void scaleWeights(float scaleFactor);
 
 	std::unique_ptr<LensInversionParametersMultiPlaneGPU> m_currentParams;
 
 	std::vector<float> m_lensRedshifts;
-	std::vector<std::vector<PlummerLensInfo>> m_basisLenses;
 	std::vector<double> m_basisFunctionMasses;
-
-	std::vector<float> m_sheetDensities;
-	std::vector<float> m_sheetMultipliers;
-	std::vector<std::vector<float>> m_basePlaneWeights;
-	std::vector<std::vector<float>> m_scaledPlaneWeights;
+	std::vector<std::shared_ptr<GravitationalLens>> m_unscaledBasisLenses; // One per lens plane
 
 	std::vector<std::shared_ptr<ImagesDataExtended>> m_images;
 	std::vector<ImagesDataExtended *> m_reducedImages, m_shortImages;
