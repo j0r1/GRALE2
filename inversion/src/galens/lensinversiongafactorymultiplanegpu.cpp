@@ -242,14 +242,22 @@ private:
 		return true;
 	}
 
-	string getAlphaCodeForPlane(const string &functionName,
+	bool_t getAlphaCodeForPlane(const string &functionName,
 		                        const std::vector<std::shared_ptr<LensInversionBasisLensInfo>> &basisLenses,
 								const GravitationalLens *pUnscaledLens,
-								map<string,string> &subRoutineCode)
+								map<string,string> &subRoutineCode,
+								int &intParamCount, int &floatParamCount, int &numWeights,
+								vector<float> &centers,
+								vector<cl_int> &intParams,
+								vector<float> &floatParams,
+								string &generatedCode)
 	{
+		int totalIntParamCount = 0, totalFloatParamCount = 0, weightCount = 0;
+
 		auto addCodeForLens = [](const string &fname, int num, int iCnt, int fCnt, bool usePlaneScale) -> string
 		{
 			stringstream ss;
+			assert(num >= 0 && iCnt >= 0 && fCnt >= 0);
 
 			if (num > 1)
 				ss << "    for (int i = 0 ; i < " << num << " ; i++)\n";
@@ -298,14 +306,41 @@ private:
 			return fnName;
 		};
 
+		auto addCenter = [&centers,this](Vector2Dd pos)
+		{
+			centers.push_back(pos.getX()/m_angularScale);
+			centers.push_back(pos.getY()/m_angularScale);
+		};
+
+		auto processParameters = [&totalIntParamCount, &totalFloatParamCount, &weightCount,
+		                          &intParams, &floatParams, this](const GravitationalLens &l, int &iCnt, int &fCnt) -> bool_t
+		{
+			if (!l.getCLParameterCounts(&iCnt, &fCnt))
+				return "Can't get OpenCL parameters count for lens: " + l.getErrorString();
+			assert(iCnt >= 0 && fCnt >= 0);
+			totalIntParamCount += iCnt;
+			totalFloatParamCount += fCnt;
+			weightCount++;
+
+			size_t io = intParams.size(), fo = floatParams.size();
+			intParams.resize(io + (size_t)iCnt);
+			floatParams.resize(fo + (size_t)fCnt);
+			if (!l.getCLParameters(m_angularScale, m_potentialScale, intParams.data() + io, floatParams.data() + fo))
+				return "Can't get OpenCL parameters for lens: " + l.getErrorString();
+			return true;
+		};
+
+		bool_t r;
 		string prevBfName;
 		int prevBfType = -1, prevBfCount = 0, prevIntCount = -1, prevFloatCount = -1;
 		for (auto &bl : basisLenses)
 		{
 			string fnName = saveCode(*(bl->m_pLens));
+			addCenter(bl->m_center);
 
 			int iCnt = -1, fCnt = -1;
-			bl->m_pLens->getCLParameterCounts(&iCnt, &fCnt);
+			if (!(r = processParameters(*(bl->m_pLens), iCnt, fCnt)))
+				return r;
 			
 			int t = bl->m_pLens->getLensType();
 			if (prevBfType != t || prevIntCount != iCnt || prevFloatCount != fCnt)
@@ -328,15 +363,23 @@ private:
 		if (pUnscaledLens)
 		{
 			string fnName = saveCode(*pUnscaledLens);
+			addCenter({0,0});
 			
 			int iCnt = -1, fCnt = -1;
-			pUnscaledLens->getCLParameterCounts(&iCnt, &fCnt);
+			if (!(r = processParameters(*pUnscaledLens, iCnt, fCnt)))
+				return r;
 			codeStream << addCodeForLens(fnName, 1, iCnt, fCnt, false);
 		}
 
 		codeStream << "    return alpha;\n";
 		codeStream << "}\n";
-		return codeStream.str();
+
+		intParamCount += totalIntParamCount;
+		floatParamCount += totalFloatParamCount;
+		numWeights += weightCount;
+
+		generatedCode = codeStream.str();
+		return true;
 	}
 
 	bool_t getMultiPlaneTraceCode(const std::vector<std::vector<std::shared_ptr<LensInversionBasisLensInfo>>> &planeBasisLenses,
@@ -368,12 +411,28 @@ private:
 		code << "                float scalableFunctionScale)\n";
 		code << "{\n";
 		
+		int intParamCount = 0, floatParamCount = 0, numPlaneWeights = 0;
+		vector<cl_int> planeIntParamOffsets, planeFloatParamOffsets, planeWeightOffsets;
+		vector<float> basisFunctionCenters;
+		vector<cl_int> allIntParams;
+		vector<float> allFloatParams;
+
 		for (size_t i = 0 ; i < planeBasisLenses.size() ; i++)
 		{
+			planeIntParamOffsets.push_back(intParamCount);
+			planeFloatParamOffsets.push_back(floatParamCount);
+			planeWeightOffsets.push_back(numPlaneWeights);
+
 			const GravitationalLens *pUnscaledLens = (haveUnscaledLenses)?unscaledLensesPerPlane[i].get():nullptr;
 
 			string alphaFnName = "getAlpha_" + to_string(i);
-			alphaCode += getAlphaCodeForPlane(alphaFnName, planeBasisLenses[i], pUnscaledLens, subRoutineCode);
+			string generatedCode;
+
+			if (!(r = getAlphaCodeForPlane(alphaFnName, planeBasisLenses[i], pUnscaledLens, subRoutineCode, intParamCount, floatParamCount, 
+			                                  numPlaneWeights, basisFunctionCenters, allIntParams, allFloatParams, generatedCode)))
+				return "Can't get alpha code for plane: " + r.getErrorString();
+
+			alphaCode += generatedCode;
 
 			code << "    if (lpIdx == " << i << ")";
 			code << "        return " << alphaFnName << "(theta, pAllIntParams + pPlaneIntParamOffsets[" << i << "], pAllFloatParams + pPlaneFloatParamOffsets[" << i << "],\n";
@@ -381,6 +440,55 @@ private:
 		}
 		code << "    return (float2)(0.0f/0.0f, 0.0f/0.0f);\n";
 		code << "}\n";
+
+		m_numWeights = (size_t)numPlaneWeights;
+		allIntParams.push_back(-12345); // Add a sentinel and avoid a length zero array
+		allFloatParams.push_back(-12345);
+
+		cout << "Total number of weights: " << m_numWeights << endl;
+		cout << "Plane weight offsets:" << endl;
+		for (auto o : planeWeightOffsets)
+			cout << "    " << o << endl;
+		cout << "Plane int offsets:" << endl;
+		for (auto o : planeIntParamOffsets)
+			cout << "    " << o << endl;
+		cout << "Plane float offsets:" << endl;
+		for (auto o : planeFloatParamOffsets)
+			cout << "    " << o << endl;
+		cout << "Basis function centers: " << endl;
+		for (size_t i = 0 ; i < basisFunctionCenters.size() ; i += 2)
+			cout << "    " << basisFunctionCenters[i] << "," << basisFunctionCenters[i+1] << endl;
+		cout << "All integer parameters:" << endl;
+		for (auto p : allIntParams)
+			cout << "    " << p << endl;
+		cout << "All float parameters:" << endl;
+		for (auto p : allFloatParams)
+			cout << "    " << p << endl;
+
+		auto uploadOffsets = [this](const vector<cl_int> &offsets, const string &msg, cl_mem &dest) -> bool_t
+		{
+			cl_int err;
+			dest = clCreateBuffer(getContext(), CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(cl_int)*offsets.size(), (void*)offsets.data(), &err);
+			if (err != CL_SUCCESS)
+				return "Error uploading " + msg + "to GPU";
+			return true;
+		};
+
+		if (!(r = uploadOffsets(planeWeightOffsets, "plane weight offsets", m_pDevPlaneWeightOffsets)) ||
+		    !(r = uploadOffsets(planeIntParamOffsets, "plane int param offsets", m_pDevPlaneIntParamOffsets)) ||
+			!(r = uploadOffsets(planeFloatParamOffsets, "plane float param offsets", m_pDevPlaneFloatParamOffsets)) )
+			return r;
+		
+		cl_int err;
+		m_pDevCenters = clCreateBuffer(getContext(), CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(float)*basisFunctionCenters.size(), basisFunctionCenters.data(), &err);
+		if (err != CL_SUCCESS)
+			return "Error uploading basis function centers to GPU";
+		m_pDevAllIntParams = clCreateBuffer(getContext(), CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(cl_int)*allIntParams.size(), allIntParams.data(), &err);
+		if (err != CL_SUCCESS)
+			return "Error uploading integer parameters to GPU";
+		m_pDevAllFloatParams = clCreateBuffer(getContext(), CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(float)*allFloatParams.size(), allFloatParams.data(), &err);
+		if (err != CL_SUCCESS)
+			return "Error uploading float parameters to GPU";
 
 		code << R"XYZ(
 float2 multiPlaneTrace(float2 theta, int numPlanes, __global const float *Dsrc, __global const float *Dmatrix,
@@ -448,6 +556,7 @@ float2 multiPlaneTrace(float2 theta, int numPlanes, __global const float *Dsrc, 
 		bool_t r;
 		string oclTraceCode;
 		
+		// This also uploads parameters and centers (and some offsets)
 		if (!(r = getMultiPlaneTraceCode(planeBasisLenses, unscaledLensesPerPlane, oclTraceCode)))
 			return "Unable to het multiplane OpenCL code: " + r.getErrorString();
 
@@ -494,7 +603,6 @@ __kernel void calculateBetas(const int numPoints, const int numScaleWeights, __g
 			return "Error compiling kernel: " + getErrorString();
 		}
 
-		return "Under construction";
 		return true;
 	}
 
@@ -684,10 +792,13 @@ __kernel void calculateBetas(const int numPoints, const int numScaleWeights, __g
 	bool m_shortImagesAreAllImages;
 	cl_mem m_pDevAllImages, m_pDevShortImages;
 	size_t m_numAllImagePoints, m_numShortImagePoints;
+	size_t m_numWeights;
 
 	cl_mem m_pDevDmatrix;
 	cl_mem m_pDevDpointsAll, m_pDevDpointsShort;
 	cl_mem m_pDevUsedPlanesAll, m_pDevUsedPlanesShort;
+	cl_mem m_pDevPlaneWeightOffsets, m_pDevPlaneIntParamOffsets, m_pDevPlaneFloatParamOffsets;
+	cl_mem m_pDevCenters, m_pDevAllIntParams, m_pDevAllFloatParams;
 
 	static unique_ptr<OpenCLCalculator> s_pInstance;
 	static mutex s_instanceMutex;
