@@ -29,6 +29,7 @@ typedef cl_uint cl_device_info;
 #define CL_SUCCESS 0
 #define CL_DEVICE_TYPE_GPU (1 << 2)
 #define CL_PROGRAM_BUILD_LOG 0x1183
+#define CL_MEM_READ_WRITE                           (1 << 0)
 #define CL_MEM_WRITE_ONLY                           (1 << 1)
 #define CL_MEM_READ_ONLY                            (1 << 2)
 #define CL_MEM_COPY_HOST_PTR                        (1 << 5)
@@ -68,6 +69,7 @@ public:
 	cl_int (*clEnqueueNDRangeKernel)(cl_command_queue command_queue, cl_kernel kernel, cl_uint work_dim, const size_t *global_work_offset, const size_t *global_work_size, const size_t *local_work_size, cl_uint num_events_in_wait_list, const cl_event *event_wait_list, cl_event *event);
 	cl_int (*clFinish)(cl_command_queue command_queue);
 	cl_int (*clEnqueueReadBuffer)(cl_command_queue command_queue, cl_mem buffer, cl_bool blocking_read, size_t offset, size_t cb, void *ptr, cl_uint num_events_in_wait_list, const cl_event *event_wait_list, cl_event *event);
+	cl_int (*clEnqueueWriteBuffer)(cl_command_queue command_queue, cl_mem buffer, cl_bool blocking_write, size_t offset, size_t cb, const void *ptr, cl_uint num_events_in_wait_list, const cl_event *event_wait_list, cl_event *event);
 private:
 	void *m_pModule;
 };

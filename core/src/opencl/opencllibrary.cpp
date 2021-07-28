@@ -60,6 +60,7 @@ OpenCLLibrary::OpenCLLibrary()
 	clEnqueueNDRangeKernel = nullptr;
 	clFinish = nullptr;
 	clEnqueueReadBuffer = nullptr;
+	clEnqueueWriteBuffer = nullptr;
 
 	m_pModule = nullptr;
 }
@@ -116,6 +117,7 @@ bool OpenCLLibrary::loadLibrary(const std::string &libraryName)
 	GETFUNCTION(clEnqueueNDRangeKernel)
 	GETFUNCTION(clFinish)
 	GETFUNCTION(clEnqueueReadBuffer)
+	GETFUNCTION(clEnqueueWriteBuffer)
 	GETFUNCTION(clGetPlatformInfo)
 	GETFUNCTION(clGetDeviceInfo)
 

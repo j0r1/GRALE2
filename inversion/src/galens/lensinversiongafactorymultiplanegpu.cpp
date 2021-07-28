@@ -70,20 +70,21 @@ public:
 
 		size_t numBfWeights = g.m_weights.size();
 		size_t numSheetWeights = g.m_sheets.size();
-		size_t startBfIdx = idx * numBfWeights;
-		size_t endBfIdx = startBfIdx + numBfWeights;
-		size_t startSheetIdx = idx * numSheetWeights;
-		size_t endSheetIdx = startSheetIdx + numSheetWeights;
+		assert(numBfWeights + numSheetWeights == m_numWeights);
+
+		size_t startBfIdx = idx * m_numWeights;
+		size_t endBfIdx = startBfIdx + m_numWeights;
 
 		if (endBfIdx > m_allBasisFunctionWeights.size())
 			m_allBasisFunctionWeights.resize(endBfIdx);
-		if (endSheetIdx > m_allSheetWeights.size())
-			m_allSheetWeights.resize(endSheetIdx);
+
+		// TODO: either the sheets weights need to be stored at the right position in the basis function weights,
+		//       or the kernel needs to be adjusted to use a separate array for these basis functions
+		if (numSheetWeights > 0)		
+			return "ERROR: can't handle sheet basis functions right now";
 		
-		memcpy(m_allBasisFunctionWeights.data() + startBfIdx, g.m_weights.data(), sizeof(float)*numBfWeights);
-		if (numSheetWeights > 0)
-			memcpy(m_allSheetWeights.data() + startSheetIdx, g.m_sheets.data(), sizeof(float)*numSheetWeights);
-		
+		memcpy(m_allBasisFunctionWeights.data() + startBfIdx, g.m_weights.data(), sizeof(float)*g.m_weights.size());
+
 		genomeIndex = idx;
 		return true;
 	}
@@ -93,11 +94,17 @@ public:
 	bool_t scheduleUploadAndCalculation(size_t genomeIndex, const vector<pair<float,float>> &scaleFactors)
 	{
 		lock_guard<mutex> guard(m_mutex);
+		bool_t r;
 
 		if (m_devStatus == Ready) // First time this is called after setting up the weights
 		{
 			m_devStatus = UploadingWeights;
-			// TODO: start upload of weights to GPU
+			// Start upload of weights to GPU
+			if (!(r = m_devAllWeights.realloc(*this, m_allBasisFunctionWeights)) ||
+			    !(r = m_devAllWeights.enqueueWriteBuffer(*this, m_allBasisFunctionWeights)) )
+				return "Error reallocating/uploading GPU buffer for basis function weights" + r.getErrorString();
+
+			cout << "Started upload of basis function weights to GPU" << endl;
 		}
 
 		// We're assuming that all genome fitness calculations will run in sync, so we can use scaleFactors.size()
@@ -489,7 +496,7 @@ private:
 		m_pDevAllFloatParams = clCreateBuffer(getContext(), CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(float)*allFloatParams.size(), allFloatParams.data(), &err);
 		if (err != CL_SUCCESS)
 			return "Error uploading float parameters to GPU";
-
+		
 		code << R"XYZ(
 float2 multiPlaneTrace(float2 theta, int numPlanes, __global const float *Dsrc, __global const float *Dmatrix,
                 __global const int *pAllIntParams, __global const float *pAllFloatParams, __global const float *pAllWeights,
@@ -561,10 +568,11 @@ float2 multiPlaneTrace(float2 theta, int numPlanes, __global const float *Dsrc, 
 			return "Unable to het multiplane OpenCL code: " + r.getErrorString();
 
 		string kernel = oclTraceCode + R"XYZ(
-__kernel void calculateBetas(const int numPoints, const int numScaleWeights, __global const float *pThetas, __global float *pBetas, 
+__kernel void calculateBetas(const int numPoints, const int numScaleWeights, const int numGenomes, const int numWeights,
+                                __global const float *pThetas, __global float *pBetas, 
                                 __global const int *pNumPlanes, __global const float *DsrcAll, __global const float *Dmatrix,
                                 __global const int *pAllIntParams, __global const float *pAllFloatParams,
-                                __global const float *pAllWeights, __global const float *pAllCenters,
+                                __global const float *pAllGenomeWeights, __global const float *pAllCenters,
                                 __global const int *pPlaneIntParamOffsets,
                                 __global const int *pPlaneFloatParamOffsets, __global const int *pPlaneWeightOffsets,
                                 __global const float *pScalableFunctionScales)
@@ -573,24 +581,32 @@ __kernel void calculateBetas(const int numPoints, const int numScaleWeights, __g
     if (i >= numPoints)
         return;
 
-	const int j = get_global_id(1);
-	if (j >= numScaleWeights)
+	const int genomeIdx = get_global_id(1);
+	if (genomeIdx >= numGenomes)
 		return;
+
+	const int numPlanesForPoint = pNumPlanes[i];
+	__global const float *pAllWeights = pAllGenomeWeights + genomeIdx*numWeights;
 
 	// For each point, a number of scales will be used
     const float2 theta = (float2)(pThetas[i*2+0], pThetas[i*2+1]);
-	const float scalableFunctionScale = pScalableFunctionScales[i * numScaleWeights + j];
 
-    // Each Dsrc is vector of MAXPLANES+1 length
-    __global const float *Dsrc = DsrcAll + (MAXPLANES+1)*i;
-    const float2 beta = multiPlaneTrace(theta, pNumPlanes[i], Dsrc, Dmatrix,
-                                        pAllIntParams, pAllFloatParams, pAllWeights, pAllCenters,
-                                        pPlaneIntParamOffsets, pPlaneFloatParamOffsets, pPlaneWeightOffsets,
-                                        scalableFunctionScale);
+	// For these weights (a genome), and for this point, we'll calculate the results for the requested scale factors
+	for (int j = 0 ; j < numScaleWeights ; j++)
+	{
+		const float scalableFunctionScale = pScalableFunctionScales[genomeIdx*numScaleWeights + j];
 
-	const int offset = (j*numPoints + i)*2;
-	pBetas[offset + 0] = beta.x;
-    pBetas[offset + 1] = beta.y;
+		// Each Dsrc is vector of MAXPLANES+1 length
+		__global const float *Dsrc = DsrcAll + (MAXPLANES+1)*i;
+		const float2 beta = multiPlaneTrace(theta, numPlanesForPoint, Dsrc, Dmatrix,
+											pAllIntParams, pAllFloatParams, pAllWeights, pAllCenters,
+											pPlaneIntParamOffsets, pPlaneFloatParamOffsets, pPlaneWeightOffsets,
+											scalableFunctionScale);
+
+		const int offset = (genomeIdx*numScaleWeights*numPoints + j*numPoints + i)*2;
+		pBetas[offset + 0] = beta.x;
+		pBetas[offset + 1] = beta.y;
+	}
 }
 )XYZ";
 
@@ -768,7 +784,60 @@ __kernel void calculateBetas(const int numPoints, const int numScaleWeights, __g
 		return true;
 	}
 
+	class CLMem
+	{
+	public:
+		CLMem() : m_pMem(nullptr), m_size(0) { }
+		void dealloc(OpenCLKernel &cl)
+		{
+			if (!m_pMem)
+				return;
+			cl.clReleaseMemObject(m_pMem);
+			m_pMem = nullptr;
+			m_size = 0;
+		}
 
+		bool_t realloc(OpenCLKernel &cl, size_t s) // Only reallocates if more memory is requested
+		{
+			if (s <= m_size)
+				return true;
+
+			cl_int err;
+			cl_mem pBuf = cl.clCreateBuffer(cl.getContext(), CL_MEM_READ_WRITE, s, nullptr, &err);
+			if (pBuf == nullptr || err != CL_SUCCESS)
+				return "Can't create buffer of size " + to_string(s) + " on GPU: code " + to_string(err);
+
+			dealloc(cl);
+			m_pMem = pBuf;
+			m_size = s;
+			return true;
+		}
+
+		template<class T>
+		bool_t realloc(OpenCLKernel &cl, const vector<T> &buffer)
+		{
+			return realloc(cl, buffer.size()*sizeof(T));
+		}
+
+		bool_t enqueueWriteBuffer(OpenCLKernel &cl, const void *pData, size_t s)
+		{
+			if (s > m_size)
+				return "Size exceeds GPU buffer size";
+			cl_int err = cl.clEnqueueWriteBuffer(cl.getCommandQueue(), m_pMem, false, 0, s, pData, 0, nullptr, nullptr);
+			if (err != CL_SUCCESS)
+				return "Error enqueuing write buffer: code " + to_string(err);
+			return true;
+		}
+
+		template<class T>
+		bool_t enqueueWriteBuffer(OpenCLKernel &cl, const vector<T> &data)
+		{
+			return enqueueWriteBuffer(cl, data.data(), data.size()*sizeof(T));
+		}
+
+		cl_mem m_pMem;
+		size_t m_size;
+	};
 
 	class State
 	{
@@ -782,7 +851,6 @@ __kernel void calculateBetas(const int numPoints, const int numScaleWeights, __g
 	bool m_hasCalculated;
 	mutex m_mutex;
 	vector<float> m_allBasisFunctionWeights;
-	vector<float> m_allSheetWeights;
 	vector<float> m_allFactors;
 	size_t m_uploadInfoCount;
 	DeviceStatus m_devStatus;
@@ -799,6 +867,8 @@ __kernel void calculateBetas(const int numPoints, const int numScaleWeights, __g
 	cl_mem m_pDevUsedPlanesAll, m_pDevUsedPlanesShort;
 	cl_mem m_pDevPlaneWeightOffsets, m_pDevPlaneIntParamOffsets, m_pDevPlaneFloatParamOffsets;
 	cl_mem m_pDevCenters, m_pDevAllIntParams, m_pDevAllFloatParams;
+
+	CLMem m_devAllWeights;
 
 	static unique_ptr<OpenCLCalculator> s_pInstance;
 	static mutex s_instanceMutex;
