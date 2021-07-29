@@ -84,6 +84,18 @@ bool_t LensInversionGAFactoryMultiPlaneGPU::init(const LensInversionParametersBa
 											 )))
 		return r;
 
+	const double angScale = OpenCLCalculator::instance().getAngularScale();
+	if (!(r = m_bpAll->init(m_reducedImages, angScale)))
+		return "Error initializing backprojection framework: " + r.getErrorString();
+
+	if (m_shortImages.empty()) // use full images
+		m_bpShort = m_bpAll;
+	else
+	{
+		if (!(r = m_bpShort->init(m_shortImages, angScale)))
+			return "Error initializing backprojection framework for short images: " + r.getErrorString();
+	}
+
 	m_currentParams = make_unique<LensInversionParametersMultiPlaneGPU>(*pParams);
 	return true;
 }

@@ -7,6 +7,7 @@
 #include "lensinversionparametersmultiplanegpu.h"
 #include "lensinversionbasislensinfo.h"
 #include "plummerlensinfo.h"
+#include "oclcalculatedbackprojector.h"
 #include <vector>
 #include <memory>
 #include <mutex>
@@ -56,6 +57,8 @@ private:
 
 	std::vector<std::shared_ptr<ImagesDataExtended>> m_images;
 	std::vector<ImagesDataExtended *> m_reducedImages, m_shortImages;
+
+	std::shared_ptr<OclCalculatedBackProjector> m_bpAll, m_bpShort;
 
 	class State
 	{

@@ -35,6 +35,8 @@ public:
 
 	errut::bool_t scheduleUploadAndCalculation(size_t genomeIndex, const std::vector<std::pair<float,float>> &scaleFactors, bool useShort);
 	errut::bool_t getGenomeIndex(const LensGAGenome &g, size_t &genomeIndex) const;
+    
+    double getAngularScale() const { return m_angularScale; }
 
 	OpenCLCalculator();
 	~OpenCLCalculator();
