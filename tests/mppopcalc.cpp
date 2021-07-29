@@ -141,8 +141,17 @@ int main(void)
 	if (!(r = fitCalc.initThreadPool(calculators)))
 		throw runtime_error("Can't init thread pool: " + r.getErrorString());
 
-	if (!(r = fitCalc.calculatePopulationFitness(populations)))
-		throw runtime_error("Can't calculate fitnesses: " + r.getErrorString());
+	const int numCalcs = 4;
+	for (int i = 0 ; i < numCalcs ; i++)
+	{
+		cout << "Calculating " << (i+1) << "/" << numCalcs << endl; 
+	
+		if (!(r = fitCalc.calculatePopulationFitness(populations)))
+			throw runtime_error("Can't calculate fitnesses: " + r.getErrorString());
+		for (auto &pop : populations)
+			for (auto &i : pop->individuals())
+				i->fitness()->setCalculated(false);
+	}
 
 	fitCalc.destroyThreadPool();
 	return 0;

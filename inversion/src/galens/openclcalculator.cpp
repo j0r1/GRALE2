@@ -130,7 +130,7 @@ bool_t OpenCLCalculator::scheduleUploadAndCalculation(size_t genomeIndex, const 
     }
 
     // Make sure we've got an array somewhere to store the backprojection results
-    size_t numGenomes = m_states.size();
+    size_t numGenomes = m_genomesLeftToCalculate;
     size_t numPoints = (useShort)?m_numShortImagePoints:m_numAllImagePoints;
     size_t numFactors = scaleFactors.size();
     size_t floatsNeeded = numPoints*numFactors*numGenomes * 2;

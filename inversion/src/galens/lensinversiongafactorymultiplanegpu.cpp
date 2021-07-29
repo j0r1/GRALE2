@@ -303,10 +303,7 @@ bool_t LensInversionGAFactoryMultiPlaneGPU::pollCalculate(const eatk::Genome &ge
 				// TODO: just dummy
 				for (auto &x : f.m_fitnesses)
 					x = (float)index;
-
-				// Tell opencl module we're done for this genome; if all genomes were calculated, we can
-				// prepare for the next iteration (new genomes)
-				return "TODO: tell OpenCLCalculator this genome is done";
+				f.setCalculated(true);
 			}
 			else
 			{
