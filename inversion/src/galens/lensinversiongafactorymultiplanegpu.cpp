@@ -5,6 +5,7 @@
 #include "plummerlens.h"
 #include "openclcalculator.h"
 #include "utils.h"
+#include <thread>
 #include <assert.h>
 
 using namespace std;
@@ -85,6 +86,7 @@ bool_t LensInversionGAFactoryMultiPlaneGPU::init(const LensInversionParametersBa
 		return r;
 
 	const double angScale = OpenCLCalculator::instance().getAngularScale();
+	m_bpAll = make_shared<OclCalculatedBackProjector>();
 	if (!(r = m_bpAll->init(m_reducedImages, angScale)))
 		return "Error initializing backprojection framework: " + r.getErrorString();
 
@@ -92,6 +94,7 @@ bool_t LensInversionGAFactoryMultiPlaneGPU::init(const LensInversionParametersBa
 		m_bpShort = m_bpAll;
 	else
 	{
+		m_bpShort = make_shared<OclCalculatedBackProjector>();
 		if (!(r = m_bpShort->init(m_shortImages, angScale)))
 			return "Error initializing backprojection framework for short images: " + r.getErrorString();
 	}
@@ -254,20 +257,15 @@ bool_t LensInversionGAFactoryMultiPlaneGPU::startNewCalculation(const eatk::Geno
 	const LensGAGenome &g = static_cast<const LensGAGenome&>(genome);
 	OpenCLCalculator &oclCalc = OpenCLCalculator::instance();
 	bool_t r;
-	size_t index;
 	
-	if (!(r = oclCalc.startNewBackprojection(g, index)))
+	if (!(r = oclCalc.startNewBackprojection(g)))
 		return "Error starting new calculation for genome: " + r.getErrorString();
 
-	// Make sure that the state vector is large enough
-	lock_guard<mutex> stateVectorMutex(m_calcStateMutex);
-	if (index >= m_calcStates.size())
-		m_calcStates.resize(index+1);
-
+	State &s = m_calcStates[&g];
 	if (m_currentParams->getMassScaleSearchParameters().getNumberOfIterations() == 0) // No search requested, just use weights
-		m_calcStates[index].reset({ numeric_limits<float>::quiet_NaN(), numeric_limits<float>::quiet_NaN() }, true);
+		s.reset({ numeric_limits<float>::quiet_NaN(), numeric_limits<float>::quiet_NaN() }, true);
 	else
-		m_calcStates[index].reset(getInitialStartStopValues(g.m_weights), false);
+		s.reset(getInitialStartStopValues(g.m_weights), false);
 	return true;
 }
 
@@ -279,60 +277,106 @@ bool_t LensInversionGAFactoryMultiPlaneGPU::pollCalculate(const eatk::Genome &ge
 	LensGAFitness &f = static_cast<LensGAFitness&>(fitness);
 	OpenCLCalculator &oclCalc = OpenCLCalculator::instance();
 	bool_t r;
-	size_t index;
 
-	if (!(r = oclCalc.getGenomeIndex(g, index)))
-		return "Can't get genome index: " + r.getErrorString();
+	State &state = m_calcStates[&g];
 
-	assert(index < m_calcStates.size());
-	State &state = m_calcStates[index];
-
-	if (!state.m_calculationScheduled)
+	if (state.m_calculationIdentifier < 0) // Not scheduled yet
 	{
-		state.m_calculationScheduled = true;
+		// Try to schedule calculation
 		if (state.m_isFinalCalculation)
-			r = oclCalc.scheduleUploadAndCalculation(index, { { numeric_limits<float>::quiet_NaN(), state.m_bestScaleFactor } }, false);
+		{
+			state.m_stepSize = numeric_limits<float>::quiet_NaN();
+			state.m_steps = { { numeric_limits<float>::quiet_NaN(), state.m_bestScaleFactor } };
+		}
 		else
 		{
 			state.m_stepSize = getStepsAndStepSize(state.m_startStopValues, state.m_nextIteration, state.m_steps);
-			r = oclCalc.scheduleUploadAndCalculation(index, state.m_steps, true);
 		}
-		if (!r)
+
+		if (!(r = oclCalc.scheduleUploadAndCalculation(g, state.m_calculationIdentifier, state.m_steps, !state.m_isFinalCalculation)))
 			return "Unable to schedule upload of steps to be calculated: " + r.getErrorString();
+
+		if (state.m_calculationIdentifier >= 0)
+		{
+			//cout << "Successfully scheduled new calculation for genome " << (void*)&g << ", calc identifier is " << state.m_calculationIdentifier << ", thread is " << std::this_thread::get_id() << endl;
+			//cout.flush();
+		}
 	}
 	else
 	{
-		if (oclCalc.isCalculationDone())
+		size_t numPoints = 0, numGenomes = 0, numSteps = 0, genomeIndex = 0;
+		bool calcDone = false;
+		const float *pAllBetas = nullptr;
+
+		if (!(r = oclCalc.isCalculationDone(g, state.m_calculationIdentifier, &genomeIndex, &pAllBetas, &numGenomes, &numSteps, &numPoints, &calcDone)))
+			return "Error checking calculation done: " + r.getErrorString();
+
+		if (calcDone)
 		{
-			state.m_calculationScheduled = false;
+			//cout << "calcDone, numPoints = " << numPoints << " numGenomes = " << numGenomes << " numSteps = " << numSteps << " genomeIndex = " << genomeIndex << endl;
+			//cout << "          state.m_steps.size() = " << state.m_steps.size() << endl;
+			assert(numSteps == state.m_steps.size());
+
+			const float *pBetasForGenome = pAllBetas + numSteps*(numPoints*2)*genomeIndex;
+			LensFitnessObject &fitnessFunction = getFitnessObject();
 
 			if (state.m_isFinalCalculation)
 			{
+				assert(numSteps == 1);
 				LensGAFitness &f = static_cast<LensGAFitness&>(fitness);
 
-				// Calculate full fitness
-
-				// TODO: just dummy
+				m_bpAll->setBetaBuffer(pBetasForGenome, numPoints*2);
+#if 0
+				fitnessFunction.calculateOverallFitness(*m_bpAll, f.m_fitnesses.data());
+#else
+				// Dummy for testing
 				for (auto &x : f.m_fitnesses)
-					x = (float)index;
+					x = 0.01;
+#endif
 				f.setCalculated(true);
 			}
 			else
 			{
-				// TODO: Calculate fitness values for all the steps for which the backprojection was calculated
-				
-				// TODO: just a test
-				state.m_bestScaleFactor = state.m_steps[state.m_steps.size()/2].second;
+				float bestFitness = numeric_limits<float>::infinity();
+				int bestStep = -1;
+				for (size_t s = 0 ; s < numSteps ; s++)
+				{
+					const float *pBetasForStep = pBetasForGenome + (numPoints*2)*s;
+					m_bpShort->setBetaBuffer(pBetasForStep, numPoints*2);
+
+#if 0
+					float fitness = numeric_limits<float>::quiet_NaN();
+					if (!fitnessFunction.calculateMassScaleFitness(*m_bpShort, fitness))
+						return "Error calculating mass scale (short) fitness: " + fitnessFunction.getErrorString();
+#else
+					float fitness = 0.1; // dummy, for debugging
+#endif
+					
+					// cout << "Fitness for step " << s << " " << state.m_steps[s].first << " <=> " << state.m_steps[s].second << " = " << fitness << endl;
+
+					if (fitness < bestFitness)
+					{
+						bestFitness = fitness;
+						bestStep = s;
+					}
+				}
+
+				state.m_bestScaleFactor = state.m_steps[bestStep].second;
 
 				state.m_nextIteration++;
 				if (state.m_nextIteration >= m_currentParams->getMassScaleSearchParameters().getNumberOfIterations())
 					state.m_isFinalCalculation = true; // we'll calculate the best scale factor results in full next
 				else
 				{
-					//cout << "Updating start/stop values for genome " << index << ", iteration is now " << state.m_nextIteration << endl;
 					updateStartStopValues(state.m_startStopValues, state.m_initialStartStopValues, state.m_bestScaleFactor, state.m_stepSize);
 				}
 			}
+
+			// Tell the OpenCL part that we're done with these results; if that's the case
+			// for all genomes, we don't need this anymore
+			if (!(r = oclCalc.setCalculationProcessed(g, state.m_calculationIdentifier)))
+				return "Error telling OpenCL part that our calculation is processed: " + r.getErrorString();
+			state.m_calculationIdentifier = -1;
 		}
 		else
 		{

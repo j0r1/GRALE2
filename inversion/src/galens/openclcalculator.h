@@ -10,7 +10,7 @@
 #include <vector>
 #include <memory>
 #include <mutex>
-#include <map>
+#include <unordered_map>
 
 namespace grale
 {
@@ -27,15 +27,15 @@ public:
 										   );
 	static OpenCLCalculator &instance();
 
-	void setGenomesToCalculate(size_t s);
-	errut::bool_t startNewBackprojection(const LensGAGenome &g, size_t &genomeIndex);
-
-	enum DeviceStatus { Ready, UploadingWeights, Calculating, CalculationDone, Unknown };
-    bool isCalculationDone();
-
-	errut::bool_t scheduleUploadAndCalculation(size_t genomeIndex, const std::vector<std::pair<float,float>> &scaleFactors, bool useShort);
-	errut::bool_t getGenomeIndex(const LensGAGenome &g, size_t &genomeIndex) const;
+    void setGenomesToCalculate(size_t s);
+	errut::bool_t startNewBackprojection(const LensGAGenome &g);
+	errut::bool_t scheduleUploadAndCalculation(const LensGAGenome &g, int &calculationIdentifier,
+                                               const std::vector<std::pair<float,float>> &scaleFactors, bool useShort);
     
+    errut::bool_t isCalculationDone(const LensGAGenome &g, int calculationIdentifier, size_t *pGenomeIndex,
+                                    const float **ppAllBetas, size_t *pNumGenomes, size_t *pNumSteps, size_t *pNumPoints, bool *pDone);
+    errut::bool_t setCalculationProcessed(const LensGAGenome &g, int calculationIdentifier);
+
     double getAngularScale() const { return m_angularScale; }
 
 	OpenCLCalculator();
@@ -76,7 +76,7 @@ private:
 	errut::bool_t setupImages(const std::vector<ImagesDataExtended *> &allImages,
 	                   const std::vector<ImagesDataExtended *> &shortImages);
 
-    errut::bool_t uploadScaleFactorsAndBackproject(bool useShort, int numScaleFactors);
+    errut::bool_t checkCalculateScheduledContext();
 
     static void staticEventNotify(cl_event event, cl_int event_command_status, void *user_data);
     void eventNotify(cl_event event, cl_int event_command_status);
@@ -99,39 +99,74 @@ private:
 		size_t m_size;
 	};
 
-	class State // TODO: do we need more than a genome index?
-	{
-	public:
-		State(size_t genomeIndex) : m_genomeIndex(genomeIndex) { }
-		const size_t m_genomeIndex;
-	};
+    class State
+    {
+    public:
+        State(size_t genomeIndex = std::numeric_limits<size_t>::max()) : m_genomeIndex(genomeIndex) { }
+        size_t m_genomeIndex;
+    };
 
-	std::map<const LensGAGenome *, std::unique_ptr<State>> m_states; // TODO: probably don't need a pointer here
-	size_t m_nextGenomeIndex;
-	bool m_hasCalculated;
+    struct CommonClMem
+    {
+        cl_mem m_pDevDmatrix;
+        cl_mem m_pDevPlaneWeightOffsets, m_pDevPlaneIntParamOffsets, m_pDevPlaneFloatParamOffsets;
+        cl_mem m_pDevCenters, m_pDevAllIntParams, m_pDevAllFloatParams;
+        CLMem m_devAllWeights;
+    };
+
+    struct FullOrShortClMem
+    {
+        cl_mem m_pDevImages;
+        cl_mem m_pDevDpoints;
+	    cl_mem m_pDevUsedPlanes;
+        size_t m_numPoints;
+    };
+
+    class CalculationContext
+    {
+    public:
+        CalculationContext(int ident, size_t numSteps, size_t numWeights, const CommonClMem &common,
+                           const FullOrShortClMem &fullOrShort)
+            : m_identifier(ident), m_numSteps(numSteps), m_numWeights(numWeights),
+              m_common(common), m_fullOrShort(fullOrShort), m_calculated(false)
+            { }
+
+        errut::bool_t schedule(OpenCLKernel &cl, const LensGAGenome &g, size_t genomeWeightsIndex,
+                               const std::vector<std::pair<float,float>> &scaleFactors);
+        errut::bool_t calculate(OpenCLKernel &cl, cl_event *pEvt);
+
+        const int m_identifier;
+        const size_t m_numSteps, m_numWeights;
+        const CommonClMem &m_common;
+        const FullOrShortClMem &m_fullOrShort;
+        bool m_calculated;
+
+        std::unordered_map<const LensGAGenome *, size_t> m_betaIndexForGenome;
+        std::vector<cl_int> m_genomeIndexForBetaIndex;
+        std::vector<float> m_allFactors, m_allBetas;
+        CLMem m_devFactors, m_devBetas, m_devGenomeIndexForBetaIndex;
+    };
+
+    std::unique_ptr<CalculationContext> m_beingScheduled;
+    std::unique_ptr<CalculationContext> m_beingCalculated;
+    std::unique_ptr<CalculationContext> m_doneCalculating;
+    int m_nextCalculationContextIdentifier;
+
+    size_t m_numGenomesToCalculate;
+    std::unordered_map<const LensGAGenome *, State> m_states;
 	std::mutex m_mutex;
 	std::vector<float> m_allBasisFunctionWeights;
-	std::vector<float> m_allFactors;
-	size_t m_uploadInfoCount;
-	DeviceStatus m_devStatus;
+    size_t m_nextGenomeIndex;
+    bool m_hasCalculated;
+    bool m_uploadedWeights;
 
 	double m_angularScale, m_potentialScale;
 
 	bool m_shortImagesAreAllImages;
-	cl_mem m_pDevAllImages, m_pDevShortImages;
-	size_t m_numAllImagePoints, m_numShortImagePoints;
 	size_t m_numWeights;
 
-	cl_mem m_pDevDmatrix;
-	cl_mem m_pDevDpointsAll, m_pDevDpointsShort;
-	cl_mem m_pDevUsedPlanesAll, m_pDevUsedPlanesShort;
-	cl_mem m_pDevPlaneWeightOffsets, m_pDevPlaneIntParamOffsets, m_pDevPlaneFloatParamOffsets;
-	cl_mem m_pDevCenters, m_pDevAllIntParams, m_pDevAllFloatParams;
-
-	CLMem m_devAllWeights, m_devBetas, m_devFactors;
-	std::vector<float> m_allBetas;
-
-	size_t m_genomesLeftToCalculate;
+    CommonClMem m_common;
+    FullOrShortClMem m_full, m_short;
 
 	static std::unique_ptr<OpenCLCalculator> s_pInstance;
 	static std::mutex s_instanceMutex;

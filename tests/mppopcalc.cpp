@@ -114,7 +114,7 @@ int main(void)
 	// Create a population
 
 	LensGAIndividualCreation indivCreation(pRng, numBasisFunction, numSheets, allowNeg, numObj);
-	size_t numPops = 4;
+	size_t numPops = 1;
 	size_t popSize = 16;
 
 	auto createPop = [&indivCreation](size_t popSize) -> shared_ptr<eatk::Population>

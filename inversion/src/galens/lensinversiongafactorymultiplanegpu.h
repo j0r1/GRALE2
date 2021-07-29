@@ -10,7 +10,7 @@
 #include "oclcalculatedbackprojector.h"
 #include <vector>
 #include <memory>
-#include <mutex>
+#include <unordered_map>
 
 namespace grale
 {
@@ -63,7 +63,7 @@ private:
 	class State
 	{
 	public:
-		State() : m_calculationScheduled(false) { }
+		State() : m_calculationIdentifier(-1) { }
 		void reset(std::pair<float,float> initialStartStopValues, bool finalCalculation)
 		{
 			m_nextIteration = 0;
@@ -73,7 +73,7 @@ private:
 			m_bestScaleFactor = 1.0f;
 		}
 
-		bool m_calculationScheduled;
+		int m_calculationIdentifier;
 
 		std::pair<float,float> m_initialStartStopValues;
 		std::pair<float,float> m_startStopValues;
@@ -85,8 +85,7 @@ private:
 		int m_nextIteration;
 	};
 
-	std::vector<State> m_calcStates;
-	std::mutex m_calcStateMutex;
+	std::unordered_map<const LensGAGenome *,State> m_calcStates;
 };
 
 } // end namespace
