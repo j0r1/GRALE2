@@ -252,7 +252,10 @@ bool_t LensInversionGAFactoryMultiPlaneGPU::startNewCalculation(const eatk::Geno
 	if (index >= m_calcStates.size())
 		m_calcStates.resize(index+1);
 
-	m_calcStates[index].reset(getInitialStartStopValues(g.m_weights));
+	if (m_currentParams->getMassScaleSearchParameters().getNumberOfIterations() == 0) // No search requested, just use weights
+		m_calcStates[index].reset({ numeric_limits<float>::quiet_NaN(), numeric_limits<float>::quiet_NaN() }, true);
+	else
+		m_calcStates[index].reset(getInitialStartStopValues(g.m_weights), false);
 	return true;
 }
 
@@ -272,12 +275,63 @@ bool_t LensInversionGAFactoryMultiPlaneGPU::pollCalculate(const eatk::Genome &ge
 	assert(index < m_calcStates.size());
 	State &state = m_calcStates[index];
 
-	state.m_stepSize = getStepsAndStepSize(state.m_startStopValues, state.m_nextIteration, state.m_steps);
+	if (!state.m_calculationScheduled)
+	{
+		state.m_calculationScheduled = true;
+		if (state.m_isFinalCalculation)
+			r = oclCalc.scheduleUploadAndCalculation(index, { { numeric_limits<float>::quiet_NaN(), state.m_bestScaleFactor } }, false);
+		else
+		{
+			state.m_stepSize = getStepsAndStepSize(state.m_startStopValues, state.m_nextIteration, state.m_steps);
+			r = oclCalc.scheduleUploadAndCalculation(index, state.m_steps, true);
+		}
+		if (!r)
+			return "Unable to schedule upload of steps to be calculated: " + r.getErrorString();
+	}
+	else
+	{
+		if (oclCalc.isCalculationDone())
+		{
+			state.m_calculationScheduled = false;
 
-	if (!(r = oclCalc.scheduleUploadAndCalculation(index, state.m_steps, true)))
-		return "Unable to schedule upload of steps to be calculated: " + r.getErrorString();
+			if (state.m_isFinalCalculation)
+			{
+				LensGAFitness &f = static_cast<LensGAFitness&>(fitness);
 
-	return "TODO: implement pollCalculate";
+				// Calculate full fitness
+
+				// TODO: just dummy
+				for (auto &x : f.m_fitnesses)
+					x = (float)index;
+
+				// Tell opencl module we're done for this genome; if all genomes were calculated, we can
+				// prepare for the next iteration (new genomes)
+				return "TODO: tell OpenCLCalculator this genome is done";
+			}
+			else
+			{
+				// TODO: Calculate fitness values for all the steps for which the backprojection was calculated
+				
+				// TODO: just a test
+				state.m_bestScaleFactor = state.m_steps[state.m_steps.size()/2].second;
+
+				state.m_nextIteration++;
+				if (state.m_nextIteration >= m_currentParams->getMassScaleSearchParameters().getNumberOfIterations())
+					state.m_isFinalCalculation = true; // we'll calculate the best scale factor results in full next
+				else
+				{
+					//cout << "Updating start/stop values for genome " << index << ", iteration is now " << state.m_nextIteration << endl;
+					updateStartStopValues(state.m_startStopValues, state.m_initialStartStopValues, state.m_bestScaleFactor, state.m_stepSize);
+				}
+			}
+		}
+		else
+		{
+			// Nothing to do but wait till GPU is ready
+		}
+	}
+	
+	return true;
 }
 
 } // end namespace

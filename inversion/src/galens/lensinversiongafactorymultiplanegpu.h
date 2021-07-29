@@ -60,16 +60,23 @@ private:
 	class State
 	{
 	public:
-		State() { }
-		void reset(std::pair<float,float> initialStartStopValues)
+		State() : m_calculationScheduled(false) { }
+		void reset(std::pair<float,float> initialStartStopValues, bool finalCalculation)
 		{
 			m_nextIteration = 0;
 			m_startStopValues = initialStartStopValues;
 			m_initialStartStopValues = initialStartStopValues;
+			m_isFinalCalculation = finalCalculation;
+			m_bestScaleFactor = 1.0f;
 		}
+
+		bool m_calculationScheduled;
 
 		std::pair<float,float> m_initialStartStopValues;
 		std::pair<float,float> m_startStopValues;
+		float m_bestScaleFactor;
+		bool m_isFinalCalculation;
+
 		std::vector<std::pair<float,float>> m_steps;
 		float m_stepSize;
 		int m_nextIteration;

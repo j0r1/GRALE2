@@ -35,6 +35,12 @@ typedef cl_uint cl_device_info;
 #define CL_MEM_COPY_HOST_PTR                        (1 << 5)
 #define CL_PLATFORM_NAME                            0x0902
 #define CL_DEVICE_NAME								0x102B
+#define CL_COMPLETE									0
+#ifdef _WIN32
+	#define CL_CALLBACK __stdcall
+#else
+	#define CL_CALLBACK
+#endif
 
 class OpenCLLibrary : public errut::ErrorBase
 {
@@ -70,6 +76,7 @@ public:
 	cl_int (*clFinish)(cl_command_queue command_queue);
 	cl_int (*clEnqueueReadBuffer)(cl_command_queue command_queue, cl_mem buffer, cl_bool blocking_read, size_t offset, size_t cb, void *ptr, cl_uint num_events_in_wait_list, const cl_event *event_wait_list, cl_event *event);
 	cl_int (*clEnqueueWriteBuffer)(cl_command_queue command_queue, cl_mem buffer, cl_bool blocking_write, size_t offset, size_t cb, const void *ptr, cl_uint num_events_in_wait_list, const cl_event *event_wait_list, cl_event *event);
+	cl_int (*clSetEventCallback)(cl_event event, cl_int command_exec_callback_type, void (CL_CALLBACK * pfn_notify)(cl_event event, cl_int event_command_status, void *user_data), void *user_data);
 private:
 	void *m_pModule;
 };

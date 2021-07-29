@@ -30,7 +30,8 @@ public:
 	void setGenomesToCalculate(size_t s);
 	errut::bool_t startNewBackprojection(const LensGAGenome &g, size_t &genomeIndex);
 
-	enum DeviceStatus { Ready, UploadingWeights, Unknown };
+	enum DeviceStatus { Ready, UploadingWeights, Calculating, CalculationDone, Unknown };
+    bool isCalculationDone();
 
 	errut::bool_t scheduleUploadAndCalculation(size_t genomeIndex, const std::vector<std::pair<float,float>> &scaleFactors, bool useShort);
 	errut::bool_t getGenomeIndex(const LensGAGenome &g, size_t &genomeIndex) const;
@@ -73,6 +74,11 @@ private:
 	errut::bool_t setupImages(const std::vector<ImagesDataExtended *> &allImages,
 	                   const std::vector<ImagesDataExtended *> &shortImages);
 
+    errut::bool_t uploadScaleFactorsAndBackproject(bool useShort, int numScaleFactors);
+
+    static void staticEventNotify(cl_event event, cl_int event_command_status, void *user_data);
+    void eventNotify(cl_event event, cl_int event_command_status);
+
 	class CLMem
 	{
 	public:
@@ -83,6 +89,9 @@ private:
 
 		errut::bool_t enqueueWriteBuffer(OpenCLKernel &cl, const void *pData, size_t s);
 		template<class T> errut::bool_t enqueueWriteBuffer(OpenCLKernel &cl, const std::vector<T> &data) { return enqueueWriteBuffer(cl, data.data(), data.size()*sizeof(T)); }
+
+        errut::bool_t enqueueReadBuffer(OpenCLKernel &cl, void *pData, size_t s, cl_event *pEvt);
+        template<class T> errut::bool_t enqueueReadBuffer(OpenCLKernel &cl, std::vector<T> &data, cl_event *pEvt) { return enqueueReadBuffer(cl, data.data(), data.size()*sizeof(T), pEvt); }
 
 		cl_mem m_pMem;
 		size_t m_size;
@@ -117,7 +126,7 @@ private:
 	cl_mem m_pDevPlaneWeightOffsets, m_pDevPlaneIntParamOffsets, m_pDevPlaneFloatParamOffsets;
 	cl_mem m_pDevCenters, m_pDevAllIntParams, m_pDevAllFloatParams;
 
-	CLMem m_devAllWeights, m_devBetas;
+	CLMem m_devAllWeights, m_devBetas, m_devFactors;
 	std::vector<float> m_allBetas;
 
 	size_t m_genomesLeftToCalculate;

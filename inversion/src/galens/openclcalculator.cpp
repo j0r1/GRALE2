@@ -46,6 +46,12 @@ OpenCLCalculator &OpenCLCalculator::instance()
     return *pInst;
 }
 
+bool OpenCLCalculator::isCalculationDone()
+{
+    lock_guard<mutex> guard(m_mutex);
+    return (m_devStatus == CalculationDone)?true:false;
+}
+
 void OpenCLCalculator::setGenomesToCalculate(size_t s)
 {
     lock_guard<mutex> guard(m_mutex);
@@ -128,28 +134,99 @@ bool_t OpenCLCalculator::scheduleUploadAndCalculation(size_t genomeIndex, const 
     size_t numPoints = (useShort)?m_numShortImagePoints:m_numAllImagePoints;
     size_t numFactors = scaleFactors.size();
     size_t floatsNeeded = numPoints*numFactors*numGenomes * 2;
-    cout << "numGenomes = " << numGenomes << " numPoints = " << numPoints << " numFactors = " << numFactors << " floatsNeeded = " << floatsNeeded << endl;
+    //cout << "numGenomes = " << numGenomes << " numPoints = " << numPoints << " numFactors = " << numFactors << " floatsNeeded = " << floatsNeeded << endl;
 
     if (floatsNeeded != m_allBetas.size())
-    {
         m_allBetas.resize(floatsNeeded);
-        if (!(r = m_devBetas.realloc(*this, m_allBetas)))
-            return "Error reserving GPU memory for backprojected points: " + r.getErrorString();
-        cout << "Reserved GPU memory for betas" << endl;
-    }
-
-    // TODO: this is different for the scale search points and the final points
 
     m_uploadInfoCount++;
-
     if (m_uploadInfoCount == m_genomesLeftToCalculate) // Information for all genomes is present!
     {
         m_hasCalculated = true; // make sure we clear some state on next iteration (don't do this too soon, other threads may otherwise still be in the startNewBackprojection stage)
+        m_devStatus = Calculating;
+      
+        if (!(r = uploadScaleFactorsAndBackproject(useShort, scaleFactors.size())))
+            return r;
 
-        // TODO: Upload the info, and start the OpenCL calculation
-        cout << "Ready to upload and backproject" << endl;
+        m_uploadInfoCount = 0; // Reset this for the next iteration
     }
     return true;
+}
+
+bool_t OpenCLCalculator::uploadScaleFactorsAndBackproject(bool useShort, int numScaleFactors)
+{
+    bool_t r;
+    if (!(r = m_devFactors.realloc(*this, m_allFactors)) ||
+        !(r = m_devFactors.enqueueWriteBuffer(*this, m_allFactors)))
+        return "Can't send scale factors to GPU: " + r.getErrorString();
+
+    if (!(r = m_devBetas.realloc(*this, m_allBetas)))
+        return "Error reserving GPU memory for backprojected points: " + r.getErrorString();
+
+    cl_kernel kernel = getKernel();
+    cl_int clNumPoints = (useShort)?m_numShortImagePoints:m_numAllImagePoints;
+    cl_int clNumScaleFactors = numScaleFactors;
+    cl_int clNumGenomes = m_genomesLeftToCalculate;
+    cl_int clGenomeSize = m_numWeights;
+    cl_mem clThetas = (useShort)?m_pDevShortImages:m_pDevAllImages;
+    cl_mem clUsedPlanes = (useShort)?m_pDevUsedPlanesShort:m_pDevUsedPlanesAll;
+    cl_mem clDsrc = (useShort)?m_pDevDpointsShort:m_pDevDpointsAll;
+    cl_int err = 0;
+
+    err |= clSetKernelArg(kernel, 0, sizeof(cl_int), (void*)&clNumPoints);
+    err |= clSetKernelArg(kernel, 1, sizeof(cl_int), (void*)&clNumScaleFactors);
+    err |= clSetKernelArg(kernel, 2, sizeof(cl_int), (void*)&clNumGenomes);
+    err |= clSetKernelArg(kernel, 3, sizeof(cl_int), (void*)&clGenomeSize); // Doesn't need to be reset every time ; TODO: inporate in kernel as constant?
+    err |= clSetKernelArg(kernel, 4, sizeof(cl_mem), (void*)&clThetas);
+    err |= clSetKernelArg(kernel, 5, sizeof(cl_mem), (void*)&m_devBetas.m_pMem);
+    err |= clSetKernelArg(kernel, 6, sizeof(cl_mem), (void*)&clUsedPlanes);
+    err |= clSetKernelArg(kernel, 7, sizeof(cl_mem), (void*)&clDsrc);
+    err |= clSetKernelArg(kernel, 8, sizeof(cl_mem), (void*)&m_pDevDmatrix);
+    err |= clSetKernelArg(kernel, 9, sizeof(cl_mem), (void*)&m_pDevAllIntParams);
+    err |= clSetKernelArg(kernel, 10, sizeof(cl_mem), (void*)&m_pDevAllFloatParams);
+    err |= clSetKernelArg(kernel, 11, sizeof(cl_mem), (void*)&m_devAllWeights.m_pMem);
+    err |= clSetKernelArg(kernel, 12, sizeof(cl_mem), (void*)&m_pDevCenters);
+    err |= clSetKernelArg(kernel, 13, sizeof(cl_mem), (void*)&m_pDevPlaneIntParamOffsets);
+    err |= clSetKernelArg(kernel, 14, sizeof(cl_mem), (void*)&m_pDevPlaneFloatParamOffsets);
+    err |= clSetKernelArg(kernel, 15, sizeof(cl_mem), (void*)&m_pDevPlaneWeightOffsets);
+    err |= clSetKernelArg(kernel, 16, sizeof(cl_mem), (void*)&m_devFactors);
+    if (err != CL_SUCCESS)
+        return "Error setting kernel arguments";
+
+    size_t workSize[3] = { (size_t)clNumPoints, (size_t)clNumGenomes, (size_t)clNumScaleFactors };
+    err = clEnqueueNDRangeKernel(getCommandQueue(), kernel, 3, nullptr, workSize, nullptr, 0, nullptr, nullptr);
+    if (err != CL_SUCCESS)
+        return "Error enqueuing kernel: " + to_string(err);
+
+    // Also queue reading the results to CPU memory
+    cl_event evt;
+    if (!(r = m_devBetas.enqueueReadBuffer(*this, m_allBetas, &evt)))
+        return "Error enqueuing read buffer";
+    err = clSetEventCallback(evt, CL_COMPLETE, staticEventNotify, this);
+    if (err != CL_SUCCESS)
+        return "Error setting event callback: " + to_string(err);
+
+    return true;
+}
+
+void OpenCLCalculator::staticEventNotify(cl_event event, cl_int eventCommandStatus, void *userData)
+{
+    OpenCLCalculator *pInst = reinterpret_cast<OpenCLCalculator*>(userData);
+    assert(pInst);
+    pInst->eventNotify(event, eventCommandStatus);
+}
+
+void OpenCLCalculator::eventNotify(cl_event event, cl_int eventCommandStatus)
+{
+    lock_guard<mutex> lock(m_mutex);
+    if (eventCommandStatus != CL_COMPLETE)
+    {
+        cerr << "Unexpected result from OpenCL, bailing!" << endl;
+        exit(-1);
+    }
+    assert(m_devStatus == Calculating);
+    m_devStatus = CalculationDone;
+    cout << "Calculation Done!" << endl;
 }
 
 bool_t OpenCLCalculator::getGenomeIndex(const LensGAGenome &g, size_t &genomeIndex) const
@@ -169,6 +246,8 @@ OpenCLCalculator::OpenCLCalculator()
 OpenCLCalculator::~OpenCLCalculator()
 {
     // TODO: cleanup!
+
+    // TODO: wait for any event callbacks to complete to avoid an invalid function being called
 }
 
 bool_t OpenCLCalculator::initAll(int devIdx, const vector<ImagesDataExtended *> &allImages,
@@ -201,13 +280,14 @@ bool_t OpenCLCalculator::initAll(int devIdx, const vector<ImagesDataExtended *> 
     else
     {
         m_pDevUsedPlanesShort = m_pDevUsedPlanesAll;
-        m_pDevUsedPlanesShort = m_pDevUsedPlanesAll;
+        m_pDevDpointsShort = m_pDevDpointsAll;
     }
     
     if (!(r = setupBasisFunctions(planeBasisLenses, unscaledLensesPerPlane)))
         return "Can't setup GPU code for basis functions: " + r.getErrorString();
 
     m_hasCalculated = true; // Causes the internal state to be reset
+    m_genomesLeftToCalculate = 0;
 
     return true;
 }
@@ -585,7 +665,7 @@ bool_t OpenCLCalculator::setupBasisFunctions(const vector<vector<shared_ptr<Lens
         return "Unable to het multiplane OpenCL code: " + r.getErrorString();
 
     string kernel = oclTraceCode + R"XYZ(
-__kernel void calculateBetas(const int numPoints, const int numScaleWeights, const int numGenomes, const int numWeights,
+__kernel void calculateBetas(const int numPoints, const int numScaleFactors, const int numGenomes, const int numGenomeWeights,
                             __global const float *pThetas, __global float *pBetas, 
                             __global const int *pNumPlanes, __global const float *DsrcAll, __global const float *Dmatrix,
                             __global const int *pAllIntParams, __global const float *pAllFloatParams,
@@ -603,17 +683,17 @@ if (genomeIdx >= numGenomes)
     return;
 
 const int j = get_global_id(2);
-if (j >= numScaleWeights)
+if (j >= numScaleFactors)
     return;
 
 const int numPlanesForPoint = pNumPlanes[i];
-__global const float *pAllWeights = pAllGenomeWeights + genomeIdx*numWeights;
+__global const float *pAllWeights = pAllGenomeWeights + genomeIdx*numGenomeWeights;
 
 // For each point, a number of scales will be used
 const float2 theta = (float2)(pThetas[i*2+0], pThetas[i*2+1]);
 
 // For these weights (a genome), and for this point, we'll calculate the results for the requested scale factor
-const float scalableFunctionScale = pScalableFunctionScales[genomeIdx*numScaleWeights + j];
+const float scalableFunctionScale = pScalableFunctionScales[genomeIdx*numScaleFactors + j];
 
 // Each Dsrc is vector of MAXPLANES+1 length
 __global const float *Dsrc = DsrcAll + (MAXPLANES+1)*i;
@@ -622,7 +702,7 @@ const float2 beta = multiPlaneTrace(theta, numPlanesForPoint, Dsrc, Dmatrix,
                                     pPlaneIntParamOffsets, pPlaneFloatParamOffsets, pPlaneWeightOffsets,
                                     scalableFunctionScale);
 
-const int offset = (genomeIdx*numScaleWeights*numPoints + j*numPoints + i)*2;
+const int offset = (genomeIdx*numScaleFactors*numPoints + j*numPoints + i)*2;
 pBetas[offset + 0] = beta.x;
 pBetas[offset + 1] = beta.y;
 }
@@ -834,6 +914,16 @@ bool_t OpenCLCalculator::CLMem::enqueueWriteBuffer(OpenCLKernel &cl, const void 
     cl_int err = cl.clEnqueueWriteBuffer(cl.getCommandQueue(), m_pMem, false, 0, s, pData, 0, nullptr, nullptr);
     if (err != CL_SUCCESS)
         return "Error enqueuing write buffer: code " + to_string(err);
+    return true;
+}
+
+bool_t OpenCLCalculator::CLMem::enqueueReadBuffer(OpenCLKernel &cl, void *pData, size_t s, cl_event *pEvt)
+{
+    if (s > m_size)
+        return "Reading beyond CPU buffer size";
+    cl_int err = cl.clEnqueueReadBuffer(cl.getCommandQueue(), m_pMem, false, 0, s, pData, 0, nullptr, pEvt);
+    if (err != CL_SUCCESS)
+        return "Error enqueuing read buffer: code " + to_string(err);
     return true;
 }
 
