@@ -153,6 +153,14 @@ bool_t OpenCLCalculator::scheduleUploadAndCalculation(size_t genomeIndex, const 
     return true;
 }
 
+// #define DUMPLASTBETAS
+
+#ifdef DUMPLASTBETAS
+static int dbgLastNumPoints = 0;
+static int dbgLastNumScaleFactors = 0;
+static int dbgLastNumGenomes = 0;
+#endif // DUMPLASTBETAS
+
 bool_t OpenCLCalculator::uploadScaleFactorsAndBackproject(bool useShort, int numScaleFactors)
 {
     bool_t r;
@@ -166,6 +174,11 @@ bool_t OpenCLCalculator::uploadScaleFactorsAndBackproject(bool useShort, int num
     cl_kernel kernel = getKernel();
     cl_int clNumPoints = (useShort)?m_numShortImagePoints:m_numAllImagePoints;
     cl_int clNumScaleFactors = numScaleFactors;
+#ifdef DUMPLASTBETAS
+    dbgLastNumPoints = clNumPoints;
+    dbgLastNumScaleFactors = numScaleFactors;
+    dbgLastNumGenomes = m_genomesLeftToCalculate;
+#endif // DUMPLASTBETAS
     cl_int clNumGenomes = m_genomesLeftToCalculate;
     cl_int clGenomeSize = m_numWeights;
     cl_mem clThetas = (useShort)?m_pDevShortImages:m_pDevAllImages;
@@ -226,7 +239,31 @@ void OpenCLCalculator::eventNotify(cl_event event, cl_int eventCommandStatus)
     }
     assert(m_devStatus == Calculating);
     m_devStatus = CalculationDone;
+    
     cout << "Calculation Done!" << endl;
+#ifdef DUMPLASTBETAS
+    cout << "# genomes = " << dbgLastNumGenomes << endl;
+    cout << "# numFactors = " << dbgLastNumScaleFactors << endl;
+    cout << "# numPoints = " << dbgLastNumPoints << endl;
+    for (int g = 0 ; g < dbgLastNumGenomes ; g++)
+    {
+        int genomeOffset = (dbgLastNumScaleFactors*dbgLastNumPoints*2)*g;
+        for (int f = 0 ; f < dbgLastNumScaleFactors ; f++)
+        {
+            int scaleOffset = genomeOffset + (dbgLastNumPoints*2)*f;
+            for (int i = 0 ; i < dbgLastNumPoints ; i++)
+                cout << "\t" << m_allBetas[scaleOffset + i*2];
+            cout << endl;
+            for (int i = 0 ; i < dbgLastNumPoints ; i++)
+                cout << "\t" << m_allBetas[scaleOffset + i*2 + 1];
+            cout << endl;
+            cout << endl;
+        }
+        cout << endl;
+    }
+
+    exit(-1);
+#endif // DUMPLASTBETAS
 }
 
 bool_t OpenCLCalculator::getGenomeIndex(const LensGAGenome &g, size_t &genomeIndex) const
@@ -674,37 +711,41 @@ __kernel void calculateBetas(const int numPoints, const int numScaleFactors, con
                             __global const int *pPlaneFloatParamOffsets, __global const int *pPlaneWeightOffsets,
                             __global const float *pScalableFunctionScales)
 {
-const int i = get_global_id(0);
-if (i >= numPoints)
-    return;
+    const int i = get_global_id(0);
+    if (i >= numPoints)
+        return;
 
-const int genomeIdx = get_global_id(1);
-if (genomeIdx >= numGenomes)
-    return;
+    const int genomeIdx = get_global_id(1);
+    if (genomeIdx >= numGenomes)
+        return;
 
-const int j = get_global_id(2);
-if (j >= numScaleFactors)
-    return;
+    const int j = get_global_id(2);
+    if (j >= numScaleFactors)
+        return;
 
-const int numPlanesForPoint = pNumPlanes[i];
-__global const float *pAllWeights = pAllGenomeWeights + genomeIdx*numGenomeWeights;
+    const int numPlanesForPoint = pNumPlanes[i];
+    __global const float *pAllWeights = pAllGenomeWeights + genomeIdx*numGenomeWeights;
 
-// For each point, a number of scales will be used
-const float2 theta = (float2)(pThetas[i*2+0], pThetas[i*2+1]);
+    // For each point, a number of scales will be used
+    const float2 theta = (float2)(pThetas[i*2+0], pThetas[i*2+1]);
 
-// For these weights (a genome), and for this point, we'll calculate the results for the requested scale factor
-const float scalableFunctionScale = pScalableFunctionScales[genomeIdx*numScaleFactors + j];
+    // For these weights (a genome), and for this point, we'll calculate the results for the requested scale factor
+    const float scalableFunctionScale = pScalableFunctionScales[genomeIdx*numScaleFactors + j];
 
-// Each Dsrc is vector of MAXPLANES+1 length
-__global const float *Dsrc = DsrcAll + (MAXPLANES+1)*i;
-const float2 beta = multiPlaneTrace(theta, numPlanesForPoint, Dsrc, Dmatrix,
-                                    pAllIntParams, pAllFloatParams, pAllWeights, pAllCenters,
-                                    pPlaneIntParamOffsets, pPlaneFloatParamOffsets, pPlaneWeightOffsets,
-                                    scalableFunctionScale);
+    // Each Dsrc is vector of MAXPLANES+1 length
+    __global const float *Dsrc = DsrcAll + (MAXPLANES+1)*i;
+    const float2 beta = multiPlaneTrace(theta, numPlanesForPoint, Dsrc, Dmatrix,
+                                        pAllIntParams, pAllFloatParams, pAllWeights, pAllCenters,
+                                        pPlaneIntParamOffsets, pPlaneFloatParamOffsets, pPlaneWeightOffsets,
+                                        scalableFunctionScale);
 
-const int offset = (genomeIdx*numScaleFactors*numPoints + j*numPoints + i)*2;
-pBetas[offset + 0] = beta.x;
-pBetas[offset + 1] = beta.y;
+    const int offset = (genomeIdx*numScaleFactors*numPoints + j*numPoints + i)*2;
+    pBetas[offset + 0] = beta.x;
+    pBetas[offset + 1] = beta.y;
+
+    // TODO: for testing    
+    //pBetas[offset + 0] = genomeIdx;
+    //pBetas[offset + 1] = j;
 }
 )XYZ";
 
