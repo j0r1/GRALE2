@@ -283,7 +283,7 @@ bool_t OpenCLCalculator::isCalculationDone(const LensGAGenome &g, int calculatio
     }
 
     checkCalculateScheduledContext();
-    
+
     return true;
 }
 
@@ -302,7 +302,13 @@ bool_t OpenCLCalculator::setCalculationProcessed(const LensGAGenome &g, int calc
     // If everyone's results were processed, we can release this
     // TODO: recycle some memory!
     if (m_doneCalculating->m_betaIndexForGenome.size() == 0)
+    {
+        m_doneCalculating->m_devFactors.dealloc(*this);
+        m_doneCalculating->m_devBetas.dealloc(*this);
+        m_doneCalculating->m_devGenomeIndexForBetaIndex.dealloc(*this);
+
         m_doneCalculating = nullptr;
+    }
 
     return true;
 }
@@ -675,25 +681,25 @@ bool_t OpenCLCalculator::getMultiPlaneTraceCode(const vector<vector<shared_ptr<L
     allIntParams.push_back(-12345); // Add a sentinel and avoid a length zero array
     allFloatParams.push_back(-12345);
 
-    cout << "Total number of weights: " << m_numWeights << endl;
-    cout << "Plane weight offsets:" << endl;
-    for (auto o : planeWeightOffsets)
-        cout << "    " << o << endl;
-    cout << "Plane int offsets:" << endl;
-    for (auto o : planeIntParamOffsets)
-        cout << "    " << o << endl;
-    cout << "Plane float offsets:" << endl;
-    for (auto o : planeFloatParamOffsets)
-        cout << "    " << o << endl;
-    cout << "Basis function centers: " << endl;
-    for (size_t i = 0 ; i < basisFunctionCenters.size() ; i += 2)
-        cout << "    " << basisFunctionCenters[i] << "," << basisFunctionCenters[i+1] << endl;
-    cout << "All integer parameters:" << endl;
-    for (auto p : allIntParams)
-        cout << "    " << p << endl;
-    cout << "All float parameters:" << endl;
-    for (auto p : allFloatParams)
-        cout << "    " << p << endl;
+    // cout << "Total number of weights: " << m_numWeights << endl;
+    // cout << "Plane weight offsets:" << endl;
+    // for (auto o : planeWeightOffsets)
+    //     cout << "    " << o << endl;
+    // cout << "Plane int offsets:" << endl;
+    // for (auto o : planeIntParamOffsets)
+    //     cout << "    " << o << endl;
+    // cout << "Plane float offsets:" << endl;
+    // for (auto o : planeFloatParamOffsets)
+    //     cout << "    " << o << endl;
+    // cout << "Basis function centers: " << endl;
+    // for (size_t i = 0 ; i < basisFunctionCenters.size() ; i += 2)
+    //     cout << "    " << basisFunctionCenters[i] << "," << basisFunctionCenters[i+1] << endl;
+    // cout << "All integer parameters:" << endl;
+    // for (auto p : allIntParams)
+    //     cout << "    " << p << endl;
+    // cout << "All float parameters:" << endl;
+    // for (auto p : allFloatParams)
+    //     cout << "    " << p << endl;
 
     auto uploadOffsets = [this](const vector<cl_int> &offsets, const string &msg, cl_mem &dest) -> bool_t
     {
@@ -883,13 +889,13 @@ bool_t OpenCLCalculator::setupMultiPlaneDistanceMatrix(const Cosmology &cosm, co
     if (err != CL_SUCCESS)
         return "Error uploading lens plane distance matrix to GPU";
 
-    cout << "Distance matrix uploaded: " << endl;
-    for (size_t i = 0 ; i <= numPlanes ; i++)
-    {
-        for (size_t j = 0 ; j < numPlanes ; j++)
-            cout << "\t" << Dij[cols*i+j];
-        cout << endl;
-    }
+    // cout << "Distance matrix uploaded: " << endl;
+    // for (size_t i = 0 ; i <= numPlanes ; i++)
+    // {
+    //     for (size_t j = 0 ; j < numPlanes ; j++)
+    //         cout << "\t" << Dij[cols*i+j];
+    //     cout << endl;
+    // }
     return true;
 }
 
@@ -939,14 +945,14 @@ bool_t OpenCLCalculator::setupAngularDiameterDistances(const Cosmology &cosm, co
         usedPlanes[p] = useCount;
     }
 
-    cout << "Point distance info:" << endl;
-    for (size_t p = 0 ; p < numPoints ; p++)
-    {
-        cout << p << ") " << usedPlanes[p] << "|\t";
-        for (size_t i = 0 ; i < numCols ; i++)
-            cout << "\t" << Dsources[p*numCols + i];
-        cout << endl;
-    }
+    // cout << "Point distance info:" << endl;
+    // for (size_t p = 0 ; p < numPoints ; p++)
+    // {
+    //     cout << p << ") " << usedPlanes[p] << "|\t";
+    //     for (size_t i = 0 ; i < numCols ; i++)
+    //         cout << "\t" << Dsources[p*numCols + i];
+    //     cout << endl;
+    // }
     
     // Upload info to GPU
     cl_int err;
@@ -986,7 +992,7 @@ bool_t OpenCLCalculator::allocateAndUploadImages(const vector<ImagesDataExtended
         return "Error uploading image data to GPU";
     
     numPoints = allCoordinates.size()/2;
-    cout << "Uploaded coordinates for " << numPoints << " points to GPU" << endl;
+    // cout << "Uploaded coordinates for " << numPoints << " points to GPU" << endl;
 
     return true;
 }
