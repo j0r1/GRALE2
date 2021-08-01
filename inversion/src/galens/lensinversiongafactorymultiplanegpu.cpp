@@ -6,6 +6,7 @@
 #include "openclcalculator.h"
 #include "utils.h"
 #include <thread>
+#include <fstream>
 #include <assert.h>
 
 using namespace std;
@@ -249,6 +250,7 @@ bool_t LensInversionGAFactoryMultiPlaneGPU::onNewCalculationStart(size_t genomes
 {
 	OpenCLCalculator &oclCalc = OpenCLCalculator::instance();
 	oclCalc.setGenomesToCalculate(genomesInAllThreads);
+	m_calcStates.clear();
 	return true;
 }
 
@@ -313,9 +315,24 @@ bool_t LensInversionGAFactoryMultiPlaneGPU::pollCalculate(const eatk::Genome &ge
 
 		if (calcDone)
 		{
+			// ofstream dbg("betas.dat");
+			// dbg.write((char*)pAllBetas, numSteps*(numPoints*2)*numGenomes*sizeof(float));
+
 			//cout << "calcDone, numPoints = " << numPoints << " numGenomes = " << numGenomes << " numSteps = " << numSteps << " genomeIndex = " << genomeIndex << endl;
 			//cout << "          state.m_steps.size() = " << state.m_steps.size() << endl;
 			assert(numSteps == state.m_steps.size());
+			assert(genomeIndex < numGenomes);
+
+			// cout << "Got results for genome " << (void*)&g << endl;
+			// cout << "   m_initialStartStopValues = " << state.m_initialStartStopValues.first << "," << state.m_initialStartStopValues.second << endl;
+			// cout << "   m_startStopValues = " << state.m_startStopValues.first << "," << state.m_startStopValues.second << endl;
+			// cout << "   m_bestScaleFactor = " << state.m_bestScaleFactor << endl;
+			// cout << "   m_isFinalCalculation = " << (int)state.m_isFinalCalculation << endl;
+			// cout << "   m_stepSize = " << state.m_stepSize << endl;
+			// cout << "   m_nextIteration = " << state.m_nextIteration << endl;
+			// cout << "   m_steps = " << endl;
+			// for (auto s : state.m_steps)
+			// 	cout << "      " << s.first << "," << s.second << endl;
 
 			const float *pBetasForGenome = pAllBetas + numSteps*(numPoints*2)*genomeIndex;
 			LensFitnessObject &fitnessFunction = getFitnessObject();
@@ -326,13 +343,7 @@ bool_t LensInversionGAFactoryMultiPlaneGPU::pollCalculate(const eatk::Genome &ge
 				LensGAFitness &f = static_cast<LensGAFitness&>(fitness);
 
 				m_bpAll->setBetaBuffer(pBetasForGenome, numPoints*2);
-#if 0
 				fitnessFunction.calculateOverallFitness(*m_bpAll, f.m_fitnesses.data());
-#else
-				// Dummy for testing
-				for (auto &x : f.m_fitnesses)
-					x = 0.01;
-#endif
 				f.setCalculated(true);
 			}
 			else
@@ -344,14 +355,9 @@ bool_t LensInversionGAFactoryMultiPlaneGPU::pollCalculate(const eatk::Genome &ge
 					const float *pBetasForStep = pBetasForGenome + (numPoints*2)*s;
 					m_bpShort->setBetaBuffer(pBetasForStep, numPoints*2);
 
-#if 0
 					float fitness = numeric_limits<float>::quiet_NaN();
 					if (!fitnessFunction.calculateMassScaleFitness(*m_bpShort, fitness))
 						return "Error calculating mass scale (short) fitness: " + fitnessFunction.getErrorString();
-#else
-					float fitness = 0.1; // dummy, for debugging
-#endif
-					
 					// cout << "Fitness for step " << s << " " << state.m_steps[s].first << " <=> " << state.m_steps[s].second << " = " << fitness << endl;
 
 					if (fitness < bestFitness)
@@ -368,7 +374,7 @@ bool_t LensInversionGAFactoryMultiPlaneGPU::pollCalculate(const eatk::Genome &ge
 					state.m_isFinalCalculation = true; // we'll calculate the best scale factor results in full next
 				else
 				{
-					updateStartStopValues(state.m_startStopValues, state.m_initialStartStopValues, state.m_bestScaleFactor, state.m_stepSize);
+					updateStartStopValues(state.m_startStopValues, state.m_initialStartStopValues, state.m_steps[bestStep].first, state.m_stepSize);
 				}
 			}
 

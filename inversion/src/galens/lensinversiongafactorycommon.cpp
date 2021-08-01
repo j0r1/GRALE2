@@ -172,6 +172,8 @@ float LensInversionGAFactoryCommon::getScalingMassSum(const vector<float> &basis
 float LensInversionGAFactoryCommon::getStepsAndStepSize(pair<float,float> startStopValue, int iteration,
                                                         vector<pair<float,float>> &steps) const
 {
+	assert(startStopValue.first < startStopValue.second);
+	
 	int numiterationsteps = (iteration == 0)?m_massScaleSearchParams.getStepsOnFirstIteration():m_massScaleSearchParams.getStepsOnSubsequentIterations();
 	steps.resize(numiterationsteps);
 
@@ -201,6 +203,8 @@ pair<float,float> LensInversionGAFactoryCommon::getInitialStartStopValues(const 
 	float (*FT)(float x) = (useLogarithmicScaleSearch())?LogTrans:IdentityTrans;
 	startValue = FT(startValue);
 	stopValue = FT(stopValue);
+
+	assert(startValue < stopValue);
 
 	return { startValue, stopValue };
 }

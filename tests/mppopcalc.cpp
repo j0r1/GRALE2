@@ -58,6 +58,7 @@ shared_ptr<ImagesDataExtended> createRandomImages()
 
 int main(void)
 {	
+	cout << "Seed: " << rng.getSeed() << endl;
 	vector<double> zds { 0.5, 0.8, 1.5 };
 	vector<vector<shared_ptr<LensInversionBasisLensInfo>>> basisLenses {
 		// Lenses for first plane
@@ -77,6 +78,8 @@ int main(void)
 	vector<shared_ptr<ImagesDataExtended>> images(rng.getRandomUint32()%15 + 5); // 20 sources
 	for (auto &i : images)
 		i = createRandomImages();
+
+	cout << "# sources = " << images.size() << endl;
 
 	auto fitObj = make_unique<LensFitnessGeneral>();
 	auto confParams = fitObj->getDefaultParametersInstance();
