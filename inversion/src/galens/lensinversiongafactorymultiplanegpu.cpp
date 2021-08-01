@@ -344,6 +344,7 @@ bool_t LensInversionGAFactoryMultiPlaneGPU::pollCalculate(const eatk::Genome &ge
 
 				m_bpAll->setBetaBuffer(pBetasForGenome, numPoints*2);
 				fitnessFunction.calculateOverallFitness(*m_bpAll, f.m_fitnesses.data());
+				f.m_scaleFactor = state.m_bestScaleFactor;
 				f.setCalculated(true);
 			}
 			else
