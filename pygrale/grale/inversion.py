@@ -200,20 +200,17 @@ def _invertCommon(inverter, feedbackObject, moduleName, calcType, fitnessObjectP
 
     return result
 
-def invertMultiPlane(cosmology, inputImages, basisLensesAndRedshifts, popSize, moduleName="general_gpu",
+def invertMultiPlane(inputImages, basisLensesAndRedshifts, popSize, moduleName="general",
                      massScale="auto", allowNegativeValues=False, sheetSearch="nosheet",
                      fitnessObjectParameters=None, massScaleSearchType="regular",
                      convergenceParameters={ }, geneticAlgorithmParameters={ },
                      returnNds=False, deviceIndex = "rotate",
                      inverter="default", feedbackObject="default",
-                     maximumGenerations = None):
+                     maximumGenerations = None, cosmology = None):
     """Perform a multi-plane lens inversion. This is a rather low-level function,
     it may be easier to use an instance of :class:`InversionWorkSpace` instead.
     
     Arguments:
-
-     - `cosmology`: The cosmological model to use, to calculate the necessary angular
-       diameter distances based on the specified redshifts.
 
      - `inputImages`: a list of dictionaries with the following entries:
      
@@ -313,6 +310,9 @@ def invertMultiPlane(cosmology, inputImages, basisLensesAndRedshifts, popSize, m
        it can be useful to temporarily stop the genetic algorithm after only a small
        number of generations so that the code doesn't take long to run (this is now
        actually merged into the `convergenceParameters`)
+
+     - `cosmology`: The cosmological model to use, to calculate the necessary angular
+       diameter distances based on the specified redshifts.
     """
         
     if massScale == "auto" or massScale == "auto_nocheck":
@@ -1138,7 +1138,7 @@ class InversionWorkSpace(object):
             lens = invert(self.imgDataList, self.basisFunctions[0], self.zd[0], self.Dd[0], populationSize, **newKwargs)
         else:
             bfAndZs = [ { "lenses": x[0], "z": x[1] } for x in zip(self.basisFunctions, self.zd) ]
-            lens = invertMultiPlane(self.cosm, self.imgDataList, bfAndZs, populationSize, **newKwargs)
+            lens = invertMultiPlane(self.imgDataList, bfAndZs, populationSize, **newKwargs)
         return lens
 
     def calculateFitness(self, lensOrBackProjectedImages):
