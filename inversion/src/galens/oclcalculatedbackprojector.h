@@ -72,7 +72,7 @@ inline const Vector2D<float> *OclCalculatedBackProjector::getBetas(int sourceNum
 	assert(sourceNumber >= 0 && sourceNumber < m_sourceOffsets.size() && sourceNumber < m_offsets.size());
 	assert(imageNumber < m_offsets[sourceNumber].size());
 	assert(m_pBetas);
-	int offset = m_sourceOffsets[sourceNumber] + m_offsets[sourceNumber][imageNumber];
+	int offset = m_sourceOffsets[sourceNumber] + m_offsets[sourceNumber][imageNumber] * 2;
 	assert(offset < m_betasSize);
 	return reinterpret_cast<const Vector2Df*>(m_pBetas + offset);
 }
