@@ -62,7 +62,7 @@ bool_t LensInversionGAFactoryMultiPlaneGPU::init(const LensInversionParametersBa
 			double Dd = cosmology.getAngularDiameterDistance(z);
 			MassSheetLensParams params(Dd, 1.1, 1); // Same as in CPU case
 			shared_ptr<MassSheetLens> pSheetLens = make_shared<MassSheetLens>();
-			if (pSheetLens->init(Dd, &params))
+			if (!pSheetLens->init(Dd, &params))
 				return "Error creating one of the mass sheet basis functions: " + pSheetLens->getErrorString();
 			m_unscaledBasisLenses.push_back(pSheetLens);
 		}
