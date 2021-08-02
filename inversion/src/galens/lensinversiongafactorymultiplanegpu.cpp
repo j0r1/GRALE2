@@ -24,7 +24,8 @@ LensInversionGAFactoryMultiPlaneGPU::LensInversionGAFactoryMultiPlaneGPU(unique_
 
 LensInversionGAFactoryMultiPlaneGPU::~LensInversionGAFactoryMultiPlaneGPU()
 {
-
+	if (m_currentParams.get()) // Initialization worked, we can release GPU part now
+		OpenCLCalculator::releaseInstance((uint64_t)this);
 }
 
 bool_t LensInversionGAFactoryMultiPlaneGPU::init(const LensInversionParametersBase &p)
@@ -82,7 +83,8 @@ bool_t LensInversionGAFactoryMultiPlaneGPU::init(const LensInversionParametersBa
 											 m_lensRedshifts,
 											 pParams->getCosmology(),
 											 pParams->getBasisLenses(),
-											 m_unscaledBasisLenses
+											 m_unscaledBasisLenses,
+											 (uint64_t)this // Use this pointer as an identifier
 											 )))
 		return r;
 

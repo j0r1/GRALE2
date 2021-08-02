@@ -10,6 +10,7 @@
 #include <vector>
 #include <memory>
 #include <mutex>
+#include <thread>
 #include <unordered_map>
 
 namespace grale
@@ -23,9 +24,11 @@ public:
 										   const std::vector<float> &zds,
 										   const Cosmology &cosm,
 										   const std::vector<std::vector<std::shared_ptr<LensInversionBasisLensInfo>>> &planeBasisLenses,
-										   const std::vector<std::shared_ptr<GravitationalLens>> &unscaledLensesPerPlane
+										   const std::vector<std::shared_ptr<GravitationalLens>> &unscaledLensesPerPlane,
+                                           uint64_t userId
 										   );
-	static OpenCLCalculator &instance();
+	static void releaseInstance(uint64_t userId);
+    static OpenCLCalculator &instance();
 
     void setGenomesToCalculate(size_t s);
 	errut::bool_t startNewBackprojection(const LensGAGenome &g);
@@ -41,6 +44,7 @@ public:
 	OpenCLCalculator();
 	~OpenCLCalculator();
 private:
+    int getDeviceIndex() const { return m_devIdx; }
 	errut::bool_t initAll(int devIdx, const std::vector<ImagesDataExtended *> &allImages,
 	                        const std::vector<ImagesDataExtended *> &shortImages,
 							const std::vector<float> &zds,
@@ -147,6 +151,8 @@ private:
         CLMem m_devFactors, m_devBetas, m_devGenomeIndexForBetaIndex;
     };
 
+    int m_devIdx;
+
     std::unique_ptr<CalculationContext> m_beingScheduled;
     std::unique_ptr<CalculationContext> m_beingCalculated;
     std::unique_ptr<CalculationContext> m_doneCalculating;
@@ -170,6 +176,7 @@ private:
 
 	static std::unique_ptr<OpenCLCalculator> s_pInstance;
 	static std::mutex s_instanceMutex;
+    static std::set<uint64_t> s_users;
 	static bool s_initTried;
 };
 

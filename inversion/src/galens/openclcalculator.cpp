@@ -12,19 +12,31 @@ namespace grale
 unique_ptr<OpenCLCalculator> OpenCLCalculator::s_pInstance;
 mutex OpenCLCalculator::s_instanceMutex;
 bool OpenCLCalculator::s_initTried = false;
+set<uint64_t> OpenCLCalculator::s_users;
 
 bool_t OpenCLCalculator::initInstance(int devIdx, const vector<ImagesDataExtended *> &allImages,
                                         const vector<ImagesDataExtended *> &shortImages,
                                         const vector<float> &zds,
                                         const Cosmology &cosm,
                                         const vector<vector<shared_ptr<LensInversionBasisLensInfo>>> &planeBasisLenses,
-                                        const vector<shared_ptr<GravitationalLens>> &unscaledLensesPerPlane
+                                        const vector<shared_ptr<GravitationalLens>> &unscaledLensesPerPlane,
+                                        uint64_t userId
                                         )
 {
     lock_guard<mutex> guard(s_instanceMutex);
 
+    if (s_users.find(userId) != s_users.end())
+        return "An OpenCLCalculator instance is already registered for this user";
+
     if (s_pInstance.get()) // Already initialized
+    {
+        if (devIdx != s_pInstance->getDeviceIndex())
+            return "An OpenCLCalculator instance already exists, but for a different device index (" + to_string(s_pInstance->getDeviceIndex()) + ") than requested (" + to_string(devIdx) + ")";
+
+        cerr << "INFO: registered user in OpenCLCalculator (2): " << userId << endl;
+        s_users.insert(userId);
         return true;
+    }
 
     if (s_initTried)
         return "GPU initialization failed before";
@@ -35,8 +47,31 @@ bool_t OpenCLCalculator::initInstance(int devIdx, const vector<ImagesDataExtende
     if (!r)
         return "Can't init GPU: " + r.getErrorString();
 
+    s_users.insert(userId);
+    cerr << "INFO: registered user in OpenCLCalculator: " << userId << endl;
+
     s_pInstance = move(oclCalc);
     return true;
+}
+
+void OpenCLCalculator::releaseInstance(uint64_t userId)
+{
+    lock_guard<mutex> guard(s_instanceMutex);
+
+    auto it = s_users.find(userId);
+    if (it == s_users.end())
+    {
+        cerr << "WARNING: OpenCLCalculator::releaseInstance: can't find user " << userId << endl;
+        return;
+    }
+    s_users.erase(it);
+
+    if (s_users.empty())
+    {
+        cerr << "INFO: no more users of OpenCLCalculator, removing static instance" << endl;
+        s_initTried = false;
+        s_pInstance = nullptr;
+    }
 }
 
 OpenCLCalculator &OpenCLCalculator::instance()
@@ -372,6 +407,7 @@ void OpenCLCalculator::eventNotify(cl_event event, cl_int eventCommandStatus)
 }
 
 OpenCLCalculator::OpenCLCalculator()
+    : m_devIdx(-1)
 {
 }
 
@@ -392,6 +428,8 @@ bool_t OpenCLCalculator::initAll(int devIdx, const vector<ImagesDataExtended *> 
     bool_t r;
     if (!(r = initGPU(devIdx)))
         return "Error initializing GPU: " + r.getErrorString();
+
+    m_devIdx = devIdx;
 
     m_angularScale = ANGLE_ARCSEC; // TODO: calculate something better?
     m_potentialScale = ANGLE_ARCSEC*ANGLE_ARCSEC; // TODO
