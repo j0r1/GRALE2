@@ -216,7 +216,8 @@ private:
 	double m_angularScale, m_potentialScale;
 
 	bool m_shortImagesAreAllImages;
-	size_t m_numWeights;
+	size_t m_numWeights, m_numPlanes;
+	std::vector<size_t> m_planeWeightOffsets;
 
     CommonClMem m_common;
     FullOrShortClMem m_full, m_short;

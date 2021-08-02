@@ -220,7 +220,8 @@ unique_ptr<GravitationalLens> LensInversionGAFactoryMultiPlaneGPU::createLens(co
 		if (useSheets)
 		{
 			assert(pUnscaledBf);
-			if (!planeLensParams.addLens(1.0, Vector2Dd(0, 0), 0, *pUnscaledBf))
+			assert(planeIdx < sheetValues.size());
+			if (!planeLensParams.addLens(sheetValues[planeIdx], Vector2Dd(0, 0), 0, *pUnscaledBf))
 			{
 				errStr = "Unable to add sheet lens to composite lens: " + planeLensParams.getErrorString();
 				return nullptr;
@@ -345,9 +346,30 @@ bool_t LensInversionGAFactoryMultiPlaneGPU::pollCalculate(const eatk::Genome &ge
 				LensGAFitness &f = static_cast<LensGAFitness&>(fitness);
 
 				m_bpAll->setBetaBuffer(pBetasForGenome, numPoints*2);
+
+				/*
+				auto dumpBp = [](const ProjectedImagesInterface &iface)
+				{
+					double factor = iface.getAngularScale()/ANGLE_ARCSEC;
+					for (int s = 0 ; s < iface.getNumberOfSources() ; s++)
+					{
+						int numPoints = iface.getNumberOfImagePoints(s);
+						for (int p = 0 ; p < numPoints ; p++)
+						{
+							Vector2Df pt = iface.getBetas(s)[p];
+							cout << "  " << pt.getX()*factor << " " << pt.getY()*factor << endl;
+						}
+					}
+					cout << endl;
+				};
+				dumpBp(*m_bpAll);
+				*/
+
 				fitnessFunction.calculateOverallFitness(*m_bpAll, f.m_fitnesses.data());
 				f.m_scaleFactor = state.m_bestScaleFactor;
 				f.setCalculated(true);
+
+				// cout << "Genome: " << g.toString() << " / " << f.toString() << endl;
 			}
 			else
 			{

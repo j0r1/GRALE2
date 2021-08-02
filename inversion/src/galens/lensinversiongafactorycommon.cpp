@@ -145,6 +145,9 @@ bool_t LensInversionGAFactoryCommon::calculate(const eatk::Genome &genome, eatk:
 	auto r = calculateFitness(g.m_weights, g.m_sheets, f.m_scaleFactor, f.m_fitnesses.data());
 	if (!r)
 		return "Unable to calculate fitness: " + r.getErrorString();
+
+	// f.setCalculated(true); // Set the flag already so that toString shows something
+	// cout << "Genome: " << g.toString() << " / " << f.toString() << endl;
 	return true;		
 }
 

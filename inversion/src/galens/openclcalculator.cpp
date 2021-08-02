@@ -113,11 +113,32 @@ bool_t OpenCLCalculator::startNewBackprojection(const LensGAGenome &g)
     if (endBfIdx > m_allBasisFunctionWeights.size())
         m_allBasisFunctionWeights.resize(endBfIdx);
 
-    // TODO: the sheets weights need to be stored at the right position in the basis function weights
-    if (numSheetWeights > 0)		
-        return "ERROR: can't handle sheet basis functions right now";
-    
-    memcpy(m_allBasisFunctionWeights.data() + startBfIdx, g.m_weights.data(), sizeof(float)*g.m_weights.size());
+    if (numSheetWeights > 0)
+    {
+        // Store the sheet weights at the correct position
+        size_t genomeOffset = 0;
+        assert(m_numPlanes == g.m_sheets.size());
+        for (size_t i = 0 ; i < m_numPlanes ; i++)
+        {
+            assert(i < m_planeWeightOffsets.size() && (i+1) < m_planeWeightOffsets.size());
+            size_t start = m_planeWeightOffsets[i];
+            size_t end = m_planeWeightOffsets[i+1];
+
+            assert(end > start && end > 0);
+            size_t num = end-start;
+
+            assert(genomeOffset + num - 1 <= g.m_weights.size());
+            memcpy(m_allBasisFunctionWeights.data() + startBfIdx + start, g.m_weights.data() + genomeOffset, sizeof(float)*(num-1));
+            genomeOffset += (num-1);
+
+            assert(i < g.m_sheets.size());
+            m_allBasisFunctionWeights[startBfIdx + end-1] = g.m_sheets[i];
+        }
+        assert(genomeOffset == g.m_weights.size());
+    }
+    else
+        memcpy(m_allBasisFunctionWeights.data() + startBfIdx, g.m_weights.data(), sizeof(float)*g.m_weights.size());
+
     return true;
 }
 
@@ -479,7 +500,7 @@ OpenCLCalculator::~OpenCLCalculator()
     for (auto &ctx : m_recycledContextMemory)
         cleanupContextMemory(*ctx);
 
-    cerr << "INFO: OpenCLCalculator destructor start" << endl;
+    cerr << "INFO: OpenCLCalculator destructor end" << endl;
 }
 
 bool_t OpenCLCalculator::initAll(int devIdx, const vector<ImagesDataExtended *> &allImages,
@@ -615,7 +636,7 @@ bool_t OpenCLCalculator::getAlphaCodeForPlane(const string &functionName,
         else
         {
             ss << "        alpha.x += w*l.alphaX;\n";
-            ss << "        alpha.y += w*l.alphaY;\n";			
+            ss << "        alpha.y += w*l.alphaY;\n";
         }
         
         if (iCnt > 0)
@@ -780,6 +801,11 @@ bool_t OpenCLCalculator::getMultiPlaneTraceCode(const vector<vector<shared_ptr<L
     code << "}\n";
 
     m_numWeights = (size_t)numPlaneWeights;
+    m_planeWeightOffsets.clear();
+    for (auto x : planeWeightOffsets)
+        m_planeWeightOffsets.push_back(x);
+    m_planeWeightOffsets.push_back(m_numWeights); // allows us to use planeIdx+1 to refer to the start of the next plane
+
     allIntParams.push_back(-12345); // Add a sentinel and avoid a length zero array
     allFloatParams.push_back(-12345);
 
@@ -885,6 +911,7 @@ float2 multiPlaneTrace(float2 theta, int numPlanes, __global const float *Dsrc, 
     allCode += alphaCode;
     allCode += code.str();
     resultingCode = allCode;
+
     return true;
 }
 
@@ -998,6 +1025,8 @@ bool_t OpenCLCalculator::setupMultiPlaneDistanceMatrix(const Cosmology &cosm, co
     //         cout << "\t" << Dij[cols*i+j];
     //     cout << endl;
     // }
+
+    m_numPlanes = numPlanes;
     return true;
 }
 

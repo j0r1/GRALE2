@@ -346,6 +346,24 @@ bool_t LensInversionGAFactorySinglePlaneCPU::calculateTotalFitness(float scaleFa
 	if (fitnessFunction.totalNeedConvergence())
 		m_pTotalBPMatrix->calculateConvergence(*(fitnessFunction.getTotalConvergenceFlags()));
 
+	/*
+	auto dumpBp = [](const ProjectedImagesInterface &iface)
+	{
+		double factor = iface.getAngularScale()/ANGLE_ARCSEC;
+		for (int s = 0 ; s < iface.getNumberOfSources() ; s++)
+		{
+			int numPoints = iface.getNumberOfImagePoints(s);
+			for (int p = 0 ; p < numPoints ; p++)
+			{
+				Vector2Df pt = iface.getBetas(s)[p];
+				cout << "  " << pt.getX()*factor << " " << pt.getY()*factor << endl;
+			}
+		}
+		cout << endl;
+	};
+	dumpBp(*m_pTotalBPMatrix);
+	*/
+
 	if (!fitnessFunction.calculateOverallFitness(*m_pTotalBPMatrix, pFitnessValues))
 		return "Unable to calculate full fitness: " + fitnessFunction.getErrorString();
 
