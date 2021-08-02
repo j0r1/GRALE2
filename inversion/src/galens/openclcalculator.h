@@ -6,6 +6,7 @@
 #include "cosmology.h"
 #include "lensinversionbasislensinfo.h"
 #include "lensgaindividual.h"
+#include "pernodecounter.h"
 #include <errut/booltype.h>
 #include <vector>
 #include <memory>
@@ -221,6 +222,8 @@ private:
 
     CommonClMem m_common;
     FullOrShortClMem m_full, m_short;
+
+	std::unique_ptr<PerNodeCounter> m_perNodeCounter;
 
 	static std::unique_ptr<OpenCLCalculator> s_pInstance;
 	static std::mutex s_instanceMutex;

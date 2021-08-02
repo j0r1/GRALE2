@@ -8,7 +8,6 @@
 #include "lensinversionbasislensinfo.h"
 #include "plummerlensinfo.h"
 #include "oclcalculatedbackprojector.h"
-#include "pernodecounter.h"
 #include <vector>
 #include <memory>
 #include <unordered_map>
@@ -87,7 +86,6 @@ private:
 	};
 
 	std::unordered_map<const LensGAGenome *,State> m_calcStates;
-	std::unique_ptr<PerNodeCounter> m_perNodeCounter;
 };
 
 } // end namespace

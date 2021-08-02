@@ -1,7 +1,9 @@
 #include "openclcalculator.h"
 #include "constants.h"
 #include "compositelens.h"
+#include "utils.h"
 #include <sstream>
+#include <sys/time.h>
 
 using namespace errut;
 using namespace std;
@@ -27,6 +29,9 @@ bool_t OpenCLCalculator::initInstance(int devIdx, const vector<ImagesDataExtende
 
     if (s_users.find(userId) != s_users.end())
         return "An OpenCLCalculator instance is already registered for this user";
+
+    if (devIdx < 0)
+        devIdx = -1;
 
     if (s_pInstance.get()) // Already initialized
     {
@@ -500,6 +505,8 @@ OpenCLCalculator::~OpenCLCalculator()
     for (auto &ctx : m_recycledContextMemory)
         cleanupContextMemory(*ctx);
 
+	m_perNodeCounter.reset();
+
     cerr << "INFO: OpenCLCalculator destructor end" << endl;
 }
 
@@ -511,6 +518,10 @@ bool_t OpenCLCalculator::initAll(int devIdx, const vector<ImagesDataExtended *> 
                         const vector<shared_ptr<GravitationalLens>> &unscaledLensesPerPlane)
 {
     bool_t r;
+
+    if (devIdx < 0)
+        devIdx = -1;
+
     if (!(r = initGPU(devIdx)))
         return "Error initializing GPU: " + r.getErrorString();
 
@@ -992,6 +1003,38 @@ bool_t OpenCLCalculator::initGPU(int devIdx)
     string library = getLibraryName();
     if (!loadLibrary(library))
         return "Can't load OpenCL library: " + getErrorString();
+
+	if (devIdx < 0) // Means rotate over the available devices
+	{
+		string fileName = "/dev/shm/grale_mpopencl_nextdevice.dat";
+		getenv("GRALE_OPENCL_AUTODEVICEFILE", fileName); // Doesn't change file name if envvar not set
+
+		m_perNodeCounter = make_unique<PerNodeCounter>(fileName);
+
+		int idx = m_perNodeCounter->getCount();
+		if (idx < 0)
+		{
+			m_perNodeCounter.reset();
+			return "Couldn't read per-node device index from file '" + fileName + "': " + m_perNodeCounter->getErrorString();
+		}
+
+		int numDevices = getDeviceCount();
+		if (numDevices < 0)
+			return "Error getting device count: " + getErrorString();
+		if (numDevices == 0)
+			return "Unexpectedly got zero GPU devices";
+
+		devIdx = idx%numDevices;
+
+		auto GetTimeStamp = []() {
+			struct timeval tv;
+			gettimeofday(&tv,NULL);
+			return tv.tv_sec*(uint64_t)1000000+tv.tv_usec;
+		};
+
+		cerr << "DEBUG (" << GetTimeStamp() << "): Automatically using new device index " << devIdx << endl;
+	}
+
     if (!OpenCLKernel::init(devIdx))
         return "Can't init specified GPU device: " + getErrorString();
     return true;
