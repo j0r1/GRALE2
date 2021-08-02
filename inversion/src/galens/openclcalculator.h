@@ -112,6 +112,24 @@ private:
 
     struct CommonClMem
     {
+        CommonClMem()
+        {
+            zeroAll();
+        }
+
+        void zeroAll()
+        {
+            m_pDevDmatrix = nullptr;
+            m_pDevPlaneWeightOffsets = nullptr;
+            m_pDevPlaneIntParamOffsets = nullptr;
+            m_pDevPlaneFloatParamOffsets = nullptr;
+            m_pDevCenters = nullptr;
+            m_pDevAllIntParams = nullptr;
+            m_pDevAllFloatParams = nullptr;
+        }
+
+        void dealloc(OpenCLKernel &cl);
+
         cl_mem m_pDevDmatrix;
         cl_mem m_pDevPlaneWeightOffsets, m_pDevPlaneIntParamOffsets, m_pDevPlaneFloatParamOffsets;
         cl_mem m_pDevCenters, m_pDevAllIntParams, m_pDevAllFloatParams;
@@ -120,19 +138,50 @@ private:
 
     struct FullOrShortClMem
     {
+        FullOrShortClMem()
+        {
+            zeroAll();
+        }
+
+        void zeroAll()
+        {
+            m_pDevImages = nullptr;
+            m_pDevDpoints = nullptr;
+	        m_pDevUsedPlanes = nullptr;
+        }
+
+        void dealloc(OpenCLKernel &cl);
+        
         cl_mem m_pDevImages;
         cl_mem m_pDevDpoints;
 	    cl_mem m_pDevUsedPlanes;
         size_t m_numPoints;
     };
 
+    class ContextMemory
+    {
+    public:
+        void resizeCPUBuffers()
+        {
+            m_genomeIndexForBetaIndex.resize(0);
+            m_allFactors.resize(0);
+            m_allBetas.resize(0);
+        }
+        std::vector<cl_int> m_genomeIndexForBetaIndex;
+        std::vector<float> m_allFactors, m_allBetas;
+        CLMem m_devFactors, m_devBetas, m_devGenomeIndexForBetaIndex;
+    };
+
+    std::vector<std::unique_ptr<ContextMemory>> m_recycledContextMemory;
+    void cleanupContextMemory(ContextMemory &mem);
+
     class CalculationContext
     {
     public:
         CalculationContext(int ident, size_t numSteps, size_t numWeights, const CommonClMem &common,
-                           const FullOrShortClMem &fullOrShort)
+                           const FullOrShortClMem &fullOrShort, std::unique_ptr<ContextMemory> ctxMem)
             : m_identifier(ident), m_numSteps(numSteps), m_numWeights(numWeights),
-              m_common(common), m_fullOrShort(fullOrShort), m_calculated(false)
+              m_common(common), m_fullOrShort(fullOrShort), m_calculated(false), m_mem(std::move(ctxMem))
             { }
 
         errut::bool_t schedule(OpenCLKernel &cl, const LensGAGenome &g, size_t genomeWeightsIndex,
@@ -146,9 +195,7 @@ private:
         bool m_calculated;
 
         std::unordered_map<const LensGAGenome *, size_t> m_betaIndexForGenome;
-        std::vector<cl_int> m_genomeIndexForBetaIndex;
-        std::vector<float> m_allFactors, m_allBetas;
-        CLMem m_devFactors, m_devBetas, m_devGenomeIndexForBetaIndex;
+        std::unique_ptr<ContextMemory> m_mem;
     };
 
     int m_devIdx;

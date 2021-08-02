@@ -132,8 +132,22 @@ bool_t OpenCLCalculator::scheduleUploadAndCalculation(const LensGAGenome &g, int
         const FullOrShortClMem &fullOrShort = (useShort)?m_short:m_full;
         size_t numSteps = scaleFactors.size();
         if (!m_beingScheduled.get())
+        {
+            auto getContextMemory = [this]() -> unique_ptr<ContextMemory>
+            {
+                if (m_recycledContextMemory.size() > 0)
+                {
+                    auto r = move(m_recycledContextMemory.back());
+                    m_recycledContextMemory.pop_back();
+                    r->resizeCPUBuffers();
+                    return r;
+                }
+                return make_unique<ContextMemory>();
+            };
+
             m_beingScheduled = make_unique<CalculationContext>(m_nextCalculationContextIdentifier++, numSteps, m_numWeights,
-                                                               m_common, fullOrShort);
+                                                               m_common, fullOrShort, getContextMemory());
+        }
         else
         {
             if (m_beingScheduled->m_numSteps != numSteps || m_beingScheduled->m_fullOrShort.m_numPoints != fullOrShort.m_numPoints)
@@ -205,21 +219,21 @@ bool_t OpenCLCalculator::checkCalculateScheduledContext()
 bool_t OpenCLCalculator::CalculationContext::calculate(OpenCLKernel &cl, cl_event *pEvt)
 {
     bool_t r;
-    if (!(r = m_devFactors.realloc(cl, m_allFactors)) ||
-        !(r = m_devFactors.enqueueWriteBuffer(cl, m_allFactors)))
+    if (!(r = m_mem->m_devFactors.realloc(cl, m_mem->m_allFactors)) ||
+        !(r = m_mem->m_devFactors.enqueueWriteBuffer(cl, m_mem->m_allFactors)))
         return "Can't send scale factors to GPU: " + r.getErrorString();
 
-    if (!(r = m_devBetas.realloc(cl, m_allBetas)))
+    if (!(r = m_mem->m_devBetas.realloc(cl, m_mem->m_allBetas)))
         return "Error reserving GPU memory for backprojected points: " + r.getErrorString();
 
-    if (!(r = m_devGenomeIndexForBetaIndex.realloc(cl, m_genomeIndexForBetaIndex)) ||
-        !(r = m_devGenomeIndexForBetaIndex.enqueueWriteBuffer(cl, m_genomeIndexForBetaIndex)))
+    if (!(r = m_mem->m_devGenomeIndexForBetaIndex.realloc(cl, m_mem->m_genomeIndexForBetaIndex)) ||
+        !(r = m_mem->m_devGenomeIndexForBetaIndex.enqueueWriteBuffer(cl, m_mem->m_genomeIndexForBetaIndex)))
         return "Error uploading mapping from genomes in beta buffer to weight indices: " + r.getErrorString();
 
     cl_kernel kernel = cl.getKernel();
     cl_int clNumPoints = (cl_int)m_fullOrShort.m_numPoints;
     cl_int clNumScaleFactors = (cl_int)m_numSteps;
-    cl_int clNumGenomes = (cl_int)m_genomeIndexForBetaIndex.size();
+    cl_int clNumGenomes = (cl_int)m_mem->m_genomeIndexForBetaIndex.size();
     cl_int clGenomeSize = m_numWeights;
     cl_int err = 0;
 
@@ -228,7 +242,7 @@ bool_t OpenCLCalculator::CalculationContext::calculate(OpenCLKernel &cl, cl_even
     err |= cl.clSetKernelArg(kernel, 2, sizeof(cl_int), (void*)&clNumGenomes);
     err |= cl.clSetKernelArg(kernel, 3, sizeof(cl_int), (void*)&clGenomeSize); // Doesn't need to be reset every time ; TODO: inporate in kernel as constant?
     err |= cl.clSetKernelArg(kernel, 4, sizeof(cl_mem), (void*)&m_fullOrShort.m_pDevImages);
-    err |= cl.clSetKernelArg(kernel, 5, sizeof(cl_mem), (void*)&m_devBetas.m_pMem);
+    err |= cl.clSetKernelArg(kernel, 5, sizeof(cl_mem), (void*)&m_mem->m_devBetas.m_pMem);
     err |= cl.clSetKernelArg(kernel, 6, sizeof(cl_mem), (void*)&m_fullOrShort.m_pDevUsedPlanes);
     err |= cl.clSetKernelArg(kernel, 7, sizeof(cl_mem), (void*)&m_fullOrShort.m_pDevDpoints);
     err |= cl.clSetKernelArg(kernel, 8, sizeof(cl_mem), (void*)&m_common.m_pDevDmatrix);
@@ -239,8 +253,8 @@ bool_t OpenCLCalculator::CalculationContext::calculate(OpenCLKernel &cl, cl_even
     err |= cl.clSetKernelArg(kernel, 13, sizeof(cl_mem), (void*)&m_common.m_pDevPlaneIntParamOffsets);
     err |= cl.clSetKernelArg(kernel, 14, sizeof(cl_mem), (void*)&m_common.m_pDevPlaneFloatParamOffsets);
     err |= cl.clSetKernelArg(kernel, 15, sizeof(cl_mem), (void*)&m_common.m_pDevPlaneWeightOffsets);
-    err |= cl.clSetKernelArg(kernel, 16, sizeof(cl_mem), (void*)&m_devFactors.m_pMem);
-    err |= cl.clSetKernelArg(kernel, 17, sizeof(cl_mem), (void*)&m_devGenomeIndexForBetaIndex.m_pMem);
+    err |= cl.clSetKernelArg(kernel, 16, sizeof(cl_mem), (void*)&m_mem->m_devFactors.m_pMem);
+    err |= cl.clSetKernelArg(kernel, 17, sizeof(cl_mem), (void*)&m_mem->m_devGenomeIndexForBetaIndex.m_pMem);
     if (err != CL_SUCCESS)
         return "Error setting kernel arguments";
 
@@ -250,7 +264,7 @@ bool_t OpenCLCalculator::CalculationContext::calculate(OpenCLKernel &cl, cl_even
         return "Error enqueuing kernel: " + to_string(err);
 
     // Also queue reading the results to CPU memory
-    if (!(r = m_devBetas.enqueueReadBuffer(cl, m_allBetas, pEvt)))
+    if (!(r = m_mem->m_devBetas.enqueueReadBuffer(cl, m_mem->m_allBetas, pEvt)))
         return "Error enqueuing read buffer";
 
     return true;
@@ -264,26 +278,26 @@ bool_t OpenCLCalculator::CalculationContext::schedule(OpenCLKernel &cl, const Le
     assert(m_betaIndexForGenome.find(&g) == m_betaIndexForGenome.end()); // Shouldn't exist yet
     assert(m_numSteps == scaleFactors.size());
 
-    size_t betaIndex = m_genomeIndexForBetaIndex.size();
-    m_genomeIndexForBetaIndex.push_back(genomeWeightsIndex);
+    size_t betaIndex = m_mem->m_genomeIndexForBetaIndex.size();
+    m_mem->m_genomeIndexForBetaIndex.push_back(genomeWeightsIndex);
     m_betaIndexForGenome[&g] = betaIndex;
 
     size_t startIdx = betaIndex * m_numSteps;
     size_t endIdx = startIdx + m_numSteps;
 
-    if (endIdx > m_allFactors.size())
-        m_allFactors.resize(endIdx);
+    if (endIdx > m_mem->m_allFactors.size())
+        m_mem->m_allFactors.resize(endIdx);
 
     for (size_t i = 0, j = startIdx ; i < scaleFactors.size() ; i++, j++)
     {
-        assert(j < endIdx && j < m_allFactors.size());
-        m_allFactors[j] = scaleFactors[i].second; // .second is the real value to be used
+        assert(j < endIdx && j < m_mem->m_allFactors.size());
+        m_mem->m_allFactors[j] = scaleFactors[i].second; // .second is the real value to be used
     }
 
-    size_t numGenomesScheduled = m_genomeIndexForBetaIndex.size();
+    size_t numGenomesScheduled = m_mem->m_genomeIndexForBetaIndex.size();
     size_t floatsCurrentlyNeeded = m_fullOrShort.m_numPoints*m_numSteps*numGenomesScheduled * 2;
-    if (floatsCurrentlyNeeded != m_allBetas.size())
-        m_allBetas.resize(floatsCurrentlyNeeded);
+    if (floatsCurrentlyNeeded != m_mem->m_allBetas.size())
+        m_mem->m_allBetas.resize(floatsCurrentlyNeeded);
 
     return true;
 }
@@ -309,12 +323,12 @@ bool_t OpenCLCalculator::isCalculationDone(const LensGAGenome &g, int calculatio
         
         assert(m_doneCalculating->m_betaIndexForGenome.find(&g) != m_doneCalculating->m_betaIndexForGenome.end());
         *pGenomeIndex = m_doneCalculating->m_betaIndexForGenome[&g];
-        *ppAllBetas = m_doneCalculating->m_allBetas.data();
-        *pNumGenomes = m_doneCalculating->m_genomeIndexForBetaIndex.size();
+        *ppAllBetas = m_doneCalculating->m_mem->m_allBetas.data();
+        *pNumGenomes = m_doneCalculating->m_mem->m_genomeIndexForBetaIndex.size();
         *pNumSteps = m_doneCalculating->m_numSteps;
         *pNumPoints = m_doneCalculating->m_fullOrShort.m_numPoints;
         *pDone = true;
-        assert(m_doneCalculating->m_allBetas.size() == (*pNumSteps)*(*pNumGenomes)*(*pNumPoints)*2);
+        assert(m_doneCalculating->m_mem->m_allBetas.size() == (*pNumSteps)*(*pNumGenomes)*(*pNumPoints)*2);
     }
 
     checkCalculateScheduledContext();
@@ -334,18 +348,22 @@ bool_t OpenCLCalculator::setCalculationProcessed(const LensGAGenome &g, int calc
 
     m_doneCalculating->m_betaIndexForGenome.erase(it);
     
-    // If everyone's results were processed, we can release this
-    // TODO: recycle some memory!
+    // If everyone's results were processed, we can recycle the memory, and release this
     if (m_doneCalculating->m_betaIndexForGenome.size() == 0)
     {
-        m_doneCalculating->m_devFactors.dealloc(*this);
-        m_doneCalculating->m_devBetas.dealloc(*this);
-        m_doneCalculating->m_devGenomeIndexForBetaIndex.dealloc(*this);
-
+        m_recycledContextMemory.push_back(move(m_doneCalculating->m_mem));
+        //cleanupContextMemory(*(m_doneCalculating->m_mem));
         m_doneCalculating = nullptr;
     }
 
     return true;
+}
+
+void OpenCLCalculator::cleanupContextMemory(ContextMemory &mem)
+{
+    mem.m_devFactors.dealloc(*this);
+    mem.m_devBetas.dealloc(*this);
+    mem.m_devGenomeIndexForBetaIndex.dealloc(*this);
 }
 
 void OpenCLCalculator::staticEventNotify(cl_event event, cl_int eventCommandStatus, void *userData)
@@ -376,10 +394,10 @@ void OpenCLCalculator::eventNotify(cl_event event, cl_int eventCommandStatus)
     m_beingCalculated->m_calculated = true;
 
 #ifdef DUMPLASTBETAS
-    size_t numGenomesInBetas = m_beingCalculated->m_genomeIndexForBetaIndex.size();
+    size_t numGenomesInBetas = m_beingCalculated->m_mem->m_genomeIndexForBetaIndex.size();
     size_t numStepsInBetas = m_beingCalculated->m_numSteps;
     size_t numPointsInBetas = m_beingCalculated->m_fullOrShort.m_numPoints;
-    assert(2*numGenomesInBetas*numStepsInBetas*numPointsInBetas == m_beingCalculated->m_allBetas.size());
+    assert(2*numGenomesInBetas*numStepsInBetas*numPointsInBetas == m_beingCalculated->m_mem->m_allBetas.size());
     cout << std::dec;
     cout << "# genomes = " << numGenomesInBetas << endl;
     cout << "# numSteps = " << numStepsInBetas << endl;
@@ -391,10 +409,10 @@ void OpenCLCalculator::eventNotify(cl_event event, cl_int eventCommandStatus)
         {
             int scaleOffset = genomeOffset + (numPointsInBetas*2)*f;
             for (int i = 0 ; i < numPointsInBetas ; i++)
-                cout << "\t" << m_beingCalculated->m_allBetas[scaleOffset + i*2];
+                cout << "\t" << m_beingCalculated->m_mem->m_allBetas[scaleOffset + i*2];
             cout << endl;
             for (int i = 0 ; i < numPointsInBetas ; i++)
-                cout << "\t" << m_beingCalculated->m_allBetas[scaleOffset + i*2 + 1];
+                cout << "\t" << m_beingCalculated->m_mem->m_allBetas[scaleOffset + i*2 + 1];
             cout << endl;
             cout << endl;
         }
@@ -413,9 +431,55 @@ OpenCLCalculator::OpenCLCalculator()
 
 OpenCLCalculator::~OpenCLCalculator()
 {
-    // TODO: cleanup!
+    // Wait till GPU is finished calculating and release
+    cerr << "INFO: OpenCLCalculator destructor start" << endl;
 
-    // TODO: wait for any event callbacks to complete to avoid an invalid function being called
+    auto cleanup = [this](unique_ptr<CalculationContext> &ctx)
+    {
+        cleanupContextMemory(*(ctx->m_mem));
+        ctx = nullptr;
+    };
+
+    bool firstIteration = true;
+    bool done = false;
+    while (!done)
+    {
+        done = true;
+
+        lock_guard<mutex> guard(m_mutex);
+        if (m_beingScheduled.get())
+            cleanup(m_beingScheduled);
+
+        if (m_beingCalculated.get())
+        {
+            if (!m_beingCalculated->m_calculated)
+            {
+                done = false;
+                if (firstIteration)
+                    cerr << "WARNING: waiting for destruction till GPU is done" << endl;
+            }
+            else
+                cleanup(m_beingCalculated);
+        }
+
+        if (m_doneCalculating.get())
+            cleanup(m_doneCalculating);
+
+        firstIteration = false;
+    }
+
+    lock_guard<mutex> guard(m_mutex);
+
+    m_full.dealloc(*this);
+    if (m_shortImagesAreAllImages)
+        m_short.zeroAll();
+    else
+        m_short.dealloc(*this);
+
+    for (auto &ctx : m_recycledContextMemory)
+        cleanupContextMemory(*ctx);
+
+    cerr << "INFO: OpenCLCalculator destructor start" << endl;
 }
 
 bool_t OpenCLCalculator::initAll(int devIdx, const vector<ImagesDataExtended *> &allImages,
@@ -1101,6 +1165,36 @@ bool_t OpenCLCalculator::CLMem::enqueueReadBuffer(OpenCLKernel &cl, void *pData,
     if (err != CL_SUCCESS)
         return "Error enqueuing read buffer: code " + to_string(err);
     return true;
+}
+
+void OpenCLCalculator::CommonClMem::dealloc(OpenCLKernel &cl)
+{
+    auto release = [&cl](cl_mem x)
+    {
+        if (x)
+            cl.clReleaseMemObject(x);
+    };
+    release(m_pDevDmatrix);
+    release(m_pDevPlaneWeightOffsets);
+    release(m_pDevPlaneIntParamOffsets);
+    release(m_pDevPlaneFloatParamOffsets);
+    release(m_pDevCenters);
+    release(m_pDevAllIntParams);
+    release(m_pDevAllFloatParams);
+    zeroAll();
+}
+
+void OpenCLCalculator::FullOrShortClMem::dealloc(OpenCLKernel &cl)
+{
+    auto release = [&cl](cl_mem x)
+    {
+        if (x)
+            cl.clReleaseMemObject(x);
+    };
+    release(m_pDevImages);
+    release(m_pDevDpoints);
+    release(m_pDevUsedPlanes);
+    zeroAll();
 }
 
 } // end namespace
