@@ -8,13 +8,13 @@
 #include <thread>
 #include <fstream>
 #include <assert.h>
+#include <sys/time.h>
 
 using namespace std;
 using namespace errut;
 
 namespace grale
 {
-
 
 LensInversionGAFactoryMultiPlaneGPU::LensInversionGAFactoryMultiPlaneGPU(unique_ptr<LensFitnessObject> fitObj)
 	: LensInversionGAFactoryCommon(move(fitObj))
@@ -26,6 +26,7 @@ LensInversionGAFactoryMultiPlaneGPU::~LensInversionGAFactoryMultiPlaneGPU()
 {
 	if (m_currentParams.get()) // Initialization worked, we can release GPU part now
 		OpenCLCalculator::releaseInstance((uint64_t)this);
+	m_perNodeCounter.reset();
 }
 
 bool_t LensInversionGAFactoryMultiPlaneGPU::init(const LensInversionParametersBase &p)
@@ -75,10 +76,46 @@ bool_t LensInversionGAFactoryMultiPlaneGPU::init(const LensInversionParametersBa
 						pParams->getMassScaleSearchParameters())))
 		return r;
 
+	int devIdx = pParams->getDeviceIndex();
+	if (devIdx < 0) // Means rotate over the available devices
+	{
+		string fileName = "/dev/shm/grale_mpopencl_nextdevice.dat";
+		getenv("GRALE_OPENCL_AUTODEVICEFILE", fileName); // Doesn't change file name if envvar not set
+
+		m_perNodeCounter = make_unique<PerNodeCounter>(fileName);
+
+		int idx = m_perNodeCounter->getCount();
+		if (idx < 0)
+		{
+			m_perNodeCounter.reset();
+			return "Couldn't read per-node device index from file '" + fileName + "': " + m_perNodeCounter->getErrorString();
+		}
+
+		OpenCLLibrary clLib;
+		if (!clLib.loadLibrary(OpenCLLibrary::getLibraryName()))
+			return "Can't open OpenCL library: " + clLib.getErrorString();
+
+		int numDevices = clLib.getDeviceCount();
+		if (numDevices < 0)
+			return "Error getting device count: " + clLib.getErrorString();
+		if (numDevices == 0)
+			return "Unexpectedly got zero GPU devices";
+
+		devIdx = idx%numDevices;
+
+		auto GetTimeStamp = []() {
+			struct timeval tv;
+			gettimeofday(&tv,NULL);
+			return tv.tv_sec*(uint64_t)1000000+tv.tv_usec;
+		};
+
+		cerr << "DEBUG (" << GetTimeStamp() << "): Automatically using new device index " << devIdx << endl;
+	}
+
 	// We'll init the GPU part here, so we can use it immediately later. This is
 	// a single instance for this process, to be used by the available threads.
 	// TODO: what if deviceIndex is different in different threads?
-	if (!(r = OpenCLCalculator::initInstance(pParams->getDeviceIndex(),
+	if (!(r = OpenCLCalculator::initInstance(devIdx,
 	                                         m_reducedImages, m_shortImages,
 											 m_lensRedshifts,
 											 pParams->getCosmology(),

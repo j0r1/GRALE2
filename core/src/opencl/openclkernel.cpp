@@ -24,12 +24,6 @@ OpenCLKernel::~OpenCLKernel()
 
 bool OpenCLKernel::init(int devIdx)
 {
-	if (!isOpen())
-	{
-		setErrorString("No OpenCL library has been initialized yet");
-		return false;
-	}
-
 	if (m_init)
 	{
 		setErrorString("OpenCL kernel loader is already initialized");
@@ -39,70 +33,19 @@ bool OpenCLKernel::init(int devIdx)
 	m_currentProgram = "";
 	m_currentKernel = "";
 
-	cl_uint numPlatforms;
-	cl_int err = clGetPlatformIDs(0, nullptr, &numPlatforms);
-	if (err != CL_SUCCESS)
-	{
-		setErrorString("Can't get number of platforms:" + getCLErrorString(err));
-		return false;
-	}
-
-	if (numPlatforms == 0)
-	{
-		setErrorString("No platforms available");
-		return false;
-	}
-
-	vector<cl_platform_id> platforms(numPlatforms);
 	cl_platform_id platform;
+	int numDevices;
 
-	clGetPlatformIDs(numPlatforms, platforms.data(), nullptr);
-	
-	if (numPlatforms == 1)
-		platform = platforms[0];
-	else
-	{
-		int platformIdx;
-		bool_t r = grale::getenv("GRALE_OPENCL_PLATFORM", platformIdx, 0, (int)numPlatforms-1);
-
-		if (!r)
-		{
-			stringstream ss;
-
-			ss << "More than one (" << numPlatforms << ") OpenCL platforms detected, can't read GRALE_OPENCL_PLATFORM environment variable for the platform index: ";
-			ss << r.getErrorString() << ". Available platforms are";
-
-			for (size_t i = 0 ; i < platforms.size() ; i++)
-			{
-				ss << " [" << i << "] ";
-
-				char name[1024] = { 0 };
-				err = clGetPlatformInfo(platforms[i], CL_PLATFORM_NAME, sizeof(name)-1, name, nullptr);
-				if (err != CL_SUCCESS)
-					ss << "(unknown)";
-				ss << name;
-			}
-
-			setErrorString(ss.str());
-			return false;
-		}
-		platform = platforms[platformIdx];
-	}
-
-	cl_uint numDevices = 0;
-	err = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 0, nullptr, &numDevices);
-	if (err != CL_SUCCESS || numDevices == 0)
-	{
-		setErrorString("Can't find any GPU devices");
+	if (!getPlatformAndDeviceCount(platform, numDevices))
 		return false;
-	}
 
-	if (devIdx < 0 || devIdx >= (int)numDevices)
+	if (devIdx < 0 || devIdx >= numDevices)
 	{
 		setErrorString("Invalid device index (" + to_string(devIdx) + "), there are " + to_string(numDevices) + " detected");
 		return false;
 	}
 
+	cl_int err;
 	vector<cl_device_id> devices(numDevices);
 	clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, numDevices, devices.data(), nullptr);
 	
@@ -239,9 +182,3 @@ void OpenCLKernel::releaseAll()
 	m_kernel = 0;
 	m_device = 0;
 }
-
-string OpenCLKernel::getCLErrorString(int errNum)
-{
-	return "OpenCL error code " + to_string(errNum);
-}
-

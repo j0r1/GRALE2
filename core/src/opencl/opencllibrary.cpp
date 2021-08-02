@@ -5,8 +5,12 @@
 #endif // GRALE_LOADLIBRARY
 #include "opencllibrary.h"
 #include "utils.h"
+#include <errut/booltype.h>
+#include <sstream>
+#include <vector>
 
 using namespace std;
+using namespace errut;
 
 #ifdef GRALE_LOADLIBRARY
 #define LOADLIBRARY(x) (void*)LoadLibrary(x)
@@ -124,5 +128,90 @@ bool OpenCLLibrary::loadLibrary(const std::string &libraryName)
 	GETFUNCTION(clSetEventCallback)
 
 	return true;
+}
+
+bool OpenCLLibrary::getPlatformAndDeviceCount(cl_platform_id &platformId, int &deviceCount) const
+{
+	if (!isOpen())
+	{
+		setErrorString("No OpenCL library has been initialized yet");
+		return false;
+	}
+
+	cl_uint numPlatforms;
+	cl_int err = clGetPlatformIDs(0, nullptr, &numPlatforms);
+	if (err != CL_SUCCESS)
+	{
+		setErrorString("Can't get number of platforms:" + getCLErrorString(err));
+		return false;
+	}
+
+	if (numPlatforms == 0)
+	{
+		setErrorString("No platforms available");
+		return false;
+	}
+
+	vector<cl_platform_id> platforms(numPlatforms);
+	cl_platform_id platform;
+
+	clGetPlatformIDs(numPlatforms, platforms.data(), nullptr);
+	
+	if (numPlatforms == 1)
+		platform = platforms[0];
+	else
+	{
+		int platformIdx;
+		bool_t r = grale::getenv("GRALE_OPENCL_PLATFORM", platformIdx, 0, (int)numPlatforms-1);
+
+		if (!r)
+		{
+			stringstream ss;
+
+			ss << "More than one (" << numPlatforms << ") OpenCL platforms detected, can't read GRALE_OPENCL_PLATFORM environment variable for the platform index: ";
+			ss << r.getErrorString() << ". Available platforms are";
+
+			for (size_t i = 0 ; i < platforms.size() ; i++)
+			{
+				ss << " [" << i << "] ";
+
+				char name[1024] = { 0 };
+				err = clGetPlatformInfo(platforms[i], CL_PLATFORM_NAME, sizeof(name)-1, name, nullptr);
+				if (err != CL_SUCCESS)
+					ss << "(unknown)";
+				ss << name;
+			}
+
+			setErrorString(ss.str());
+			return false;
+		}
+		platform = platforms[platformIdx];
+	}
+
+	cl_uint numDevices = 0;
+	err = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 0, nullptr, &numDevices);
+	if (err != CL_SUCCESS || numDevices == 0)
+	{
+		setErrorString("Can't find any GPU devices");
+		return false;
+	}
+
+	platformId = platform;
+	deviceCount = (int)numDevices;
+	return true;
+}
+
+int OpenCLLibrary::getDeviceCount() const
+{
+	cl_platform_id platform;
+	int count;
+	if (!getPlatformAndDeviceCount(platform, count))
+		return -1;
+	return count;
+}
+
+string OpenCLLibrary::getCLErrorString(int errNum)
+{
+	return "OpenCL error code " + to_string(errNum);
 }
 

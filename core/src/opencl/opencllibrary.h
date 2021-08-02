@@ -52,6 +52,7 @@ public:
 
 	bool loadLibrary(const std::string &libraryName);
 	bool isOpen() const { return (m_pModule)?true:false; }
+	int getDeviceCount() const;
 
 	cl_int (*clBuildProgram)(cl_program program, cl_uint num_devices, const cl_device_id *device_list, const char *options, void (*pfn_notify)(cl_program, void *user_data), void *user_data);
 	cl_command_queue (*clCreateCommandQueue)(cl_context context, cl_device_id device, cl_command_queue_properties properties, cl_int *errcode_ret);
@@ -77,6 +78,9 @@ public:
 	cl_int (*clEnqueueReadBuffer)(cl_command_queue command_queue, cl_mem buffer, cl_bool blocking_read, size_t offset, size_t cb, void *ptr, cl_uint num_events_in_wait_list, const cl_event *event_wait_list, cl_event *event);
 	cl_int (*clEnqueueWriteBuffer)(cl_command_queue command_queue, cl_mem buffer, cl_bool blocking_write, size_t offset, size_t cb, const void *ptr, cl_uint num_events_in_wait_list, const cl_event *event_wait_list, cl_event *event);
 	cl_int (*clSetEventCallback)(cl_event event, cl_int command_exec_callback_type, void (CL_CALLBACK * pfn_notify)(cl_event event, cl_int event_command_status, void *user_data), void *user_data);
+protected:
+	bool getPlatformAndDeviceCount(cl_platform_id &platformId, int &deviceCount) const;
+	static std::string getCLErrorString(int errNum);
 private:
 	void *m_pModule;
 };

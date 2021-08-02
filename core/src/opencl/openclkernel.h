@@ -15,8 +15,6 @@ public:
 	cl_context getContext()										{ return m_context; }
 	cl_kernel getKernel() 										{ return m_kernel; }
 	cl_command_queue getCommandQueue()		 						{ return m_queue; }
-protected:
-	static std::string getCLErrorString(int errNum);
 private:
 	void releaseAll();
 
