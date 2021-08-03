@@ -49,6 +49,18 @@ bool OpenCLKernel::init(int devIdx)
 	vector<cl_device_id> devices(numDevices);
 	clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, numDevices, devices.data(), nullptr);
 	
+	cerr << "INFO: Found " << numDevices << " GPU devices" << endl;
+	cerr << "INFO: GPU Devices:" << endl;
+	for (auto x : devices)
+	{
+		char name[1024] = { 0 };
+		err = clGetDeviceInfo(x, CL_DEVICE_NAME, sizeof(name)-1, name, nullptr);
+		if (err != CL_SUCCESS)
+			cerr << "   (error " + to_string(err) + ")";
+		else
+			cerr << "   " << x << ": " << name << endl;
+	}
+
 	m_device = devices[devIdx];
 	m_context = clCreateContext(nullptr, 1, &m_device, nullptr, nullptr, &err);
 	if (err != CL_SUCCESS)
