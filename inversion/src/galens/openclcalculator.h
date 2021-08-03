@@ -84,8 +84,8 @@ private:
 
     errut::bool_t checkCalculateScheduledContext();
 
-    static void staticEventNotify(cl_event event, cl_int event_command_status, void *user_data);
-    void eventNotify(cl_event event, cl_int event_command_status);
+    // static void staticEventNotify(cl_event event, cl_int event_command_status, void *user_data);
+    // void eventNotify(cl_event event, cl_int event_command_status);
 
 	class CLMem
 	{

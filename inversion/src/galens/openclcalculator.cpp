@@ -285,12 +285,12 @@ bool_t OpenCLCalculator::checkCalculateScheduledContext()
     // to keep waiting for the calculation to finish
     swap(m_beingCalculated, m_beingScheduled);
 
-    cl_int err = clSetEventCallback(m_beingCalculated->m_evt, CL_COMPLETE, staticEventNotify, this);
-    if (err != CL_SUCCESS)
-    {
-        m_errorState = true;
-        return "Error setting event callback: " + to_string(err);
-    }
+    // cl_int err = clSetEventCallback(m_beingCalculated->m_evt, CL_COMPLETE, staticEventNotify, this);
+    // if (err != CL_SUCCESS)
+    // {
+    //     m_errorState = true;
+    //     return "Error setting event callback: " + to_string(err);
+    // }
 	//cerr << "Instance " << (void*)this << " set event callback" << endl;
 
     return true;
@@ -454,6 +454,21 @@ bool_t OpenCLCalculator::isCalculationDone(const LensGAGenome &g, int calculatio
 			}
         };
 
+        if (m_beingCalculated.get() && !m_beingCalculated->m_calculated)
+        {
+            cl_int status;
+            cl_int err = clGetEventInfo(m_beingCalculated->m_evt, CL_EVENT_COMMAND_EXECUTION_STATUS, sizeof(cl_int), &status, nullptr);
+			if (err != CL_SUCCESS)
+				return "Can't get calculation event status: " + to_string(err);
+            if (status < 0)
+                return "Querying calculation event status retrieved an error: " + to_string(status);
+            if (status == CL_COMPLETE)
+            {
+                m_beingCalculated->m_calculated = true;
+                m_hasCalculated = true;
+            }
+        }
+
         // First check if we can advance m_beingCalculated to m_doneCalculating
         if (!m_doneCalculating.get() && m_beingCalculated.get() && m_beingCalculated->m_calculated)
             swap(m_beingCalculated, m_doneCalculating);
@@ -526,65 +541,65 @@ void OpenCLCalculator::cleanupContextMemory(ContextMemory &mem)
     mem.m_devGenomeIndexForBetaIndex.dealloc(*this);
 }
 
-void OpenCLCalculator::staticEventNotify(cl_event event, cl_int eventCommandStatus, void *userData)
-{
-    OpenCLCalculator *pInst = reinterpret_cast<OpenCLCalculator*>(userData);
-    assert(pInst);
-    pInst->eventNotify(event, eventCommandStatus);
-}
+// void OpenCLCalculator::staticEventNotify(cl_event event, cl_int eventCommandStatus, void *userData)
+// {
+//     OpenCLCalculator *pInst = reinterpret_cast<OpenCLCalculator*>(userData);
+//     assert(pInst);
+//     pInst->eventNotify(event, eventCommandStatus);
+// }
 
 //#define DUMPLASTBETAS
 
-void OpenCLCalculator::eventNotify(cl_event event, cl_int eventCommandStatus)
-{
-    lock_guard<mutex> lock(m_mutex);
-    if (eventCommandStatus != CL_COMPLETE)
-    {
-        cerr << "Unexpected result from OpenCL, bailing!" << endl;
-        exit(-1);
-    }
+// void OpenCLCalculator::eventNotify(cl_event event, cl_int eventCommandStatus)
+// {
+//     lock_guard<mutex> lock(m_mutex);
+//     if (eventCommandStatus != CL_COMPLETE)
+//     {
+//         cerr << "Unexpected result from OpenCL, bailing!" << endl;
+//         exit(-1);
+//     }
 
-    // cout << "Calculation Done!" << endl;
-    // cout.flush();
+//     // cout << "Calculation Done!" << endl;
+//     // cout.flush();
 
-    m_hasCalculated = true; // Signal that we can accept new genome weights at a later point
+//     m_hasCalculated = true; // Signal that we can accept new genome weights at a later point
 
-    assert(m_beingCalculated.get());
-    // Here we just set a flag; we'll do further processing based on this in isCalculationDone
-	assert(!m_beingCalculated->m_calculated);
-    m_beingCalculated->m_calculated = true;
-	//cerr << "eventNotify in " << (void*)this << " for calc ident " << m_beingCalculated->m_identifier << endl;
+//     assert(m_beingCalculated.get());
+//     // Here we just set a flag; we'll do further processing based on this in isCalculationDone
+// 	assert(!m_beingCalculated->m_calculated);
+//     m_beingCalculated->m_calculated = true;
+// 	//cerr << "eventNotify in " << (void*)this << " for calc ident " << m_beingCalculated->m_identifier << endl;
 
-#ifdef DUMPLASTBETAS
-    size_t numGenomesInBetas = m_beingCalculated->m_mem->m_genomeIndexForBetaIndex.size();
-    size_t numStepsInBetas = m_beingCalculated->m_numSteps;
-    size_t numPointsInBetas = m_beingCalculated->m_fullOrShort.m_numPoints;
-    assert(2*numGenomesInBetas*numStepsInBetas*numPointsInBetas == m_beingCalculated->m_mem->m_allBetas.size());
-    cout << std::dec;
-    cout << "# genomes = " << numGenomesInBetas << endl;
-    cout << "# numSteps = " << numStepsInBetas << endl;
-    cout << "# numPoints = " << numPointsInBetas << endl;
-    for (int g = 0 ; g < numGenomesInBetas ; g++)
-    {
-        int genomeOffset = (numStepsInBetas*numPointsInBetas*2)*g;
-        for (int f = 0 ; f < numStepsInBetas ; f++)
-        {
-            int scaleOffset = genomeOffset + (numPointsInBetas*2)*f;
-            for (int i = 0 ; i < numPointsInBetas ; i++)
-                cout << "\t" << m_beingCalculated->m_mem->m_allBetas[scaleOffset + i*2];
-            cout << endl;
-            for (int i = 0 ; i < numPointsInBetas ; i++)
-                cout << "\t" << m_beingCalculated->m_mem->m_allBetas[scaleOffset + i*2 + 1];
-            cout << endl;
-            cout << endl;
-        }
-        cout << endl;
-    }
-    cout.flush();
+// #ifdef DUMPLASTBETAS
+//     size_t numGenomesInBetas = m_beingCalculated->m_mem->m_genomeIndexForBetaIndex.size();
+//     size_t numStepsInBetas = m_beingCalculated->m_numSteps;
+//     size_t numPointsInBetas = m_beingCalculated->m_fullOrShort.m_numPoints;
+//     assert(2*numGenomesInBetas*numStepsInBetas*numPointsInBetas == m_beingCalculated->m_mem->m_allBetas.size());
+//     cout << std::dec;
+//     cout << "# genomes = " << numGenomesInBetas << endl;
+//     cout << "# numSteps = " << numStepsInBetas << endl;
+//     cout << "# numPoints = " << numPointsInBetas << endl;
+//     for (int g = 0 ; g < numGenomesInBetas ; g++)
+//     {
+//         int genomeOffset = (numStepsInBetas*numPointsInBetas*2)*g;
+//         for (int f = 0 ; f < numStepsInBetas ; f++)
+//         {
+//             int scaleOffset = genomeOffset + (numPointsInBetas*2)*f;
+//             for (int i = 0 ; i < numPointsInBetas ; i++)
+//                 cout << "\t" << m_beingCalculated->m_mem->m_allBetas[scaleOffset + i*2];
+//             cout << endl;
+//             for (int i = 0 ; i < numPointsInBetas ; i++)
+//                 cout << "\t" << m_beingCalculated->m_mem->m_allBetas[scaleOffset + i*2 + 1];
+//             cout << endl;
+//             cout << endl;
+//         }
+//         cout << endl;
+//     }
+//     cout.flush();
 
-    exit(-1);
-#endif // DUMPLASTBETAS
-}
+//     exit(-1);
+// #endif // DUMPLASTBETAS
+// }
 
 OpenCLCalculator::OpenCLCalculator()
     : m_devIdx(-1), m_errorState(false), m_timeoutCheckCounter(0)
