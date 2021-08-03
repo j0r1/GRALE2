@@ -13,7 +13,7 @@ using namespace std;
 inline bool shouldLog()
 {
 	struct stat buffer;   
-	if (stat("/dev/shm/grale_debug_log", &buffer) == 0)
+	if (stat("/dev/shm/grale_opencl_debug_log", &buffer) == 0)
 		return true;
 	return false;
 };
@@ -21,7 +21,7 @@ inline bool shouldLog()
 inline bool enqueueDummy()
 {
 	struct stat buffer;   
-	if (stat("/dev/shm/grale_debug_enqueue", &buffer) == 0)
+	if (stat("/dev/shm/grale_opencl_debug_enqueue", &buffer) == 0)
 		return true;
 	return false;
 };
@@ -34,6 +34,11 @@ mutex OpenCLCalculator::s_instanceMutex;
 bool OpenCLCalculator::s_initTried = false;
 set<uint64_t> OpenCLCalculator::s_users;
 
+const uint64_t c_timeoutCheckMod = 100000;
+const double c_timeoutMsec = 60000;
+const double c_destructorTimeout = 5000;
+bool g_extraDebugChecks = false;
+
 bool_t OpenCLCalculator::initInstance(int devIdx, const vector<ImagesDataExtended *> &allImages,
                                         const vector<ImagesDataExtended *> &shortImages,
                                         const vector<float> &zds,
@@ -43,6 +48,10 @@ bool_t OpenCLCalculator::initInstance(int devIdx, const vector<ImagesDataExtende
                                         uint64_t userId
                                         )
 {
+    string dbg;
+    if (getenv("GRALE_OPENCLCALC_DEBUG", dbg))
+        g_extraDebugChecks = true;
+
     lock_guard<mutex> guard(s_instanceMutex);
 
     if (s_users.find(userId) != s_users.end())
@@ -335,12 +344,12 @@ bool_t OpenCLCalculator::CalculationContext::calculate(OpenCLKernel &cl, cl_even
         return "Error enqueuing kernel: " + to_string(err);
     
     // Also queue reading the results to CPU memory
-    if (!(r = m_mem->m_devBetas.enqueueReadBuffer(cl, m_mem->m_allBetas, &m_calcEvt, pEvt)))
+    if (!(r = m_mem->m_devBetas.enqueueReadBuffer(cl, m_mem->m_allBetas, nullptr, pEvt)))
         return "Error enqueuing read buffer";
     
     //cerr << " Enqueued kernel for calculation " << m_identifier << " " << (size_t)clNumPoints << " " << (size_t)clNumGenomes << " " << (size_t)clNumScaleFactors << endl;
     // cerr << "Enqueued read for calculation " << m_identifier << endl;
-
+    m_calcQueueTime = chrono::steady_clock::now();
     return true;
 }
 
@@ -387,6 +396,18 @@ bool_t OpenCLCalculator::isCalculationDone(const LensGAGenome &g, int calculatio
 
         CHECKERRORSTATE;
 
+        m_timeoutCheckCounter++;
+        if (m_timeoutCheckCounter % c_timeoutCheckMod == 0) // Check if we're taking too long
+        {
+            if (m_beingCalculated.get() && !m_beingCalculated.get())
+            {
+                auto now = chrono::steady_clock::now();
+                double dtMsec = chrono::duration_cast<chrono::milliseconds>(now - m_beingCalculated->m_calcQueueTime).count();
+                if (dtMsec > c_timeoutMsec)
+                    return "Seem to be stuck waiting for results";
+            }
+        }
+
         auto logIt = [this,calculationIdentifier](const string &pref)
         {
             cerr << pref << ", not done for thread " << std::this_thread::get_id() << ", calculationIdentifier = " << calculationIdentifier << endl;            
@@ -427,11 +448,9 @@ bool_t OpenCLCalculator::isCalculationDone(const LensGAGenome &g, int calculatio
 
 				cerr << "Performing dummy read" << endl;
 				if (!(r = m_debug.realloc(*this, tmp)) || !(r = m_debug.enqueueReadBuffer(*this, tmp, nullptr, nullptr, true)))
-				{
 					cerr << "Error enqueuing dummy read" << endl;
-					return "Error enqueuing dummy read";
-				}
-				cerr << "Dummy read performed" << endl;
+                else
+				    cerr << "Dummy read performed" << endl;
 			}
         };
 
@@ -441,14 +460,14 @@ bool_t OpenCLCalculator::isCalculationDone(const LensGAGenome &g, int calculatio
 
         if (!m_doneCalculating.get()) // Nothing done yet
         {
-			if (shouldLog())
+			if (g_extraDebugChecks && shouldLog())
 				logIt("Nothing done yet");
             return true;
         }
 
         if (calculationIdentifier != m_doneCalculating->m_identifier) // Is of different context, skip for now
         {
-			if (shouldLog())
+			if (g_extraDebugChecks && shouldLog())
 				logIt("Mismatch identifier");
             return true;
         }
@@ -568,7 +587,7 @@ void OpenCLCalculator::eventNotify(cl_event event, cl_int eventCommandStatus)
 }
 
 OpenCLCalculator::OpenCLCalculator()
-    : m_devIdx(-1), m_errorState(false)
+    : m_devIdx(-1), m_errorState(false), m_timeoutCheckCounter(0)
 {
 }
 
@@ -585,6 +604,7 @@ OpenCLCalculator::~OpenCLCalculator()
         ctx = nullptr;
     };
 
+    auto startTime = std::chrono::steady_clock::now();
     bool firstIteration = true;
     bool done = false;
     while (!done)
@@ -611,6 +631,14 @@ OpenCLCalculator::~OpenCLCalculator()
             cleanup(m_doneCalculating);
 
         firstIteration = false;
+
+        auto now = chrono::steady_clock::now();
+        double dtMsec = chrono::duration_cast<chrono::milliseconds>(now - startTime).count();
+        if (dtMsec > c_destructorTimeout)
+        {
+            cerr << "WARNING: destructor is taking too long waiting for calculation to finish, trying to continue anyway" << endl;
+            done = true;
+        }
     }
 
     lock_guard<mutex> guard(m_mutex);

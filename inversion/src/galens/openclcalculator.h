@@ -13,6 +13,7 @@
 #include <mutex>
 #include <thread>
 #include <unordered_map>
+#include <chrono>
 
 namespace grale
 {
@@ -197,6 +198,7 @@ private:
         const CommonClMem &m_common;
         const FullOrShortClMem &m_fullOrShort;
         bool m_calculated;
+        std::chrono::time_point<std::chrono::steady_clock> m_calcQueueTime;
 
 		cl_event m_calcEvt, m_evt;
 
@@ -230,6 +232,8 @@ private:
     FullOrShortClMem m_full, m_short;
 
 	std::unique_ptr<PerNodeCounter> m_perNodeCounter;
+
+    uint64_t m_timeoutCheckCounter;
 
 	static std::unique_ptr<OpenCLCalculator> s_pInstance;
 	static std::mutex s_instanceMutex;
