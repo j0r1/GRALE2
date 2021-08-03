@@ -8,6 +8,7 @@
 #include <thread>
 #include <fstream>
 #include <assert.h>
+#include <unistd.h>
 
 using namespace std;
 using namespace errut;
@@ -370,7 +371,7 @@ bool_t LensInversionGAFactoryMultiPlaneGPU::pollCalculate(const eatk::Genome &ge
 
 				// cout << "Genome: " << g.toString() << " / " << f.toString() << endl;
 			}
-			else
+			else // Not final calculation
 			{
 				float bestFitness = numeric_limits<float>::infinity();
 				int bestStep = -1;
@@ -408,9 +409,11 @@ bool_t LensInversionGAFactoryMultiPlaneGPU::pollCalculate(const eatk::Genome &ge
 				return "Error telling OpenCL part that our calculation is processed: " + r.getErrorString();
 			state.m_calculationIdentifier = -1;
 		}
-		else
+		else // calculation not done
 		{
 			// Nothing to do but wait till GPU is ready
+			// cerr << "Waiting for end of calculation " << endl;
+			// usleep(10);
 		}
 	}
 	

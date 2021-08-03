@@ -200,6 +200,7 @@ private:
     };
 
     int m_devIdx;
+    bool m_errorState;
 
     std::unique_ptr<CalculationContext> m_beingScheduled;
     std::unique_ptr<CalculationContext> m_beingCalculated;

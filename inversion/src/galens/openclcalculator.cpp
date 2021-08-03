@@ -92,9 +92,13 @@ void OpenCLCalculator::setGenomesToCalculate(size_t s)
     m_numGenomesToCalculate = s;
 }
 
+#define CHECKERRORSTATE do { if (m_errorState) return "Previous error was encountered"; } while(0)
+
 bool_t OpenCLCalculator::startNewBackprojection(const LensGAGenome &g)
 {
     lock_guard<mutex> guard(m_mutex);
+
+    CHECKERRORSTATE;
 
     if (m_hasCalculated) // In this case we're starting a new population's fitness calculation
     {
@@ -154,6 +158,8 @@ bool_t OpenCLCalculator::scheduleUploadAndCalculation(const LensGAGenome &g, int
 
     {
         lock_guard<mutex> guard(m_mutex);
+
+        CHECKERRORSTATE;
         
         const FullOrShortClMem &fullOrShort = (useShort)?m_short:m_full;
         size_t numSteps = scaleFactors.size();
@@ -186,19 +192,25 @@ bool_t OpenCLCalculator::scheduleUploadAndCalculation(const LensGAGenome &g, int
         // Ok, at this point we have a context that's compatible
         auto it = m_states.find(&g);
         if (it == m_states.end())
+        {
+            m_errorState = true;
             return "Can't find genome state";
+        }
         State &state = it->second;
 
         // TODO: check for some memory limit?
         // Note that the lock is still acquired!
         if (!(r = m_beingScheduled->schedule(*this, g, state.m_genomeIndex, scaleFactors)))
+        {
+            m_errorState = true;
             return "Can't schedule calculation: " + r.getErrorString();
+        }
 
         calculationIdentifier = m_beingScheduled->m_identifier;
     } // releases the lock
     
     // If the GPU isn't busy, it can start calculating the next piece of work
-    if (!(r = checkCalculateScheduledContext()))
+    if (!(r = checkCalculateScheduledContext())) // sets errorstate itself
         return r;
 
     return true;
@@ -207,6 +219,9 @@ bool_t OpenCLCalculator::scheduleUploadAndCalculation(const LensGAGenome &g, int
 bool_t OpenCLCalculator::checkCalculateScheduledContext()
 {
     lock_guard<mutex> guard(m_mutex);
+
+    CHECKERRORSTATE;
+
     if (m_beingCalculated.get()) // Already something being calculated
         return true; // Nothing to do
 
@@ -225,19 +240,30 @@ bool_t OpenCLCalculator::checkCalculateScheduledContext()
         assert(m_allBasisFunctionWeights.size() > 0);
         if (!(r = m_common.m_devAllWeights.realloc(*this, m_allBasisFunctionWeights)) ||
             !(r = m_common.m_devAllWeights.enqueueWriteBuffer(*this, m_allBasisFunctionWeights)) )
+        {
+            m_errorState = true;
             return "Error reallocating/uploading GPU buffer for basis function weights" + r.getErrorString();
+        }
     }
-
-    swap(m_beingCalculated, m_beingScheduled);
 
     cl_event evt;
     bool_t r;
-    if (!(r = m_beingCalculated->calculate(*this, &evt)))
+    if (!(r = m_beingScheduled->calculate(*this, &evt)))
+    {
+        m_errorState = true;
         return r;
+    }
+
+    // Do this after the 'calculate' in case an error is returned. That would cause the destructor
+    // to keep waiting for the calculation to finish
+    swap(m_beingCalculated, m_beingScheduled);
 
     cl_int err = clSetEventCallback(evt, CL_COMPLETE, staticEventNotify, this);
     if (err != CL_SUCCESS)
+    {
+        m_errorState = true;
         return "Error setting event callback: " + to_string(err);
+    }
 
     return true;
 }
@@ -288,10 +314,14 @@ bool_t OpenCLCalculator::CalculationContext::calculate(OpenCLKernel &cl, cl_even
     err = cl.clEnqueueNDRangeKernel(cl.getCommandQueue(), kernel, 3, nullptr, workSize, nullptr, 0, nullptr, nullptr);
     if (err != CL_SUCCESS)
         return "Error enqueuing kernel: " + to_string(err);
+    
+    // cerr << "Enqueued kernel for calculation " << m_identifier << endl;
 
     // Also queue reading the results to CPU memory
     if (!(r = m_mem->m_devBetas.enqueueReadBuffer(cl, m_mem->m_allBetas, pEvt)))
         return "Error enqueuing read buffer";
+    
+    // cerr << "Enqueued read for calculation " << m_identifier << endl;
 
     return true;
 }
@@ -337,15 +367,34 @@ bool_t OpenCLCalculator::isCalculationDone(const LensGAGenome &g, int calculatio
     {
         lock_guard<mutex> lock(m_mutex);
 
+        CHECKERRORSTATE;
+
+        // auto logIt = [this,calculationIdentifier](const string &pref)
+        // {
+        //     cerr << pref << ", not done for thread " << std::this_thread::get_id() << ", calculationIdentifier = " << calculationIdentifier << endl;            
+        //     if (m_beingScheduled.get())
+        //         cerr << "  m_beingScheduled: " << m_beingScheduled->m_identifier << endl;
+        //     if (m_beingCalculated.get())
+        //         cerr << "  m_beingCalculated: " << m_beingCalculated->m_identifier << " " << ((m_beingCalculated->m_calculated)?"calculated":"not calculated") << endl;
+        //     if (m_doneCalculating.get())
+        //         cerr << "  m_doneCalculating: " << m_doneCalculating->m_identifier << endl;
+        // };
+
         // First check if we can advance m_beingCalculated to m_doneCalculating
         if (!m_doneCalculating.get() && m_beingCalculated.get() && m_beingCalculated->m_calculated)
             swap(m_beingCalculated, m_doneCalculating);
 
         if (!m_doneCalculating.get()) // Nothing done yet
+        {
+            // logIt("Nothing done yet");
             return true;
+        }
 
         if (calculationIdentifier != m_doneCalculating->m_identifier) // Is of different context, skip for now
+        {
+            // logIt("Mismatch identifier");
             return true;
+        }
         
         assert(m_doneCalculating->m_betaIndexForGenome.find(&g) != m_doneCalculating->m_betaIndexForGenome.end());
         *pGenomeIndex = m_doneCalculating->m_betaIndexForGenome[&g];
@@ -357,7 +406,9 @@ bool_t OpenCLCalculator::isCalculationDone(const LensGAGenome &g, int calculatio
         assert(m_doneCalculating->m_mem->m_allBetas.size() == (*pNumSteps)*(*pNumGenomes)*(*pNumPoints)*2);
     }
 
-    checkCalculateScheduledContext();
+    bool_t r;
+    if (!(r = checkCalculateScheduledContext())) // sets error state itself
+        return r;
 
     return true;
 }
@@ -365,12 +416,19 @@ bool_t OpenCLCalculator::isCalculationDone(const LensGAGenome &g, int calculatio
 bool_t OpenCLCalculator::setCalculationProcessed(const LensGAGenome &g, int calculationIdentifier)
 {
     lock_guard<mutex> lock(m_mutex);
+    
     if (!m_doneCalculating.get() || m_doneCalculating->m_identifier != calculationIdentifier)
+    {
+        m_errorState = true;
         return "m_doneCalculating doesn't match the requested calculation identifier";
+    }
     
     auto it = m_doneCalculating->m_betaIndexForGenome.find(&g);
     if (it == m_doneCalculating->m_betaIndexForGenome.end())
+    {
+        m_errorState = true;
         return "Couldn't find genome in map of calculated genomes";
+    }
 
     m_doneCalculating->m_betaIndexForGenome.erase(it);
     
@@ -451,12 +509,14 @@ void OpenCLCalculator::eventNotify(cl_event event, cl_int eventCommandStatus)
 }
 
 OpenCLCalculator::OpenCLCalculator()
-    : m_devIdx(-1)
+    : m_devIdx(-1), m_errorState(false)
 {
 }
 
 OpenCLCalculator::~OpenCLCalculator()
 {
+    // TODO: wait a maximum amount of time
+    
     // Wait till GPU is finished calculating and release
     cerr << "INFO: OpenCLCalculator destructor start" << endl;
 
@@ -844,7 +904,7 @@ bool_t OpenCLCalculator::getMultiPlaneTraceCode(const vector<vector<shared_ptr<L
     {
         cl_int err;
         dest = clCreateBuffer(getContext(), CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(cl_int)*offsets.size(), (void*)offsets.data(), &err);
-        if (err != CL_SUCCESS)
+        if (err != CL_SUCCESS || dest == nullptr)
             return "Error uploading " + msg + "to GPU";
         return true;
     };
@@ -856,13 +916,13 @@ bool_t OpenCLCalculator::getMultiPlaneTraceCode(const vector<vector<shared_ptr<L
     
     cl_int err;
     m_common.m_pDevCenters = clCreateBuffer(getContext(), CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(float)*basisFunctionCenters.size(), basisFunctionCenters.data(), &err);
-    if (err != CL_SUCCESS)
+    if (err != CL_SUCCESS || m_common.m_pDevCenters == nullptr)
         return "Error uploading basis function centers to GPU";
     m_common.m_pDevAllIntParams = clCreateBuffer(getContext(), CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(cl_int)*allIntParams.size(), allIntParams.data(), &err);
-    if (err != CL_SUCCESS)
+    if (err != CL_SUCCESS || m_common.m_pDevAllIntParams == nullptr)
         return "Error uploading integer parameters to GPU";
     m_common.m_pDevAllFloatParams = clCreateBuffer(getContext(), CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(float)*allFloatParams.size(), allFloatParams.data(), &err);
-    if (err != CL_SUCCESS)
+    if (err != CL_SUCCESS || m_common.m_pDevAllFloatParams == nullptr)
         return "Error uploading float parameters to GPU";
     
     code << R"XYZ(
@@ -1058,7 +1118,7 @@ bool_t OpenCLCalculator::setupMultiPlaneDistanceMatrix(const Cosmology &cosm, co
     
     cl_int err;
     m_common.m_pDevDmatrix = clCreateBuffer(getContext(), CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(float)*Dij.size(), Dij.data(), &err);
-    if (err != CL_SUCCESS)
+    if (err != CL_SUCCESS || m_common.m_pDevDmatrix == nullptr)
         return "Error uploading lens plane distance matrix to GPU";
 
     // cout << "Distance matrix uploaded: " << endl;
@@ -1131,11 +1191,11 @@ bool_t OpenCLCalculator::setupAngularDiameterDistances(const Cosmology &cosm, co
     // Upload info to GPU
     cl_int err;
     pDevDpoints = clCreateBuffer(getContext(), CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(float)*Dsources.size(), Dsources.data(), &err);
-    if (err != CL_SUCCESS)
+    if (err != CL_SUCCESS || pDevDpoints == nullptr)
         return "Error uploading distances from lens planes to GPU";
 
     pDevUsedPlanes = clCreateBuffer(getContext(), CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(float)*usedPlanes.size(), usedPlanes.data(), &err);
-    if (err != CL_SUCCESS)
+    if (err != CL_SUCCESS || pDevUsedPlanes == nullptr)
         return "Error uploading number of used lens planes to GPU";
     
     return true;
@@ -1162,7 +1222,7 @@ bool_t OpenCLCalculator::allocateAndUploadImages(const vector<ImagesDataExtended
 
     cl_int err;
     pDevImages = clCreateBuffer(getContext(), CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(float)*allCoordinates.size(), allCoordinates.data(), &err);
-    if (err != CL_SUCCESS)
+    if (err != CL_SUCCESS || pDevImages == nullptr)
         return "Error uploading image data to GPU";
     
     numPoints = allCoordinates.size()/2;
@@ -1209,6 +1269,7 @@ bool_t OpenCLCalculator::CLMem::realloc(OpenCLKernel &cl, size_t s) // Only real
         return true;
 
     cl_int err;
+
     cl_mem pBuf = cl.clCreateBuffer(cl.getContext(), CL_MEM_READ_WRITE, s, nullptr, &err);
     if (pBuf == nullptr || err != CL_SUCCESS)
         return "Can't create buffer of size " + to_string(s) + " on GPU: code " + to_string(err);
