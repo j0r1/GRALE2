@@ -94,15 +94,17 @@ private:
 		errut::bool_t realloc(OpenCLKernel &cl, size_t s); // Only reallocates if more memory is requested
 		template<class T> errut::bool_t realloc(OpenCLKernel &cl, const std::vector<T> &buffer)	{ return realloc(cl, buffer.size()*sizeof(T)); }
 
-		errut::bool_t enqueueWriteBuffer(OpenCLKernel &cl, const void *pData, size_t s);
-		template<class T> errut::bool_t enqueueWriteBuffer(OpenCLKernel &cl, const std::vector<T> &data) { return enqueueWriteBuffer(cl, data.data(), data.size()*sizeof(T)); }
+		errut::bool_t enqueueWriteBuffer(OpenCLKernel &cl, const void *pData, size_t s, bool sync = false);
+		template<class T> errut::bool_t enqueueWriteBuffer(OpenCLKernel &cl, const std::vector<T> &data, bool sync = false) { return enqueueWriteBuffer(cl, data.data(), data.size()*sizeof(T), sync); }
 
-        errut::bool_t enqueueReadBuffer(OpenCLKernel &cl, void *pData, size_t s, cl_event *pEvt);
-        template<class T> errut::bool_t enqueueReadBuffer(OpenCLKernel &cl, std::vector<T> &data, cl_event *pEvt) { return enqueueReadBuffer(cl, data.data(), data.size()*sizeof(T), pEvt); }
+        errut::bool_t enqueueReadBuffer(OpenCLKernel &cl, void *pData, size_t s, cl_event *pDepEvt, cl_event *pEvt, bool sync = false);
+        template<class T> errut::bool_t enqueueReadBuffer(OpenCLKernel &cl, std::vector<T> &data, cl_event *pDepEvt, cl_event *pEvt, bool sync = false) { return enqueueReadBuffer(cl, data.data(), data.size()*sizeof(T), pDepEvt, pEvt, sync); }
 
 		cl_mem m_pMem;
 		size_t m_size;
 	};
+
+	CLMem m_debug;
 
     class State
     {
@@ -182,7 +184,8 @@ private:
         CalculationContext(int ident, size_t numSteps, size_t numWeights, const CommonClMem &common,
                            const FullOrShortClMem &fullOrShort, std::unique_ptr<ContextMemory> ctxMem)
             : m_identifier(ident), m_numSteps(numSteps), m_numWeights(numWeights),
-              m_common(common), m_fullOrShort(fullOrShort), m_calculated(false), m_mem(std::move(ctxMem))
+              m_common(common), m_fullOrShort(fullOrShort), m_calculated(false), m_calcEvt(nullptr), m_evt(nullptr),
+			  m_mem(std::move(ctxMem))
             { }
 
         errut::bool_t schedule(OpenCLKernel &cl, const LensGAGenome &g, size_t genomeWeightsIndex,
@@ -194,6 +197,8 @@ private:
         const CommonClMem &m_common;
         const FullOrShortClMem &m_fullOrShort;
         bool m_calculated;
+
+		cl_event m_calcEvt, m_evt;
 
         std::unordered_map<const LensGAGenome *, size_t> m_betaIndexForGenome;
         std::unique_ptr<ContextMemory> m_mem;

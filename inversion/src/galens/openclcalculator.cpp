@@ -4,9 +4,27 @@
 #include "utils.h"
 #include <sstream>
 #include <sys/time.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 using namespace errut;
 using namespace std;
+
+inline bool shouldLog()
+{
+	struct stat buffer;   
+	if (stat("/dev/shm/grale_debug_log", &buffer) == 0)
+		return true;
+	return false;
+};
+
+inline bool enqueueDummy()
+{
+	struct stat buffer;   
+	if (stat("/dev/shm/grale_debug_enqueue", &buffer) == 0)
+		return true;
+	return false;
+};
 
 namespace grale
 {
@@ -246,9 +264,9 @@ bool_t OpenCLCalculator::checkCalculateScheduledContext()
         }
     }
 
-    cl_event evt;
     bool_t r;
-    if (!(r = m_beingScheduled->calculate(*this, &evt)))
+	//cerr << "Instance " << (void*)this;
+    if (!(r = m_beingScheduled->calculate(*this, &(m_beingScheduled->m_evt))))
     {
         m_errorState = true;
         return r;
@@ -258,12 +276,13 @@ bool_t OpenCLCalculator::checkCalculateScheduledContext()
     // to keep waiting for the calculation to finish
     swap(m_beingCalculated, m_beingScheduled);
 
-    cl_int err = clSetEventCallback(evt, CL_COMPLETE, staticEventNotify, this);
+    cl_int err = clSetEventCallback(m_beingCalculated->m_evt, CL_COMPLETE, staticEventNotify, this);
     if (err != CL_SUCCESS)
     {
         m_errorState = true;
         return "Error setting event callback: " + to_string(err);
     }
+	//cerr << "Instance " << (void*)this << " set event callback" << endl;
 
     return true;
 }
@@ -311,16 +330,15 @@ bool_t OpenCLCalculator::CalculationContext::calculate(OpenCLKernel &cl, cl_even
         return "Error setting kernel arguments";
 
     size_t workSize[3] = { (size_t)clNumPoints, (size_t)clNumGenomes, (size_t)clNumScaleFactors };
-    err = cl.clEnqueueNDRangeKernel(cl.getCommandQueue(), kernel, 3, nullptr, workSize, nullptr, 0, nullptr, nullptr);
+    err = cl.clEnqueueNDRangeKernel(cl.getCommandQueue(), kernel, 3, nullptr, workSize, nullptr, 0, nullptr, &m_calcEvt);
     if (err != CL_SUCCESS)
         return "Error enqueuing kernel: " + to_string(err);
     
-    // cerr << "Enqueued kernel for calculation " << m_identifier << endl;
-
     // Also queue reading the results to CPU memory
-    if (!(r = m_mem->m_devBetas.enqueueReadBuffer(cl, m_mem->m_allBetas, pEvt)))
+    if (!(r = m_mem->m_devBetas.enqueueReadBuffer(cl, m_mem->m_allBetas, &m_calcEvt, pEvt)))
         return "Error enqueuing read buffer";
     
+    //cerr << " Enqueued kernel for calculation " << m_identifier << " " << (size_t)clNumPoints << " " << (size_t)clNumGenomes << " " << (size_t)clNumScaleFactors << endl;
     // cerr << "Enqueued read for calculation " << m_identifier << endl;
 
     return true;
@@ -369,16 +387,53 @@ bool_t OpenCLCalculator::isCalculationDone(const LensGAGenome &g, int calculatio
 
         CHECKERRORSTATE;
 
-        // auto logIt = [this,calculationIdentifier](const string &pref)
-        // {
-        //     cerr << pref << ", not done for thread " << std::this_thread::get_id() << ", calculationIdentifier = " << calculationIdentifier << endl;            
-        //     if (m_beingScheduled.get())
-        //         cerr << "  m_beingScheduled: " << m_beingScheduled->m_identifier << endl;
-        //     if (m_beingCalculated.get())
-        //         cerr << "  m_beingCalculated: " << m_beingCalculated->m_identifier << " " << ((m_beingCalculated->m_calculated)?"calculated":"not calculated") << endl;
-        //     if (m_doneCalculating.get())
-        //         cerr << "  m_doneCalculating: " << m_doneCalculating->m_identifier << endl;
-        // };
+        auto logIt = [this,calculationIdentifier](const string &pref)
+        {
+            cerr << pref << ", not done for thread " << std::this_thread::get_id() << ", calculationIdentifier = " << calculationIdentifier << endl;            
+            if (m_beingScheduled.get())
+                cerr << "  m_beingScheduled: " << m_beingScheduled->m_identifier << endl;
+            if (m_beingCalculated.get())
+			{
+                cerr << "  m_beingCalculated: " << m_beingCalculated->m_identifier << " " << ((m_beingCalculated->m_calculated)?"calculated":"not calculated") << endl;
+
+				cl_int status = 0;
+				cl_int err = clGetEventInfo(m_beingCalculated->m_calcEvt, CL_EVENT_COMMAND_EXECUTION_STATUS, sizeof(cl_int), &status, nullptr);
+				if (err != CL_SUCCESS)
+					cerr << "    Error querying kernel event status" << endl;
+				else
+					cerr << "    Kernel event status: " << status << endl;
+				err = clGetEventInfo(m_beingCalculated->m_evt, CL_EVENT_COMMAND_EXECUTION_STATUS, sizeof(cl_int), &status, nullptr);
+				if (err != CL_SUCCESS)
+					cerr << "    Error querying download event status" << endl;
+				else
+					cerr << "    Download event status: " << status << endl;
+				cerr << "buffer size CPU: " << m_beingCalculated->m_mem->m_allBetas.size() << " GPU: " << m_beingCalculated->m_mem->m_devBetas.m_size << endl;
+			}
+            if (m_doneCalculating.get())
+                cerr << "  m_doneCalculating: " << m_doneCalculating->m_identifier << endl;
+
+			if (enqueueDummy())
+			{
+				vector<float> tmp(16);
+				bool_t r;
+
+				cerr << "Performing clFlush" << endl;
+				cl_int err = clFlush(getCommandQueue());
+				cerr << "   err = " << err << endl;
+
+				cerr << "Performing clFinish" << endl;
+				err = clFinish(getCommandQueue());
+				cerr << "   err = " << err << endl;
+
+				cerr << "Performing dummy read" << endl;
+				if (!(r = m_debug.realloc(*this, tmp)) || !(r = m_debug.enqueueReadBuffer(*this, tmp, nullptr, nullptr, true)))
+				{
+					cerr << "Error enqueuing dummy read" << endl;
+					return "Error enqueuing dummy read";
+				}
+				cerr << "Dummy read performed" << endl;
+			}
+        };
 
         // First check if we can advance m_beingCalculated to m_doneCalculating
         if (!m_doneCalculating.get() && m_beingCalculated.get() && m_beingCalculated->m_calculated)
@@ -386,13 +441,15 @@ bool_t OpenCLCalculator::isCalculationDone(const LensGAGenome &g, int calculatio
 
         if (!m_doneCalculating.get()) // Nothing done yet
         {
-            // logIt("Nothing done yet");
+			if (shouldLog())
+				logIt("Nothing done yet");
             return true;
         }
 
         if (calculationIdentifier != m_doneCalculating->m_identifier) // Is of different context, skip for now
         {
-            // logIt("Mismatch identifier");
+			if (shouldLog())
+				logIt("Mismatch identifier");
             return true;
         }
         
@@ -475,7 +532,9 @@ void OpenCLCalculator::eventNotify(cl_event event, cl_int eventCommandStatus)
 
     assert(m_beingCalculated.get());
     // Here we just set a flag; we'll do further processing based on this in isCalculationDone
+	assert(!m_beingCalculated->m_calculated);
     m_beingCalculated->m_calculated = true;
+	//cerr << "eventNotify in " << (void*)this << " for calc ident " << m_beingCalculated->m_identifier << endl;
 
 #ifdef DUMPLASTBETAS
     size_t numGenomesInBetas = m_beingCalculated->m_mem->m_genomeIndexForBetaIndex.size();
@@ -1063,6 +1122,7 @@ bool_t OpenCLCalculator::initGPU(int devIdx)
     string library = getLibraryName();
     if (!loadLibrary(library))
         return "Can't load OpenCL library: " + getErrorString();
+	cerr << "INFO: using OpenCL library " << library << endl;
 
 	if (devIdx < 0) // Means rotate over the available devices
 	{
@@ -1280,21 +1340,23 @@ bool_t OpenCLCalculator::CLMem::realloc(OpenCLKernel &cl, size_t s) // Only real
     return true;
 }
 
-bool_t OpenCLCalculator::CLMem::enqueueWriteBuffer(OpenCLKernel &cl, const void *pData, size_t s)
+bool_t OpenCLCalculator::CLMem::enqueueWriteBuffer(OpenCLKernel &cl, const void *pData, size_t s, bool sync)
 {
     if (s > m_size)
         return "Size exceeds GPU buffer size";
-    cl_int err = cl.clEnqueueWriteBuffer(cl.getCommandQueue(), m_pMem, false, 0, s, pData, 0, nullptr, nullptr);
+    cl_int err = cl.clEnqueueWriteBuffer(cl.getCommandQueue(), m_pMem, sync, 0, s, pData, 0, nullptr, nullptr);
     if (err != CL_SUCCESS)
         return "Error enqueuing write buffer: code " + to_string(err);
     return true;
 }
 
-bool_t OpenCLCalculator::CLMem::enqueueReadBuffer(OpenCLKernel &cl, void *pData, size_t s, cl_event *pEvt)
+bool_t OpenCLCalculator::CLMem::enqueueReadBuffer(OpenCLKernel &cl, void *pData, size_t s, cl_event *pDepEvt, cl_event *pEvt, bool sync)
 {
     if (s > m_size)
         return "Reading beyond CPU buffer size";
-    cl_int err = cl.clEnqueueReadBuffer(cl.getCommandQueue(), m_pMem, false, 0, s, pData, 0, nullptr, pEvt);
+	size_t num = (pDepEvt)?1:0;
+
+    cl_int err = cl.clEnqueueReadBuffer(cl.getCommandQueue(), m_pMem, sync, 0, s, pData, num, pDepEvt, pEvt);
     if (err != CL_SUCCESS)
         return "Error enqueuing read buffer: code " + to_string(err);
     return true;

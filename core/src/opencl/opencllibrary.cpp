@@ -66,6 +66,8 @@ OpenCLLibrary::OpenCLLibrary()
 	clEnqueueReadBuffer = nullptr;
 	clEnqueueWriteBuffer = nullptr;
 	clSetEventCallback = nullptr;
+	clGetEventInfo = nullptr;
+	clFlush = nullptr;
 
 	m_pModule = nullptr;
 }
@@ -126,6 +128,8 @@ bool OpenCLLibrary::loadLibrary(const std::string &libraryName)
 	GETFUNCTION(clGetPlatformInfo)
 	GETFUNCTION(clGetDeviceInfo)
 	GETFUNCTION(clSetEventCallback)
+	GETFUNCTION(clGetEventInfo)
+	GETFUNCTION(clFlush)
 
 	return true;
 }

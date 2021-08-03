@@ -20,6 +20,7 @@ typedef uint32_t cl_program_build_info;
 typedef void* cl_mem;
 typedef uint64_t cl_mem_flags;
 typedef void* cl_event;
+typedef cl_uint cl_event_info;
 typedef uint32_t cl_bool;
 typedef float cl_float;
 typedef struct { float x, y; } cl_float2;
@@ -36,6 +37,9 @@ typedef cl_uint cl_device_info;
 #define CL_PLATFORM_NAME                            0x0902
 #define CL_DEVICE_NAME								0x102B
 #define CL_COMPLETE									0
+#define CL_EVENT_COMMAND_TYPE                       0x11D1
+#define CL_EVENT_COMMAND_EXECUTION_STATUS           0x11D3
+
 #ifdef _WIN32
 	#define CL_CALLBACK __stdcall
 #else
@@ -75,9 +79,11 @@ public:
 	cl_int (*clReleaseMemObject)(cl_mem memobj);
 	cl_int (*clEnqueueNDRangeKernel)(cl_command_queue command_queue, cl_kernel kernel, cl_uint work_dim, const size_t *global_work_offset, const size_t *global_work_size, const size_t *local_work_size, cl_uint num_events_in_wait_list, const cl_event *event_wait_list, cl_event *event);
 	cl_int (*clFinish)(cl_command_queue command_queue);
+	cl_int (*clFlush)(cl_command_queue command_queue);
 	cl_int (*clEnqueueReadBuffer)(cl_command_queue command_queue, cl_mem buffer, cl_bool blocking_read, size_t offset, size_t cb, void *ptr, cl_uint num_events_in_wait_list, const cl_event *event_wait_list, cl_event *event);
 	cl_int (*clEnqueueWriteBuffer)(cl_command_queue command_queue, cl_mem buffer, cl_bool blocking_write, size_t offset, size_t cb, const void *ptr, cl_uint num_events_in_wait_list, const cl_event *event_wait_list, cl_event *event);
 	cl_int (*clSetEventCallback)(cl_event event, cl_int command_exec_callback_type, void (CL_CALLBACK * pfn_notify)(cl_event event, cl_int event_command_status, void *user_data), void *user_data);
+	cl_int (*clGetEventInfo)(cl_event event, cl_event_info param_name, size_t param_value_size, void *param_value, size_t *param_value_size_ret);
 protected:
 	bool getPlatformAndDeviceCount(cl_platform_id &platformId, int &deviceCount) const;
 	static std::string getCLErrorString(int errNum);
