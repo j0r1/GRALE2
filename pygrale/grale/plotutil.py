@@ -139,7 +139,8 @@ class LensInfo(DensInfo):
          * `lens`: for a single lens plane setting, this should be an instance of
            a :class:`GravitationalLens <grale.lenses.GravitationalLens>` derived
            class. In case a multi-lensplane scenario is to be used, this should be
-           an array of ``(lens, redshift)`` tuples.
+           an array of ``(lens, redshift)`` tuples or a MultiPlaneContainer lens
+           (which holds the same information).
          * `bottomleft` and `topright`, or `size` and `center`: using these arguments
            you can describe the area for which plot information should be calculated.
          * `numx` and `numy`, or `numxy`: the number of columns and rows (or both) of 
@@ -233,13 +234,12 @@ class LensInfo(DensInfo):
         if not "lens" in self.d:
             raise LensInfoException("No lens available to calculate lens plane mapping from")
 
-        if type(self.d["lens"]) != list:
-            lensPlane = images.LensPlane(self.d["lens"], self.d["bottomleft"], self.d["topright"], self.d["numx"]+1, self.d["numy"]+1, renderer = renderer, feedbackObject = feedbackObject)
-        else: # multiple lens
+        if type(self.d["lens"]) == list or type(self.d["lens"]) == lenses.MultiPlaneContainer:
             if self.cosm is None:
                 raise LensInfoException("For a multiple lensplane scenario, the cosmology must be set")
-
             lensPlane = multiplane.MultiLensPlane(self.d["lens"], self.d["bottomleft"], self.d["topright"], self.d["numx"]+1, self.d["numy"]+1, renderer = renderer, feedbackObject = feedbackObject, cosmology = self.cosm)
+        else: # single plane lens
+            lensPlane = images.LensPlane(self.d["lens"], self.d["bottomleft"], self.d["topright"], self.d["numx"]+1, self.d["numy"]+1, renderer = renderer, feedbackObject = feedbackObject)
 
         self.d["lensplane"] = lensPlane
         return lensPlane
@@ -259,7 +259,10 @@ class LensInfo(DensInfo):
 
         lensPlane = self.getLensPlane(renderer, feedbackObject)
 
-        if type(self.d["lens"]) != list:
+        if type(self.d["lens"]) == list or type(self.d["lens"]) == lenses.MultiPlaneContainer:
+            zs = self.d["zs"]
+            imgPlane = multiplane.MultiImagePlane(lensPlane, zs)
+        else:
             if "Ds" in self.d and "Dds" in self.d:
                 Ds = self.d["Ds"]
                 Dds = self.d["Dds"]
@@ -275,9 +278,6 @@ class LensInfo(DensInfo):
                 raise LensInfoException("No distance info has been set; either Ds and Dds must be set, or zd and zs (and a cosmological model)")
 
             imgPlane = images.ImagePlane(lensPlane, Ds, Dds)
-        else:
-            zs = self.d["zs"]
-            imgPlane = multiplane.MultiImagePlane(lensPlane, zs)
 
         self.d["imageplane"] = imgPlane
         return imgPlane
@@ -323,7 +323,7 @@ class LensInfo(DensInfo):
             raise LensInfoException("No lens has been set")
 
         lens = self.d["lens"]
-        if type(self.d["lens"]) == list:
+        if type(lens) == list or type(lens) == lenses.MultiPlaneContainer:
             raise LensInfoException("Can't calculate the density for a multiple lens plane lens")
 
         massMap = lens.getSurfaceMassDensityMap(bottomLeft, topRight, numX, numY, renderer = renderer, feedbackObject = feedbackObject, reduceToPixels = False)
