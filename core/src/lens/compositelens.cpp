@@ -25,6 +25,7 @@
 
 #include "graleconfig.h"
 #include "compositelens.h"
+#include "multiplanecontainer.h"
 #include "constants.h"
 #include <serut/dummyserializer.h>
 #include <serut/memoryserializer.h>
@@ -98,6 +99,12 @@ CompositeLensParams::~CompositeLensParams()
 
 bool CompositeLensParams::addLens(double factor, Vector2D<double> position, double angle, const GravitationalLens &lens)
 {
+	if (dynamic_cast<const MultiPlaneContainer*>(&lens) != 0)
+	{
+		setErrorString("A MultiPlaneContainer lens cannot be used inside a CompositeLens");
+		return false;
+	}
+
 	serut::DummySerializer dumSer;
 
 	if (!lens.write(dumSer))
