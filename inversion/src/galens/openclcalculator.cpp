@@ -254,7 +254,7 @@ bool_t OpenCLCalculator::checkCalculateScheduledContext()
 
     bool_t r;
 	//cerr << "Instance " << (void*)this;
-    if (!(r = m_beingScheduled->calculate(*this)))
+    if (!(r = m_beingScheduled->calculate(*this, &(m_beingScheduled->m_evt))))
     {
         m_errorState = true;
         return r;
@@ -264,10 +264,18 @@ bool_t OpenCLCalculator::checkCalculateScheduledContext()
     // to keep waiting for the calculation to finish
     swap(m_beingCalculated, m_beingScheduled);
 
+    // cl_int err = clSetEventCallback(m_beingCalculated->m_evt, CL_COMPLETE, staticEventNotify, this);
+    // if (err != CL_SUCCESS)
+    // {
+    //     m_errorState = true;
+    //     return "Error setting event callback: " + to_string(err);
+    // }
+	//cerr << "Instance " << (void*)this << " set event callback" << endl;
+
     return true;
 }
 
-bool_t OpenCLCalculator::CalculationContext::calculate(OpenCLCalculator &cl)
+bool_t OpenCLCalculator::CalculationContext::calculate(OpenCLKernel &cl, cl_event *pEvt)
 {
     bool_t r;
     if (!(r = m_mem->m_devFactors.realloc(cl, m_mem->m_allFactors)) ||
@@ -314,8 +322,8 @@ bool_t OpenCLCalculator::CalculationContext::calculate(OpenCLCalculator &cl)
     if (err != CL_SUCCESS)
         return "Error enqueuing kernel: " + to_string(err);
     
-    // Also queue reading the results to CPU memory, but dependent on calculation event
-    if (!(r = m_mem->m_devBetas.enqueueReadBuffer(cl, m_mem->m_allBetas, &m_calcEvt, &m_transEvt)))
+    // Also queue reading the results to CPU memory
+    if (!(r = m_mem->m_devBetas.enqueueReadBuffer(cl, m_mem->m_allBetas, nullptr, pEvt)))
         return "Error enqueuing read buffer";
     
     //cerr << " Enqueued kernel for calculation " << m_identifier << " " << (size_t)clNumPoints << " " << (size_t)clNumGenomes << " " << (size_t)clNumScaleFactors << endl;
@@ -370,7 +378,7 @@ bool_t OpenCLCalculator::isCalculationDone(const LensGAGenome &g, int calculatio
         m_timeoutCheckCounter++;
         if (m_timeoutCheckCounter % c_timeoutCheckMod == 0) // Check if we're taking too long
         {
-            if (m_beingCalculated.get() && !m_beingCalculated->m_calculated)
+            if (m_beingCalculated.get() && !m_beingCalculated.get())
             {
                 auto now = chrono::steady_clock::now();
                 double dtMsec = chrono::duration_cast<chrono::milliseconds>(now - m_beingCalculated->m_calcQueueTime).count();
@@ -379,60 +387,39 @@ bool_t OpenCLCalculator::isCalculationDone(const LensGAGenome &g, int calculatio
             }
         }
 
-        auto checkEvent = [this](cl_event &evt, bool &done, const string &evtType) -> bool_t
-        {
-            cl_int status;
-            cl_int err = clGetEventInfo(evt, CL_EVENT_COMMAND_EXECUTION_STATUS, sizeof(cl_int), &status, nullptr);
-			if (err != CL_SUCCESS)
-				return "Can't get " + evtType + " event status: " + to_string(err);
-            if (status < 0)
-                return "Querying " + evtType + " event status retrieved an error: " + to_string(status);
-            if (status == CL_COMPLETE)
-            {
-                done = true;
-                m_hasCalculated = true;
-            }
-            return true;
-        };
-
-        bool_t r;
         if (m_beingCalculated.get() && !m_beingCalculated->m_calculated)
         {
-            if (!(r = checkEvent(m_beingCalculated->m_calcEvt, m_beingCalculated->m_calculated, "calculation")))
-                return r;
+            cl_int status;
+            cl_int err = clGetEventInfo(m_beingCalculated->m_evt, CL_EVENT_COMMAND_EXECUTION_STATUS, sizeof(cl_int), &status, nullptr);
+			if (err != CL_SUCCESS)
+				return "Can't get calculation event status: " + to_string(err);
+            if (status < 0)
+                return "Querying calculation event status retrieved an error: " + to_string(status);
+            if (status == CL_COMPLETE)
+            {
+                m_beingCalculated->m_calculated = true;
+                m_hasCalculated = true;
+            }
         }
 
-        if (m_beingTransferred.get() && !m_beingTransferred->m_transferred)
-        {
-            if (!(r = checkEvent(m_beingTransferred->m_transEvt, m_beingTransferred->m_transferred, "transfer")))
-                return r;
-        }
+        // First check if we can advance m_beingCalculated to m_doneCalculating
+        if (!m_doneCalculating.get() && m_beingCalculated.get() && m_beingCalculated->m_calculated)
+            swap(m_beingCalculated, m_doneCalculating);
 
-        if (!m_doneTransferring.get() && m_beingTransferred.get() && m_beingTransferred->m_transferred)
-            swap(m_doneTransferring, m_beingTransferred);
-
-        if (!m_beingTransferred.get() && m_beingCalculated.get() && m_beingCalculated->m_calculated)
-            swap(m_beingCalculated, m_beingTransferred);
-
-        // This is the same code as a few lines back, perhaps m_beingTransferred became ready
-        if (!m_doneTransferring.get() && m_beingTransferred.get() && m_beingTransferred->m_transferred)
-            swap(m_doneTransferring, m_beingTransferred);
-
-
-        if (!m_doneTransferring.get()) // Nothing done yet
+        if (!m_doneCalculating.get()) // Nothing done yet
             return true;
 
-        if (calculationIdentifier != m_doneTransferring->m_identifier) // Is of different context, skip for now
+        if (calculationIdentifier != m_doneCalculating->m_identifier) // Is of different context, skip for now
             return true;
         
-        assert(m_doneTransferring->m_betaIndexForGenome.find(&g) != m_doneTransferring->m_betaIndexForGenome.end());
-        *pGenomeIndex = m_doneTransferring->m_betaIndexForGenome[&g];
-        *ppAllBetas = m_doneTransferring->m_mem->m_allBetas.data();
-        *pNumGenomes = m_doneTransferring->m_mem->m_genomeIndexForBetaIndex.size();
-        *pNumSteps = m_doneTransferring->m_numSteps;
-        *pNumPoints = m_doneTransferring->m_fullOrShort.m_numPoints;
+        assert(m_doneCalculating->m_betaIndexForGenome.find(&g) != m_doneCalculating->m_betaIndexForGenome.end());
+        *pGenomeIndex = m_doneCalculating->m_betaIndexForGenome[&g];
+        *ppAllBetas = m_doneCalculating->m_mem->m_allBetas.data();
+        *pNumGenomes = m_doneCalculating->m_mem->m_genomeIndexForBetaIndex.size();
+        *pNumSteps = m_doneCalculating->m_numSteps;
+        *pNumPoints = m_doneCalculating->m_fullOrShort.m_numPoints;
         *pDone = true;
-        assert(m_doneTransferring->m_mem->m_allBetas.size() == (*pNumSteps)*(*pNumGenomes)*(*pNumPoints)*2);
+        assert(m_doneCalculating->m_mem->m_allBetas.size() == (*pNumSteps)*(*pNumGenomes)*(*pNumPoints)*2);
     }
 
     bool_t r;
@@ -446,26 +433,27 @@ bool_t OpenCLCalculator::setCalculationProcessed(const LensGAGenome &g, int calc
 {
     lock_guard<mutex> lock(m_mutex);
     
-    if (!m_doneTransferring.get() || m_doneTransferring->m_identifier != calculationIdentifier)
+    if (!m_doneCalculating.get() || m_doneCalculating->m_identifier != calculationIdentifier)
     {
         m_errorState = true;
-        return "m_doneTransferring doesn't match the requested calculation identifier";
+        return "m_doneCalculating doesn't match the requested calculation identifier";
     }
     
-    auto it = m_doneTransferring->m_betaIndexForGenome.find(&g);
-    if (it == m_doneTransferring->m_betaIndexForGenome.end())
+    auto it = m_doneCalculating->m_betaIndexForGenome.find(&g);
+    if (it == m_doneCalculating->m_betaIndexForGenome.end())
     {
         m_errorState = true;
         return "Couldn't find genome in map of calculated genomes";
     }
 
-    m_doneTransferring->m_betaIndexForGenome.erase(it);
+    m_doneCalculating->m_betaIndexForGenome.erase(it);
     
     // If everyone's results were processed, we can recycle the memory, and release this
-    if (m_doneTransferring->m_betaIndexForGenome.size() == 0)
+    if (m_doneCalculating->m_betaIndexForGenome.size() == 0)
     {
-        m_recycledContextMemory.push_back(move(m_doneTransferring->m_mem));
-        m_doneTransferring = nullptr;
+        m_recycledContextMemory.push_back(move(m_doneCalculating->m_mem));
+        //cleanupContextMemory(*(m_doneCalculating->m_mem));
+        m_doneCalculating = nullptr;
     }
 
     return true;
@@ -478,8 +466,68 @@ void OpenCLCalculator::cleanupContextMemory(ContextMemory &mem)
     mem.m_devGenomeIndexForBetaIndex.dealloc(*this);
 }
 
+// void OpenCLCalculator::staticEventNotify(cl_event event, cl_int eventCommandStatus, void *userData)
+// {
+//     OpenCLCalculator *pInst = reinterpret_cast<OpenCLCalculator*>(userData);
+//     assert(pInst);
+//     pInst->eventNotify(event, eventCommandStatus);
+// }
+
+//#define DUMPLASTBETAS
+
+// void OpenCLCalculator::eventNotify(cl_event event, cl_int eventCommandStatus)
+// {
+//     lock_guard<mutex> lock(m_mutex);
+//     if (eventCommandStatus != CL_COMPLETE)
+//     {
+//         cerr << "Unexpected result from OpenCL, bailing!" << endl;
+//         exit(-1);
+//     }
+
+//     // cout << "Calculation Done!" << endl;
+//     // cout.flush();
+
+//     m_hasCalculated = true; // Signal that we can accept new genome weights at a later point
+
+//     assert(m_beingCalculated.get());
+//     // Here we just set a flag; we'll do further processing based on this in isCalculationDone
+// 	assert(!m_beingCalculated->m_calculated);
+//     m_beingCalculated->m_calculated = true;
+// 	//cerr << "eventNotify in " << (void*)this << " for calc ident " << m_beingCalculated->m_identifier << endl;
+
+// #ifdef DUMPLASTBETAS
+//     size_t numGenomesInBetas = m_beingCalculated->m_mem->m_genomeIndexForBetaIndex.size();
+//     size_t numStepsInBetas = m_beingCalculated->m_numSteps;
+//     size_t numPointsInBetas = m_beingCalculated->m_fullOrShort.m_numPoints;
+//     assert(2*numGenomesInBetas*numStepsInBetas*numPointsInBetas == m_beingCalculated->m_mem->m_allBetas.size());
+//     cout << std::dec;
+//     cout << "# genomes = " << numGenomesInBetas << endl;
+//     cout << "# numSteps = " << numStepsInBetas << endl;
+//     cout << "# numPoints = " << numPointsInBetas << endl;
+//     for (int g = 0 ; g < numGenomesInBetas ; g++)
+//     {
+//         int genomeOffset = (numStepsInBetas*numPointsInBetas*2)*g;
+//         for (int f = 0 ; f < numStepsInBetas ; f++)
+//         {
+//             int scaleOffset = genomeOffset + (numPointsInBetas*2)*f;
+//             for (int i = 0 ; i < numPointsInBetas ; i++)
+//                 cout << "\t" << m_beingCalculated->m_mem->m_allBetas[scaleOffset + i*2];
+//             cout << endl;
+//             for (int i = 0 ; i < numPointsInBetas ; i++)
+//                 cout << "\t" << m_beingCalculated->m_mem->m_allBetas[scaleOffset + i*2 + 1];
+//             cout << endl;
+//             cout << endl;
+//         }
+//         cout << endl;
+//     }
+//     cout.flush();
+
+//     exit(-1);
+// #endif // DUMPLASTBETAS
+// }
+
 OpenCLCalculator::OpenCLCalculator()
-    : m_devIdx(-1), m_errorState(false), m_timeoutCheckCounter(0), m_transferQueue(nullptr)
+    : m_devIdx(-1), m_errorState(false), m_timeoutCheckCounter(0)
 {
 }
 
@@ -519,20 +567,8 @@ OpenCLCalculator::~OpenCLCalculator()
                 cleanup(m_beingCalculated);
         }
 
-        if (m_beingTransferred.get())
-        {
-            if (!m_beingTransferred->m_transferred)
-            {
-                done = false;
-                if (firstIteration)
-                    cerr << "WARNING: waiting for destruction till GPU is done transferring" << endl;
-            }
-            else
-                cleanup(m_beingTransferred);
-        }
-
-        if (m_doneTransferring.get())
-            cleanup(m_doneTransferring);
+        if (m_doneCalculating.get())
+            cleanup(m_doneCalculating);
 
         firstIteration = false;
 
@@ -557,9 +593,6 @@ OpenCLCalculator::~OpenCLCalculator()
         cleanupContextMemory(*ctx);
 
 	m_perNodeCounter.reset();
-
-    if (m_transferQueue)
-        clReleaseCommandQueue(m_transferQueue);
 
     cerr << "INFO: OpenCLCalculator destructor end" << endl;
 }
@@ -1092,13 +1125,6 @@ bool_t OpenCLCalculator::initGPU(int devIdx)
 
     if (!OpenCLKernel::init(devIdx))
         return "Can't init specified GPU device: " + getErrorString();
-    
-    // Create second queue for downloads
-    cl_int err;
-    m_transferQueue = clCreateCommandQueue(getContext(), getDevice(), 0, &err);
-	if (err != CL_SUCCESS)
-		return "Can't create OpenCL transfer command queue: " + getCLErrorString(err);
-
     return true;
 }
 
@@ -1292,13 +1318,13 @@ bool_t OpenCLCalculator::CLMem::enqueueWriteBuffer(OpenCLKernel &cl, const void 
     return true;
 }
 
-bool_t OpenCLCalculator::CLMem::enqueueReadBuffer(OpenCLCalculator &cl, void *pData, size_t s, cl_event *pDepEvt, cl_event *pEvt, bool sync)
+bool_t OpenCLCalculator::CLMem::enqueueReadBuffer(OpenCLKernel &cl, void *pData, size_t s, cl_event *pDepEvt, cl_event *pEvt, bool sync)
 {
     if (s > m_size)
         return "Reading beyond CPU buffer size";
 	size_t num = (pDepEvt)?1:0;
 
-    cl_int err = cl.clEnqueueReadBuffer(cl.getTransferCommandQueue(), m_pMem, sync, 0, s, pData, num, pDepEvt, pEvt);
+    cl_int err = cl.clEnqueueReadBuffer(cl.getCommandQueue(), m_pMem, sync, 0, s, pData, num, pDepEvt, pEvt);
     if (err != CL_SUCCESS)
         return "Error enqueuing read buffer: code " + to_string(err);
     return true;
