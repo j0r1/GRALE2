@@ -43,6 +43,8 @@ public:
 
     double getAngularScale() const { return m_angularScale; }
 
+    cl_command_queue getTransferCommandQueue() const { return m_transferQueue; }
+
 	OpenCLCalculator();
 	~OpenCLCalculator();
 private:
@@ -84,9 +86,6 @@ private:
 
     errut::bool_t checkCalculateScheduledContext();
 
-    // static void staticEventNotify(cl_event event, cl_int event_command_status, void *user_data);
-    // void eventNotify(cl_event event, cl_int event_command_status);
-
 	class CLMem
 	{
 	public:
@@ -98,8 +97,8 @@ private:
 		errut::bool_t enqueueWriteBuffer(OpenCLKernel &cl, const void *pData, size_t s, bool sync = false);
 		template<class T> errut::bool_t enqueueWriteBuffer(OpenCLKernel &cl, const std::vector<T> &data, bool sync = false) { return enqueueWriteBuffer(cl, data.data(), data.size()*sizeof(T), sync); }
 
-        errut::bool_t enqueueReadBuffer(OpenCLKernel &cl, void *pData, size_t s, cl_event *pDepEvt, cl_event *pEvt, bool sync = false);
-        template<class T> errut::bool_t enqueueReadBuffer(OpenCLKernel &cl, std::vector<T> &data, cl_event *pDepEvt, cl_event *pEvt, bool sync = false) { return enqueueReadBuffer(cl, data.data(), data.size()*sizeof(T), pDepEvt, pEvt, sync); }
+        errut::bool_t enqueueReadBuffer(OpenCLCalculator &cl, void *pData, size_t s, cl_event *pDepEvt, cl_event *pEvt, bool sync = false);
+        template<class T> errut::bool_t enqueueReadBuffer(OpenCLCalculator &cl, std::vector<T> &data, cl_event *pDepEvt, cl_event *pEvt, bool sync = false) { return enqueueReadBuffer(cl, data.data(), data.size()*sizeof(T), pDepEvt, pEvt, sync); }
 
 		cl_mem m_pMem;
 		size_t m_size;
@@ -185,22 +184,23 @@ private:
         CalculationContext(int ident, size_t numSteps, size_t numWeights, const CommonClMem &common,
                            const FullOrShortClMem &fullOrShort, std::unique_ptr<ContextMemory> ctxMem)
             : m_identifier(ident), m_numSteps(numSteps), m_numWeights(numWeights),
-              m_common(common), m_fullOrShort(fullOrShort), m_calculated(false), m_calcEvt(nullptr), m_evt(nullptr),
+              m_common(common), m_fullOrShort(fullOrShort), m_calculated(false), m_transferred(false),
+              m_calcEvt(nullptr), m_transEvt(nullptr),
 			  m_mem(std::move(ctxMem))
             { }
 
         errut::bool_t schedule(OpenCLKernel &cl, const LensGAGenome &g, size_t genomeWeightsIndex,
                                const std::vector<std::pair<float,float>> &scaleFactors);
-        errut::bool_t calculate(OpenCLKernel &cl, cl_event *pEvt);
+        errut::bool_t calculate(OpenCLCalculator &cl);
 
         const int m_identifier;
         const size_t m_numSteps, m_numWeights;
         const CommonClMem &m_common;
         const FullOrShortClMem &m_fullOrShort;
-        bool m_calculated;
+        bool m_calculated, m_transferred;
         std::chrono::time_point<std::chrono::steady_clock> m_calcQueueTime;
 
-		cl_event m_calcEvt, m_evt;
+		cl_event m_calcEvt, m_transEvt;
 
         std::unordered_map<const LensGAGenome *, size_t> m_betaIndexForGenome;
         std::unique_ptr<ContextMemory> m_mem;
@@ -209,9 +209,12 @@ private:
     int m_devIdx;
     bool m_errorState;
 
+    cl_command_queue m_transferQueue;
+
     std::unique_ptr<CalculationContext> m_beingScheduled;
     std::unique_ptr<CalculationContext> m_beingCalculated;
-    std::unique_ptr<CalculationContext> m_doneCalculating;
+    std::unique_ptr<CalculationContext> m_beingTransferred;
+    std::unique_ptr<CalculationContext> m_doneTransferring;
     int m_nextCalculationContextIdentifier;
 
     size_t m_numGenomesToCalculate;
