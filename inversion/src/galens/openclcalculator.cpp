@@ -314,8 +314,8 @@ bool_t OpenCLCalculator::CalculationContext::calculate(OpenCLCalculator &cl)
     if (err != CL_SUCCESS)
         return "Error enqueuing kernel: " + to_string(err);
     
-    // Also queue reading the results to CPU memory
-    if (!(r = m_mem->m_devBetas.enqueueReadBuffer(cl, m_mem->m_allBetas, nullptr, &m_transEvt)))
+    // Also queue reading the results to CPU memory, but dependent on calculation event
+    if (!(r = m_mem->m_devBetas.enqueueReadBuffer(cl, m_mem->m_allBetas, &m_calcEvt, &m_transEvt)))
         return "Error enqueuing read buffer";
     
     //cerr << " Enqueued kernel for calculation " << m_identifier << " " << (size_t)clNumPoints << " " << (size_t)clNumGenomes << " " << (size_t)clNumScaleFactors << endl;
