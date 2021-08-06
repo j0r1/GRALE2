@@ -826,6 +826,88 @@ script to recreate the run would look something like this::
    lens3, fitness, fitdesc = iws.invert(512)
    lens3.save("inv3.lensdata")
 
+Multi-plane inversion (experimental)
+------------------------------------
+
+You can also use an :class:`InversionWorkSpace <grale.inversion.InversionWorkSpace>`
+object for an inversion involving multiple lens planes. This requires a GPU
+that provides an OpenCL implementation to perform the multi-plane back-projection
+of the observed images. This GPU based code at the moment can only calculate the
+back-projected images, but not time delays or magnifications for example.
+
+Instead of just passing the redshift of a single lens plane, you now pass a list of 
+redshifts, e.g.::
+
+    zd1, zd2 = 0.5, 2.0
+    iws = inversion.InversionWorkSpace([zd1,zd2], 50*ANGLE_ARCSEC)
+
+The same calls to :func:`setUniformGrid <grale.inversion.InversionWorkSpace.setUniformGrid>`
+and :func:`setSubdivisionGrid <grale.inversion.InversionWorkSpace.setSubdivisionGrid>` 
+can be used to lay out the basis functions. By default, the functions will be applied
+to every lens plane, but a particular lens plane can be specified as well.
+
+The result from an :func:`invert <grale.inversion.InversionWorkSpace.invert>` or
+:func:`invertBasisFunctions <grale.inversion.InversionWorkSpace.invertBasisFunctions>`
+call will be a special lens model, of type :class:`MultiPlaneContainer <grale.lenses.MultiPlaneContainer>`,
+that encapsulated the lens models for the different lens planes. A call to this container's
+:func:`getLensParameters <grale.lenses.getLensParameters>` function will return a list
+of dictionaries, each with a ``z`` entry describing a lens plane's redshift, and a ``lens`` entry
+that contains the actual lens model for the lens plane at this redshift.
+
+On a technical note, a single GPU is used for one process, which can contain multiple
+threads. So if you have just a single GPU in your computer, and have eight cores, then
+setting::
+
+    inversion.setDefaultInverter("threads")
+
+Will use that GPU to back-project the images, and use eight CPU threads to calculate the
+fitness values based on the back-projected points. In case you set::
+
+    inversion.setDefaultInverter("mpi")
+
+then the MPI subsystem will start eight different processes, and each of them will try to
+take control over the GPU. The result of this depends on your GPU. For some, this single
+GPU can be shared over multiple processes, and it can even run more efficiently than the
+``threads`` setting. For other GPU's, access will be restricted to a single process and
+the initialization will fail.
+
+In case you have multiple GPUs at your disposal, you can use this MPI system to control
+each of them, and even use multiple threads to process the back-projected images. For
+instance, suppose that you still have eight cores, but now have two GPUs. You could then
+specify::
+
+    inversion.setDefaultInverter("mpi:2:4")
+
+This means that two MPI processes will get launched, which should be able to use different
+GPUs. Each of these processes will furthermore use four threads to process the back-projected
+images.
+
+It is even possible to use GPUs across different nodes in a similar way. After yet another
+colon, you can add more options for the ``mpirun`` command that's used underneath.
+Suppose that we now have two such nodes, each with two GPUs and eight cores. With the
+Intel MPI software, the command would look as follows::
+
+    inversion.setDefaultInverter("mpi:4:4:-f /path/to/hostfile -ppn 2")
+
+The first '4' means that four MPI processes will be launched, with two processes per node
+(``-ppn 2``), and for which the host names should be in the specified ``hostfile``. Each MPI
+process will additionally use four threads (the second '4') to calculate the fitness of 
+the back-projected points.
+
+The code will look for an available OpenCL library in some default locations. In case it
+is not successful in locating the correct library, you can specify the location yourself
+using the ``GRALE_OPENCLLIB`` environment variable.
+
+As mentioned before, the code will automatically try to use different GPUs when available.
+To coordinate this between different processes, it makes use of a file to which each process
+can write, and from which each process can read. In some cases it may be necessary to
+change the name of this file, which can be done using the ``GRALE_OPENCL_AUTODEVICEFILE``
+environment variable. If multiple PBS or Slurm jobs can end up on the same node, then
+using the same file name for all jobs will most likely cause problems. In that case,
+setting a different file name for each job will help, for example something like this
+in a PBS script::
+
+    export GRALE_OPENCL_AUTODEVICEFILE="/dev/shm/grale_gpu_counter_${PBS_JOBID}.dat"
 
 .. _tut-graleeditor:
 
