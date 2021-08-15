@@ -374,16 +374,26 @@ class MPIProcessInverter(Inverter):
         self.incomingConnectionTimeout = incomingConnectionTimeout
 
         npArgs = [ ] if numProcesses is None else [ "-np", str(numProcesses) ]
-        npArgs += extraArgs
 
         if numThreadsPerProcess > 1:
+            # TODO: use feedback object?
             print("""
 WARNING: requesting more than one thread per MPI process. Depending on the
          MPI implementation it's possible that extra options need to be set 
          to be able to use the threads effectively. E.g. with openmpi the 
          option "--bind-to socket" or "--bind-to none" may be necessary.
          """)
+            if len(extraArgs) == 0: # Try to detect if it's OpenMPI and add --bind-to socket automatically
+                try:
+                    out = subprocess.check_output(["mpirun", "--version"]).decode()
+                    if "Open MPI" in out:
+                        print("Detected OpenMPI, adding --bind-to socket")
+                        extraArgs += [ "--bind-to", "socket" ]
+                except Exception as e:
+                    print("WARNING: unable to detect OpenMPI version/implementation:", e)
             time.sleep(2)
+
+        npArgs += extraArgs
 
         super(MPIProcessInverter, self).__init__( [ "mpirun" ] + npArgs + [ "grale_invert_newgampi", self.socketPath, str(numThreadsPerProcess) ], 
                                                   "MPI inverter", feedbackObject=feedbackObject)
