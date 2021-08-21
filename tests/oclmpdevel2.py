@@ -211,37 +211,76 @@ float2 multiPlaneTrace(float2 theta, int numPlanes, __global const float *Dsrc, 
                 __global const int *pPlaneFloatParamOffsets, __global const int *pPlaneWeightOffsets,
                 __global const float *pScalableFunctionWeights)
 {
-    float2 T[MAXPLANES];
-    float2 alphas[MAXPLANES];
+    /*
+    float2 beta1;
 
-    for (int j = 0 ; j < numPlanes ; j++)
     {
-        T[j] = theta;
-        for (int i = 0 ; i < j-1 ; i++)
-            T[j] -= (Dmatrix[(i+1)*MAXPLANES + j]/Dmatrix[0 + j]) * alphas[i];
-        const int i = j-1;
+        float2 T[MAXPLANES];
+        float2 alphas[MAXPLANES];
+
+        for (int j = 0 ; j < numPlanes ; j++)
+        {
+            T[j] = theta;
+            for (int i = 0 ; i < j-1 ; i++)
+                T[j] -= (Dmatrix[(i+1)*MAXPLANES + j]/Dmatrix[0 + j]) * alphas[i];
+            const int i = j-1;
+            if (i >= 0)
+            {
+                const float2 alpha = getAlpha(i, T[i], pAllIntParams, pAllFloatParams, pAllWeights, pAllCenters, pPlaneIntParamOffsets, pPlaneFloatParamOffsets, pPlaneWeightOffsets, pScalableFunctionWeights);
+                alphas[i] = alpha;
+                const float dfrac = Dmatrix[(i+1)*MAXPLANES + j]/Dmatrix[0 + j];
+
+                T[j] -= dfrac * alpha;
+            }
+        }
+
+        float2 beta = theta;
+        for (int i = 0 ; i < numPlanes-1 ; i++)
+            beta -= (Dsrc[i+1]/Dsrc[0]) * alphas[i];
+
+        const int i = numPlanes-1;
         if (i >= 0)
         {
             const float2 alpha = getAlpha(i, T[i], pAllIntParams, pAllFloatParams, pAllWeights, pAllCenters, pPlaneIntParamOffsets, pPlaneFloatParamOffsets, pPlaneWeightOffsets, pScalableFunctionWeights);
-            alphas[i] = alpha;
-	        const float dfrac = Dmatrix[(i+1)*MAXPLANES + j]/Dmatrix[0 + j];
-
-            T[j] -= dfrac * alpha;
+            const float dfrac = Dsrc[i+1]/Dsrc[0];
+            beta -= dfrac * alpha;
         }
+        beta1 = beta;
     }
+    */
+    
+    float2 beta2;
 
-    float2 beta = theta;
-    for (int i = 0 ; i < numPlanes-1 ; i++)
-        beta -= (Dsrc[i+1]/Dsrc[0]) * alphas[i];
-
-    const int i = numPlanes-1;
-    if (i >= 0)
     {
-        const float2 alpha = getAlpha(i, T[i], pAllIntParams, pAllFloatParams, pAllWeights, pAllCenters, pPlaneIntParamOffsets, pPlaneFloatParamOffsets, pPlaneWeightOffsets, pScalableFunctionWeights);
-        const float dfrac = Dsrc[i+1]/Dsrc[0];
-        beta -= dfrac * alpha;
+        float2 T[MAXPLANES+1];
+
+        T[0] = theta;
+        T[1] = theta;
+
+        for (int k = 0 ; k < numPlanes-1 ; k++)
+        {
+            const float Dk1 = Dmatrix[0 + k+1];
+            const float X = (Dmatrix[k*MAXPLANES + (k+1)]/Dmatrix[k*MAXPLANES + k])*(Dmatrix[0 + k]/Dk1);
+            const float Y = Dmatrix[(k+1)*MAXPLANES + (k+1)]/Dk1;
+            const float2 alpha = getAlpha(k, T[k+1], pAllIntParams, pAllFloatParams, pAllWeights, pAllCenters, pPlaneIntParamOffsets, pPlaneFloatParamOffsets, pPlaneWeightOffsets, pScalableFunctionWeights);
+            T[k+2] = T[k]*(1.0f-X) + T[k+1]*X - Y*alpha;
+        }
+
+        const int k = numPlanes-1;
+        float2 beta = theta;
+        if (k >= 0)
+        {
+            const float Ds = Dsrc[0];
+            const float X = (Dsrc[k]/Dmatrix[k*MAXPLANES + k])*(Dmatrix[0 + k]/Ds);
+            const float Y = Dsrc[k+1]/Ds;
+            const float2 alpha = getAlpha(k, T[k+1], pAllIntParams, pAllFloatParams, pAllWeights, pAllCenters, pPlaneIntParamOffsets, pPlaneFloatParamOffsets, pPlaneWeightOffsets, pScalableFunctionWeights);
+            beta = T[k]*(1.0f-X) + T[k+1]*X - Y*alpha;
+        }
+
+        beta2 = beta;
     }
-    return beta;
+    //printf("beta1 = %g %g | beta2 = %g %g | diff = %g %g\\n",beta1.x, beta1.y, beta2.x, beta2.y, (beta1.x-beta2.x), (beta1.y-beta2.y));
+    return beta2;
 }
 """
 
