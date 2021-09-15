@@ -27,7 +27,8 @@ public:
 										   const Cosmology &cosm,
 										   const std::vector<std::vector<std::shared_ptr<LensInversionBasisLensInfo>>> &planeBasisLenses,
 										   const std::vector<std::shared_ptr<GravitationalLens>> &unscaledLensesPerPlane,
-                                           uint64_t userId
+                                           uint64_t userId,
+                                           const std::vector<std::shared_ptr<GravitationalLens>> &baseLensesPerPlane = std::vector<std::shared_ptr<GravitationalLens>>()
 										   );
 	static void releaseInstance(uint64_t userId);
     static OpenCLCalculator &instance();
@@ -52,9 +53,11 @@ private:
 							const std::vector<float> &zds,
 							const Cosmology &cosm,
 							const std::vector<std::vector<std::shared_ptr<LensInversionBasisLensInfo>>> &planeBasisLenses,
-							const std::vector<std::shared_ptr<GravitationalLens>> &unscaledLensesPerPlane);
+							const std::vector<std::shared_ptr<GravitationalLens>> &unscaledLensesPerPlane,
+                            const std::vector<std::shared_ptr<GravitationalLens>> &baseLensesPerPlane);
 	errut::bool_t analyzeCompositeLenses(const std::vector<std::vector<std::shared_ptr<LensInversionBasisLensInfo>>> &planeBasisLenses,
 							      const std::vector<std::shared_ptr<GravitationalLens>> &unscaledLensesPerPlane,
+                                  const std::vector<std::shared_ptr<GravitationalLens>> &baseLensesPerPlane,
 								  std::map<std::string,std::string> &subRoutineCode,
 								  std::vector<std::string> &compLensSubRoutineNames,
 								  int &compLensRecursion
@@ -62,6 +65,7 @@ private:
 	errut::bool_t getAlphaCodeForPlane(const std::string &functionName,
 		                        const std::vector<std::shared_ptr<LensInversionBasisLensInfo>> &basisLenses,
 								const GravitationalLens *pUnscaledLens,
+                                const GravitationalLens *pBaseLens,
 								std::map<std::string,std::string> &subRoutineCode,
 								int &intParamCount, int &floatParamCount, int &numWeights,
 								std::vector<float> &centers,
@@ -70,9 +74,11 @@ private:
 								std::string &generatedCode);
 	errut::bool_t getMultiPlaneTraceCode(const std::vector<std::vector<std::shared_ptr<LensInversionBasisLensInfo>>> &planeBasisLenses,
 							      const std::vector<std::shared_ptr<GravitationalLens>> &unscaledLensesPerPlane,
+                                  const std::vector<std::shared_ptr<GravitationalLens>> &baseLensesPerPlane,
 								  std::string &resultingCode);
 	errut::bool_t setupBasisFunctions(const std::vector<std::vector<std::shared_ptr<LensInversionBasisLensInfo>>> &planeBasisLenses,
-							   const std::vector<std::shared_ptr<GravitationalLens>> &unscaledLensesPerPlane);
+							   const std::vector<std::shared_ptr<GravitationalLens>> &unscaledLensesPerPlane,
+                               const std::vector<std::shared_ptr<GravitationalLens>> &baseLensesPerPlane);
 	errut::bool_t initGPU(int devIdx);
 	errut::bool_t setupMultiPlaneDistanceMatrix(const Cosmology &cosm, const std::vector<float> &zds);
 	errut::bool_t setupAngularDiameterDistances(const Cosmology &cosm, const std::vector<float> &zds,
