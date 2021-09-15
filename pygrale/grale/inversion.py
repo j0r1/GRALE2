@@ -201,7 +201,8 @@ def _invertCommon(inverter, feedbackObject, moduleName, calcType, fitnessObjectP
     return result
 
 def invertMultiPlane(inputImages, basisLensesAndRedshifts, popSize, moduleName="general",
-                     massScale="auto", allowNegativeValues=False, sheetSearch="nosheet",
+                     massScale="auto", allowNegativeValues=False,
+                     baseLenses = [], sheetSearch="nosheet",
                      fitnessObjectParameters=None, massScaleSearchType="regular",
                      convergenceParameters={ }, geneticAlgorithmParameters={ },
                      returnNds=False, deviceIndex = "rotate",
@@ -248,6 +249,9 @@ def invertMultiPlane(inputImages, basisLensesAndRedshifts, popSize, moduleName="
        allowed to be positive, to make certain that an overall positive mass density
        is obtained. In case corrections to a certain mass distribution are being sought,
        negative weights can be allowed by setting this parameter to ``False``.
+
+     - `baseLenses`: for each lens plane, a base lens can be specified to which corrections
+       can be applied.
 
      - `sheetSearch`: by default, only the basis functions for the grid cells are used.
        You can also allow a mass-sheet basis function, which may be useful as this kind
@@ -332,7 +336,7 @@ def invertMultiPlane(inputImages, basisLensesAndRedshifts, popSize, moduleName="
 
     def getParamsFunction(fullFitnessObjParams, massScale):
         return inversionparams.LensInversionParametersMultiPlaneGPU(cosmology,
-                basisLensesAndRedshifts, inputImages, massScale, sheetSearch,
+                basisLensesAndRedshifts, inputImages, baseLenses, massScale, sheetSearch,
                 fullFitnessObjParams, allowNegativeValues,
                 massScaleSearchType, deviceIndex)
 

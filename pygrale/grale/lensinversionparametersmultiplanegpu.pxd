@@ -20,6 +20,7 @@ cdef extern from "grale/lensinversionparametersmultiplanegpu.h" namespace "grale
         LensInversionParametersMultiPlaneGPU(const cppcosmology.Cosmology &cosmology,
             const vector[double] &lensRedshifts,
             const vector[vector[shared_ptr[lensinversionbasislensinfo.LensInversionBasisLensInfo]]] &basisLenses,
+            const vector[shared_ptr[gravitationallens.GravitationalLens]] &baseLensesPerPlane,
             const vector[shared_ptr[imagesdataextended.ImagesDataExtended]] &sourceImages,
             double massEstimate,
             bool useMassSheets,

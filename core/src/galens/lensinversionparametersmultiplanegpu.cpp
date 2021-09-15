@@ -17,6 +17,7 @@ LensInversionParametersMultiPlaneGPU::LensInversionParametersMultiPlaneGPU()
 LensInversionParametersMultiPlaneGPU::LensInversionParametersMultiPlaneGPU(const Cosmology &cosmology,
 	const std::vector<double> &lensRedshifts,
 	const std::vector<std::vector<std::shared_ptr<LensInversionBasisLensInfo>>> &basisLenses,
+	const std::vector<std::shared_ptr<GravitationalLens>> &baseLensesPerPlane,
 	const std::vector<std::shared_ptr<ImagesDataExtended>> &sourceImages,
 	double massEstimate,
 	bool useMassSheets,
@@ -34,8 +35,15 @@ LensInversionParametersMultiPlaneGPU::LensInversionParametersMultiPlaneGPU(const
 	};
 	auto createCopyBasisLens = [](shared_ptr<LensInversionBasisLensInfo> &bl)
 	{
-	shared_ptr<GravitationalLens> lensCopy(bl->m_pLens->createCopy());
+		shared_ptr<GravitationalLens> lensCopy(bl->m_pLens->createCopy());
 		return make_shared<LensInversionBasisLensInfo>(lensCopy, bl->m_center, bl->m_relevantLensingMass);
+	};
+	auto createCopyLens = [](shared_ptr<GravitationalLens> &l)
+	{
+		shared_ptr<GravitationalLens> lensCopy;
+		if (l.get())
+			lensCopy = l->createCopy();
+		return lensCopy;
 	};
 
 	auto deepCopyVector = [](const auto &srcVec, auto createCopy)
@@ -52,6 +60,8 @@ LensInversionParametersMultiPlaneGPU::LensInversionParametersMultiPlaneGPU(const
 
 	for (auto &lp : basisLenses)
 		m_basisLenses.push_back(deepCopyVector(lp, createCopyBasisLens));
+
+	m_baseLensesPerPlane = deepCopyVector(baseLensesPerPlane, createCopyLens);
 
 	m_images = deepCopyVector(sourceImages, createCopyImgData);
 
@@ -103,6 +113,29 @@ bool LensInversionParametersMultiPlaneGPU::write(serut::SerializationInterface &
 			if (!bl->m_pLens->write(si) || !si.writeDoubles(values, 3))
 			{
 				setErrorString("Unable to write basis lens or its properties");
+				return false;
+			}
+		}
+	}
+
+	if (!si.writeInt32((int32_t)m_baseLensesPerPlane.size()))
+	{
+		setErrorString("Can't write number of base lenses for the lens planes: " + si.getErrorString());
+		return false;
+	}
+	for (auto &l : m_baseLensesPerPlane)
+	{
+		int32_t haveLensInt = (l.get() == nullptr)?0:1;
+		if (!si.writeInt32(haveLensInt))
+		{
+			setErrorString("Can't write base lens flag: " + si.getErrorString());
+			return false;
+		}
+		if (l.get())
+		{
+			if (!l->write(si))
+			{
+				setErrorString("Can't write base lens for a plane: " + l->getErrorString());
 				return false;
 			}
 		}
@@ -212,6 +245,40 @@ bool LensInversionParametersMultiPlaneGPU::read(serut::SerializationInterface &s
 				return false;
 			}
 			plane.push_back(make_shared<LensInversionBasisLensInfo>(basisLens, Vector2Dd(values[0], values[1]), values[2]));
+		}
+	}
+
+	int32_t numBaseLensesPerPlane;
+	if (!si.readInt32(&numBaseLensesPerPlane))
+	{
+		setErrorString("Can't read number of base lenses per plane: " + si.getErrorString());
+		return false;
+	}
+	if (numBaseLensesPerPlane < 0 || numBaseLensesPerPlane > numPlanes) // sanity check
+	{
+		setErrorString("Invalid value for number of base lenses per plane: " + to_string(numBaseLensesPerPlane));
+		return false;
+	}
+
+	m_baseLensesPerPlane.resize(numBaseLensesPerPlane);
+	for (auto &l : m_baseLensesPerPlane)
+	{
+		int32_t haveBaseLens;
+		if (!si.readInt32(&haveBaseLens))
+		{
+			setErrorString("Can't read base lens flag: " + si.getErrorString());
+			return false;
+		}
+		if (haveBaseLens)
+		{
+			unique_ptr<GravitationalLens> lens;
+			string errStr;
+			if (!GravitationalLens::read(si, lens, errStr))
+			{
+				setErrorString("Can't read a base lens: " + errStr);
+				return false;
+			}
+			l = move(lens);
 		}
 	}
 

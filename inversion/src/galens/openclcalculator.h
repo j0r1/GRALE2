@@ -28,7 +28,7 @@ public:
 										   const std::vector<std::vector<std::shared_ptr<LensInversionBasisLensInfo>>> &planeBasisLenses,
 										   const std::vector<std::shared_ptr<GravitationalLens>> &unscaledLensesPerPlane,
                                            uint64_t userId,
-                                           const std::vector<std::shared_ptr<GravitationalLens>> &baseLensesPerPlane = std::vector<std::shared_ptr<GravitationalLens>>()
+                                           const std::vector<std::shared_ptr<GravitationalLens>> &baseLensesPerPlane
 										   );
 	static void releaseInstance(uint64_t userId);
     static OpenCLCalculator &instance();

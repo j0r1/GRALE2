@@ -18,6 +18,7 @@ public:
 	LensInversionParametersMultiPlaneGPU(const Cosmology &cosmology,
 		const std::vector<double> &lensRedshifts,
 		const std::vector<std::vector<std::shared_ptr<LensInversionBasisLensInfo>>> &basisLenses,
+		const std::vector<std::shared_ptr<GravitationalLens>> &baseLensesPerPlane,
 		const std::vector<std::shared_ptr<ImagesDataExtended>> &sourceImages,
 		double massEstimate,
 		bool useMassSheets,
@@ -30,6 +31,7 @@ public:
 	const Cosmology &getCosmology() const                                           { return m_cosmology; }
 	const std::vector<double> &getLensRedshifts() const                             { return m_lensRedshifts; }
 	const std::vector<std::vector<std::shared_ptr<LensInversionBasisLensInfo>>> &getBasisLenses() const { return m_basisLenses; }
+	const std::vector<std::shared_ptr<GravitationalLens>> &getBaseLensesPerPlane() const { return m_baseLensesPerPlane; }
 	const std::vector<std::shared_ptr<ImagesDataExtended>> &getSourceImages() const { return m_images; }
 	double getMassEstimate() const                                                  { return m_massEstimate; }
 	bool useMassSheetBasisFunctions() const                                         { return m_useSheets; }
@@ -44,6 +46,7 @@ private:
 	Cosmology m_cosmology;
 	std::vector<double> m_lensRedshifts;
 	std::vector<std::vector<std::shared_ptr<LensInversionBasisLensInfo>>> m_basisLenses;
+	std::vector<std::shared_ptr<GravitationalLens>> m_baseLensesPerPlane;
 	// should have a "z" property, Ds will be set later based on that, Dds will be set to 0
 	std::vector<std::shared_ptr<ImagesDataExtended>> m_images;
 	double m_massEstimate;

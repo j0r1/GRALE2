@@ -588,7 +588,7 @@ cdef class LensInversionParametersMultiPlaneGPU(object):
     cdef unique_ptr[lensinversionparametersmultiplanegpu.LensInversionParametersMultiPlaneGPU] m_pParams
 
     def __init__(self, cosmology = cosmology.Cosmology(0.7, 0.3, 0, 0.7),
-                 basisLensesAndRedshifts = [], imagesAndRedshifts = [],
+                 basisLensesAndRedshifts = [], imagesAndRedshifts = [], baseLensForPlane = [],
                  massEstimate = 0, sheetSearch = "nosheet", fitnessObjectParameters = None,
                  allowNegativeWeights = False, massScaleSearchType = "regular",
                  deviceIndex = "rotate"):
@@ -605,6 +605,8 @@ cdef class LensInversionParametersMultiPlaneGPU(object):
          - `imagesAndRedshifts`: a list of dictionaries, each having an entry `z` describing the
            redshift of the images, `images` with an :class:`ImagesData <grale.images.ImagesData>`
            instance, and `params` listing additional parameters (such as a `type`).
+         - `baseLensForPlane`: if present, this list should contain one base lens (possibly ``None``)
+           for each lens plane.
          - `massEstimate`: a mass scale for the optimization to use. The weights of the
            basis functions will be adjusted to lie in a certain range around this
            scale (the width of the range depends on `massScaleSearchType`)
@@ -639,6 +641,7 @@ cdef class LensInversionParametersMultiPlaneGPU(object):
         cdef vector[double] lensRedshifts
         cdef vector[vector[shared_ptr[lensinversionbasislensinfo.LensInversionBasisLensInfo]]] basisLenses
         cdef vector[shared_ptr[lensinversionbasislensinfo.LensInversionBasisLensInfo]] *curPlaneBasisLenses
+        cdef vector[shared_ptr[gravitationallens.GravitationalLens]] baseLensesPerPlane
         cdef shared_ptr[serut.MemorySerializer] mSer
         cdef array[char] buf
         cdef string errorString
@@ -690,6 +693,24 @@ cdef class LensInversionParametersMultiPlaneGPU(object):
                             basisLensModel,
                             vector2d.Vector2Dd(cx, cy), relevantLensingMass)))
 
+        if baseLensForPlane:
+            if len(baseLensForPlane) != lensRedshifts.size():
+                raise InversionParametersException("The number of base lenses should equal the number of lens planes")
+
+            baseLensesPerPlane.resize(lensRedshifts.size()) # Initializes each lens to nullptr
+            for i in range(len(baseLensForPlane)):
+                l = baseLensForPlane[i]
+
+                if l: # Can be None
+                    lensBytes = l.toBytes()
+                    buf = chararrayfrombytes(lensBytes)
+                    mSer.reset(new serut.MemorySerializer(buf.data.as_voidptr, len(lensBytes), NULL, 0))
+
+                    if not gravitationallens.GravitationalLens.read(deref(mSer.get()), pBasisLensModel, errorString):
+                        raise InversionParametersException(S(errorString))
+
+                    baseLensesPerPlane[i].reset(pBasisLensModel.release())
+
         for entry in imagesAndRedshifts:
             img = images.ImagesDataExtended(entry["images"])
             img.setDs(0)  # This distances will be set by the inversion
@@ -737,6 +758,7 @@ cdef class LensInversionParametersMultiPlaneGPU(object):
                 cosm,
                 lensRedshifts,
                 basisLenses,
+                baseLensesPerPlane,
                 sourceImages,
                 massEstimate,
                 useSheet,

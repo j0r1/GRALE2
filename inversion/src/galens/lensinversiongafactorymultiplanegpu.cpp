@@ -39,6 +39,12 @@ bool_t LensInversionGAFactoryMultiPlaneGPU::init(const LensInversionParametersBa
 	if (!(r = analyzeLensBasisFunctions(pParams->getLensRedshifts(), pParams->getBasisLenses())))
 		return r;
 
+	if (pParams->getBaseLensesPerPlane().size() > 0)
+	{
+		if (pParams->getBaseLensesPerPlane().size() != pParams->getLensRedshifts().size())
+			return "Expecting either no base lenses for each plane, or the same amount as number of lens planes";
+	}
+
 	m_images.clear();
 	if (!(r = analyzeSourceImages(pParams->getSourceImages(), pParams->getCosmology(), m_images)))
 		return r;
@@ -84,7 +90,8 @@ bool_t LensInversionGAFactoryMultiPlaneGPU::init(const LensInversionParametersBa
 											 pParams->getCosmology(),
 											 pParams->getBasisLenses(),
 											 m_unscaledBasisLenses,
-											 (uint64_t)this // Use this pointer as an identifier
+											 (uint64_t)this, // Use this pointer as an identifier
+											 pParams->getBaseLensesPerPlane()
 											 )))
 		return r;
 

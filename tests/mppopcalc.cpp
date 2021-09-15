@@ -75,6 +75,9 @@ int main(void)
 			positionedPlummer(zds[1], 3e13*MASS_SOLAR, 3.5*ANGLE_ARCSEC, { -1*ANGLE_ARCSEC, -1*ANGLE_ARCSEC })
 		}
 	};
+
+	vector<shared_ptr<GravitationalLens>> baseLensesPerPlane;
+	
 	vector<shared_ptr<ImagesDataExtended>> images(rng.getRandomUint32()%15 + 5); // 20 sources
 	for (auto &i : images)
 		i = createRandomImages();
@@ -84,7 +87,7 @@ int main(void)
 	auto fitObj = make_unique<LensFitnessGeneral>();
 	auto confParams = fitObj->getDefaultParametersInstance();
 	ScaleSearchParameters searchParams(false);
-	LensInversionParametersMultiPlaneGPU invParams(cosm, zds, basisLenses, images, 
+	LensInversionParametersMultiPlaneGPU invParams(cosm, zds, basisLenses, baseLensesPerPlane, images, 
 	                                               1e14*MASS_SOLAR, false, confParams.get(),
 												   false, searchParams, 0);
 
