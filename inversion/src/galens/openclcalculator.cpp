@@ -797,14 +797,15 @@ bool_t OpenCLCalculator::getAlphaCodeForPlane(const string &functionName,
     };
 
     auto processParameters = [&totalIntParamCount, &totalFloatParamCount, &weightCount,
-                                &intParams, &floatParams, this](const GravitationalLens &l, int &iCnt, int &fCnt) -> bool_t
+                                &intParams, &floatParams, this](const GravitationalLens &l, bool isBaseLens, int &iCnt, int &fCnt) -> bool_t
     {
         if (!l.getCLParameterCounts(&iCnt, &fCnt))
             return "Can't get OpenCL parameters count for lens: " + l.getErrorString();
         assert(iCnt >= 0 && fCnt >= 0);
         totalIntParamCount += iCnt;
         totalFloatParamCount += fCnt;
-        weightCount++;
+        if (!isBaseLens)
+            weightCount++;
 
         size_t io = intParams.size(), fo = floatParams.size();
         intParams.resize(io + (size_t)iCnt);
@@ -823,7 +824,7 @@ bool_t OpenCLCalculator::getAlphaCodeForPlane(const string &functionName,
         addCenter(bl->m_center);
 
         int iCnt = -1, fCnt = -1;
-        if (!(r = processParameters(*(bl->m_pLens), iCnt, fCnt)))
+        if (!(r = processParameters(*(bl->m_pLens), false, iCnt, fCnt)))
             return r;
         
         int t = bl->m_pLens->getLensType();
@@ -854,7 +855,7 @@ bool_t OpenCLCalculator::getAlphaCodeForPlane(const string &functionName,
 
             int iCnt = -1, fCnt = -1;
             bool_t r;
-            if (!(r = processParameters(*pLens, iCnt, fCnt)))
+            if (!(r = processParameters(*pLens, isBaseLens, iCnt, fCnt)))
                 return r;
             codeStream << addCodeForLens(fnName, 1, iCnt, fCnt, false, isBaseLens);
         }
