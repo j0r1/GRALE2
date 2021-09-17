@@ -738,10 +738,17 @@ bool_t OpenCLCalculator::getAlphaCodeForPlane(const string &functionName,
             ss << "    for (int i = 0 ; i < " << num << " ; i++)\n";
 
         ss << "    {\n";
-        ss << "        const float2 center = (float2)(pCenters[0], pCenters[1]);\n";
+        if (isBaseLens)
+            ss << "        const float2 center = (float2)(0.0f, 0.0f);\n";
+        else
+        {
+            ss << "        const float2 center = (float2)(pCenters[0], pCenters[1]);\n";
+            ss << "        pCenters += 2;\n";
+            //ss << "        printf(\"Center is %g %g\\n\", center.x, center.y);\n";
+        }
         ss << "        LensQuantities l = " << fname << "(theta-center, pIntParams, pFloatParams);\n";
         ss << "\n";
-        ss << "        pCenters += 2;\n";
+        
         if (!isBaseLens)
         {
             ss << "        const float w = *pWeights;\n";
@@ -851,7 +858,8 @@ bool_t OpenCLCalculator::getAlphaCodeForPlane(const string &functionName,
         if (pLens)
         {
             string fnName = saveCode(*pLens);
-            addCenter({0,0});
+            if (!isBaseLens) // Don't add a center for base lens, this way the number of centers equals the number of weights
+                addCenter({0,0});
 
             int iCnt = -1, fCnt = -1;
             bool_t r;
@@ -955,25 +963,25 @@ bool_t OpenCLCalculator::getMultiPlaneTraceCode(const vector<vector<shared_ptr<L
     allIntParams.push_back(-12345); // Add a sentinel and avoid a length zero array
     allFloatParams.push_back(-12345);
 
-    // cout << "Total number of weights: " << m_numWeights << endl;
-    // cout << "Plane weight offsets:" << endl;
+    // cerr << "Total number of weights: " << m_numWeights << endl;
+    // cerr << "Plane weight offsets:" << endl;
     // for (auto o : planeWeightOffsets)
-    //     cout << "    " << o << endl;
-    // cout << "Plane int offsets:" << endl;
+    //     cerr << "    " << o << endl;
+    // cerr << "Plane int offsets:" << endl;
     // for (auto o : planeIntParamOffsets)
-    //     cout << "    " << o << endl;
-    // cout << "Plane float offsets:" << endl;
+    //     cerr << "    " << o << endl;
+    // cerr << "Plane float offsets:" << endl;
     // for (auto o : planeFloatParamOffsets)
-    //     cout << "    " << o << endl;
-    // cout << "Basis function centers: " << endl;
+    //     cerr << "    " << o << endl;
+    // cerr << "Basis function centers: " << endl;
     // for (size_t i = 0 ; i < basisFunctionCenters.size() ; i += 2)
-    //     cout << "    " << basisFunctionCenters[i] << "," << basisFunctionCenters[i+1] << endl;
-    // cout << "All integer parameters:" << endl;
+    //     cerr << "    " << basisFunctionCenters[i] << "," << basisFunctionCenters[i+1] << endl;
+    // cerr << "All integer parameters:" << endl;
     // for (auto p : allIntParams)
-    //     cout << "    " << p << endl;
-    // cout << "All float parameters:" << endl;
+    //     cerr << "    " << p << endl;
+    // cerr << "All float parameters:" << endl;
     // for (auto p : allFloatParams)
-    //     cout << "    " << p << endl;
+    //     cerr << "    " << p << endl;
 
     auto uploadOffsets = [this](const vector<cl_int> &offsets, const string &msg, cl_mem &dest) -> bool_t
     {
@@ -1117,7 +1125,7 @@ __kernel void calculateBetas(const int numPoints, const int numScaleFactors, con
 }
 )XYZ";
 
-    //cout << kernel << endl;
+    // cerr << kernel << endl;
 
     string faillog;
     if (!loadKernel(kernel, "calculateBetas", faillog))
