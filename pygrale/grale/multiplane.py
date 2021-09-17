@@ -175,10 +175,21 @@ class MultiLensPlane(object):
         if not lensesAndRedshifts:
             raise MultiLensPlaneException("No lenses and redshifts were specified")
 
+        stepX = abs(topRight[0]-bottomLeft[0])/(numX-1)
+        stepY = abs(topRight[1]-bottomLeft[1])/(numY-1)
+        minStep = min(stepX, stepY)
+        numericDerivScale = minStep/100
+
         # If it's a multi-plane container, transform to a list that can be used below
         if type(lensesAndRedshifts) == lenses.MultiPlaneContainer:
             params = lensesAndRedshifts.getLensParameters()
             lensesAndRedshifts = [ ( x["lens"], x["z"] ) for x in params ]
+        else: # create copy to be able to set derivative scale without affecting original lens
+            lensesAndRedshifts = [ ( copy.copy(lz[0]), lz[1] ) for lz in lensesAndRedshifts ]
+
+        for lz in lensesAndRedshifts:
+            l = lz[0]
+            l.setDerivativeAngularDistanceScale(numericDerivScale)
 
         cosmology = privutil.initCosmology(cosmology)
         if not cosmology:
