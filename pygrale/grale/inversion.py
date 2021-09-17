@@ -1217,7 +1217,7 @@ class InversionWorkSpace(object):
 
         if type(lens) == lenses.MultiPlaneContainer:
             # We don't actually need the grid params
-            lensPlane = multiplane.MultiLensPlane(lens, [-0.001,-0.001], [0.001, 0.001], 4, 4, 
+            lensPlane = multiplane.MultiLensPlane(lens, [-0.0000001,-0.0000001], [0.0000001, 0.0000001], 4, 4, 
                                                   self.renderer, self.feedbackObject, self.cosm)
 
             def traceFunction(imgInfo, thetas):
