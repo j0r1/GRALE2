@@ -2097,6 +2097,29 @@ Arguments:
     data = lensInfo.getDensityPixels(renderer, feedbackObject)
     f[0].data = np.fliplr(data)
     return f
+def _isAverageLens(lens):
+    if type(lens) != lenses.CompositeLens:
+        return False
+    
+    params = lens.getLensParameters()
+    if len(params) < 2:
+        return False
+
+    # is a composite lens, check if each lens is centered on (0, 0), has angle 0
+    # and weights sum up to one
+    weightSum = 0
+    
+    for sub in params:
+        if sub["angle"] != 0:
+            return False
+        if sub["x"] != 0 or sub["y"] != 0:
+            return False
+        weightSum += sub["factor"]
+        
+    diff = abs(weightSum - 1)
+    if diff > 1e-5:
+        return False
+    return True
 
 def plotDensitiesAtImagePositions(lens, imgList, angularUnit = "default", densityUnit = 1.0,
                                   horCoordFunction = lambda xy: xy[0], axes = None, densFunction = None, **kwargs):
@@ -2131,33 +2154,15 @@ Arguments:
    or `errorbar <https://matplotlib.org/api/_as_gen/matplotlib.pyplot.errorbar.html#matplotlib.pyplot.errorbar>`_
    functions in matplotlib.
 """
-    def wrapLens(lens):
-        l = lenses.CompositeLens(lens.getLensDistance(), [ 
-            { "factor": 1, "angle": 0, "x": 0, "y": 0, "lens": lens } ])
-        return plotDensitiesAtImagePositions(l, imgList, angularUnit, densityUnit, horCoordFunction, axes, densFunction,
-                                             **kwargs)
-
 	# Find out if the lens is an average
-    if type(lens) != lenses.CompositeLens:
-        #print("Not a composite lens, not an average of several individual solutions")
-        return wrapLens(lens)
+    if not _isAverageLens(lens):
+        lens = lenses.CompositeLens(lens.getLensDistance(), [ 
+            { "factor": 1, "angle": 0, "x": 0, "y": 0, "lens": lens } ])
 
     params = lens.getLensParameters()
     numSubLenses = len(params)
     if numSubLenses == 0:
         raise PlotException("No sublenses found")
-
-    expectedFactorIfAverage = 1.0/numSubLenses
-    hasExpectedFactor = True
-    for p in params:
-        f = p["factor"]
-        if abs(f-expectedFactorIfAverage) > 1e-6:
-            hasExpectedFactor = False
-            break
-
-    if not hasExpectedFactor:
-        #print("Is a composite lens, but does not seem to be an average of several individual solutions")
-        return wrapLens(lens)
 
     # Ok, here it's an average of individual ones (perhaps a dummy average of one lens)
     subLenses = [ p["lens"] for p in params ]
