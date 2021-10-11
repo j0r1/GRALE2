@@ -181,7 +181,7 @@ class Inverter(object):
             sols = []
             for _ in range(numSols):
                 numBytes = _readInteger(io, "RESULT")
-                lensData = io.readBytes(numBytes) # Read the resulting lens
+                lensData = io.readBytesUntimed(numBytes) # Read the resulting lens
                 fitnessValues = _readString(io, "FITNESS", lambda l: [ float(x) for x in l.strip().split(" ") ])
 
                 sols.append((lenses.GravitationalLens.fromBytes(lensData), fitnessValues))

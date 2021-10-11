@@ -153,10 +153,7 @@ class Renderer(object):
                     raise RendererException("Unexpected line '{}'".format(line))
                 
             # Read the actual rendered data
-            renderData = b""
-            while len(renderData) < numBytes:
-                renderData += os.read(outFd, numBytes-len(renderData))
-
+            renderData = io.readBytesUntimed(numBytes)
             #print("len(renderData) =", len(renderData))
             
             io.writeLine("EXIT")

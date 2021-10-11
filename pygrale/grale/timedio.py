@@ -43,6 +43,12 @@ class IO(object):
     def writeLine(self, l):
         self.writeBytes(B(l) + b"\n")
 
+    def readBytesUntimed(self, numBytes):
+        data = b""
+        while len(data) < numBytes:
+            data += os.read(self.readFileDesc, numBytes-len(data))
+        return data
+
     def readBytes(self, num, timeout=-1):
         
         if self.inputClosed:
