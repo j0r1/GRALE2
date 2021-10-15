@@ -148,5 +148,72 @@ bool NSIELens::getProjectedPotential(double D_s, double D_ds, Vector2D<double> t
 	return true;
 }
 
+bool NSIELens::getSuggestedScales(double *pDeflectionScale, double *pPotentialScale) const
+{
+	double factor = 4.0*CONST_PI*V*V*SQRT(F)/(SPEED_C*SPEED_C*SQRT(1.0-F*F));
+	*pDeflectionScale = factor;
+	*pPotentialScale = factor*factor; // TODO: is this ok?
+	return true;
+}
+
+bool NSIELens::getCLParameterCounts(int *pNumIntParams, int *pNumFloatParams) const
+{
+	*pNumIntParams = 0;
+	*pNumFloatParams = 3;
+	return true;
+}
+
+bool NSIELens::getCLParameters(double deflectionScale, double potentialScale, int *pIntParams, float *pFloatParams) const
+{
+	double factor = 4.0*CONST_PI*V*V*SQRT(F)/(SPEED_C*SPEED_C*SQRT(1.0-F*F));
+	pFloatParams[0] = (float)F;
+	pFloatParams[1] = (float)(corerad/deflectionScale);
+	pFloatParams[2] = (float)(factor/deflectionScale);
+
+	return true;
+}
+
+std::string NSIELens::getCLProgram(std::string &subRoutineName, bool derivatives, bool potential) const
+{
+	subRoutineName = "clNSIELensProgram";
+	std::string program = R"XYZ(
+
+LensQuantities clNSIELensProgram(float2 coord, __global const int *pIntParams, __global const float *pFloatParams)
+{
+	float F = pFloatParams[0];
+	float w = pFloatParams[1]; // core width
+	float factor = pFloatParams[2]; // factor that contains velocity dispersion
+	float Q = sqrt(1.0f-F*F);
+
+	float denomPart = sqrt(F*F*coord.y*coord.y + w*w + coord.x*coord.x);
+	float X = (coord.x*Q)/(denomPart + F*w);
+	float Y = (F*coord.y*Q)/(F*denomPart + w);
+
+	LensQuantities r;
+	r.alphaX = factor*atanh(X);
+	r.alphaY = factor*atan(Y);
+
+)XYZ";
+
+	if (potential)
+		program += R"XYZ(
+	r.potential = nan((uint)0); // TODO?
+)XYZ";
+
+	if (derivatives)
+		program += R"XYZ(
+	r.axx = nan((uint)0); // TODO?
+	r.ayy = nan((uint)0); // TODO?
+	r.axy = nan((uint)0); // TODO?
+)XYZ";
+
+	program += R"XYZ(
+	return r;
+}
+	)XYZ";
+
+	return program;
+}
+
 } // end namespace
 

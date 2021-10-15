@@ -5,6 +5,8 @@ import pprint
 import numpy as np
 import sys
 
+# renderers.debugDirectStderr = True
+
 class MyFeedback(feedback.Feedback):
     def onStatus(self, s):
         #print("STATUS", s)
@@ -76,6 +78,14 @@ def check(name, lensModel, bottomLeft, topRight, numX, numY):
     print("")
 
 checkParameters = [
+        {
+            "name": "NSIELens",
+            "lensModel": lenses.NSIELens(1000*DIST_MPC, { 'velocityDispersion': 400000, 'coreRadius': 1*ANGLE_ARCSEC, 'ellipticity': 0.8 }),
+            "bottomLeft": (-9*ANGLE_ARCSEC, -10*ANGLE_ARCSEC ),
+            "topRight": (12*ANGLE_ARCSEC, 8*ANGLE_ARCSEC ),
+            "numX": 131,
+            "numY": 173,
+        },
         {
             "name": "MultiplePlummerLens",
             "lensModel": lenses.MultiplePlummerLens(1000*DIST_MPC, [
