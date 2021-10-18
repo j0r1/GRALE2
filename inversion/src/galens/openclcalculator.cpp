@@ -598,8 +598,64 @@ OpenCLCalculator::~OpenCLCalculator()
     cerr << "INFO: OpenCLCalculator destructor end" << endl;
 }
 
-bool_t OpenCLCalculator::initAll(int devIdx, const vector<ImagesDataExtended *> &allImages,
-                        const vector<ImagesDataExtended *> &shortImages,
+bool_t OpenCLCalculator::checkAddFakeSource(vector<ImagesDataExtended *> &allImages,
+                                            vector<ImagesDataExtended *> &shortImages)
+{
+    auto countImages = [](const auto &images)
+    {
+        size_t count = 0;
+        for (auto &pImg : images)
+        {
+            for (size_t i = 0 ; i < pImg->getNumberOfImages() ; i++)
+                count += (size_t)pImg->getNumberOfImagePoints(i);
+        }
+        return count;
+    };
+
+    auto padImages = [this,&countImages](auto &images, size_t numMult)
+    {
+        size_t num = countImages(images);
+        size_t mod = num % numMult;
+
+        if (mod == 0)
+            return;
+
+        size_t imagesToAdd = numMult - mod;
+
+        unique_ptr<ImagesDataExtended> fakeImg = make_unique<ImagesDataExtended>();
+        fakeImg->create(imagesToAdd, {});
+        fakeImg->setExtraParameter("z", 0.1); // what to use here?
+        
+        for (size_t i = 0 ; i < imagesToAdd ; i++)
+            fakeImg->addPoint(i, { 0, 0}); // TODO: use some other coordinate?
+        
+        cerr << "INFO: added fake source with " << imagesToAdd << " images for alignment" << endl;
+        images.push_back(fakeImg.get());
+        m_fakeImages.push_back(move(fakeImg));
+    };
+
+    int numMult = 2;
+    string key = "GRALE_OPENCL_IMAGEPADDING";
+    if (!::getenv(key.c_str()))
+        cerr << "INFO: using default image padding to multiple of " << numMult << endl;
+    else
+    {
+        bool_t r = getenv(key, numMult, 1, 32);
+        if (!r)
+            return "Specified image padding in " + key + " is incorrect: " + r.getErrorString();
+
+        cerr << "INFO: using specified image padding to multiple of " << numMult << endl;
+    }
+
+    padImages(allImages, numMult);
+    if (!m_shortImagesAreAllImages)
+        padImages(shortImages, numMult);
+
+    return true;
+}
+
+bool_t OpenCLCalculator::initAll(int devIdx, const vector<ImagesDataExtended *> &allImagesOrig,
+                        const vector<ImagesDataExtended *> &shortImagesOrig,
                         const vector<float> &zds,
                         const Cosmology &cosm,
                         const vector<vector<shared_ptr<LensInversionBasisLensInfo>>> &planeBasisLenses,
@@ -618,6 +674,14 @@ bool_t OpenCLCalculator::initAll(int devIdx, const vector<ImagesDataExtended *> 
 
     m_angularScale = ANGLE_ARCSEC; // TODO: calculate something better?
     m_potentialScale = ANGLE_ARCSEC*ANGLE_ARCSEC; // TODO
+
+    m_shortImagesAreAllImages = (shortImagesOrig.size() == 0)?true:false;
+
+    vector<ImagesDataExtended *> allImages = allImagesOrig;
+    vector<ImagesDataExtended *> shortImages = shortImagesOrig;
+
+    if (!(r = checkAddFakeSource(allImages, shortImages)))
+        return "Error adding fake source for efficiency: " + r.getErrorString();
 
     if (!(r = setupImages(allImages, shortImages)))
         return "Can't setup images for GPU backprojection: " + r.getErrorString();
@@ -1318,15 +1382,13 @@ bool_t OpenCLCalculator::setupImages(const vector<ImagesDataExtended *> &allImag
     if (!(r = allocateAndUploadImages(allImages, m_full.m_pDevImages, m_full.m_numPoints)))
         return r;
 
-    if (shortImages.size() == 0) // indicates that all images should be used
+    if (m_shortImagesAreAllImages) // indicates that all images should be used
     {
-        m_shortImagesAreAllImages = true;
         m_short.m_pDevImages = m_full.m_pDevImages;
         m_short.m_numPoints = m_full.m_numPoints;
     }
     else
     {
-        m_shortImagesAreAllImages = false;
         if (!(r = allocateAndUploadImages(shortImages, m_short.m_pDevImages, m_short.m_numPoints)))
             return r;
     }

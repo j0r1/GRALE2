@@ -89,6 +89,8 @@ private:
 	                   const std::vector<ImagesDataExtended *> &shortImages);
 
     errut::bool_t checkCalculateScheduledContext();
+    errut::bool_t checkAddFakeSource(std::vector<ImagesDataExtended *> &allImages, std::vector<ImagesDataExtended *> &shortImages);
+
 
     // static void staticEventNotify(cl_event event, cl_int event_command_status, void *user_data);
     // void eventNotify(cl_event event, cl_int event_command_status);
@@ -214,6 +216,8 @@ private:
 
     int m_devIdx;
     bool m_errorState;
+
+    std::vector<std::unique_ptr<ImagesDataExtended>> m_fakeImages;
 
     std::unique_ptr<CalculationContext> m_beingScheduled;
     std::unique_ptr<CalculationContext> m_beingCalculated;
