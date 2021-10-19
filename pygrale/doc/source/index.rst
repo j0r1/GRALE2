@@ -38,7 +38,8 @@ OS X and Windows.
 
 The second one, `BuildAll.sh <https://github.com/j0r1/GRALE2/tree/master/scripts>`_,
 is Linux specific (may work on OS X but is untested) and is mainly intended to 
-get *pygrale* working on a supercomputer.
+get *pygrale* working on a supercomputer, but you can also use this script to setup a
+`Google Colab <https://colab.research.google.com/>`_.
 
 I'm very curious to see how well these scripts work, so feel free to
 `contact me <mailto:jori.liesenborgs@gmail.com?subject=GRALE_Compilation_experience>`_ 
@@ -46,6 +47,21 @@ about your experiences with them (both failed and successful)!
 
 For instructions on how to compile everything yourself, take a look at the
 `GitHub <https://github.com/j0r1/GRALE2>`_ page.
+
+Setting up a Colab
+^^^^^^^^^^^^^^^^^^
+
+Copy-paste and run this in a cell::
+
+    !apt install libgsl-dev
+    !apt install libopenmpi-dev
+    !rm -f BuildAll.sh
+    !wget https://raw.githubusercontent.com/j0r1/GRALE2/master/scripts/BuildAll.sh
+    !NOQT=1 NOVENV=1 bash -e ./BuildAll.sh /usr/local/
+    !/sbin/ldconfig
+
+This takes a few minutes, but if everything was successful you can try out pygrale
+in the Colab.
 
 Setting up a conda environment with BuildInCondaEnvironment.py
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
