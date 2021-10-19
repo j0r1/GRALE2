@@ -1,3 +1,4 @@
+include_directories(${MPI_INCLUDE_PATH})
 include_directories("..")
 
 add_executable(grale_lensplane_mpi grale_lensplane_mpi.cpp ../inputoutput.cpp ../communicator.cpp)
