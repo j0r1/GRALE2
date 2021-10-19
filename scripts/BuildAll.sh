@@ -32,6 +32,9 @@ Environment variables that are used:
    where the library's path is removed from the link command because it
    is also set in \$LIBRARY_PATH)
 
+ - NOVENV: if set, no virtual environment will be used, everything will
+   be installed globally in python
+
 It may also be useful to set CC and CXX (C and C++) compiler environment
 variables: cmake might detect the wrong one if more are available. I.e.
 on one cluster I need to set
@@ -99,16 +102,19 @@ else
 	exit -1
 fi
 
-if ! [ -e "$PREFIX/bin/activate" ] ; then
-	if ! virtualenv --version ; then
-		echo "Virtualenv not found, installing"
-		$PIP install --cache-dir "$D/pipcache" virtualenv --prefix="$PREFIX" -I
-		export PYTHONPATH=`echo $PREFIX/lib/*/site-packages/`
-		echo $PYTHONPATH
+if [ -z "$NOVENV" ] ; then
+
+	if ! [ -e "$PREFIX/bin/activate" ] ; then
+		if ! virtualenv --version ; then
+			echo "Virtualenv not found, installing"
+			$PIP install --cache-dir "$D/pipcache" virtualenv --prefix="$PREFIX" -I
+			export PYTHONPATH=`echo $PREFIX/lib/*/site-packages/`
+			echo $PYTHONPATH
+		fi
+		virtualenv --always-copy "$PREFIX"
 	fi
-	virtualenv --always-copy "$PREFIX"
+	source "$PREFIX/bin/activate"
 fi
-source "$PREFIX/bin/activate"
 
 $PIP install --cache-dir "$D/pipcache" numpy scipy astropy shapely cython matplotlib
 
@@ -288,7 +294,6 @@ echo "Building 'triangle'"
 gcc -O2 -DNO_TIMER -DLINUX -o../../bin/triangle triangle.c -lm
 
 cat > "$PREFIX/bin/activategrale" << EOF
-source "$PREFIX/bin/activate"
 export PATH="$PREFIX/bin:\$PATH"
 if [ -z "\$LD_LIBRARY_PATH" ] ; then
 	export LD_LIBRARY_PATH="$PREFIX/lib"
@@ -296,6 +301,12 @@ else
 	export LD_LIBRARY_PATH="$PREFIX/lib:\$LD_LIBRARY_PATH"
 fi
 EOF
+
+if [ -z "$NOVENV" ] ; then
+	cat >> "$PREFIX/bin/activategrale" << EOF
+source "$PREFIX/bin/activate"
+EOF
+fi
 
 cat << EOF
 
