@@ -61,7 +61,7 @@ Copy-paste and run this in a cell::
     !/sbin/ldconfig
 
 This takes a few minutes, but if everything was successful you can try out pygrale
-in the Colab.
+in the Colab. An example can be found in `this colab <https://colab.research.google.com/drive/10ir_pwjK3GxOULrMc_v5b4DnDOhS9O9J?usp=sharing>`_.
 
 Setting up a conda environment with BuildInCondaEnvironment.py
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
