@@ -210,17 +210,10 @@ bool PotentialGridLensParams::read(serut::SerializationInterface &si)
 
 PotentialGridLens::PotentialGridLens() : GravitationalLens(PotentialGrid)
 {
-	m_pInterp = nullptr;
-	m_pXAccel = gsl_interp_accel_alloc();
-	m_pYAccel = gsl_interp_accel_alloc();
 }
 
 PotentialGridLens::~PotentialGridLens()
 {
-	gsl_interp_accel_free(m_pXAccel);
-	gsl_interp_accel_free(m_pYAccel);
-	if (m_pInterp)
-		gsl_interp2d_free(m_pInterp);
 }
 
 bool PotentialGridLens::processParameters(const GravitationalLensParams *pLensParams)
@@ -257,30 +250,14 @@ bool PotentialGridLens::processParameters(const GravitationalLensParams *pLensPa
 		return false;
 	}
 
-	m_pInterp = gsl_interp2d_alloc(gsl_interp2d_bicubic, numX, numY);
-	if (!m_pInterp)
+	m_pBase = make_unique<PotentialGridLensBase>(getLensDistance(), bottomLeft, topRight, numX, numY);
+	m_pBase->values() = values;
+
+	bool_t r = m_pBase->init();
+	if (!r)
 	{
-		setErrorString("Unable to allocate GSL interpolation workspace");
-		return false;
-	}
-
-	for (int x = 0 ; x < numX ; x++)
-		m_x.push_back((topRight.getX()-bottomLeft.getX())/(double)(numX-1) * x + bottomLeft.getX());
-
-	for (int y = 0 ; y < numY ; y++)
-		m_y.push_back((topRight.getY()-bottomLeft.getY())/(double)(numY-1) * y + bottomLeft.getY());
-
-	int idx = 0;
-	for (int y = 0 ; y < numY ; y++)
-		for (int x = 0 ; x < numX ; x++, idx++)
-			m_z.push_back(values[idx]);
-
-	int err = gsl_interp2d_init(m_pInterp, m_x.data(), m_y.data(), m_z.data(), numX, numY);
-	if (err < 0)
-	{
-		setErrorString("Unable to initialize GSL interpolation workspace: error " + to_string(err));
-		gsl_interp2d_free(m_pInterp);
-		m_pInterp = nullptr;
+		m_pBase = nullptr;
+		setErrorString(r.getErrorString());
 		return false;
 	}
 
@@ -289,75 +266,50 @@ bool PotentialGridLens::processParameters(const GravitationalLensParams *pLensPa
 
 bool PotentialGridLens::getAlphaVector(Vector2D<double> theta,Vector2D<double> *pAlpha) const
 {
-	double ax = 0, ay = 0;
-	auto getDeriv = [this, theta](
-			int (*functionName)(const gsl_interp2d * interp, const double xa[], const double ya[], const double za[], const double x, const double y, gsl_interp_accel * xacc, gsl_interp_accel * yacc, double * d),
-			double &result) -> bool
+	bool_t r = m_pBase->getAlphaVector(theta, pAlpha);
+	if (!r)
 	{
-		int err = functionName(m_pInterp, m_x.data(), m_y.data(), m_z.data(),
-				            theta.getX(), theta.getY(), m_pXAccel, m_pYAccel, &result);
-		if (err < 0)
-		{
-			setErrorString("Error getting derivative of potential: GSL error code " + to_string(err));
-			return false;
-		}
-		return true;
-	};
-
-	if (!getDeriv(gsl_interp2d_eval_deriv_x_e, ax) || !getDeriv(gsl_interp2d_eval_deriv_y_e, ay))
+		setErrorString(r.getErrorString());
 		return false;
-
-	*pAlpha = Vector2Dd(ax, ay);
+	}
 	return true;
 }
 
 bool PotentialGridLens::getAlphaVectorDerivatives(Vector2D<double> theta, double &axx, double &ayy, double &axy) const
 {
-	auto getDerivDeriv = [this, theta](
-			int (*functionName)(const gsl_interp2d * interp, const double xa[], const double ya[], const double za[], const double x, const double y, gsl_interp_accel * xacc, gsl_interp_accel * yacc, double * d),
-			double &result) -> bool
+	bool_t r = m_pBase->getAlphaVectorDerivatives(theta, axx, ayy, axy);
+	if (!r)
 	{
-		int err = functionName(m_pInterp, m_x.data(), m_y.data(), m_z.data(), 
-				               theta.getX(), theta.getY(), m_pXAccel, m_pYAccel, &result);
-		if (err < 0)
-		{
-			setErrorString("Error getting second derivative of potential: GSL error code " + to_string(err));
-			return false;
-		}
-		return true;
-	};
-
-	if (!getDerivDeriv(gsl_interp2d_eval_deriv_xx_e, axx) ||
-	    !getDerivDeriv(gsl_interp2d_eval_deriv_yy_e, ayy) ||
-		!getDerivDeriv(gsl_interp2d_eval_deriv_xy_e, axy))
+		setErrorString(r.getErrorString());
 		return false;
-
+	}
 	return true;
 }
 
 // TODO: make this the default in GravitationalLens base class?
 double PotentialGridLens::getSurfaceMassDensity(Vector2D<double> theta) const
 {
-	double axx, ayy, axy;
-
-	getAlphaVectorDerivatives(theta, axx, ayy, axy);
-	double kappa = 0.5*(axx + ayy);
-	double sigmaCrit = SPEED_C*SPEED_C/(4.0*CONST_PI*CONST_G*getLensDistance());
-	return kappa*sigmaCrit;
+	double dens;
+	bool_t r = m_pBase->getSurfaceMassDensity(theta, dens);
+	if (!r)
+	{
+		setErrorString(r.getErrorString());
+		return numeric_limits<double>::quiet_NaN();
+	}
+	return dens;
 }
 
 bool PotentialGridLens::getProjectedPotential(double D_s, double D_ds, Vector2D<double> theta, double *pPotentialValue) const
 {
-	double result;
-	int err = gsl_interp2d_eval_e(m_pInterp, m_x.data(), m_y.data(), m_z.data(),
-	                              theta.getX(), theta.getY(), m_pXAccel, m_pYAccel, &result);
-	if (err < 0)
+	double v;
+	bool_t r = m_pBase->getProjectedPotential(theta, &v);
+	if (!r)
 	{
-		setErrorString("Unable to get projected potential at requested point: GSL error code " + to_string(err));
+		setErrorString(r.getErrorString());
 		return false;
 	}
 
-	*pPotentialValue = (D_ds/D_s)*result;
+	*pPotentialValue = v*(D_ds/D_s);
 	return true;
 }
 

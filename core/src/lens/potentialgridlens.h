@@ -103,10 +103,7 @@ public:
 protected:
 	bool processParameters(const GravitationalLensParams *pLensParams);
 private:
-	gsl_interp2d *m_pInterp;
-	gsl_interp_accel *m_pXAccel, *m_pYAccel;
-
-	std::vector<double> m_x, m_y, m_z;
+	std::unique_ptr<PotentialGridLensBase> m_pBase;
 };
 
 } // end namespace
