@@ -74,14 +74,18 @@ class NotebookFeedback(Feedback):
 
         import ipywidgets
 
-        self.progress = ipywidgets.widget_float.FloatProgress(min=minValue, max=maxValue)
-        self.status = ipywidgets.widget_string.Text()
+        self.output = ipywidgets.Output()
+        with self.output:
+            self.progress = ipywidgets.widget_float.FloatProgress(min=minValue, max=maxValue)
+            self.status = ipywidgets.widget_string.Text()
+
         self.displayedStatus = False
         self.displayedProgress = False
 
     def __del__(self):
         self.progress.close()
         self.status.close()
+        self.output.clear_output()
 
     def onStatus(self, s):
         if not self.displayedStatus:
