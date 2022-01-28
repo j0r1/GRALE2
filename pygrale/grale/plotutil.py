@@ -489,7 +489,7 @@ def plot3DInteractive(X, Y, Z, height=600, xlabel = "X", ylabel = "Y", zlabel = 
     </body>
 </html>"""
     #print(visCode)
-    htmlCode = "<iframe srcdoc='"+visCode+"' width='100%' height='" + str(height) + "px' style='border:0;' scrolling='no'> </iframe>"
+    htmlCode = "<p><iframe srcdoc='"+visCode+"' width='100%' height='" + str(height) + "px' style='border:0;' scrolling='no'> </iframe></p>"
 
     from IPython.core.display import display, HTML
     display(HTML(htmlCode))
