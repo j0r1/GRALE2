@@ -260,8 +260,8 @@ and re-run this script.
             if not os.path.exists(p):
                 print("Cloning {}".format(p))
                 subprocess.check_call([ "git", "clone", "https://github.com/j0r1/" + p ])
-                subprocess.check_call([ "git", "config", "pull.ff", "only" ])
                 os.chdir(p)
+                subprocess.check_call([ "git", "config", "pull.ff", "only" ])
             else:
                 print("Updating {}".format(p))
                 os.chdir(p)
