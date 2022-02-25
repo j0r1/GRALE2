@@ -3,9 +3,11 @@
 #include "compositelens.h"
 #include "utils.h"
 #include <sstream>
-#include <sys/time.h>
-#include <sys/stat.h>
-#include <unistd.h>
+#ifndef WIN32
+	#include <sys/time.h>
+	#include <sys/stat.h>
+	#include <unistd.h>
+#endif // WIN32
 
 using namespace errut;
 using namespace std;
@@ -1230,6 +1232,7 @@ bool_t OpenCLCalculator::initGPU(int devIdx)
 
 		devIdx = idx%numDevices;
 
+#ifndef WIN32
 		auto GetTimeStamp = []() {
 			struct timeval tv;
 			gettimeofday(&tv,NULL);
@@ -1237,6 +1240,7 @@ bool_t OpenCLCalculator::initGPU(int devIdx)
 		};
 
 		cerr << "DEBUG (" << GetTimeStamp() << "): Automatically using new device index " << devIdx << endl;
+#endif // WIN32
 	}
 
     if (!OpenCLKernel::init(devIdx))
