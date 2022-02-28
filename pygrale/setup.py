@@ -306,8 +306,43 @@ if isQtAvailable:
     extraSetupArgs["scripts"] += [ startScript ]
 
 # Run the actual setup command
-setup(name = "grale", version = versionStr, ext_modules = cythonize(extensions, language_level="3"), 
+setupInf = setup(name = "grale", version = versionStr, ext_modules = cythonize(extensions, language_level="3"), 
       py_modules = pyMods, **extraSetupArgs)
+
+def checkCopyToEggDir(setupInf):
+    curDir = os.getcwd()
+
+    installDir = setupInf.command_obj['install'].install_lib
+    os.chdir(installDir)
+    try:
+        eggDirs = glob.glob("grale-*.egg")
+        if not eggDirs:
+            print("Install directory does not seem to be an egg directory, no need to relocate cppqt library")
+            return
+
+        eggDir = sorted(eggDirs)[-1] # Hopefully this is the most recent one
+        testFile = os.path.join(eggDir, "grale", "editor", "__main__.py")
+        if not os.path.exists(testFile):
+            print(f"Main editor file not found in egg directory {eggDir}, skipping additional installation step")
+            return
+
+        # Look for cppqt library
+        libFile = glob.glob(os.path.join("grale", "editor", "cppqt", "cppqt.*"))
+        if len(libFile) != 1:
+            print("Not exactly one cppqt library file was found, don't know what to copy")
+            print(libFile)
+            return
+
+        libFile = libFile[0]
+        libName = os.path.basename(libFile)
+        cppQtDir = os.path.join(eggDir, "grale", "editor", "cppqt")
+        print(f"Copying cppqt lib file {libFile} to egg directory {cppQtDir}")
+
+        import shutil
+        os.makedirs(cppQtDir, exist_ok=True)
+        shutil.copy(libFile, os.path.join(cppQtDir, libName))
+    finally:
+        os.chdir(curDir)
 
 # Build and install SIP bindings for PyQt5 based Grale editor
 if isQtAvailable:
@@ -333,6 +368,7 @@ if isQtAvailable:
         try:
             os.chdir(os.path.join("grale","editor","cppqt"))
             subprocess.check_call( [ makeCmd, "install" ])
+            checkCopyToEggDir(setupInf)
         finally:
             os.chdir(cwd)
 
