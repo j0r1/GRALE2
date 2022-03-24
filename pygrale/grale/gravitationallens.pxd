@@ -456,6 +456,19 @@ cdef extern from "grale/harmoniclens.h" namespace "grale":
 ctypedef const HarmonicLensParams* HarmonicLensParamsPtrConst
 
 cdef extern from "grale/potentialgridlens.h" namespace "grale":
+    cdef cppclass PotentialGridLensBase:
+        PotentialGridLensBase(double Dd, Vector2Dd bottomLeft, Vector2Dd topRight, int numX, int numY)
+        
+        vector[double] &values()
+        
+        errut.bool_t init()
+        
+        errut.bool_t getAlphaVector(Vector2Dd theta,Vector2Dd *pAlpha) const
+        errut.bool_t getAlphaVectorDerivatives(Vector2Dd theta, double &axx, double &ayy, double &axy) const
+        errut.bool_t getSurfaceMassDensity(Vector2Dd theta, double &dens) const
+        errut.bool_t getProjectedPotential(Vector2Dd theta, double *pPotentialValue) const
+        
+cdef extern from "grale/potentialgridlens.h" namespace "grale":
 
     cdef cppclass PotentialGridLensParams(GravitationalLensParams):
         PotentialGridLensParams(Vector2Dd bottomLeft, Vector2Dd topRight, const vector[double] &values, int numX, int numY)

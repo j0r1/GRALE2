@@ -60,6 +60,7 @@ import multiprocessing
 cimport grale.gravitationallens as gravitationallens
 cimport grale.vector2d as vector2d
 cimport grale.serut as serut
+cimport grale.errut as errut
 cimport grale.cppthreadslenscalc as threadcalc
 
 include "stringwrappers.pyx"
@@ -2730,6 +2731,204 @@ cdef class HarmonicLens(GravitationalLens):
             "phi_x": pParams.getPhiX(),
             "phi_y": pParams.getPhiY()
         }
+
+cdef class PotentialGridLensBase:
+    cdef unique_ptr[gravitationallens.PotentialGridLensBase] m_pLens
+    cdef int m_numX, m_numY
+    cdef int m_init
+
+    def __init__(self, double Dd, bottomLeft, topRight, int numX, int numY, values = None):
+
+        if numX < 2 or numY < 2:
+            raise LensException("Invalid dimensions specified")
+        
+        self.m_pLens = unique_ptr[gravitationallens.PotentialGridLensBase](new gravitationallens.PotentialGridLensBase(Dd, Vector2Dd(bottomLeft[0], bottomLeft[1]), Vector2Dd(topRight[0], topRight[1]), numX, numY))
+        self.m_numX = numX
+        self.m_numY = numY
+        self.m_init = 0
+
+        if values is not None:
+            self.setValues(values)
+
+    cdef gravitationallens.PotentialGridLensBase * _lens(self):
+        return self.m_pLens.get()
+
+    cdef _check(self):
+        if not self.m_init:
+            raise LensException("No initial potential values were set")
+
+    def getValues(self):
+        cdef np.ndarray[double,ndim=1] values
+        cdef int num = self._lens().values().size()
+
+        self._check()
+                
+        if num != self.m_numX*self.m_numY:
+            raise LensException("Unexpected: incompatible dimensions")
+
+        values = np.empty([num], dtype = np.double)
+
+        for i in range(num):
+            values[i] = self._lens().values()[i]
+        
+        return values.reshape(self.m_numY, self.m_numX)
+
+    def setValues(self, np.ndarray[double, ndim=2] v):
+        cdef np.ndarray[double,ndim=1] linArray
+        cdef int num = self.m_numX * self.m_numY
+        cdef errut.bool_t r
+
+        if v is None:
+            raise LensException("No values specified")
+
+        if not self.m_init:
+            self._lens().values().resize(num, 0)
+            self.m_init = 1
+
+        if num != self._lens().values().size():
+            raise LensException("Unexpected: incompatible dimensions")
+
+        if v.shape[0] != self.m_numY or v.shape[1] != self.m_numX:
+            raise LensException("Specified values array has wrong shape")
+
+        linArray = v.reshape((num,))
+        for i in range(num):
+            self._lens().values()[i] = linArray[i]
+
+        r = self._lens().init()
+        if not r.success():
+            raise LensException(S(r.getErrorString()))
+
+    # TODO: this is some copy/paste work from GravitationalLens, merge this in a general function
+    #       the 'self._check()' could be done as a lambda
+    cdef _reshapeAndCall1D(self, functionName, thetas, int coreNumIn, int coreNumOut):
+        cdef int totalElements, l, i
+
+        self._check()
+
+        l = len(thetas.shape)
+        if l == 1:
+            return functionName(thetas)
+
+        if l > 1 and thetas.shape[l-1] == coreNumIn:
+            totalElements = 1
+            for i in range(l):
+                totalElements *= thetas.shape[i]
+
+            outShape = thetas.shape[:-1] 
+            if coreNumOut > 1:
+                outShape += (coreNumOut,)
+            return np.reshape(functionName(np.reshape(thetas,[totalElements])), outShape)
+
+        raise LensException("Bad array dimensions")
+
+    # TODO: same
+    cdef _getAlphaVector1(self, np.ndarray[double, ndim=1] thetas):
+        
+        cdef Vector2Dd alpha
+        cdef np.ndarray[double,ndim=1] alphas
+        cdef int l,i
+        cdef errut.bool_t r
+
+        if thetas.shape[0] % 2 == 0:
+            l = thetas.shape[0]
+            alphas = np.zeros([l], dtype = np.double)
+            for i in range(0,l,2):
+
+                r = self._lens().getAlphaVector(Vector2Dd(thetas[i], thetas[i+1]), cython.address(alpha))
+                if not r.success():
+                    raise LensException(S(r.getErrorString()))
+                alphas[i] = alpha.getX()
+                alphas[i+1] = alpha.getY()
+        else:
+            raise LensException("Bad 1D array dimensions, must be a multiple of two")
+
+        return alphas
+
+    def getAlphaVector(self, thetas):
+        thetas = np.array(thetas)
+        return self._reshapeAndCall1D(lambda x: self._getAlphaVector1(x), thetas, 2, 2)
+
+    cdef _getAlphaVectorDerivatives1(self, np.ndarray[double, ndim=1] thetas):
+        
+        cdef double axx = 0, ayy = 0, axy = 0
+        cdef np.ndarray[double,ndim=1] derivatives
+        cdef int l,i,j
+        cdef errut.bool_t r
+
+        if thetas.shape[0] % 2 == 0:
+            l = thetas.shape[0]
+            derivatives = np.zeros([(l//2)*3], dtype = np.double)
+            j = 0
+            for i in range(0,l,2):
+                r = self._lens().getAlphaVectorDerivatives(Vector2Dd(thetas[i], thetas[i+1]), axx, ayy, axy)
+                if not r.success():
+                    raise LensException(S(r.getErrorString()))
+                derivatives[j] = axx
+                derivatives[j+1] = ayy
+                derivatives[j+2] = axy
+                j += 3
+        else:
+            raise LensException("Bad 1D array dimensions, must be a multiple of two")
+
+        return derivatives
+
+    def getAlphaVectorDerivatives(self, thetas):
+        thetas = np.array(thetas)
+        return self._reshapeAndCall1D(lambda x: self._getAlphaVectorDerivatives1(x), thetas, 2, 3)
+
+    cdef _getSurfaceMassDensity1(self, np.ndarray[double, ndim=1] thetas):
+        
+        cdef np.ndarray[double,ndim=1] dens
+        cdef int l,i,j
+        cdef errut.bool_t r
+        cdef double value = 0
+
+        if thetas.shape[0] % 2 == 0:
+            l = thetas.shape[0]
+            dens = np.zeros([(l//2)], dtype = np.double)
+            j = 0
+            for i in range(0,l,2):
+                r = self._lens().getSurfaceMassDensity(Vector2Dd(thetas[i], thetas[i+1]), value)
+                if not r.success():
+                    raise LensException(S(r.getErrorString()))
+                dens[j] = value
+                j += 1
+        else:
+            raise LensException("Bad 1D array dimensions, must be a multiple of two")
+
+        return dens
+
+    def getSurfaceMassDensity(self, thetas):
+        thetas = np.array(thetas)
+        return self._reshapeAndCall1D(lambda x: self._getSurfaceMassDensity1(x), thetas, 2, 1)
+
+    cdef _getProjectedPotential1(self, np.ndarray[double, ndim=1] thetas):
+        
+        cdef np.ndarray[double,ndim=1] potential
+        cdef int l,i,j
+        cdef double value = 0
+        cdef errut.bool_t r
+
+        if thetas.shape[0] % 2 == 0:
+            l = thetas.shape[0]
+            potential = np.zeros([(l//2)], dtype = np.double)
+            j = 0
+            for i in range(0,l,2):
+                r = self._lens().getProjectedPotential(Vector2Dd(thetas[i], thetas[i+1]), cython.address(value))
+                if not r.success():
+                    raise LensException(S(r.getErrorString()))
+
+                potential[j] = value
+                j += 1
+        else:
+            raise LensException("Bad 1D array dimensions, must be a multiple of two")
+
+        return potential
+
+    def getProjectedPotential(self, thetas):
+        thetas = np.array(thetas)
+        return self._reshapeAndCall1D(lambda x: self._getProjectedPotential1(x), thetas, 2, 1)
 
 cdef class PotentialGridLens(GravitationalLens):
     """Create a lens based on the values of the projected potential (for :math:`D_{ds}/D_s = 1`)
