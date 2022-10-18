@@ -285,7 +285,7 @@ fi
 echo "Downloading 'triangle' sources"
 cd triangle
 if ! [ -e "triangle.zip" ] ; then
-	curl -o triangle.zip http://www.netlib.org/voronoi/triangle.zip
+	curl -o triangle.zip https://netlib.org/voronoi/triangle.zip
 fi
 
 unzip -o triangle.zip
