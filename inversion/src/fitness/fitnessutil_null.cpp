@@ -448,12 +448,21 @@ float calculateNullFitness_ExtendedImages(const ProjectedImagesInterface &iface,
 				} 
 				
 				float scaledoriginalarea = nullTriangleAreas[tp][idx]; 
-				float fraction = totalarea/nulltriangle.getArea(); 
+				float denom = nulltriangle.getArea();
+				if (denom == 0.0f)
+				{
+					const float epsilon = 1e-6;
+					// Avoid division by zero, leading to NaN
+					denom = epsilon;
+					cerr << "WARNING: avoiding division by zero!" << endl;
+				}
+				float fraction = totalarea/denom;
 				float penalty = fraction*scaledoriginalarea; 
 				
 				//std::cerr << penalty << std::endl; 
 
 				nullenergy += penalty; 
+				assert(!isnan(penalty));
 			} 
 
 				// TODO: for debugging
@@ -484,6 +493,7 @@ float calculateNullFitness_ExtendedImages(const ProjectedImagesInterface &iface,
 		assert(weigthIdx < nullWeights.size());
 
 		nullfitness += nullenergy * nullWeights[weigthIdx];
+		assert(!isnan(nullenergy));
 	}
 
 	assert(!isnan(nullfitness));
