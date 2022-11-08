@@ -186,7 +186,7 @@ def calculateImagePredictions(imgList, lensModel, cosmology=None,
     elif type(lensModel) == multiplane.MultiImagePlane:
         lensPlane = lensModel.getLensPlane()
     else:
-        lensPlane = multiplane.MultiLensPlane(lensModel, [0,0], [0,0], 1, 1, None, "none", cosmology)
+        lensPlane = multiplane.MultiLensPlane(lensModel, [0,0], [0,0], 2, 2, None, "none", cosmology)
         useTrace = False
 
     if useTrace:
