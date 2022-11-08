@@ -2121,6 +2121,55 @@ def _isAverageLens(lens):
         return False
     return True
 
+def getDensitiesAtImagePositions(lens, imgList, densFunction = None):
+    """Gets the densities at the image position for the specified lens,
+    mainly intended for use with a lens that's an average of several
+    lenses.
+
+Arguments:
+ - `lens`: the gravitational lens to use
+ - `imgList`: list of images to use; if these are extended images, the average position of an
+   image is used to evaluate the density at.
+ - `densFunction`: if not specific, a lens's :func:`getSurfaceMassDensity <grale.lenses.getSurfaceMassDensity>`
+    will get used to obtain the density, but otherwise this function is called with a
+    lens model, position and `imgList` entry as parameters. This can be (ab)used to 
+    create similar plots with different values, like the relative mass density or even 
+    magnification.
+"""
+	# Find out if the lens is an average
+    if not _isAverageLens(lens):
+        lens = lenses.CompositeLens(lens.getLensDistance(), [ 
+            { "factor": 1, "angle": 0, "x": 0, "y": 0, "lens": lens } ])
+
+    params = lens.getLensParameters()
+    numSubLenses = len(params)
+    if numSubLenses == 0:
+        raise PlotException("No sublenses found")
+
+    # Ok, here it's an average of individual ones (perhaps a dummy average of one lens)
+    subLenses = [ p["lens"] for p in params ]
+
+    if densFunction is None:
+        densFunction = lambda lens, avgPos, imgListEntry: lens.getSurfaceMassDensity(avgPos)
+
+    densityInfo = []
+    for i in range(len(imgList)):
+        img = imgList[i]
+        if type(img) == dict:
+            img = img["imgdata"]
+
+        for idx in range(img.getNumberOfImages()):
+            # If we're dealing with extended images, calculate a single position
+            avgPos = np.mean(np.array([p["position"] for p in img.getImagePoints(idx)]), 0)
+
+            obj = { }
+            obj["position"] = avgPos
+            obj["densities"] = np.array([ densFunction(l, avgPos, imgList[i]) for l in subLenses ])
+
+            densityInfo.append(obj)
+
+    return densityInfo
+
 def plotDensitiesAtImagePositions(lens, imgList, angularUnit = "default", densityUnit = 1.0,
                                   horCoordFunction = lambda xy: xy[0], axes = None, densFunction = None, **kwargs):
     """Plots the densities at the image position for the specified lens.
@@ -2154,36 +2203,17 @@ Arguments:
    or `errorbar <https://matplotlib.org/api/_as_gen/matplotlib.pyplot.errorbar.html#matplotlib.pyplot.errorbar>`_
    functions in matplotlib.
 """
-	# Find out if the lens is an average
-    if not _isAverageLens(lens):
-        lens = lenses.CompositeLens(lens.getLensDistance(), [ 
-            { "factor": 1, "angle": 0, "x": 0, "y": 0, "lens": lens } ])
 
-    params = lens.getLensParameters()
-    numSubLenses = len(params)
-    if numSubLenses == 0:
-        raise PlotException("No sublenses found")
-
-    # Ok, here it's an average of individual ones (perhaps a dummy average of one lens)
-    subLenses = [ p["lens"] for p in params ]
-
-    if densFunction is None:
-        densFunction = lambda lens, avgPos, imgListEntry: lens.getSurfaceMassDensity(avgPos)
-
+    densityInfo = getDensitiesAtImagePositions(lens, imgList, densFunction)
+    
     X, Yavg, Ystd  = [], [], []
-    for i in range(len(imgList)):
-        img = imgList[i]
-        if type(img) == dict:
-            img = img["imgdata"]
 
-        for idx in range(img.getNumberOfImages()):
-            # If we're dealing with extended images, calculate a single position
-            avgPos = np.mean(np.array([p["position"] for p in img.getImagePoints(idx)]), 0)
-            X.append(horCoordFunction(avgPos))
+    numSubLenses = len(densityInfo[0]["densities"])
 
-            densities = np.array([ densFunction(l, avgPos, imgList[i]) for l in subLenses ])
-            Yavg.append(np.mean(densities))
-            Ystd.append(np.std(densities))
+    for obj in densityInfo:
+        X.append(horCoordFunction(obj["position"]))
+        Yavg.append(np.mean(obj["densities"]))
+        Ystd.append(np.std(obj["densities"]))
 
     angularUnit = _getAngularUnit(angularUnit)
     X = np.array(X)
@@ -2199,7 +2229,7 @@ Arguments:
         if numSubLenses == 1:
             plt.plot(X/angularUnit, Yavg/densityUnit, '.', **kwargs)
         else:
-            plt.errorbar(X/angularUnit, Yavg/densityUnit, Ystd/densityUnit, fmt='.k', **kwargs)
+            plt.errorbar(X/angularUnit, Yavg/densityUnit, Ystd/densityUnit, fmt='.', **kwargs)
 
     return X, Yavg, Ystd, numSubLenses
 
