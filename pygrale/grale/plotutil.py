@@ -2121,7 +2121,7 @@ def _isAverageLens(lens):
         return False
     return True
 
-def getDensitiesAtImagePositions(lens, imgList, densFunction = None):
+def getDensitiesAtImagePositions(lens, imgList, densFunction = None, reduce = True):
     """Gets the densities at the image position for the specified lens,
     mainly intended for use with a lens that's an average of several
     lenses.
@@ -2135,6 +2135,8 @@ Arguments:
     lens model, position and `imgList` entry as parameters. This can be (ab)used to 
     create similar plots with different values, like the relative mass density or even 
     magnification.
+ - `reduce`: if ``True``, an extended image will be reduced to a single point (the average position
+   of the points in the image).
 """
 	# Find out if the lens is an average
     if not _isAverageLens(lens):
@@ -2159,19 +2161,29 @@ Arguments:
             img = img["imgdata"]
 
         for idx in range(img.getNumberOfImages()):
-            # If we're dealing with extended images, calculate a single position
-            avgPos = np.mean(np.array([p["position"] for p in img.getImagePoints(idx)]), 0)
+            if reduce:
+                # If we're dealing with extended images, calculate a single position
+                avgPos = np.mean(np.array([p["position"] for p in img.getImagePoints(idx)]), 0)
 
-            obj = { }
-            obj["position"] = avgPos
-            obj["densities"] = np.array([ densFunction(l, avgPos, imgList[i]) for l in subLenses ])
+                obj = { }
+                obj["position"] = avgPos
+                obj["densities"] = np.array([ densFunction(l, avgPos, imgList[i]) for l in subLenses ])
 
-            densityInfo.append(obj)
-
+                densityInfo.append(obj)
+            else:
+                for p in img.getImagePoints(idx):
+                    pos = p["position"]
+                    obj = { }
+                    obj["position"] = pos
+                    obj["densities"] = np.array([ densFunction(l, pos, imgList[i]) for l in subLenses ])
+                    densityInfo.append(obj)
+                    
     return densityInfo
 
 def plotDensitiesAtImagePositions(lens, imgList, angularUnit = "default", densityUnit = 1.0,
-                                  horCoordFunction = lambda xy: xy[0], axes = None, densFunction = None, **kwargs):
+                                  horCoordFunction = lambda xy: xy[0], axes = None, densFunction = None, 
+                                  reduce = True,
+                                  **kwargs):
     """Plots the densities at the image position for the specified lens.
 
 The function returns what is used to create the plot, but _without_ recaling by the
@@ -2202,9 +2214,11 @@ Arguments:
  - `kwargs`: these parameters will be passed on to the `plot <https://matplotlib.org/api/_as_gen/matplotlib.pyplot.plot.html#matplotlib.pyplot.plot>`_ 
    or `errorbar <https://matplotlib.org/api/_as_gen/matplotlib.pyplot.errorbar.html#matplotlib.pyplot.errorbar>`_
    functions in matplotlib.
+ - `reduce`: if ``True``, an extended image will be reduced to a single point (the average position
+   of the points in the image).
 """
 
-    densityInfo = getDensitiesAtImagePositions(lens, imgList, densFunction)
+    densityInfo = getDensitiesAtImagePositions(lens, imgList, densFunction, reduce)
     
     X, Yavg, Ystd  = [], [], []
 
