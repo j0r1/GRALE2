@@ -77,6 +77,10 @@ Helper functions
 
 .. autofunction:: quickLensInfo
 
+.. autofunction:: getDensitiesAtImagePositions
+
+.. autofunction:: mergeDensityMeasurementsAndAveragePositions
+
 Classes to create animations
 ----------------------------
 

@@ -2121,24 +2121,21 @@ def _isAverageLens(lens):
         return False
     return True
 
-def getDensitiesAtImagePositions(lens, imgList, densFunction = None, reduce = True, keepStructure = False):
+def getDensitiesAtImagePositions(lens, imgList, reducePositionFirst, densFunction = None):
     """Gets the densities at the image position for the specified lens,
     mainly intended for use with a lens that's an average of several
     lenses.
 
 Arguments:
  - `lens`: the gravitational lens to use
- - `imgList`: list of images to use; if these are extended images, the average position of an
-   image is used to evaluate the density at.
+ - `imgList`: list of images to use
  - `densFunction`: if not specific, a lens's :func:`getSurfaceMassDensity <grale.lenses.getSurfaceMassDensity>`
-    will get used to obtain the density, but otherwise this function is called with a
-    lens model, position and `imgList` entry as parameters. This can be (ab)used to 
-    create similar plots with different values, like the relative mass density or even 
-    magnification.
- - `reduce`: if ``True``, an extended image will be reduced to a single point (the average position
-   of the points in the image).
- - `keepStructure`: if ``True``, the stucture of sources, images and points will be kept in the output,
-   wich will therefore be a nested list instead of a flattened one.
+   will get used to obtain the density, but otherwise this function is called with a
+   lens model, position and `imgList` entry as parameters. This can be (ab)used to 
+   create similar plots with different values, like the relative mass density or even 
+   magnification.
+ - `reducePositionFirst`: if ``True``, an extended image will first be reduced to a single point (the average position
+   of the points in the image), and at this position the densities will be evaluated.
 """
 	# Find out if the lens is an average
     if not _isAverageLens(lens):
@@ -2166,7 +2163,7 @@ Arguments:
         imgDensInfo = []
         for idx in range(img.getNumberOfImages()):
             densityInfo = []
-            if reduce:
+            if reducePositionFirst:
                 # If we're dealing with extended images, calculate a single position
                 avgPos = np.mean(np.array([p["position"] for p in img.getImagePoints(idx)]), 0)
 
@@ -2186,20 +2183,32 @@ Arguments:
             imgDensInfo.append(densityInfo)
                     
         allDensityInfo.append(imgDensInfo)
-        
-    if not keepStructure:
-        allDensityInfo = [ obj for src in allDensityInfo for img in src for obj in img ]
-                    
-    return allDensityInfo
+                           
+    return allDensityInfo, numSubLenses
 
+def mergeDensityMeasurementsAndAveragePositions(l):
+    """For density measurements returned by :func:`getDensitiesAtImagePositions` this function
+    can be used to merge all measurements for each extended image, and use its average position
+    as the point at which the densities are associated."""
+    if type(l[0]) == dict:
+        avgPos = np.mean(np.array([x["position"] for x in l]), axis=0)
+        allDens = [d  for x in l for d in x["densities"] ]
+        l.clear()
+        l.append({
+            "position": avgPos,
+            "densities": allDens,
+            })
+    else:
+        for x in l:
+            mergeDensityMeasurementsAndAveragePositions(x)
 
 def plotDensitiesAtImagePositions(lens, imgList, angularUnit = "default", densityUnit = 1.0,
                                   horCoordFunction = lambda xy: xy[0], axes = None, densFunction = None, 
-                                  reduce = True,
+                                  reduceMethod = None,
                                   **kwargs):
     """Plots the densities at the image position for the specified lens.
 
-The function returns what is used to create the plot, but _without_ recaling by the
+The function returns what is used to create the plot, but _without_ rescaling by the
 `angularUnit` or `densityUnit`: coordinates of the images based on `horCoordFunction`,
 average and standard deviation based on `densFunction`, and the number of sub-lenses
 that were used in calculating average and stddev.
@@ -2220,27 +2229,42 @@ Arguments:
    matplotlib axes object as well. The value `False` has a special meaning: in that case,
    the calculations will be performed as usual, but an actual plot will not be created.
  - `densFunction`: if not specific, a lens's :func:`getSurfaceMassDensity <grale.lenses.getSurfaceMassDensity>`
-    will get used to obtain the density, but otherwise this function is called with a
-    lens model, position and `imgList` entry as parameters. This can be (ab)used to 
-    create similar plots with different values, like the relative mass density or even 
-    magnification.
+   will get used to obtain the density, but otherwise this function is called with a
+   lens model, position and `imgList` entry as parameters. This can be (ab)used to 
+   create similar plots with different values, like the relative mass density or even 
+   magnification.
+ - `reduceMethod`: needed for extended images, must be one of ``"avgpos"``, ``"merge"`` or ``"none"``.
+   For ``"avgpos"``, the average position of an image is calculated first, and at that position the
+   densities are calculated. For ``"merge"``, the densities at all image points are calculated first,
+   then merged for each extended image (:func:`mergeDensityMeasurementsAndAveragePositions` is used
+   for this). The position for an image is also taken to be the average
+   of its points. When set to ``"none"``, all image points are treated individually.
  - `kwargs`: these parameters will be passed on to the `plot <https://matplotlib.org/api/_as_gen/matplotlib.pyplot.plot.html#matplotlib.pyplot.plot>`_ 
    or `errorbar <https://matplotlib.org/api/_as_gen/matplotlib.pyplot.errorbar.html#matplotlib.pyplot.errorbar>`_
    functions in matplotlib.
- - `reduce`: if ``True``, an extended image will be reduced to a single point (the average position
-   of the points in the image).
 """
-
-    densityInfo = getDensitiesAtImagePositions(lens, imgList, densFunction, reduce)
+    maxImagePoints = max([ len(img) for src in imgList for img in src.getAllImagePoints() ])
+    if maxImagePoints == 1: # All point images
+        densityInfo, numSubLenses = getDensitiesAtImagePositions(lens, imgList, False, densFunction)
+    else: # at least one extended image
+        if reduceMethod == "avgpos":
+            densityInfo, numSubLenses = getDensitiesAtImagePositions(lens, imgList, True, densFunction)
+        elif reduceMethod == "merge":
+            densityInfo, numSubLenses = getDensitiesAtImagePositions(lens, imgList, False, densFunction)
+            mergeDensityMeasurementsAndAveragePositions(densityInfo)
+        elif reduceMethod == "none":
+            densityInfo, numSubLenses = getDensitiesAtImagePositions(lens, imgList, False, densFunction)
+        else:
+            raise PlotException("For extended images, a valid 'reduceMethod' must be specified")
     
     X, Yavg, Ystd  = [], [], []
 
-    numSubLenses = len(densityInfo[0]["densities"])
-
-    for obj in densityInfo:
-        X.append(horCoordFunction(obj["position"]))
-        Yavg.append(np.mean(obj["densities"]))
-        Ystd.append(np.std(obj["densities"]))
+    for src in densityInfo:
+        for img in src:
+            for pt in img:
+                X.append(horCoordFunction(pt["position"]))
+                Yavg.append(np.mean(pt["densities"]))
+                Ystd.append(np.std(pt["densities"]))
 
     angularUnit = _getAngularUnit(angularUnit)
     X = np.array(X)
