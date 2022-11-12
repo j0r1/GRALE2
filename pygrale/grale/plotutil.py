@@ -2121,7 +2121,7 @@ def _isAverageLens(lens):
         return False
     return True
 
-def getDensitiesAtImagePositions(lens, imgList, densFunction = None, reduce = True):
+def getDensitiesAtImagePositions(lens, imgList, densFunction = None, reduce = True, keepStructure = False):
     """Gets the densities at the image position for the specified lens,
     mainly intended for use with a lens that's an average of several
     lenses.
@@ -2137,6 +2137,8 @@ Arguments:
     magnification.
  - `reduce`: if ``True``, an extended image will be reduced to a single point (the average position
    of the points in the image).
+ - `keepStructure`: if ``True``, the stucture of sources, images and points will be kept in the output,
+   wich will therefore be a nested list instead of a flattened one.
 """
 	# Find out if the lens is an average
     if not _isAverageLens(lens):
@@ -2154,13 +2156,16 @@ Arguments:
     if densFunction is None:
         densFunction = lambda lens, avgPos, imgListEntry: lens.getSurfaceMassDensity(avgPos)
 
-    densityInfo = []
+    allDensityInfo = []
     for i in range(len(imgList)):
+        
         img = imgList[i]
         if type(img) == dict:
             img = img["imgdata"]
 
+        imgDensInfo = []
         for idx in range(img.getNumberOfImages()):
+            densityInfo = []
             if reduce:
                 # If we're dealing with extended images, calculate a single position
                 avgPos = np.mean(np.array([p["position"] for p in img.getImagePoints(idx)]), 0)
@@ -2178,7 +2183,15 @@ Arguments:
                     obj["densities"] = np.array([ densFunction(l, pos, imgList[i]) for l in subLenses ])
                     densityInfo.append(obj)
                     
-    return densityInfo
+            imgDensInfo.append(densityInfo)
+                    
+        allDensityInfo.append(imgDensInfo)
+        
+    if not keepStructure:
+        allDensityInfo = [ obj for src in allDensityInfo for img in src for obj in img ]
+                    
+    return allDensityInfo
+
 
 def plotDensitiesAtImagePositions(lens, imgList, angularUnit = "default", densityUnit = 1.0,
                                   horCoordFunction = lambda xy: xy[0], axes = None, densFunction = None, 
