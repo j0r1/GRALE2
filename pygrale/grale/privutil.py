@@ -7,6 +7,8 @@ import os
 import tempfile
 import errno
 
+_netcatPrefix = "nc:"
+
 class RenderNameException(Exception):
     pass
 
@@ -51,7 +53,11 @@ def _getMassRenderer(renderNameOrObject):
         if renderNameOrObject.lower() == "mpi":
             return renderers.MPIMassDensityRenderer()
 
-        raise RenderNameException("Supported renderer names are 'Threads' and 'MPI'")
+        if renderNameOrObject.lower().startswith(_netcatPrefix):
+            port = int(renderNameOrObject[len(_netcatPrefix):])
+            return renderers.NetcatMassDensityRenderer(port)
+
+        raise RenderNameException("Supported renderer names are 'Threads', 'MPI' and 'NC:portnumber'")
 
     return renderNameOrObject
 
@@ -73,7 +79,11 @@ def _getLensPlaneRenderer(renderNameOrObject):
         if renderNameOrObject.lower() == "opencl":
             return renderers.OpenCLLensPlaneRenderer()
 
-        raise RenderNameException("Supported renderer names are 'Threads', 'OpenCL' and 'MPI'")
+        if renderNameOrObject.lower().startswith(_netcatPrefix):
+            port = int(renderNameOrObject[len(_netcatPrefix):])
+            return renderers.NetcatLensPlaneRenderer(port)
+
+        raise RenderNameException("Supported renderer names are 'Threads', 'OpenCL', 'MPI' and 'NC:portnumber'")
 
     return renderNameOrObject
 

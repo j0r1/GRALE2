@@ -14,12 +14,14 @@ and objects can be:
  - "Threads" or an instance of :class:`ThreadsLensPlaneRenderer`
  - "MPI" or an instance of :py:class:`MPILensPlaneRenderer`
  - "OpenCL" or an instance of :py:class:`OpenCLLensPlaneRenderer`
+ - "NC:portnumber" or an instance of :py:class:`NetcatLensPlaneRenderer`
 
 For a `mass density renderer` these strings (case insensitive) and 
 objects can be:
 
  - "Threads" or an instance of :class:`ThreadsMassDensityRenderer`
  - "MPI" or an instance of :py:class:`MPIMassDensityRenderer`
+ - "NC:portnumber" or an instance of :py:class:`NetcatMassDensityRenderer`
 
 """
 
@@ -272,6 +274,42 @@ class MPIMassDensityRenderer(Renderer):
         super(MPIMassDensityRenderer, self).__init__([ "mpirun"] + npArgs + [ "grale_massdens_mpi", pp.wrFileName, pp.rdFileName ], 
                                                      "MASSDENS", feedbackObject = feedbackObject,
                                                      rdFileDesc = pp.rdPipeDesc, wrFileDesc = pp.wrPipeDesc)
+
+class NetcatRendererBase(Renderer):
+    def __init__(self, port, feedbackObject, typeString):
+        super(NetcatRendererBase, self).__init__([ "nc", "localhost", str(port) ], typeString, feedbackObject = feedbackObject)
+
+class NetcatMassDensityRenderer(NetcatRendererBase):
+    """Forward rendering commands to another process over a TCP connection
+    using the `netcat (nc) <https://linux.die.net/man/1/nc>`_ tool.
+    See :py:class:`NetcatLensPlaneRenderer` for an example."""
+
+    def __init__(self, port, feedbackObject = None):
+        """Connect to localhost (127.0.0.1) on the specified `port` number. The
+        idea is to use SSH tunnels to connect to another machine."""
+        super(NetcatMassDensityRenderer, self).__init__(port, feedbackObject, "MASSDENS")
+
+class NetcatLensPlaneRenderer(NetcatRendererBase):
+    """Forward rendering commands to another process over a TCP connection
+    using the `netcat (nc) <https://linux.die.net/man/1/nc>`_ tool.
+
+    On the other machine, you can use `socat <https://linux.die.net/man/1/socat>`_
+    to redirect stdout/stdin of one of the render programs over the connection.
+    For example
+
+    .. code-block:: bash
+    
+        export GRALE_NUMTHREADS=36
+        socat TCP4-LISTEN:9999,reuseaddr,fork EXEC:grale_lensplane_threads
+
+    would wait for incoming TCP connections on port 9999, and start the thread
+    based lens plane renderer when an incoming connection was detected.
+    """
+
+    def __init__(self, port, feedbackObject = None):
+        """Connect to localhost (127.0.0.1) on the specified `port` number. The
+        idea is to use SSH tunnels to connect to another machine."""
+        super(NetcatLensPlaneRenderer, self).__init__(port, feedbackObject, "LENSPLANE")
 
 _defaultMassRenderer = [ None ]
 _defaultLensRenderer = [ None ]

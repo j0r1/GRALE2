@@ -31,6 +31,10 @@ Lens plane renderers
 
    .. automethod:: __init__
 
+.. autoclass:: NetcatLensPlaneRenderer
+
+   .. automethod:: __init__
+
 Mass density renderers
 ----------------------
 
@@ -39,6 +43,10 @@ Mass density renderers
    .. automethod:: __init__
 
 .. autoclass:: MPIMassDensityRenderer
+
+   .. automethod:: __init__
+
+.. autoclass:: NetcatMassDensityRenderer
 
    .. automethod:: __init__
 
