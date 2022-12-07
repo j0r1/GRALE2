@@ -282,7 +282,7 @@ class NetcatRendererBase(Renderer):
 class NetcatMassDensityRenderer(NetcatRendererBase):
     """Forward rendering commands to another process over a TCP connection
     using the `netcat (nc) <https://linux.die.net/man/1/nc>`_ tool.
-    See :py:class:`NetcatLensPlaneRenderer` for an example."""
+    See :py:class:`NetcatLensPlaneRenderer` for examples."""
 
     def __init__(self, port, feedbackObject = None):
         """Connect to localhost (127.0.0.1) on the specified `port` number. The
@@ -304,6 +304,15 @@ class NetcatLensPlaneRenderer(NetcatRendererBase):
 
     would wait for incoming TCP connections on port 9999, and start the thread
     based lens plane renderer when an incoming connection was detected.
+
+    To run one of the MPI based renderers, `socat` cannot be used (pipes are
+    used for the communication instead of stdin/stdout). Instead, there's a
+    helper program `grale_socket_to_mpi.py`, for example:
+
+    .. code-block:: bash
+
+        grale_socket_to_mpi.py 9998 mpirun grale_massdens_mpi
+
     """
 
     def __init__(self, port, feedbackObject = None):

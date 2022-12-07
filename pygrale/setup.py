@@ -213,7 +213,8 @@ pyMods = [ "grale.cosmology", "grale.plotutil", "grale.constants", "grale.render
            "grale.privutil", "grale.debuglog", "grale.feedback", "grale.bytestring", "grale.inverters",
            "grale.inversion", "grale.grid", "grale.multiplane", "grale.privimages", "grale.privlenses",
            "grale.util", "grale.all", "grale.all_nb" ]
-extraSetupArgs = { }
+
+extraSetupArgs = { "scripts": [ os.path.join("scripts", "grale_socket_to_mpi.py")]}
 
 try:
     from PyQt5 import QtCore
