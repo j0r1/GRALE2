@@ -6,6 +6,7 @@
 #include "gravitationallens.h"
 #include "lensfitnessobject.h"
 #include <eatk/genomefitness.h>
+#include <eatk/calculation.h>
 
 #include <iostream>
 

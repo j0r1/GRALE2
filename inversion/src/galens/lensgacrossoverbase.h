@@ -4,6 +4,7 @@
 #include "lensgagenomecrossover.h"
 #include <eatk/crossovermutation.h>
 #include <eatk/randomnumbergenerator.h>
+#include <eatk/populationevolver.h>
 #include <cmath>
 #include <cassert>
 
