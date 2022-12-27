@@ -4,6 +4,7 @@
 #include "lensgagenomecalculator.h"
 #include "lensfitnessobject.h"
 #include "lensgacalculatorregistry.h"
+#include "lensgamultipopulationparameters.h"
 #include <errut/booltype.h>
 #include <serut/memoryserializer.h>
 #include <vector>
@@ -41,7 +42,8 @@ protected:
 						 const std::shared_ptr<grale::LensGAGenomeCalculator> &genomeCalculator,
 						 const std::vector<uint8_t> &factoryParamBytes,
 						 const grale::GAParameters &params,
-						 const grale::LensGAConvergenceParameters &convParams);
+						 const grale::LensGAConvergenceParameters &convParams,
+						 const std::shared_ptr<grale::LensGAMultiPopulationParameters> &multiPopParams);
 
 	bool_t readLineWithPrefix(const std::string &prefix, std::string &value, int timeoutMSec);
 	bool_t readLineWithPrefix(const std::string &prefix, int &value, int timeoutMSec);

@@ -20,6 +20,9 @@
 #include <eatk/evolutionaryalgorithm.h>
 #include <eatk/singlethreadedpopulationfitnesscalculation.h>
 #include <eatk/multithreadedpopulationfitnesscalculation.h>
+#include <eatk/multipopulationevolver.h>
+#include <eatk/fasternondominatedsetcreator.h>
+#include <eatk/fitnessbasedduplicateremoval.h>
 #include <serut/vectorserializer.h>
 
 #include <iostream>
@@ -167,6 +170,17 @@ protected:
 	}
 };
 
+class MyExchange : public eatk::SequentialRandomIndividualExchange
+{
+public:
+	MyExchange(const std::shared_ptr<eatk::RandomNumberGenerator> &rng, size_t iterations) : eatk::SequentialRandomIndividualExchange(rng, iterations) { }
+protected:
+	void onExchange(size_t generation, size_t srcPop, size_t srcIndividualIdx, size_t dstPop, size_t dstIndividualIdx) override
+	{
+		std::cerr << "Generation " << generation << ": migrating " << srcIndividualIdx << " from pop " << srcPop << " to " << dstIndividualIdx << " in pop " << dstPop << std::endl;
+	}
+};
+
 // TODO: rename this, is from copy-paste
 class NewGACommunicatorBase : public InversionCommunicator
 {
@@ -269,50 +283,64 @@ protected:
 						 const std::shared_ptr<grale::LensGAGenomeCalculator> &genomeCalculator,
 						 const std::vector<uint8_t> &factoryParamBytes,
 						 const grale::GAParameters &params,
-						 const grale::LensGAConvergenceParameters &convParams)
+						 const grale::LensGAConvergenceParameters &convParams,
+						 const std::shared_ptr<grale::LensGAMultiPopulationParameters> &multiPopParams)
 	{
-
 		errut::bool_t r;
+
+		auto comparison = std::make_shared<grale::LensGAFitnessComparison>();
 
 		m_selector = std::make_shared<SubsequentBestIndividualSelector>(
 								genomeCalculator->getNumberOfObjectives(),
-								std::make_shared<grale::LensGAFitnessComparison>());
+								comparison);
 
 		std::shared_ptr<grale::RandomNumberGenerator> rng = std::make_shared<grale::RandomNumberGenerator>();
 		MyGA ga;
 
 		WriteLineStdout("GAMESSAGESTR:RNG SEED: " + std::to_string(rng->getSeed()));
 
+		grale::LensGAIndividualCreation creation(rng, 
+						  genomeCalculator->getNumberOfBasisFunctions(),
+						  genomeCalculator->getNumberOfSheets(),
+						  genomeCalculator->allowNegativeValues(),
+						  genomeCalculator->getNumberOfObjectives());
+
+		// TODO? For now, only the fitness calculations are parallel, using
+		//       The same mutation instance for all populations is safe.
+		//       In case a multi-threaded approach is used, this should be
+		//       investigated again.
+		//       The stop criterion is coupled to this (to switch from large
+		//       mutations to small mutations for example), so we can't simply
+		//       use multiple instances.
 		auto mutation = std::make_shared<grale::LensGAGenomeMutation>(rng, 
 					   1.0, // chance multiplier; has always been set to one
 					   genomeCalculator->allowNegativeValues(),
 					   0, // mutation amplitude, will be in the stop criterion
 					   true); // absolute or small mutation, will be set in the stop criterion
 
-		grale::LensGAIndividualCreation creation(rng, 
-						  genomeCalculator->getNumberOfBasisFunctions(),
-						  genomeCalculator->getNumberOfSheets(),
-		                  genomeCalculator->allowNegativeValues(),
-						  genomeCalculator->getNumberOfObjectives());
+		auto getEvolver = [&rng, &genomeCalculator, &params, &mutation]()
+		{
+			std::shared_ptr<grale::LensGACrossoverBase> cross;
+			if (genomeCalculator->getNumberOfObjectives() == 1)
+				cross = std::make_shared<grale::LensGASingleObjectiveCrossover>(params.getSelectionPressure(),
+							  params.getUseElitism(),
+							  params.getAlwaysIncludeBest(),
+							  params.getCrossOverRate(),
+							  rng,
+							  genomeCalculator->allowNegativeValues(),
+							  mutation);
+			else
+				cross = std::make_shared<grale::LensGAMultiObjectiveCrossover>(params.getSelectionPressure(),
+							  params.getUseElitism(),
+							  params.getAlwaysIncludeBest(),
+							  params.getCrossOverRate(),
+							  rng,
+							  genomeCalculator->allowNegativeValues(),
+							  mutation,
+							  genomeCalculator->getNumberOfObjectives());
 
-		std::shared_ptr<grale::LensGACrossoverBase> cross;
-		if (genomeCalculator->getNumberOfObjectives() == 1)
-			cross = std::make_shared<grale::LensGASingleObjectiveCrossover>(params.getSelectionPressure(),
-					      params.getUseElitism(),
-						  params.getAlwaysIncludeBest(),
-						  params.getCrossOverRate(),
-						  rng,
-						  genomeCalculator->allowNegativeValues(),
-						  mutation);
-		else
-			cross = std::make_shared<grale::LensGAMultiObjectiveCrossover>(params.getSelectionPressure(),
-					      params.getUseElitism(),
-						  params.getAlwaysIncludeBest(),
-						  params.getCrossOverRate(),
-						  rng,
-						  genomeCalculator->allowNegativeValues(),
-						  mutation,
-						  genomeCalculator->getNumberOfObjectives());
+			return cross;
+		};
 
 		std::shared_ptr<eatk::PopulationFitnessCalculation> calc;
 		if (!(r = getCalculator(lensFitnessObjectType, calculatorType, calcFactory, genomeCalculator,
@@ -326,15 +354,70 @@ protected:
 			return "Error initializing convergence checker: " + r.getErrorString();
 		}
 
-		if (!(r = ga.run(creation, *cross, *calc, stop, popSize)))
+		if (!multiPopParams.get()) // Single population only
 		{
-			calculatorCleanup();
-			return "Error running GA: " + r.getErrorString();
+			auto cross = getEvolver();
+
+			if (!(r = ga.run(creation, *cross, *calc, stop, popSize)))
+			{
+				calculatorCleanup();
+				return "Error running GA: " + r.getErrorString();
+			}
+
+			m_best = cross->getBestIndividuals();
+		}
+		else // Use several populations, with migration
+		{
+			size_t numPop = multiPopParams->getNumberOfPopulations();
+			if (numPop < 2)
+			{
+				calculatorCleanup();
+				return "At least 2 populations are needed for a multi-population GA";
+			}
+			if (numPop > 64) // TODO: what's a reasonable upper limit?
+			{
+				calculatorCleanup();
+				return "Currently there's a maximum of 64 populations";
+			}
+
+			std::vector<size_t> popSizes;
+			for (size_t i = 0 ; i < numPop ; i++)
+				popSizes.push_back(popSize);
+
+			std::shared_ptr<eatk::BestIndividualMerger> merger;
+			size_t numObjectives = genomeCalculator->getNumberOfObjectives();
+			if (numObjectives == 1)
+				merger = std::make_shared<eatk::SingleObjectiveBestIndividualMerger>(comparison);
+			else
+			{
+				auto ndCreator = std::make_shared<eatk::FasterNonDominatedSetCreator>(comparison, numObjectives);
+				auto dupRemoval = std::make_shared<eatk::FitnessBasedDuplicateRemoval>(comparison, numObjectives);
+				merger = std::make_shared<eatk::MultiObjectiveBestIndividualMerger>(ndCreator, dupRemoval);
+			}
+
+			std::vector<std::shared_ptr<eatk::PopulationEvolver>> evolvers;
+			for (size_t i = 0 ; i < numPop ; i++)
+				evolvers.push_back(getEvolver());
+
+			eatk::MultiPopulationEvolver multiPopEvolver(evolvers, merger);
+
+			auto migrationCheck = std::make_shared<eatk::UniformProbabilityMigrationCheck>(rng,
+					                                                                       (float)multiPopParams->getMigrationGenerationFraction(),
+																						   multiPopParams->getNumberOfInitialPopulationsToSkip());
+			auto migrationExchange = std::make_shared<MyExchange>(rng, multiPopParams->getNumberOfIndividualsToLeavePopulation());
+
+			eatk::BasicMigrationStrategy migration(migrationCheck, migrationExchange);
+
+			if (!(r = ga.run(creation, multiPopEvolver, *calc, stop, migration, popSizes)))
+			{
+				calculatorCleanup();
+				return "Error running GA: " + r.getErrorString();
+			}
+
+			m_best = multiPopEvolver.getBestIndividuals();
 		}
 
 		calculatorCleanup();
-
-		m_best = cross->getBestIndividuals();
 
 		// std::cout << "Best: " << std::endl;
 		// for (auto &b: m_best)
