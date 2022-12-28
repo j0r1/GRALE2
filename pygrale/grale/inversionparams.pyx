@@ -30,6 +30,7 @@ cimport grale.lensinversionbasislensinfo as lensinversionbasislensinfo
 cimport grale.scalesearchparameters as scalesearchparameters
 cimport grale.cppcosmology as cppcosmology
 cimport grale.lensgaconverenceparameters as lensgaconverenceparameters
+cimport grale.lensgamultipopulationparameters as lensgamultipopulationparameters
 
 include "stringwrappers.pyx"
 
@@ -910,3 +911,56 @@ cdef class ConvergenceParameters(object):
             raise ConvergenceParametersException(S(self.m_pParams.getErrorString()))
 
         return <bytes>vSer.getBufferPointer()[0:vSer.getBufferSize()]
+
+class MultiPopulationParametersException(Exception):
+    """This exception is raised in case somethings goes wrong in the
+    :class:`MultiPopulationParameters` class."""
+    pass
+
+cdef class MultiPopulationParameters(object):
+    """TODO"""
+
+    cdef unique_ptr[lensgamultipopulationparameters.LensGAMultiPopulationParameters] m_params
+    cdef lensgamultipopulationparameters.LensGAMultiPopulationParameters *m_pParams
+
+    def __cinit__(self):
+        self.m_params = make_unique[lensgamultipopulationparameters.LensGAMultiPopulationParameters]()
+        self.m_pParams = self.m_params.get()
+
+    def __init__(self, parameterDict):
+        self.fromDict(parameterDict)
+
+    def fromDict(self, d):
+        knownKeys = [ "populations", "skipgenerations", "generationfraction", "migrants" ]
+        for k in d:
+            if not k in knownKeys:
+                raise MultiPopulationParametersException("Key '{}' is not supported".format(k))
+
+        if set(knownKeys) != d.keys():
+            raise MultiPopulationParametersException("Not all keys are present, need: '{}'".format(knownKeys))
+
+        self.m_pParams.setNumberOfPopulations(d["populations"])
+        self.m_pParams.setNumberOfInitialPopulationsToSkip(d["skipgenerations"])
+        self.m_pParams.setMigrationGenerationFraction(d["generationfraction"])
+        self.m_pParams.setNumberOfIndividualsToLeavePopulation(d["migrants"])
+
+    def toDict(self):
+        d = { }
+        d["populations"] = self.m_pParams.getNumberOfPopulations()
+        d["skipgenerations"] = self.m_pParams.getNumberOfInitialPopulationsToSkip()
+        d["generationfraction"] = self.getMigrationGenerationFraction()
+        d["migrants"] = self.getNumberOfIndividualsToLeavePopulation()
+        return d
+
+    def toBytes(self):
+        """toBytes()
+
+        Returns a byte array that stores the settings contained in this instance.
+        """
+        cdef serut.VectorSerializer vSer
+
+        if not self.m_pParams.write(vSer):
+            raise MultiPopulationParametersException(S(self.m_pParams.getErrorString()))
+
+        return <bytes>vSer.getBufferPointer()[0:vSer.getBufferSize()]
+

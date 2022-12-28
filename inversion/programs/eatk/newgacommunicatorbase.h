@@ -347,7 +347,10 @@ protected:
 								factoryParamBytes, creation, calc)))
 			return "Can't get calculator: " + r.getErrorString();
 		
+		// Note: this approach causes the settings (large/small mutations) to switch
+		// at the same time for all subpopulations. Is the alternative better?
 		Stop stop(mutation);
+
 		if (!(r = stop.initialize(genomeCalculator->getNumberOfObjectives(), convParams)))
 		{
 			calculatorCleanup();

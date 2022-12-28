@@ -153,7 +153,8 @@ def calculateFitness(inputImages, zd, fitnessObjectParameters, lensOrBackProject
 def _invertCommon(inverter, feedbackObject, moduleName, calcType, fitnessObjectParameters,
                   massScale, DdAndZd, inputImages, getParamsFunction,
                   popSize, geneticAlgorithmParameters, returnNds, cosmology,
-                  convergenceParameters, maximumGenerations = None):
+                  convergenceParameters, maximumGenerations = None,
+                  multiPopulationParameters = None):
 
     # Set to some bad values as they don't make sense for a multi-plane inversion
     Dd, zd = DdAndZd if DdAndZd else (None, float("NaN"))
@@ -168,6 +169,8 @@ def _invertCommon(inverter, feedbackObject, moduleName, calcType, fitnessObjectP
         fullConvParams[n] = convergenceParameters[n]
     if maximumGenerations is not None:
         fullConvParams["maximumgenerations"] = maximumGenerations
+
+    multiPopParams = None if not multiPopulationParameters else inversionparams.MultiPopulationParameters(multiPopulationParameters)
 
     fullConvParams = inversionparams.ConvergenceParameters(fullConvParams)
 
@@ -190,7 +193,7 @@ def _invertCommon(inverter, feedbackObject, moduleName, calcType, fitnessObjectP
     # fitness components are returned.
     dummyFitness, fitnessComponentDescription = inverters.calculateFitness(moduleName, inputImages, zd, fullFitnessObjParams, None) 
 
-    result = inverter.invert(moduleName, calcType, popSize, geneticAlgorithmParameters, params, returnNds, fullConvParams)
+    result = inverter.invert(moduleName, calcType, popSize, geneticAlgorithmParameters, params, returnNds, fullConvParams, multiPopParams)
 
     # TODO: this should be removed when the TODO above is fixed
     if not returnNds:
@@ -207,7 +210,8 @@ def invertMultiPlane(inputImages, basisLensesAndRedshifts, popSize, moduleName="
                      convergenceParameters={ }, geneticAlgorithmParameters={ },
                      returnNds=False, deviceIndex = "rotate",
                      inverter="default", feedbackObject="default",
-                     maximumGenerations = None, cosmology = None):
+                     maximumGenerations = None, cosmology = None,
+                     multiPopulationParameters = None):
     """Perform a multi-plane lens inversion. This is a rather low-level function,
     it may be easier to use an instance of :class:`InversionWorkSpace` instead.
     
@@ -343,13 +347,13 @@ def invertMultiPlane(inputImages, basisLensesAndRedshifts, popSize, moduleName="
     return _invertCommon(inverter, feedbackObject, moduleName, "multiplanegpu", fitnessObjectParameters,
                   massScale, None, inputImages, getParamsFunction, popSize,
                   geneticAlgorithmParameters, returnNds, cosmology,
-                  convergenceParameters, maximumGenerations)
+                  convergenceParameters, maximumGenerations, multiPopulationParameters)
 
 def invert(inputImages, basisFunctions, zd, Dd, popSize, moduleName = "general", massScale = "auto",
            allowNegativeValues = False, baseLens = None, 
            sheetSearch = "nosheet", fitnessObjectParameters = None, massScaleSearchType = "regular", convergenceParameters = { },
            geneticAlgorithmParameters = { }, returnNds = False, inverter = "default", feedbackObject = "default",
-           cosmology = None, maximumGenerations = None):
+           cosmology = None, maximumGenerations = None, multiPopulationParameters = None):
     """Start the genetic algorithm to look for a gravitational lens model that's
     compatible with the specified input images. This is a rather low-level function,
     it may be easier to use an instance of :class:`InversionWorkSpace` instead.
@@ -480,7 +484,7 @@ def invert(inputImages, basisFunctions, zd, Dd, popSize, moduleName = "general",
     return _invertCommon(inverter, feedbackObject, moduleName, "singleplanecpu", fitnessObjectParameters,
                   massScale, [Dd, zd], inputImages, getParamsFunction, popSize,
                   geneticAlgorithmParameters, returnNds, cosmology, convergenceParameters,
-                  maximumGenerations)
+                  maximumGenerations, multiPopulationParameters)
 
 def defaultLensModelFunction(operation, operationInfo, parameters):
     """This is the default `lensModelFunction` that's used in 
