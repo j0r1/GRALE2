@@ -419,7 +419,7 @@ protected:
 
 			auto migrationCheck = std::make_shared<eatk::UniformProbabilityMigrationCheck>(rng,
 					                                                                       (float)multiPopParams->getMigrationGenerationFraction(),
-																						   multiPopParams->getNumberOfInitialPopulationsToSkip());
+																						   multiPopParams->getNumberOfInitialGenerationsToSkip());
 			auto migrationExchange = std::make_shared<MyExchange>(rng, multiPopParams->getNumberOfIndividualsToLeavePopulation());
 
 			eatk::BasicMigrationStrategy migration(migrationCheck, migrationExchange);

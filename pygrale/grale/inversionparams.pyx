@@ -940,14 +940,14 @@ cdef class MultiPopulationParameters(object):
             raise MultiPopulationParametersException("Not all keys are present, need: '{}'".format(knownKeys))
 
         self.m_pParams.setNumberOfPopulations(d["populations"])
-        self.m_pParams.setNumberOfInitialPopulationsToSkip(d["skipgenerations"])
+        self.m_pParams.setNumberOfInitialGenerationsToSkip(d["skipgenerations"])
         self.m_pParams.setMigrationGenerationFraction(d["generationfraction"])
         self.m_pParams.setNumberOfIndividualsToLeavePopulation(d["migrants"])
 
     def toDict(self):
         d = { }
         d["populations"] = self.m_pParams.getNumberOfPopulations()
-        d["skipgenerations"] = self.m_pParams.getNumberOfInitialPopulationsToSkip()
+        d["skipgenerations"] = self.m_pParams.getNumberOfInitialGenerationsToSkip()
         d["generationfraction"] = self.getMigrationGenerationFraction()
         d["migrants"] = self.getNumberOfIndividualsToLeavePopulation()
         return d

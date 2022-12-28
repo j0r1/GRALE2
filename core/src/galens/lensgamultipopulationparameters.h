@@ -16,8 +16,8 @@ public:
 	void setNumberOfPopulations(size_t s) { m_numPop = s; }
 	size_t getNumberOfPopulations() const { return m_numPop; }
 
-	void setNumberOfInitialPopulationsToSkip(size_t n) { m_gracePeriod = n; }
-	size_t getNumberOfInitialPopulationsToSkip() const { return m_gracePeriod; }
+	void setNumberOfInitialGenerationsToSkip(size_t n) { m_gracePeriod = n; }
+	size_t getNumberOfInitialGenerationsToSkip() const { return m_gracePeriod; }
 
 	void setMigrationGenerationFraction(double x) { m_fraction = x; }
 	double getMigrationGenerationFraction() const { return m_fraction; }

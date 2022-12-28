@@ -11,8 +11,8 @@ cdef extern from "grale/lensgamultipopulationparameters.h" namespace "grale":
         void setNumberOfPopulations(size_t s)
         size_t getNumberOfPopulations() const
 
-        void setNumberOfInitialPopulationsToSkip(size_t n)
-        size_t getNumberOfInitialPopulationsToSkip() const
+        void setNumberOfInitialGenerationsToSkip(size_t n)
+        size_t getNumberOfInitialGenerationsToSkip() const
 
         void setMigrationGenerationFraction(double x)
         double getMigrationGenerationFraction() const
