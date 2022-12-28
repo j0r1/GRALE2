@@ -76,7 +76,7 @@ public:
 	Timer m_timer;
 	std::vector <double> m_intervals;
 
-	errut::bool_t onBeforeFitnessCalculation(size_t generation, std::shared_ptr<eatk::Population> &population)
+	errut::bool_t onBeforeFitnessCalculation(size_t generation, const std::shared_ptr<eatk::Population> &population) override
 	{
 		m_timer.start();
 	// 	cout << "# Generation " << generation << ", before calculation: " << endl;
@@ -85,13 +85,26 @@ public:
 		return true;
 	}
 
-    errut::bool_t onFitnessCalculated(size_t generation, std::shared_ptr<eatk::Population> &population)
+    errut::bool_t onFitnessCalculated(size_t generation, const std::shared_ptr<eatk::Population> &population) override
 	{
 		m_timer.stop();
 		m_intervals.push_back(m_timer.duration());
 	// 	cout << "# Generation " << generation << ", calculated: " << endl;
 	// 	for (auto &i : population->individuals())
 	// 		cout << i->fitness()->toString() << endl;
+		return true;
+	}
+
+	errut::bool_t onBeforeFitnessCalculation(size_t generation, const std::vector<std::shared_ptr<eatk::Population>> &populations) override
+	{
+		m_timer.start();
+		return true;
+	}
+
+    errut::bool_t onFitnessCalculated(size_t generation, const std::vector<std::shared_ptr<eatk::Population>> &populations) override
+	{
+		m_timer.stop();
+		m_intervals.push_back(m_timer.duration());
 		return true;
 	}
 };
