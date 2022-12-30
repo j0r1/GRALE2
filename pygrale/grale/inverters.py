@@ -448,10 +448,28 @@ class SingleProcessGdbInverter(Inverter):
                                                          readDescriptor=pp.rdPipeDesc, 
                                                          writeDescriptor=pp.wrPipeDesc)
 
+_detectedCores = [ None ]
+
 def _getNumHelpers(n):
     if n is None or n < 1:
+        if _detectedCores[0] is not None:
+            #print("Using previously number of detected cores", _detectedCores[0])
+            return _detectedCores[0]
+
+        try:
+            import subprocess
+            n = int(subprocess.check_output(["nproc"]))
+            _detectedCores[0] = n
+            return n
+
+        except Exception as e:
+            #print("Unable to use 'nproc' to detect number of cores available, falling back to 'multiprocessing' module")
+            pass
+        
         import multiprocessing
-        return multiprocessing.cpu_count()
+        n = multiprocessing.cpu_count()
+        _detectedCores[0] = n
+
     return n
 
 _defaultInverter = [ "threads" ]
