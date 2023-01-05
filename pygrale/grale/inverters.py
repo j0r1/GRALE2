@@ -12,7 +12,6 @@ classes. Available are:
    instance of :class:`MPIProcessInverter`
 
 """
-from __future__ import print_function
 from . import lenses
 from . import inversionparams
 from . import privutil

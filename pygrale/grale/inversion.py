@@ -4,7 +4,6 @@ which keeps track of the settings and provides an easier interface to
 the other functions. For absolute control however, the individual functions
 can still be used.
 """
-from __future__ import print_function
 from . import constants as CT
 from . import inverters
 from . import inversionparams

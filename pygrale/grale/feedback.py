@@ -26,7 +26,6 @@ for example. In that case, you'll need to define an object that contains ``onSta
 ``onProgress`` member functions, like in the :class:`Feedback` base class.
 """
 
-from __future__ import print_function
 try:
     from IPython.display import display
 except:

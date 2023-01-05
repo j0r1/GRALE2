@@ -2,7 +2,6 @@
 classes to help you make animations.
 """
 
-from __future__ import print_function
 from . import privutil
 from . import privutilcython
 from . import images

@@ -1,4 +1,3 @@
-from __future__ import print_function
 
 def hoursMinutesSecondsToDegrees(s):
     """Converts a string or array of three parts, specifying hours, minutes and seconds,
