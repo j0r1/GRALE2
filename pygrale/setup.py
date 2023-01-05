@@ -1,13 +1,18 @@
 #!/usr/bin/env python
 
 from __future__ import print_function
+import sys
+
+if sys.version_info.major < 3:
+    print("Major python version should be at least 3, version 2 is no longer supported")
+    sys.exit(-1)
+
 from distutils import sysconfig
 from distutils.core import setup
 from distutils.extension import Extension
 from Cython.Build import cythonize
 import platform
 import glob
-import sys
 import os
 import pprint
 import subprocess
@@ -324,7 +329,7 @@ def checkCopyToEggDir(setupInf):
         eggDir = sorted(eggDirs)[-1] # Hopefully this is the most recent one
         testFile = os.path.join(eggDir, "grale", "editor", "__main__.py")
         if not os.path.exists(testFile):
-            print(f"Main editor file not found in egg directory {eggDir}, skipping additional installation step")
+            print("Main editor file not found in egg directory {}, skipping additional installation step".format(eggDir))
             return
 
         # Look for cppqt library
@@ -337,7 +342,7 @@ def checkCopyToEggDir(setupInf):
         libFile = libFile[0]
         libName = os.path.basename(libFile)
         cppQtDir = os.path.join(eggDir, "grale", "editor", "cppqt")
-        print(f"Copying cppqt lib file {libFile} to egg directory {cppQtDir}")
+        print("Copying cppqt lib file {} to egg directory {}".format(libFile, cppQtDir))
 
         import shutil
         os.makedirs(cppQtDir, exist_ok=True)
