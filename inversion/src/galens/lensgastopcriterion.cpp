@@ -15,6 +15,7 @@ LensGAStopCriterion::LensGAStopCriterion(const std::shared_ptr<LensGAGenomeMutat
 { 
 	m_numObjectives = 0; // means not initialized
 	m_lastFitnessReportTime = chrono::steady_clock::now();
+	m_stopped = false;
 }
 
 bool_t LensGAStopCriterion::initialize(size_t numObjectives, const LensGAConvergenceParameters &convParams)
@@ -59,12 +60,20 @@ void LensGAStopCriterion::updateMutationAndConvergenceInfo()
 		cout << "DEBUG: Setting large mutations" << endl;
 }
 
-bool_t LensGAStopCriterion::analyze(const std::vector<std::shared_ptr<eatk::Individual>> &currentBest, size_t generationNumber, bool &shouldStop)
+bool_t LensGAStopCriterion::analyze(const eatk::PopulationEvolver &evolver, size_t generationNumber, bool &shouldStop)
 {
 	if (m_numObjectives == 0)
 		return "Not initialized";
 
+	if (m_stopped) // It's possible that we continue to evolve when we're actually done, in case we're using multiple populations
+	{
+		shouldStop = true;
+		return true;
+	}
+
 	assert(m_pFitnessHistory.get());
+
+	auto &currentBest = evolver.getBestIndividuals();
 
 	for (int i = 0 ; i < m_numObjectives ; i++)
 	{
@@ -85,7 +94,10 @@ bool_t LensGAStopCriterion::analyze(const std::vector<std::shared_ptr<eatk::Indi
 	if (m_pFitnessHistory->isFinished())
 	{
 		if (m_convergenceFactorPos == m_fitnessConvergenceFactors.size())
+		{
 			shouldStop = true;
+			m_stopped = true;
+		}
 		else
 			updateMutationAndConvergenceInfo();
 	}

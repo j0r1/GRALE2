@@ -18,7 +18,7 @@ public:
 	LensGAStopCriterion(const std::shared_ptr<LensGAGenomeMutation> &mutation);
 
 	errut::bool_t initialize(size_t numObjectives, const LensGAConvergenceParameters &convParams);
-	errut::bool_t analyze(const std::vector<std::shared_ptr<eatk::Individual>> &currentBest, size_t generationNumber, bool &shouldStop) override;
+	errut::bool_t analyze(const eatk::PopulationEvolver &evolver, size_t generationNumber, bool &shouldStop) override;
 protected:
 	virtual void onReport(const std::string &s)	const { }
 private:
@@ -31,6 +31,7 @@ private:
 	std::vector<double> m_mutationSizes;
 	std::unique_ptr<MultiFitnessHistory> m_pFitnessHistory;
 	int m_convergenceFactorPos;
+	bool m_stopped;
 
 	std::chrono::time_point<std::chrono::steady_clock> m_lastFitnessReportTime;
 };

@@ -174,13 +174,74 @@ private:
 class Stop : public grale::LensGAStopCriterion
 {
 public:
-	Stop(const std::shared_ptr<grale::LensGAGenomeMutation> &mutation)
-		: grale::LensGAStopCriterion(mutation) { }
+	Stop(const std::shared_ptr<grale::LensGAGenomeMutation> &mutation, int popId = -1)
+		: grale::LensGAStopCriterion(mutation), m_popId(popId) { }
 protected:
 	void onReport(const std::string &s)	const override
 	{
-		WriteLineStdout("GAMESSAGESTR:" + s);
+		if (m_popId < 0)
+			WriteLineStdout("GAMESSAGESTR:" + s);
+		else
+			WriteLineStdout("GAMESSAGESTR: P(" + std::to_string(m_popId) + "):" + s);
 	}
+private:
+	int m_popId;
+};
+
+class MultiStop : public eatk::StopCriterion
+{
+public:
+	MultiStop(const std::vector<std::shared_ptr<grale::LensGAGenomeMutation>> &mutations)
+	{
+		for (int i = 0 ; i < (int)mutations.size() ; i++)
+			m_stops.push_back(std::make_shared<Stop>(mutations[i], i));
+	}
+
+	errut::bool_t initialize(size_t numObjectives, const grale::LensGAConvergenceParameters &convParams)
+	{
+		errut::bool_t r;
+		for (auto &stop : m_stops)
+		{
+			if (!(r = stop->initialize(numObjectives, convParams)))
+				return "Unable to initialize stop criterion for subpopulation: " + r.getErrorString();
+		}
+		return true;
+	}
+
+	errut::bool_t analyze(const eatk::PopulationEvolver &ev, size_t generation, bool &shouldStop)
+	{
+		if (generation <= 1)
+		{
+			if (dynamic_cast<const eatk::MultiPopulationEvolver *>(&ev) == nullptr)
+				return "Evolver doesn't appear to be a 'MultiPopulationEvolver'";
+		}
+
+		const eatk::MultiPopulationEvolver &multiEvolver = static_cast<const eatk::MultiPopulationEvolver &>(ev);
+		auto &singleEvolvers = multiEvolver.getSinglePopulationEvolvers();
+
+		if (singleEvolvers.size() != m_stops.size())
+			return "Number of single population evolvers (" + std::to_string(singleEvolvers.size()) + ") doesn't match number individual stop criteria (" + std::to_string(m_stops.size()) + ")";
+
+		bool stop = true;
+		errut::bool_t r;
+
+		for (size_t i = 0 ; i < m_stops.size() ; i++)
+		{
+			bool shouldStopSingle = false;
+
+			if (!(r = m_stops[i]->analyze(*singleEvolvers[i], generation, shouldStopSingle)))
+				return "Error running stop criterion for population " + std::to_string(i) + ": " + r.getErrorString();
+			if (!shouldStopSingle)
+				stop = false;
+		}
+
+		// Stop if all populations indicate stop
+		shouldStop = stop;
+
+		return true;
+	}
+private:
+	std::vector<std::shared_ptr<Stop>> m_stops;
 };
 
 class MyExchange : public eatk::SequentialRandomIndividualExchange
@@ -318,21 +379,19 @@ protected:
 						  genomeCalculator->allowNegativeValues(),
 						  genomeCalculator->getNumberOfObjectives());
 
-		// TODO? For now, only the fitness calculations are parallel, using
-		//       The same mutation instance for all populations is safe.
-		//       In case a multi-threaded approach is used, this should be
-		//       investigated again.
-		//       The stop criterion is coupled to this (to switch from large
-		//       mutations to small mutations for example), so we can't simply
-		//       use multiple instances.
-		auto mutation = std::make_shared<grale::LensGAGenomeMutation>(rng, 
-					   1.0, // chance multiplier; has always been set to one
-					   genomeCalculator->allowNegativeValues(),
-					   0, // mutation amplitude, will be in the stop criterion
-					   true); // absolute or small mutation, will be set in the stop criterion
 
-		auto getEvolver = [&rng, &genomeCalculator, &params, &mutation]()
+		std::vector<std::shared_ptr<grale::LensGAGenomeMutation>> mutations;
+
+		auto getEvolver = [&rng, &genomeCalculator, &params, &mutations]()
 		{
+			auto mutation = std::make_shared<grale::LensGAGenomeMutation>(rng, 
+						   1.0, // chance multiplier; has always been set to one
+						   genomeCalculator->allowNegativeValues(),
+						   0, // mutation amplitude, will be in the stop criterion
+						   true); // absolute or small mutation, will be set in the stop criterion
+
+			mutations.push_back(mutation);
+
 			std::shared_ptr<grale::LensGACrossoverBase> cross;
 			if (genomeCalculator->getNumberOfObjectives() == 1)
 				cross = std::make_shared<grale::LensGASingleObjectiveCrossover>(params.getSelectionPressure(),
@@ -360,19 +419,18 @@ protected:
 								factoryParamBytes, creation, calc)))
 			return "Can't get calculator: " + r.getErrorString();
 		
-		// Note: this approach causes the settings (large/small mutations) to switch
-		// at the same time for all subpopulations. Is the alternative better?
-		Stop stop(mutation);
-
-		if (!(r = stop.initialize(genomeCalculator->getNumberOfObjectives(), convParams)))
-		{
-			calculatorCleanup();
-			return "Error initializing convergence checker: " + r.getErrorString();
-		}
-
 		if (!multiPopParams.get()) // Single population only
 		{
 			auto cross = getEvolver();
+
+			assert(mutations.size() == 1);
+			Stop stop(mutations[0]);
+
+			if (!(r = stop.initialize(genomeCalculator->getNumberOfObjectives(), convParams)))
+			{
+				calculatorCleanup();
+				return "Error initializing convergence checker: " + r.getErrorString();
+			}
 
 			if (!(r = ga.run(creation, *cross, *calc, stop, popSize)))
 			{
@@ -423,6 +481,14 @@ protected:
 			auto migrationExchange = std::make_shared<MyExchange>(rng, multiPopParams->getNumberOfIndividualsToLeavePopulation());
 
 			eatk::BasicMigrationStrategy migration(migrationCheck, migrationExchange);
+
+			assert(mutations.size() > 1);
+			MultiStop stop(mutations);
+			if (!(r = stop.initialize(genomeCalculator->getNumberOfObjectives(), convParams)))
+			{
+				calculatorCleanup();
+				return "Error initializing multi-population convergence checker: " + r.getErrorString();
+			}
 
 			if (!(r = ga.run(creation, multiPopEvolver, *calc, stop, migration, popSizes)))
 			{
