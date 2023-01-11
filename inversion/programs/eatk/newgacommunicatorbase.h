@@ -1,6 +1,7 @@
 #pragma once
 
 #include "log.h"
+#include "utils.h"
 #include "inputoutput.h"
 #include "gaparameters.h"
 #include "lensinversiongafactorycommon.h"
@@ -368,10 +369,10 @@ protected:
 								genomeCalculator->getNumberOfObjectives(),
 								comparison);
 
-		std::shared_ptr<grale::RandomNumberGenerator> rng = std::make_shared<grale::RandomNumberGenerator>();
+		std::shared_ptr<grale::RandomNumberGenerator> rng = std::make_shared<grale::RandomNumberGenerator>("GRALE_DEBUG_SEED_COMMON");
 		MyGA ga;
 
-		WriteLineStdout("GAMESSAGESTR:RNG SEED: " + std::to_string(rng->getSeed()));
+		WriteLineStdout("GAMESSAGESTR:RNG SEED for " + rng->getDebugSeedName() + ": " + std::to_string(rng->getSeed()));
 
 		grale::LensGAIndividualCreation creation(rng, 
 						  genomeCalculator->getNumberOfBasisFunctions(),
@@ -379,11 +380,26 @@ protected:
 						  genomeCalculator->allowNegativeValues(),
 						  genomeCalculator->getNumberOfObjectives());
 
+		int numToSkip = 0;
+		if (grale::getenv("GRALE_DEBUG_SKIPPOP", numToSkip, 0))
+		{
+			WriteLineStdout("GRALE_DEBUG_SKIPPOP = " + std::to_string(numToSkip) + ", skipping some individuals");
+			for (int i = 0 ; i < numToSkip ; i++)
+				creation.createInitializedGenome();
+
+			WriteLineStdout("Done skipping individuals");
+		}
+
 
 		std::vector<std::shared_ptr<grale::LensGAGenomeMutation>> mutations;
 
-		auto getEvolver = [&rng, &genomeCalculator, &params, &mutations]()
+		int popCount = -1;
+		auto getEvolver = [&popCount, &genomeCalculator, &params, &mutations]()
 		{
+			popCount++;
+			std::shared_ptr<grale::RandomNumberGenerator> rng = std::make_shared<grale::RandomNumberGenerator>("GRALE_DEBUG_SEED_POP_" + std::to_string(popCount));
+			WriteLineStdout("GAMESSAGESTR:RNG SEED for " + rng->getDebugSeedName() + ": " + std::to_string(rng->getSeed()));
+
 			auto mutation = std::make_shared<grale::LensGAGenomeMutation>(rng, 
 						   1.0, // chance multiplier; has always been set to one
 						   genomeCalculator->allowNegativeValues(),

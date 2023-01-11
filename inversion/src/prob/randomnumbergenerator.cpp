@@ -30,16 +30,30 @@
 #include <time.h>
 #include <iostream>
 #include <random>
+#include <cassert>
 
 namespace grale
 {
 
+RandomNumberGenerator::RandomNumberGenerator(const std::string &dbgSeedName)
+	: m_dbgSeedName(dbgSeedName)
+{
+	assert(dbgSeedName.length() > 0);
+	common();
+}
+
 RandomNumberGenerator::RandomNumberGenerator()
+	: m_dbgSeedName("GRALE_DEBUG_SEED")
+{
+	common();
+}
+
+void RandomNumberGenerator::common()
 {
 	uint32_t seed = pickSeed();
 	char *debugSeed;
 
-	if ((debugSeed = getenv("GRALE_DEBUG_SEED")) != 0)
+	if ((debugSeed = getenv(m_dbgSeedName.c_str())) != 0)
 		seed = (uint32_t)strtol(debugSeed, 0, 10);
 
 	//std::cerr << "USING GSL RNG SEED " << seed << std::endl;

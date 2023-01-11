@@ -189,6 +189,7 @@ shared_ptr<eatk::Genome> LensGAIndividualCreation::createInitializedGenome()
 	for (auto &s : genome->m_sheets)
 		s = m_rng->getRandomFloat();
 
+	//cerr << "Created genome:" << genome->toString() << endl;
 	return genome;
 }
 

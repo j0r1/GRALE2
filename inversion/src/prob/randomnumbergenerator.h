@@ -32,6 +32,7 @@
 #include <stdint.h>
 #include <gsl/gsl_rng.h>
 #include <stdlib.h>
+#include <string>
 
 namespace grale
 {
@@ -40,18 +41,22 @@ class GRALE_IMPORTEXPORT RandomNumberGenerator : public eatk::RandomNumberGenera
 {
 public:
 	RandomNumberGenerator();
+	RandomNumberGenerator(const std::string &dbgSeedName);
 	~RandomNumberGenerator();
 
+	std::string getDebugSeedName() const { return m_dbgSeedName; }
     double getRandomDouble() override;
     float getRandomFloat() override { return (float)getRandomDouble(); }
 	uint32_t getRandomUint32() override;
 
 	uint32_t getSeed() const { return m_seed; }
 private:
+	void common();
 	static uint32_t pickSeed();
 
 	mutable gsl_rng *m_pRng;
 	uint32_t m_seed;
+	std::string m_dbgSeedName;
 };
 
 } // end namespace
