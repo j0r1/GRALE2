@@ -32,6 +32,7 @@
 #include <stdint.h>
 #include <gsl/gsl_rng.h>
 #include <stdlib.h>
+#include <thread>
 
 namespace grale
 {
@@ -52,6 +53,8 @@ private:
 
 	mutable gsl_rng *m_pRng;
 	uint32_t m_seed;
+
+	std::thread::id m_id; // Only used in debug mode, to check that the Rng isn't accessed from multiple threads
 };
 
 } // end namespace

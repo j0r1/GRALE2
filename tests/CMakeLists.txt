@@ -72,3 +72,6 @@ target_link_libraries(discretefunction gralecore-static ${GRALE_LINK_LIBS})
 
 add_executable(mppopcalc mppopcalc.cpp)
 target_link_libraries(mppopcalc graleinv-static gralecore-static ${GRALE_LINK_LIBS})
+
+add_executable(rngasserttest rngasserttest.cpp)
+target_link_libraries(rngasserttest graleinv-static gralecore-static ${GRALE_LINK_LIBS})

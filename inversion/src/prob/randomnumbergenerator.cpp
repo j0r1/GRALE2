@@ -30,12 +30,15 @@
 #include <time.h>
 #include <iostream>
 #include <random>
+#include <cassert>
 
 namespace grale
 {
 
 RandomNumberGenerator::RandomNumberGenerator()
 {
+	m_id = std::this_thread::get_id();
+
 	uint32_t seed = pickSeed();
 	char *debugSeed;
 
@@ -56,11 +59,13 @@ RandomNumberGenerator::~RandomNumberGenerator()
 
 double RandomNumberGenerator::getRandomDouble()
 {
+	assert(std::this_thread::get_id() == m_id);
 	return gsl_rng_uniform(m_pRng);
 }
 
 uint32_t RandomNumberGenerator::getRandomUint32()
 {
+	assert(std::this_thread::get_id() == m_id);
 	return (uint32_t)gsl_rng_uniform_int(m_pRng, (unsigned long int)0xffffffff);
 }
 
