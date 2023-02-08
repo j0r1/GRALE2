@@ -193,6 +193,15 @@ extensions = [
         define_macros = [ ] + extraDefines,
         extra_compile_args = extraFlags
     ),
+    Extension("grale.quadprogmatrix",
+        [ "grale/quadprogmatrix.pyx", "grale/qpmatrix.cpp" ],
+        include_dirs = extraIncludes,
+        libraries = libraries,
+        library_dirs = libDirs,
+        language = "c++",
+        define_macros = [ ] + extraDefines,
+        extra_compile_args = extraFlags
+    ),
 ]
 
 def getVersionString():
