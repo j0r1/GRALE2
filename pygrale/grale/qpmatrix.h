@@ -30,6 +30,8 @@ public:
 	int getNumberOfVariables() const { return (int)m_idxMapFwd.size(); }
 	double getInitialValue(int varIdx) const;
 	std::pair<int,int> getRowColumn(int varIdx) const;
+
+	double unadjustForUnit(double x) const { return x*m_scaleUnit; }
 private:
 	int m_NX, m_NY;
 	std::vector<double> m_potentialValues;

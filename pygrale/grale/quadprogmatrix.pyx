@@ -126,3 +126,46 @@ cdef class MaskedPotentialValues:
         N = self.getNumberOfVariables()
         return MaskedPotentialValues._returnResults(&results, rt, N, N)
 
+    def getInitialValues(self):
+        cdef int N,i
+        cdef np.ndarray[double, ndim=1] values
+
+        N = self.getNumberOfVariables()
+        values = np.empty([ N ], dtype=np.double)
+        for i in range(N):
+            values[i] = deref(self.m_maskedValues).getInitialValue(i)
+
+        return values
+
+    def getFullSolution(self, np.ndarray[double, ndim=1] solValues):
+        cdef np.ndarray[double, ndim=2] newPhi
+        cdef int N, NX, NY, i, j, idx
+        cdef const vector[double] *oldPhi = &(deref(self.m_maskedValues).getPotentialValues())
+        cdef pair[int,int] rowCol
+        cdef double val
+
+        N = self.getNumberOfVariables()
+        if N != solValues.shape[0]:
+            raise MaskedPotentialValuesException("Expecting an input array of length {}".format(N))
+
+        NX = deref(self.m_maskedValues).getNX()
+        NY = deref(self.m_maskedValues).getNY()
+
+        # First create a copy of the old values
+        newPhi = np.empty([NY,NX], dtype=np.double)
+        idx = 0
+        for i in range(NY):
+            for j in range(NX):
+                newPhi[i,j] = (deref(oldPhi))[idx]
+                idx += 1
+
+        # Fill in solution
+        for idx in range(N):
+            rowCol = deref(self.m_maskedValues).getRowColumn(idx)
+
+            val = solValues[idx]
+            val = deref(self.m_maskedValues).unadjustForUnit(val)
+            newPhi[rowCol.first, rowCol.second] = val
+
+        return newPhi
+

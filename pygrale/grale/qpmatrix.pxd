@@ -22,9 +22,11 @@ cdef extern from "qpmatrix.h":
         double getInitialValue(int varIdx) const
         pair[int,int] getRowColumn(int varIdx) const
 
+        double unadjustForUnit(double x) const
+
     MatrixResults calculateLinearConstraintMatrices(const MaskedPotentialValues &mpv,
-		const vector[pair[double, pair[int, int]]] &kernel)
+        const vector[pair[double, pair[int, int]]] &kernel)
     MatrixResults calculateQuadraticMimimizationMatrices(const MaskedPotentialValues &mpv,
-		const vector[pair[double,vector[pair[double, pair[int, int]]]]] &kernelList)
+        const vector[pair[double,vector[pair[double, pair[int, int]]]]] &kernelList)
 
     
