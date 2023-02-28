@@ -20,7 +20,7 @@ class MaskedPotentialValuesException(Exception):
 cdef class MaskedPotentialValues:
     cdef unique_ptr[qpmatrix.MaskedPotentialValues] m_maskedValues
 
-    def __init__(self, np.ndarray[double, ndim=2] potentialValues, np.ndarray[cbool, ndim=2] mask):
+    def __init__(self, np.ndarray[double, ndim=2] potentialValues, np.ndarray[cbool, ndim=2] mask, double phiScale):
         cdef vector[double] pVal
         cdef vector[cbool] cMask
         cdef int i, j, rows, cols
@@ -39,9 +39,7 @@ cdef class MaskedPotentialValues:
                 pVal.push_back(potentialValues[i,j])
                 cMask.push_back(mask[i,j])
 
-        from grale.constants import ANGLE_ARCSEC
-        unit = ANGLE_ARCSEC**2
-        self.m_maskedValues = make_unique[qpmatrix.MaskedPotentialValues](pVal, cMask, cols, unit)
+        self.m_maskedValues = make_unique[qpmatrix.MaskedPotentialValues](pVal, cMask, cols, phiScale)
 
     def getNumberOfVariables(self):
         return deref(self.m_maskedValues).getNumberOfVariables()
