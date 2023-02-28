@@ -35,19 +35,22 @@ MatrixResults calculateLinearMatrix_Functors(const Positions &positions, Positio
 				break;
 			}
 
-			auto idx_value = mapping(newPos);
-			auto idx = idx_value.first;
-			auto value = idx_value.second;
-
-			if (idx < 0) // Don't optimize, move to constraint
-				bValue += -coeff * value;
-			else
+			for (auto idx_value_extra_factor : mapping(newPos))
 			{
-				auto it = Avalues.find(idx);
-				if (it == Avalues.end())
-					Avalues[idx] = coeff;
+				auto idx = std::get<0>(idx_value_extra_factor);
+				auto value = std::get<1>(idx_value_extra_factor);
+				auto extra_factor = std::get<2>(idx_value_extra_factor);
+
+				if (idx < 0) // Don't optimize, move to constraint
+					bValue += -coeff * extra_factor * value;
 				else
-					it->second += coeff;
+				{
+					auto it = Avalues.find(idx);
+					if (it == Avalues.end())
+						Avalues[idx] = coeff*extra_factor;
+					else
+						it->second += coeff*extra_factor;
+				}
 			}
 		}
 
@@ -124,44 +127,52 @@ MatrixResults calculateQuadraticMatrix_Functors(int N, const Positions &position
 					break;
 				}
 
-				auto idx1_value1 = mapping(fullPos1);
-				auto idx1 = idx1_value1.first;
-				auto value1 = idx1_value1.second;
-
-				for (auto factor2_diffPos2 : kernel)
+				for (auto idx1_value1_extra_factor : mapping(fullPos1))
 				{
-					auto factor2 = factor2_diffPos2.first;
-					auto diffPos2 = factor2_diffPos2.second;
+					auto idx1 = std::get<0>(idx1_value1_extra_factor);
+					auto value1 = std::get<1>(idx1_value1_extra_factor);
+					auto extra_factor1 = std::get<2>(idx1_value1_extra_factor);
 
-					auto fullPos2 = combiner(pos, diffPos2);
-					if (!posVal(fullPos2))
+					for (auto factor2_diffPos2 : kernel)
 					{
-						valid = false;
-						break;
-					}
+						auto factor2 = factor2_diffPos2.first;
+						auto diffPos2 = factor2_diffPos2.second;
 
-					auto idx2_value2 = mapping(fullPos2);
-					auto idx2 = idx2_value2.first;
-					auto value2 = idx2_value2.second;
-
-					if (idx1 < 0)
-					{
-						if (idx2 < 0)
+						auto fullPos2 = combiner(pos, diffPos2);
+						if (!posVal(fullPos2))
 						{
-							// Nothing to do
+							valid = false;
+							break;
 						}
-						else
-							qBuffer.push_back({idx2,weight*factor1*factor2*value1});
-					}
-					else // idx1 >= 0
-					{
-						if (idx2 < 0)
-							qBuffer.push_back({idx1,weight*factor1*factor2*value2});
-						else
-							PBuffer.push_back({idx1, idx2, weight*factor1*factor2});
-					}
-				}
 
+						for (auto idx2_value2_extra_factor : mapping(fullPos2))
+						{
+							auto idx2 = std::get<0>(idx2_value2_extra_factor);
+							auto value2 = std::get<1>(idx2_value2_extra_factor);
+							auto extra_factor2 = std::get<2>(idx2_value2_extra_factor);
+
+							if (idx1 < 0)
+							{
+								if (idx2 < 0)
+								{
+									// Nothing to do
+								}
+								else
+									qBuffer.push_back({idx2,weight*factor1*extra_factor1*factor2*extra_factor2*value1});
+							}
+							else // idx1 >= 0
+							{
+								if (idx2 < 0)
+									qBuffer.push_back({idx1,weight*factor1*extra_factor1*factor2*extra_factor2*value2});
+								else
+									PBuffer.push_back({idx1, idx2, weight*factor1*extra_factor1*factor2*extra_factor2});
+							}
+						}
+					}
+
+					if (!valid)
+						break;
+				}
 				if (!valid)
 					break;
 			}
@@ -227,6 +238,5 @@ MatrixResults calculateQuadraticMatrix(int N, const Positions &positions, const 
 			[&combiner](auto pos, auto diff) { return combiner.combinePositionAndDiff(pos, diff); },
 			[&mapping](auto pos) { return mapping.getVariableIndexOrValue(pos); });
 }
-
 
 

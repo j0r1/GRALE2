@@ -26,7 +26,7 @@ public:
 	const std::vector<double> &getPotentialValues() const { return m_potentialValues; }
 	const std::vector<bool> &getMask() const { return m_mask; }
 
-	std::pair<int, double> getVariableIndexOrValue(int i, int j) const;
+	std::tuple<int, double, double> getVariableIndexOrValue(int i, int j) const;
 	int getNumberOfVariables() const { return (int)m_idxMapFwd.size(); }
 	double getInitialValue(int varIdx) const;
 	std::pair<int,int> getRowColumn(int varIdx) const;
@@ -41,16 +41,16 @@ private:
 	double m_scaleUnit;
 };
 
-inline std::pair<int, double> MaskedPotentialValues::getVariableIndexOrValue(int i, int j) const
+inline std::tuple<int, double, double> MaskedPotentialValues::getVariableIndexOrValue(int i, int j) const
 {
 	assert(i >= 0 && i < m_NY && j >= 0 && j < m_NX);
 
 	int gridIdx = i*m_NX + j;
 	if (m_mask[gridIdx]) // need to keep this value
-		return { -1, m_potentialValues[gridIdx]/m_scaleUnit };
+		return { -1, m_potentialValues[gridIdx]/m_scaleUnit, 1.0 };
 
 	assert(m_idxMapInv[gridIdx] == -1);
-	return { m_idxMapInv[gridIdx], std::numeric_limits<double>::quiet_NaN() };
+	return { m_idxMapInv[gridIdx], std::numeric_limits<double>::quiet_NaN(), 1.0 };
 }
 
 inline double MaskedPotentialValues::getInitialValue(int varIdx) const

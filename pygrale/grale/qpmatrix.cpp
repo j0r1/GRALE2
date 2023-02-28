@@ -103,7 +103,7 @@ MatrixResults calculateLinearConstraintMatrices(const MaskedPotentialValues &mpv
 			[NX,NY](auto pos) { return pos.m_i >= 0 && pos.m_i < NY && pos.m_j >= 0 && pos.m_j < NX; },
 			kernel,
 			[](auto pos, auto diff) { return GridPos(pos, diff); },
-			[&mpv](auto pos) { return mpv.getVariableIndexOrValue(pos.m_i, pos.m_j); }
+			[&mpv](auto pos) { return array<tuple<int,double,double>,1> { mpv.getVariableIndexOrValue(pos.m_i, pos.m_j) }; }
 			);
 }
 
@@ -120,7 +120,7 @@ MatrixResults calculateQuadraticMimimizationMatrices(const MaskedPotentialValues
 			[NX,NY](auto pos) { return pos.m_i >= 0 && pos.m_i < NY && pos.m_j >= 0 && pos.m_j < NX; },
 			kernelList,
 			[](auto pos, auto diff) { return GridPos(pos, diff); },
-			[&mpv](auto pos) { return mpv.getVariableIndexOrValue(pos.m_i, pos.m_j); }
+			[&mpv](auto pos) { return array<tuple<int,double,double>,1> { mpv.getVariableIndexOrValue(pos.m_i, pos.m_j) }; }
 			);
 }
 
