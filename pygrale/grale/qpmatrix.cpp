@@ -68,14 +68,12 @@ private:
 };
 
 MaskedPotentialValues::MaskedPotentialValues(vector<double> &potentialValues, vector<bool> &mask, int NX, double scaleUnit)
+	: MaskedPotentialValuesBase(NX, potentialValues.size()/NX)
 {
 	assert(potentialValues.size() == mask.size());
 	assert(potentialValues.size() % NX == 0);
 	
 	m_scaleUnit = scaleUnit;
-	m_NY = potentialValues.size()/NX;
-	m_NX = NX;
-	assert(m_NX > 0 && m_NY > 0);
 
 	m_potentialValues = move(potentialValues);
 	m_mask = move(mask);
@@ -89,9 +87,11 @@ MaskedPotentialValues::MaskedPotentialValues(vector<double> &potentialValues, ve
 			m_idxMapFwd.push_back(i);
 		}
 	}
+
+	setNumberOfVariables((int)m_idxMapFwd.size());
 }
 
-MatrixResults calculateLinearConstraintMatrices(const MaskedPotentialValues &mpv,
+MatrixResults calculateLinearConstraintMatrices(const MaskedPotentialValuesBase &mpv,
 		const vector<pair<double, pair<int, int>>> &kernel
 		)
 {
@@ -103,11 +103,11 @@ MatrixResults calculateLinearConstraintMatrices(const MaskedPotentialValues &mpv
 			[NX,NY](auto pos) { return pos.m_i >= 0 && pos.m_i < NY && pos.m_j >= 0 && pos.m_j < NX; },
 			kernel,
 			[](auto pos, auto diff) { return GridPos(pos, diff); },
-			[&mpv](auto pos) { return array<tuple<int,double,double>,1> { mpv.getVariableIndexOrValue(pos.m_i, pos.m_j) }; }
+			[&mpv](auto pos) { return mpv.getVariableIndexOrValue(pos.m_i, pos.m_j); }
 			);
 }
 
-MatrixResults calculateQuadraticMimimizationMatrices(const MaskedPotentialValues &mpv,
+MatrixResults calculateQuadraticMimimizationMatrices(const MaskedPotentialValuesBase &mpv,
 		const vector<pair<double,vector<pair<double, pair<int, int>>>>> &kernelList
 		)
 {
@@ -120,7 +120,56 @@ MatrixResults calculateQuadraticMimimizationMatrices(const MaskedPotentialValues
 			[NX,NY](auto pos) { return pos.m_i >= 0 && pos.m_i < NY && pos.m_j >= 0 && pos.m_j < NX; },
 			kernelList,
 			[](auto pos, auto diff) { return GridPos(pos, diff); },
-			[&mpv](auto pos) { return array<tuple<int,double,double>,1> { mpv.getVariableIndexOrValue(pos.m_i, pos.m_j) }; }
+			[&mpv](auto pos) { return mpv.getVariableIndexOrValue(pos.m_i, pos.m_j); }
 			);
+}
+
+MaskedPotentialValuesOffsetGradient::MaskedPotentialValuesOffsetGradient(vector<double> &potentialValues, 
+		                                                                 vector<int> &mask, int NX, double scaleUnit)
+	: MaskedPotentialValuesBase(NX, potentialValues.size()/NX)
+{
+	assert(potentialValues.size() == mask.size());
+	assert(potentialValues.size() % NX == 0);
+
+	int maskCounts[3] = { 0, 0, 0 };
+	for (auto m : mask)
+	{
+		if (m < 0 || m > 2)
+		{
+			cerr << "Internal error: illegal mask value " << m << endl;
+			exit(-1);
+		}
+		maskCounts[m]++;
+	}
+
+	for (int i = 0 ; i < 3 ; i++)
+	{
+		if (!maskCounts[i])
+		{
+			cerr << "Internal error: not all mask values are present, can't define problem" << endl;
+			exit(-1);
+		}
+	}
+
+	m_scaleUnit = scaleUnit;
+
+	m_potentialValues = move(potentialValues);
+	m_mask = move(mask);
+
+	m_idxMapInv.resize(m_potentialValues.size(), -1);
+	m_idxMapFwd.push_back(-123); // room for offset in the mask == 2 section, doesn't correspond to a point in the map
+	m_idxMapFwd.push_back(-123); // room for x gradient in mask == 2 section, doesn't correspond to a point in the map
+	m_idxMapFwd.push_back(-123); // room for y gradient in mask == 2 section, doesn't correspond to a point in the map
+
+	for (size_t i = 0 ; i < m_potentialValues.size() ; i++)
+	{
+		if (m_mask[i] == 0) // a grid value that needs to be optimized
+		{
+			m_idxMapInv[i] = m_idxMapFwd.size();
+			m_idxMapFwd.push_back(i);
+		}
+	}
+
+	setNumberOfVariables((int)m_idxMapFwd.size());
 }
 
