@@ -1,6 +1,7 @@
 #include "graleconfig.h"
 #include "potentialgridlens.h"
 #include "constants.h"
+#include <limits>
 
 using namespace std;
 using namespace errut;
