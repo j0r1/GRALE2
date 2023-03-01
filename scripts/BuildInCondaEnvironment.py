@@ -5,13 +5,16 @@ import sys
 import time
 import subprocess
 
+condaTool = None
+
 def usage(full = False):
     print(r"""Usage:
     python BuildInCondaEnvironment.py [-builddir] path
 or
     python BuildInCondaEnvironment.py --help
 
-This script attempts to compile PyGrale in an existing conda environment.
+This script attempts to compile PyGrale in an existing conda environment,
+using either the 'conda' tool, or 'mamba' if it's detected.
 
 On Windows, you'll need to install the Visual Studio 2017 build tools from 
 https://visualstudio.microsoft.com/thank-you-downloading-visual-studio/?sku=BuildTools&rel=15
@@ -24,7 +27,7 @@ everything has been built, you can just start the conda prompt directly.
 
 Start with creating a new conda environment, and activate it, e.g:
 
-    conda create -n mypygrale -c conda-forge -y python=3.8
+    {} create -n mypygrale -c conda-forge -y python=3.10
     conda activate mypygrale
 
 Note that we're using the conda-forge channel for packages.
@@ -35,7 +38,7 @@ downloading and compiling the source code in the specified path, e.g:
     python BuildInCondaEnvironment.py path_to_dir
 
 Of course: use at your own risk!
-""")
+""".format(condaTool))
 
     if full:
         print("""
@@ -59,7 +62,7 @@ Environment variables that are used:
  - NOPULL: skip git pull to update used repositories
 
  - NOCONDAINSTALL: assume all needed dependencies are available,
-   don't run 'conda install' to add any packages.
+   don't run '{} install' to add any packages.
 
  - NOGSL: if you don't want to install a GSL package using anaconda,
    e.g. if you want to use a different one, you can set this.
@@ -83,11 +86,11 @@ Environment variables that are used:
    is expected to be empty. You can set this environment variable to
    skip this check.
 
-""")
+""".format(condaTool))
     sys.exit(-1)
 
 def getInstalledCondaPackages():
-    return [ l.split()[0] for l in subprocess.check_output("conda list", shell=True).decode().splitlines() if not l.startswith("#") ]
+    return [ l.split()[0] for l in subprocess.check_output("{} list".format(condaTool), shell=True).decode().splitlines() if not l.startswith("#") ]
 
 def checkCall(cmd, errString):
     try:
@@ -105,6 +108,15 @@ def getWindowsGeneratorAndMakeCommand():
 getGeneratorAndMakeCommand = getWindowsGeneratorAndMakeCommand if os.name == 'nt' else getUnixGeneratorAndMakeCommand
 
 def main():
+    global condaTool
+
+    try:
+        # See if we can use 'mamba' instead of 'conda'
+        checkCall("mamba --version", "'mamba' not detected, will assume 'conda'")
+        condaTool = "mamba"
+    except Exception as e:
+        condaTool = "conda"
+
     try:
         if len(sys.argv) != 2 and len(sys.argv) != 3:
             raise Exception("Invalid number of arguments")
@@ -177,13 +189,13 @@ def main():
 Please make sure that 'python' is installed in the environment, from conda-forge. You
 can run e.g.
 
-    conda install -c conda-forge python
+    {} install -c conda-forge python
 
 or
 
-    conda install -c conda-forge python=3.8
+    {} install -c conda-forge python=3.8
 
-""")
+""".format(condaTool, condaTool))
         sys.exit(-1)
 
     if not "NOCONDAINSTALL" in os.environ:
@@ -192,7 +204,7 @@ or
             print("'triangle' is already installed, continuing...")
         else:
             print("Installing 'triangle' binary")
-            subprocess.check_call("conda install -c jori -y triangle", shell=True)
+            subprocess.check_call("{} install -c jori -y triangle".format(condaTool), shell=True)
 
         condaPacks = [ "ipython", "jupyter", "astropy", "pyqt5-sip", "pyqt", "cython", "numpy", "scipy", "matplotlib",
                        "shapely", "pyopengl", "ipywidgets", "cmake" ]
@@ -217,7 +229,7 @@ or
         else:
             print("Installing {} from conda-forge".format(" ".join(condaPacks)))
             
-            cmd = [ "conda", "install", "-y", "-c", "conda-forge" ] + condaPacks
+            cmd = [ condaTool, "install", "-y", "-c", "conda-forge" ] + condaPacks
             subprocess.check_call(" ".join(cmd), shell=True)
 
             newPacks = getInstalledCondaPackages()
