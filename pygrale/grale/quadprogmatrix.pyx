@@ -17,7 +17,6 @@ ctypedef np.ndarray ndarray
 class MaskedPotentialValuesException(Exception):
     pass
 
-@staticmethod
 def _getReturnType(returnType):
     if returnType == "csc":
         return 0
@@ -197,8 +196,26 @@ cdef class MaskedPotentialValuesOffsetGradient:
     def getNumberOfVariables(self):
         return deref(self.m_maskedValues).getNumberOfVariables()
 
-    # Not using constraints in this case
-    #def getLinearConstraintMatrices(self, kernel, returnType = "csc"):
+    def getLinearConstraintMatrices(self, kernel, returnType = "csc"):
+        cdef vector[pair[double, pair[int, int]]] cKernel
+        cdef pair[int,int] diff
+        cdef qpmatrix.MatrixResults results
+        cdef np.ndarray[double, ndim=1] values, b
+        cdef np.ndarray[long, ndim=1] rows, cols
+        cdef int i, rt, N, M
+        cdef double factor
+
+        rt = _getReturnType(returnType)
+
+        for part in kernel:
+            factor = part["factor"]
+            diff = pair[int, int](part["di"], part["dj"])
+            cKernel.push_back(pair[double, pair[int,int]](factor, diff))
+
+        results = qpmatrix.calculateLinearConstraintMatrices(deref(self.m_maskedValues), cKernel)
+        N = results.second.size()
+        M = self.getNumberOfVariables()
+        return _returnResults(&results, rt, N, M)
 
     def getQuadraticMinimizationMatrices(self, kernelList, returnType = "csc"):
         cdef vector[pair[double, vector[pair[double,pair[int, int]]]]] cKernelList
@@ -284,7 +301,7 @@ cdef class MaskedPotentialValuesOffsetGradient:
             val = pMV.unadjustForUnit(val)
             newPhi[rowCol.first, rowCol.second] = val
 
-        assert np.sum(np.isnan(newPhi)), "NaN detected in final grid, something is not filled in?"
+        assert np.sum(np.isnan(newPhi)) == 0, "NaN detected in final grid, something is not filled in?"
 
         return newPhi
 
