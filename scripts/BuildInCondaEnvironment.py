@@ -193,7 +193,7 @@ can run e.g.
 
 or
 
-    {} install -c conda-forge python=3.8
+    {} install -c conda-forge python=3.10
 
 """.format(condaTool, condaTool))
         sys.exit(-1)
@@ -206,7 +206,10 @@ or
             print("Installing 'triangle' binary")
             subprocess.check_call("{} install -c jori -y triangle".format(condaTool), shell=True)
 
-        condaPacks = [ "ipython", "jupyter", "astropy", "pyqt5-sip", "pyqt", "cython", "numpy", "scipy", "matplotlib",
+        # TODO: fixing to an older SIP version, and therefore older Qt. Need to figure out
+        #       how to build cpp code for grale_editor, as 'sipconfig' module no longer
+        #       seems to exist in newer versions
+        condaPacks = [ "ipython", "jupyter", "astropy", "pyqt5-sip=4.19.18", "pyqt", "cython", "numpy", "scipy", "matplotlib",
                        "shapely", "pyopengl", "ipywidgets", "cmake" ]
 
         if os.name != "nt":
