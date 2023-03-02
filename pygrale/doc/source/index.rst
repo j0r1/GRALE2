@@ -110,7 +110,7 @@ the instructions; it also mentions that you'll need to have the VS 2017 build to
 for example. As mentioned in the instructions, first create a conda environment in 
 which everything GRALE related will be installed, something like::
 
-    conda create -n mypygrale -c conda-forge -y python=3.8
+    conda create -n mypygrale -c conda-forge -y python=3.10
 
 As you can see here, we're specifying from the beginning that packages will be
 used from the conda-forge channel. When this is finished, activate that environment::
@@ -138,7 +138,7 @@ After you've activated the Anaconda environment, so that the `conda` command
 is available, first create a new environment in which all things for GRALE
 will be installed::
 
-    conda create -n mypygrale -c conda-forge -y python=3.8
+    conda create -n mypygrale -c conda-forge -y python=3.10
 
 As you can see here, we're specifying from the beginning that packages will be
 used from the conda-forge channel. When this is finished, activate that environment::
