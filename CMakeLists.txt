@@ -4,7 +4,7 @@ if (POLICY CMP0042)
 endif()
 
 project(grale2)
-set(VERSION 0.11.2)
+set(VERSION 0.12.0)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake")
 
