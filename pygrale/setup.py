@@ -318,9 +318,10 @@ if isQtAvailable:
     startScript = "grale/editor/grale_editor" if not platform.system() == "Windows" else "grale\\editor\\grale_editor.bat"
     extraSetupArgs["scripts"] += [ startScript ]
 
+    # Build the Qt native code, create python version with SIP
     curDir = os.getcwd()
     try:
-        os.chdir(os.path.join("grale", "editor", "grale_editor_cppqt"))
+        os.chdir(os.path.join("grale_editor_cppqt"))
         makeCmd = "nmake" if platform.system() == "Windows" else "make"
         subprocess.check_call( [ sys.executable, "configure.py", versionStr ])
         subprocess.check_call( [ makeCmd ] )

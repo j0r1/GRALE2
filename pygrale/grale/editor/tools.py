@@ -4,7 +4,7 @@ from pointslayer import PointsLayer
 
 import grale.images as images # TODO
 from grale.constants import ANGLE_ARCSEC
-import cppqt
+import grale_editor_cppqt
 
 def strToBool(s):
     if type(s) == bool:
@@ -118,7 +118,7 @@ def layersToImagesData(layers, multipleImagesPerLayer = True, saveGroups = True,
             if pointsLeftInfo is not None:
                 pointsLeftInfo.append(d)
 
-            r = cppqt.cppqt.splitPointsAndTriangles(l, ignoreRemainingPoints)
+            r = grale_editor_cppqt.splitPointsAndTriangles(l, ignoreRemainingPoints)
             pprint.pprint(r)
             if type(r) == str: # an error message
                 raise Exception(r)

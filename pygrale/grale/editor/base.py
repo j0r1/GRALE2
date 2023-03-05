@@ -9,7 +9,7 @@ import uuid
 # point matching: there, the coordinates are in pixel space and the 
 # transformation converts them to scene space (where each unit is an arc second)
 
-from cppqt.cppqt import Layer as LayerCPP
+from grale_editor_cppqt import Layer as LayerCPP
 
 class Layer(LayerCPP):
     def __init__(self, name = "Untitled"):
@@ -29,7 +29,7 @@ class Layer(LayerCPP):
             return FITSImageLayer.fromSettings(settings)
         return PointsLayer.fromSettings(settings)
 
-from cppqt.cppqt import PointGraphicsItemBase, TriangleItem, LayerGraphicsItemBase as LayerGraphicsItemBaseCPP
+from grale_editor_cppqt import PointGraphicsItemBase, TriangleItem, LayerGraphicsItemBase as LayerGraphicsItemBaseCPP
 
 class LayerGraphicsItemBase(LayerGraphicsItemBaseCPP):
     def __init__(self, layer, pointType, childrenBoundingRect, parent = None):
@@ -146,7 +146,7 @@ class AxesGraphicsItem(QtWidgets.QGraphicsItemGroup):
         self.line2.setPen(linePen)
         self.setZValue(1000000)
 
-from cppqt.cppqt import SceneBase
+from grale_editor_cppqt import SceneBase
 
 class GraphicsScene(SceneBase):
 
