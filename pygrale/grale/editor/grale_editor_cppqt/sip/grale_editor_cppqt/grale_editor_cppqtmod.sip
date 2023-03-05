@@ -1,4 +1,4 @@
-%Module cppqt
+%Module grale_editor_cppqt
 
 %Import QtCore/QtCoremod.sip
 %Import QtWidgets/QtWidgetsmod.sip

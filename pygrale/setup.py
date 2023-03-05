@@ -231,10 +231,9 @@ extraSetupArgs = { "scripts": [ os.path.join("scripts", "grale_socket_to_mpi.py"
 
 try:
     from PyQt5 import QtCore
-    import sipconfig
+    import sipbuild
 
-    config = sipconfig.Configuration()
-    subprocess.check_call( [ config.sip_bin, "-V" ])
+    subprocess.check_call( [ "sip-build", "-V" ])
     isQtAvailable = True
 except Exception as e:
     print("Unable to detect PyQt5 or SIP, not building Grale editor")
@@ -319,71 +318,20 @@ if isQtAvailable:
     startScript = "grale/editor/grale_editor" if not platform.system() == "Windows" else "grale\\editor\\grale_editor.bat"
     extraSetupArgs["scripts"] += [ startScript ]
 
-# Run the actual setup command
-setupInf = setup(name = "grale", version = versionStr, ext_modules = cythonize(extensions, language_level="3"), 
-      py_modules = pyMods, **extraSetupArgs)
-
-def checkCopyToEggDir(setupInf):
     curDir = os.getcwd()
-
-    installDir = setupInf.command_obj['install'].install_lib
-    os.chdir(installDir)
     try:
-        eggDirs = glob.glob("grale-*.egg")
-        if not eggDirs:
-            print("Install directory does not seem to be an egg directory, no need to relocate cppqt library")
-            return
+        os.chdir(os.path.join("grale", "editor", "grale_editor_cppqt"))
+        makeCmd = "nmake" if platform.system() == "Windows" else "make"
+        subprocess.check_call( [ sys.executable, "configure.py", versionStr ])
+        subprocess.check_call( [ makeCmd ] )
 
-        eggDir = sorted(eggDirs)[-1] # Hopefully this is the most recent one
-        testFile = os.path.join(eggDir, "grale", "editor", "__main__.py")
-        if not os.path.exists(testFile):
-            print("Main editor file not found in egg directory {}, skipping additional installation step".format(eggDir))
-            return
+        if "install" in sys.argv:
+            subprocess.check_call( [ makeCmd, "install" ])
 
-        # Look for cppqt library
-        libFile = glob.glob(os.path.join("grale", "editor", "cppqt", "cppqt.*"))
-        if len(libFile) != 1:
-            print("Not exactly one cppqt library file was found, don't know what to copy")
-            print(libFile)
-            return
-
-        libFile = libFile[0]
-        libName = os.path.basename(libFile)
-        cppQtDir = os.path.join(eggDir, "grale", "editor", "cppqt")
-        print("Copying cppqt lib file {} to egg directory {}".format(libFile, cppQtDir))
-
-        import shutil
-        os.makedirs(cppQtDir, exist_ok=True)
-        shutil.copy(libFile, os.path.join(cppQtDir, libName))
     finally:
         os.chdir(curDir)
 
-# Build and install SIP bindings for PyQt5 based Grale editor
-if isQtAvailable:
-    makeCmd = "nmake" if platform.system() == "Windows" else "make"
-    if "build" in sys.argv or "install" in sys.argv:
-        prefixArg = [ ]
-        for a in sys.argv:
-            if a.startswith("--prefix="):
-                prefixArg.append(a)
-
-        cwd = os.getcwd()
-        try:
-            os.chdir(os.path.join("grale","editor","cppqt"))
-            if not os.path.exists("Makefile"):
-                print("Prefix set to", prefixArg)
-                subprocess.check_call( [ sys.executable, "configure.py" ] + prefixArg)
-            subprocess.check_call( [ makeCmd ] )
-        finally:
-            os.chdir(cwd)
-
-    if "install" in sys.argv:
-        cwd = os.getcwd()
-        try:
-            os.chdir(os.path.join("grale","editor","cppqt"))
-            subprocess.check_call( [ makeCmd, "install" ])
-            checkCopyToEggDir(setupInf)
-        finally:
-            os.chdir(cwd)
-
+# Run the actual setup command
+setupInf = setup(name = "grale", version = versionStr, ext_modules = cythonize(extensions, language_level="3"), 
+      py_modules = pyMods, **extraSetupArgs)
 
