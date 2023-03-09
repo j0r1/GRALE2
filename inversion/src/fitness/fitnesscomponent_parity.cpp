@@ -90,7 +90,7 @@ bool FitnessComponent_ParityPenalty::calculateFitness(const ProjectedImagesInter
 
 		if (numGroups == 2) // If there are two groups, check that they have different parity
 		{
-			int g1 = 0, g2 = 0;
+			int g1 = 0, g2 = 1;
 			int g1Size = m_pointGroups.getNumberOfGroupPoints(srcIdxGroups, g1);
 			int g2Size = m_pointGroups.getNumberOfGroupPoints(srcIdxGroups, g2);
 
