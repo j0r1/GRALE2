@@ -37,6 +37,7 @@ set(HEADERS
 	fitness/fitnesscomponent_defl.h
 	fitness/fitnesscomponent_dens.h
 	fitness/fitnesscomponent_weak.h
+	fitness/fitnesscomponent_parity.h
 	fitness/fitnessutil.h
 	)
 
@@ -81,6 +82,7 @@ set(SOURCES
 	fitness/fitnesscomponent_dens.cpp
 	fitness/fitnesscomponent_caustic.cpp
 	fitness/fitnesscomponent_defl.cpp	
+	fitness/fitnesscomponent_parity.cpp
 	fitness/lensfitnessobject_defaults.cpp
     )
 

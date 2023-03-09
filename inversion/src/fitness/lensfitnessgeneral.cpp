@@ -32,6 +32,7 @@
 #include "fitnesscomponent_caustic.h"
 #include "fitnesscomponent_dens.h"
 #include "fitnesscomponent_defl.h"
+#include "fitnesscomponent_parity.h"
 #include "imagesdataextended.h"
 #include "configurationparameters.h"
 #include <limits>
@@ -121,7 +122,8 @@ void removeEmpty(vector<shared_ptr<FitnessComponent>> &comp)
 #define COMPONENT_KAPPAGRADIENT_IDX			    9
 #define COMPONENT_BAYESWEAK_IDX					10
 #define COMPONENT_DEFLECTIONANGLE_IDX			11
-#define COMPONENT_IDX_MAX						12
+#define COMPONENT_PARITYPENALTY_IDX				12
+#define COMPONENT_IDX_MAX						13
 
 static const vector<string> componentNames {
 	"pointimageoverlap",
@@ -135,7 +137,8 @@ static const vector<string> componentNames {
 	"causticpenalty",
 	"kappagradient",
 	"bayesweaklensing",
-	"deflectionangle"
+	"deflectionangle",
+	"paritypenalty"
 };
 
 vector<shared_ptr<FitnessComponent>> getAllComponents(const shared_ptr<FitnessComponentCache> &pCache)
@@ -152,7 +155,8 @@ vector<shared_ptr<FitnessComponent>> getAllComponents(const shared_ptr<FitnessCo
 		make_shared<FitnessComponent_CausticPenalty>(pCache),
 		make_shared<FitnessComponent_KappaGradient>(pCache),
 		make_shared<FitnessComponent_WeakLensing_Bayes>(pCache),
-		make_shared<FitnessComponent_DeflectionAngle>(pCache)
+		make_shared<FitnessComponent_DeflectionAngle>(pCache),
+		make_shared<FitnessComponent_ParityPenalty>(pCache)
 	};
 }
 
@@ -258,6 +262,7 @@ unique_ptr<ConfigurationParameters> LensFitnessGeneral::getDefaultParametersInst
 	pParams->setParameter("priority_kappagradient", 700);
 	pParams->setParameter("priority_bayesweaklensing", 500);
 	pParams->setParameter("priority_deflectionangle", 800);
+	pParams->setParameter("priority_paritypenalty", 50);
 
 	pParams->setParameter("scalepriority_pointimageoverlap", 100);
 	pParams->setParameter("scalepriority_extendedimageoverlap", 100);
@@ -271,6 +276,7 @@ unique_ptr<ConfigurationParameters> LensFitnessGeneral::getDefaultParametersInst
 	pParams->setParameter("scalepriority_kappagradient", 1000);
 	pParams->setParameter("scalepriority_bayesweaklensing", 300);
 	pParams->setParameter("scalepriority_deflectionangle", 1100);
+	pParams->setParameter("scalepriority_paritypenalty", -1);
 
 	pParams->setParameter("fitness_pointimageoverlap_scaletype", string("MinMax"));
 	pParams->setParameter("fitness_pointgroupoverlap_rmstype", string("AllBetas"));
