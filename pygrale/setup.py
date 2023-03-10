@@ -6,9 +6,9 @@ if sys.version_info.major < 3:
     print("Major python version should be at least 3, version 2 is no longer supported")
     sys.exit(-1)
 
-from distutils import sysconfig
-from distutils.core import setup
-from distutils.extension import Extension
+import sysconfig
+from setuptools import setup
+from setuptools.extension import Extension
 from Cython.Build import cythonize
 import platform
 import glob
