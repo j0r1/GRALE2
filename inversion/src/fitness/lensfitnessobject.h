@@ -208,6 +208,8 @@ public:
 class LensFitnessObjectFactory
 {
 public:
+	LensFitnessObjectFactory() { }
+	virtual ~LensFitnessObjectFactory() { }
 	virtual std::unique_ptr<LensFitnessObject> createFitnessObject() = 0;
 };
 
