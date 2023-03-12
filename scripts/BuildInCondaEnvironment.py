@@ -292,7 +292,9 @@ and re-run this script.
             configureAndInstall()
 
     os.chdir(os.path.join("..", "pygrale"))
-    subprocess.check_call(["python", "setup.py", "build", "install"])
+    subprocess.check_call( [ "python", "configure.py" ])
+    subprocess.check_call(makeCmd)
+    subprocess.check_call(makeCmd + [ "install" ])
 
 if __name__ == "__main__":
     main()
