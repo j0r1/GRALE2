@@ -4,39 +4,47 @@ import distutils.sysconfig
 import os
 import site
 import sys
+import pprint
+import platform
 
 def generateMakefile():
-    extSuffix = distutils.sysconfig.get_config_var("EXT_SUFFIX")
-    sitePack = site.getsitepackages()
+    # Defaults for posix
+    makeOpts = {
+        "makeCmd": "make",
+        "copyCmd" : "cp",
+        "sep": os.sep,
+        "extSuffix": distutils.sysconfig.get_config_var("EXT_SUFFIX")
+    }    
 
-    if not sitePack:
-        raise Exception("Can't detect site-packages dir")
+    if platform.system() == "Windows":
+        makeOpts["copyCmd"] = "copy"
+        makeOpts["makeCmd"] = "nmake"
 
-    if len(sitePack) > 1:
-        print("WARNING: more than one site-packages dir was detected")
+        if "CONDA_PREFIX" in os.environ:
+            # Seems that just .pyd is used then - is there a better way to detect this
+            # using the SIP tools? Is this always the case in Windows?
+            makeOpts["extSuffix"] = ".pyd"
 
-    # TODO: cp/copy POSIX/Windows
-    # TODO: windows/linux dirsep
-    # TODO: make/nmake command
     open("Makefile", "wt").write("""
 
-EXTSUFFIX={}
+EXTSUFFIX={extSuffix}
+COPY={copyCmd}
+MAKE={makeCmd}
 
 MODFILE=grale_editor_cppqt$(EXTSUFFIX)
 
 all: $(MODFILE)
 
 install:
-	make -C build install
+	cd build && $(MAKE) install
 
-$(MODFILE): build/grale_editor_cppqt/$(MODFILE)
-	cp "build/grale_editor_cppqt/$(MODFILE)" "$(MODFILE)"
+$(MODFILE): build{sep}grale_editor_cppqt{sep}$(MODFILE)
+	$(COPY) "build{sep}grale_editor_cppqt{sep}$(MODFILE)" "$(MODFILE)"
 
-build/grale_editor_cppqt/$(MODFILE): pyproject.toml
+build{sep}grale_editor_cppqt{sep}$(MODFILE): pyproject.toml
 	sip-build
 
-""".format(extSuffix))
-
+""".format(**makeOpts))
 
 def main():
 

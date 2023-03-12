@@ -260,8 +260,8 @@ def main():
 
     qtBuildCmd, qtInstallCmd = "", ""
     if isQtAvailable:
-        qtBuildCmd = "\t{} -C grale_editor_cppqt".format(makeCmd)
-        qtInstallCmd = "\t{} -C grale_editor_cppqt install".format(makeCmd)
+        qtBuildCmd = "\tcd grale_editor_cppqt && {}".format(makeCmd)
+        qtInstallCmd = "\tcd grale_editor_cppqt && {} install".format(makeCmd)
 
     open("Makefile", "wt").write("""
 all:

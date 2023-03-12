@@ -4,6 +4,8 @@ import site
 import pprint
 import os
 import subprocess
+import glob
+import platform
 
 template = '''
 # Specify sip v6 as the build system for the package.
@@ -23,8 +25,8 @@ project-factory = "pyqtbuild:PyQtProject"
 [tool.sip.bindings.grale_editor_cppqt]
 headers = [ "cppqt.h" ]
 include-dirs = {} 
-libraries = [ "Qt5Widgets", "Qt5Core", "Qt5Gui" ]
 library-dirs = [ "{}" ]
+libraries = [ "Qt5Widgets{}", "Qt5Core{}", "Qt5Gui{}" ]
 '''
 
 def getQtCoreTomlPath():
@@ -65,7 +67,23 @@ def getLibDir():
 
     libDir = libPart[4:].replace(b"\r", b"").replace(b"\n", b"")
     print("Lib in '{}'".format(libDir))
-    return qmakeVersion, qtVersion, libDir
+
+    extraLibSuffix = ""
+    if "CONDA_PREFIX" in os.environ and platform.system() == "Windows":
+        # It appears that on windows, with conda-forge, eg qt5widgets_conda.lib is used
+        widgets = glob.glob(os.path.join(libDir, b"Qt5Widgets*.lib"))
+        if len(widgets) == 1:
+            extraLibSuffix = os.path.basename(widgets[0])[10:-4].decode()
+            print("Detected extra library suffix", extraLibSuffix)
+        elif len(widgets) == 0:
+            print("WARNING: No Qt5Widgets lib found, assuming no extra suffix")
+        else:
+            print("WARNING: More than one Qt5Widgets lib found, can't deduce extra suffix")
+            pprint.pprint(widgets)
+    
+    print(widgets)
+
+    return qmakeVersion, qtVersion, libDir, extraLibSuffix
 
 def getIncDirs(libDir):
     incDir = os.path.join(os.path.dirname(libDir), b"include", b"qt")
@@ -79,12 +97,12 @@ def getIncDirs(libDir):
     ]
 
 def genToml(version):
-    qmakeVersion, qtVersion, libDir = getLibDir()
+    qmakeVersion, qtVersion, libDir, extraLibSuffix = getLibDir()
     incDirs = getIncDirs(libDir)
     incDirs = [ i.decode() for i in incDirs ]
     incDirs.append(os.getcwd())
 
-    toml = template.format(version,incDirs, libDir.decode())
+    toml = template.format(version,incDirs, libDir.decode(), extraLibSuffix, extraLibSuffix, extraLibSuffix)
     open("pyproject.toml", "wt").write(toml)
     print("Wrote to pyproject.toml")
 
