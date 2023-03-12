@@ -81,8 +81,6 @@ def getLibDir():
             print("WARNING: More than one Qt5Widgets lib found, can't deduce extra suffix")
             pprint.pprint(widgets)
     
-    print(widgets)
-
     return qmakeVersion, qtVersion, libDir, extraLibSuffix
 
 def getIncDirs(libDir):
