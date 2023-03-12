@@ -9,6 +9,11 @@ double _dummyGSLCBLASCall()
 {
 	const int N = 16;
 	double X[N], Y[N];
+	for (int i = 0 ; i < N ; i++)
+	{
+		X[i] = 0;
+		Y[i] = 0;
+	}
 	return cblas_ddot(N, X, 1, Y, 1);
 }
 

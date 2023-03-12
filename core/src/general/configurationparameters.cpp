@@ -149,7 +149,6 @@ bool TypedParameter::read(serut::SerializationInterface &si)
 
 bool TypedParameter::write(serut::SerializationInterface &si) const
 {
-	bool r;
 	int32_t isArr = (m_isArray)?1:0;
 
 	if (m_type == None)

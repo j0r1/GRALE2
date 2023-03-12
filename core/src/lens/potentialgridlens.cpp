@@ -31,11 +31,11 @@ errut::bool_t PotentialGridLensBase::init()
 	if (m_bottomLeft.getX() >= m_topRight.getX() || m_bottomLeft.getY() >= m_topRight.getY())
 		return "Corners need to be ordered correctly";
 
-	if (m_numX*m_numY != m_values.size())
+	if (m_numX*m_numY != (int)m_values.size())
 		return "Number of potential values doesn't match grid dimensions";
 
-	if (m_numX < gsl_interp2d_type_min_size(gsl_interp2d_bicubic) ||
-		m_numY < gsl_interp2d_type_min_size(gsl_interp2d_bicubic))
+	if (m_numX < (int)gsl_interp2d_type_min_size(gsl_interp2d_bicubic) ||
+		m_numY < (int)gsl_interp2d_type_min_size(gsl_interp2d_bicubic))
 		return "Not enough points in grid in at least one dimension";
 
 	m_pInterp = gsl_interp2d_alloc(gsl_interp2d_bicubic, m_numX, m_numY);
@@ -238,14 +238,14 @@ bool PotentialGridLens::processParameters(const GravitationalLensParams *pLensPa
 	const vector<double> &values = pParams->getValues();
 	int numX = pParams->getNumX();
 	int numY = pParams->getNumY();
-	if (numX*numY != values.size())
+	if (numX*numY != (int)values.size())
 	{
 		setErrorString("Number of potential values doesn't match grid dimensions");
 		return false;
 	}
 
-	if (numX < gsl_interp2d_type_min_size(gsl_interp2d_bicubic) ||
-		numY < gsl_interp2d_type_min_size(gsl_interp2d_bicubic))
+	if (numX < (int)gsl_interp2d_type_min_size(gsl_interp2d_bicubic) ||
+		numY < (int)gsl_interp2d_type_min_size(gsl_interp2d_bicubic))
 	{
 		setErrorString("Not enough points in grid in at least one dimension");
 		return false;

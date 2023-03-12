@@ -93,7 +93,7 @@ bool PlummerLens::processParameters(const GravitationalLensParams *params)
 double PlummerLens::getMassInside(double thetaLength) const
 {
 	double t = thetaLength/angularwidth;
-	double massinside,r2;
+	double massinside;
 	double x = t*t;
 	double x2 = 1.0/x;
 

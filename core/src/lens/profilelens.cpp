@@ -126,7 +126,7 @@ bool ProfileLens::processParameters(const GravitationalLensParams *pLensParams)
 	m_mass[0] = 0;
 	m_potential[0] = 0;
 	
-	for (int i = 1 ; i < m_mass.size() ; i++)
+	for (int i = 1 ; i < (int)m_mass.size() ; i++)
 	{
 		double dens = m_profile[i];
 		double curValue = dens*theta;
@@ -152,7 +152,7 @@ double ProfileLens::getMassInside(double thetaLength) const
 	double ratio = thetaLength/m_stepSize;
 	int index = (int)ratio;
 	
-	if (index >= m_mass.size()-2)
+	if (index >= (int)m_mass.size()-2)
 		return m_mass[m_mass.size()-1];
 
 	double prevVal = m_mass[index];
@@ -167,7 +167,7 @@ double ProfileLens::getProfileSurfaceMassDensity(double thetaLength) const
 	double ratio = thetaLength/m_stepSize;
 	int index = (int)ratio;
 	
-	if (index >= m_profile.size()-2)
+	if (index >= (int)m_profile.size()-2)
 		return m_profile[m_profile.size()-1];
 
 	double prevVal = m_profile[index];
@@ -184,7 +184,7 @@ bool ProfileLens::getProjectedPotential(double D_s, double D_ds, Vector2D<double
 	double ratio = thetaLength/m_stepSize;
 	int index = (int)ratio;
 	
-	if (index >= m_potential.size()-2)
+	if (index >= (int)m_potential.size()-2)
 		return m_potential[m_potential.size()-1];
 
 	double prevVal = m_potential[index];

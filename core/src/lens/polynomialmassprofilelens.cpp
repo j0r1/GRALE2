@@ -358,7 +358,7 @@ bool PolynomialMassProfileLens::processParameters(const GravitationalLensParams 
 		double sum = 0;
 		double zPower = 1;
 
-		for (int i = 0 ; i < coefficients.size() ; i++)
+		for (int i = 0 ; i < (int)coefficients.size() ; i++)
 		{
 			sum += zPower*coefficients[i];
 			zPower *= z;
@@ -378,7 +378,7 @@ bool PolynomialMassProfileLens::processParameters(const GravitationalLensParams 
 		m_potentialOffsets.resize(m_polynomialParts.size()+1);
 	
 		m_potentialOffsets[0] = 0;
-		for (int i = 0 ; i < m_polynomialParts.size() ; i++)
+		for (int i = 0 ; i < (int)m_polynomialParts.size() ; i++)
 		{
 			double partIntegral = 0;
 				
@@ -409,7 +409,7 @@ bool PolynomialMassProfileLens::processParameters(const GravitationalLensParams 
 				double part2k = part2;
 				double sum = 0;
 
-				for (int k = 1 ; k < offsetCoefficients.size() ; k++)
+				for (int k = 1 ; k < (int)offsetCoefficients.size() ; k++)
 				{
 					sum += (offsetCoefficients[k]/((double)k))*(part2k-part1k);
 					
@@ -435,7 +435,7 @@ bool PolynomialMassProfileLens::processParameters(const GravitationalLensParams 
 double PolynomialMassProfileLens::getMassInside(double thetaLength) const
 {
 	int polyIndex = -1;
-	int num = m_polynomialParts.size();
+	int num = (int)m_polynomialParts.size();
 	
 	if (num == 0)
 		return 0;
@@ -454,7 +454,7 @@ double PolynomialMassProfileLens::getMassInside(double thetaLength) const
 	double sum = 0;
 	double zPower = 1;
 
-	for (int i = 0 ; i < coefficients.size() ; i++)
+	for (int i = 0 ; i < (int)coefficients.size() ; i++)
 	{
 		sum += zPower*coefficients[i];
 		zPower *= z;
@@ -503,7 +503,7 @@ double PolynomialMassProfileLens::getProfileSurfaceMassDensity(double thetaLengt
 	double zbPower = 1;
 	double b = m_polynomialParts[polyIndex].getXOffset()/m_polynomialParts[polyIndex].getXScale();
 
-	for (int k = 2 ; k < offsetCoefficients.size() ; k++)
+	for (int k = 2 ; k < (int)offsetCoefficients.size() ; k++)
 	{
 		sum += ((double)k)*offsetCoefficients[k]*zbPower;
 		zbPower *= (z + b);
@@ -522,7 +522,7 @@ bool PolynomialMassProfileLens::getProjectedPotential(double D_s, double D_ds, V
 {
 	double thetaLength = theta.getLength();
 	int polyIndex = -1;
-	int num = m_polynomialParts.size();
+	int num = (int)m_polynomialParts.size();
 	
 	if (num == 0)
 		return 0;
@@ -578,7 +578,7 @@ bool PolynomialMassProfileLens::getProjectedPotential(double D_s, double D_ds, V
 	double part2k = part2;
 	double sum = 0;
 
-	for (int k = 1 ; k < offsetCoefficients.size() ; k++)
+	for (int k = 1 ; k < (int)offsetCoefficients.size() ; k++)
 	{
 		sum += (offsetCoefficients[k]/((double)k))*(part2k-part1k);
 		

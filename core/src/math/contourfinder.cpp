@@ -42,7 +42,6 @@ inline bool hasIntersection(double v0, double v1, double v2,
 {
 	// At this point, we're assuming that the length of the sides is 1
 	vector<Vector2Dd> points;
-	const double sqrt2 = 1.41421356237309504880;
 
 	if (v0*v1 < 0)
 		points.push_back(lineIntersection(v0, v1, p0, p1));

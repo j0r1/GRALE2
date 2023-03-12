@@ -31,13 +31,13 @@ private:
 
 inline const GravitationalLens &MultiPlaneContainerParams::getLens(int idx) const
 {
-	assert(idx >= 0 && idx < m_lensesAndRedshifts.size());
+	assert(idx >= 0 && idx < (int)m_lensesAndRedshifts.size());
 	return *(m_lensesAndRedshifts[idx].first.get());
 }
 
 inline double MultiPlaneContainerParams::getRedshift(int idx) const
 {
-	assert(idx >= 0 && idx < m_lensesAndRedshifts.size());
+	assert(idx >= 0 && idx < (int)m_lensesAndRedshifts.size());
 	return m_lensesAndRedshifts[idx].second;
 }
 

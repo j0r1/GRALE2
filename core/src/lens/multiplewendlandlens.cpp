@@ -214,7 +214,7 @@ bool MultipleWendlandLensParams::matchDeflections(const std::vector<Vector2D<dou
 	m_phiXInfo.clear();
 	m_phiYInfo.clear();
 
-	for (int i = 0 ; i < deflectionPoints.size() ; i++)
+	for (int i = 0 ; i < (int)deflectionPoints.size() ; i++)
 	{
 		double ca = gsl_vector_get(pCoeffVector, i*2);
 		double cb = gsl_vector_get(pCoeffVector, i*2+1);
@@ -256,10 +256,10 @@ bool MultipleWendlandLens::processParameters(const GravitationalLensParams *pLen
 	m_phiXInfo.resize(pParams->getPhiXInfo().size());
 	m_phiYInfo.resize(pParams->getPhiYInfo().size());
 
-	for (i = 0, it = pParams->getPhiXInfo().begin() ; i < m_phiXInfo.size() ; i++, it++)
+	for (i = 0, it = pParams->getPhiXInfo().begin() ; i < (int)m_phiXInfo.size() ; i++, it++)
 		m_phiXInfo[i] = *it;
 
-	for (i = 0, it = pParams->getPhiYInfo().begin() ; i < m_phiYInfo.size() ; i++, it++)
+	for (i = 0, it = pParams->getPhiYInfo().begin() ; i < (int)m_phiYInfo.size() ; i++, it++)
 		m_phiYInfo[i] = *it;
 
 	return true;
@@ -269,7 +269,7 @@ bool MultipleWendlandLens::getAlphaVector(Vector2D<double> theta, Vector2D<doubl
 {
 	Vector2D<double> sum(0, 0);
 
-	for (int i = 0 ; i < m_phiXInfo.size() ; i++)
+	for (int i = 0 ; i < (int)m_phiXInfo.size() ; i++)
 	{
 		Vector2D<double> scaledDiffTheta = (theta-m_phiXInfo[i].getAngularPosition())/m_phiXInfo[i].getAngularScale();
 		double r2 = scaledDiffTheta.getLengthSquared();
@@ -282,7 +282,7 @@ bool MultipleWendlandLens::getAlphaVector(Vector2D<double> theta, Vector2D<doubl
 		}
 	}
 
-	for (int i = 0 ; i < m_phiYInfo.size() ; i++)
+	for (int i = 0 ; i < (int)m_phiYInfo.size() ; i++)
 	{
 		Vector2D<double> scaledDiffTheta = (theta-m_phiYInfo[i].getAngularPosition())/m_phiYInfo[i].getAngularScale();
 		double r2 = scaledDiffTheta.getLengthSquared();
@@ -304,7 +304,7 @@ double MultipleWendlandLens::getSurfaceMassDensity(Vector2D<double> theta) const
 	double densFactor = 0.5*SPEED_C*SPEED_C/((4.0*CONST_PI*CONST_G)*getLensDistance());
 	double sum = 0;	
 
-	for (int i = 0 ; i < m_phiXInfo.size() ; i++)
+	for (int i = 0 ; i < (int)m_phiXInfo.size() ; i++)
 	{
 		Vector2D<double> scaledDiffTheta = (theta-m_phiXInfo[i].getAngularPosition())/m_phiXInfo[i].getAngularScale();
 		double r2 = scaledDiffTheta.getLengthSquared();
@@ -317,7 +317,7 @@ double MultipleWendlandLens::getSurfaceMassDensity(Vector2D<double> theta) const
 		}
 	}
 
-	for (int i = 0 ; i < m_phiYInfo.size() ; i++)
+	for (int i = 0 ; i < (int)m_phiYInfo.size() ; i++)
 	{
 		Vector2D<double> scaledDiffTheta = (theta-m_phiYInfo[i].getAngularPosition())/m_phiYInfo[i].getAngularScale();
 		double r2 = scaledDiffTheta.getLengthSquared();
@@ -338,7 +338,7 @@ bool MultipleWendlandLens::getProjectedPotential(double D_s, double D_ds, Vector
 	double factor = D_ds/D_s;
 	double sum = 0;	
 
-	for (int i = 0 ; i < m_phiXInfo.size() ; i++)
+	for (int i = 0 ; i < (int)m_phiXInfo.size() ; i++)
 	{
 		Vector2D<double> scaledDiffTheta = (theta-m_phiXInfo[i].getAngularPosition())/m_phiXInfo[i].getAngularScale();
 		double r2 = scaledDiffTheta.getLengthSquared();
@@ -351,7 +351,7 @@ bool MultipleWendlandLens::getProjectedPotential(double D_s, double D_ds, Vector
 		}
 	}
 
-	for (int i = 0 ; i < m_phiYInfo.size() ; i++)
+	for (int i = 0 ; i < (int)m_phiYInfo.size() ; i++)
 	{
 		Vector2D<double> scaledDiffTheta = (theta-m_phiYInfo[i].getAngularPosition())/m_phiYInfo[i].getAngularScale();
 		double r2 = scaledDiffTheta.getLengthSquared();
@@ -374,7 +374,7 @@ bool MultipleWendlandLens::getAlphaVectorDerivatives(Vector2D<double> theta, dou
 	double ayySum = 0;
 	double axySum = 0;
 
-	for (int i = 0 ; i < m_phiXInfo.size() ; i++)
+	for (int i = 0 ; i < (int)m_phiXInfo.size() ; i++)
 	{
 		Vector2D<double> scaledDiffTheta = (theta-m_phiXInfo[i].getAngularPosition())/m_phiXInfo[i].getAngularScale();
 		double r2 = scaledDiffTheta.getLengthSquared();
@@ -389,7 +389,7 @@ bool MultipleWendlandLens::getAlphaVectorDerivatives(Vector2D<double> theta, dou
 		}
 	}
 
-	for (int i = 0 ; i < m_phiYInfo.size() ; i++)
+	for (int i = 0 ; i < (int)m_phiYInfo.size() ; i++)
 	{
 		Vector2D<double> scaledDiffTheta = (theta-m_phiYInfo[i].getAngularPosition())/m_phiYInfo[i].getAngularScale();
 		double r2 = scaledDiffTheta.getLengthSquared();

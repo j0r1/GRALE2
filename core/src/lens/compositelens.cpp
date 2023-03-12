@@ -299,7 +299,7 @@ bool CompositeLens::getAlphaVector(Vector2D<double> theta, Vector2D<double> *pAl
 {
 	Vector2D<double> alphaSum;
 	
-	for (int i = 0 ; i < m_lenses.size() ; i++)
+	for (int i = 0 ; i < (int)m_lenses.size() ; i++)
 	{
 		double rotationangle = m_angles[i];
 		Vector2D<double> theta0 = theta - m_positions[i];
@@ -332,7 +332,7 @@ double CompositeLens::getSurfaceMassDensity(Vector2D<double> theta) const
 {
 	double sum = 0;
 
-	for (int i = 0 ; i < m_lenses.size() ; i++)
+	for (int i = 0 ; i < (int)m_lenses.size() ; i++)
 	{
 		double rotationangle = m_angles[i];
 		Vector2D<double> theta0 = theta - m_positions[i];
@@ -350,7 +350,7 @@ bool CompositeLens::getProjectedPotential(double D_s, double D_ds, Vector2D<doub
 {
 	double sum = 0;
 
-	for (int i = 0 ; i < m_lenses.size() ; i++)
+	for (int i = 0 ; i < (int)m_lenses.size() ; i++)
 	{
 		double rotationangle = m_angles[i];
 		Vector2D<double> theta0 = theta - m_positions[i];
@@ -379,7 +379,7 @@ bool CompositeLens::getAlphaVectorDerivatives(Vector2D<double> theta, double &ax
 	double ayySum = 0;
 	double axySum = 0;
 
-	for (int i = 0 ; i < m_lenses.size() ; i++)
+	for (int i = 0 ; i < (int)m_lenses.size() ; i++)
 	{
 		Vector2D<double> theta0 = theta - m_positions[i];
 		double rotationangle = m_angles[i];
@@ -423,7 +423,7 @@ void CompositeLens::setDerivativeAngularDistanceScale(double dist)
 {
 	GravitationalLens::setDerivativeAngularDistanceScale(dist);
 
-	for (int i = 0 ; i < m_lenses.size() ; i++)
+	for (int i = 0 ; i < (int)m_lenses.size() ; i++)
 		m_lenses[i]->setDerivativeAngularDistanceScale(dist);
 }
 
@@ -432,7 +432,7 @@ bool CompositeLens::getSuggestedScales(double *pDeflectionScale, double *pPotent
 	double deflectionScale = 0;
 	double potentialScale = 0;
 
-	for (int i = 0 ; i < m_lenses.size() ; i++)
+	for (int i = 0 ; i < (int)m_lenses.size() ; i++)
 	{
 		double d, p;
 
@@ -462,7 +462,7 @@ bool CompositeLens::getCLParameterCounts(int *pNumIntParams, int *pNumFloatParam
 	int intCount = 1; // al least one for the number of sublenses
 	int floatCount = 0;
 
-	for (int i = 0 ; i < m_lenses.size() ; i++)
+	for (int i = 0 ; i < (int)m_lenses.size() ; i++)
 	{
 		int numSubInt = 0;
 		int numSubFloat = 0;
@@ -493,7 +493,7 @@ bool CompositeLens::getCLParameters(double deflectionScale, double potentialScal
 	int intOffset = 1;
 	int floatOffset = 0;
 
-	for (int i = 0 ; i < m_lenses.size() ; i++)
+	for (int i = 0 ; i < (int)m_lenses.size() ; i++)
 	{
 		int numSubInt = 0;
 		int numSubFloat = 0;
@@ -571,7 +571,7 @@ void CompositeLens::findCLSubroutines(std::map<std::string,std::string> &subCode
 	if (recursionLevel > maxRecursionLevel)
 		maxRecursionLevel = recursionLevel;
 
-	for (int i = 0 ; i < m_lenses.size() ; i++)
+	for (int i = 0 ; i < (int)m_lenses.size() ; i++)
 	{
 		int lensNumber = m_lenses[i]->getLensType();
 
@@ -647,7 +647,7 @@ std::string CompositeLens::getCLProgram(const std::vector<std::string> &subRouti
 	prog += "\n";
 	prog += "		if (lensNumber == -1)\n";
 	prog += "				return zeroQuant;\n";
-	for (int i = 0 ; i < subRoutineNames.size() ; i++)
+	for (int i = 0 ; i < (int)subRoutineNames.size() ; i++)
 	{
 		if (subRoutineNames[i].length() > 0)
 		{

@@ -57,7 +57,7 @@ std::unique_ptr<GravitationalLensParams> DeflectionGridLensParams::createCopy() 
 {
 	int totalSize = m_width*m_height;
 	
-	if (!(m_alphaX.size() == totalSize && m_alphaY.size() == totalSize))
+	if (!((int)m_alphaX.size() == totalSize && (int)m_alphaY.size() == totalSize))
 	{
 		setErrorString("Data length doesn't match the specified dimensions");
 		return 0;
@@ -72,7 +72,7 @@ bool DeflectionGridLensParams::write(serut::SerializationInterface &si) const
 	
 	int totalSize = m_width*m_height;
 	
-	if (!(m_alphaX.size() == totalSize && m_alphaY.size() == totalSize))
+	if (!((int)m_alphaX.size() == totalSize && (int)m_alphaY.size() == totalSize))
 	{
 		setErrorString("Data length doesn't match the specified dimensions");
 		return false;
