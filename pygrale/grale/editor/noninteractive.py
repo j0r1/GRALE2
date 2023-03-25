@@ -4,6 +4,7 @@ import sys
 import json
 import pprint
 import multiprocessing
+import checkqt
 from multiprocessing import Process, Queue
 
 class MultipleLayerScene(scenes.LayerScene):
@@ -63,7 +64,7 @@ def _loadFile(fileName):
 
     app = QtWidgets.QApplication(sys.argv)
     scene = MultipleLayerScene()
-    view = GraphicsView(scene)
+    #view = GraphicsView(scene)
     
     obj = json.load(open(fileName, "rt"))
     if "state" in obj:
@@ -74,20 +75,18 @@ def _loadFile(fileName):
         layers = obj
         visibilities = None
 
-    if "view" in obj:
-        setViewSettings(view, obj["view"])
-
-    scene.onScaleChanged(view.getScale()) # May be needed to recalculate the point size transformation
+    scale = 1 if not "view" in obj else obj["view"]["zoom"]
+    scene.onScaleChanged(scale) # May be needed to recalculate the point size transformation
 
     importLayers(scene, layers, visibilities)
 
-    return app, scene, view
+    return app, scene
 
 def _helper_getSceneRegionImageNumPy(q1, q2):
     fileName, bottomLeft, topRight, widthPixels, heightPixels, grayScale = q1.get()
 
     try:
-        app, scene, view = _loadFile(fileName)
+        app, scene = _loadFile(fileName)
         res = scene.getSceneRegionNumPyArray(bottomLeft, topRight, widthPixels, heightPixels, grayScale)
         #print(res)
         q2.put([True, res])
@@ -96,6 +95,8 @@ def _helper_getSceneRegionImageNumPy(q1, q2):
 
 # Coords are in arcsec for now
 def getSceneRegionNumPyArray(fileName, bottomLeft, topRight, widthPixels = None, heightPixels = None, grayScale = False):
+    checkqt.checkQtAvailable()
+
     q1, q2 = Queue(), Queue()
     p = Process(target=_helper_getSceneRegionImageNumPy, args=(q1,q2))
     p.start()
