@@ -224,9 +224,16 @@ def _background_helper_getPointsLayersFromImagesData(q1, q2):
 def getPointsLayersFromImagesData(imgDat, which, layerTitleFormat = "Points from images data"):
     return _foreground_helper(_background_helper_getPointsLayersFromImagesData, [ imgDat, which, layerTitleFormat ])
 
+def _background_helper_getImagesDataFromVisibleLayers(q1, q2):
+    _background_helper(q1, q2, lambda params: tools.layersToImagesData([ Layer.fromSettings(l) for l in params[0] ], *params[1:])[0])
+
+def getImagesDataFromVisibleLayers(sceneViewDesc, splitLayers = True, exportGroups = True, exportTimeDelays = True):
+    layers = [ l for l,v in zip(sceneViewDesc.layers, sceneViewDesc.visibilities) if v ]
+    return _foreground_helper(_background_helper_getImagesDataFromVisibleLayers, [ layers, splitLayers, exportGroups, exportTimeDelays ])
+
 def main():
 
-    #svd = SceneViewDesciption("cl0024.json")
+    svd = SceneViewDesciption("cl0024.json")
     #pprint.pprint(svd.toObject())
 
     #svd = SceneViewDesciption("cl0024.json")
@@ -235,9 +242,14 @@ def main():
     #import matplotlib.pyplot as plt
     #plt.imshow(img)
     #plt.show()
-    import grale.images as images
+    #import grale.images as images
 
-    l = getPointsLayersFromImagesData(images.ImagesData.load("../../../inversion_examples/example3/images_01.imgdata"), -1)
+    #l = getPointsLayersFromImagesData(images.ImagesData.load("../../../inversion_examples/example3/images_01.imgdata"), -1)
+    #pprint.pprint(l)
+
+    img = getImagesDataFromVisibleLayers(svd)
+    pprint.pprint(img)
+    l = getPointsLayersFromImagesData(img, -1)
     pprint.pprint(l)
 
 if __name__ == "__main__":

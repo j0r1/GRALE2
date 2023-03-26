@@ -119,7 +119,7 @@ def layersToImagesData(layers, multipleImagesPerLayer = True, saveGroups = True,
                 pointsLeftInfo.append(d)
 
             r = grale_editor_cppqt.splitPointsAndTriangles(l, ignoreRemainingPoints)
-            pprint.pprint(r)
+            #pprint.pprint(r)
             if type(r) == str: # an error message
                 raise Exception(r)
             if type(r) == dict:
