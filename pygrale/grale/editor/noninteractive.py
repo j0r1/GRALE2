@@ -5,6 +5,7 @@ import json
 import pprint
 import multiprocessing
 import checkqt
+import tools
 from multiprocessing import Process, Queue
 import copy
 import os
@@ -186,20 +187,18 @@ class MultipleLayerScene(scenes.LayerScene):
 
 def _background_helper(q1, q2, func):
     params = q1.get()
-    svd = SceneViewDesciption(params[0])
-    params = params[1:]
 
     try:
         from PyQt5 import QtWidgets, QtCore, QtGui
         app = QtWidgets.QApplication(sys.argv)
 
-        res = func(svd, params)
+        res = func(params)
         q2.put([True, res])
     except Exception as e:
         q2.put([False, str(e)])
 
 def _background_helper_getSceneRegionImageNumPy(q1, q2):
-    _background_helper(q1, q2, lambda svd, params: MultipleLayerScene(svd).getSceneRegionNumPyArray(*params))
+    _background_helper(q1, q2, lambda params: MultipleLayerScene(SceneViewDesciption(params[0])).getSceneRegionNumPyArray(*params[1:]))
 
 def _foreground_helper(helperFunction, paramList):
     checkqt.checkQtAvailable()
@@ -218,18 +217,28 @@ def _foreground_helper(helperFunction, paramList):
 def getSceneRegionNumPyArray(sceneViewDesc, bottomLeft, topRight, widthPixels = None, heightPixels = None, grayScale = False):
     return _foreground_helper(_background_helper_getSceneRegionImageNumPy,
                               [ sceneViewDesc.toObject(), bottomLeft, topRight, widthPixels, heightPixels, grayScale ])
-    
+
+def _background_helper_getPointsLayersFromImagesData(q1, q2):
+    _background_helper(q1, q2, lambda params: [ l.toSettings() for l in tools.importImagesDataToLayers(*params) ])
+
+def getPointsLayersFromImagesData(imgDat, which, layerTitleFormat = "Points from images data"):
+    return _foreground_helper(_background_helper_getPointsLayersFromImagesData, [ imgDat, which, layerTitleFormat ])
+
 def main():
 
     #svd = SceneViewDesciption("cl0024.json")
     #pprint.pprint(svd.toObject())
 
-    svd = SceneViewDesciption("cl0024.json")
-    img = getSceneRegionNumPyArray(svd, [ -10, -10 ], [10, 10], 512)
-    
-    import matplotlib.pyplot as plt
-    plt.imshow(img)
-    plt.show()
+    #svd = SceneViewDesciption("cl0024.json")
+    #img = getSceneRegionNumPyArray(svd, [ -10, -10 ], [10, 10], 512)
+    #
+    #import matplotlib.pyplot as plt
+    #plt.imshow(img)
+    #plt.show()
+    import grale.images as images
+
+    l = getPointsLayersFromImagesData(images.ImagesData.load("../../../inversion_examples/example3/images_01.imgdata"), -1)
+    pprint.pprint(l)
 
 if __name__ == "__main__":
     main()

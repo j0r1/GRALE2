@@ -201,6 +201,29 @@ def layersToImagesData(layers, multipleImagesPerLayer = True, saveGroups = True,
 
     return imgDat, usedLayers
 
+def importImagesDataToLayers(imgDat, which, layerTitleFormat):
+    layers = []
+    if which == "all":
+        l = PointsLayer()
+        l.importFromImagesData(imgDat, "all")
+        l.setName(layerTitleFormat)
+        layers.append(l)
+    else:
+        if which >= 0:
+            l = PointsLayer()
+            l.importFromImagesData(imgDat, which)
+            l.setName(layerTitleFormat)
+            layers.append(l)
+        else:
+            numImages = imgDat.getNumberOfImages()
+            for idx in range(numImages):
+                l = PointsLayer()
+                l.importFromImagesData(imgDat, idx)
+                l.setName(layerTitleFormat.format(idx))
+                layers.append(l)
+
+    return layers
+
 def main():
     #imgDat = images.ImagesData.load("/tmp/multimages.imgdata")
     #layer = PointsLayer()

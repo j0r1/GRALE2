@@ -782,24 +782,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.scene.onScaleChanged(self.view.getScale()) # May be needed to recalculate the point size transformation
 
     def importImagesData(self, imgDat, which, layerTitleFormat = "Points from images data"):
-        if which == "all":
-            l = pointslayer.PointsLayer()
-            l.importFromImagesData(imgDat, "all")
-            l.setName(layerTitleFormat)
+        layers = tools.importImagesDataToLayers(imgDat, which, layerTitleFormat)
+        for l in layers:
             self.addLayer(l)
-        else:
-            if which >= 0:
-                l = pointslayer.PointsLayer()
-                l.importFromImagesData(imgDat, which)
-                l.setName(layerTitleFormat)
-                self.addLayer(l)
-            else:
-                numImages = imgDat.getNumberOfImages()
-                for idx in range(numImages):
-                    l = pointslayer.PointsLayer()
-                    l.importFromImagesData(imgDat, idx)
-                    l.setName(layerTitleFormat.format(idx))
-                    self.addLayer(l)
 
     def importFromJSON(self, dictOrArray):
 
