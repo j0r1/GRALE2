@@ -291,10 +291,10 @@ def _background_helper_getLayersFromBackProjectRetrace(q1, q2):
         for i, v in enumerate(origVis):
             svd.setLayerVisibility(i, v)
 
-        def cb(s):
-            print(s)
+#        def cb(s):
+#            print(s)
 
-        newLayers, srcAreas = backproject.backprojectAndRetrace(imagePlane, bordersAndImages, *params[5:], cb)
+        newLayers, srcAreas = backproject.backprojectAndRetrace(imagePlane, bordersAndImages, *params[5:]) #, cb)
         newLayers = [ l.toSettings() for l in newLayers ]
         return newLayers, srcAreas
 

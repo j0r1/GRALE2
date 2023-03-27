@@ -389,7 +389,7 @@ def _backProjectInternal(imgPlane, inputImage, center, sizes, outputDimensions, 
 
     bpCoords = bpCoords.reshape((-1,2))
     minX, minY, maxX, maxY = bpCoords[:,0].min(), bpCoords[:,1].min(), bpCoords[:,0].max(), bpCoords[:,1].max()
-    print("minMax", minX, minY, maxX, maxY)
+    #print("minMax", minX, minY, maxX, maxY)
 
     prog.setUniformValue("u_xy0", QtCore.QPointF(minX, minY))
     prog.setUniformValue("u_xy1", QtCore.QPointF(maxX, maxY))
@@ -411,7 +411,7 @@ def _backProjectInternal(imgPlane, inputImage, center, sizes, outputDimensions, 
     gl.glDrawArrays(gl.GL_TRIANGLES, 0, texCoords.shape[0]//2)
 
     gl.glFinish()
-    print("glGetError =", gl.glGetError())
+    #print("glGetError =", gl.glGetError())
 
     img = fb.toImage()
     if img.isNull():
