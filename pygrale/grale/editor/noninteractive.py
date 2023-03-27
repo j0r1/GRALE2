@@ -9,6 +9,8 @@ import tools
 from multiprocessing import Process, Queue
 import copy
 import os
+import backproject
+from grale.constants import ANGLE_ARCSEC
 
 class SceneViewDesciptionException(Exception):
     pass
@@ -44,6 +46,31 @@ class SceneViewDesciption(object):
         self.visibilities = []
 
         self.view = { "center": [ 0.0, 0.0 ], "zoom": 1.0 }
+
+    def getLayerType(self, i):
+        if "rgbfile" in self.layers[i]:
+            return "rgb"
+        if "fitsfile" in self.layers[i]:
+            return "fits"
+        return "points"
+
+    def getNumberOfLayers(self):
+        return len(self.layers)
+
+    def getLayerName(self, i):
+        return self.layers[i]["name"]
+
+    def isLayerVisible(self, i):
+        return self.visibilities[i]
+
+    def setLayerVisibility(self, i, v):
+        self.visibilities[i] = bool(v)
+
+    def setAxisVisible(self, v):
+        self.globalSettings["showaxes"] = bool(v)
+
+    def isAxisVisible(self):
+        return self.globalSettings["showaxes"]
 
     def loadFile(self, fn):
         obj = json.load(open(fn, "rt"))
@@ -88,7 +115,10 @@ class SceneViewDesciption(object):
 
         self.addLayers(layersToAdd, visibilitiesToAdd)
 
-    def addLayers(self, layers, visibilities):
+    def addLayers(self, layers, visibilities = None):
+        if visibilities is None:
+            visibilities = [ True for _ in layers ]
+
         if len(layers) != len(visibilities):
             raise SceneViewDesciptionException("Not the same number of layers and visibilities")
 
@@ -106,7 +136,7 @@ class SceneViewDesciption(object):
             if not "transform" in layer:
                 raise SceneViewDesciptionException("Expecting 'transform' in RGB layer")
         elif "fitsfile" in layer:
-            for k in [ "hduidx", "center", "minma" ]:
+            for k in [ "hduidx", "center", "minmax" ]:
                 if not k in layer:
                     raise SceneViewDesciptionException("Expecting '{}' in FITS layer".format(k))
         else:
@@ -140,6 +170,10 @@ class SceneViewDesciption(object):
             "view": copy.deepcopy(self.view)
         }
         return obj
+
+    def toLayerObject(self, i):
+        return Layer.fromSettings(self.layers[i])
+
 
 class MultipleLayerScene(scenes.LayerScene):
 
@@ -213,7 +247,7 @@ def _foreground_helper(helperFunction, paramList):
         raise Exception(result)
     return result
 
-# Coords are in arcsec for now
+# TODO Coords are in arcsec for now
 def getSceneRegionNumPyArray(sceneViewDesc, bottomLeft, topRight, widthPixels = None, heightPixels = None, grayScale = False):
     return _foreground_helper(_background_helper_getSceneRegionImageNumPy,
                               [ sceneViewDesc.toObject(), bottomLeft, topRight, widthPixels, heightPixels, grayScale ])
@@ -231,9 +265,81 @@ def getImagesDataFromVisibleLayers(sceneViewDesc, splitLayers = True, exportGrou
     layers = [ l for l,v in zip(sceneViewDesc.layers, sceneViewDesc.visibilities) if v ]
     return _foreground_helper(_background_helper_getImagesDataFromVisibleLayers, [ layers, splitLayers, exportGroups, exportTimeDelays ])
 
+def _background_helper_getLayersFromBackProjectRetrace(q1, q2):
+    def f(params):
+        svdObj = params[0]
+        imagePlane = params[1]
+        splitLayers = params[2]
+        extra = params[3]
+        numPix = params[4]
+
+        visiblePointLayers = []
+
+        # Hide points layers to get image regions
+        svd = SceneViewDesciption(svdObj)
+        origVis = [ svd.isLayerVisible(i) for i in range(svd.getNumberOfLayers()) ]
+        for i in range(svd.getNumberOfLayers()):
+            if svd.getLayerType(i) == "points":
+                if svd.isLayerVisible(i):
+                    visiblePointLayers.append(svd.toLayerObject(i))
+                    svd.setLayerVisibility(i, False)
+
+        sceneNoPts = MultipleLayerScene(svd)
+        bordersAndImages, usedLayers = backproject.getImageRegions(sceneNoPts, visiblePointLayers, splitLayers, extra, numPix)    
+
+        # Restore points layers
+        for i, v in enumerate(origVis):
+            svd.setLayerVisibility(i, v)
+
+        def cb(s):
+            print(s)
+
+        newLayers, srcAreas = backproject.backprojectAndRetrace(imagePlane, bordersAndImages, *params[5:], cb)
+        newLayers = [ l.toSettings() for l in newLayers ]
+        return newLayers, srcAreas
+
+    _background_helper(q1, q2, f)
+
+# TODO
+#  - sceneViewDesc
+#  - ip: image plane instance
+#  - splitLayers: split layer into multiple images
+#  - extra: extra border to add
+#  - numPix: image regions are covered by this number of pixels, aspect ratio is used
+#  - numBPPix: backprojected image is used as source, with numBPPix*numBPPix pixels
+#  - numRetracePix: if relensSeparately is False, the entire image plane region will be covered by
+#  - numResample: ?
+#  - relensSeparately: recalculate image regions only, based on other backprojected images
+#  - overWriteFiles:
+#  - bpFileNameTemplate:
+#  - bpLayerNameTemplate:
+#  - relensFileNameTemplate:
+#  - relensLayerNameTemplate:
+#  - newImageDir
+def getLayersFromBackProjectRetrace(sceneViewDesc, ip,
+        splitLayers = True,
+        extra = 0.1*ANGLE_ARCSEC,
+        numPix = 1024,
+        numBPPix = 1024, # same used in x and y direction, is this ok? perhaps we'd lose information otherwise?
+        numRetracePix = 1024, # Again scaled according to aspect ratio
+        numResample = 1,
+        relensSeparately = True,
+        overWriteFiles = False,
+        bpFileNameTemplate = "img_{srcidx}_backproj.png",
+        bpLayerNameTemplate = "Source shape for image {srcidx}: {fn}",
+        relensFileNameTemplate = "img_{srcidx}_to_{tgtidx}_relensed.png",
+        relensLayerNameTemplate = "Relensed source from image {srcidx} to {tgtidx}: {fn}",
+        newImageDir = None):
+
+    return _foreground_helper(_background_helper_getLayersFromBackProjectRetrace,
+            [ sceneViewDesc.toObject(), 
+              ip, splitLayers, extra, numPix, numBPPix, numRetracePix, numResample, relensSeparately,
+                                      overWriteFiles, bpFileNameTemplate, bpLayerNameTemplate, relensFileNameTemplate,
+                                      relensLayerNameTemplate, newImageDir ])
+
 def main():
 
-    svd = SceneViewDesciption("cl0024.json")
+    #svd = SceneViewDesciption("cl0024.json")
     #pprint.pprint(svd.toObject())
 
     #svd = SceneViewDesciption("cl0024.json")
@@ -244,13 +350,37 @@ def main():
     #plt.show()
     #import grale.images as images
 
+    #import grale.images as images
+    #svd = SceneViewDesciption()
     #l = getPointsLayersFromImagesData(images.ImagesData.load("../../../inversion_examples/example3/images_01.imgdata"), -1)
+    #svd.addLayers(l)
     #pprint.pprint(l)
 
-    img = getImagesDataFromVisibleLayers(svd)
-    pprint.pprint(img)
-    l = getPointsLayersFromImagesData(img, -1)
-    pprint.pprint(l)
+    #img = getImagesDataFromVisibleLayers(svd)
+    #pprint.pprint(img)
+    #l = getPointsLayersFromImagesData(img, -1)
+    #pprint.pprint(l)
+
+    svd = SceneViewDesciption("/home/jori/projects/a3827new/a3827_tmp.json")
+    for i in range(svd.getNumberOfLayers()):
+        print(i, svd.getLayerName(i))
+
+    for i in [ 3, 5, 6, 7, 8]:
+        svd.setLayerVisibility(i, False)
+    
+    #img = getSceneRegionNumPyArray(svd, [ -20, -20 ], [ 20, 20], 512)
+    #
+    #import matplotlib.pyplot as plt
+    #plt.imshow(img)
+    #plt.gca().invert_yaxis()
+    #plt.gca().invert_xaxis()
+    #plt.show()
+
+    import pickle
+    ip = pickle.load(open("/home/jori/projects/a3827new/3_pt_ctr_avg-extrasubdiv-nocentral_no.imgplane", "rb"))
+    newLayers, srcAreas = getLayersFromBackProjectRetrace(svd, ip, relensSeparately=False, overWriteFiles=True)
+    pprint.pprint(newLayers)
+
 
 if __name__ == "__main__":
     main()
