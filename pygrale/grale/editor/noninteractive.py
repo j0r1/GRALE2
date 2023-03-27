@@ -6,10 +6,11 @@ import pprint
 import multiprocessing
 import checkqt
 import tools
-from multiprocessing import Process, Queue
+import multiprocessing
 import copy
 import os
 import backproject
+import numpy as np
 from grale.constants import ANGLE_ARCSEC
 
 class SceneViewDesciptionException(Exception):
@@ -235,10 +236,21 @@ def _background_helper_getSceneRegionImageNumPy(q1, q2):
     _background_helper(q1, q2, lambda params: MultipleLayerScene(SceneViewDesciption(params[0])).getSceneRegionNumPyArray(*params[1:]))
 
 def _foreground_helper(helperFunction, paramList):
+
+    ctx = None
+    # The default 'fork' on Unix doesn't work nice with Qt
+    try:
+        ctx = multiprocessing.get_context("forkserver") # TODO: is this better if available?
+    except Exception as e:
+        pass
+
+    if not ctx:
+        ctx = multiprocessing.get_context("spawn")
+
     checkqt.checkQtAvailable()
 
-    q1, q2 = Queue(), Queue()
-    p = Process(target=helperFunction, args=(q1,q2))
+    q1, q2 = ctx.Queue(), ctx.Queue()
+    p = ctx.Process(target=helperFunction, args=(q1,q2))
     p.start()
     q1.put(paramList)
     flag, result = q2.get()
@@ -247,10 +259,12 @@ def _foreground_helper(helperFunction, paramList):
         raise Exception(result)
     return result
 
-# TODO Coords are in arcsec for now
 def getSceneRegionNumPyArray(sceneViewDesc, bottomLeft, topRight, widthPixels = None, heightPixels = None, grayScale = False):
     return _foreground_helper(_background_helper_getSceneRegionImageNumPy,
-                              [ sceneViewDesc.toObject(), bottomLeft, topRight, widthPixels, heightPixels, grayScale ])
+                              [ sceneViewDesc.toObject(), 
+                                [ bottomLeft[0]/ANGLE_ARCSEC, bottomLeft[1]/ANGLE_ARCSEC], 
+                                [ topRight[0]/ANGLE_ARCSEC, topRight[1]/ANGLE_ARCSEC], 
+                                widthPixels, heightPixels, grayScale ])
 
 def _background_helper_getPointsLayersFromImagesData(q1, q2):
     _background_helper(q1, q2, lambda params: [ l.toSettings() for l in tools.importImagesDataToLayers(*params) ])
@@ -291,11 +305,12 @@ def _background_helper_getLayersFromBackProjectRetrace(q1, q2):
         for i, v in enumerate(origVis):
             svd.setLayerVisibility(i, v)
 
-#        def cb(s):
-#            print(s)
+        #def cb(s):
+        #    print(s)
 
         newLayers, srcAreas = backproject.backprojectAndRetrace(imagePlane, bordersAndImages, *params[5:]) #, cb)
         newLayers = [ l.toSettings() for l in newLayers ]
+        srcAreas = [ [ c.astype(np.float64)*ANGLE_ARCSEC for c in s ] for s in srcAreas ]
         return newLayers, srcAreas
 
     _background_helper(q1, q2, f)
@@ -307,7 +322,7 @@ def _background_helper_getLayersFromBackProjectRetrace(q1, q2):
 #  - extra: extra border to add
 #  - numPix: image regions are covered by this number of pixels, aspect ratio is used
 #  - numBPPix: backprojected image is used as source, with numBPPix*numBPPix pixels
-#  - numRetracePix: if relensSeparately is False, the entire image plane region will be covered by
+#  - numRetracePix: if relensSeparately is False, the entire image plane region will be covered by, set to negative to backproject only
 #  - numResample: ?
 #  - relensSeparately: recalculate image regions only, based on other backprojected images
 #  - overWriteFiles:
@@ -321,7 +336,7 @@ def getLayersFromBackProjectRetrace(sceneViewDesc, ip,
         extra = 0.1*ANGLE_ARCSEC,
         numPix = 1024,
         numBPPix = 1024, # same used in x and y direction, is this ok? perhaps we'd lose information otherwise?
-        numRetracePix = 1024, # Again scaled according to aspect ratio
+        numRetracePix = 1024, # Again scaled according to aspect ratio , set to negative to backproject only!
         numResample = 1,
         relensSeparately = True,
         overWriteFiles = False,
@@ -368,18 +383,36 @@ def main():
     for i in [ 3, 5, 6, 7, 8]:
         svd.setLayerVisibility(i, False)
     
-    #img = getSceneRegionNumPyArray(svd, [ -20, -20 ], [ 20, 20], 512)
-    #
-    #import matplotlib.pyplot as plt
-    #plt.imshow(img)
-    #plt.gca().invert_yaxis()
-    #plt.gca().invert_xaxis()
-    #plt.show()
+    import matplotlib.pyplot as plt
+
+    img = getSceneRegionNumPyArray(svd, [ -20*ANGLE_ARCSEC, -20*ANGLE_ARCSEC ], [ 20*ANGLE_ARCSEC, 20*ANGLE_ARCSEC], 512)
+
+    def showImg(img):
+        plt.figure()
+        plt.imshow(img)
+        plt.gca().invert_yaxis()
+        plt.gca().invert_xaxis()
+        plt.show()
+
+    showImg(img)
 
     import pickle
     ip = pickle.load(open("/home/jori/projects/a3827new/3_pt_ctr_avg-extrasubdiv-nocentral_no.imgplane", "rb"))
     newLayers, srcAreas = getLayersFromBackProjectRetrace(svd, ip, relensSeparately=False, overWriteFiles=True)
     pprint.pprint(newLayers)
+
+    for l in newLayers:
+        svd.addLayer(l)
+
+    img = getSceneRegionNumPyArray(svd, [ -20*ANGLE_ARCSEC, -20*ANGLE_ARCSEC ], [ 20*ANGLE_ARCSEC, 20*ANGLE_ARCSEC], 512)
+    showImg(img)
+
+    svd = SceneViewDesciption()
+    svd.addLayer(newLayers[0])
+    svd.setAxisVisible(False)
+
+    img = getSceneRegionNumPyArray(svd, *srcAreas[0], 512)
+    showImg(img)
 
 
 if __name__ == "__main__":
