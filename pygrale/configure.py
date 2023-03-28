@@ -190,6 +190,7 @@ def main():
                    "grale.editor.backprojectwidget",
                    "grale.editor.backprojectsettingsdialog",
                    "grale.editor.imgregionsettingsdialog",
+                   "grale.editor.noninteractive",
                    ]
 
         for ui in [ "grale/editor/contourleveldialog.ui",
