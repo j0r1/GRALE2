@@ -172,9 +172,14 @@ class SceneViewDesciption(object):
         }
         return obj
 
+    def getLayer(self, i):
+        return copy.deepcopy(self.layers[i])
+
     def toLayerObject(self, i):
         return Layer.fromSettings(self.layers[i])
 
+    def saveFile(self, fn):
+        json.dump(self.toObject(), open(fn, "wt"), indent=2)
 
 class MultipleLayerScene(scenes.LayerScene):
 
@@ -352,6 +357,49 @@ def getLayersFromBackProjectRetrace(sceneViewDesc, ip,
                                       overWriteFiles, bpFileNameTemplate, bpLayerNameTemplate, relensFileNameTemplate,
                                       relensLayerNameTemplate, newImageDir ])
 
+def getSourceShapeFromSourceRGBLayer(layer, channel="gray"): # or red, green, blue
+    transform = layer["transform"]
+
+    import matplotlib.pyplot as plt
+    img = plt.imread(layer["rgbfile"])
+    assert len(img.shape) == 3 and img.shape[2] >= 3
+    
+    xPixScale = transform[0]
+    yPixScale = transform[4]
+    xOffsetArcsec = transform[6]
+    yOffsetArcsec = transform[7]
+
+    assert abs(transform[1]) < 1e-6 and abs(transform[2]) < 1e-6 and abs(transform[3]) < 1e-6 and abs(transform[5]) < 1e-6 and abs(transform[8]) == 1, "Doesn't seem to be a transformation for a source shape"
+
+    heightPixels, widthPixels = img.shape[:2]
+    heightArcsec = yPixScale*heightPixels
+    widthArcsec = xPixScale*widthPixels
+
+    print(widthArcsec, heightArcsec)
+
+    assert widthArcsec > 0 and heightArcsec < 0
+
+    xCtrArcsec = xOffsetArcsec + widthArcsec/2.0
+    yCtrArcsec = yOffsetArcsec + heightArcsec/2.0
+    ctr = np.array([xCtrArcsec, yCtrArcsec])*ANGLE_ARCSEC
+
+    if channel == "gray":
+        imgPartR, imgPartG, imgPartB = img[:,:,0], img[:,:,1], img[:,:,2]
+        values = 0.299*imgPartR + 0.587*imgPartG + 0.114*imgPartB
+    elif channel == "red":
+        values = img[:,:,0]
+    elif channel == "green":
+        values = img[:,:,1]
+    elif channel == "blue":
+        values = img[:,:,2]
+    else:
+        raise Exception("Invalid 'channel' setting")
+
+    import grale.images as images
+    src = images.DiscreteSource(values.astype(np.float64), abs(widthArcsec)*ANGLE_ARCSEC, abs(heightArcsec)*ANGLE_ARCSEC, ctr)
+
+    return src
+
 def main():
 
     #svd = SceneViewDesciption("cl0024.json")
@@ -376,44 +424,62 @@ def main():
     #l = getPointsLayersFromImagesData(img, -1)
     #pprint.pprint(l)
 
-    svd = SceneViewDesciption("/home/jori/projects/a3827new/a3827_tmp.json")
-    for i in range(svd.getNumberOfLayers()):
-        print(i, svd.getLayerName(i))
+#    svd = SceneViewDesciption("/home/jori/projects/a3827new/a3827_tmp.json")
+#    for i in range(svd.getNumberOfLayers()):
+#        print(i, svd.getLayerName(i))
+#
+#    for i in [ 3, 5, 6, 7, 8]:
+#        svd.setLayerVisibility(i, False)
+#    
+#    import matplotlib.pyplot as plt
+#
+#    img = getSceneRegionNumPyArray(svd, [ -20*ANGLE_ARCSEC, -20*ANGLE_ARCSEC ], [ 20*ANGLE_ARCSEC, 20*ANGLE_ARCSEC], 512)
+#
+#    def showImg(img):
+#        plt.figure()
+#        plt.imshow(img)
+#        plt.gca().invert_yaxis()
+#        plt.gca().invert_xaxis()
+#        plt.show()
+#
+#    #showImg(img)
+#
+#    import pickle
+#    ip = pickle.load(open("/home/jori/projects/a3827new/3_pt_ctr_avg-extrasubdiv-nocentral_no.imgplane", "rb"))
+#    newLayers, srcAreas = getLayersFromBackProjectRetrace(svd, ip, relensSeparately=False, overWriteFiles=True)
+#    pprint.pprint(newLayers)
+#
+#    for l in newLayers:
+#        svd.addLayer(l)
+#
+#    svd.saveFile("newscene.json")
+#
+#    img = getSceneRegionNumPyArray(svd, [ -20*ANGLE_ARCSEC, -20*ANGLE_ARCSEC ], [ 20*ANGLE_ARCSEC, 20*ANGLE_ARCSEC], 512)
+#    #showImg(img)
+#
+#    svd = SceneViewDesciption()
+#    svd.addLayer(newLayers[0])
+#    svd.setAxisVisible(False)
 
-    for i in [ 3, 5, 6, 7, 8]:
-        svd.setLayerVisibility(i, False)
-    
+#    img = getSceneRegionNumPyArray(svd, *srcAreas[0], 512)
+    #showImg(img)
+
+    svd = SceneViewDesciption("newscene.json")
+    src = getSourceShapeFromSourceRGBLayer(svd.getLayer(svd.getNumberOfLayers()-2))
+
+    import grale.lenses as lenses
+    import grale.plotutil as plotutil
+    from grale.constants import DIST_MPC
     import matplotlib.pyplot as plt
 
-    img = getSceneRegionNumPyArray(svd, [ -20*ANGLE_ARCSEC, -20*ANGLE_ARCSEC ], [ 20*ANGLE_ARCSEC, 20*ANGLE_ARCSEC], 512)
+    dummyLens = lenses.PlummerLens(1000*DIST_MPC, { "mass": 1, "width": 100*ANGLE_ARCSEC })
 
-    def showImg(img):
-        plt.figure()
-        plt.imshow(img)
-        plt.gca().invert_yaxis()
-        plt.gca().invert_xaxis()
-        plt.show()
+    li = plotutil.LensInfo(dummyLens, size=10*ANGLE_ARCSEC)
+    li.setSourceDistances(1,1)
+    plotutil.plotImagePlane(li, [src], plotImages=False, sourceRgb=(1,1,1), angularUnit=ANGLE_ARCSEC)
+    plt.gca().invert_xaxis()
 
-    showImg(img)
-
-    import pickle
-    ip = pickle.load(open("/home/jori/projects/a3827new/3_pt_ctr_avg-extrasubdiv-nocentral_no.imgplane", "rb"))
-    newLayers, srcAreas = getLayersFromBackProjectRetrace(svd, ip, relensSeparately=False, overWriteFiles=True)
-    pprint.pprint(newLayers)
-
-    for l in newLayers:
-        svd.addLayer(l)
-
-    img = getSceneRegionNumPyArray(svd, [ -20*ANGLE_ARCSEC, -20*ANGLE_ARCSEC ], [ 20*ANGLE_ARCSEC, 20*ANGLE_ARCSEC], 512)
-    showImg(img)
-
-    svd = SceneViewDesciption()
-    svd.addLayer(newLayers[0])
-    svd.setAxisVisible(False)
-
-    img = getSceneRegionNumPyArray(svd, *srcAreas[0], 512)
-    showImg(img)
-
+    plt.show()
 
 if __name__ == "__main__":
     main()
