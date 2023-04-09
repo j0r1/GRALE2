@@ -275,6 +275,7 @@ def calculateImagePredictions(imgList, lensModel, cosmology=None,
 
             observedThetas = [ x["theta"] for x in imgPos ]
             predictedThetas = [ [] for i in range(len(observedThetas)) ]
+            betaFromThetaPred = [ [] for i in range(len(observedThetas)) ]
             # Trace each beta, and align the resulting position with the observations
             for beta in betas:
                 thetas = imgPlane.traceBetaApproximately(beta)
@@ -282,10 +283,12 @@ def calculateImagePredictions(imgList, lensModel, cosmology=None,
 
                 for i in range(len(thetas)):
                     predictedThetas[i].append(thetas[i])
+                    betaFromThetaPred[i].append(imgPlane.traceTheta(thetas[i]))
 
             for i in range(len(observedThetas)):
                 sourceInfo.append({ "theta_obs": observedThetas[i],
                                     "theta_pred": predictedThetas[i],
+                                    "beta_from_theta_pred": betaFromThetaPred[i],
                                     "beta_est": betas})
         else:
             for x in imgPos:
@@ -293,19 +296,24 @@ def calculateImagePredictions(imgList, lensModel, cosmology=None,
                     imgPlane = createImgPlaneFn(lensPlane, x["z"])
 
                 thetaPred = [ ]
+                betaFromThetaPred = []
                 theta0, beta0, invderiv0 = x["theta"], x["beta"], x["invbetaderivs"]
                 for beta1 in betas:
                     if useFSolve:
                         # We're looking for the images of beta1, starting from the
                         # estimate at observed theta0
-                        thetaPred.append(_findRealTheta(imgPlane, beta1, theta0)) 
+                        th = _findRealTheta(imgPlane, beta1, theta0)
                     else:
                         dbeta = beta1-beta0
                         dtheta = invderiv0.dot(dbeta)
-                        thetaPred.append(theta0 + dtheta)
+                        th = theta0 + dtheta
+
+                    thetaPred.append(th)
+                    betaFromThetaPred.append(imgPlane.traceTheta(th))
 
                 sourceInfo.append({ "theta_obs": theta0,
                                     "theta_pred": thetaPred,
+                                    "beta_from_theta_pred": betaFromThetaPred,
                                     "beta_est": betas })
 
         sources.append(sourceInfo)
