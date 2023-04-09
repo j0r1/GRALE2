@@ -110,6 +110,29 @@ def _findRealTheta(imgPlane, beta, theta):
     #print("end diff", sum(endDiff**2)**0.5, "arcsec")
     return r
 
+class _ImagePlaneWrapper(object):
+    def __init__(self, imgPlane, lensPlane):
+        self.imgPlane = imgPlane
+        self.lensPlane = lensPlane
+        
+    def traceTheta(self, theta):
+        lens = self.lensPlane.getLens()
+        Dds = self.imgPlane.getDds()
+        Ds = self.imgPlane.getDs()
+        return lens.traceTheta(Ds, Dds, theta)
+        
+    def getBetaAndDerivatives(self, theta):
+        lens = self.imgPlane.getLens()
+        Dds = self.imgPlane.getDds()
+        Ds = self.imgPlane.getDs()
+        beta = lens.traceTheta(Ds, Dds, theta)
+        axx, ayy, axy = lens.getAlphaVectorDerivatives(theta) * (Dds/Ds)
+        derivs = np.array([[1-axx, -axy],[-axy, 1-ayy]], dtype=np.double)
+        return beta, derivs
+        
+    def traceBetaApproximately(self, beta):
+        return self.imgPlane.traceBeta(beta)
+
 def calculateImagePredictions(imgList, lensModel, cosmology=None,
                      reduceImages="average",
                      useAverageBeta=True,
@@ -174,26 +197,44 @@ def calculateImagePredictions(imgList, lensModel, cosmology=None,
 
     from . import multiplane
     from . import privutil
+    from . import images
     from numpy.linalg import inv
 
+    cosmology = privutil.initCosmology(cosmology)
+
+    def findZ(lensModel):
+        return min(cosmology.findRedshiftForAngularDiameterDistance(lensModel.getLensDistance()))
+
     if hasattr(lensModel, "getLensDistance"):
-        zd = min(cosmology.findRedshiftForAngularDiameterDistance(lensModel.getLensDistance()))
+        if not cosmology:
+            raise Exception("When using a lens model, the cosmological model should be set")
+        zd = findZ(lensModel)
         lensModel = [ (lensModel, zd) ]
 
     useTrace = True
     if type(lensModel) == multiplane.MultiLensPlane:
         lensPlane = lensModel
+        createImgPlaneFn = lambda lp, zs: multiplane.MultiImagePlane(lp, zs)
     elif type(lensModel) == multiplane.MultiImagePlane:
         lensPlane = lensModel.getLensPlane()
+        createImgPlaneFn = lambda lp, zs: multiplane.MultiImagePlane(lp, zs)
+    elif type(lensModel) == images.LensPlane:
+        if not cosmology:
+            raise Exception("When using a regular lens plane to trace positions, the cosmological model should be set")
+
+        lensPlane = lensModel
+        zd = findZ(lensPlane.getLens())
+        createImgPlaneFn = lambda lp, zs: _ImagePlaneWrapper(images.ImagePlane(lensPlane, cosmology.getAngularDiameterDistance(zs), cosmology.getAngularDiameterDistance(zd, zs)), lensPlane)
     else:
         lensPlane = multiplane.MultiLensPlane(lensModel, [0,0], [0,0], 2, 2, None, "none", cosmology)
         useTrace = False
+        createImgPlaneFn = lambda lp, zs: multiplane.MultiImagePlane(lp, zs)
 
     if useTrace:
-        if cosmology:
+        if type(lensModel) == multiplane.MultiLensPlane and cosmology:
             raise Exception("When using a multi-lensplane to trace positions, the internal cosmological model is used; this parameter must be set to None")
+
     else:
-        cosmology = privutil.initCosmology(cosmology)
         if not cosmology:
             raise Exception("Cosmological model is not set")
 
@@ -208,7 +249,7 @@ def calculateImagePredictions(imgList, lensModel, cosmology=None,
         imgDat = i["imgdata"]
         z = i["z"]
 
-        imgPlane = multiplane.MultiImagePlane(lensPlane, z)
+        imgPlane = createImgPlaneFn(lensPlane, z)
         imgPos = [ ]
         for imgNum in range(imgDat.getNumberOfImages()):
             theta = getImagePoint(imgDat, imgNum)
@@ -230,7 +271,7 @@ def calculateImagePredictions(imgList, lensModel, cosmology=None,
         betas = [ np.average([d["beta"] for d in imgPos], 0) ] if useAverageBeta else [ d["beta"] for d in imgPos ]
 
         if useTrace:
-            imgPlane = multiplane.MultiImagePlane(lensPlane, z)
+            imgPlane = createImgPlaneFn(lensPlane, z)
 
             observedThetas = [ x["theta"] for x in imgPos ]
             predictedThetas = [ [] for i in range(len(observedThetas)) ]
@@ -249,7 +290,7 @@ def calculateImagePredictions(imgList, lensModel, cosmology=None,
         else:
             for x in imgPos:
                 if useFSolve:
-                    imgPlane = multiplane.MultiImagePlane(lensPlane, x["z"])
+                    imgPlane = createImgPlaneFn(lensPlane, x["z"])
 
                 thetaPred = [ ]
                 theta0, beta0, invderiv0 = x["theta"], x["beta"], x["invbetaderivs"]
