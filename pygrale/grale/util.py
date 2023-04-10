@@ -201,6 +201,7 @@ def calculateImagePredictions(imgList, lensModel, cosmology=None,
     from numpy.linalg import inv
 
     cosmology = privutil.initCosmology(cosmology)
+    origLensModel = lensModel
 
     def findZ(lensModel):
         return min(cosmology.findRedshiftForAngularDiameterDistance(lensModel.getLensDistance()))
@@ -256,7 +257,7 @@ def calculateImagePredictions(imgList, lensModel, cosmology=None,
 
             if useTrace:
                 beta = imgPlane.traceTheta(theta)
-                imgPos.append({ "theta": theta, "beta": beta })
+                imgPos.append({ "theta": theta, "beta": beta, "z": z })
             else:
                 beta, betaDerivs = imgPlane.getBetaAndDerivatives(theta)
                 imgPos.append({ "theta": theta, "beta": beta, "z": z,
@@ -268,7 +269,10 @@ def calculateImagePredictions(imgList, lensModel, cosmology=None,
     for imgPos, z in allPoints:
 
         sourceInfo = [ ]
-        betas = [ np.average([d["beta"] for d in imgPos], 0) ] if useAverageBeta else [ d["beta"] for d in imgPos ]
+        if callable(useAverageBeta):
+            betas = [ useAverageBeta(origLensModel, imgPos) ]
+        else:
+            betas = [ np.average([d["beta"] for d in imgPos], 0) ] if useAverageBeta else [ d["beta"] for d in imgPos ]
 
         if useTrace:
             imgPlane = createImgPlaneFn(lensPlane, z)
