@@ -133,67 +133,8 @@ class _ImagePlaneWrapper(object):
     def traceBetaApproximately(self, beta):
         return self.imgPlane.traceBeta(beta)
 
-def calculateImagePredictions(imgList, lensModel, cosmology=None,
-                     reduceImages="average",
-                     useAverageBeta=True,
-                     maxPermSize=7,
-                     useFSolve=True):
-    r"""For a set of images and a lens model, the predicted images for
-    each observed image are calculated. The results can subsequently
-    be used in the :func:`calculateRMS` function to obtain the RMS.
-
-    Parameters:
-     - `imgList`: a list of dictionaries with entries
-
-         - ``"imgdata"``: :class:`ImagesData <grale.images.ImagesData>` instance
-           that describes the observed images.
-         - ``"z"``: the redshift for these observed images.
-
-     - `lensModel`: this can be a :class:`MultiLensPlane <grale.multiplane.MultiLensPlane>`
-       instance, a :class:`MultiImagePlane <grale.multiplane.MultiImagePlane>` instance,
-       a list of (:class:`lens model <grale.lenses.GravitationalLens>`, redshift)
-       tuples, or just a single :class:`model<grale.lenses.GravitationalLens>`.
-
-       In case only one or more lens models are specified, the predicted image 
-       positions are estimated by calculating the derivatives of :math:`\vec{\beta}(\vec{\theta})`
-       and using them to compensate for small differences in source plane
-       positions :math:`\vec{\beta}`; or if `useFSolve` is ``True``, several
-       iterations will be used to approximate the true solution.
-
-       On the other hand, if e.g. a MultiLensPlane
-       instance is used, then the :func:`traceBetaApproximately <grale.multiplane.MultiImagePlane.traceBetaApproximately>`
-       function is called to obtain estimates of image plane positions corresponding
-       to a source plane position. This is more computationally demanding, but should
-       yield a more correct result.
-
-     - `cosmology`: must only be specified somehow (e.g. "default" if a default cosmology
-       was set if a (list of) lens models was specified. If e.g. a MultiLensPlane was
-       used, the internally stored cosmological model will be used instead.
-
-     - `reduceimages`: each image in an images data set will be converted to a single
-       point. By default, this is done by averaging the image point positions. If something
-       else needs to be done, you can specify a function here, which will be called with
-       two arguments: the :class:`ImagesData <grale.images.ImagesData>` instance and the
-       image index corresponding to the particular image.
-
-     - `useAverageBeta`: if ``True``, then the back-projected image points are averaged
-       to estimate a single source position. If ``False``, then each back-projected image
-       is used as an estimate of the source position.
-
-     - `maxPermSize`: when a source plane position is used to estimate the corresponding
-       image plane positions, these predicted positions are grouped with the observed
-       positions. If the derivatives-based method is used, then this is automatically
-       possible, but if the more accurate tracing is used, we need to find out which
-       predicted point corresponds to which observed point. As a first attempt, the
-       procedure tries to use the points closest to the observed ones, but this may not
-       be possible and different permutations of the positions will then be explored.
-       Since this can become quite slow, an error is generated if more elements than
-       this would need to be permutated.
-
-     - `useFSolve`: if only a lens model is used, this cause SciPy's `fsolve <https://docs.scipy.org/doc/scipy-0.14.0/reference/generated/scipy.optimize.fsolve.html>`_
-       to be used to zoom in on the real image plane vectors. Otherwise, a one-step
-       approach is used based on the deflection angle derivatives.
-    """
+def _commonInitFindOptRetrace(imgList, lensModel, cosmology, reduceImages):
+    r"""TODO"""
 
     from . import multiplane
     from . import privutil
@@ -265,12 +206,159 @@ def calculateImagePredictions(imgList, lensModel, cosmology=None,
 
         allPoints.append((imgPos, z))
 
+    return cosmology, lensPlane, origLensModel, useTrace, createImgPlaneFn, allPoints
+
+def nelderMeadSourcePositionOptimizer(imgIdx, imgPos, traceFunction, feedbackObject = None,
+                   betaAvgToleranceArcsec = 1e-5, betaAvgPenalty = 10000, nmRounds = 3, nmMaxFev = 50):
+    import scipy.optimize as optimize
+    from grale.constants import ANGLE_ARCSEC
+
+    feedback = lambda x : None if feedbackObject is None else feedbackObject.onStatus(x)
+
+    if len(imgPos) <= 1:
+        raise Exception("There should be at least two image points corresponding to the same source")
+
+    betaStart = np.average([x["beta"] for x in imgPos], axis=0) / ANGLE_ARCSEC
+    betaVar = np.sum(( np.std([x["beta"] for x in imgPos], axis=0) / ANGLE_ARCSEC )**2)**0.5
+
+    feedback("Looking for source position for image list index {}".format(imgIdx))
+
+    def f(beta):
+
+        betaPredictionDiffs = []
+        thetaPredictionDiffs = []
+        for t in [ x["theta"] for x in imgPos ]:
+            theta_pred = optimize.fsolve(lambda theta: (traceFunction(theta) - beta*ANGLE_ARCSEC)/ANGLE_ARCSEC, x0=t)
+            beta_pred = traceFunction(theta_pred)/ANGLE_ARCSEC
+
+            betaPredictionDiffs.append(np.sum((beta_pred - beta)**2)**0.5)
+            thetaPredictionDiffs.append(np.sum(((theta_pred - t)/ANGLE_ARCSEC)**2)**0.5)
+
+        betaPredictionDiffs = np.array(betaPredictionDiffs)
+        thetaPredictionDiffs = np.array(thetaPredictionDiffs)
+
+        fitness = 0
+        bAvg = np.average(betaPredictionDiffs)
+        if bAvg > betaAvgToleranceArcsec:
+            fitness += bAvg*betaAvgPenalty
+
+        fitness += np.sum(thetaPredictionDiffs**2)**0.5
+        feedback("Fitness for {} is {}".format(beta, fitness))
+        return fitness
+
+    if nmRounds < 1:
+        raise Exception("Number of Nelder-Mead rounds should be at least 1")
+
+    r = None
+    for ridx in range(nmRounds):
+        feedback("Starting Nelder-Mead round {}".format(ridx+1))
+        betaSimplex = np.array([ betaStart + np.random.normal(0,betaVar/10,size=(2,)) for _ in range(3)])
+        r1 = optimize.minimize(f, betaStart, method="Nelder-Mead", options={"initial_simplex": betaSimplex, "maxfev": nmMaxFev})
+        if r is None or r1.fun < r.fun:
+            r = r1
+    feedback("Best source position is {}".format(r.x))
+    return r.x * ANGLE_ARCSEC
+
+
+def findOptimizedSourcePositions(imgList, lensModel, cosmology=None, reduceImages="average", optRoutine=nelderMeadSourcePositionOptimizer, optParams = {}):
+    r"""TODO"""
+
+    if not optRoutine:
+        raise Exception("No optimization routine was set")
+
+    cosmology, lensPlane, origLensModel, useTrace, createImgPlaneFn, allPoints = _commonInitFindOptRetrace(imgList, lensModel, cosmology, reduceImages)
+
     sources = []
-    for imgPos, z in allPoints:
+    for imgListIdx, (imgPos, z) in enumerate(allPoints):
+
+        imgPlane = createImgPlaneFn(lensPlane, z)
+        traceFunction = imgPlane.traceTheta
+
+        beta = optRoutine(imgListIdx, imgPos, traceFunction, **optParams)
+
+        sources.append(beta)
+
+    return sources
+
+def calculateImagePredictions(imgList, lensModel, cosmology=None,
+                     reduceImages="average",
+                     useAverageBeta=True,
+                     maxPermSize=7,
+                     useFSolve=True):
+    r"""For a set of images and a lens model, the predicted images for
+    each observed image are calculated. The results can subsequently
+    be used in the :func:`calculateRMS` function to obtain the RMS.
+
+    Parameters:
+     - `imgList`: a list of dictionaries with entries
+
+         - ``"imgdata"``: :class:`ImagesData <grale.images.ImagesData>` instance
+           that describes the observed images.
+         - ``"z"``: the redshift for these observed images.
+
+     - `lensModel`: this can be a :class:`MultiLensPlane <grale.multiplane.MultiLensPlane>`
+       instance, a :class:`MultiImagePlane <grale.multiplane.MultiImagePlane>` instance,
+       a list of (:class:`lens model <grale.lenses.GravitationalLens>`, redshift)
+       tuples, a :class:`LensPlane` <grale.images.LensPlane>` instance,
+       or just a single :class:`model<grale.lenses.GravitationalLens>`.
+
+       In case only one or more lens models are specified, the predicted image 
+       positions are estimated by calculating the derivatives of :math:`\vec{\beta}(\vec{\theta})`
+       and using them to compensate for small differences in source plane
+       positions :math:`\vec{\beta}`; or if `useFSolve` is ``True``, several
+       iterations will be used to approximate the true solution using scipy's
+       `fsolve <https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.fsolve.html>`_
+       routine.
+
+       On the other hand, if e.g. a MultiLensPlane
+       instance is used, then the :func:`traceBetaApproximately <grale.multiplane.MultiImagePlane.traceBetaApproximately>`
+       function is called to obtain estimates of image plane positions corresponding
+       to a source plane position. This is more computationally demanding, but should
+       yield a more correct result.
+
+     - `cosmology`: must only be specified somehow (e.g. "default" if a default cosmology
+       was set if a (list of) lens models was specified. If e.g. a MultiLensPlane was
+       used, the internally stored cosmological model will be used instead.
+
+     - `reduceimages`: each image in an images data set will be converted to a single
+       point. By default, this is done by averaging the image point positions. If something
+       else needs to be done, you can specify a function here, which will be called with
+       two arguments: the :class:`ImagesData <grale.images.ImagesData>` instance and the
+       image index corresponding to the particular image.
+
+     - `useAverageBeta`: This can be either a boolean or a list. If ``True``, then the back-projected image points are averaged
+       to estimate a single source position. If ``False``, then each back-projected image
+       is used as an estimate of the source position. If this is a list, the number of
+       entries should match `imgList`, and each entry is used as the source position for
+       that `imgList` entry.
+
+     - `maxPermSize`: when a source plane position is used to estimate the corresponding
+       image plane positions, these predicted positions are grouped with the observed
+       positions. If the derivatives-based method is used, then this is automatically
+       possible, but if the more accurate tracing is used, we need to find out which
+       predicted point corresponds to which observed point. As a first attempt, the
+       procedure tries to use the points closest to the observed ones, but this may not
+       be possible and different permutations of the positions will then be explored.
+       Since this can become quite slow, an error is generated if more elements than
+       this would need to be permutated.
+
+     - `useFSolve`: if only a lens model is used, this cause SciPy's `fsolve <https://docs.scipy.org/doc/scipy-0.14.0/reference/generated/scipy.optimize.fsolve.html>`_
+       to be used to zoom in on the real image plane vectors. Otherwise, a one-step
+       approach is used based on the deflection angle derivatives.
+    """
+
+    if type(useAverageBeta) != bool:
+        if len(useAverageBeta) != len(imgList):
+            raise Exception("For predefined source plane positions, the number of source position should match the imgList length")
+
+    cosmology, lensPlane, origLensModel, useTrace, createImgPlaneFn, allPoints = _commonInitFindOptRetrace(imgList, lensModel, cosmology, reduceImages)
+
+    sources = []
+    for srcIdx, (imgPos, z) in enumerate(allPoints):
 
         sourceInfo = [ ]
-        if callable(useAverageBeta):
-            betas = [ useAverageBeta(origLensModel, imgPos) ]
+        if type(useAverageBeta) != bool:
+            betas = [ useAverageBeta[srcIdx] ]
         else:
             betas = [ np.average([d["beta"] for d in imgPos], 0) ] if useAverageBeta else [ d["beta"] for d in imgPos ]
 
