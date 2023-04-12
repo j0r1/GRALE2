@@ -5,9 +5,11 @@ from libcpp.vector cimport vector
 cimport grale.vector2d
 cimport grale.sourceimage
 cimport grale.lensplane
+cimport grale.gravitationallens
 ctypedef grale.vector2d.Vector2Dd Vector2Dd
 ctypedef grale.sourceimage.SourceImage SourceImage
 ctypedef grale.lensplane.LensPlane LensPlane
+ctypedef grale.gravitationallens.GravitationalLens GravitationalLens
 
 cdef extern from "grale/imageplane.h" namespace "grale":
     cdef cppclass ImagePlane:
@@ -39,4 +41,5 @@ cdef extern from "grale/imageplane.h" namespace "grale":
 
         @staticmethod
         bool staticTraceBetaApproximately(Vector2Dd beta, vector[Vector2Dd] &thetaPoints, vector[Vector2Dd] &betaMap, Vector2Dd bottomLeft, Vector2Dd topRight, int numX, int numY, string &errorString)
-
+        @staticmethod
+        bool staticRefinePosition(const GravitationalLens &lens, double Ds, double Dds, Vector2Dd beta, Vector2Dd startTheta, Vector2Dd &theta, int numIterations, string &errStr)

@@ -62,6 +62,7 @@ cimport grale.vector2d as vector2d
 cimport grale.serut as serut
 cimport grale.errut as errut
 cimport grale.cppthreadslenscalc as threadcalc
+cimport grale.imageplane as imageplane
 
 include "stringwrappers.pyx"
 
@@ -920,6 +921,17 @@ cdef class GravitationalLens:
         self._check()
         if not self._lens().save(B(fileName)):
             raise LensException(S(self._lens().getErrorString()))
+
+    def refinePosition(self, double Ds, double Dds, beta, startTheta, int numIterations = 4):
+        cdef Vector2Dd vBeta = Vector2Dd(beta[0], beta[1])
+        cdef Vector2Dd vStartTheta = Vector2Dd(startTheta[0], startTheta[1])
+        cdef Vector2Dd theta = vStartTheta
+        cdef string errStr
+
+        self._check()
+        if not imageplane.ImagePlane.staticRefinePosition(deref(self._lens()), Ds, Dds, vBeta, vStartTheta, theta, numIterations, errStr):
+            raise LensException(S(errStr))
+        return np.array([theta.getX(), theta.getY()], dtype=np.double)
 
     def toBytes(self):
         """toBytes()

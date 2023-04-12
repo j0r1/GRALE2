@@ -89,6 +89,9 @@ public:
 	                                         Vector2Dd bottomLeft, Vector2Dd topRight, int numX, int numY,
 											 std::string &errorString);
 
+	static bool staticRefinePosition(const GravitationalLens &lens, double Ds, double Dds, Vector2Dd beta, 
+                                      Vector2Dd startTheta, Vector2Dd &theta, int numIterations, std::string &errStr);
+
 	bool traceBeta(Vector2Dd beta, std::vector<Vector2Dd> &thetaPoints, int numIterations = 4, bool check = true) const;
 
 	bool traceThetaApproximately(Vector2Dd theta, Vector2Dd *pBeta) const;

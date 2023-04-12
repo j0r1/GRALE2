@@ -427,25 +427,22 @@ bool ImagePlane::traceBeta(Vector2Dd beta, vector<Vector2Dd> &thetaPoints, int n
 	return true;
 }
 
-
-bool ImagePlane::refinePosition(Vector2Dd beta, 
-                                Vector2Dd startTheta,
-	 		        Vector2Dd &theta,
-				int numIterations) const
+bool ImagePlane::staticRefinePosition(const GravitationalLens &lens, double Ds, double Dds, Vector2Dd beta, 
+                                      Vector2Dd startTheta, Vector2Dd &theta, int numIterations, string &errStr)
 {	
 	grale::Vector2Dd newTheta = startTheta;
 	grale::Vector2Dd newBeta;
 	
-	double prevDiff = 1e30;
+	double prevDiff = std::numeric_limits<double>::max();
 	bool done = false;
 		
-	if (!m_pRealLens->traceTheta(m_Ds, m_Dds, newTheta, &newBeta))
+	if (!lens.traceTheta(Ds, Dds, newTheta, &newBeta))
 	{
-		setErrorString(string("Unable to trace a point to the source plane: ") + m_pRealLens->getErrorString());
+		errStr = string("Unable to trace a point to the source plane: ") + lens.getErrorString();
 		return false;
 	}
 
-	double fraction = m_Dds/m_Ds;
+	double fraction = Dds/Ds;
 	grale::Vector2Dd diffBeta = beta - newBeta;
 	grale::Vector2Dd closestPoint = newTheta;
 	prevDiff = diffBeta.getLength();
@@ -454,9 +451,9 @@ bool ImagePlane::refinePosition(Vector2Dd beta,
 	{
 		double mxx, myy, mxy;
 		
-		if (!m_pRealLens->getAlphaVectorDerivatives(newTheta, mxx, myy, mxy))
+		if (!lens.getAlphaVectorDerivatives(newTheta, mxx, myy, mxy))
 		{
-			setErrorString(m_pRealLens->getErrorString());
+			errStr = lens.getErrorString();
 			return false;
 		}
 
@@ -469,9 +466,9 @@ bool ImagePlane::refinePosition(Vector2Dd beta,
 		double dy = (-mxy*diffBeta.getX() + mxx*diffBeta.getY())/denom;
 
 		newTheta += grale::Vector2Dd(dx, dy);
-		if (!m_pRealLens->traceTheta(m_Ds, m_Dds, newTheta, &newBeta))
+		if (!lens.traceTheta(Ds, Dds, newTheta, &newBeta))
 		{	
-			setErrorString(string("Unable to trace a point to the source plane: ") + m_pRealLens->getErrorString());
+			errStr = string("Unable to trace a point to the source plane: ") + lens.getErrorString();
 			return false;
 		}
 
@@ -485,6 +482,22 @@ bool ImagePlane::refinePosition(Vector2Dd beta,
 	}
 
 	theta = closestPoint;
+	return true;
+}
+
+bool ImagePlane::refinePosition(Vector2Dd beta, 
+                                Vector2Dd startTheta,
+	 		        Vector2Dd &theta,
+				int numIterations) const
+{	
+	string errStr;
+
+	if (!staticRefinePosition(*m_pRealLens, m_Ds, m_Dds, beta, startTheta, theta, numIterations, errStr))
+	{
+		setErrorString(errStr);
+		return false;
+	}
+
 	return true;
 }
 
