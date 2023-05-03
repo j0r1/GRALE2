@@ -74,6 +74,8 @@ private:
 	PointGroupStorage m_pointGroups;
 	std::vector<bool> m_rectFlags;
 	std::vector<bool> m_useGroupsFlags;
+	std::vector<float> m_rectWeights;
+	std::vector<float> m_groupWeights;
 	int m_extendedSourceCount;
 };
 

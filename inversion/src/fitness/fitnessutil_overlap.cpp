@@ -397,7 +397,9 @@ float calculateOverlapFitness_Extended(const PointGroupStorage &pointGroups, con
 		                               const vector<int> &sourceIndices,
 									   const std::vector<bool> &rectFlags,
 									   const std::vector<bool> &groupFlags,
-									   FitnessComponentCache *pCache
+									   FitnessComponentCache *pCache,
+									   const std::vector<float> &rectWeights,
+									   const std::vector<float> &groupWeights
 									   )
 {
 	float posfitness = 0;
@@ -409,6 +411,8 @@ float calculateOverlapFitness_Extended(const PointGroupStorage &pointGroups, con
 	assert(pointGroups.getNumberOfSources() == sourceIndices.size());
 	assert(rectFlags.size() == sourceIndices.size());
 	assert(groupFlags.size() == sourceIndices.size());
+	assert(groupWeights.size() == groupFlags.size());
+	assert(rectWeights.size() == rectFlags.size());
 
 	vector<bool> processedSource(sourceIndices.size(), false);
 
@@ -502,6 +506,8 @@ float calculateOverlapFitness_Extended(const PointGroupStorage &pointGroups, con
 			// Surrounding square
 			if (rectFlags[sIdx])
 			{
+				float rectWeight = rectWeights[sIdx];
+
 				for (int i = 0 ; i < numimages ; i++)
 				{
 					Vector2D<float> corneri1(bottomleftpoints[i].getX(),toprightpoints[i].getY());
@@ -525,7 +531,7 @@ float calculateOverlapFitness_Extended(const PointGroupStorage &pointGroups, con
 						//	<< diff2.getLengthSquared() << " "
 						//	<< diff3.getLengthSquared() << " "
 						//	<< diff4.getLengthSquared() << endl;
-						sourcefitness += diff1.getLengthSquared()+diff2.getLengthSquared()+diff3.getLengthSquared()+diff4.getLengthSquared();
+						sourcefitness += rectWeight*(diff1.getLengthSquared()+diff2.getLengthSquared()+diff3.getLengthSquared()+diff4.getLengthSquared());
 					}
 				}
 
@@ -535,6 +541,8 @@ float calculateOverlapFitness_Extended(const PointGroupStorage &pointGroups, con
 			// Point groups (if any)
 			if (groupFlags[sIdx])
 			{
+				float groupWeight = groupWeights[sIdx];
+
 				assert(sIdx < pointGroups.getNumberOfSources());
 				int ng = pointGroups.getNumberOfGroups(sIdx);
 
@@ -562,7 +570,7 @@ float calculateOverlapFitness_Extended(const PointGroupStorage &pointGroups, con
 
 							Vector2D<float> diff = (point2-point1)/scale;
 
-							sourcefitness += diff.getLengthSquared();
+							sourcefitness += groupWeight*diff.getLengthSquared();
 						}
 					}
 					

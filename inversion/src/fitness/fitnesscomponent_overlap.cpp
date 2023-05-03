@@ -384,6 +384,8 @@ bool FitnessComponent_ExtendedImagesOverlap::inspectImagesData(int idx, const Im
 
 	bool useRects = true;
 	bool usePointGroups = (imgDat.getNumberOfGroups() > 0)?true:false;
+	float rectWeight = 1.0f;
+	float groupWeight = 1.0f;
 
 	if (imgDat.hasExtraParameter("userectangles"))
 	{
@@ -402,6 +404,33 @@ bool FitnessComponent_ExtendedImagesOverlap::inspectImagesData(int idx, const Im
 			return false;
 		}
 	}
+
+	auto checkWeight = [this, &imgDat](const string &paramName, float &w) -> bool
+	{
+		if (imgDat.hasExtraParameter(paramName))
+		{
+			double x = 0;
+			if (!imgDat.getExtraParameter(paramName, x))
+			{
+				setErrorString("Extra parameter '" + paramName + "' is present, but doesn't appear to be a floating point value: " + imgDat.getErrorString());
+				return false;
+			}
+
+			if (x <= 0)
+			{
+				setErrorString("Specified weight for '" + paramName + "' is not a positive value (" + to_string(x) + ")");
+				return false;
+			}
+
+			w = (float)x;
+		}
+		return true;
+	};
+
+	if (!checkWeight("weight_rectangles", rectWeight))
+		return false;
+	if (!checkWeight("weight_pointgroups", groupWeight))
+		return false;
 
 	if (usePointGroups && imgDat.getNumberOfGroups() == 0)
 	{
@@ -426,6 +455,8 @@ bool FitnessComponent_ExtendedImagesOverlap::inspectImagesData(int idx, const Im
 		m_pointGroups.add(&imgDat);
 		m_rectFlags.push_back(useRects);
 		m_useGroupsFlags.push_back(usePointGroups);
+		m_rectWeights.push_back(rectWeight);
+		m_groupWeights.push_back(groupWeight);
 
 		addImagesDataIndex(idx);
 		addToUsedImagesCount(numImg);
@@ -447,7 +478,8 @@ bool FitnessComponent_ExtendedImagesOverlap::finalize(double zd, const Cosmology
 bool FitnessComponent_ExtendedImagesOverlap::calculateFitness(const ProjectedImagesInterface &iface, float &fitness)
 {
 	fitness = calculateOverlapFitness_Extended(m_pointGroups, iface, getUsedImagesDataIndices(), 
-			                                   m_rectFlags, m_useGroupsFlags, getCache());
+			                                   m_rectFlags, m_useGroupsFlags, getCache(),
+											   m_rectWeights, m_groupWeights);
 	return true;
 }
 

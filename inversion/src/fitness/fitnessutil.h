@@ -57,7 +57,10 @@ float calculateOverlapFitness_Extended(const PointGroupStorage &pointGroups, con
 		                               const std::vector<int> &sourceIndices,
 									   const std::vector<bool> &rectFlags,
 									   const std::vector<bool> &groupFlags,
-									   FitnessComponentCache *pCache = 0);
+									   FitnessComponentCache *pCache,
+									   const std::vector<float> &rectWeights,
+									   const std::vector<float> &groupWeights
+									   );
 
 void getEstimatedSourceShape(int s, const ProjectedImagesInterface &iface, FitnessComponentCache *pCache,
 		Polygon2D<float> &estimatedShape, float &minX, float &maxX, float &minY, float &maxY);
