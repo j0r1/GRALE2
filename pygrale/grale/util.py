@@ -1,6 +1,8 @@
 """Module meant for various utilities, but currently only RMS calculation."""
 
 import numpy as np
+from .inverters import _getNumHelpers
+from multiprocessing import Pool
 
 def _findBestPermutation(observed, predictions):
 
@@ -277,6 +279,58 @@ def findOptimizedSourcePositions(imgList, lensModel, cosmology=None, reduceImage
         beta = optRoutine(imgListIdx, imgPos, traceFunction, **optParams)
 
         sources.append(beta)
+
+    return sources
+
+def _parallelFindOptimizedSourcePositions_part(part, imgList, lensModel, cosmology, reduceImages, optRoutine, optParams):
+
+    cosmology, lensPlane, origLensModel, useTrace, createImgPlaneFn, allPoints = _commonInitFindOptRetrace(imgList, lensModel, cosmology, reduceImages)
+
+    sources = []
+    for imgListIdx, (imgPos, z) in part:
+        #t0 = time.time()
+        imgPlane = createImgPlaneFn(lensPlane, z)
+        traceFunction = imgPlane.traceTheta
+
+        beta = optRoutine(imgListIdx, imgPos, traceFunction, **optParams)
+        #t1 = time.time()
+
+        #print("Time for", imgListIdx, "is", t1-t0, "sec, pid = ", os.getpid())
+        sources.append([imgListIdx, beta])
+
+    return sources # is only a part
+
+
+def parallelFindOptimizedSourcePositions(imgList, lensModel, cosmology=None, reduceImages="average", optRoutine=nelderMeadSourcePositionOptimizer, optParams = {}, numThreads=0):
+    r"""TODO"""
+
+    if not optRoutine:
+        raise Exception("No optimization routine was set")
+
+    # Check that things work, as well as get allPoints
+    cosmology, _, _, _, _, allPoints = _commonInitFindOptRetrace(imgList, lensModel, cosmology, reduceImages)
+
+    numThreads = _getNumHelpers(numThreads)
+    pool = Pool(numThreads)
+    #print("Created pool for", numThreads, "threads")
+    parts = [ [] for i in range(numThreads)]
+
+    for imgListIdx, (imgPos, z) in enumerate(allPoints):
+        parts[imgListIdx%numThreads].append([imgListIdx, (imgPos, z)])
+
+    asyncResults = [ pool.apply_async(_parallelFindOptimizedSourcePositions_part, [parts[i], imgList, lensModel, cosmology, reduceImages, optRoutine, optParams]) for i in range(numThreads) ]
+
+    #print("Waiting for everything to finish")
+    results = [ r.get() for r in asyncResults ]
+
+    pool.close()
+    pool.join()
+
+    sources = [ None for i in range(len(allPoints))]
+    for r in results:
+        for imgListIdx, beta in r:
+            assert sources[imgListIdx] is None, "Unexpected error, writing in same place in output array"
+            sources[imgListIdx] = beta
 
     return sources
 
