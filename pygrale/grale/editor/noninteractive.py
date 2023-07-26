@@ -111,7 +111,7 @@ class SceneViewDesciption(object):
             self.globalSettings["showmatchpoints"] = bool(gbs["showmatchpoints"])
 
         else: # Assume it's layers only
-            layersToAdd = [ l for i in obj ] # the 'addLayers' function will make the copy
+            layersToAdd = [ l for l in obj ] # the 'addLayers' function will make the copy
             visibilitiesToAdd = [ True for _ in layersToAdd ] # Set everything to visible
 
         self.addLayers(layersToAdd, visibilitiesToAdd)
