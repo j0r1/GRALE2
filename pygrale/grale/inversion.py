@@ -824,7 +824,7 @@ class InversionWorkSpace(object):
             w, c = self._getGridDimensions(randomFraction, regionSize, regionCenter, lpIdx)
             self.grid[lpIdx] = gridModule.createUniformGrid(w, c, subDiv)
 
-    def _getSinglePlaneSubDivGrid(self, lensOrLensInfo,  minSquares, maxSquares, startSubDiv, randomFraction, regionSize, regionCenter, lpIdx):
+    def _getSinglePlaneSubDivGrid(self, lensOrLensInfo,  minSquares, maxSquares, startSubDiv, randomFraction, regionSize, regionCenter, lensInfoFilter, lpIdx):
         w, c = self._getGridDimensions(randomFraction, regionSize, regionCenter, lpIdx)
         if isinstance(lensOrLensInfo, plotutil.DensInfo):
             lensInfo = lensOrLensInfo
@@ -836,10 +836,11 @@ class InversionWorkSpace(object):
             # Run this here already, since we know the renderer and feedbackobject here
             lensInfo.getDensityPoints(self.renderer, self.feedbackObject)
         
+        lensInfo = lensInfoFilter(lensInfo)
         return gridModule.createSubdivisionGrid(w, c, lensInfo, minSquares, maxSquares, startSubDiv)
 
     def setSubdivisionGrid(self, lensOrLensInfo, minSquares, maxSquares, startSubDiv = 1, randomFraction = 0.05, regionSize = None, regionCenter = None,
-                           lpIdx = None):
+                           lensInfoFilter = None, lpIdx = None):
         """Based on the lens that's provided as input, create a subdivision grid
         where regions with more mass are subdivided further, such that the number
         of resulting grid cells lies between `minSquares` and `maxSquares`. For
@@ -863,7 +864,10 @@ class InversionWorkSpace(object):
                 isinstance(lensOrLensInfo, plotutil.DensInfo) or type(lensOrLensInfo) != lenses.MultiPlaneContainer
              ))):
             lpIdx = self._checkLensPlaneIndex(lpIdx)
-            self.grid[lpIdx] = self._getSinglePlaneSubDivGrid(lensOrLensInfo, minSquares, maxSquares, startSubDiv, randomFraction, regionSize, regionCenter, lpIdx)
+
+            if lensInfoFilter is None:
+                lensInfoFilter = lambda x: x
+            self.grid[lpIdx] = self._getSinglePlaneSubDivGrid(lensOrLensInfo, minSquares, maxSquares, startSubDiv, randomFraction, regionSize, regionCenter, lensInfoFilter, lpIdx)
             return
 
         # Here, we have a multi-plane container, do a similar subdivision
@@ -876,7 +880,12 @@ class InversionWorkSpace(object):
             if not np.isclose(lensesAndRedshifts[i]["z"], self.zd[i]):
                 raise InversionException("Redshift {:g} in multi plane container lens {} does not appear to match the expected redshift {:g}".format(lensesAndRedshifts[i]["z"], i+1, self.zd[i]))
 
-            self.grid[i] = self._getSinglePlaneSubDivGrid(lensesAndRedshifts[i]["lens"], minSquares, maxSquares, startSubDiv, randomFraction, regionSize, regionCenter, i)
+            if lensInfoFilter is None:
+                fltr = lambda x: x
+            else:
+                fltr = lensInfoFilter[i]
+
+            self.grid[i] = self._getSinglePlaneSubDivGrid(lensesAndRedshifts[i]["lens"], minSquares, maxSquares, startSubDiv, randomFraction, regionSize, regionCenter, fltr, i)
        
     def setDefaultInversionArguments(self, **kwargs):
         """In case you want to pass the same keyword arguments to the :func:`invert <grale.inversion.InversionWorkSpace.invert>`
