@@ -648,4 +648,10 @@ def createMonopoleBasisFunctions(avoidSources, Dd, subDiv, size, center = [0, 0]
         
     return basisFunctions
 
+def createThetaGrid(bottomLeft, topRight, numX, numY):
+    """TODO: add docs"""
+    thetas = np.empty([numY,numX,2], dtype=np.double)
+    thetas[:,:,0], thetas[:,:,1] = np.meshgrid(np.linspace(bottomLeft[0], topRight[0], numX), 
+                                               np.linspace(bottomLeft[1], topRight[1], numY))
+    return thetas
 

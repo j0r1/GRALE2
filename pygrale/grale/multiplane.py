@@ -4,6 +4,7 @@ from . import contourfinder
 from . import gridfunction
 from . import privutil
 from . import lenses
+from . import util
 import copy
 import numpy as np
 
@@ -146,13 +147,6 @@ class _MultiPlaneCache(object):
 
 class MultiLensPlane(object):
 
-    @staticmethod
-    def _createThetaGrid(bottomLeft, topRight, numX, numY):
-        thetas = np.empty([numY,numX,2], dtype=np.double)
-        thetas[:,:,0], thetas[:,:,1] = np.meshgrid(np.linspace(bottomLeft[0], topRight[0], numX), 
-                                                   np.linspace(bottomLeft[1], topRight[1], numY))
-        return thetas
-
     def __init__(self, lensesAndRedshifts, bottomLeft, topRight, numX, numY, renderer = "default", feedbackObject = None, cosmology = "default"):
         """This creates a MultiLensPlane instance that covers the area specified by the `bottomLeft` and
         `topRight` corners. It calculates and stores the deflection angles for the lenses
@@ -207,7 +201,7 @@ class MultiLensPlane(object):
 
         renderer, feedbackObject = privutil.initRendererAndFeedback(renderer, feedbackObject, "LENSPLANE")
 
-        thetas = MultiLensPlane._createThetaGrid(bottomLeft, topRight, numX, numY)
+        thetas = util.createThetaGrid(bottomLeft, topRight, numX, numY)
         self._thetas = thetas
         self._bottomLeft = bottomLeft[:2]
         self._topRight = topRight[:2]
