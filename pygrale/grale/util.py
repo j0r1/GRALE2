@@ -655,3 +655,154 @@ def createThetaGrid(bottomLeft, topRight, numX, numY):
                                                np.linspace(bottomLeft[1], topRight[1], numY))
     return thetas
 
+def createThetaGridAndImagesMask(bottomLeft, topRight, NX, NY, regionList, enlargements=2, 
+                                 enlargeDiagonally=False, circleToPolygonPoints=10000):
+
+    from . import images
+    import numpy as np
+
+    V = lambda x, y: np.array([x, y], dtype=np.double)
+
+    def extractImageRegion(img, imgIdx, tryBorder = True):
+        numPoints = img.getNumberOfImagePoints(imgIdx)
+        if numPoints == 0:
+            print("WARNING: ignoring image idx {} with no points".format(imgIdx))
+            return []
+
+        if numPoints <= 3:
+            return [ img.getImagePointPosition(imgIdx, pt) for pt in range(numPoints) ]
+
+        # Try border
+        if tryBorder and img.hasTriangulation():
+            try:
+                return img.getBorder(imgIdx)
+            except images.ImagesDataException: # Assuming no border found
+                return img.getConvexHull(imgIdx)
+
+        # Use convex hull
+        return img.getConvexHull(imgIdx)
+
+    def extractImageRegions(img):
+        l = []
+        for i in range(img.getNumberOfImages()):
+            l.append({ "type": "polygon", "coord": extractImageRegion(img, i) })
+        return l
+
+    newRegionList = []
+    updatedRegionList = False
+    for r in regionList:
+        if type(r) == images.ImagesData:
+            updatedRegionList = True
+            newRegionList += extractImageRegions(r)
+        elif r["type"] == "hull":
+            
+            updatedRegionList = True
+            
+            allPts = images.ImagesData(1)
+            
+            l = [ r["imgdata"] ] if type(r["imgdata"]) is not list else r["imgdata"]
+            for imgDat in l:
+                for img in range(imgDat.getNumberOfImages()):
+                    for pt in range(imgDat.getNumberOfImagePoints(img)):
+                        xy = imgDat.getImagePointPosition(img, pt)
+                        allPts.addPoint(0, xy)
+                        
+            newRegionList.append({
+                "type": "polygon",
+                "coord": allPts.getConvexHull(0)
+            })
+        elif r["type"] == "circle": # Convert to polygon
+            
+            updatedRegionList = True
+            
+            ctr = r["center"]
+            radius = r["radius"]
+            
+            numPoints = circleToPolygonPoints + 1
+            
+            newRegionList.append({
+                "type": "polygon",
+                "coord": [ ctr + radius*V(np.cos(angle), np.sin(angle)) for angle in np.linspace(0, 2*np.pi, numPoints) ]
+            })
+        else:
+            newRegionList.append(r)
+            
+    if updatedRegionList:
+        return createThetaGridAndImagesMask(bottomLeft, topRight, NX, NY, newRegionList, enlargements, enlargeDiagonally,
+                                            circleToPolygonPoints)
+    
+    thetas = createThetaGrid(bottomLeft, topRight, NX, NY)
+    
+    import cairo
+    
+    surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, NX, NY)
+    ctx = cairo.Context(surface)
+    ctx.set_antialias(cairo.ANTIALIAS_NONE)
+    ctx.scale(1, 1)
+    
+    ctx.set_source_rgb(0, 0, 0)
+    ctx.paint()
+    
+    def translateCoord(xy):
+        return (xy - bottomLeft)/(topRight-bottomLeft) * V(NX-1, NY-1) + V(0.5, 0.5)
+
+    ctx.set_source_rgb(1, 1, 1)
+    
+    for region in regionList:
+        tp = region["type"]
+        if tp == "polygon":
+            points = [ translateCoord(c) for c in region["coord"] ]
+            ctx.set_line_width(1)
+
+            ctx.move_to(*points[0])
+            for xy in points[1:]:
+                ctx.line_to(*xy)
+            ctx.close_path()
+            ctx.fill()
+            
+            ctx.move_to(*points[0])
+            for xy in points[1:]:
+                ctx.line_to(*xy)
+            ctx.close_path()
+            ctx.stroke()
+            
+            for xy in points:
+                ctx.rectangle(xy[0]-0.5, xy[1]-0.5, 1, 1)
+                ctx.fill()
+            
+        elif tp == "point":
+
+            xy = translateCoord(region["coord"])
+            ctx.rectangle(xy[0]-0.5, xy[1]-0.5, 1, 1)
+            ctx.fill()
+
+        else:
+            raise Exception("Unknown region type '{}''".format(tp))
+
+    pixel_data = np.frombuffer(surface.get_data(), np.uint8)
+    pixel_data = pixel_data.reshape((NY, NX, 4))
+    mask = pixel_data[:,:,0] > 0
+
+    def shiftMask(m, dx, dy):
+        NY, NX = m.shape
+        m2 = np.zeros(m.shape, dtype=m.dtype)
+
+        leftx0, leftx1, rightx0, rightx1 = (dx,NX,0,NX-dx) if dx > 0 else (0,NX+dx,-dx,NX)
+        lefty0, lefty1, righty0, righty1 = (dy,NY,0,NY-dy) if dy > 0 else (0,NY+dy,-dy,NY)
+        m2[lefty0:lefty1,leftx0:leftx1] = m[righty0:righty1,rightx0:rightx1]
+        return m2
+
+    def enlargeMask(m, enlargeOffsets):
+        mNew = m.copy()
+        for dx,dy in enlargeOffsets:
+            mNew |= shiftMask(m, dx, dy)
+        return mNew
+
+    enlargeOffsets = [ (-1,0), (1,0),(0,-1),(0,1), ]
+    if enlargeDiagonally:
+        enlargeOffsets += [ (-1,-1),(-1,1),(1,-1),(1,1) ]
+    
+    for i in range(enlargements):
+        mask = enlargeMask(mask, enlargeOffsets)
+    
+    return thetas, mask
