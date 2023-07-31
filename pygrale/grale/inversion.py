@@ -824,23 +824,28 @@ class InversionWorkSpace(object):
             w, c = self._getGridDimensions(randomFraction, regionSize, regionCenter, lpIdx)
             self.grid[lpIdx] = gridModule.createUniformGrid(w, c, subDiv)
 
-    def _getSinglePlaneSubDivGrid(self, lensOrLensInfo,  minSquares, maxSquares, startSubDiv, randomFraction, regionSize, regionCenter, lensInfoFilter, lpIdx):
+    def _getSinglePlaneSubDivGrid(self, lensOrLensInfo,  minSquares, maxSquares, startSubDiv, randomFraction, regionSize, regionCenter,
+                                  lensFilter, lensInfoFilter, lpIdx):
+
         w, c = self._getGridDimensions(randomFraction, regionSize, regionCenter, lpIdx)
         if isinstance(lensOrLensInfo, plotutil.DensInfo):
             lensInfo = lensOrLensInfo
         else:
             extraFrac = 1.0001
-            lensInfo = plotutil.LensInfo(lensOrLensInfo, 
-                                         bottomleft=[ c[0] - (w*extraFrac)/2, c[1] - (w*extraFrac)/2 ],
-                                         topright=[ c[0] + (w*extraFrac)/2, c[1] + (w*extraFrac)/2 ])
+            
+            bl = [ c[0] - (w*extraFrac)/2, c[1] - (w*extraFrac)/2 ]
+            tr = [ c[0] + (w*extraFrac)/2, c[1] + (w*extraFrac)/2 ]
+            lensOrLensInfo = lensFilter(lensOrLensInfo, bl, tr, lpIdx)
+
+            lensInfo = plotutil.LensInfo(lensOrLensInfo, bottomleft=bl, topright=tr)
             # Run this here already, since we know the renderer and feedbackobject here
             lensInfo.getDensityPoints(self.renderer, self.feedbackObject)
         
-        lensInfo = lensInfoFilter(lensInfo)
+        lensInfo = lensInfoFilter(lensInfo, lpIdx)
         return gridModule.createSubdivisionGrid(w, c, lensInfo, minSquares, maxSquares, startSubDiv)
 
     def setSubdivisionGrid(self, lensOrLensInfo, minSquares, maxSquares, startSubDiv = 1, randomFraction = 0.05, regionSize = None, regionCenter = None,
-                           lensInfoFilter = None, lpIdx = None):
+                           lensFilter = None, lensInfoFilter = None, lpIdx = None):
         """Based on the lens that's provided as input, create a subdivision grid
         where regions with more mass are subdivided further, such that the number
         of resulting grid cells lies between `minSquares` and `maxSquares`. For
@@ -865,9 +870,12 @@ class InversionWorkSpace(object):
              ))):
             lpIdx = self._checkLensPlaneIndex(lpIdx)
 
+            if lensFilter is None:
+                lensFilter = lambda x, bl, tr, idx: x
             if lensInfoFilter is None:
-                lensInfoFilter = lambda x: x
-            self.grid[lpIdx] = self._getSinglePlaneSubDivGrid(lensOrLensInfo, minSquares, maxSquares, startSubDiv, randomFraction, regionSize, regionCenter, lensInfoFilter, lpIdx)
+                lensInfoFilter = lambda x, idx: x
+
+            self.grid[lpIdx] = self._getSinglePlaneSubDivGrid(lensOrLensInfo, minSquares, maxSquares, startSubDiv, randomFraction, regionSize, regionCenter, lensFilter, lensInfoFilter, lpIdx)
             return
 
         # Here, we have a multi-plane container, do a similar subdivision
@@ -880,12 +888,10 @@ class InversionWorkSpace(object):
             if not np.isclose(lensesAndRedshifts[i]["z"], self.zd[i]):
                 raise InversionException("Redshift {:g} in multi plane container lens {} does not appear to match the expected redshift {:g}".format(lensesAndRedshifts[i]["z"], i+1, self.zd[i]))
 
-            if lensInfoFilter is None:
-                fltr = lambda x: x
-            else:
-                fltr = lensInfoFilter[i]
+            fltrLens = lambda x, bl, tr, idx: x if lensFilter is None else lensFilter[i]
+            fltrInf = lambda x, idx: x if lensInfoFilter is None else lensInfoFilter[i]
 
-            self.grid[i] = self._getSinglePlaneSubDivGrid(lensesAndRedshifts[i]["lens"], minSquares, maxSquares, startSubDiv, randomFraction, regionSize, regionCenter, fltr, i)
+            self.grid[i] = self._getSinglePlaneSubDivGrid(lensesAndRedshifts[i]["lens"], minSquares, maxSquares, startSubDiv, randomFraction, regionSize, regionCenter, fltrLens, fltrInf, i)
        
     def setDefaultInversionArguments(self, **kwargs):
         """In case you want to pass the same keyword arguments to the :func:`invert <grale.inversion.InversionWorkSpace.invert>`
