@@ -128,3 +128,138 @@ def createLensFromLenstoolFile(inputData, mirrorX = False):
 
     return (lenses.CompositeLens(Dd_first, subLenses), zd, cosm)
 
+def createEquivalentPotentialGridLens(lens, bottomLeft, topRight, NX, NY, maskRegions, pixelEnlargements=2,
+                                      enlargeDiagonally=False, circleToPolygonPoints=10000,
+                                      gradientKernelWeight=1, curvatureKernelWeight=100,
+                                      feedbackObject="default", qpsolver="scs"):
+    """TODO"""
+    import time
+    from . import feedback
+    from . import util
+    from . import lenses
+    from . import quadprogmatrix
+    from .constants import ANGLE_ARCSEC
+    from qpsolvers import solve_qp 
+
+    t0 = time.time()
+
+    if feedbackObject is None:
+        feedbackObject = feedback.Feedback()
+    else:
+        if type(feedbackObject) == str:
+            feedbackObject = feedback.getFeedbackClass(feedbackObject)
+            feedbackObject = feedbackObject()
+        else:
+            # Assume this is a created instance
+            pass
+
+
+    thetas, mask = util.createThetaGridAndImagesMask(bottomLeft, topRight, NX, NY, maskRegions, pixelEnlargements,
+                                                     enlargeDiagonally, circleToPolygonPoints)
+
+    feedbackObject.onStatus("Calculating lens potential values")
+    phi = lens.getProjectedPotential(1,1,thetas)
+    phiLens = lenses.PotentialGridLens(lens.getLensDistance(), { "values": phi, "bottomleft": bottomLeft, "topright": topRight})
+    
+    prob = quadprogmatrix.MaskedPotentialValues(phi, mask, ANGLE_ARCSEC**2)
+    
+    feedbackObject.onStatus("Calculating linear constraints")
+    G,h = prob.getLinearConstraintMatrices([
+            { "factor": -1, "di": -2, "dj": 0},
+            { "factor": -1, "di": -1, "dj": -1},
+            { "factor": -2, "di": -1, "dj": 0},
+            { "factor": -1, "di": -1, "dj": 1},
+            { "factor": -1, "di": 0, "dj": -2},
+            { "factor": -2, "di": 0, "dj": -1},
+            { "factor": 16, "di": 0, "dj": 0},
+            { "factor": -2, "di": 0, "dj": 1},
+            { "factor": -1, "di": 0, "dj": 2},
+            { "factor": -1, "di": 1, "dj": -1},
+            { "factor": -2, "di": 1, "dj": 0},
+            { "factor": -1, "di": 1, "dj": 1},
+            { "factor": -1, "di": 2, "dj": 0},
+        ])
+    
+    w1 = gradientKernelWeight
+    w2 = curvatureKernelWeight
+    P, q = prob.getQuadraticMinimizationMatrices([
+        { "weight": w1, "kernel": [
+            { "factor": 1, "di": 0, "dj": 0}, { "factor": -1, "di": 0, "dj": 1}
+        ] },
+        { "weight": w1, "kernel": [
+            { "factor": 1, "di": 0, "dj": 0}, { "factor": -1, "di": 1, "dj": 0}
+        ] },
+        { "weight": w2, "kernel": [
+                { "factor": -1, "di": -2, "dj": 0},
+                { "factor": -1, "di": -1, "dj": -1},
+                { "factor": -2, "di": -1, "dj": 0},
+                { "factor": -1, "di": -1, "dj": 1},
+                { "factor": -1, "di": 0, "dj": -2},
+                { "factor": -2, "di": 0, "dj": -1},
+                { "factor": 16, "di": 0, "dj": 0},
+                { "factor": -2, "di": 0, "dj": 1},
+                { "factor": -1, "di": 0, "dj": 2},
+                { "factor": -1, "di": 1, "dj": -1},
+                { "factor": -2, "di": 1, "dj": 0},
+                { "factor": -1, "di": 1, "dj": 1},
+                { "factor": -1, "di": 2, "dj": 0},
+
+                { "factor": 1, "di": -2, "dj": 0+1},
+                { "factor": 1, "di": -1, "dj": -1+1},
+                { "factor": 2, "di": -1, "dj": 0+1},
+                { "factor": 1, "di": -1, "dj": 1+1},
+                { "factor": 1, "di": 0, "dj": -2+1},
+                { "factor": 2, "di": 0, "dj": -1+1},
+                { "factor": -16, "di": 0, "dj": 0+1},
+                { "factor": 2, "di": 0, "dj": 1+1},
+                { "factor": 1, "di": 0, "dj": 2+1},
+                { "factor": 1, "di": 1, "dj": -1+1},
+                { "factor": 2, "di": 1, "dj": 0+1},
+                { "factor": 1, "di": 1, "dj": 1+1},
+                { "factor": 1, "di": 2, "dj": 0+1},
+
+        ] },
+        { "weight": w2, "kernel": [
+                 { "factor": -1, "di": -2, "dj": 0},
+                { "factor": -1, "di": -1, "dj": -1},
+                { "factor": -2, "di": -1, "dj": 0},
+                { "factor": -1, "di": -1, "dj": 1},
+                { "factor": -1, "di": 0, "dj": -2},
+                { "factor": -2, "di": 0, "dj": -1},
+                { "factor": 16, "di": 0, "dj": 0},
+                { "factor": -2, "di": 0, "dj": 1},
+                { "factor": -1, "di": 0, "dj": 2},
+                { "factor": -1, "di": 1, "dj": -1},
+                { "factor": -2, "di": 1, "dj": 0},
+                { "factor": -1, "di": 1, "dj": 1},
+                { "factor": -1, "di": 2, "dj": 0},
+
+                { "factor": 1, "di": -2+1, "dj": 0},
+                { "factor": 1, "di": -1+1, "dj": -1},
+                { "factor": 2, "di": -1+1, "dj": 0},
+                { "factor": 1, "di": -1+1, "dj": 1},
+                { "factor": 1, "di": 0+1, "dj": -2},
+                { "factor": 2, "di": 0+1, "dj": -1},
+                { "factor": -16, "di": 0+1, "dj": 0},
+                { "factor": 2, "di": 0+1, "dj": 1},
+                { "factor": 1, "di": 0+1, "dj": 2},
+                { "factor": 1, "di": 1+1, "dj": -1},
+                { "factor": 2, "di": 1+1, "dj": 0},
+                { "factor": 1, "di": 1+1, "dj": 1},
+                { "factor": 1, "di": 2+1, "dj": 0},
+        ] },
+    ])
+
+    initVals = prob.getInitialValues()
+    
+    feedbackObject.onStatus("Solving quadratic programming problem")
+    sol = solve_qp(P, q, G, h, solver=qpsolver, initvals=initVals)
+    
+    newPhi = prob.getFullSolution(sol)
+    newPhiLens = lenses.PotentialGridLens(lens.getLensDistance(), { "values": newPhi, "bottomleft": bottomLeft, "topright": topRight})
+    
+    t1 = time.time()
+    feedbackObject.onStatus("Done, in {:.3g} seconds".format(t1-t0))
+
+    return phiLens, mask, newPhiLens
+    

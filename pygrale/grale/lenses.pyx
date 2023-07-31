@@ -3227,5 +3227,4 @@ cdef class MultiPlaneContainer(GravitationalLens):
         
         return params
 
-from .privlenses import createLensFromLenstoolFile
-
+from .privlenses import createLensFromLenstoolFile, createEquivalentPotentialGridLens
