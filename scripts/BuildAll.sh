@@ -116,7 +116,16 @@ if [ -z "$NOVENV" ] ; then
 	source "$PREFIX/bin/activate"
 fi
 
-$PIP install --cache-dir "$D/pipcache" numpy scipy astropy shapely cython matplotlib
+$PIP install --cache-dir "$D/pipcache" numpy scipy astropy shapely "cython<3.0.0" matplotlib qpsolvers
+
+if ! $PIP install --cache-dir "$D/pipcache" pycairo ; then
+	echo "WARNING: pycairo could not be installed - perhaps some other package/module"
+	echo "         needs to be activated first"
+	echo
+	echo "         You can use GRALE without this, will continue with installation in"
+	echo "         a moment"
+	sleep 5
+fi
 
 if ! [ -e "$PREFIX/src" ] ; then
 	mkdir "$PREFIX/src"
@@ -276,7 +285,13 @@ cd "$PREFIX/src/GRALE2/pygrale"
 export SIPINCLUDES="$PREFIX/share/sip/PyQt5/" 
 export QT5INCLUDES="$QTBASE/include:$QTBASE/include/QtCore:$QTBASE/include/QtGui:$QTBASE/include/QtWidgets"
 export QT5LIBDIRS="$QTBASE/lib"
-CXXFLAGS="-O3 -std=c++11" ./setup.py build install --prefix="$PREFIX"
+
+if ! [ -e "Makefile" ] ; then
+	./configure.py
+fi
+
+CXXFLAGS="-O3 -std=c++11" make
+CXXFLAGS="-O3 -std=c++11" make install
 
 cd "$PREFIX/src"
 if ! [ -e triangle ] ; then
