@@ -55,6 +55,7 @@ Copy-paste and run this in a cell::
 
     !apt install libgsl-dev
     !apt install libopenmpi-dev
+    !apt install libcairo2-dev
     !rm -f BuildAll.sh
     !wget https://raw.githubusercontent.com/j0r1/GRALE2/master/scripts/BuildAll.sh
     !NOQT=1 NOVENV=1 bash -e ./BuildAll.sh /usr/local/
