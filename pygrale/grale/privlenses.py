@@ -130,7 +130,7 @@ def createLensFromLenstoolFile(inputData, mirrorX = False):
 
 def createEquivalentPotentialGridLens(lens, bottomLeft, topRight, NX, NY, maskRegions, pixelEnlargements=2,
                                       enlargeDiagonally=False, circleToPolygonPoints=10000,
-                                      gradientKernelWeight=1, curvatureKernelWeight=100,
+                                      gradientKernelWeight=1, curvatureKernelWeight=1000,
                                       feedbackObject="default", qpsolver="scs"):
     """TODO"""
     import time
