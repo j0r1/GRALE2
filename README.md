@@ -54,10 +54,10 @@ the repository, and use [CMake](https://cmake.org/) to build and install them.
 
 After these libraries are built _and_ installed, you can proceed to build the
 Python bindings. To do so, you'll need [NumPy](http://www.numpy.org/) as well as
-[Cython](http://cython.org). Just enter the `pygrale` directory and use the
-`setup.py` script to build and install the Python modules, e.g. using
-
-    python setup.py install
+[Cython](http://cython.org). Just enter the `pygrale` directory and first use
+the `configure.py` script to prepare the build and generate a makefile. Then,
+you can use the `make` and `make install` commands to build and install the 
+Python bindings.
 
 The following Python packages and programs will definitely be useful:
 
@@ -68,6 +68,8 @@ The following Python packages and programs will definitely be useful:
  - [Shapely](https://github.com/Toblerity/Shapely) is used to add a border
    to a polygon, when generating null space grids with holes in them for
    certain images.
+ - [pycairo](https://github.com/pygobject/pycairo/) and [qpsolvers](https://github.com/qpsolvers/qpsolvers)
+   are used in the procedure to extrapolate the lensing potential.
  - When [PyQt5](https://www.riverbankcomputing.com/software/pyqt/download5) and
    [SIP](https://www.riverbankcomputing.com/software/sip/download) are available, 
    then the GRALE editor tool will be made available automatically. This package
