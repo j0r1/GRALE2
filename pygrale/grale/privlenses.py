@@ -1,4 +1,5 @@
 from .privimages import _getLinesFromInputData
+import numpy as np
 
 def _getLenstoolPotentialInfoFromLines(lines):
     potentialInfo = [ ]
@@ -128,10 +129,45 @@ def createLensFromLenstoolFile(inputData, mirrorX = False):
 
     return (lenses.CompositeLens(Dd_first, subLenses), zd, cosm)
 
+def _getFactorListFromKernel(K, scale, diOffset, djOffset):
+    res = []
+    for y in range(K.shape[0]):
+        i = -K.shape[0]//2 + 1 + y
+        for x in range(K.shape[1]):
+            j = -K.shape[1]//2 + 1 + x
+
+            val = -K[y,x]*scale # Changed a sign convention somewhere, hence the '-'
+            if val != 0:
+                res.append({ "factor": val, "di": i+diOffset, "dj": j+djOffset })
+
+    return res
+
+def _simplifyFactorList(l):
+    factors = { }
+    for d in l:
+        didj = d["di"],d["dj"]
+        if didj in factors:
+            factors[didj] += d["factor"]
+        else:
+            factors[didj] = d["factor"]
+
+    r = [ { "factor": factors[didj], "di": didj[0], "dj": didj[1] } for didj in factors if factors[didj] != 0 ]
+    #print("Simplified:")
+    #import pprint
+    #pprint.pprint(r)
+    return r
+
 def createEquivalentPotentialGridLens(lens, bottomLeft, topRight, NX, NY, maskRegions, pixelEnlargements=2,
                                       enlargeDiagonally=False, circleToPolygonPoints=10000,
                                       gradientKernelWeight=1, curvatureKernelWeight=1000,
-                                      feedbackObject="default", qpsolver="scs"):
+                                      feedbackObject="default", qpsolver="scs",
+                                      laplacianKernel = np.array([[  0, 0,  1, 0, 0 ],
+                                                                  [  0, 1,  2, 1, 0 ],
+                                                                  [  1, 2,-16, 2, 1 ],
+                                                                  [  0, 1,  2, 1, 0 ],
+                                                                  [  0, 0,  1, 0, 0 ]],dtype=np.double)
+                                      ):
+
     """TODO"""
     import time
     from . import feedback
@@ -164,21 +200,7 @@ def createEquivalentPotentialGridLens(lens, bottomLeft, topRight, NX, NY, maskRe
     prob = quadprogmatrix.MaskedPotentialValues(phi, mask, ANGLE_ARCSEC**2)
     
     feedbackObject.onStatus("Calculating linear constraints")
-    G,h = prob.getLinearConstraintMatrices([
-            { "factor": -1, "di": -2, "dj": 0},
-            { "factor": -1, "di": -1, "dj": -1},
-            { "factor": -2, "di": -1, "dj": 0},
-            { "factor": -1, "di": -1, "dj": 1},
-            { "factor": -1, "di": 0, "dj": -2},
-            { "factor": -2, "di": 0, "dj": -1},
-            { "factor": 16, "di": 0, "dj": 0},
-            { "factor": -2, "di": 0, "dj": 1},
-            { "factor": -1, "di": 0, "dj": 2},
-            { "factor": -1, "di": 1, "dj": -1},
-            { "factor": -2, "di": 1, "dj": 0},
-            { "factor": -1, "di": 1, "dj": 1},
-            { "factor": -1, "di": 2, "dj": 0},
-        ])
+    G,h = prob.getLinearConstraintMatrices(_simplifyFactorList(_getFactorListFromKernel(laplacianKernel, 1.0, 0, 0)))
     
     w1 = gradientKernelWeight
     w2 = curvatureKernelWeight
@@ -189,65 +211,8 @@ def createEquivalentPotentialGridLens(lens, bottomLeft, topRight, NX, NY, maskRe
         { "weight": w1, "kernel": [
             { "factor": 1, "di": 0, "dj": 0}, { "factor": -1, "di": 1, "dj": 0}
         ] },
-        { "weight": w2, "kernel": [
-                { "factor": -1, "di": -2, "dj": 0},
-                { "factor": -1, "di": -1, "dj": -1},
-                { "factor": -2, "di": -1, "dj": 0},
-                { "factor": -1, "di": -1, "dj": 1},
-                { "factor": -1, "di": 0, "dj": -2},
-                { "factor": -2, "di": 0, "dj": -1},
-                { "factor": 16, "di": 0, "dj": 0},
-                { "factor": -2, "di": 0, "dj": 1},
-                { "factor": -1, "di": 0, "dj": 2},
-                { "factor": -1, "di": 1, "dj": -1},
-                { "factor": -2, "di": 1, "dj": 0},
-                { "factor": -1, "di": 1, "dj": 1},
-                { "factor": -1, "di": 2, "dj": 0},
-
-                { "factor": 1, "di": -2, "dj": 0+1},
-                { "factor": 1, "di": -1, "dj": -1+1},
-                { "factor": 2, "di": -1, "dj": 0+1},
-                { "factor": 1, "di": -1, "dj": 1+1},
-                { "factor": 1, "di": 0, "dj": -2+1},
-                { "factor": 2, "di": 0, "dj": -1+1},
-                { "factor": -16, "di": 0, "dj": 0+1},
-                { "factor": 2, "di": 0, "dj": 1+1},
-                { "factor": 1, "di": 0, "dj": 2+1},
-                { "factor": 1, "di": 1, "dj": -1+1},
-                { "factor": 2, "di": 1, "dj": 0+1},
-                { "factor": 1, "di": 1, "dj": 1+1},
-                { "factor": 1, "di": 2, "dj": 0+1},
-
-        ] },
-        { "weight": w2, "kernel": [
-                 { "factor": -1, "di": -2, "dj": 0},
-                { "factor": -1, "di": -1, "dj": -1},
-                { "factor": -2, "di": -1, "dj": 0},
-                { "factor": -1, "di": -1, "dj": 1},
-                { "factor": -1, "di": 0, "dj": -2},
-                { "factor": -2, "di": 0, "dj": -1},
-                { "factor": 16, "di": 0, "dj": 0},
-                { "factor": -2, "di": 0, "dj": 1},
-                { "factor": -1, "di": 0, "dj": 2},
-                { "factor": -1, "di": 1, "dj": -1},
-                { "factor": -2, "di": 1, "dj": 0},
-                { "factor": -1, "di": 1, "dj": 1},
-                { "factor": -1, "di": 2, "dj": 0},
-
-                { "factor": 1, "di": -2+1, "dj": 0},
-                { "factor": 1, "di": -1+1, "dj": -1},
-                { "factor": 2, "di": -1+1, "dj": 0},
-                { "factor": 1, "di": -1+1, "dj": 1},
-                { "factor": 1, "di": 0+1, "dj": -2},
-                { "factor": 2, "di": 0+1, "dj": -1},
-                { "factor": -16, "di": 0+1, "dj": 0},
-                { "factor": 2, "di": 0+1, "dj": 1},
-                { "factor": 1, "di": 0+1, "dj": 2},
-                { "factor": 1, "di": 1+1, "dj": -1},
-                { "factor": 2, "di": 1+1, "dj": 0},
-                { "factor": 1, "di": 1+1, "dj": 1},
-                { "factor": 1, "di": 2+1, "dj": 0},
-        ] },
+        { "weight": w2, "kernel": _simplifyFactorList(_getFactorListFromKernel(laplacianKernel, 1.0, 0, 0) + _getFactorListFromKernel(laplacianKernel, -1.0, 0, 1)) },
+        { "weight": w2, "kernel": _simplifyFactorList(_getFactorListFromKernel(laplacianKernel, 1.0, 0, 0) + _getFactorListFromKernel(laplacianKernel, -1.0, 1, 0)) },
     ])
 
     initVals = prob.getInitialValues()
