@@ -165,7 +165,8 @@ def createEquivalentPotentialGridLens(lens, bottomLeft, topRight, NX, NY, maskRe
                                                                   [  0, 1,  2, 1, 0 ],
                                                                   [  1, 2,-16, 2, 1 ],
                                                                   [  0, 1,  2, 1, 0 ],
-                                                                  [  0, 0,  1, 0, 0 ]],dtype=np.double)
+                                                                  [  0, 0,  1, 0, 0 ]],dtype=np.double),
+                                      ignorePixelMismatch = False
                                       ):
 
     """TODO"""
@@ -175,7 +176,16 @@ def createEquivalentPotentialGridLens(lens, bottomLeft, topRight, NX, NY, maskRe
     from . import lenses
     from . import quadprogmatrix
     from .constants import ANGLE_ARCSEC
+    from .lenses import LensException
     from qpsolvers import solve_qp 
+
+    if not ignorePixelMismatch:
+        distScale = ((topRight[0]-bottomLeft[0])**2 + (topRight[1]-bottomLeft[1])**2)**0.5
+        Nscale = (NX**2 + NY**2)**0.5
+        dx = ((topRight[0] - bottomLeft[0])/distScale)*(Nscale/NX)
+        dy = ((topRight[1] - bottomLeft[1])/distScale)*(Nscale/NX)
+        if abs(dx-dy) > 1e-5:
+            raise LensException("Pixel sizes in x- and y-directions don't seem to match well enough, use 'ignorePixelMismatch' to override")
 
     t0 = time.time()
 
