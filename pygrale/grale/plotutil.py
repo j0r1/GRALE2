@@ -905,7 +905,7 @@ Arguments:
                 if type(flagInfo) != list:
                     flagInfo = [ flagInfo for s in sources ]
                 if type(colorInfo) != list:
-                    colorInfo = [ colorInfo for c in colorInfo ]
+                    colorInfo = [ colorInfo for s in sources ]
 
                 for srcEntry, plotFlag, col in zip(sources, flagInfo, colorInfo):
                     if plotFlag:
