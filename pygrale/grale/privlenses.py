@@ -157,9 +157,10 @@ def _simplifyFactorList(l):
     #pprint.pprint(r)
     return r
 
-def createEquivalentPotentialGridLens(lens, bottomLeft, topRight, NX, NY, maskRegions, pixelEnlargements=2,
+def createEquivalentPotentialGridLens(lens, bottomLeft, topRight, NX, NY, maskRegions, 
+                                      potentialGradientWeight, densityGradientWeight,
+                                      densityWeight, pixelEnlargements=2,
                                       enlargeDiagonally=False, circleToPolygonPoints=10000,
-                                      gradientKernelWeight=1, curvatureKernelWeight=1000,
                                       feedbackObject="default", qpsolver="scs",
                                       laplacianKernel = np.array([[  0, 0,  1, 0, 0 ],
                                                                   [  0, 1,  2, 1, 0 ],
@@ -199,21 +200,25 @@ def createEquivalentPotentialGridLens(lens, bottomLeft, topRight, NX, NY, maskRe
             # Assume this is a created instance
             pass
 
-
     thetas, mask = util.createThetaGridAndImagesMask(bottomLeft, topRight, NX, NY, maskRegions, pixelEnlargements,
                                                      enlargeDiagonally, circleToPolygonPoints)
 
     feedbackObject.onStatus("Calculating lens potential values")
     phi = lens.getProjectedPotential(1,1,thetas)
     phiLens = lenses.PotentialGridLens(lens.getLensDistance(), { "values": phi, "bottomleft": bottomLeft, "topright": topRight})
+
+    phiMin = np.min(phi)
+    phi -= phiMin
+    phiScale = np.max(phi)
     
-    prob = quadprogmatrix.MaskedPotentialValues(phi, mask, ANGLE_ARCSEC**2)
+    prob = quadprogmatrix.MaskedPotentialValues(phi, mask, phiScale)
     
     feedbackObject.onStatus("Calculating linear constraints")
     G,h = prob.getLinearConstraintMatrices(_simplifyFactorList(_getFactorListFromKernel(laplacianKernel, 1.0, 0, 0)))
     
-    w1 = gradientKernelWeight
-    w2 = curvatureKernelWeight
+    w1 = potentialGradientWeight
+    w2 = densityGradientWeight
+    w3 = densityWeight
     P, q = prob.getQuadraticMinimizationMatrices([
         { "weight": w1, "kernel": [
             { "factor": 1, "di": 0, "dj": 0}, { "factor": -1, "di": 0, "dj": 1}
@@ -223,12 +228,15 @@ def createEquivalentPotentialGridLens(lens, bottomLeft, topRight, NX, NY, maskRe
         ] },
         { "weight": w2, "kernel": _simplifyFactorList(_getFactorListFromKernel(laplacianKernel, 1.0, 0, 0) + _getFactorListFromKernel(laplacianKernel, -1.0, 0, 1)) },
         { "weight": w2, "kernel": _simplifyFactorList(_getFactorListFromKernel(laplacianKernel, 1.0, 0, 0) + _getFactorListFromKernel(laplacianKernel, -1.0, 1, 0)) },
+        { "weight": w3, "kernel": _simplifyFactorList(_getFactorListFromKernel(laplacianKernel, 1.0, 0, 0)) },
     ])
 
     initVals = prob.getInitialValues()
     
     feedbackObject.onStatus("Solving quadratic programming problem")
     sol = solve_qp(P, q, G, h, solver=qpsolver, initvals=initVals)
+    if sol is None:
+        raise LensException("Unable to solve quadratic programming problem")
     
     newPhi = prob.getFullSolution(sol)
     newPhiLens = lenses.PotentialGridLens(lens.getLensDistance(), { "values": newPhi, "bottomleft": bottomLeft, "topright": topRight})
