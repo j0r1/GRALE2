@@ -9,6 +9,7 @@ from . import lenses
 from . import feedback
 from . import gridfunction
 from . import multiplane
+from . import util
 from .bytestring import B, S
 from .constants import *
 import numpy as np
@@ -696,6 +697,107 @@ Arguments:
         if axImgCallback: axImgCallback(axImg)
 
     return lensInfo
+
+def plotDensityMixed3D2D(lensOrLensInfo, colMapSurface="viridis",
+                         colMapContour="gray_r",
+                         colMapThickContour="gray_r",
+                         labelSize=9,
+                         azimuth_angle=-75,
+                         elevation_angle=15,
+                         angularUnit="default",
+                         densityUnit=1.0,
+                         vmin=None,
+                         vmax=None,
+                         offset2D=-3,
+                         contourLevels = None,
+                         thickContourLevels = None,
+                         flipX = False,
+                         drawExtra2D = 1,
+                         drawExtra3D = 1,
+                         contourKw = { "linewidths": 0.25, "linestyles": "dotted" },
+                         thickContourKw = { "linewidths": 1, "linestyles": "-" },
+                         xLabel = None,
+                         yLabel = None,
+                         zLabel = None,
+                         adjustProjectionCallback = None,
+                         contourfLevels = 200,
+                         crStride = 8,
+                         drawZeroSheet = True,
+                         zeroKw = { "alpha": 0.5, "edgecolor": None, "facecolor": "gray" },
+                         axes = None
+                         ):
+    """TODO"""
+
+    angularUnit = _getAngularUnit(angularUnit)
+    li = _toLensInfo(lensOrLensInfo)
+
+    if axes is None:
+        import matplotlib.pyplot as plt
+        ax = plt.gca()
+    else:
+        ax = axes
+
+    ax.view_init(elev=elevation_angle, azim=azimuth_angle)
+    if adjustProjectionCallback is not None:
+        adjustProjectionCallback(ax)
+
+    bl, tr = li.getArea()["bottomleft"], li.getArea()["topright"]
+    thetas = util.createThetaGrid(bl, tr, li.getNumXPixels(), li.getNumYPixels())
+    zValues = li.getDensityPixels()/densityUnit
+
+    if drawZeroSheet:
+        x1, y1 = tr/angularUnit
+        x0, y0 = bl/angularUnit
+        from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+        polygon = Poly3DCollection([np.array([
+            [ x0, y1, 0],
+            [ x1, y1, 0],
+            [ x1, y0, 0],
+            [ x0, y0, 0],
+            [ x0, y1, 0]])], **zeroKw)
+
+        ax.add_collection3d(polygon)
+
+    offsets = [ 0 ]
+    if drawExtra3D: offsets.append(drawExtra3D)
+
+    for o in offsets:
+        ax.plot_surface(thetas[:,:,0]/angularUnit + o, thetas[:,:,1]/angularUnit + o,
+                zValues,
+                cmap=colMapSurface,
+                vmin=vmin, vmax=vmax,
+                antialiased=False, rstride=crStride, cstride=crStride,
+                linewidth=0.0, edgecolor="black")
+
+    offsets = [ 0 ]
+    if drawExtra2D: offsets.append(drawExtra2D)
+
+    for o in offsets:
+        ax.contourf(thetas[:,:,0]/angularUnit, thetas[:,:,1]/angularUnit, zValues, contourfLevels, zdir='z', offset=offset2D,
+                        cmap=colMapSurface, vmin=vmin, vmax=vmax)
+
+    for c,kw,cm in zip([ contourLevels, thickContourLevels ],
+                       [ contourKw, thickContourKw ],
+                       [ colMapContour, colMapThickContour ]):
+        if c is not None:
+            ax.contour(thetas[:,:,0]/angularUnit, thetas[:,:,1]/angularUnit,
+                   zValues, offset=offset2D, zdir="z", levels=c, vmin=vmin, vmax=vmax,
+                   cmap=cm, **kw)
+
+    ax.tick_params(axis='x', labelsize=labelSize)
+    ax.tick_params(axis='y', labelsize=labelSize)
+    ax.tick_params(axis='z', labelsize=labelSize)
+
+    if flipX:
+        ax.set_xlim([tr[0]/angularUnit,bl[0]/angularUnit])
+    else:
+        ax.set_xlim([bl[0]/angularUnit,tr[0]/angularUnit])
+    ax.set_ylim([bl[1]/angularUnit,tr[1]/angularUnit])
+
+    if xLabel is not None: ax.set_xlabel(xLabel, fontsize=labelSize)
+    if yLabel is not None: ax.set_ylabel(yLabel, fontsize=labelSize)
+    if zLabel is not None: ax.set_zlabel(zLabel, fontsize=labelSize)
+
 
 def plotImagePlane(lensOrLensInfo, sources = [], renderer = "default", feedbackObject = "default", 
                    angularUnit = "default", subSamples = 9, sourceRgb = (0, 1, 0), imageRgb = (1, 1, 1),
