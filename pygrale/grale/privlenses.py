@@ -219,6 +219,8 @@ def createEquivalentPotentialGridLens(lens, bottomLeft, topRight, NX, NY, maskRe
     w1 = potentialGradientWeight
     w2 = densityGradientWeight
     w3 = densityWeight
+
+    feedbackObject.onStatus("Calculating quadratic optimization matrices")
     P, q = prob.getQuadraticMinimizationMatrices([
         { "weight": w1, "kernel": [
             { "factor": 1, "di": 0, "dj": 0}, { "factor": -1, "di": 0, "dj": 1}
@@ -244,5 +246,16 @@ def createEquivalentPotentialGridLens(lens, bottomLeft, topRight, NX, NY, maskRe
     t1 = time.time()
     feedbackObject.onStatus("Done, in {:.3g} seconds".format(t1-t0))
 
-    return phiLens, mask, newPhiLens
-    
+    return {
+        "mask": mask,
+        "philens_orig": phiLens,
+        "philens_equiv": newPhiLens,
+        # QP parameters
+        "P": P,
+        "q": q,
+        "G": G,
+        "h": h,
+        "x": sol,
+        "initvals": initVals,
+    }
+
