@@ -5,7 +5,9 @@
 template<class Positions, typename PositionValidatorFunctor, class Kernel, typename PositionCombinerFunctor, typename PositionMapperFunctor>
 MatrixResults calculateLinearMatrix_Functors(const Positions &positions, PositionValidatorFunctor posVal, 
 		                            const Kernel &coefficients, PositionCombinerFunctor combiner,
-									PositionMapperFunctor mapping)
+									PositionMapperFunctor mapping,
+									double limitingValue,
+									bool greaterThanLimitingValue)
 {
     MatrixResults results;
     SparseMatrixInfo &sparse = results.first;
@@ -19,7 +21,8 @@ MatrixResults calculateLinearMatrix_Functors(const Positions &positions, Positio
 
 	for (auto pos : positions)
 	{
-		double bValue = 0;
+		double bValue = limitingValue;
+		double signFactor = (greaterThanLimitingValue)?1.0:-1.0;
 		std::unordered_map<int, double> Avalues;
 
 		bool valid = true;
@@ -42,14 +45,14 @@ MatrixResults calculateLinearMatrix_Functors(const Positions &positions, Positio
 				auto extra_factor = std::get<2>(idx_value_extra_factor);
 
 				if (idx < 0) // Don't optimize, move to constraint
-					bValue += -coeff * extra_factor * value;
+					bValue += -coeff * extra_factor * value * signFactor;
 				else
 				{
 					auto it = Avalues.find(idx);
 					if (it == Avalues.end())
-						Avalues[idx] = coeff*extra_factor;
+						Avalues[idx] = coeff*extra_factor*signFactor;
 					else
-						it->second += coeff*extra_factor;
+						it->second += coeff*extra_factor*signFactor;
 				}
 			}
 		}
@@ -78,13 +81,17 @@ MatrixResults calculateLinearMatrix_Functors(const Positions &positions, Positio
 template<class Positions, class PositionValidator, class Kernel, class PositionCombiner, class PositionMapper>
 MatrixResults calculateLinearMatrix(const Positions &positions, const PositionValidator &posVal, 
 		                            const Kernel &coefficients, const PositionCombiner &combiner,
-									const PositionMapper &mapping)
+									const PositionMapper &mapping,
+									double limitingValue,
+									bool greaterThanLimitingValue)
 {
 	return calculateLinearMatrix_Functors(positions, 
 			[&posVal](auto pos){ return posVal.isPositionValid(pos); },
 			coefficients,
 			[&combiner](auto pos, auto diff) { return combiner.combinePositionAndDiff(pos, diff); },
-			[&mapping](auto pos) { return mapping.getVariableIndexOrValue(pos); });
+			[&mapping](auto pos) { return mapping.getVariableIndexOrValue(pos); },
+			limitingValue,
+			greaterThanLimitingValue);
 }
 
 template<class Positions, typename PositionValidatorFunctor, class KernelList, typename PositionCombinerFunctor, typename PositionMapperFunctor>

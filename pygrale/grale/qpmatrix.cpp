@@ -103,7 +103,41 @@ MatrixResults calculateLinearConstraintMatrices(const MaskedPotentialValuesBase 
 			[NX,NY](auto pos) { return pos.m_i >= 0 && pos.m_i < NY && pos.m_j >= 0 && pos.m_j < NX; },
 			kernel,
 			[](auto pos, auto diff) { return GridPos(pos, diff); },
-			[&mpv](auto pos) { return mpv.getVariableIndexOrValue(pos.m_i, pos.m_j); }
+			[&mpv](auto pos) { return mpv.getVariableIndexOrValue(pos.m_i, pos.m_j); },
+			0.0,
+			true
+			);
+}
+
+MatrixResults calculateLinearConstraintMatrices2(const MaskedPotentialValuesBase &mpv,
+		const vector<pair<double, pair<int, int>>> &kernel,
+		const std::vector<bool> &relevantGridPositions,
+		double limitingValue,
+		bool greaterThanLimitingValue
+		)
+{
+	const int NX = mpv.getNX();
+	const int NY = mpv.getNY();
+	Grid gridPositions(NY, NX);
+	assert(relevantGridPositions.size() == NX*NY);
+
+	// TODO: make this more efficient !!
+	size_t idx = 0;
+	vector<GridPos> maskedGridPositions;
+	for (auto pos : gridPositions)
+	{
+		if (relevantGridPositions[idx])
+			maskedGridPositions.push_back(pos);
+		idx++;
+	}
+
+	return calculateLinearMatrix_Functors(maskedGridPositions,
+			[NX,NY](auto pos) { return pos.m_i >= 0 && pos.m_i < NY && pos.m_j >= 0 && pos.m_j < NX; },
+			kernel,
+			[](auto pos, auto diff) { return GridPos(pos, diff); },
+			[&mpv](auto pos) { return mpv.getVariableIndexOrValue(pos.m_i, pos.m_j); },
+			limitingValue,
+			greaterThanLimitingValue
 			);
 }
 

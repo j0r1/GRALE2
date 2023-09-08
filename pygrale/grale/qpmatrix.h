@@ -94,6 +94,13 @@ MatrixResults calculateLinearConstraintMatrices(const MaskedPotentialValuesBase 
 		const std::vector<std::pair<double, std::pair<int, int>>> &kernel
 		);
 
+MatrixResults calculateLinearConstraintMatrices2(const MaskedPotentialValuesBase &mpv,
+		const std::vector<std::pair<double, std::pair<int, int>>> &kernel,
+		const std::vector<bool> &relevantGridPositions,
+		double limitingValue,
+		bool greaterThanLimitingValue
+		);
+
 MatrixResults calculateQuadraticMimimizationMatrices(const MaskedPotentialValuesBase &mpv,
 		const std::vector<std::pair<double,std::vector<std::pair<double, std::pair<int, int>>>>> &kernelList
 		);
