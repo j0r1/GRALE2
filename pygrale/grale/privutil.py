@@ -1,4 +1,5 @@
 from . import renderers
+from . import feedback
 import random
 import subprocess
 import time
@@ -10,6 +11,19 @@ _netcatPrefix = "nc:"
 
 class RenderNameException(Exception):
     pass
+
+def processFeedbackObjectArgument(feedbackObject):
+    if feedbackObject is None:
+        feedbackObject = feedback.Feedback()
+    else:
+        if type(feedbackObject) == str:
+            feedbackObject = feedback.getFeedbackClass(feedbackObject)
+            feedbackObject = feedbackObject()
+        else:
+            # Assume this is a created instance
+            pass
+
+    return feedbackObject
 
 def _matchRendererToFeedbackObject(renderer, feedbackObject):
 

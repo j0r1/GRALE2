@@ -157,7 +157,7 @@ def _simplifyFactorList(l):
     #pprint.pprint(r)
     return r
 
-def createEquivalentPotentialGridLens(lens, bottomLeft, topRight, NX, NY, maskRegions, 
+def createEquivalentPotentialGridLens(lens, bottomLeft, topRight, NX, NY, maskRegions,
                                       potentialGradientWeight, densityGradientWeight,
                                       densityWeight, pixelEnlargements=2,
                                       enlargeDiagonally=False, circleToPolygonPoints=10000,
@@ -167,6 +167,9 @@ def createEquivalentPotentialGridLens(lens, bottomLeft, topRight, NX, NY, maskRe
                                                                   [  1, 2,-16, 2, 1 ],
                                                                   [  0, 1,  2, 1, 0 ],
                                                                   [  0, 0,  1, 0, 0 ]],dtype=np.double),
+                                      #  [ { "maskRegions": ..., density: ...}, ... ]
+                                      maxDensityConstraints = [],
+                                      exactDensityConstraints = [],
                                       ignorePixelMismatch = False
                                       ):
 
@@ -176,9 +179,11 @@ def createEquivalentPotentialGridLens(lens, bottomLeft, topRight, NX, NY, maskRe
     from . import util
     from . import lenses
     from . import quadprogmatrix
+    from . import privutil
     from .constants import ANGLE_ARCSEC
     from .lenses import LensException
     from qpsolvers import solve_qp 
+    import scipy.sparse as sparse
 
     if not ignorePixelMismatch:
         distScale = ((topRight[0]-bottomLeft[0])**2 + (topRight[1]-bottomLeft[1])**2)**0.5
@@ -188,34 +193,62 @@ def createEquivalentPotentialGridLens(lens, bottomLeft, topRight, NX, NY, maskRe
         if abs(dx-dy) > 1e-5:
             raise LensException("Pixel sizes in x- and y-directions don't seem to match well enough, use 'ignorePixelMismatch' to override")
 
-    t0 = time.time()
+    if NY < laplacianKernel.shape[0] or NX < laplacianKernel.shape[1]:
+        raise LensException("Grid is not large enough to use Laplacian kernel")
+        
+    if laplacianKernel.shape[0] != laplacianKernel.shape[1] or laplacianKernel.shape[0] == 0 or laplacianKernel.shape[0]%2 != 1:
+        raise LensException("Laplacian kernel must have same number of rows and colums, which must be odd")
 
-    if feedbackObject is None:
-        feedbackObject = feedback.Feedback()
-    else:
-        if type(feedbackObject) == str:
-            feedbackObject = feedback.getFeedbackClass(feedbackObject)
-            feedbackObject = feedbackObject()
-        else:
-            # Assume this is a created instance
-            pass
+    t0 = time.time()
+    kHw = laplacianKernel.shape[0]//2
+    feedbackObject = privutil.processFeedbackObjectArgument(feedbackObject)
 
     thetas, mask = util.createThetaGridAndImagesMask(bottomLeft, topRight, NX, NY, maskRegions, pixelEnlargements,
                                                      enlargeDiagonally, circleToPolygonPoints)
-
+    
     feedbackObject.onStatus("Calculating lens potential values")
     phi = lens.getProjectedPotential(1,1,thetas)
-    phiLens = lenses.PotentialGridLens(lens.getLensDistance(), { "values": phi, "bottomleft": bottomLeft, "topright": topRight})
-
-    phiMin = np.min(phi)
-    phi -= phiMin
+    phi -= np.min(phi)
     phiScale = np.max(phi)
     
     prob = quadprogmatrix.MaskedPotentialValues(phi, mask, phiScale)
     
+    # Calculate the factor needed to convert density according to the laplacian
+    phiSheet = lenses.MassSheetLens(lens.getLensDistance(), { "density": 1.0 }).getProjectedPotential(1,1,thetas)
+    phiSheet -= np.min(phiSheet)
+    phiSheet /= phiScale # Use same scale factor
+    # Convolve just a small part
+    unitDensityScaleFactor = np.sum(phiSheet[:laplacianKernel.shape[0],:laplacianKernel.shape[1]] * laplacianKernel)  
+
     feedbackObject.onStatus("Calculating linear constraints")
-    G,h = prob.getLinearConstraintMatrices(_simplifyFactorList(_getFactorListFromKernel(laplacianKernel, 1.0, 0, 0)))
     
+    laplacian = _simplifyFactorList(_getFactorListFromKernel(laplacianKernel, 1.0, 0, 0))
+    G,h = prob.getLinearConstraintMatrices(laplacian)
+    
+    maxMasks, exactMasks = [], []
+    for constr in maxDensityConstraints:
+        _, constrMask = util.createThetaGridAndImagesMask(bottomLeft, topRight, NX, NY, constr["maskRegions"], 0)
+        G2, h2 = prob.getLinearConstraintMatrices(laplacian, relevantGridPositions=constrMask, 
+                                                  limitingValue=constr["density"] * unitDensityScaleFactor)
+        G = sparse.vstack([G,G2])
+        h = np.concatenate([h,h2])
+        
+        maxMasks.append(constrMask)
+
+    A, b = None, None
+    
+    for constr in exactDensityConstraints:
+        _, constrMask = util.createThetaGridAndImagesMask(bottomLeft, topRight, NX, NY, constr["maskRegions"], 0)
+        A2, b2 = prob.getLinearConstraintMatrices(laplacian, relevantGridPositions=constrMask,
+                                                  limitingValue=constr["density"] * unitDensityScaleFactor)
+        if A is None:
+            A, b = A2, b2
+        else:
+            A = sparse.vstack([A,A2])
+            b = np.concatenate([b,b2])
+            
+        exactMasks.append(constrMask)
+            
     w1 = potentialGradientWeight
     w2 = densityGradientWeight
     w3 = densityWeight
@@ -236,26 +269,28 @@ def createEquivalentPotentialGridLens(lens, bottomLeft, topRight, NX, NY, maskRe
     initVals = prob.getInitialValues()
     
     feedbackObject.onStatus("Solving quadratic programming problem")
-    sol = solve_qp(P, q, G, h, solver=qpsolver, initvals=initVals)
+    sol = solve_qp(P, q, G, h, A, b, solver=qpsolver, initvals=initVals) # Hard constraints
     if sol is None:
         raise LensException("Unable to solve quadratic programming problem")
     
     newPhi = prob.getFullSolution(sol)
-    newPhiLens = lenses.PotentialGridLens(lens.getLensDistance(), { "values": newPhi, "bottomleft": bottomLeft, "topright": topRight})
     
     t1 = time.time()
     feedbackObject.onStatus("Done, in {:.3g} seconds".format(t1-t0))
 
     return {
         "mask": mask,
-        "philens_orig": phiLens,
-        "philens_equiv": newPhiLens,
+        "masksMaxDens": maxMasks,
+        "masksExactDens": exactMasks,
+        "philens_orig": lenses.PotentialGridLens(lens.getLensDistance(), { "values": phi, "bottomleft": bottomLeft, "topright": topRight}),
+        "philens_equiv": lenses.PotentialGridLens(lens.getLensDistance(), { "values": newPhi, "bottomleft": bottomLeft, "topright": topRight}),
         # QP parameters
         "P": P,
         "q": q,
         "G": G,
         "h": h,
+        "A": A,
+        "b": b,
         "x": sol,
         "initvals": initVals,
     }
-

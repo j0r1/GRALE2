@@ -3,6 +3,7 @@
 import numpy as np
 from .inverters import _getNumHelpers
 from multiprocessing import Pool
+import copy
 
 def _findBestPermutation(observed, predictions):
 
@@ -685,7 +686,7 @@ def createThetaGridAndImagesMask(bottomLeft, topRight, NX, NY, regionList, enlar
     def extractImageRegions(img):
         l = []
         for i in range(img.getNumberOfImages()):
-            l.append({ "type": "polygon", "coord": extractImageRegion(img, i) })
+            l.append({ "type": "polygon", "coord": extractImageRegion(img, i), "invert": False })
         return l
 
     newRegionList = []
@@ -706,10 +707,11 @@ def createThetaGridAndImagesMask(bottomLeft, topRight, NX, NY, regionList, enlar
                     for pt in range(imgDat.getNumberOfImagePoints(img)):
                         xy = imgDat.getImagePointPosition(img, pt)
                         allPts.addPoint(0, xy)
-                        
+            
             newRegionList.append({
                 "type": "polygon",
-                "coord": allPts.getConvexHull(0)
+                "coord": allPts.getConvexHull(0),
+                "invert": r["invert"] if "invert" in r else False
             })
         elif r["type"] == "circle": # Convert to polygon
             
@@ -722,10 +724,16 @@ def createThetaGridAndImagesMask(bottomLeft, topRight, NX, NY, regionList, enlar
             
             newRegionList.append({
                 "type": "polygon",
-                "coord": [ ctr + radius*V(np.cos(angle), np.sin(angle)) for angle in np.linspace(0, 2*np.pi, numPoints) ]
+                "coord": [ ctr + radius*V(np.cos(angle), np.sin(angle)) for angle in np.linspace(0, 2*np.pi, numPoints) ],
+                "invert": r["invert"] if "invert" in r else False
             })
         else:
-            newRegionList.append(r)
+            if not "invert" in r:
+                r2 = r.copy()
+                r2["invert"] = False
+            else:
+                r2 = r
+            newRegionList.append(r2)
             
     if updatedRegionList:
         return createThetaGridAndImagesMask(bottomLeft, topRight, NX, NY, newRegionList, enlargements, enlargeDiagonally,
@@ -747,6 +755,8 @@ def createThetaGridAndImagesMask(bottomLeft, topRight, NX, NY, regionList, enlar
         return (xy - bottomLeft)/(topRight-bottomLeft) * V(NX-1, NY-1) + V(0.5, 0.5)
 
     ctx.set_source_rgb(1, 1, 1)
+
+    mask = np.zeros((NY,NX), dtype=bool)
     
     for region in regionList:
         tp = region["type"]
@@ -779,9 +789,14 @@ def createThetaGridAndImagesMask(bottomLeft, topRight, NX, NY, regionList, enlar
         else:
             raise Exception("Unknown region type '{}''".format(tp))
 
-    pixel_data = np.frombuffer(surface.get_data(), np.uint8)
-    pixel_data = pixel_data.reshape((NY, NX, 4))
-    mask = pixel_data[:,:,0] > 0
+        pixel_data = np.frombuffer(surface.get_data(), np.uint8)
+        pixel_data = pixel_data.reshape((NY, NX, 4))
+        regMask = pixel_data[:,:,0] > 0
+
+        if region["invert"]:
+            regMask = ~regMask
+
+        mask |= regMask
 
     def shiftMask(m, dx, dy):
         NY, NX = m.shape

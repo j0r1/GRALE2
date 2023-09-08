@@ -106,9 +106,8 @@ cdef class MaskedPotentialValues:
                     cRelGridPos.push_back(relevantGridPositions[i,j])
 
             # TODO: for now, the smaller than case is forced
-            # TODO!!
-            if limitingValue != 0:
-                print("WARNING: limitingValue is passed as-is for now, where should the relevant scale be calculated?")
+            # Note that the limitingValue is passed as is, the relevant scale factor is
+            # calculated in the createEquivalentPotentialGridLens function
             results = qpmatrix.calculateLinearConstraintMatrices2(deref(self.m_maskedValues), cKernel, cRelGridPos, limitingValue, False)
 
         N = results.second.size()
