@@ -727,6 +727,29 @@ def createThetaGridAndImagesMask(bottomLeft, topRight, NX, NY, regionList, enlar
                 "coord": [ ctr + radius*V(np.cos(angle), np.sin(angle)) for angle in np.linspace(0, 2*np.pi, numPoints) ],
                 "invert": r["invert"] if "invert" in r else False
             })
+        elif r["type"] == "rect": # Convert to polygon
+            updatedRegionList = True
+            bl, tr = r["bottomleft"], r["topright"]
+            x0, y0 = bl
+            x1, y1 = tr
+            newRegionList.append({
+                "type": "polygon",
+                "coord": [ V(x0, y0), V(x1, y0), V(x1, y1), V(x0, y1), V(x0, y0) ],
+                "invert": r["invert"] if "invert" in r else False
+            })
+        elif r["type"] == "square": # Convert to polygon
+            updatedRegionList = True
+            ctr = r["center"]
+            sz = r["size"]
+            bl = ctr-sz/2
+            tr = ctr+sz/2
+            x0, y0 = bl
+            x1, y1 = tr
+            newRegionList.append({
+                "type": "polygon",
+                "coord": [ V(x0, y0), V(x1, y0), V(x1, y1), V(x0, y1), V(x0, y0) ],
+                "invert": r["invert"] if "invert" in r else False
+            })
         else:
             if not "invert" in r:
                 r2 = r.copy()
