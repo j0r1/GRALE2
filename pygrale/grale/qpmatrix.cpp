@@ -2,6 +2,7 @@
 #include <cassert>
 #include <vector>
 #include <iostream>
+#include <memory>
 
 using namespace std;
 
@@ -67,6 +68,109 @@ private:
 	int m_N, m_M;
 };
 
+class MaskedGridPos
+{
+public:
+	MaskedGridPos(int i, int j, int N, int M, const shared_ptr<vector<bool>> &relGridPos) : m_i (i), m_j(j), m_N(N), m_M(M), m_mask(relGridPos) { }
+
+	MaskedGridPos(const MaskedGridPos &p, pair<int,int> diff)
+	{
+		m_i = p.m_i + diff.first;
+		m_j = p.m_j + diff.second;
+		m_N = p.m_N;
+		m_M = p.m_M;
+		m_mask = p.m_mask;
+	}
+
+	MaskedGridPos &operator++()
+	{
+		assert(m_i < m_N);
+		assert(m_j < m_M);
+
+		const auto &mask = *m_mask;
+		int idx = m_j + m_i*m_M;
+		do
+		{
+			m_j++;
+			if (m_j == m_M)
+			{
+				m_j = 0;
+				m_i++;
+			}
+			idx++;
+
+			if (idx >= mask.size()) // We should be done
+				break;
+
+			if (mask[idx]) // Ok, it's a valid point
+				break;
+		} while (true);
+
+		return *this;
+	}
+
+	bool operator==(const MaskedGridPos &p) const
+	{
+		assert(m_N == p.m_N);
+		assert(m_M == p.m_M);
+		return m_i == p.m_i && m_j == p.m_j;
+	}
+
+	bool operator!=(const MaskedGridPos &p) const
+	{
+		assert(m_N == p.m_N);
+		assert(m_M == p.m_M);
+		return m_i != p.m_i || m_j != p.m_j;
+	}
+
+	MaskedGridPos operator*() const { return { m_i, m_j, m_N, m_M, m_mask }; }
+
+	string toString() const { return "(" + to_string(m_i) + "," + to_string(m_j) + ")"; }
+
+	int m_i, m_j, m_N, m_M;
+	shared_ptr<vector<bool>> m_mask;
+};
+
+class MaskedGrid
+{
+public:
+	MaskedGrid(int N, int M, const vector<bool> &relGridPos) : m_N(N), m_M(M)
+	{
+		assert(N*M == relGridPos.size());
+		m_relGridPos = make_shared<vector<bool>>();
+		
+		std::copy(relGridPos.begin(), relGridPos.end(), std::back_inserter(*m_relGridPos));
+	}
+
+	MaskedGridPos begin() const
+	{ 
+		int i = 0, j = 0, idx = 0;
+		const auto &mask = *m_relGridPos;
+		do
+		{
+			if (mask[idx])
+				break;
+
+			j++;
+			if (j == m_M)
+			{
+				j = 0;
+				i++;
+			}
+			idx++;
+			if (idx >= mask.size())
+				break;
+		} while(true);
+
+		return { i, j, m_N, m_M, m_relGridPos };
+	}
+	MaskedGridPos end() const { return { m_N, 0, m_N, m_M, m_relGridPos }; }
+
+	shared_ptr<vector<bool>> m_relGridPos;
+private:
+	int m_N, m_M;
+};
+
 MaskedPotentialValues::MaskedPotentialValues(vector<double> &potentialValues, vector<bool> &mask, int NX, double scaleUnit)
 	: MaskedPotentialValuesBase(NX, potentialValues.size()/NX)
 {
@@ -118,10 +222,11 @@ MatrixResults calculateLinearConstraintMatrices2(const MaskedPotentialValuesBase
 {
 	const int NX = mpv.getNX();
 	const int NY = mpv.getNY();
-	Grid gridPositions(NY, NX);
 	assert(relevantGridPositions.size() == NX*NY);
 
+	/*
 	// TODO: make this more efficient !!
+	Grid gridPositions(NY, NX);
 	size_t idx = 0;
 	vector<GridPos> maskedGridPositions;
 	for (auto pos : gridPositions)
@@ -130,11 +235,16 @@ MatrixResults calculateLinearConstraintMatrices2(const MaskedPotentialValuesBase
 			maskedGridPositions.push_back(pos);
 		idx++;
 	}
+	*/
+
+	// TODO: is this really better? Will be somewhat slower
+	MaskedGrid maskedGridPositions(NY, NX, relevantGridPositions);
 
 	return calculateLinearMatrix_Functors(maskedGridPositions,
 			[NX,NY](auto pos) { return pos.m_i >= 0 && pos.m_i < NY && pos.m_j >= 0 && pos.m_j < NX; },
 			kernel,
-			[](auto pos, auto diff) { return GridPos(pos, diff); },
+			//[](auto pos, auto diff) { return GridPos(pos, diff); },
+			[](auto pos, auto diff) { return MaskedGridPos(pos, diff); },
 			[&mpv](auto pos) { return mpv.getVariableIndexOrValue(pos.m_i, pos.m_j); },
 			limitingValue,
 			greaterThanLimitingValue
