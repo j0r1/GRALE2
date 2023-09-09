@@ -114,8 +114,7 @@ cdef class MaskedPotentialValues:
         M = self.getNumberOfVariables()
         return _returnResults(&results, rt, N, M)
 
-    def getQuadraticMinimizationMatrices(self, kernelList, returnType = "csc"):
-        cdef vector[pair[double, vector[pair[double,pair[int, int]]]]] cKernelList
+    def getQuadraticMinimizationMatrices(self, kernel, returnType = "csc"):
         cdef vector[pair[double,pair[int, int]]] cKernel
         cdef double weight, factor
         cdef pair[int,int] diff
@@ -124,19 +123,12 @@ cdef class MaskedPotentialValues:
         
         rt = _getReturnType(returnType)
 
-        for d in kernelList:
-            weight = d["weight"]
-            kernel = d["kernel"]
-            cKernel.clear()
+        for part in kernel:
+            factor = part["factor"]
+            diff = pair[int, int](part["di"], part["dj"])
+            cKernel.push_back(pair[double, pair[int,int]](factor, diff))
             
-            for part in kernel:
-                factor = part["factor"]
-                diff = pair[int, int](part["di"], part["dj"])
-                cKernel.push_back(pair[double, pair[int,int]](factor, diff))
-            
-            cKernelList.push_back(pair[double, vector[pair[double,pair[int, int]]]](weight, cKernel))
-
-        results = qpmatrix.calculateQuadraticMimimizationMatrices(deref(self.m_maskedValues), cKernelList)
+        results = qpmatrix.calculateQuadraticMimimizationMatrices(deref(self.m_maskedValues), cKernel)
         N = self.getNumberOfVariables()
         return _returnResults(&results, rt, N, N)
 
@@ -236,30 +228,36 @@ cdef class MaskedPotentialValuesOffsetGradient:
         return _returnResults(&results, rt, N, M)
 
     def getQuadraticMinimizationMatrices(self, kernelList, returnType = "csc"):
-        cdef vector[pair[double, vector[pair[double,pair[int, int]]]]] cKernelList
-        cdef vector[pair[double,pair[int, int]]] cKernel
-        cdef double weight, factor
-        cdef pair[int,int] diff
-        cdef qpmatrix.MatrixResults results
-        cdef int rt, N
-        
-        rt = _getReturnType(returnType)
+        raise Exception("TODO")
+        # qpmatrix.calculateQuadraticMimimizationMatrices now only handles a single
+        # kernel, this function should either call that multiple times, or rewrite
+        # the rest of the code slightly - since all this is experimental, just
+        # postponing that for now
 
-        for d in kernelList:
-            weight = d["weight"]
-            kernel = d["kernel"]
-            cKernel.clear()
-            
-            for part in kernel:
-                factor = part["factor"]
-                diff = pair[int, int](part["di"], part["dj"])
-                cKernel.push_back(pair[double, pair[int,int]](factor, diff))
-            
-            cKernelList.push_back(pair[double, vector[pair[double,pair[int, int]]]](weight, cKernel))
-
-        results = qpmatrix.calculateQuadraticMimimizationMatrices(deref(self.m_maskedValues), cKernelList)
-        N = self.getNumberOfVariables()
-        return _returnResults(&results, rt, N, N)
+#        cdef vector[pair[double, vector[pair[double,pair[int, int]]]]] cKernelList
+#        cdef vector[pair[double,pair[int, int]]] cKernel
+#        cdef double weight, factor
+#        cdef pair[int,int] diff
+#        cdef qpmatrix.MatrixResults results
+#        cdef int rt, N
+#        
+#        rt = _getReturnType(returnType)
+#
+#        for d in kernelList:
+#            weight = d["weight"]
+#            kernel = d["kernel"]
+#            cKernel.clear()
+#            
+#            for part in kernel:
+#                factor = part["factor"]
+#                diff = pair[int, int](part["di"], part["dj"])
+#                cKernel.push_back(pair[double, pair[int,int]](factor, diff))
+#            
+#            cKernelList.push_back(pair[double, vector[pair[double,pair[int, int]]]](weight, cKernel))
+#
+#        results = qpmatrix.calculateQuadraticMimimizationMatrices(deref(self.m_maskedValues), cKernelList)
+#        N = self.getNumberOfVariables()
+#        return _returnResults(&results, rt, N, N)
 
     # NOTE: for now the underlying code just returns zero, should we just return a zero ndarray?
     def getInitialValues(self):

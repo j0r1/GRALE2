@@ -102,7 +102,7 @@ MatrixResults calculateLinearConstraintMatrices2(const MaskedPotentialValuesBase
 		);
 
 MatrixResults calculateQuadraticMimimizationMatrices(const MaskedPotentialValuesBase &mpv,
-		const std::vector<std::pair<double,std::vector<std::pair<double, std::pair<int, int>>>>> &kernelList
+		const std::vector<std::pair<double, std::pair<int, int>>> &kernel
 		);
 
 class MaskedPotentialValuesOffsetGradient : public MaskedPotentialValuesBase

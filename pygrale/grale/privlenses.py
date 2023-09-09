@@ -195,7 +195,7 @@ def createEquivalentPotentialGridLens(lens, bottomLeft, topRight, NX, NY, maskRe
 
     if NY < laplacianKernel.shape[0] or NX < laplacianKernel.shape[1]:
         raise LensException("Grid is not large enough to use Laplacian kernel")
-        
+
     if laplacianKernel.shape[0] != laplacianKernel.shape[1] or laplacianKernel.shape[0] == 0 or laplacianKernel.shape[0]%2 != 1:
         raise LensException("Laplacian kernel must have same number of rows and colums, which must be odd")
 
@@ -254,17 +254,35 @@ def createEquivalentPotentialGridLens(lens, bottomLeft, topRight, NX, NY, maskRe
     w3 = densityWeight
 
     feedbackObject.onStatus("Calculating quadratic optimization matrices")
-    P, q = prob.getQuadraticMinimizationMatrices([
-        { "weight": w1, "kernel": [
-            { "factor": 1, "di": 0, "dj": 0}, { "factor": -1, "di": 0, "dj": 1}
-        ] },
-        { "weight": w1, "kernel": [
-            { "factor": 1, "di": 0, "dj": 0}, { "factor": -1, "di": 1, "dj": 0}
-        ] },
-        { "weight": w2, "kernel": _simplifyFactorList(_getFactorListFromKernel(laplacianKernel, 1.0, 0, 0) + _getFactorListFromKernel(laplacianKernel, -1.0, 0, 1)) },
-        { "weight": w2, "kernel": _simplifyFactorList(_getFactorListFromKernel(laplacianKernel, 1.0, 0, 0) + _getFactorListFromKernel(laplacianKernel, -1.0, 1, 0)) },
-        { "weight": w3, "kernel": _simplifyFactorList(_getFactorListFromKernel(laplacianKernel, 1.0, 0, 0)) },
-    ])
+
+    gradientDi = [ { "factor": 1, "di": 0, "dj": 0}, { "factor": -1, "di": 1, "dj": 0} ]
+    gradientDj = [ { "factor": 1, "di": 0, "dj": 0}, { "factor": -1, "di": 0, "dj": 1} ]
+    laplacianGradientDi = _simplifyFactorList(_getFactorListFromKernel(laplacianKernel, 1.0, 0, 0) + _getFactorListFromKernel(laplacianKernel, -1.0, 1, 0))
+    laplacianGradientDj = _simplifyFactorList(_getFactorListFromKernel(laplacianKernel, 1.0, 0, 0) + _getFactorListFromKernel(laplacianKernel, -1.0, 0, 1))
+
+    P, q = None, None
+    for weight, kernel in [
+            (w1, gradientDi),
+            (w1, gradientDj),
+            (w2, laplacianGradientDi),
+            (w2, laplacianGradientDj),
+            (w3, laplacian)
+        ]:
+        if weight == 0:
+            continue
+
+        P2, q2 = prob.getQuadraticMinimizationMatrices(kernel)
+        P2 *= weight
+        q2 *= weight
+
+        if P is None:
+            P, q = P2, q2
+        else:
+            P += P2
+            q += q2
+
+    if P is None:
+        raise LensException("Nothing optimize (all weights zero?)")
 
     initVals = prob.getInitialValues()
     

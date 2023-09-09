@@ -142,8 +142,7 @@ MatrixResults calculateLinearConstraintMatrices2(const MaskedPotentialValuesBase
 }
 
 MatrixResults calculateQuadraticMimimizationMatrices(const MaskedPotentialValuesBase &mpv,
-		const vector<pair<double,vector<pair<double, pair<int, int>>>>> &kernelList
-		)
+		const vector<pair<double, pair<int, int>>> &kernel)
 {
 	const int NX = mpv.getNX();
 	const int NY = mpv.getNY();
@@ -152,7 +151,7 @@ MatrixResults calculateQuadraticMimimizationMatrices(const MaskedPotentialValues
 
 	return calculateQuadraticMatrix_Functors(N, gridPositions,
 			[NX,NY](auto pos) { return pos.m_i >= 0 && pos.m_i < NY && pos.m_j >= 0 && pos.m_j < NX; },
-			kernelList,
+			kernel,
 			[](auto pos, auto diff) { return GridPos(pos, diff); },
 			[&mpv](auto pos) { return mpv.getVariableIndexOrValue(pos.m_i, pos.m_j); }
 			);

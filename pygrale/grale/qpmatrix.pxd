@@ -43,6 +43,6 @@ cdef extern from "qpmatrix.h":
         const vector[pair[double, pair[int, int]]] &kernel, const vector[cbool] &relevantGridPositions,
         double limitingValue, cbool greaterThanLimitingValue)
     MatrixResults calculateQuadraticMimimizationMatrices(const MaskedPotentialValuesBase &mpv,
-        const vector[pair[double,vector[pair[double, pair[int, int]]]]] &kernelList)
+		const vector[pair[double, pair[int, int]]] &kernel)
 
     
