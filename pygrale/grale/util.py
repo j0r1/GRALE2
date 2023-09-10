@@ -695,6 +695,10 @@ def createThetaGridAndImagesMask(bottomLeft, topRight, NX, NY, regionList, enlar
         if type(r) == images.ImagesData:
             updatedRegionList = True
             newRegionList += extractImageRegions(r)
+
+        elif isinstance(r, np.ndarray):
+            newRegionList.append(r)
+
         elif r["type"] == "hull":
             
             updatedRegionList = True
@@ -750,12 +754,14 @@ def createThetaGridAndImagesMask(bottomLeft, topRight, NX, NY, regionList, enlar
                 "coord": [ V(x0, y0), V(x1, y0), V(x1, y1), V(x0, y1), V(x0, y0) ],
                 "invert": r["invert"] if "invert" in r else False
             })
+
         else:
             if not "invert" in r:
                 r2 = r.copy()
                 r2["invert"] = False
             else:
                 r2 = r
+
             newRegionList.append(r2)
             
     if updatedRegionList:
@@ -782,6 +788,17 @@ def createThetaGridAndImagesMask(bottomLeft, topRight, NX, NY, regionList, enlar
     mask = np.zeros((NY,NX), dtype=bool)
     
     for region in regionList:
+
+        # Check if it's a numpy array itself
+        if isinstance(region, np.ndarray):
+            if len(region.shape) != 2 or region.shape[0] != NY or region.shape[1] != NX:
+                raise Exception("Region specified as ndarray is not shape compatible with the mask")
+
+            region = region.astype(bool)
+            mask |= region
+            continue
+
+        # Not an array, need to draw something and interpret that
         tp = region["type"]
         if tp == "polygon":
             points = [ translateCoord(c) for c in region["coord"] ]

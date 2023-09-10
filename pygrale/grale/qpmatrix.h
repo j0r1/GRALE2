@@ -101,6 +101,13 @@ MatrixResults calculateLinearConstraintMatrices2(const MaskedPotentialValuesBase
 		bool greaterThanLimitingValue
 		);
 
+MatrixResults calculateLinearConstraintMatrices3(const MaskedPotentialValuesBase &mpv,
+		const std::vector<std::pair<double, std::pair<int, int>>> &kernel,
+		const std::vector<bool> &relevantGridPositions,
+		const std::vector<double> &limitingValues,
+		bool greaterThanLimitingValue
+		);
+
 MatrixResults calculateQuadraticMimimizationMatrices(const MaskedPotentialValuesBase &mpv,
 		const std::vector<std::pair<double, std::pair<int, int>>> &kernel
 		);

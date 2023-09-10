@@ -2,11 +2,11 @@
 
 #include "qpmatrix.h"
 
-template<class Positions, typename PositionValidatorFunctor, class Kernel, typename PositionCombinerFunctor, typename PositionMapperFunctor>
+template<class Positions, typename PositionValidatorFunctor, class Kernel, typename PositionCombinerFunctor, typename PositionMapperFunctor, typename LimitingValueFunctor>
 MatrixResults calculateLinearMatrix_Functors(const Positions &positions, PositionValidatorFunctor posVal, 
 		                            const Kernel &coefficients, PositionCombinerFunctor combiner,
 									PositionMapperFunctor mapping,
-									double limitingValue,
+									LimitingValueFunctor limitingValueFn,
 									bool greaterThanLimitingValue)
 {
     MatrixResults results;
@@ -21,7 +21,7 @@ MatrixResults calculateLinearMatrix_Functors(const Positions &positions, Positio
 
 	for (auto pos : positions)
 	{
-		double bValue = limitingValue;
+		double bValue = limitingValueFn(pos);
 		double signFactor = (greaterThanLimitingValue)?1.0:-1.0;
 		std::unordered_map<int, double> Avalues;
 

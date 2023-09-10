@@ -99,7 +99,7 @@ public:
 			}
 			idx++;
 
-			if (idx >= mask.size()) // We should be done
+			if ((size_t)idx >= mask.size()) // We should be done
 				break;
 
 			if (mask[idx]) // Ok, it's a valid point
@@ -158,7 +158,7 @@ public:
 				i++;
 			}
 			idx++;
-			if (idx >= mask.size())
+			if ((size_t)idx >= mask.size())
 				break;
 		} while(true);
 
@@ -208,7 +208,7 @@ MatrixResults calculateLinearConstraintMatrices(const MaskedPotentialValuesBase 
 			kernel,
 			[](auto pos, auto diff) { return GridPos(pos, diff); },
 			[&mpv](auto pos) { return mpv.getVariableIndexOrValue(pos.m_i, pos.m_j); },
-			0.0,
+			[](auto pos) { return 0.0; },
 			true
 			);
 }
@@ -246,7 +246,46 @@ MatrixResults calculateLinearConstraintMatrices2(const MaskedPotentialValuesBase
 			//[](auto pos, auto diff) { return GridPos(pos, diff); },
 			[](auto pos, auto diff) { return MaskedGridPos(pos, diff); },
 			[&mpv](auto pos) { return mpv.getVariableIndexOrValue(pos.m_i, pos.m_j); },
-			limitingValue,
+			[limitingValue](auto pos) { return limitingValue; },
+			greaterThanLimitingValue
+			);
+}
+
+MatrixResults calculateLinearConstraintMatrices3(const MaskedPotentialValuesBase &mpv,
+		const vector<pair<double, pair<int, int>>> &kernel,
+		const std::vector<bool> &relevantGridPositions,
+		const vector<double> &limitingValues,
+		bool greaterThanLimitingValue
+		)
+{
+	const int NX = mpv.getNX();
+	const int NY = mpv.getNY();
+	assert(relevantGridPositions.size() == NX*NY);
+	assert(limitingValues.size() == NX*NY);
+
+	/*
+	// TODO: make this more efficient !!
+	Grid gridPositions(NY, NX);
+	size_t idx = 0;
+	vector<GridPos> maskedGridPositions;
+	for (auto pos : gridPositions)
+	{
+		if (relevantGridPositions[idx])
+			maskedGridPositions.push_back(pos);
+		idx++;
+	}
+	*/
+
+	// TODO: is this really better? Will be somewhat slower
+	MaskedGrid maskedGridPositions(NY, NX, relevantGridPositions);
+
+	return calculateLinearMatrix_Functors(maskedGridPositions,
+			[NX,NY](auto pos) { return pos.m_i >= 0 && pos.m_i < NY && pos.m_j >= 0 && pos.m_j < NX; },
+			kernel,
+			//[](auto pos, auto diff) { return GridPos(pos, diff); },
+			[](auto pos, auto diff) { return MaskedGridPos(pos, diff); },
+			[&mpv](auto pos) { return mpv.getVariableIndexOrValue(pos.m_i, pos.m_j); },
+			[&limitingValues](auto pos) { return limitingValues[pos.m_j + pos.m_i*pos.m_M]; },
 			greaterThanLimitingValue
 			);
 }

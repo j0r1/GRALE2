@@ -167,8 +167,9 @@ def createEquivalentPotentialGridLens(lens, bottomLeft, topRight, NX, NY, maskRe
                                                                   [  1, 2,-16, 2, 1 ],
                                                                   [  0, 1,  2, 1, 0 ],
                                                                   [  0, 0,  1, 0, 0 ]],dtype=np.double),
-                                      #  [ { "maskRegions": ..., density: ...}, ... ]
+                                      #  [ { "maskRegions": ..., density: ..., (upperlimit: ...) }, ... ]
                                       maxDensityConstraints = [],
+                                      #  [ { "maskRegions": ..., density: ...}, ... ]
                                       exactDensityConstraints = [],
                                       ignorePixelMismatch = False
                                       ):
@@ -214,6 +215,7 @@ def createEquivalentPotentialGridLens(lens, bottomLeft, topRight, NX, NY, maskRe
     prob = quadprogmatrix.MaskedPotentialValues(phi, mask, phiScale)
     
     # Calculate the factor needed to convert density according to the laplacian
+    # TODO: no need to use all thetas
     phiSheet = lenses.MassSheetLens(lens.getLensDistance(), { "density": 1.0 }).getProjectedPotential(1,1,thetas)
     phiSheet -= np.min(phiSheet)
     phiSheet /= phiScale # Use same scale factor
@@ -229,7 +231,10 @@ def createEquivalentPotentialGridLens(lens, bottomLeft, topRight, NX, NY, maskRe
     for constr in maxDensityConstraints:
         _, constrMask = util.createThetaGridAndImagesMask(bottomLeft, topRight, NX, NY, constr["maskRegions"], 0)
         G2, h2 = prob.getLinearConstraintMatrices(laplacian, relevantGridPositions=constrMask, 
-                                                  limitingValue=constr["density"] * unitDensityScaleFactor)
+                                                  # The construction below makes sure that there's a 2D array, even if just a single
+                                                  # value for the density was specified
+                                                  limitingValues=np.ones((NY,NX), dtype=np.double) * constr["density"] * unitDensityScaleFactor,
+                                                  isUpperLimit=constr["upperlimit"] if "upperlimit" in constr else True)
         G = sparse.vstack([G,G2])
         h = np.concatenate([h,h2])
         
@@ -240,7 +245,9 @@ def createEquivalentPotentialGridLens(lens, bottomLeft, topRight, NX, NY, maskRe
     for constr in exactDensityConstraints:
         _, constrMask = util.createThetaGridAndImagesMask(bottomLeft, topRight, NX, NY, constr["maskRegions"], 0)
         A2, b2 = prob.getLinearConstraintMatrices(laplacian, relevantGridPositions=constrMask,
-                                                  limitingValue=constr["density"] * unitDensityScaleFactor)
+                                                  # The construction below makes sure that there's a 2D array, even if just a single
+                                                  # value for the density was specified
+                                                  limitingValues=np.ones((NY,NX), dtype=np.double) * constr["density"] * unitDensityScaleFactor)
         if A is None:
             A, b = A2, b2
         else:

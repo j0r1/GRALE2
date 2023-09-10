@@ -75,9 +75,11 @@ cdef class MaskedPotentialValues:
     def getNumberOfVariables(self):
         return deref(self.m_maskedValues).getNumberOfVariables()
 
-    def getLinearConstraintMatrices(self, kernel, returnType = "csc", np.ndarray[cbool, ndim=2] relevantGridPositions=None, double limitingValue=0):
+    def getLinearConstraintMatrices(self, kernel, returnType = "csc", np.ndarray[cbool, ndim=2] relevantGridPositions=None, double limitingValue=0, 
+                                    np.ndarray[double, ndim=2] limitingValues = None, cbool isUpperLimit = True):
         cdef vector[pair[double, pair[int, int]]] cKernel
         cdef vector[cbool] cRelGridPos
+        cdef vector[double] cLimValues
         cdef pair[int,int] diff
         cdef qpmatrix.MatrixResults results
         cdef np.ndarray[double, ndim=1] values, b
@@ -95,6 +97,8 @@ cdef class MaskedPotentialValues:
         if relevantGridPositions is None:
             if limitingValue != 0:
                 raise MaskedPotentialValuesException("'limitingValue' should be zero in this case")
+            if limitingValues is not None:
+                raise MaskedPotentialValuesException("'limitingValues' should be None in this case")
 
             results = qpmatrix.calculateLinearConstraintMatrices(deref(self.m_maskedValues), cKernel)
         else:
@@ -105,10 +109,20 @@ cdef class MaskedPotentialValues:
                 for j in range(relevantGridPositions.shape[1]):
                     cRelGridPos.push_back(relevantGridPositions[i,j])
 
-            # TODO: for now, the smaller than case is forced
-            # Note that the limitingValue is passed as is, the relevant scale factor is
-            # calculated in the createEquivalentPotentialGridLens function
-            results = qpmatrix.calculateLinearConstraintMatrices2(deref(self.m_maskedValues), cKernel, cRelGridPos, limitingValue, False)
+            if limitingValues is not None:
+                if deref(self.m_maskedValues).getNX() != limitingValues.shape[1] or deref(self.m_maskedValues).getNY() != limitingValues.shape[0]:
+                    raise MaskedPotentialValuesException("Shape of limitingValues does not match that of the underlying grid")
+
+                for i in range(limitingValues.shape[0]):
+                    for j in range(limitingValues.shape[1]):
+                        cLimValues.push_back(limitingValues[i,j])
+
+            else:
+                for i in range(relevantGridPositions.shape[0]):
+                    for j in range(relevantGridPositions.shape[1]):
+                        cLimValues.push_back(limitingValue)
+
+            results = qpmatrix.calculateLinearConstraintMatrices3(deref(self.m_maskedValues), cKernel, cRelGridPos, cLimValues, not isUpperLimit)
 
         N = results.second.size()
         M = self.getNumberOfVariables()
