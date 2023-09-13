@@ -171,7 +171,8 @@ def createEquivalentPotentialGridLens(lens, bottomLeft, topRight, NX, NY, maskRe
                                       maxDensityConstraints = [],
                                       #  [ { "maskRegions": ..., density: ...}, ... ]
                                       exactDensityConstraints = [],
-                                      ignorePixelMismatch = False
+                                      ignorePixelMismatch = False,
+                                      ignorePositiveDensityConstraint = False
                                       ):
 
     """TODO"""
@@ -225,7 +226,11 @@ def createEquivalentPotentialGridLens(lens, bottomLeft, topRight, NX, NY, maskRe
     feedbackObject.onStatus("Calculating linear constraints")
     
     laplacian = _simplifyFactorList(_getFactorListFromKernel(laplacianKernel, 1.0, 0, 0))
-    G,h = prob.getLinearConstraintMatrices(laplacian)
+
+    if ignorePositiveDensityConstraint:
+        G, h = None, None
+    else:
+        G, h = prob.getLinearConstraintMatrices(laplacian)
     
     maxMasks, exactMasks = [], []
     for constr in maxDensityConstraints:
@@ -235,8 +240,11 @@ def createEquivalentPotentialGridLens(lens, bottomLeft, topRight, NX, NY, maskRe
                                                   # value for the density was specified
                                                   limitingValues=np.ones((NY,NX), dtype=np.double) * constr["density"] * unitDensityScaleFactor,
                                                   isUpperLimit=constr["upperlimit"] if "upperlimit" in constr else True)
-        G = sparse.vstack([G,G2])
-        h = np.concatenate([h,h2])
+        if G is None:
+            G, h = G2, h2
+        else:
+            G = sparse.vstack([G,G2])
+            h = np.concatenate([h,h2])
         
         maxMasks.append(constrMask)
 
