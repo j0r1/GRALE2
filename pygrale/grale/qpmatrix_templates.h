@@ -21,8 +21,8 @@ MatrixResults calculateLinearMatrix_Functors(const Positions &positions, Positio
 
 	for (auto pos : positions)
 	{
-		double bValue = limitingValueFn(pos);
 		double signFactor = (greaterThanLimitingValue)?1.0:-1.0;
+		double bValue = limitingValueFn(pos) * (-signFactor);
 		std::unordered_map<int, double> Avalues;
 
 		bool valid = true;
