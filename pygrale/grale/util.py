@@ -792,7 +792,7 @@ def createThetaGridAndImagesMask(bottomLeft, topRight, NX, NY, regionList, enlar
         # Check if it's a numpy array itself
         if isinstance(region, np.ndarray):
             if len(region.shape) != 2 or region.shape[0] != NY or region.shape[1] != NX:
-                raise Exception("Region specified as ndarray is not shape compatible with the mask")
+                raise Exception("Region specified as ndarray is not shape compatible with the mask: expecting ({},{}), got {}".format(NY, NX, region.shape))
 
             region = region.astype(bool)
             mask |= region
