@@ -76,3 +76,6 @@ Example Jupyter notebooks
    * `a370sharon.ipynb <_static/a370sharon.ipynb>`_
    * `a370williams.ipynb <_static/a370williams.ipynb>`_
 
+ * A modification of `msdexample.ipynb <_static/msdexample.ipynb>`_ above, to illustrate the
+   generation of equivalent lens models by extrapolating the lens potential: `msdexample-equivlenstests.ipynb <_static/msdexample-equivlenstests.ipynb>`_
+
