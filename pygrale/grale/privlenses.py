@@ -299,7 +299,10 @@ def createEquivalentPotentialGridLens(lens, bottomLeft, topRight, NX, NY, maskRe
     if P is None:
         raise LensException("Nothing optimize (all weights zero?)")
 
-    initVals = prob.getInitialValues()
+    useWarmStart = True
+    if qpsolver.lower() == "mosek": # Mosek does not use warm start, this gets rid of warning message
+        useWarmStart = False
+    initVals = prob.getInitialValues() if useWarmStart else None
     
     feedbackObject.onStatus("Solving quadratic programming problem")
     sol = solve_qp(P, q, G, h, A, b, solver=qpsolver, initvals=initVals) # Hard constraints
