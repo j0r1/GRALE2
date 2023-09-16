@@ -726,11 +726,15 @@ class InversionWorkSpace(object):
         `otherParameters` dictionary provides additional settings for this
         input set. See the :ref:`usage <usage-module-general>` documentation for other types
         and parameters.
+
+        For data with type ``"bayesellipticities"``, for the Bayesian weak lensing fitness measure,
+        it is necessary to set `zs` to ``None``. That data itself contains for each individual galaxy
+        the redshift and measured ellipticities, so no global redshift is allowed to be set.
         """
         # check that imgDat exists
         num = imgDat.getNumberOfImages()
         
-        if zs is None: # TODO: document this
+        if zs is None:
             Dds = 1.0
             Ds = 1.0
         else:
