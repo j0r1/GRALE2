@@ -79,3 +79,6 @@ Example Jupyter notebooks
  * A modification of `msdexample.ipynb <_static/msdexample.ipynb>`_ above, to illustrate the
    generation of equivalent lens models by extrapolating the lens potential: `msdexample-equivlenstests.ipynb <_static/msdexample-equivlenstests.ipynb>`_
 
+ * Using the code from the lens potential extrapolation to obtain lenses with different
+   MSD-like effects for different sources: `potentialextrap_multisheet.ipynb <_static/potentialextrap_multisheet.ipynb>`_
+
