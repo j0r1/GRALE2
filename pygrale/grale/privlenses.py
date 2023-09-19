@@ -157,6 +157,42 @@ def _simplifyFactorList(l):
     #pprint.pprint(r)
     return r
 
+def _getDensityScaleFactor(thetas, Dd, phiScale, laplacianKernel):
+    from . import lenses
+    # Calculate the factor needed to convert density according to the laplacian
+    # TODO: no need to use all thetas
+    phiSheet = lenses.MassSheetLens(Dd, { "density": 1.0 }).getProjectedPotential(1,1,thetas)
+    phiSheet -= np.min(phiSheet)
+    phiSheet /= phiScale # Use same scale factor
+    # Convolve just a small part
+    return np.sum(phiSheet[:laplacianKernel.shape[0],:laplacianKernel.shape[1]] * laplacianKernel)  
+
+def _getDeflectionScaleFactor(thetas, Dd, phiScale):
+    from . import lenses
+    from .constants import SPEED_C
+    # A SIS lens has a contant deflection
+    velDisp = 400000
+    sisLens = lenses.SISLens(Dd, { "velocityDispersion": velDisp})
+    sisPot = sisLens.getProjectedPotential(1,1,thetas)
+    sisPot /= phiScale
+
+    expectedDeflection = 4*np.pi*velDisp**2/SPEED_C**2 # For Dds/Ds = 1
+    
+    potGradKernelX = np.array([[1.0, -1.0]])
+    potGradKernelY = np.array([[1.0], [-1.0]])
+    
+    import scipy.ndimage
+    sisAx = scipy.ndimage.convolve(sisPot, potGradKernelX)[1:-1,1:-1]
+    sisAy = scipy.ndimage.convolve(sisPot, potGradKernelY)[1:-1,1:-1]
+    # TODO: this is not entirely correct I think, since the Ax and Ay components don't
+    #       really refer to the same point. Seems good enough though
+    sisAsize = (sisAx**2 + sisAy**2)**0.5
+    goodPos = ~np.isnan(sisAsize)
+    sisAstd = np.std(sisAsize[goodPos])
+    sisAsize = np.mean(sisAsize[goodPos])
+    
+    return sisAsize/expectedDeflection # need to multiply real alphas with this to get convolution results
+
 def createEquivalentPotentialGridLens(lens, bottomLeft, topRight, NX, NY, maskRegions,
                                       potentialGradientWeight, densityGradientWeight,
                                       densityWeight, pixelEnlargements=2,
@@ -167,12 +203,18 @@ def createEquivalentPotentialGridLens(lens, bottomLeft, topRight, NX, NY, maskRe
                                                                   [  1, 2,-16, 2, 1 ],
                                                                   [  0, 1,  2, 1, 0 ],
                                                                   [  0, 0,  1, 0, 0 ]],dtype=np.double),
-                                      #  [ { "maskRegions": ..., density: ..., (upperlimit: ...) }, ... ]
+                                      #  [ { "maskRegions": ..., "density": ..., ("upperlimit": ...) }, ... ]
                                       maxDensityConstraints = [],
-                                      #  [ { "maskRegions": ..., density: ...}, ... ]
+                                      #  [ { "maskRegions": ..., "density": ...}, ... ]
                                       exactDensityConstraints = [],
+                                      # [ { "maskRegions": ..., "ax": ..., "ay": ... }] # Here you need to take into account that gradients are actually between pixels
+                                      # or
+                                      # [ { "maskRegions": ..., "lens": ... }]
+                                      exactDeflectionConstraints = [],
                                       ignorePixelMismatch = False,
-                                      ignorePositiveDensityConstraint = False
+                                      ignorePositiveDensityConstraint = False,
+                                      exactDeflectionTolerance = 0,
+                                      exceptionOnFail = True
                                       ):
 
     """TODO"""
@@ -213,26 +255,22 @@ def createEquivalentPotentialGridLens(lens, bottomLeft, topRight, NX, NY, maskRe
     phi -= np.min(phi)
     phiScale = np.max(phi)
     
+    unitDensityScaleFactor = _getDensityScaleFactor(thetas, lens.getLensDistance(), phiScale, laplacianKernel)
+    deflectionAngleScaleFactor = _getDeflectionScaleFactor(thetas, lens.getLensDistance(), phiScale)
     prob = quadprogmatrix.MaskedPotentialValues(phi, mask, phiScale)
-    
-    # Calculate the factor needed to convert density according to the laplacian
-    # TODO: no need to use all thetas
-    phiSheet = lenses.MassSheetLens(lens.getLensDistance(), { "density": 1.0 }).getProjectedPotential(1,1,thetas)
-    phiSheet -= np.min(phiSheet)
-    phiSheet /= phiScale # Use same scale factor
-    # Convolve just a small part
-    unitDensityScaleFactor = np.sum(phiSheet[:laplacianKernel.shape[0],:laplacianKernel.shape[1]] * laplacianKernel)  
-
+        
     feedbackObject.onStatus("Calculating linear constraints")
     
     laplacian = _simplifyFactorList(_getFactorListFromKernel(laplacianKernel, 1.0, 0, 0))
+    gradientDi = [ { "factor": 1, "di": 0, "dj": 0}, { "factor": -1, "di": 1, "dj": 0} ]
+    gradientDj = [ { "factor": 1, "di": 0, "dj": 0}, { "factor": -1, "di": 0, "dj": 1} ]
 
     if ignorePositiveDensityConstraint:
         G, h = None, None
     else:
         G, h = prob.getLinearConstraintMatrices(laplacian)
     
-    maxMasks, exactMasks = [], []
+    maxMasks, exactMasks, exactGradMasks = [], [], []
     for constr in maxDensityConstraints:
         _, constrMask = util.createThetaGridAndImagesMask(bottomLeft, topRight, NX, NY, constr["maskRegions"], 0)
         G2, h2 = prob.getLinearConstraintMatrices(laplacian, relevantGridPositions=constrMask, 
@@ -263,6 +301,47 @@ def createEquivalentPotentialGridLens(lens, bottomLeft, topRight, NX, NY, maskRe
             b = np.concatenate([b,b2])
             
         exactMasks.append(constrMask)
+   
+    for constr in exactDeflectionConstraints:
+        _, constrMask = util.createThetaGridAndImagesMask(bottomLeft, topRight, NX, NY, constr["maskRegions"], 0)
+        
+        if "lens" in constr: # Calculate the deflection angles from this lens
+            constrLens = constr["lens"]
+            constr = { }
+            dxy = (topRight - bottomLeft)/np.array([NX,NY], dtype=np.double)
+
+            # Make sure the measurements are actually _in between_ the pixels
+            constr["ax"] = constrLens.getAlphaVector(thetas + np.array([dxy[0], 0],dtype=np.double)/2)[:,:,0]
+            constr["ay"] = constrLens.getAlphaVector(thetas + np.array([0, dxy[1]],dtype=np.double)/2)[:,:,1]
+            
+        for gradientKernel, constrName in [ (gradientDj, "ax"), (gradientDi, "ay")]:
+            if constr[constrName] is None: # skip this
+                continue
+
+            if not exactDeflectionTolerance: # exact
+
+                A2, b2 = prob.getLinearConstraintMatrices(gradientKernel, relevantGridPositions=constrMask,
+                                                          limitingValues=np.ones((NY,NX), dtype=np.double) * constr[constrName] * deflectionAngleScaleFactor)
+                if A is None:
+                    A, b = A2, b2
+                else:
+                    A = sparse.vstack([A,A2])
+                    b = np.concatenate([b,b2])
+        
+            else: # allow some tolerance
+                
+                for upper, tol in [ (True, exactDeflectionTolerance), (False, -exactDeflectionTolerance)]:
+
+                    G2, h2 = prob.getLinearConstraintMatrices(gradientKernel, relevantGridPositions=constrMask, 
+                                                      limitingValues=(np.ones((NY,NX), dtype=np.double) * constr[constrName] + tol)* deflectionAngleScaleFactor,
+                                                      isUpperLimit=upper)
+                    if G is None:
+                        G, h = G2, h2
+                    else:
+                        G = sparse.vstack([G,G2])
+                        h = np.concatenate([h,h2])
+
+        exactGradMasks.append(constrMask)
             
     w1 = potentialGradientWeight
     w2 = densityGradientWeight
@@ -270,8 +349,6 @@ def createEquivalentPotentialGridLens(lens, bottomLeft, topRight, NX, NY, maskRe
 
     feedbackObject.onStatus("Calculating quadratic optimization matrices")
 
-    gradientDi = [ { "factor": 1, "di": 0, "dj": 0}, { "factor": -1, "di": 1, "dj": 0} ]
-    gradientDj = [ { "factor": 1, "di": 0, "dj": 0}, { "factor": -1, "di": 0, "dj": 1} ]
     laplacianGradientDi = _simplifyFactorList(_getFactorListFromKernel(laplacianKernel, 1.0, 0, 0) + _getFactorListFromKernel(laplacianKernel, -1.0, 1, 0))
     laplacianGradientDj = _simplifyFactorList(_getFactorListFromKernel(laplacianKernel, 1.0, 0, 0) + _getFactorListFromKernel(laplacianKernel, -1.0, 0, 1))
 
@@ -305,11 +382,16 @@ def createEquivalentPotentialGridLens(lens, bottomLeft, topRight, NX, NY, maskRe
     initVals = prob.getInitialValues() if useWarmStart else None
     
     feedbackObject.onStatus("Solving quadratic programming problem")
+
+    newLens = None
     sol = solve_qp(P, q, G, h, A, b, solver=qpsolver, initvals=initVals) # Hard constraints
     if sol is None:
-        raise LensException("Unable to solve quadratic programming problem")
-    
-    newPhi = prob.getFullSolution(sol)
+        if exceptionOnFail:
+            raise LensException("Unable to solve quadratic programming problem")
+        print("WARNING: Unable to solve quadratic programming problem")
+    else:
+        newPhi = prob.getFullSolution(sol)
+        newLens = lenses.PotentialGridLens(lens.getLensDistance(), { "values": newPhi, "bottomleft": bottomLeft, "topright": topRight})
     
     t1 = time.time()
     feedbackObject.onStatus("Done, in {:.3g} seconds".format(t1-t0))
@@ -319,7 +401,7 @@ def createEquivalentPotentialGridLens(lens, bottomLeft, topRight, NX, NY, maskRe
         "masksMaxDens": maxMasks,
         "masksExactDens": exactMasks,
         "philens_orig": lenses.PotentialGridLens(lens.getLensDistance(), { "values": phi, "bottomleft": bottomLeft, "topright": topRight}),
-        "philens_equiv": lenses.PotentialGridLens(lens.getLensDistance(), { "values": newPhi, "bottomleft": bottomLeft, "topright": topRight}),
+        "philens_equiv": newLens,
         # QP parameters
         "P": P,
         "q": q,
