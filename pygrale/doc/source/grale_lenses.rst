@@ -12,6 +12,8 @@ Helper functions
 
 .. autofunction:: createLensFromLenstoolFile
 
+.. autofunction:: createEquivalentPotentialGridLens
+
 GravitationalLens
 -----------------
 .. autoclass:: grale.lenses.GravitationalLens

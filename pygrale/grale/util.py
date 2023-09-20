@@ -213,6 +213,8 @@ def _commonInitFindOptRetrace(imgList, lensModel, cosmology, reduceImages):
 
 def nelderMeadSourcePositionOptimizer(imgIdx, imgPos, traceFunction, feedbackObject = None,
                    betaAvgToleranceArcsec = 1e-5, betaAvgPenalty = 10000, nmRounds = 3, nmMaxFev = 50):
+    """TODO"""
+
     import scipy.optimize as optimize
     from grale.constants import ANGLE_ARCSEC
 
@@ -658,7 +660,7 @@ def createThetaGrid(bottomLeft, topRight, numX, numY):
 
 def createThetaGridAndImagesMask(bottomLeft, topRight, NX, NY, regionList, enlargements=2, 
                                  enlargeDiagonally=False, circleToPolygonPoints=10000):
-
+    """TODO: add docs"""
     from . import images
     import numpy as np
 

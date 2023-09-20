@@ -8,3 +8,13 @@ grale.util
 .. autofunction:: calculateRMS
 
 .. autofunction:: createMonopoleBasisFunctions
+
+.. autofunction:: createThetaGrid
+
+.. autofunction:: createThetaGridAndImagesMask
+
+.. autofunction:: findOptimizedSourcePositions
+
+.. autofunction:: parallelFindOptimizedSourcePositions
+
+.. autofunction:: nelderMeadSourcePositionOptimizer

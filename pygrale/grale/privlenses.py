@@ -136,7 +136,7 @@ def _getFactorListFromKernel(K, scale, diOffset, djOffset):
         for x in range(K.shape[1]):
             j = -K.shape[1]//2 + 1 + x
 
-            val = -K[y,x]*scale # Changed a sign convention somewhere, hence the '-'
+            val = -K[y,x]*scale # Changed a sign convention somewhere, hence the '-'; TODO: fix this
             if val != 0:
                 res.append({ "factor": val, "di": i+diOffset, "dj": j+djOffset })
 
@@ -203,6 +203,7 @@ def createEquivalentPotentialGridLens(lens, bottomLeft, topRight, NX, NY, maskRe
                                                                   [  1, 2,-16, 2, 1 ],
                                                                   [  0, 1,  2, 1, 0 ],
                                                                   [  0, 0,  1, 0, 0 ]],dtype=np.double),
+                                      # No pixel enlargements are used for these masks!
                                       #  [ { "maskRegions": ..., "density": ..., ("upperlimit": ...) }, ... ]
                                       maxDensityConstraints = [],
                                       #  [ { "maskRegions": ..., "density": ...}, ... ]
@@ -217,7 +218,28 @@ def createEquivalentPotentialGridLens(lens, bottomLeft, topRight, NX, NY, maskRe
                                       exceptionOnFail = True
                                       ):
 
-    """TODO"""
+    """This uses a quadratic programming approach to extrapolate the lens potential values
+    in certain regions (typically covering the images in a lensing system), thereby creating
+    a lens that has the same effect (because the lens potential is the same in the image
+    regions).
+
+    Arguments:
+     - `lens`
+     - `bottomLeft`, `topRight`, `NX`, `NY`
+     - `maskRegions`
+     - `potentialGradientWeight`, `densityGradientWeight`, `densityWeight`
+     - `pixelEnlargements`, `enlargeDiagonally`, `circleToPolygonPoints`
+     - `feedbackObject`
+     - `qpsolver`
+     - `laplacianKernel`
+     - `maxDensityConstraints`
+     - `exactDensityConstraints`
+     - `exactDeflectionConstraints`
+     - `ignorePixelMismatch`
+     - `ignorePositiveDensityConstraint`
+     - `exactDeflectionTolerance`
+     - `exceptionOnFail`
+    """
     import time
     from . import feedback
     from . import util
