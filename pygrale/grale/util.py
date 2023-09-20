@@ -137,7 +137,6 @@ class _ImagePlaneWrapper(object):
         return self.imgPlane.traceBeta(beta)
 
 def _commonInitFindOptRetrace(imgList, lensModel, cosmology, reduceImages):
-    r"""TODO"""
 
     from . import multiplane
     from . import privutil
@@ -213,7 +212,27 @@ def _commonInitFindOptRetrace(imgList, lensModel, cosmology, reduceImages):
 
 def nelderMeadSourcePositionOptimizer(imgIdx, imgPos, traceFunction, feedbackObject = None,
                    betaAvgToleranceArcsec = 1e-5, betaAvgPenalty = 10000, nmRounds = 3, nmMaxFev = 50):
-    """TODO"""
+    """This is the default optimizer used by :func:`findOptimizedSourcePositions` and
+    :func:`parallelFindOptimizedSourcePositions`. It uses the `Nelder-Mead <https://en.wikipedia.org/wiki/Nelder%E2%80%93Mead_method>`_
+    method as `implemented in scipy <https://docs.scipy.org/doc/scipy/reference/optimize.minimize-neldermead.html>`_.
+
+    Arguments:
+     - `imgIdx`, `imgPos`, `traceFunction`: as described in the `optRoutine` argument 
+       of :func:`findOptimizedSourcePositions`.
+     - `feedbackObject`: can be used to specify a particular :ref:`feedback mechanism <feedback>`
+     - `betaAvgToleranceArcsec`: depending on the lens model, it is possible that for a
+       specific source plane position `beta`, there simply isn't an image plane position
+       near the one considered that maps well to this. To filter out such `beta` positions,
+       there is this threshold that specifies that if the back-projected (adjusted) image plane
+       position still differs more than `betaAvgToleranceArcsec` (so in arc seconds) from
+       `beta`, then a penalty should be added.
+     - `betaAvgPenalty`: in the case that a penalty (described above) needs to be added,
+       so the source plane difference exceeds `betaAvgToleranceArcsec`, this difference
+       times `betaAvgPenalty` is added to the function evaluation result.
+     - `nmRounds`: the Nelder-Mead routine can be run a number of times, and the best
+       result will be kept. This argument specifies that number.
+     - `nmMaxFev`: each Nelder-Mead run can have at most this many function evaluations.
+    """
 
     import scipy.optimize as optimize
     from grale.constants import ANGLE_ARCSEC
@@ -266,7 +285,51 @@ def nelderMeadSourcePositionOptimizer(imgIdx, imgPos, traceFunction, feedbackObj
 
 
 def findOptimizedSourcePositions(imgList, lensModel, cosmology=None, reduceImages="average", optRoutine=nelderMeadSourcePositionOptimizer, optParams = {}):
-    r"""TODO"""
+    r"""For a given lens model, which typically will not back-project the
+    images of a source onto the exact same position, this routine looks for
+    a 'best' source position.
+
+    This function returns a list of optimized source positions, one for each 
+    entry in `imgList`.
+
+    Arguments:
+     - `imgList`: a list of :class:`ImagesData <grale.images.ImagesData>` instances
+       describing the images in the strong lensing system. Each image will be reduced
+       to a point image position, see also the `reduceImages` argument.
+     - `lensModel`: the lens model, which can be represented as a number of things:
+    
+       - a :class:`GravitationalLens <grale.lenses.GravitationalLens>` instance. In this
+         case, the cosmological model `cosmology` must be set as well.
+       - a :class: `LensPlane <grale.images.LensPlane>` instance. In this case as well,
+         the `cosmology` parameter must be set.
+       - a :class:`MultiLensPlane <grale.multiplane.MultiLensPlane>` or
+         :class:`MultiImagePlane <grale.multiplane.MultiImagePlane>` instance. The
+         `cosmology` parameter must be ``None``, the interally set cosmology will be used.
+       - a list of (:class:`GravitationalLens <grale.lenses.GravitationalLens>`, redshift)
+         tuples, where the `cosmology` parameter must be set as well.
+
+     - `cosmology`: depending on the way the lens model is specified (see `lensModel`
+       argument), this should either be ``None`` or set to the
+       :class:`cosmological model <grale.cosmology.Cosmology>` to use.
+     - `reduceImages`: each image will need to be reduced to a point image position.
+       If set to ``"average"``, then the average position of the image points will be
+       used for this. This can also be set to a function, and if so it will be called
+       with a :class:`ImagesData <grale.images.ImagesData>` instance as parameter and
+       an index of the image. The function should then return a single point that
+       corresponds to the specified image.
+     - `optRoutine`: this is the optimization routine used to calculate the optimal
+       source position for a set of image positions. The default is the
+       :func:`nelderMeadSourcePositionOptimizer`. The routine is called with the 
+       following arguments: the index into a list of all images (this is useful
+       for the parallel version :func:`parallelFindOptimizedSourcePositions`),
+       the point image positions for a single source point (a dictionary containing
+       ``theta``, ``beta``, ``z`` and depending on the input model also
+       ``betaderivs`` and ``invbetaderivs``), the function that's created based on
+       the input model to trace an image plane point to its source plane position,
+       and the expanded dictionary `optParams` from below.
+     - `optParams`: this can be used to pass additional parameters to the
+       `optRoutine`.
+    """
 
     if not optRoutine:
         raise Exception("No optimization routine was set")
@@ -305,7 +368,16 @@ def _parallelFindOptimizedSourcePositions_part(part, imgList, lensModel, cosmolo
 
 
 def parallelFindOptimizedSourcePositions(imgList, lensModel, cosmology=None, reduceImages="average", optRoutine=nelderMeadSourcePositionOptimizer, optParams = {}, numThreads=0):
-    r"""TODO"""
+    """This is a version of :func:`findOptimizedSourcePositions` that tries to
+    speed up the procedure using multiple threads. It handles several sources in
+    parallel.
+
+    Arguments:
+     - `imgList`, `lensModel`, `cosmology`, `reduceImages`, `optRoutine` and `optParams` have
+       the same meaning as in :func:`findOptimizedSourcePositions`
+     - `numThreads`: the number of threads to use to run in parallel. If set to zero or ``None``,
+       this will be determined automatically.
+    """
 
     if not optRoutine:
         raise Exception("No optimization routine was set")
@@ -557,7 +629,44 @@ def createMonopoleBasisFunctions(avoidSources, Dd, subDiv, size, center = [0, 0]
                                   randomOffset = True,
                                   cellCenterCallback = None,
                                   cellCenterCallbackState = None):
-    """TODO: add documentation for this"""
+    """This creates a set of the monopole basis functions from
+    `2008MNRAS.389..415L <https://ui.adsabs.harvard.edu/abs/2008MNRAS.389..415L/abstract>`_
+    with which mass can be redistributed in between the images in a lensing system.
+    The use from this article is illustrated in the `example_monopoledegen <https://github.com/j0r1/GRALE2/tree/master/inversion_examples/example_monopoledegen>`_
+    example.
+
+    It is also used in a different way in `2012MNRAS.425.1772L <https://ui.adsabs.harvard.edu/abs/2012MNRAS.425.1772L/abstract>`_, 
+    where the deflection field at some image points is modified. This kind of use is
+    demonstrated in example `example_gen_msd <https://github.com/j0r1/GRALE2/tree/master/inversion_examples/example_gen_msd>`_.
+
+    Arguments:
+     - `avoidSources`: a list of :class:`ImagesData <grale.images.ImagesData>` instances,
+       describing the images to avoid. None of the generated monopole basis functions will
+       overlap with these images.
+     - `Dd`: the angular diameter distance to the lens plane, to be used in these basis 
+       functions.
+     - `subDiv`, `size`, `center`: the square region of size `size`, centered on `center`,
+       will be subdivided into `subDiv` cells along each axis.
+     - `widthFactor`: if a monopole can be added for a certain grid cell, the width of
+       the positive part will be this factor times the cell width.
+     - `rangeFactor`: for each cell, the minimal distance to the images will be determined.
+       Only if this is larger than this factor times the cell width, will a monopole be
+       added.
+     - `centralDensity`: the monopole basis function will have this central density.
+     - `overlapNeeded`: in the case that we're trying to modify properties at some points,
+       we need to make sure that a basis function actually covers these points, otherwise
+       it will not have any effect. This parameter is a set of :class:`ImagesData <grale.images.ImagesData>`
+       instances, with which overlap is required.
+     - `randomOffset`: if set to ``True`` (the default), the specified center will not be
+       used exactly, but some randomness will be added.
+     - `cellCenterCallback`: if set, for each cell of the resulting grid this callback
+       function will be called. It will be passed four parameters: the center of the cell,
+       the size of the cell, a boolean indicating if a monopole basis function could be
+       added for this position, and the `cellCenterCallbackState` argument that's specified
+       next.
+     - `cellCenterCallbackState`: when the previous callback function is set, this value
+       will be used as it's last argument.
+    """
     
     import grale.lenses as lenses
     import grale.grid as ggrid
@@ -651,16 +760,59 @@ def createMonopoleBasisFunctions(avoidSources, Dd, subDiv, size, center = [0, 0]
         
     return basisFunctions
 
-def createThetaGrid(bottomLeft, topRight, numX, numY):
-    """TODO: add docs"""
-    thetas = np.empty([numY,numX,2], dtype=np.double)
-    thetas[:,:,0], thetas[:,:,1] = np.meshgrid(np.linspace(bottomLeft[0], topRight[0], numX), 
-                                               np.linspace(bottomLeft[1], topRight[1], numY))
+def createThetaGrid(bottomLeft, topRight, NX, NY):
+    """This creates a grid of xy-position, from `bottomLeft` to `topRight`,
+    where the x-direction is evenly divided into `NX` points, and the
+    y-direction into `NY` points. The result is a numpy array of
+    shape (NY, NX, 2)"""
+
+    thetas = np.empty([NY,NX,2], dtype=np.double)
+    thetas[:,:,0], thetas[:,:,1] = np.meshgrid(np.linspace(bottomLeft[0], topRight[0], NX), 
+                                               np.linspace(bottomLeft[1], topRight[1], NY))
     return thetas
 
-def createThetaGridAndImagesMask(bottomLeft, topRight, NX, NY, regionList, enlargements=2, 
+def createThetaGridAndImagesMask(bottomLeft, topRight, NX, NY, maskRegions, enlargements=2, 
                                  enlargeDiagonally=False, circleToPolygonPoints=10000):
-    """TODO: add docs"""
+    """The `bottomLeft`, `topRight`, `NX` and `NY` parameters are passed to
+    :func:`createThetaGrid <grale.util.createThetaGrid>`. Then, for this grid a mask
+    is created based on the other arguments.
+
+    The `maskRegions` argument is a list of region descriptions that are combined
+    into one final mask for the grid, a boolean numpy array of shape (NY, NX). The
+    entries of the list can be the following:
+
+     - an :class:`ImagesData <grale.images.ImagesData>` instance: the grid positions
+       covered by the images in this instance are set to ``True`` in the mask.
+     - a 2D boolean array, also of shape (NY, NX): the positions where this mask
+       is ``True`` are also set in the final mask.
+     - a dictionary, with at least a key called ``type``, which can take on the
+       following values:
+
+        - ``hull``: in this case, a key ``imgdata`` should be present as well. It should
+          contain either a single :class:`ImagesData <grale.images.ImagesData>` instance,
+          or a list of these instances. All points will be collected, and the convex
+          hull of this region will be used.
+        - ``circle``: for this type, ``center`` and ``radius`` should be present as well.
+          Internally this will be converted into a polygon, of which the number of
+          points can be controlled by the `circleToPolygonPoints` argument.
+        - ``rect``: describes a rectangle, and ``bottomleft`` and ``topright`` properties
+          should also be present.
+        - ``square``: for this type, ``center`` and ``size`` should also be present.
+        - ``polygon``: this describes a polygon, there should be a ``coord`` property
+          that represents a list of points that make up the polygon.
+        - ``point``: for this type, a ``coord`` property describes a single point.
+
+        For each of these types, an ``invert`` key may be present as well. If set to
+        ``True``, then the region will be inverted.
+
+    The `enlargements` value determines how many times the mask should grow. If a
+    value is ``True``, then the values to the left, right, below and above will
+    be set to ``True`` as well. If `enlargeDiagonally` is set to ``True``, the
+    four diagonal values will also be set to ``True``. This procedure is repeated
+    the number of times specified by `enlargements`.
+
+    The return value is a tuple of the resulting grid, and the final mask.
+    """
     from . import images
     import numpy as np
 
@@ -693,7 +845,7 @@ def createThetaGridAndImagesMask(bottomLeft, topRight, NX, NY, regionList, enlar
 
     newRegionList = []
     updatedRegionList = False
-    for r in regionList:
+    for r in maskRegions:
         if type(r) == images.ImagesData:
             updatedRegionList = True
             newRegionList += extractImageRegions(r)
@@ -789,7 +941,7 @@ def createThetaGridAndImagesMask(bottomLeft, topRight, NX, NY, regionList, enlar
 
     mask = np.zeros((NY,NX), dtype=bool)
     
-    for region in regionList:
+    for region in maskRegions:
 
         # Check if it's a numpy array itself
         if isinstance(region, np.ndarray):

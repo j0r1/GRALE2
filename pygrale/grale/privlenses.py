@@ -212,33 +212,126 @@ def createEquivalentPotentialGridLens(lens, bottomLeft, topRight, NX, NY, maskRe
                                       # or
                                       # [ { "maskRegions": ..., "lens": ... }]
                                       exactDeflectionConstraints = [],
+                                      exactDeflectionTolerance = 0,
                                       ignorePixelMismatch = False,
                                       ignorePositiveDensityConstraint = False,
-                                      exactDeflectionTolerance = 0,
                                       exceptionOnFail = True
                                       ):
 
-    """This uses a quadratic programming approach to extrapolate the lens potential values
+    r"""This uses a quadratic programming approach to extrapolate the lens potential values
     in certain regions (typically covering the images in a lensing system), thereby creating
     a lens that has the same effect (because the lens potential is the same in the image
     regions).
 
+    Examples can be found in the `msdexample-equivlenstests.ipynb <_static/msdexample-equivlenstests.ipynb>`_
+    and `potentialextrap_multisheet.ipynb <_static/potentialextrap_multisheet.ipynb>`_ notebooks.
+
     Arguments:
-     - `lens`
-     - `bottomLeft`, `topRight`, `NX`, `NY`
-     - `maskRegions`
-     - `potentialGradientWeight`, `densityGradientWeight`, `densityWeight`
-     - `pixelEnlargements`, `enlargeDiagonally`, `circleToPolygonPoints`
-     - `feedbackObject`
-     - `qpsolver`
-     - `laplacianKernel`
-     - `maxDensityConstraints`
-     - `exactDensityConstraints`
-     - `exactDeflectionConstraints`
-     - `ignorePixelMismatch`
-     - `ignorePositiveDensityConstraint`
-     - `exactDeflectionTolerance`
-     - `exceptionOnFail`
+     - `lens`: the procedure will start from the lens potential values of this
+       :class:`GravitationalLens <grale.lenses.GravitationalLens>` model. It will
+       sample the lens potential on a grid, and keep some values fixed, determined
+       by a mask. The other lens potential values of the new lens model will be
+       extrapolated.
+     - `bottomLeft`, `topRight`, `NX`, `NY`: these values determine the grid
+       on which the lens potential will be sampled from the original lens, and
+       which will be used to define the new lens (a :class:`PotentialGridLens <grale.lenses.PotentialGridLens>`).
+       See :func:`createThetaGrid <grale.util.createThetaGrid>`.
+     - `maskRegions`: this is a list of region descriptions that will be combined
+       to create a binary mask of `NX` by `NY` that indicates which lens potential
+       values should be kept. This is passed to the :func:`createThetaGridAndImagesMask <grale.util.createThetaGridAndImagesMask>`
+       function.
+     - `potentialGradientWeight`, `densityGradientWeight`, `densityWeight`: the
+       quadratic programming problem tries to optimize a combination of three parts:
+       one for the gradient of the lens potential, one for the gradient of the resulting
+       mass density, and one for the mass density itself. These weights are used to specify
+       their respective contributions.
+     - `pixelEnlargements`, `enlargeDiagonally`, `circleToPolygonPoints`: these are
+       passed on to the similarly named arguments of :func:`createThetaGridAndImagesMask <grale.util.createThetaGridAndImagesMask>`.
+     - `feedbackObject`: can be used to specify a particular :ref:`feedback mechanism <feedback>`.
+     - `qpsolver`: for the quadratic programming optimization, the `qpsolvers <https://pypi.org/project/qpsolvers/>`_
+       module is used, which itself allows for different solver implementations to be used.
+       This argument specifies the name of the solver, and is passed as the `solver`
+       argument to `qpsolvers.solve_qp <https://qpsolvers.github.io/qpsolvers/quadratic-programming.html#qpsolvers.solve_qp>`_.
+     - `laplacianKernel`: to go from the lens potential values to the density, a convolution
+       with this 2D kernel is performed. The default is
+
+        .. math::
+
+            \left[
+                \begin{array}{cccc}
+                    0 & 0 & 1 & 0 & 0 \\
+                    0 & 1 & 2 & 1 & 0 \\
+                    1 & 2 & -16 & 2 & 1 \\
+                    0 & 1 & 2 & 1 & 0 \\
+                    0 & 0 & 1 & 0 & 0 
+                \end{array}
+            \right]
+
+     - `maxDensityConstraints`: since this kernel allows the density to be calculated at the
+       grid points, constraints can be specified for those. This is a list of these constraints
+       where each entry is a dictionary with the following keys:
+
+        - `maskRegions`: a list of regions to which the specified density applies. Is passed
+          on to the :func:`createThetaGridAndImagesMask <grale.util.createThetaGridAndImagesMask>`
+          again, without any pixel enlargements.
+        - `density`: can either be a scalar value or a grid with the same dimensions as the
+          lens potential grid.
+        - `upperlimit` (optional): if omitted, this is interpreted as ``True``, and means that
+          the specified density in the specified region should not be exceeded. Set this to
+          ``False`` for a lower bound on the density instead.
+
+     - `exactDensityConstraints`: similar to `maxDensityConstraints`, but requests the exact
+       mass density values in certain regions. This is again a list of similar dictionaries, but
+       in this case only with `maskRegions` and `density` keys.
+     - `exactDeflectionConstraints`: instead of providing constraints on the density, constraints
+       on the deflection field (the gradient of the lens potential) can be set as well. This is
+       a list of dictionaries with entries
+
+         - `maskRegions`: again a list of regions, this time for which the specified deflection
+           field applies.
+         - `lens`: get the desired deflection field at the grid points from this lens.
+
+        Alternatively, instead of the `lens` key, `ax` and `ay` keys may be present, each describing
+        one component of the deflection field. In case these are specified manually, it will be
+        necessary to take into account that the kernel used (e.g. [-1, 1]) gives an approximation
+        in between grid points.
+     - `exactDeflectionTolerance`: using the constraints above as exact constraints rarely works.
+       Instead it is possible to request that this deflection field is obtained within some
+       tolerance, e.g. 0.1 arcsec, on each side of the exact value.
+     - `ignorePixelMismatch`: if the specified grid parameters does not yield the same spacing
+       between grid points in x- and y-direction, the routine will abort by default. You can override
+       this and continue anyway by setting this flag.
+     - `ignorePositiveDensityConstraint`: by default, a constraint is added that requires the
+       density resulting from the lens potential to be positive everywhere. To ignore this condition,
+       set this flag.
+     - `exceptionOnFail`: by default, if the quadratic programming solver is unable to come up with
+       a solution, an exception is thrown. Setting this to ``False`` disables this and returns the
+       dictionary mentioned below anyway, but with the resulting solution and resulting lens set
+       to ``None``.
+
+    The return value is a dictionary with the following keys:
+
+     - `philens_equiv`: this the the main result of the optimization routine, a 
+       :class:`PotentialGridLens <grale.lenses.PotentialGridLens>` that's based on lens potential
+       values defined on the grid that you specified, where some values were taken from the input
+       lens, and others were optimized according to the weights and constraints that were
+       specified.
+     - `philens_orig`: as an intermediate step, the input lens is approximated by sampling
+       the lens potential on the grid points, and this is the approximate lens model. You can
+       compare this to the original model to see how much sense the approximation makes.
+     - `mask`: the main `maskRegions` argument, together with other parameters (e.g.
+       `pixelEnlargements`) leads to this binary mask. Where it's ``True``, the lens potential
+       values are fixed, the others will be optimized.
+     - `masksMaxDens`: each entry of `maxDensityConstraints` has its own `maskRegions`
+       argument, leading to a binary mask again. This entry contains a list of these masks.
+     - `masksExactDens`: similar, but for the `exactDensityConstraints`.
+     - `masksDeflection`: similar, but for the `exactDeflectionConstraints`.
+     - `P`, `q`, `G`, `h`, `A`, `b`: these are the matrices that are created for the
+       quadratic programming problem
+     - `initvals`: the initial values that are passed to the solver, these are the
+       lens potential values of the input lens.
+     - `x`: this contains the solution to the quadratic programming problem.
+
     """
     import time
     from . import feedback
@@ -422,6 +515,7 @@ def createEquivalentPotentialGridLens(lens, bottomLeft, topRight, NX, NY, maskRe
         "mask": mask,
         "masksMaxDens": maxMasks,
         "masksExactDens": exactMasks,
+        "masksDeflection": exactGradMasks,
         "philens_orig": lenses.PotentialGridLens(lens.getLensDistance(), { "values": phi, "bottomleft": bottomLeft, "topright": topRight}),
         "philens_equiv": newLens,
         # QP parameters
