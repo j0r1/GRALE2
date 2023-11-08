@@ -215,7 +215,8 @@ def createEquivalentPotentialGridLens(lens, bottomLeft, topRight, NX, NY, maskRe
                                       exactDeflectionTolerance = 0,
                                       ignorePixelMismatch = False,
                                       ignorePositiveDensityConstraint = False,
-                                      exceptionOnFail = True
+                                      exceptionOnFail = True,
+                                      dryrun = False
                                       ):
 
     r"""This uses a quadratic programming approach to extrapolate the lens potential values
@@ -308,6 +309,7 @@ def createEquivalentPotentialGridLens(lens, bottomLeft, topRight, NX, NY, maskRe
        a solution, an exception is thrown. Setting this to ``False`` disables this and returns the
        dictionary mentioned below anyway, but with the resulting solution and resulting lens set
        to ``None``.
+     - `dryrun`: only build masks and matrices, don't actually try to solve anything.
 
     The return value is a dictionary with the following keys:
 
@@ -466,6 +468,8 @@ def createEquivalentPotentialGridLens(lens, bottomLeft, topRight, NX, NY, maskRe
 
     laplacianGradientDi = _simplifyFactorList(_getFactorListFromKernel(laplacianKernel, 1.0, 0, 0) + _getFactorListFromKernel(laplacianKernel, -1.0, 1, 0))
     laplacianGradientDj = _simplifyFactorList(_getFactorListFromKernel(laplacianKernel, 1.0, 0, 0) + _getFactorListFromKernel(laplacianKernel, -1.0, 0, 1))
+    #laplacianGradientDij = _simplifyFactorList(_getFactorListFromKernel(laplacianKernel, 1/2**0.5, 0, 0) + _getFactorListFromKernel(laplacianKernel, -1/2**0.5, 1, 1))
+    #laplacianGradientDij2 = _simplifyFactorList(_getFactorListFromKernel(laplacianKernel, 1/2**0.5, 0, 0) + _getFactorListFromKernel(laplacianKernel, -1/2**0.5, 1, -1))
 
     P, q = None, None
     for weight, kernel in [
@@ -473,6 +477,8 @@ def createEquivalentPotentialGridLens(lens, bottomLeft, topRight, NX, NY, maskRe
             (w1, gradientDj),
             (w2, laplacianGradientDi),
             (w2, laplacianGradientDj),
+            #(w2, laplacianGradientDij),
+            #(w2, laplacianGradientDij2),
             (w3, laplacian)
         ]:
         if weight == 0:
@@ -488,9 +494,6 @@ def createEquivalentPotentialGridLens(lens, bottomLeft, topRight, NX, NY, maskRe
             P += P2
             q += q2
 
-    if P is None:
-        raise LensException("Nothing optimize (all weights zero?)")
-
     useWarmStart = True
     if qpsolver.lower() == "mosek": # Mosek does not use warm start, this gets rid of warning message
         useWarmStart = False
@@ -499,11 +502,21 @@ def createEquivalentPotentialGridLens(lens, bottomLeft, topRight, NX, NY, maskRe
     feedbackObject.onStatus("Solving quadratic programming problem")
 
     newLens = None
-    sol = solve_qp(P, q, G, h, A, b, solver=qpsolver, initvals=initVals) # Hard constraints
+    sol = None
+
+    if not dryrun:
+        if P is None:
+            raise LensException("Nothing optimize (all weights zero?)")
+
+        sol = solve_qp(P, q, G, h, A, b, solver=qpsolver, initvals=initVals)
+
     if sol is None:
-        if exceptionOnFail:
-            raise LensException("Unable to solve quadratic programming problem")
-        print("WARNING: Unable to solve quadratic programming problem")
+        if dryrun:
+            pass # Ok, didn't request a solution
+        else:
+            if exceptionOnFail:
+                raise LensException("Unable to solve quadratic programming problem")
+            print("WARNING: Unable to solve quadratic programming problem")
     else:
         newPhi = prob.getFullSolution(sol)
         newLens = lenses.PotentialGridLens(lens.getLensDistance(), { "values": newPhi, "bottomleft": bottomLeft, "topright": topRight})
@@ -527,4 +540,7 @@ def createEquivalentPotentialGridLens(lens, bottomLeft, topRight, NX, NY, maskRe
         "b": b,
         "x": sol,
         "initvals": initVals,
+        # scale factors
+        "densityscale": unitDensityScaleFactor,
+        "deflectionscale": deflectionAngleScaleFactor
     }
