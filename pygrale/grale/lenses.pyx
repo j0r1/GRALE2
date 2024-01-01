@@ -1629,7 +1629,7 @@ cdef class CompositeLens(GravitationalLens):
             else:
                 otherNames.push_back(empty)
 
-        prog = gravitationallens.CompositeLens.getCLProgram(subName, otherNames, maxRecursion, derivatives, potential)
+        prog = gravitationallens.CompositeLens.getCLProgram_static(subName, otherNames, maxRecursion, derivatives, potential)
         return S(subName),S(prog)
         
 

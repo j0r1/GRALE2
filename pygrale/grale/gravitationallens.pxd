@@ -249,7 +249,7 @@ cdef extern from "grale/compositelens.h" namespace "grale":
         # Returns maxRecursion
         int findCLSubroutines(cmap[string,string] &subRoutineCodes, vector[string] &otherRoutineNames, bool derivatives, bool potential) const
         @staticmethod
-        string getCLProgram(string &subRoutineName, const vector[string] &otherRoutineNames, int maxRecursionCount, bool derivatives, bool potential)
+        string getCLProgram_static(string &subRoutineName, const vector[string] &otherRoutineNames, int maxRecursionCount, bool derivatives, bool potential)
 
     cdef cppclass CompositeLensParams(GravitationalLensParams):
         CompositeLensParams()

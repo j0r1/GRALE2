@@ -52,7 +52,7 @@ cdef class ConfigurationParameters(object):
         return self.m_pParams.get()
 
     @staticmethod
-    cdef configurationparameters.ConfigurationParameters * _getConfigurationParameters(confParams):
+    cdef configurationparameters.ConfigurationParameters * _getConfigurationParameters(ConfigurationParameters confParams):
         return confParams.m_pParams.get()
 
     def __init__(self, parameterDict = None):

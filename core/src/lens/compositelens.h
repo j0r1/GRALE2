@@ -115,6 +115,10 @@ public:
 	static std::string getCLProgram(std::string &subRoutineName, const std::vector<std::string> &otherRoutineNames, int maxRecursionCount, 
 		                     bool derivatives, bool potential);
 
+	// Same function with different name - newer cython seemed to get confused...
+	static std::string getCLProgram_static(std::string &subRoutineName, const std::vector<std::string> &otherRoutineNames, int maxRecursionCount,
+		                     bool derivatives, bool potential) { return getCLProgram(subRoutineName, otherRoutineNames, maxRecursionCount, derivatives, potential); }
+
 	// Returns maxRecursionCount
 	int findCLSubroutines(std::map<std::string,std::string> &subRoutineCodes, std::vector<std::string> &otherRoutineNames, bool derivatives, bool potential) const;
 protected:
