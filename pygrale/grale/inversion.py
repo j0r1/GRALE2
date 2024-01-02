@@ -320,6 +320,8 @@ def invertMultiPlane(inputImages, basisLensesAndRedshifts, popSize, moduleName="
 
      - `cosmology`: The cosmological model to use, to calculate the necessary angular
        diameter distances based on the specified redshifts.
+
+     - `multiPopulationParameters`: TODO
     """
         
     if massScale == "auto" or massScale == "auto_nocheck":
@@ -473,6 +475,8 @@ def invert(inputImages, basisFunctions, zd, Dd, popSize, moduleName = "general",
        it can be useful to temporarily stop the genetic algorithm after only a small
        number of generations so that the code doesn't take long to run (this is now
        actually merged into the `convergenceParameters`)
+
+     - `multiPopulationParameters`: TODO
     """
 
     def getParamsFunction(fullFitnessObjParams, massScale):
@@ -914,7 +918,8 @@ class InversionWorkSpace(object):
         which will be used to set the `sizefactor`, `rescale` and `basistype` parameters
         in the `initialParameters` of the
         :func:`addBasisFunctionsBasedOnCurrentGrid <grale.inversion.InversionWorkSpace.addBasisFunctionsBasedOnCurrentGrid>`
-        call that's used internally. (TODO: also refer to defaultLensModelFunction)
+        call that's used internally. Note that in this function call the `lensModelFunction`
+        argument is set to :func:`defaultLensModelFunction <defaultLensModelFunction>`.
 
         If the same arguments need to be set for each call of this method, you can use
         :func:`setDefaultInversionArguments` to set them. Note that the options passed
@@ -1081,9 +1086,9 @@ class InversionWorkSpace(object):
         """The goal of this function is to add basis functions based on the
         grid that's currently stored. The conversion of grid cells to basis
         functions is done using the function specified in
-        `lensModelFunction`. (TODO: also refer to defaultLensModelFunction)
+        `lensModelFunction`. The default for this argument is :func:`defaultLensModelFunction <defaultLensModelFunction>`.
         
-        This function takes three arguments:
+        In general, this function takes three arguments:
 
          - `operation`: the name of the operation
          - `operationInfo`: information about the operation
