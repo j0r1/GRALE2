@@ -74,13 +74,13 @@ Environment variables that are used:
    command. I use it to set 'ADDITIONAL_LIBRARIES_CORE' for GRALE2
    to be able to use the correct GSL libraries, with something like
 
-    CMAKE_EXTRA_OPTS=-DADDITIONAL_LIBRARIES_CORE=-L\`gsl-config --prefix\`/lib
+    CMAKE_EXTRA_OPTS=-DADDITIONAL_LIBRARIES_CORE=-L`gsl-config --prefix`/lib
 
    (a newer GSL library needs to be used, enabled using a 'module load'
    command, but the system-wide one is used in the linking process. Seems
    similar as in e.g. https://cmake.org/pipermail/cmake/2011-June/044790.html,
    where the library's path is removed from the link command because it
-   is also set in \$LIBRARY_PATH)
+   is also set in $LIBRARY_PATH)
 
  - NOEMPTYDIRCHECK: in case '-builddir' is used, the specified directory
    is expected to be empty. You can set this environment variable to
