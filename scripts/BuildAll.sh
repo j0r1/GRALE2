@@ -116,7 +116,7 @@ if [ -z "$NOVENV" ] ; then
 	source "$PREFIX/bin/activate"
 fi
 
-$PIP install --cache-dir "$D/pipcache" numpy scipy astropy shapely "cython<3.0.0" matplotlib qpsolvers
+$PIP install --cache-dir "$D/pipcache" numpy scipy astropy shapely cython matplotlib qpsolvers
 
 if ! $PIP install --cache-dir "$D/pipcache" pycairo ; then
 	echo "WARNING: pycairo could not be installed - perhaps some other package/module"

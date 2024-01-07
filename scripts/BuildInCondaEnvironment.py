@@ -206,8 +206,7 @@ or
             print("Installing 'triangle' binary")
             subprocess.check_call("{} install -c jori -y triangle".format(condaTool), shell=True)
 
-        # TODO: cython 3.0.0 doesn't seem to work yet
-        condaPacks = [ "ipython", "jupyter", "astropy", "pyqt5-sip", "pyqt", '"cython<3.0.0"', "numpy", "scipy", "matplotlib",
+        condaPacks = [ "ipython", "jupyter", "astropy", "pyqt5-sip", "pyqt", "cython", "numpy", "scipy", "matplotlib",
                        "shapely", "pyopengl", "ipywidgets", "cmake", "pyqt-builder", "pycairo", "qpsolvers" ]
 
         if os.name != "nt":
