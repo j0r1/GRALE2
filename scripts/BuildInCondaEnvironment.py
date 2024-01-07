@@ -207,7 +207,7 @@ or
             subprocess.check_call("{} install -c jori -y triangle".format(condaTool), shell=True)
 
         condaPacks = [ "ipython", "jupyter", "astropy", "pyqt5-sip", "pyqt", "cython", "numpy", "scipy", "matplotlib",
-                       "shapely", "pyopengl", "ipywidgets", "cmake", "pyqt-builder", "pycairo", "qpsolvers" ]
+                       "shapely", "pyopengl", "ipywidgets", "cmake", "pyqt-builder" ]
 
         if os.name != "nt":
             condaPacks.append("compilers")
@@ -217,6 +217,8 @@ or
         if not "NOMPI" in os.environ:
             if os.name != "nt":
                 condaPacks.append("openmpi")
+        if not "NOQP" in os.environ:
+            condaPacks += [ "pycairo", "qpsolvers" ]
 
         remainingCondaPacks = [ ]
         for i in condaPacks:
