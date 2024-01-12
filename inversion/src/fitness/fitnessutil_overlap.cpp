@@ -25,6 +25,17 @@ float getScaleFactor_PointImages(const ProjectedImagesInterface &interface,
 	return scale;
 }
 
+inline float getMedian(vector<float> &coords) // coords may be changed! (sorted in a first implementation)
+{
+	size_t len = coords.size();
+	size_t len2 = len/2;
+
+	sort(coords.begin(), coords.end());
+	if (len % 2 == 1) // odd
+		return coords[len2];
+	return 0.5f*(coords[len2] + coords[len2-1]);
+}
+
 void getScaleFactors_PointImages(const ProjectedImagesInterface &interface,
 		                         const vector<int> &sourceIndices,
 								 const vector<int> &sourceGroup,
@@ -160,21 +171,10 @@ void getScaleFactors_PointImages(const ProjectedImagesInterface &interface,
 
 				float xMed = 0, yMed = 0;
 
-				for (int k = 0 ; k < 2 ; k++)
+				for (int k = 0 ; k < 2 ; k++) // calculate median 2 times, once for coords, then for differences
 				{
-					sort(xPoints.begin(), xPoints.end());
-					sort(yPoints.begin(), yPoints.end());
-
-					if (len % 2 == 1) // odd
-					{
-						xMed = xPoints[len2];
-						yMed = yPoints[len2];
-					}
-					else // even
-					{
-						xMed = 0.5f*(xPoints[len2] + xPoints[len2-1]);
-						yMed = 0.5f*(yPoints[len2] + yPoints[len2-1]);
-					}
+					xMed = getMedian(xPoints);
+					yMed = getMedian(yPoints);
 
 					if (k == 0)
 					{
