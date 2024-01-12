@@ -25,6 +25,7 @@ float getScaleFactor_PointImages(const ProjectedImagesInterface &interface,
 	return scale;
 }
 
+#if 0
 inline float getMedian(vector<float> &coords) // coords may be changed! (sorted in a first implementation)
 {
 	size_t len = coords.size();
@@ -35,6 +36,24 @@ inline float getMedian(vector<float> &coords) // coords may be changed! (sorted 
 		return coords[len2];
 	return 0.5f*(coords[len2] + coords[len2-1]);
 }
+#else
+inline float getMedian(vector<float> &coords) // coords may be changed!
+{
+	size_t len = coords.size();
+	size_t len2 = len/2;
+
+	nth_element(coords.begin(), coords.begin() + len2, coords.end()); // partial sort
+	float value_len2 = coords[len2];
+	if (len % 2 == 1)
+		return value_len2;
+
+	// nth_element guarantees that the elements before len2 are smaller than those after,
+	// so to get the value at len2-1 we need the maximum of that first part
+	auto it = max_element(coords.begin(), coords.begin() + len2);
+	float value_len2_minus1 = *it;
+	return 0.5f*(value_len2 + value_len2_minus1);
+}
+#endif
 
 void getScaleFactors_PointImages(const ProjectedImagesInterface &interface,
 		                         const vector<int> &sourceIndices,
