@@ -113,7 +113,7 @@ def main():
         libraries += [ "gslcblas" ]
     else:
         libraries += [ "gslcblas" ]
-        extraFlags += [ "-std=c++14" ]
+        extraFlags += [ "-std=c++17" ]
 
     if "CONDA_BUILD" in os.environ or "CONDA_PREFIX" in os.environ:
         prefix = None
