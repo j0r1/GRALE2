@@ -111,7 +111,6 @@ set(HEADERS
 	)
 
 set(SOURCES
-	general/debugnew.cpp 
 	general/configurationparameters.cpp
 	general/gslcblasdummy.cpp
 	general/pernodecounter.cpp
