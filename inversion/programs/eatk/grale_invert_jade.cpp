@@ -285,6 +285,15 @@ protected:
 				                                    calcFactory, genomeCalculator, factoryParamBytes, calc);
 	}
 
+	bool hasGeneticAlgorithm() const override { return true; }
+	virtual void getAllBestGenomes(std::vector<std::shared_ptr<eatk::Individual>> &bestGenomes) { bestGenomes = m_best; }
+	virtual std::shared_ptr<eatk::Individual> getPreferredBestGenome()
+	{ 
+		if (m_best.size() == 0)
+			return nullptr;
+		return m_best[0]; // TODO: for now, only single objective, so a single best one
+	}
+
 private:
 	// TODO: just copied from newgacommunicatorbase.h, use common code for this
 	static bool_t getMultiThreadedPopulationCalculator(size_t numThreads, const std::string &lensFitnessObjectType, const std::string &calculatorType,
@@ -353,6 +362,7 @@ private:
 	}
 
 	int m_numThreads;
+	std::vector<std::shared_ptr<eatk::Individual>> m_best;
 };
 
 // TODO: copy from newgacommunicatorbase.h, put in shared file
@@ -451,6 +461,8 @@ bool_t JADEInversionCommunicator::runGA(int popSize, const std::string &lensFitn
 		calculatorCleanup();
 		return "Error running GA: " + r.getErrorString();
 	}
+
+	m_best = jade.getBestIndividuals();
 
 	return true;
 }
