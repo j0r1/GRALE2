@@ -86,9 +86,10 @@ public:
 	{
 		m_timer.stop();
 		m_intervals.push_back(m_timer.duration());
-	// 	cout << "# Generation " << generation << ", calculated: " << endl;
-	// 	for (auto &i : population->individuals())
-	// 		cout << i->fitness()->toString() << endl;
+	 	//cerr << "# Generation " << generation << ", calculated: " << endl;
+	 	//for (auto &i : population->individuals())
+	 	//	cerr << i->fitness()->toString() << " "; // endl;
+		//cerr << endl;
 		return true;
 	}
 
@@ -130,7 +131,10 @@ public:
 		// Initialize everything to zero, so we can safely add things
 		g0.m_weights.assign(g0.m_weights.size(), 0);
 		g0.m_sheets.assign(g0.m_sheets.size(), 0);
-		g0.m_scaleFactor = std::numeric_limits<float>::quiet_NaN();
+	
+		// We can't set this to NaN, since it will be used in the next crossover step
+		// But we've incorporated the scalefactors, so this should just be 1
+		g0.m_scaleFactor = 1.0;
 
 		for (size_t j = 0 ; j < genomes.size() ; j++)
 		{
@@ -175,7 +179,7 @@ public:
 		size_t totalSize = numWeigths + numSheets;
 		size_t rndIdx = ((size_t)m_rng->getRandomUint32())%(totalSize);
 
-		auto getValue = [numWeigths](const grale::LensGAGenome &g, size_t i)
+		auto getValue = [numWeigths,numSheets](const grale::LensGAGenome &g, size_t i)
 		{
 			if (i < numWeigths)
 				return g.m_weights[i] * g.m_scaleFactor; // Take scale factor into account!
@@ -186,7 +190,7 @@ public:
 		};
 
 		// Note that no scale factor will be used here
-		auto setValue = [numWeigths](grale::LensGAGenome &g, size_t i, float value)
+		auto setValue = [numWeigths,numSheets](grale::LensGAGenome &g, size_t i, float value)
 		{
 			if (i < numWeigths)
 				g.m_weights[i] = value;
@@ -290,6 +294,27 @@ private:
 	int m_popId;
 };
 
+class LensGAJADEEvolver : public eatk::JADEEvolver
+{
+public:
+	LensGAJADEEvolver(
+		const std::shared_ptr<eatk::RandomNumberGenerator> &rng,
+		const std::shared_ptr<eatk::DifferentialEvolutionMutation> &mut,
+		const std::shared_ptr<eatk::DifferentialEvolutionCrossover> &cross,
+		const std::shared_ptr<eatk::FitnessComparison> &fitComp) : JADEEvolver(rng, mut, cross, fitComp) { }
+
+	// We need to override this function to copy the calculated scale factors to the genomes
+	errut::bool_t createNewPopulation(size_t generation, std::shared_ptr<eatk::Population> &population, size_t targetPopulationSize)
+	{
+		for (auto &i : population->individuals())
+		{
+			auto &g = static_cast<grale::LensGAGenome &>(i->genomeRef());
+			auto &f = static_cast<grale::LensGAFitness &>(i->fitnessRef());
+			g.m_scaleFactor = f.m_scaleFactor;
+		}
+		return eatk::JADEEvolver::createNewPopulation(generation, population, targetPopulationSize);
+	}
+};
 
 bool_t JADEInversionCommunicator::runGA(int popSize, const std::string &lensFitnessObjectType,
 						 const std::string &calculatorType,
@@ -330,7 +355,7 @@ bool_t JADEInversionCommunicator::runGA(int popSize, const std::string &lensFitn
 	// After this is created, calculatorCleanup() should be called as well (for MPI at the moment)
 	auto calc = std::make_shared<eatk::SingleThreadedPopulationFitnessCalculation>(genomeCalculator); // TODO: multi-threaded or MPI!
 
-	eatk::JADEEvolver jade(rng, mut, cross, comparison); // TODO: make other JADE parameters configurable?
+	LensGAJADEEvolver jade(rng, mut, cross, comparison); // TODO: make other JADE parameters configurable?
 
 	grale::LensGAIndividualCreation creation(rng, 
 					  genomeCalculator->getNumberOfBasisFunctions(),
