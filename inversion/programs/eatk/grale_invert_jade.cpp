@@ -272,7 +272,86 @@ public:
 						 const grale::GAParameters &params,
 						 const grale::LensGAConvergenceParameters &convParams,
 						 const std::shared_ptr<grale::LensGAMultiPopulationParameters> &multiPopParams);
+protected:
+	// TODO: copied this
+	bool_t getCalculator(const std::string &lensFitnessObjectType, const std::string &calculatorType,
+									grale::LensGACalculatorFactory &calcFactory, 
+									const std::shared_ptr<grale::LensGAGenomeCalculator> &genomeCalculator,
+									const std::vector<uint8_t> &factoryParamBytes,
+									grale::LensGAIndividualCreation &creation,
+									std::shared_ptr<eatk::PopulationFitnessCalculation> &calc) /* override */
+	{
+		return getMultiThreadedPopulationCalculator(m_numThreads, lensFitnessObjectType, calculatorType,
+				                                    calcFactory, genomeCalculator, factoryParamBytes, calc);
+	}
+
 private:
+	// TODO: just copied from newgacommunicatorbase.h, use common code for this
+	static bool_t getMultiThreadedPopulationCalculator(size_t numThreads, const std::string &lensFitnessObjectType, const std::string &calculatorType,
+									grale::LensGACalculatorFactory &calcFactory, 
+									const std::shared_ptr<grale::LensGAGenomeCalculator> &genomeCalculator,
+									const std::vector<uint8_t> &factoryParamBytes,
+									std::shared_ptr<eatk::PopulationFitnessCalculation> &calc)
+	{
+		if (numThreads <= 1)
+		{
+			calc = std::make_shared<eatk::SingleThreadedPopulationFitnessCalculation>(genomeCalculator);
+			return true;
+		}
+
+		std::vector<std::shared_ptr<eatk::GenomeFitnessCalculation>> genomeFitnessCalculators;
+		genomeFitnessCalculators.resize(numThreads);
+		genomeFitnessCalculators[0] = genomeCalculator;
+
+		auto createAndInitCalculator = [&genomeFitnessCalculators,&lensFitnessObjectType, &calcFactory, &factoryParamBytes](size_t idx) -> bool_t
+		{
+			std::unique_ptr<grale::LensFitnessObject> fitObj = grale::LensFitnessObjectRegistry::instance().createFitnessObject(lensFitnessObjectType);
+			if (!fitObj.get())
+				return "No fitness object with name '" + lensFitnessObjectType + "' is known";
+
+			bool_t r;
+			// TODO: should we do this beforehand to make really really sure everything is thread safe?
+			auto calculatorParams = calcFactory.createParametersInstance();
+			if (!(r = InversionCommunicator::loadFromBytes(*calculatorParams, factoryParamBytes)))
+				return "Can't load calculator parameters from received data: " + r.getErrorString();
+		
+			std::shared_ptr<grale::LensGAGenomeCalculator> calculatorInstance = calcFactory.createCalculatorInstance(move(fitObj));
+			if (!(r = calculatorInstance->init(*calculatorParams)))
+				return "Unable to initialize calculator: " + r.getErrorString();
+
+			assert(idx < genomeFitnessCalculators.size());
+			assert(!genomeFitnessCalculators[idx].get());
+			genomeFitnessCalculators[idx] = calculatorInstance;
+			return true;
+		};
+
+		std::vector<std::thread> calcInitThreads(numThreads-1); // The first one is already initialized, do the rest in parallel
+		std::vector<bool_t> errors(calcInitThreads.size());
+
+		auto createAndInitCalculatorWrapper = [&createAndInitCalculator,&errors](size_t idxMinusOne)
+		{
+			errors[idxMinusOne] = createAndInitCalculator(idxMinusOne+1);
+		};
+
+		for (size_t i = 0 ; i < calcInitThreads.size() ; i++)
+			calcInitThreads[i] = std::thread(createAndInitCalculatorWrapper, i);
+
+		for (auto &t : calcInitThreads)
+			t.join();
+
+		for (auto &r : errors)
+			if (!r)
+				return r;
+
+		bool_t r;
+		auto mpCalc = std::make_shared<eatk::MultiThreadedPopulationFitnessCalculation>();
+		if (!(r = mpCalc->initThreadPool(genomeFitnessCalculators)))
+			return "Unable to initialize threads: " + r.getErrorString();
+		calc = mpCalc;
+
+		return true;
+	}
+
 	int m_numThreads;
 };
 
@@ -352,16 +431,19 @@ bool_t JADEInversionCommunicator::runGA(int popSize, const std::string &lensFitn
 
 	auto comparison = std::make_shared<grale::LensGAFitnessComparison>();
 
-	// After this is created, calculatorCleanup() should be called as well (for MPI at the moment)
-	auto calc = std::make_shared<eatk::SingleThreadedPopulationFitnessCalculation>(genomeCalculator); // TODO: multi-threaded or MPI!
-
-	LensGAJADEEvolver jade(rng, mut, cross, comparison); // TODO: make other JADE parameters configurable?
-
 	grale::LensGAIndividualCreation creation(rng, 
 					  genomeCalculator->getNumberOfBasisFunctions(),
 					  genomeCalculator->getNumberOfSheets(),
 					  genomeCalculator->allowNegativeValues(),
 					  genomeCalculator->getNumberOfObjectives());
+
+	// After this is created, calculatorCleanup() should be called as well (for MPI at the moment)
+	std::shared_ptr<eatk::PopulationFitnessCalculation> calc;
+	if (!(r = getCalculator(lensFitnessObjectType, calculatorType, calcFactory, genomeCalculator,
+							factoryParamBytes, creation, calc)))
+		return "Can't get calculator: " + r.getErrorString();
+
+	LensGAJADEEvolver jade(rng, mut, cross, comparison); // TODO: make other JADE parameters configurable?
 
 	MyGA ga;
 	if (!(r = ga.run(creation, jade, *calc, stop, popSize, popSize, popSize*2)))
