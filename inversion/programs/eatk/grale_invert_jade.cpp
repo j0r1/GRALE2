@@ -6,6 +6,8 @@
 #include "lensfitnessgeneral.h"
 #include "lensgaconvergenceparameters.h"
 #include "lensgafitnesscomparison.h"
+#include "lensdemutationcrossover.h"
+#include "lensdeevolver.h"
 #include "randomnumbergenerator.h"
 
 #ifndef WIN32
@@ -105,150 +107,6 @@ public:
 		m_intervals.push_back(m_timer.duration());
 		return true;
 	}
-};
-
-class DEMutation : public eatk::DifferentialEvolutionMutation
-{
-public:
-	DEMutation() { }
-	~DEMutation() { }
-
-	errut::bool_t check(const eatk::Genome &g) override
-	{
-		if (!dynamic_cast<const grale::LensGAGenome*>(&g))
-			return "Genome is of wrong type";
-		return true;
-	}
-
-	std::shared_ptr<eatk::Genome> mutate(const std::vector<const eatk::Genome*> &genomes, const std::vector<double> &weights) override
-	{
-		assert(genomes.size() > 0);
-		assert(genomes.size() == weights.size());
-
-		std::shared_ptr<eatk::Genome> result = genomes[0]->createCopy();
-		grale::LensGAGenome &g0 = static_cast<grale::LensGAGenome&>(*result);
-
-		// Initialize everything to zero, so we can safely add things
-		g0.m_weights.assign(g0.m_weights.size(), 0);
-		g0.m_sheets.assign(g0.m_sheets.size(), 0);
-	
-		// We can't set this to NaN, since it will be used in the next crossover step
-		// But we've incorporated the scalefactors, so this should just be 1
-		g0.m_scaleFactor = 1.0;
-
-		for (size_t j = 0 ; j < genomes.size() ; j++)
-		{
-			float f = (float)weights[j];
-			const grale::LensGAGenome &g1 = static_cast<const grale::LensGAGenome&>(*genomes[j]);
-
-			// Add the weights, need to take the scale factor into account as well!
-			assert(g0.m_weights.size() == g1.m_weights.size());
-			for (size_t i = 0 ; i < g0.m_weights.size() ; i++)
-				g0.m_weights[i] += f * g1.m_weights[i] * g1.m_scaleFactor;
-
-			// Add the sheet values, no scale factor here
-			assert(g0.m_sheets.size() == g1.m_sheets.size());
-			for (size_t i = 0 ; i < g0.m_sheets.size() ; i++)
-				g0.m_sheets[i] += f * g1.m_sheets[i];
-		}
-
-		return result;
-	}
-};
-
-class DECrossover : public eatk::DifferentialEvolutionCrossover
-{
-public:
-	DECrossover(const std::shared_ptr<eatk::RandomNumberGenerator> &rng, bool allowNeg) : m_rng(rng), m_allowNegative(allowNeg) { }
-	~DECrossover() { }
-
-	errut::bool_t check(const eatk::Genome &g) override
-	{
-		if (!dynamic_cast<const grale::LensGAGenome*>(&g))
-			return "Genome is of wrong type";
-		return true;
-	}
-
-	errut::bool_t crossover(double CR, eatk::Genome &mutantDest0, const eatk::Genome &origVector0) override
-	{
-		grale::LensGAGenome &g0 = static_cast<grale::LensGAGenome&>(mutantDest0);
-		const grale::LensGAGenome &g1 = static_cast<const grale::LensGAGenome&>(origVector0);
-
-		size_t numWeigths = g0.m_weights.size();
-		size_t numSheets = g0.m_sheets.size();
-		size_t totalSize = numWeigths + numSheets;
-		size_t rndIdx = ((size_t)m_rng->getRandomUint32())%(totalSize);
-
-		auto getValue = [numWeigths,numSheets](const grale::LensGAGenome &g, size_t i)
-		{
-			if (i < numWeigths)
-				return g.m_weights[i] * g.m_scaleFactor; // Take scale factor into account!
-			
-			i -= numWeigths;
-			assert(i < numSheets);
-			return g.m_sheets[i]; // no scale factor here
-		};
-
-		// Note that no scale factor will be used here
-		auto setValue = [numWeigths,numSheets](grale::LensGAGenome &g, size_t i, float value)
-		{
-			if (i < numWeigths)
-				g.m_weights[i] = value;
-			else
-			{
-				i -= numWeigths;
-				assert(i < numSheets);
-				g.m_sheets[i] = value;
-			}
-		};
-
-		for (size_t i = 0 ; i < totalSize ; i++)
-		{
-			float val = std::numeric_limits<float>::quiet_NaN();
-
-			// We make sure to get the value in either case, so we get something that incorporated
-			// the scale factor; we can then store the value again
-			if (i != rndIdx && m_rng->getRandomDouble() > CR)
-				val = getValue(g1, i);
-			else
-				val = getValue(g0, i);
-
-			setValue(g0, i, val);
-		}
-
-		// Reset the scale factor
-		g0.m_scaleFactor = std::numeric_limits<float>::quiet_NaN();
-
-		if (!m_allowNegative) // Enforce bounds on the weights
-		{
-			// g1 should already be within bounds, we won't check this (only in assert)!
-			for (size_t i = 0 ; i < numWeigths ; i++)
-			{
-				if (g0.m_weights[i] < 0)
-					g0.m_weights[i] = g1.m_weights[i]/2.0f;
-
-				assert(g0.m_weights[i] >= 0);
-				assert(g1.m_weights[i] >= 0);
-			}
-		}
-
-		// Always enforce bounds on the sheets - TODO: what is done in the normal GA?
-		for (size_t i = 0 ; i < numSheets ; i++)
-		{
-			// g1 should already be within bounds, we won't check this (only in assert)!
-			if (g0.m_sheets[i] < 0)
-				g0.m_sheets[i] = g1.m_sheets[i]/2.0f;
-
-			assert(g0.m_sheets[i] >= 0);
-			assert(g1.m_sheets[i] >= 0);
-		}
-
-		return true;
-	}
-
-private:
-	std::shared_ptr<eatk::RandomNumberGenerator> m_rng;
-	const bool m_allowNegative;
 };
 
 class JADEInversionCommunicator : public InversionCommunicator
@@ -383,28 +241,6 @@ private:
 	int m_popId;
 };
 
-class LensGAJADEEvolver : public eatk::JADEEvolver
-{
-public:
-	LensGAJADEEvolver(
-		const std::shared_ptr<eatk::RandomNumberGenerator> &rng,
-		const std::shared_ptr<eatk::DifferentialEvolutionMutation> &mut,
-		const std::shared_ptr<eatk::DifferentialEvolutionCrossover> &cross,
-		const std::shared_ptr<eatk::FitnessComparison> &fitComp) : JADEEvolver(rng, mut, cross, fitComp) { }
-
-	// We need to override this function to copy the calculated scale factors to the genomes
-	errut::bool_t createNewPopulation(size_t generation, std::shared_ptr<eatk::Population> &population, size_t targetPopulationSize)
-	{
-		for (auto &i : population->individuals())
-		{
-			auto &g = static_cast<grale::LensGAGenome &>(i->genomeRef());
-			auto &f = static_cast<grale::LensGAFitness &>(i->fitnessRef());
-			g.m_scaleFactor = f.m_scaleFactor;
-		}
-		return eatk::JADEEvolver::createNewPopulation(generation, population, targetPopulationSize);
-	}
-};
-
 bool_t JADEInversionCommunicator::runGA(int popSize, const std::string &lensFitnessObjectType,
 						 const std::string &calculatorType,
 	                     grale::LensGACalculatorFactory &calcFactory, 
@@ -436,8 +272,8 @@ bool_t JADEInversionCommunicator::runGA(int popSize, const std::string &lensFitn
 	if (!(r = stop.initialize(numObj, convParams)))
 		return "Can't initialize stop criterion: " + r.getErrorString();
 
-	auto mut = make_shared<DEMutation>();
-	auto cross = make_shared<DECrossover>(rng, genomeCalculator->allowNegativeValues()); // TODO: same
+	auto mut = make_shared<grale::LensDEMutation>();
+	auto cross = make_shared<grale::LensDECrossover>(rng, genomeCalculator->allowNegativeValues()); // TODO: same
 
 	auto comparison = std::make_shared<grale::LensGAFitnessComparison>();
 
@@ -453,7 +289,7 @@ bool_t JADEInversionCommunicator::runGA(int popSize, const std::string &lensFitn
 							factoryParamBytes, creation, calc)))
 		return "Can't get calculator: " + r.getErrorString();
 
-	LensGAJADEEvolver jade(rng, mut, cross, comparison); // TODO: make other JADE parameters configurable?
+	grale::LensDEEvolver jade(rng, mut, cross, comparison); // TODO: make other JADE parameters configurable?
 
 	MyGA ga;
 	if (!(r = ga.run(creation, jade, *calc, stop, popSize, popSize, popSize*2)))
