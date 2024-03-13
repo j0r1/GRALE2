@@ -363,18 +363,48 @@ protected:
 						 const std::shared_ptr<grale::LensGAMultiPopulationParameters> &multiPopParams,
 						 const std::string &eaType)
 	{
+		std::shared_ptr<grale::RandomNumberGenerator> rng = std::make_shared<grale::RandomNumberGenerator>();
+		WriteLineStdout("GAMESSAGESTR:RNG SEED: " + std::to_string(rng->getSeed()));
+
+		grale::LensGAIndividualCreation creation(rng, 
+						  genomeCalculator->getNumberOfBasisFunctions(),
+						  genomeCalculator->getNumberOfSheets(),
+						  genomeCalculator->allowNegativeValues(),
+						  genomeCalculator->getNumberOfObjectives());
+
+		auto comparison = std::make_shared<grale::LensGAFitnessComparison>();
+		m_selector = std::make_shared<SubsequentBestIndividualSelector>(
+								genomeCalculator->getNumberOfObjectives(),
+								comparison);
+
+		// After this is created, calculatorCleanup() should be called as well (for MPI at the moment)
+		std::shared_ptr<eatk::PopulationFitnessCalculation> calc;
+		errut::bool_t r;
+
+		if (!(r = getCalculator(lensFitnessObjectType, calculatorType, calcFactory, genomeCalculator,
+								factoryParamBytes, creation, calc)))
+			return "Can't get calculator: " + r.getErrorString();
+
 		if (eaType == "GA")
-			return runGA_GA(popSize, lensFitnessObjectType, calculatorType, calcFactory, genomeCalculator,
+			r = runGA_GA(rng, creation, comparison, *calc, popSize, lensFitnessObjectType, calculatorType, calcFactory, genomeCalculator,
 					        factoryParamBytes, params, convParams, multiPopParams);
-		if(eaType == "DE")
-			return runGA_DE(popSize, lensFitnessObjectType, calculatorType, calcFactory, genomeCalculator,
+		else if (eaType == "DE")
+			r = runGA_DE(rng, creation, comparison, *calc, popSize, lensFitnessObjectType, calculatorType, calcFactory, genomeCalculator,
 					        factoryParamBytes, params, convParams, multiPopParams);
-		return "Unknown EA type '" + eaType + "', should be either GA or DE";
+		else
+			r = "Unknown EA type '" + eaType + "', should be either GA or DE";
+
+		calculatorCleanup();
+		return true;
 	}
 
 	// TODO: merge more common code from the GA and DE versions
 
-	errut::bool_t runGA_DE(int popSize, const std::string &lensFitnessObjectType,
+	errut::bool_t runGA_DE(const std::shared_ptr<eatk::RandomNumberGenerator> &rng,
+						 grale::LensGAIndividualCreation &creation,
+						 const std::shared_ptr<grale::LensGAFitnessComparison> &comparison,
+						 eatk::PopulationFitnessCalculation &calc,
+			             int popSize, const std::string &lensFitnessObjectType,
 						 const std::string &calculatorType,
 	                     grale::LensGACalculatorFactory &calcFactory, 
 						 const std::shared_ptr<grale::LensGAGenomeCalculator> &genomeCalculator,
@@ -383,6 +413,8 @@ protected:
 						 const grale::LensGAConvergenceParameters &convParams,
 						 const std::shared_ptr<grale::LensGAMultiPopulationParameters> &multiPopParams)
 	{
+		WriteLineStdout("GAMESSAGESTR:Running DE algorithm");
+
 		errut::bool_t r;
 
 		int numObj = genomeCalculator->getNumberOfObjectives();
@@ -391,8 +423,6 @@ protected:
 
 		if (multiPopParams.get())
 			return "JADE only works with a single population";
-
-		std::shared_ptr<grale::RandomNumberGenerator> rng = std::make_shared<grale::RandomNumberGenerator>();
 
 		// TODO: At the moment we need this for the stop criterion
 		std::shared_ptr<grale::LensGAGenomeMutation> mutation = std::make_shared<grale::LensGAGenomeMutation>(rng, 
@@ -411,41 +441,22 @@ protected:
 		auto mut = std::make_shared<grale::LensDEMutation>();
 		auto cross = std::make_shared<grale::LensDECrossover>(rng, genomeCalculator->allowNegativeValues());
 
-		auto comparison = std::make_shared<grale::LensGAFitnessComparison>();
-
-		// We need this because of the general code in getPreferredBestGenome, for
-		// a single objective it just selects the best
-		m_selector = std::make_shared<SubsequentBestIndividualSelector>(
-								genomeCalculator->getNumberOfObjectives(),
-								comparison);
-
-		grale::LensGAIndividualCreation creation(rng, 
-						  genomeCalculator->getNumberOfBasisFunctions(),
-						  genomeCalculator->getNumberOfSheets(),
-						  genomeCalculator->allowNegativeValues(),
-						  genomeCalculator->getNumberOfObjectives());
-
-		// After this is created, calculatorCleanup() should be called as well (for MPI at the moment)
-		std::shared_ptr<eatk::PopulationFitnessCalculation> calc;
-		if (!(r = getCalculator(lensFitnessObjectType, calculatorType, calcFactory, genomeCalculator,
-								factoryParamBytes, creation, calc)))
-			return "Can't get calculator: " + r.getErrorString();
-
 		grale::LensDEEvolver jade(rng, mut, cross, comparison); // TODO: make other JADE parameters configurable?
 
 		MyGA ga;
-		if (!(r = ga.run(creation, jade, *calc, stop, popSize, popSize, popSize*2)))
-		{
-			calculatorCleanup();
+		if (!(r = ga.run(creation, jade, calc, stop, popSize, popSize, popSize*2)))
 			return "Error running GA: " + r.getErrorString();
-		}
 
 		m_best = jade.getBestIndividuals();
 
 		return true;
 	}
 
-	errut::bool_t runGA_GA(int popSize, const std::string &lensFitnessObjectType,
+	errut::bool_t runGA_GA(const std::shared_ptr<eatk::RandomNumberGenerator> &rng,
+						 grale::LensGAIndividualCreation &creation,
+						 const std::shared_ptr<grale::LensGAFitnessComparison> &comparison,
+						 eatk::PopulationFitnessCalculation &calc,
+			             int popSize, const std::string &lensFitnessObjectType,
 						 const std::string &calculatorType,
 	                     grale::LensGACalculatorFactory &calcFactory, 
 						 const std::shared_ptr<grale::LensGAGenomeCalculator> &genomeCalculator,
@@ -454,25 +465,10 @@ protected:
 						 const grale::LensGAConvergenceParameters &convParams,
 						 const std::shared_ptr<grale::LensGAMultiPopulationParameters> &multiPopParams)
 	{
+		WriteLineStdout("GAMESSAGESTR:Running GA algorithm");
+
 		errut::bool_t r;
-
-		auto comparison = std::make_shared<grale::LensGAFitnessComparison>();
-
-		m_selector = std::make_shared<SubsequentBestIndividualSelector>(
-								genomeCalculator->getNumberOfObjectives(),
-								comparison);
-
-		std::shared_ptr<grale::RandomNumberGenerator> rng = std::make_shared<grale::RandomNumberGenerator>();
 		MyGA ga;
-
-		WriteLineStdout("GAMESSAGESTR:RNG SEED: " + std::to_string(rng->getSeed()));
-
-		grale::LensGAIndividualCreation creation(rng, 
-						  genomeCalculator->getNumberOfBasisFunctions(),
-						  genomeCalculator->getNumberOfSheets(),
-						  genomeCalculator->allowNegativeValues(),
-						  genomeCalculator->getNumberOfObjectives());
-
 
 		std::vector<std::shared_ptr<grale::LensGAGenomeMutation>> mutations;
 
@@ -508,11 +504,6 @@ protected:
 			return cross;
 		};
 
-		std::shared_ptr<eatk::PopulationFitnessCalculation> calc;
-		if (!(r = getCalculator(lensFitnessObjectType, calculatorType, calcFactory, genomeCalculator,
-								factoryParamBytes, creation, calc)))
-			return "Can't get calculator: " + r.getErrorString();
-		
 		if (!multiPopParams.get()) // Single population only
 		{
 			auto cross = getEvolver();
@@ -521,16 +512,10 @@ protected:
 			Stop stop(mutations[0]);
 
 			if (!(r = stop.initialize(genomeCalculator->getNumberOfObjectives(), convParams)))
-			{
-				calculatorCleanup();
 				return "Error initializing convergence checker: " + r.getErrorString();
-			}
 
-			if (!(r = ga.run(creation, *cross, *calc, stop, popSize)))
-			{
-				calculatorCleanup();
+			if (!(r = ga.run(creation, *cross, calc, stop, popSize)))
 				return "Error running GA: " + r.getErrorString();
-			}
 
 			m_best = cross->getBestIndividuals();
 		}
@@ -538,15 +523,10 @@ protected:
 		{
 			size_t numPop = multiPopParams->getNumberOfPopulations();
 			if (numPop < 2)
-			{
-				calculatorCleanup();
 				return "At least 2 populations are needed for a multi-population GA";
-			}
+
 			if (numPop > 64) // TODO: what's a reasonable upper limit?
-			{
-				calculatorCleanup();
 				return "Currently there's a maximum of 64 populations";
-			}
 
 			std::vector<size_t> popSizes;
 			for (size_t i = 0 ; i < numPop ; i++)
@@ -579,21 +559,13 @@ protected:
 			assert(mutations.size() > 1);
 			MultiStop stop(mutations);
 			if (!(r = stop.initialize(genomeCalculator->getNumberOfObjectives(), convParams)))
-			{
-				calculatorCleanup();
 				return "Error initializing multi-population convergence checker: " + r.getErrorString();
-			}
 
-			if (!(r = ga.run(creation, multiPopEvolver, *calc, stop, migration, popSizes)))
-			{
-				calculatorCleanup();
+			if (!(r = ga.run(creation, multiPopEvolver, calc, stop, migration, popSizes)))
 				return "Error running GA: " + r.getErrorString();
-			}
 
 			m_best = multiPopEvolver.getBestIndividuals();
 		}
-
-		calculatorCleanup();
 
 		// std::cout << "Best: " << std::endl;
 		// for (auto &b: m_best)
