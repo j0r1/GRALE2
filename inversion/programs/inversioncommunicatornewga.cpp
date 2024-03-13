@@ -146,6 +146,10 @@ bool_t InversionCommunicator::runModule(const std::string &lensFitnessObjectType
 	if (popSize < 1)
 		return "A negative population size was specified";
 
+	string eaType;
+	if (!(r = readLineWithPrefix("EATYPE", eaType, 10000)))
+		return "Error reading EA type: " + r.getErrorString();
+
 	vector<uint8_t> gaParamBytes;
 	if (!(r = readLineAndBytesWithPrefix("GAPARAMS", gaParamBytes, 10000)))
 		return "Error reading GA parameters: " + r.getErrorString();
@@ -204,7 +208,8 @@ bool_t InversionCommunicator::runModule(const std::string &lensFitnessObjectType
 		return "Unable to initialize calculator: " + r.getErrorString();
 
 	if (!(r = runGA(popSize, lensFitnessObjectType, calculatorType, *pCalculatorFactory,
-	                calculatorInstance, calcParamBytes, gaParams, convParams, multiPopParams)))
+	                calculatorInstance, calcParamBytes, gaParams, convParams, multiPopParams,
+					eaType)))
 		return r;
 
 	LOG(Log::DBG, "Finished runGA");
@@ -223,7 +228,8 @@ bool_t InversionCommunicator::runGA(int popSize, const std::string &lensFitnessO
 						 const std::shared_ptr<grale::LensGAGenomeCalculator> &genomeCalculator,
 						 const std::vector<uint8_t> &factoryParamBytes, const grale::GAParameters &params,
 						 const grale::LensGAConvergenceParameters &convParams,
-						 const std::shared_ptr<grale::LensGAMultiPopulationParameters> &multiPopParams)
+						 const std::shared_ptr<grale::LensGAMultiPopulationParameters> &multiPopParams,
+						 const std::string &eaType)
 {
 	return "Not implemented in base class";
 }

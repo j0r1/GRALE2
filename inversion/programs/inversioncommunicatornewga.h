@@ -43,7 +43,8 @@ protected:
 						 const std::vector<uint8_t> &factoryParamBytes,
 						 const grale::GAParameters &params,
 						 const grale::LensGAConvergenceParameters &convParams,
-						 const std::shared_ptr<grale::LensGAMultiPopulationParameters> &multiPopParams);
+						 const std::shared_ptr<grale::LensGAMultiPopulationParameters> &multiPopParams,
+						 const std::string &eaType);
 
 	bool_t readLineWithPrefix(const std::string &prefix, std::string &value, int timeoutMSec);
 	bool_t readLineWithPrefix(const std::string &prefix, int &value, int timeoutMSec);

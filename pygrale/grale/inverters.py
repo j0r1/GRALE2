@@ -122,11 +122,13 @@ class Inverter(object):
 
     def _writeInverterParameters(self, io, moduleName, calcType, populationSize,
                                  gaParams, lensInversionParameters, convergenceParams,
-                                 multiPopParams):
+                                 multiPopParams, eaType):
         io.writeLine("FITNESSOBJECT:{}".format(moduleName))
         io.writeLine("CALCULATOR:{}".format(calcType))
         io.writeLine("POPULATIONSIZE:{}".format(populationSize))
+        io.writeLine("EATYPE:{}".format(eaType))
 
+        # TODO: different parameters for different EA type (GA vs DE)
         if not gaParams: gaParams = { }
         gaParamsBytes = inversionparams.GAParameters(**gaParams).toBytes()
 
@@ -158,7 +160,7 @@ class Inverter(object):
         fitnessCriteria = line[len(critId):].strip().split(" ")
         return fitnessCriteria
 
-    def invert(self, moduleName, calcType, populationSize, gaParams, lensInversionParameters, returnNds, convergenceParams, multiPopParams):
+    def invert(self, moduleName, calcType, populationSize, gaParams, lensInversionParameters, returnNds, convergenceParams, multiPopParams, eaType):
 
         proc, errFile = _startProcess(self.args, self.extraEnv)
 
@@ -171,7 +173,8 @@ class Inverter(object):
             self.onStatus("Version info: " + version)
 
             self._writeInverterParameters(io, moduleName, calcType, populationSize,
-                                          gaParams, lensInversionParameters, convergenceParams, multiPopParams)
+                                          gaParams, lensInversionParameters, convergenceParams, multiPopParams,
+                                          eaType)
 
             # Actually run the inversion
             fitnessCriteria = self._run(io, returnNds)

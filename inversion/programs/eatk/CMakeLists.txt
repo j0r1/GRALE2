@@ -17,8 +17,3 @@ if (GRALE_SUPPORT_MPI AND EATK_SUPPORT_MPI)
 	install(TARGETS grale_invert_newgampi DESTINATION bin)
 endif()
 
-add_executable(grale_invert_jade grale_invert_jade.cpp ../inversioncommunicatornewga.cpp
-	       "${PROJECT_SOURCE_DIR}/core/programs/inputoutput.cpp")
-target_link_libraries(grale_invert_jade ${GRALE_PROGRAMS_LIBRARY_INV} ${GRALE_PROGRAMS_LIBRARY_CORE} ${GRALE_LINK_LIBS})
-install(TARGETS grale_invert_jade DESTINATION bin)
-

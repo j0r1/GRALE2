@@ -13,6 +13,8 @@
 #include "lensgasingleobjectivecrossover.h"
 #include "lensgamultiobjectivecrossover.h"
 #include "lensgastopcriterion.h"
+#include "lensdemutationcrossover.h"
+#include "lensdeevolver.h"
 #include "lensfitnessgeneral.h"
 #include "lensgaconvergenceparameters.h"
 #include "randomnumbergenerator.h"
@@ -352,6 +354,98 @@ protected:
 	}
 
 	errut::bool_t runGA(int popSize, const std::string &lensFitnessObjectType,
+						 const std::string &calculatorType,
+	                     grale::LensGACalculatorFactory &calcFactory, 
+						 const std::shared_ptr<grale::LensGAGenomeCalculator> &genomeCalculator,
+						 const std::vector<uint8_t> &factoryParamBytes,
+						 const grale::GAParameters &params,
+						 const grale::LensGAConvergenceParameters &convParams,
+						 const std::shared_ptr<grale::LensGAMultiPopulationParameters> &multiPopParams,
+						 const std::string &eaType)
+	{
+		if (eaType == "GA")
+			return runGA_GA(popSize, lensFitnessObjectType, calculatorType, calcFactory, genomeCalculator,
+					        factoryParamBytes, params, convParams, multiPopParams);
+		if(eaType == "DE")
+			return runGA_DE(popSize, lensFitnessObjectType, calculatorType, calcFactory, genomeCalculator,
+					        factoryParamBytes, params, convParams, multiPopParams);
+		return "Unknown EA type '" + eaType + "', should be either GA or DE";
+	}
+
+	// TODO: merge more common code from the GA and DE versions
+
+	errut::bool_t runGA_DE(int popSize, const std::string &lensFitnessObjectType,
+						 const std::string &calculatorType,
+	                     grale::LensGACalculatorFactory &calcFactory, 
+						 const std::shared_ptr<grale::LensGAGenomeCalculator> &genomeCalculator,
+						 const std::vector<uint8_t> &factoryParamBytes,
+						 const grale::GAParameters &params,
+						 const grale::LensGAConvergenceParameters &convParams,
+						 const std::shared_ptr<grale::LensGAMultiPopulationParameters> &multiPopParams)
+	{
+		errut::bool_t r;
+
+		int numObj = genomeCalculator->getNumberOfObjectives();
+		if (numObj != 1)
+			return "JADE currently only works with one objective, but there are " + std::to_string(numObj);
+
+		if (multiPopParams.get())
+			return "JADE only works with a single population";
+
+		std::shared_ptr<grale::RandomNumberGenerator> rng = std::make_shared<grale::RandomNumberGenerator>();
+
+		// TODO: At the moment we need this for the stop criterion
+		std::shared_ptr<grale::LensGAGenomeMutation> mutation = std::make_shared<grale::LensGAGenomeMutation>(rng, 
+						   1.0, // chance multiplier; has always been set to one
+						   genomeCalculator->allowNegativeValues(),
+						   0, // mutation amplitude, will be in the stop criterion
+						   true); // absolute or small mutation, will be set in the stop criterion
+
+		// TODO: this stop criterion where the mutation amplitude is changed doesn't really
+		//       make sense (not the kind of mutation in DE)
+
+		Stop stop(mutation);
+		if (!(r = stop.initialize(numObj, convParams)))
+			return "Can't initialize stop criterion: " + r.getErrorString();
+
+		auto mut = std::make_shared<grale::LensDEMutation>();
+		auto cross = std::make_shared<grale::LensDECrossover>(rng, genomeCalculator->allowNegativeValues());
+
+		auto comparison = std::make_shared<grale::LensGAFitnessComparison>();
+
+		// We need this because of the general code in getPreferredBestGenome, for
+		// a single objective it just selects the best
+		m_selector = std::make_shared<SubsequentBestIndividualSelector>(
+								genomeCalculator->getNumberOfObjectives(),
+								comparison);
+
+		grale::LensGAIndividualCreation creation(rng, 
+						  genomeCalculator->getNumberOfBasisFunctions(),
+						  genomeCalculator->getNumberOfSheets(),
+						  genomeCalculator->allowNegativeValues(),
+						  genomeCalculator->getNumberOfObjectives());
+
+		// After this is created, calculatorCleanup() should be called as well (for MPI at the moment)
+		std::shared_ptr<eatk::PopulationFitnessCalculation> calc;
+		if (!(r = getCalculator(lensFitnessObjectType, calculatorType, calcFactory, genomeCalculator,
+								factoryParamBytes, creation, calc)))
+			return "Can't get calculator: " + r.getErrorString();
+
+		grale::LensDEEvolver jade(rng, mut, cross, comparison); // TODO: make other JADE parameters configurable?
+
+		MyGA ga;
+		if (!(r = ga.run(creation, jade, *calc, stop, popSize, popSize, popSize*2)))
+		{
+			calculatorCleanup();
+			return "Error running GA: " + r.getErrorString();
+		}
+
+		m_best = jade.getBestIndividuals();
+
+		return true;
+	}
+
+	errut::bool_t runGA_GA(int popSize, const std::string &lensFitnessObjectType,
 						 const std::string &calculatorType,
 	                     grale::LensGACalculatorFactory &calcFactory, 
 						 const std::shared_ptr<grale::LensGAGenomeCalculator> &genomeCalculator,
