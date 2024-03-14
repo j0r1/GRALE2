@@ -2222,7 +2222,7 @@ def _isAverageLens(lens):
         return False
     return True
 
-def getDensitiesAtImagePositions(lens, imgList, reducePositionFirst, densFunction = None):
+def getDensitiesAtImagePositions(lens, imgList, reducePositionFirst, densFunction = None, forceAverage = None):
     """Gets the densities at the image position for the specified lens,
     mainly intended for use with a lens that's an average of several
     lenses.
@@ -2237,19 +2237,35 @@ Arguments:
    magnification.
  - `reducePositionFirst`: if ``True``, an extended image will first be reduced to a single point (the average position
    of the points in the image), and at this position the densities will be evaluated.
+ - `forceAverage`: TODO
 """
-	# Find out if the lens is an average
-    if not _isAverageLens(lens):
-        lens = lenses.CompositeLens(lens.getLensDistance(), [ 
-            { "factor": 1, "angle": 0, "x": 0, "y": 0, "lens": lens } ])
 
-    params = lens.getLensParameters()
-    numSubLenses = len(params)
-    if numSubLenses == 0:
-        raise PlotException("No sublenses found")
+    if forceAverage is None:
+        # Find out if the lens is an average
+        if not _isAverageLens(lens):
+            lens = lenses.CompositeLens(lens.getLensDistance(), [
+                { "factor": 1, "angle": 0, "x": 0, "y": 0, "lens": lens } ])
 
-    # Ok, here it's an average of individual ones (perhaps a dummy average of one lens)
-    subLenses = [ p["lens"] for p in params ]
+        params = lens.getLensParameters()
+        numSubLenses = len(params)
+        if numSubLenses == 0:
+            raise PlotException("No sublenses found")
+
+        # Ok, here it's an average of individual ones (perhaps a dummy average of one lens)
+        subLenses = [ p["lens"] for p in params ]
+
+    elif forceAverage is False:
+
+        subLenses = [ lens ]
+        numSubLenses = 1
+
+    elif forceAverage is True:
+
+        subLenses = [ p["lens"] for p in lens.getLensParameters() ]
+        numSubLenses = len(subLenses)
+
+    else:
+        raise Exception("'forceAverage' parameter should be None, False or True")
 
     if densFunction is None:
         densFunction = lambda lens, avgPos, imgListEntry: lens.getSurfaceMassDensity(avgPos)
@@ -2305,7 +2321,7 @@ def mergeDensityMeasurementsAndAveragePositions(l):
 
 def plotDensitiesAtImagePositions(lens, imgList, angularUnit = "default", densityUnit = 1.0,
                                   horCoordFunction = lambda xy: xy[0], axes = None, densFunction = None, 
-                                  reduceMethod = None,
+                                  reduceMethod = None, forceAverage = None,
                                   **kwargs):
     """Plots the densities at the image position for the specified lens.
 
@@ -2340,21 +2356,22 @@ Arguments:
    then merged for each extended image (:func:`mergeDensityMeasurementsAndAveragePositions` is used
    for this). The position for an image is also taken to be the average
    of its points. When set to ``"none"``, all image points are treated individually.
+ - `forceAverage`: TODO
  - `kwargs`: these parameters will be passed on to the `plot <https://matplotlib.org/api/_as_gen/matplotlib.pyplot.plot.html#matplotlib.pyplot.plot>`_ 
    or `errorbar <https://matplotlib.org/api/_as_gen/matplotlib.pyplot.errorbar.html#matplotlib.pyplot.errorbar>`_
    functions in matplotlib.
 """
     maxImagePoints = max([ len(img) for src in imgList for img in src.getAllImagePoints() ])
     if maxImagePoints == 1: # All point images
-        densityInfo, numSubLenses = getDensitiesAtImagePositions(lens, imgList, False, densFunction)
+        densityInfo, numSubLenses = getDensitiesAtImagePositions(lens, imgList, False, densFunction, forceAverage)
     else: # at least one extended image
         if reduceMethod == "avgpos":
-            densityInfo, numSubLenses = getDensitiesAtImagePositions(lens, imgList, True, densFunction)
+            densityInfo, numSubLenses = getDensitiesAtImagePositions(lens, imgList, True, densFunction, forceAverage)
         elif reduceMethod == "merge":
-            densityInfo, numSubLenses = getDensitiesAtImagePositions(lens, imgList, False, densFunction)
+            densityInfo, numSubLenses = getDensitiesAtImagePositions(lens, imgList, False, densFunction, forceAverage)
             mergeDensityMeasurementsAndAveragePositions(densityInfo)
         elif reduceMethod == "none":
-            densityInfo, numSubLenses = getDensitiesAtImagePositions(lens, imgList, False, densFunction)
+            densityInfo, numSubLenses = getDensitiesAtImagePositions(lens, imgList, False, densFunction, forceAverage)
         else:
             raise PlotException("For extended images, a valid 'reduceMethod' must be specified")
     
