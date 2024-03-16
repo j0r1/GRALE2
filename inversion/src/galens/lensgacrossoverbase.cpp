@@ -96,34 +96,36 @@ void LensGACrossoverBase::copyScaleFactorFromFitnessToGenome(const shared_ptr<ea
 	}
 }
 
+inline bool areParentsParentsDifferent(const LensGAIndividual &parent1, const LensGAIndividual &parent2)
+{
+	int a1 = parent1.m_parent1;
+	int a2 = parent1.m_parent2;
+	int b1 = parent2.m_parent1;
+	int b2 = parent2.m_parent2;
+	
+	if (a1 < 0 || b1 < 0)
+		return true;
+
+	if (!(a1 == b1 || a1 == b2 || b1 == a2 || ((a2 >= 0) && a2 == b2)))
+		return true;
+
+	return false;
+}
+
 void LensGACrossoverBase::pickParentsNoInbreed(const shared_ptr<eatk::Population> &population, 
 												 LensGAIndividual **pParent1, LensGAIndividual **pParent2)
 {
-	bool ok;
+	bool ok = false;
 	int count = 0;
 	// In original version, an attempt was made to prevent inbreeding
 
 	do 
 	{
-		ok = false;
-
 		pickParentsRaw(population, pParent1, pParent2);
 		// cout << "Trying parents " << (*pParent1)->fitness()->toString() << " and " << (*pParent2)->fitness()->toString() << endl;
 
 		// prevent inbreeding
-
-		int a1 = (*pParent1)->m_parent1;
-		int a2 = (*pParent1)->m_parent2;
-		int b1 = (*pParent2)->m_parent1;
-		int b2 = (*pParent2)->m_parent2;
-
-		if (a1 < 0 || b1 < 0) // one of them is a brand new genome
-			ok = true;
-		else
-		{
-			if (!(a1 == b1 || a1 == b2 || b1 == a2 || ((a2 >= 0) && a2 == b2)))
-				ok = true;
-		}
+		ok = areParentsParentsDifferent(**pParent1, **pParent2);
 		count++;
 	} while (count < 10 && !ok);
 	// cout << "Accepted after " << count << " tries" << endl;
