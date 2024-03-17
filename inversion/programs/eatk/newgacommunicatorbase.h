@@ -3,6 +3,7 @@
 #include "log.h"
 #include "inputoutput.h"
 #include "gaparameters.h"
+#include "deparameters.h"
 #include "lensinversiongafactorycommon.h"
 #include "inversioncommunicatornewga.h"
 #include "constants.h"
@@ -358,7 +359,7 @@ protected:
 	                     grale::LensGACalculatorFactory &calcFactory, 
 						 const std::shared_ptr<grale::LensGAGenomeCalculator> &genomeCalculator,
 						 const std::vector<uint8_t> &factoryParamBytes,
-						 const grale::GAParameters &params,
+						 const grale::EAParameters &params,
 						 const grale::LensGAConvergenceParameters &convParams,
 						 const std::shared_ptr<grale::LensGAMultiPopulationParameters> &multiPopParams,
 						 const std::string &eaType)
@@ -395,7 +396,7 @@ protected:
 			r = "Unknown EA type '" + eaType + "', should be either GA or DE";
 
 		calculatorCleanup();
-		return true;
+		return r;
 	}
 
 	// TODO: merge more common code from the GA and DE versions
@@ -409,11 +410,16 @@ protected:
 	                     grale::LensGACalculatorFactory &calcFactory, 
 						 const std::shared_ptr<grale::LensGAGenomeCalculator> &genomeCalculator,
 						 const std::vector<uint8_t> &factoryParamBytes,
-						 const grale::GAParameters &params,
+						 const grale::EAParameters &eaParams,
 						 const grale::LensGAConvergenceParameters &convParams,
 						 const std::shared_ptr<grale::LensGAMultiPopulationParameters> &multiPopParams)
 	{
 		WriteLineStdout("GAMESSAGESTR:Running DE algorithm");
+
+		const grale::JADEParameters *pParams = dynamic_cast<const grale::JADEParameters*>(&eaParams);
+		if (!pParams)
+			return "Invalid EA parameters for DE";
+		const grale::JADEParameters &params = *pParams;
 
 		errut::bool_t r;
 
@@ -461,11 +467,16 @@ protected:
 	                     grale::LensGACalculatorFactory &calcFactory, 
 						 const std::shared_ptr<grale::LensGAGenomeCalculator> &genomeCalculator,
 						 const std::vector<uint8_t> &factoryParamBytes,
-						 const grale::GAParameters &params,
+						 const grale::EAParameters &eaParams,
 						 const grale::LensGAConvergenceParameters &convParams,
 						 const std::shared_ptr<grale::LensGAMultiPopulationParameters> &multiPopParams)
 	{
 		WriteLineStdout("GAMESSAGESTR:Running GA algorithm");
+
+		const grale::GAParameters *pParams = dynamic_cast<const grale::GAParameters*>(&eaParams);
+		if (!pParams)
+			return "Invalid EA parameters for GA";
+		const grale::GAParameters &params = *pParams;
 
 		errut::bool_t r;
 		MyGA ga;

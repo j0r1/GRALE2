@@ -13,6 +13,7 @@
 #include "lensfitnessobject.h"
 #include "lensgaconvergenceparameters.h"
 #include "lensgamultipopulationparameters.h"
+#include "eaparameters.h"
 #include <serut/memoryserializer.h>
 #include <serut/vectorserializer.h>
 #include <serut/dummyserializer.h>
@@ -180,9 +181,13 @@ bool_t InversionCommunicator::runModule(const std::string &lensFitnessObjectType
 	if (!pCalculatorFactory)
 		return "Calculator type '" + calculatorType + "' is not known";
 
-	GAParameters gaParams;
-	if (!(r = loadFromBytes(gaParams, gaParamBytes)))
-		return "Unable to load GA parameters from received data: " + r.getErrorString();
+	unique_ptr<EAParameters> eaParams;
+	serut::MemorySerializer mSer(gaParamBytes.data(), gaParamBytes.size(), 0, 0);
+	if (!(r = EAParameters::read(mSer, eaParams)))
+		return "Unable to load EA parameters from received data: " + r.getErrorString();
+
+	if (!eaParams.get())
+		return "Internal error: read EAParameters is null";
 
 	auto calculatorParams = pCalculatorFactory->createParametersInstance();
 	if (!(r = loadFromBytes(*calculatorParams, calcParamBytes)))
@@ -208,7 +213,7 @@ bool_t InversionCommunicator::runModule(const std::string &lensFitnessObjectType
 		return "Unable to initialize calculator: " + r.getErrorString();
 
 	if (!(r = runGA(popSize, lensFitnessObjectType, calculatorType, *pCalculatorFactory,
-	                calculatorInstance, calcParamBytes, gaParams, convParams, multiPopParams,
+	                calculatorInstance, calcParamBytes, *eaParams, convParams, multiPopParams,
 					eaType)))
 		return r;
 
@@ -226,7 +231,7 @@ bool_t InversionCommunicator::runModule(const std::string &lensFitnessObjectType
 bool_t InversionCommunicator::runGA(int popSize, const std::string &lensFitnessObjectType, 
 	                     const std::string &calcType, grale::LensGACalculatorFactory &calcFactory,
 						 const std::shared_ptr<grale::LensGAGenomeCalculator> &genomeCalculator,
-						 const std::vector<uint8_t> &factoryParamBytes, const grale::GAParameters &params,
+						 const std::vector<uint8_t> &factoryParamBytes, const grale::EAParameters &params,
 						 const grale::LensGAConvergenceParameters &convParams,
 						 const std::shared_ptr<grale::LensGAMultiPopulationParameters> &multiPopParams,
 						 const std::string &eaType)

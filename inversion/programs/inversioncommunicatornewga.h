@@ -15,7 +15,7 @@ namespace grale
 {
 	class LensInversionGAFactoryCommon;
 	class GALensModule;
-	class GAParameters;
+	class EAParameters;
 	class LensGAConvergenceParameters;
 }
 
@@ -41,7 +41,7 @@ protected:
 	                     grale::LensGACalculatorFactory &calcFactory, 
 						 const std::shared_ptr<grale::LensGAGenomeCalculator> &genomeCalculator,
 						 const std::vector<uint8_t> &factoryParamBytes,
-						 const grale::GAParameters &params,
+						 const grale::EAParameters &params,
 						 const grale::LensGAConvergenceParameters &convParams,
 						 const std::shared_ptr<grale::LensGAMultiPopulationParameters> &multiPopParams,
 						 const std::string &eaType);

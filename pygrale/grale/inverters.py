@@ -130,7 +130,15 @@ class Inverter(object):
 
         # TODO: different parameters for different EA type (GA vs DE)
         if not gaParams: gaParams = { }
-        gaParamsBytes = inversionparams.GAParameters(**gaParams).toBytes()
+        if eaType == "GA":
+            paramClass = inversionparams.GAParameters
+        elif eaType == "DE":
+            paramClass = inversionparams.JADEParameters
+        else:
+            raise Exception("Unknown EA type '{}'".format(eaType))
+
+        paramObject = paramClass(**gaParams)
+        gaParamsBytes = paramObject.toBytes()
 
         _writeParameters(io, "GAPARAMS", gaParamsBytes)
         _writeParameters(io, "GAFACTORYPARAMS", lensInversionParameters.toBytes())

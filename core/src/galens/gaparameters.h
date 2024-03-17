@@ -23,18 +23,15 @@
   
 */
 
-#ifndef GRALE_GAPARAMETERS_H
-
-#define GRALE_GAPARAMETERS_H
+#pragma once
 
 #include "graleconfig.h"
-#include <errut/errorbase.h>
-#include <serut/serializationinterface.h>
+#include "eaparameters.h"
 
 namespace grale
 {
 
-class GRALE_IMPORTEXPORT GAParameters : public errut::ErrorBase
+class GRALE_IMPORTEXPORT GAParameters : public EAParameters
 {
 public:
 	GAParameters(double selectionPressure = 2.5, bool useElitism = true, 
@@ -45,9 +42,9 @@ public:
 	bool getUseElitism() const															{ return m_useElitism; }
 	bool getAlwaysIncludeBest() const													{ return m_alwaysIncludeBest; }
 	double getCrossOverRate() const														{ return m_crossOverRate; }
-
-	bool read(serut::SerializationInterface &si);
-	bool write(serut::SerializationInterface &si);
+protected:
+	errut::bool_t readInternal(serut::SerializationInterface &si) override;
+	errut::bool_t writeInternal(serut::SerializationInterface &si) const override;
 private:
 	double m_selectionPressure;
 	bool m_useElitism;
@@ -57,4 +54,3 @@ private:
 
 } // end namespace
 
-#endif // GRALE_GAPARAMETERS_H

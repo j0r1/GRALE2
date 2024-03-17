@@ -25,10 +25,13 @@
 
 #include "gaparameters.h"
 
+using namespace errut;
+
 namespace grale
 {
 
 GAParameters::GAParameters(double selectionPressure, bool useElitism, bool alwaysIncludeBest, double crossOverRate)
+	: EAParameters(EAParameters::GA)
 {
 	m_selectionPressure = selectionPressure;
 	m_useElitism = useElitism;
@@ -43,23 +46,20 @@ GAParameters::~GAParameters()
 #define GAPARAMETERSFLAG_BIT_USEELITISM			1
 #define GAPARAMETERSFLAG_BIT_ALWAYSINCLUDEBEST	2
 
-bool GAParameters::read(serut::SerializationInterface &si)
+bool_t GAParameters::readInternal(serut::SerializationInterface &si)
 {
 	int32_t flags = 0;
 	if (!si.readDouble(&m_selectionPressure) || 
 	    !si.readInt32(&flags) ||
 		!si.readDouble(&m_crossOverRate))
-	{
-		setErrorString(si.getErrorString());
-		return false;
-	}
+		return si.getErrorString();
 
 	m_useElitism = (flags&GAPARAMETERSFLAG_BIT_USEELITISM)?true:false;
 	m_alwaysIncludeBest = (flags&GAPARAMETERSFLAG_BIT_ALWAYSINCLUDEBEST)?true:false;
 	return true;
 }
 
-bool GAParameters::write(serut::SerializationInterface &si)
+bool_t GAParameters::writeInternal(serut::SerializationInterface &si) const
 {
 	int32_t flags = 0;
 
@@ -71,10 +71,8 @@ bool GAParameters::write(serut::SerializationInterface &si)
 	if (!si.writeDouble(m_selectionPressure) ||
 	    !si.writeInt32(flags) ||
 		!si.writeDouble(m_crossOverRate))
-	{
-		setErrorString(si.getErrorString());
-		return false;
-	}
+		return si.getErrorString();
+
 	return true;
 }
 

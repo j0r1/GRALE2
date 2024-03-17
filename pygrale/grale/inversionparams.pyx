@@ -25,12 +25,13 @@ cimport grale.cppgrid as grid
 cimport grale.vector2d as vector2d
 cimport grale.gravitationallens as gravitationallens
 cimport grale.configurationparameters as configurationparameters
-cimport grale.gaparameters as gaparameters
+cimport grale.eaparameters as eaparameters
 cimport grale.lensinversionbasislensinfo as lensinversionbasislensinfo
 cimport grale.scalesearchparameters as scalesearchparameters
 cimport grale.cppcosmology as cppcosmology
 cimport grale.lensgaconverenceparameters as lensgaconverenceparameters
 cimport grale.lensgamultipopulationparameters as lensgamultipopulationparameters
+cimport grale.errut as errut
 
 include "stringwrappers.pyx"
 
@@ -534,10 +535,53 @@ cdef class LensInversionParametersSinglePlaneCPU(object):
 
         return <bytes>vSer.getBufferPointer()[0:vSer.getBufferSize()]
 
+# TODO: move some code to common base class
+cdef class JADEParameters(object):
+    """General parameters for the JADE algorithm."""
+    
+    cdef unique_ptr[eaparameters.JADEParameters] m_pParams
+
+    cdef _check(self):
+        if self.m_pParams.get() == NULL:
+            raise InversionParametersException("Internal error: JADEParameters instance has not been set")
+
+    def __init__(self): # TODO: add parameters
+        """__init__()
+        
+        TODO
+        """
+        self.m_pParams = unique_ptr[eaparameters.JADEParameters](new eaparameters.JADEParameters())
+
+    def getSettings(self):
+        """getSettings()
+
+        Returns the settings as a dictionary.
+        """
+        self._check()
+        r = { }
+
+        return r
+
+    def toBytes(self):
+        """toBytes()
+
+        Returns a binary representation of these parameters. Needed for the
+        communication with the C++ bases inversion algorithm.
+        """
+        cdef serut.VectorSerializer vSer
+        cdef errut.bool_t r;
+
+        self._check()
+        r = deref(self.m_pParams).write(vSer);
+        if not r.success():
+            raise InversionParametersException(S(r.getErrorString()))
+
+        return <bytes>vSer.getBufferPointer()[0:vSer.getBufferSize()]
+
 cdef class GAParameters(object):
     """General parameters for the genetic algorithm."""
     
-    cdef unique_ptr[gaparameters.GAParameters] m_pParams
+    cdef unique_ptr[eaparameters.GAParameters] m_pParams
 
     cdef _check(self):
         if self.m_pParams.get() == NULL:
@@ -552,7 +596,7 @@ cdef class GAParameters(object):
         of the library that's used for the genetic algorithm.
 
         """
-        self.m_pParams = unique_ptr[gaparameters.GAParameters](new gaparameters.GAParameters(selectionpressure, elitism, alwaysincludebest, crossoverrate))
+        self.m_pParams = unique_ptr[eaparameters.GAParameters](new eaparameters.GAParameters(selectionpressure, elitism, alwaysincludebest, crossoverrate))
 
     def getSettings(self):
         """getSettings()
@@ -575,10 +619,12 @@ cdef class GAParameters(object):
         communication with the C++ bases inversion algorithm.
         """
         cdef serut.VectorSerializer vSer
+        cdef errut.bool_t r;
 
         self._check()
-        if not deref(self.m_pParams).write(vSer):
-            raise InversionParametersException(S(deref(self.m_pParams).getErrorString()))
+        r = deref(self.m_pParams).write(vSer);
+        if not r.success():
+            raise InversionParametersException(S(r.getErrorString()))
 
         return <bytes>vSer.getBufferPointer()[0:vSer.getBufferSize()]
 
