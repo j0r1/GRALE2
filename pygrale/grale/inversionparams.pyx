@@ -6,6 +6,7 @@ from libcpp.string cimport string
 from libcpp.vector cimport vector
 from libcpp.memory cimport shared_ptr, make_shared, unique_ptr, make_unique
 from libcpp cimport bool as cbool
+from libcpp.cast cimport dynamic_cast
 from cpython.array cimport array,clone
 import cython
 from cython.operator cimport dereference as deref
@@ -536,21 +537,15 @@ cdef class LensInversionParametersSinglePlaneCPU(object):
         return <bytes>vSer.getBufferPointer()[0:vSer.getBufferSize()]
 
 # TODO: move some code to common base class
-cdef class JADEParameters(object):
-    """General parameters for the JADE algorithm."""
-    
-    cdef unique_ptr[eaparameters.JADEParameters] m_pParams
+
+cdef class EAParameters(object):
+    """Base class for EA algorithm parameters."""
+
+    cdef unique_ptr[eaparameters.EAParameters] m_pParams
 
     cdef _check(self):
         if self.m_pParams.get() == NULL:
-            raise InversionParametersException("Internal error: JADEParameters instance has not been set")
-
-    def __init__(self): # TODO: add parameters
-        """__init__()
-        
-        TODO
-        """
-        self.m_pParams = unique_ptr[eaparameters.JADEParameters](new eaparameters.JADEParameters())
+            raise InversionParametersException("Internal error: parameters instance has not been set")
 
     def getSettings(self):
         """getSettings()
@@ -559,8 +554,12 @@ cdef class JADEParameters(object):
         """
         self._check()
         r = { }
+        self._fillInSettings(r)
 
         return r
+
+    def _fillInSettings(self, r):
+        raise Exception("Internal error: should be overridden in derived class")
 
     def toBytes(self):
         """toBytes()
@@ -578,14 +577,21 @@ cdef class JADEParameters(object):
 
         return <bytes>vSer.getBufferPointer()[0:vSer.getBufferSize()]
 
-cdef class GAParameters(object):
-    """General parameters for the genetic algorithm."""
+cdef class JADEParameters(EAParameters):
+    """General parameters for the JADE algorithm."""
     
-    cdef unique_ptr[eaparameters.GAParameters] m_pParams
+    def __init__(self): # TODO: add parameters
+        """__init__()
+        
+        TODO
+        """
+        self.m_pParams = unique_ptr[eaparameters.EAParameters](new eaparameters.JADEParameters())
 
-    cdef _check(self):
-        if self.m_pParams.get() == NULL:
-            raise InversionParametersException("Internal error: GAParameters instance has not been set")
+    def _fillInSettings(self, r):
+        pass # No parameters for now
+
+cdef class GAParameters(EAParameters):
+    """General parameters for the genetic algorithm."""
 
     def __init__(self, selectionpressure = 2.5, elitism = True, alwaysincludebest = True, crossoverrate = 0.9):
         """__init__(selectionpressure = 2.5, elitism = True, alwaysincludebest = True, crossoverrate = 0.9)
@@ -596,37 +602,17 @@ cdef class GAParameters(object):
         of the library that's used for the genetic algorithm.
 
         """
-        self.m_pParams = unique_ptr[eaparameters.GAParameters](new eaparameters.GAParameters(selectionpressure, elitism, alwaysincludebest, crossoverrate))
+        self.m_pParams = unique_ptr[eaparameters.EAParameters](new eaparameters.GAParameters(selectionpressure, elitism, alwaysincludebest, crossoverrate))
 
-    def getSettings(self):
-        """getSettings()
+    def _fillInSettings(self, r):
+        cdef eaparameters.GAParametersPtrConst pParams = dynamic_cast[eaparameters.GAParametersPtrConst](self.m_pParams.get())
+        if not pParams:
+            raise Exception("Internal error: can't dynamic_cast parameters to correct type")
 
-        Returns the settings as a dictionary.
-        """
-        self._check()
-        r = { }
-        r["selectionpressure"] = deref(self.m_pParams).getSelectionPressure()
-        r["elitism"] = deref(self.m_pParams).getUseElitism()
-        r["alwaysincludebest"] = deref(self.m_pParams).getAlwaysIncludeBest()
-        r["crossoverrate"] = deref(self.m_pParams).getCrossOverRate()
-
-        return r
-
-    def toBytes(self):
-        """toBytes()
-
-        Returns a binary representation of these parameters. Needed for the
-        communication with the C++ bases inversion algorithm.
-        """
-        cdef serut.VectorSerializer vSer
-        cdef errut.bool_t r;
-
-        self._check()
-        r = deref(self.m_pParams).write(vSer);
-        if not r.success():
-            raise InversionParametersException(S(r.getErrorString()))
-
-        return <bytes>vSer.getBufferPointer()[0:vSer.getBufferSize()]
+        r["selectionpressure"] = deref(pParams).getSelectionPressure()
+        r["elitism"] = deref(pParams).getUseElitism()
+        r["alwaysincludebest"] = deref(pParams).getAlwaysIncludeBest()
+        r["crossoverrate"] = deref(pParams).getCrossOverRate()
 
 cdef class LensInversionParametersMultiPlaneGPU(object):
     """An internal representation of the parameters for the lens multi-plane inversion

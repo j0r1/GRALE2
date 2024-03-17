@@ -20,6 +20,8 @@ cdef extern from "grale/gaparameters.h" namespace "grale":
         cbool getAlwaysIncludeBest() const
         double getCrossOverRate() const
 
+ctypedef const GAParameters* GAParametersPtrConst
+
 cdef extern from "grale/deparameters.h" namespace "grale":
     cdef cppclass JADEParameters(EAParameters):
         JADEParameters()
