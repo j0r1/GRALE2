@@ -883,15 +883,26 @@ cdef class ConvergenceParameters(object):
         self.m_params = make_unique[lensgaconverenceparameters.LensGAConvergenceParameters]()
         self.m_pParams = self.m_params.get()
 
-    def __init__(self, parameterDict = None):
+    def __init__(self, parameterDict = None, eaType = None): # eaType is only used for the defaults
         if not parameterDict:
             # Defaults
-            parameterDict = {
-                "maximumgenerations": 16384,
-                "historysize": 250,
-                "convergencefactors": [  0.1, 0.05 ],
-                "smallmutationsizes": [ -1.0, 0.1 ]  # Negative means large mutation
-            }
+            if eaType == "GA":
+                parameterDict = {
+                    "maximumgenerations": 16384,
+                    "historysize": 250,
+                    "convergencefactors": [  0.1, 0.05 ],
+                    "smallmutationsizes": [ -1.0, 0.1 ]  # Negative means large mutation
+                }
+            elif eaType == "DE":
+                parameterDict = {
+                    "maximumgenerations": 16384,
+                    "historysize": 250,
+                    "convergencefactors": [ 0.05 ], # TODO: what's a good default? Seems to keep converging for a long time
+                    "smallmutationsizes": [ -1.0 ]  # Mutation size isn't actually used for DE
+                }
+            else:
+                raise Exception("Unknown EA type '{}'".format(eaType))
+
         self.fromDict(parameterDict)
 
     def fromDict(self, d):

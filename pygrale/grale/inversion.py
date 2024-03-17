@@ -163,7 +163,7 @@ def _invertCommon(inverter, feedbackObject, moduleName, calcType, fitnessObjectP
     # Merge fitnessObjectParameters with defaults
     fullFitnessObjParams = _mergeModuleParameters(fitnessObjectParameters, moduleName, cosmology)
 
-    fullConvParams = inversionparams.ConvergenceParameters().toDict()
+    fullConvParams = inversionparams.ConvergenceParameters(None, eaType).toDict() # fetches defaults for EA type
     for n in convergenceParameters:
         fullConvParams[n] = convergenceParameters[n]
     if maximumGenerations is not None:
