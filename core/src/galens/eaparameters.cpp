@@ -29,6 +29,9 @@ bool_t EAParameters::read(SerializationInterface &si, unique_ptr<EAParameters> &
 	case GA:
 		params = make_unique<GAParameters>();
 		break;
+	case DE:
+		params = make_unique<DEParameters>();
+		break;
 	case JADE:
 		params = make_unique<JADEParameters>();
 		break;

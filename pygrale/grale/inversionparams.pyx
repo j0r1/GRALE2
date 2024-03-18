@@ -577,6 +577,24 @@ cdef class EAParameters(object):
 
         return <bytes>vSer.getBufferPointer()[0:vSer.getBufferSize()]
 
+cdef class DEParameters(EAParameters):
+    """General parameters for the DE algorithm."""
+    
+    def __init__(self, F = 0.5, CR = 0.5): # TODO: what are good defaults?
+        """__init__()
+        
+        TODO
+        """
+        self.m_pParams = unique_ptr[eaparameters.EAParameters](new eaparameters.DEParameters(F, CR))
+
+    def _fillInSettings(self, r):
+        cdef eaparameters.DEParametersPtrConst pParams = dynamic_cast[eaparameters.DEParametersPtrConst](self.m_pParams.get())
+        if not pParams:
+            raise Exception("Internal error: can't dynamic_cast parameters to correct type")
+
+        r["F"] = deref(pParams).getF()
+        r["CR"] = deref(pParams).getCR()
+
 cdef class JADEParameters(EAParameters):
     """General parameters for the JADE algorithm."""
     
@@ -893,7 +911,7 @@ cdef class ConvergenceParameters(object):
                     "convergencefactors": [  0.1, 0.05 ],
                     "smallmutationsizes": [ -1.0, 0.1 ]  # Negative means large mutation
                 }
-            elif eaType == "DE":
+            elif eaType == "DE" or eaType == "JADE":
                 parameterDict = {
                     "maximumgenerations": 16384,
                     "historysize": 250,

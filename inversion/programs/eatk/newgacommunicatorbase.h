@@ -389,11 +389,11 @@ protected:
 		if (eaType == "GA")
 			r = runGA_GA(rng, creation, comparison, *calc, popSize, lensFitnessObjectType, calculatorType, calcFactory, genomeCalculator,
 					        factoryParamBytes, params, convParams, multiPopParams);
-		else if (eaType == "DE")
+		else if (eaType == "DE" || eaType == "JADE")
 			r = runGA_DE(rng, creation, comparison, *calc, popSize, lensFitnessObjectType, calculatorType, calcFactory, genomeCalculator,
-					        factoryParamBytes, params, convParams, multiPopParams);
+					        factoryParamBytes, params, convParams, multiPopParams, eaType);
 		else
-			r = "Unknown EA type '" + eaType + "', should be either GA or DE";
+			r = "Unknown EA type '" + eaType + "', should be either GA, DE or JADE";
 
 		calculatorCleanup();
 		return r;
@@ -412,23 +412,13 @@ protected:
 						 const std::vector<uint8_t> &factoryParamBytes,
 						 const grale::EAParameters &eaParams,
 						 const grale::LensGAConvergenceParameters &convParams,
-						 const std::shared_ptr<grale::LensGAMultiPopulationParameters> &multiPopParams)
+						 const std::shared_ptr<grale::LensGAMultiPopulationParameters> &multiPopParams,
+						 const std::string &eaType)
 	{
-		WriteLineStdout("GAMESSAGESTR:Running DE algorithm");
-
-		const grale::JADEParameters *pParams = dynamic_cast<const grale::JADEParameters*>(&eaParams);
-		if (!pParams)
-			return "Invalid EA parameters for DE";
-		const grale::JADEParameters &params = *pParams;
-
 		errut::bool_t r;
 
-		int numObj = genomeCalculator->getNumberOfObjectives();
-		if (numObj != 1)
-			return "JADE currently only works with one objective, but there are " + std::to_string(numObj);
-
 		if (multiPopParams.get())
-			return "JADE only works with a single population";
+			return "DE/JADE only works with a single population";
 
 		// TODO: At the moment we need this for the stop criterion
 		std::shared_ptr<grale::LensGAGenomeMutation> mutation = std::make_shared<grale::LensGAGenomeMutation>(rng, 
@@ -440,6 +430,7 @@ protected:
 		// TODO: this stop criterion where the mutation amplitude is changed doesn't really
 		//       make sense (not the kind of mutation in DE)
 
+		int numObj = genomeCalculator->getNumberOfObjectives();
 		Stop stop(mutation);
 		if (!(r = stop.initialize(numObj, convParams)))
 			return "Can't initialize stop criterion: " + r.getErrorString();
@@ -447,13 +438,48 @@ protected:
 		auto mut = std::make_shared<grale::LensDEMutation>();
 		auto cross = std::make_shared<grale::LensDECrossover>(rng, genomeCalculator->allowNegativeValues());
 
-		grale::LensDEEvolver jade(rng, mut, cross, comparison); // TODO: make other JADE parameters configurable?
+		std::unique_ptr<eatk::PopulationEvolver> evolver;
+
+		if (eaType == "JADE")
+		{
+			WriteLineStdout("GAMESSAGESTR:Running JADE algorithm");
+
+			const grale::JADEParameters *pParams = dynamic_cast<const grale::JADEParameters*>(&eaParams);
+			if (!pParams)
+				return "Invalid EA parameters for JADE";
+			const grale::JADEParameters &params = *pParams;
+
+			if (numObj != 1)
+				return "JADE currently only works with one objective, but there are " + std::to_string(numObj);
+
+			evolver = std::make_unique<grale::LensJADEEvolver>(rng, mut, cross, comparison); // TODO: make other JADE parameters configurable?
+		}
+		else if (eaType == "DE")
+		{
+			WriteLineStdout("GAMESSAGESTR:Running DE algorithm");
+
+			const grale::DEParameters *pParams = dynamic_cast<const grale::DEParameters*>(&eaParams);
+			if (!pParams)
+				return "Invalid EA parameters for DE";
+			const grale::DEParameters &params = *pParams;
+
+			if (numObj == 1) // Single objective
+			{
+				evolver = std::make_unique<grale::LensDEEvolver>(rng, mut, params.getF(), cross, params.getCR(), comparison);
+			}
+			else // multi-objective
+			{
+				auto ndCreator = std::make_shared<eatk::FasterNonDominatedSetCreator>(comparison, numObj);
+				evolver = std::make_unique<grale::LensDEEvolver>(rng, mut, params.getF(), cross, params.getCR(), comparison,
+						                                         -1, numObj, ndCreator); // -1 signals multi-objective
+			}
+		}
 
 		MyGA ga;
-		if (!(r = ga.run(creation, jade, calc, stop, popSize, popSize, popSize*2)))
+		if (!(r = ga.run(creation, *evolver, calc, stop, popSize, popSize, popSize*2)))
 			return "Error running GA: " + r.getErrorString();
 
-		m_best = jade.getBestIndividuals();
+		m_best = evolver->getBestIndividuals();
 
 		return true;
 	}

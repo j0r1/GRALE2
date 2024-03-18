@@ -23,5 +23,14 @@ cdef extern from "grale/gaparameters.h" namespace "grale":
 ctypedef const GAParameters* GAParametersPtrConst
 
 cdef extern from "grale/deparameters.h" namespace "grale":
+    cdef cppclass DEParameters(EAParameters):
+        DEParameters(double F, double CR)
+        double getF() const
+        double getCR() const
+
+ctypedef const DEParameters* DEParametersPtrConst
+
+cdef extern from "grale/deparameters.h" namespace "grale":
     cdef cppclass JADEParameters(EAParameters):
         JADEParameters()
+

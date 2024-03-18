@@ -133,6 +133,8 @@ class Inverter(object):
         if eaType == "GA":
             paramClass = inversionparams.GAParameters
         elif eaType == "DE":
+            paramClass = inversionparams.DEParameters
+        elif eaType == "JADE":
             paramClass = inversionparams.JADEParameters
         else:
             raise Exception("Unknown EA type '{}'".format(eaType))
