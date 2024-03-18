@@ -449,23 +449,33 @@ protected:
 				return "Invalid EA parameters for JADE";
 			const grale::JADEParameters &params = *pParams;
 
-			if (numObj != 1)
-				return "JADE currently only works with one objective, but there are " + std::to_string(numObj);
-
-			evolver = std::make_unique<grale::LensJADEEvolver>(rng, mut, cross, comparison); // TODO: make other JADE parameters configurable?
+			if (numObj == 1)
+			{
+				evolver = std::make_unique<grale::LensJADEEvolver>(rng, mut, cross, comparison); // TODO: make other JADE parameters configurable?
+			}
+			else // multi-objective
+			{
+				auto ndCreator = std::make_shared<eatk::FasterNonDominatedSetCreator>(comparison, numObj);
+				evolver = std::make_unique<grale::LensJADEEvolver>(rng, mut, cross, comparison,
+						  -1, // signals multi-objective
+						  0.05, 0.1, true, 0.5, 0.5, // TODO: make parameters configurable
+						  numObj, ndCreator);
+			}
 		}
 		else if (eaType == "DE")
 		{
-			WriteLineStdout("GAMESSAGESTR:Running DE algorithm");
-
 			const grale::DEParameters *pParams = dynamic_cast<const grale::DEParameters*>(&eaParams);
 			if (!pParams)
 				return "Invalid EA parameters for DE";
 			const grale::DEParameters &params = *pParams;
+			double F = params.getF();
+			double CR = params.getCR();
+
+			WriteLineStdout("GAMESSAGESTR:Running DE algorithm, F = " + std::to_string(F) + ", CR = " + std::to_string(CR));
 
 			if (numObj == 1) // Single objective
 			{
-				evolver = std::make_unique<grale::LensDEEvolver>(rng, mut, params.getF(), cross, params.getCR(), comparison);
+				evolver = std::make_unique<grale::LensDEEvolver>(rng, mut, F, cross, CR, comparison);
 			}
 			else // multi-objective
 			{

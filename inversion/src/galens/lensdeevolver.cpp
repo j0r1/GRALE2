@@ -67,8 +67,16 @@ LensJADEEvolver::LensJADEEvolver(
 		const shared_ptr<eatk::RandomNumberGenerator> &rng,
 		const shared_ptr<eatk::DifferentialEvolutionMutation> &mut,
 		const shared_ptr<eatk::DifferentialEvolutionCrossover> &cross,
-		const shared_ptr<eatk::FitnessComparison> &fitComp) 
-	: eatk::JADEEvolver(rng, mut, cross, fitComp) // TODO: other parameters
+		const shared_ptr<eatk::FitnessComparison> &fitComp,
+		int objectiveNumber, // negative means multi-objective
+		double p, double c,
+		bool useArchive,
+		double initMuF,
+		double initMuCR,
+		size_t numObjectives,
+		const shared_ptr<eatk::NonDominatedSetCreator> &ndCreator
+	) 
+	: eatk::JADEEvolver(rng, mut, cross, fitComp, objectiveNumber, p, c, useArchive, initMuF, initMuCR, numObjectives, ndCreator) // TODO: other parameters
 {
 }
 
@@ -85,6 +93,11 @@ bool_t LensJADEEvolver::createNewPopulation(size_t generation, shared_ptr<eatk::
 {
 	copyScaleFactorFromFitnessToGenome(*population);
 	return eatk::JADEEvolver::createNewPopulation(generation, population, targetPopulationSize);
+}
+
+void LensJADEEvolver::onMutationCrossoverSettings(double muF, double muCR) const
+{
+	//cerr << "DEBUG: muF = " << muF << ", muCR = " << muCR << endl;
 }
 
 } // end namespace
