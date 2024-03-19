@@ -26,6 +26,7 @@ set(HEADERS
 	galens/oclcalculatedbackprojector.h
 	galens/lensdemutationcrossover.h
 	galens/lensdeevolver.h
+	galens/populationdump.h
 	prob/randomnumbergenerator.h
 	fitness/lensfitnessobject.h
 	fitness/numericgradientcalculator.h
@@ -68,6 +69,7 @@ set(SOURCES
 	galens/oclcalculatedbackprojector.cpp
 	galens/lensdemutationcrossover.cpp
 	galens/lensdeevolver.cpp
+	galens/populationdump.cpp
 	prob/randomnumbergenerator.cpp
 	fitness/numericgradientcalculator.cpp
 	fitness/lensfitnessobject.cpp
