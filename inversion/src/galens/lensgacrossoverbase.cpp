@@ -44,6 +44,12 @@ bool_t LensGACrossoverBase::check(const shared_ptr<eatk::Population> &population
 
 bool_t LensGACrossoverBase::createNewPopulation(size_t generation, shared_ptr<eatk::Population> &population, size_t targetPopulationSize)
 {
+	// Scale factor is calculated and stored in fitness, copy it back to genome
+	// Note: do this before the checkDumpLoad call, so that that call can also check
+	//       for NaN (before scale factor is calculated/transferred it is also set
+	//       to NaN)
+	copyScaleFactorFromFitnessToGenome(population);
+
 	m_popDump.checkDumpLoad(generation, *population);
 
 	bool_t r;
@@ -54,10 +60,6 @@ bool_t LensGACrossoverBase::createNewPopulation(size_t generation, shared_ptr<ea
 	}
 	if (population->size() != targetPopulationSize)
 		return "Expecting size " + to_string(targetPopulationSize) + " but got " + to_string(population->size());
-
-	// TODO: do this in another function?
-	// Scale factor is calculated and stored in fitness, copy it back to genome
-	copyScaleFactorFromFitnessToGenome(population);
 	
 	if (!(r = sort(population, targetPopulationSize)))
 		return "Error sorting population: " + r.getErrorString();
