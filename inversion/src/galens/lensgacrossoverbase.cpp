@@ -1,6 +1,10 @@
 #include "lensgacrossoverbase.h"
 #include "lensgaindividual.h"
+#include "utils.h"
 #include <cmath>
+#include <limits>
+#include <cstdlib>
+#include <serut/fileserializer.h>
 
 using namespace std;
 using namespace errut;
@@ -16,7 +20,26 @@ LensGACrossoverBase::LensGACrossoverBase(double beta, bool elitism, bool include
 		m_rng(rng), m_cross(rng, allowNegative),
 		m_mutation(mutation)
 {
+	m_dumpPopulationGeneration = numeric_limits<size_t>::max();
+	const string key = "GRALE_DUMPPOP_GENERATION";
+	if (std::getenv(key.c_str()))
+	{
+		bool_t r;
+		int gen;
 
+		if (!(r = getenv(key, gen, 0)))
+			cerr << "WARNING: " << key << " value should be positive value: " << r.getErrorString() << endl;
+		else
+		{
+			m_dumpPopulationGeneration = (size_t)gen;
+
+			const string keyDumpFn = "GRALE_DUMPPOP_FILENAME";
+
+			getenv(keyDumpFn, m_dumpPopulationFilename);
+			if (m_dumpPopulationFilename.empty())
+				cerr << "WARNING: expecting " << keyDumpFn << " to be set" << endl;
+		}
+	}
 }
 
 bool_t LensGACrossoverBase::check(const shared_ptr<eatk::Population> &population)
@@ -40,8 +63,35 @@ bool_t LensGACrossoverBase::check(const shared_ptr<eatk::Population> &population
 	return true;
 }
 
+void LensGACrossoverBase::dumpPopulation(const eatk::Population &population)
+{
+	serut::FileSerializer fSer;
+
+	if (!fSer.open(m_dumpPopulationFilename, serut::FileSerializer::WriteOnly))
+	{
+		cerr << "WARNING: can't open dump population file '" << m_dumpPopulationFilename << ": " << fSer.getErrorString() << endl;
+		return;
+	}
+
+	cerr << "DEBUG: writing current population to " << m_dumpPopulationFilename << endl;
+
+	for (auto &ind : population.individuals())
+	{
+		auto pInd = dynamic_cast<const LensGAIndividual *>(ind.get());
+		if (!pInd)
+		{
+			cerr << "WARNING: individual is of incorrect type, can't dump to file" << endl;
+			return;
+		}
+		pInd->write(fSer);
+	}
+}
+
 bool_t LensGACrossoverBase::createNewPopulation(size_t generation, shared_ptr<eatk::Population> &population, size_t targetPopulationSize)
 {
+	if (generation == m_dumpPopulationGeneration)
+		dumpPopulation(*population);
+
 	bool_t r;
 	if (generation == 0)
 	{
