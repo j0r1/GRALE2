@@ -57,7 +57,8 @@ protected:
 	virtual errut::bool_t sortCheck(const std::shared_ptr<eatk::Population> &population) = 0;
 	virtual errut::bool_t sort(std::shared_ptr<eatk::Population> &population, size_t targetPopulationSize) = 0;
 protected:
-	void dumpPopulation(const eatk::Population &population);
+	void dumpPopulation(const eatk::Population &population, const std::string &filename);
+	void loadPopulation(eatk::Population &population, const std::string &filename);
 
 	std::shared_ptr<eatk::RandomNumberGenerator> m_rng;
 	grale::LensGAGenomeCrossover m_cross;
@@ -65,8 +66,8 @@ protected:
 	double m_beta, m_crossoverRate;
 	std::shared_ptr<eatk::GenomeMutation> m_mutation;
 
-	size_t m_dumpPopulationGeneration;
-	std::string m_dumpPopulationFilename;
+	size_t m_dumpPopulationGeneration, m_loadPopulationGeneration;
+	std::string m_dumpPopulationFilename, m_loadPopulationFilename;
 };
 
 }

@@ -20,26 +20,31 @@ LensGACrossoverBase::LensGACrossoverBase(double beta, bool elitism, bool include
 		m_rng(rng), m_cross(rng, allowNegative),
 		m_mutation(mutation)
 {
-	m_dumpPopulationGeneration = numeric_limits<size_t>::max();
-	const string key = "GRALE_DUMPPOP_GENERATION";
-	if (std::getenv(key.c_str()))
+
+	auto getDumpInfo = [](const string &keyGen, const string &keyFn, size_t &genNr, string &filename)
 	{
+		genNr = numeric_limits<size_t>::max();
+
+		if (!std::getenv(keyGen.c_str()))
+			return;
+
 		bool_t r;
 		int gen;
 
-		if (!(r = getenv(key, gen, 0)))
-			cerr << "WARNING: " << key << " value should be positive value: " << r.getErrorString() << endl;
+		if (!(r = getenv(keyGen, gen, 0)))
+			cerr << "WARNING: " << keyGen << " value should be positive value: " << r.getErrorString() << endl;
 		else
 		{
-			m_dumpPopulationGeneration = (size_t)gen;
+			genNr = (size_t)gen;
 
-			const string keyDumpFn = "GRALE_DUMPPOP_FILENAME";
-
-			getenv(keyDumpFn, m_dumpPopulationFilename);
-			if (m_dumpPopulationFilename.empty())
-				cerr << "WARNING: expecting " << keyDumpFn << " to be set" << endl;
+			getenv(keyFn, filename);
+			if (filename.empty())
+				cerr << "WARNING: expecting " << keyFn << " to be set" << endl;
 		}
-	}
+	};
+
+	getDumpInfo("GRALE_DUMPPOP_GENERATION", "GRALE_DUMPPOP_FILENAME", m_dumpPopulationGeneration, m_dumpPopulationFilename);
+	getDumpInfo("GRALE_LOADPOP_GENERATION", "GRALE_LOADPOP_FILENAME", m_loadPopulationGeneration, m_loadPopulationFilename);
 }
 
 bool_t LensGACrossoverBase::check(const shared_ptr<eatk::Population> &population)
@@ -63,17 +68,19 @@ bool_t LensGACrossoverBase::check(const shared_ptr<eatk::Population> &population
 	return true;
 }
 
-void LensGACrossoverBase::dumpPopulation(const eatk::Population &population)
+void LensGACrossoverBase::dumpPopulation(const eatk::Population &population, const std::string &filename)
 {
 	serut::FileSerializer fSer;
 
-	if (!fSer.open(m_dumpPopulationFilename, serut::FileSerializer::WriteOnly))
+	if (!fSer.open(filename, serut::FileSerializer::WriteOnly))
 	{
 		cerr << "WARNING: can't open dump population file '" << m_dumpPopulationFilename << ": " << fSer.getErrorString() << endl;
 		return;
 	}
 
-	cerr << "DEBUG: writing current population to " << m_dumpPopulationFilename << endl;
+	cerr << "DEBUG: writing current population to " << filename << endl;
+
+	fSer.writeInt32(population.size());
 
 	for (auto &ind : population.individuals())
 	{
@@ -87,10 +94,52 @@ void LensGACrossoverBase::dumpPopulation(const eatk::Population &population)
 	}
 }
 
+void LensGACrossoverBase::loadPopulation(eatk::Population &population, const std::string &filename)
+{
+	serut::FileSerializer fSer;
+
+	if (!fSer.open(filename, serut::FileSerializer::ReadOnly))
+	{
+		cerr << "WARNING: can't open dump population file '" << m_dumpPopulationFilename << ": " << fSer.getErrorString() << endl;
+		return;
+	}
+
+	cerr << "DEBUG: loading current population from " << filename << endl;
+
+	int32_t num = 0;
+	fSer.readInt32(&num);
+	cerr << "DEBUG: reading " << num << " individuals" << endl;
+
+	std::shared_ptr<eatk::Individual> refInd = population.individual(0);
+	std::vector<shared_ptr<eatk::Individual>> newPop;
+
+	bool_t r;
+
+	for (int32_t i = 0 ; i < num ; i++)
+	{
+		auto newInd = refInd->createCopy();
+		auto pInd = dynamic_cast<LensGAIndividual *>(newInd.get());
+		if (!(r = pInd->read(fSer)))
+		{
+			cerr << "WARNING: can't read an individual: " << r.getErrorString() << endl;
+			return;
+		}
+		newPop.push_back(newInd);
+	}
+
+	// swap pops
+	population.clear();
+	for (auto &i : newPop)
+		population.append(i);
+}
+
 bool_t LensGACrossoverBase::createNewPopulation(size_t generation, shared_ptr<eatk::Population> &population, size_t targetPopulationSize)
 {
-	if (generation == m_dumpPopulationGeneration)
-		dumpPopulation(*population);
+	if (generation == m_loadPopulationGeneration && !m_loadPopulationFilename.empty())
+		loadPopulation(*population, m_loadPopulationFilename);
+
+	if (generation == m_dumpPopulationGeneration && !m_dumpPopulationFilename.empty())
+		dumpPopulation(*population, m_dumpPopulationFilename);
 
 	bool_t r;
 	if (generation == 0)
