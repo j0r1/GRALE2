@@ -1,6 +1,7 @@
 #pragma once
 
 #include "graleconfig.h"
+#include "populationdump.h"
 #include <eatk/jadeevolver.h>
 #include <eatk/differentialevolutionevolver.h>
 
@@ -22,6 +23,8 @@ public:
 	errut::bool_t check(const std::shared_ptr<eatk::Population> &population) override;
 	// We need to override this function to copy the calculated scale factors to the genomes
 	errut::bool_t createNewPopulation(size_t generation, std::shared_ptr<eatk::Population> &population, size_t targetPopulationSize) override;
+private:
+	PopulationDump m_popDump;
 };
 
 class LensJADEEvolver : public eatk::JADEEvolver
@@ -46,6 +49,8 @@ public:
 	errut::bool_t createNewPopulation(size_t generation, std::shared_ptr<eatk::Population> &population, size_t targetPopulationSize) override;
 protected:
 	void onMutationCrossoverSettings(double muF, double muCR) const override;
+private:
+	PopulationDump m_popDump;
 };
 
 } // end namespace

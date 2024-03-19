@@ -60,6 +60,9 @@ bool_t LensDEEvolver::check(const std::shared_ptr<eatk::Population> &population)
 bool_t LensDEEvolver::createNewPopulation(size_t generation, shared_ptr<eatk::Population> &population, size_t targetPopulationSize)
 {
 	copyScaleFactorFromFitnessToGenome(*population);
+
+	m_popDump.checkDumpLoad(generation, *population);
+
 	return eatk::DifferentialEvolutionEvolver::createNewPopulation(generation, population, targetPopulationSize);
 }
 
@@ -92,6 +95,9 @@ bool_t LensJADEEvolver::check(const std::shared_ptr<eatk::Population> &populatio
 bool_t LensJADEEvolver::createNewPopulation(size_t generation, shared_ptr<eatk::Population> &population, size_t targetPopulationSize)
 {
 	copyScaleFactorFromFitnessToGenome(*population);
+
+	m_popDump.checkDumpLoad(generation, *population);
+
 	return eatk::JADEEvolver::createNewPopulation(generation, population, targetPopulationSize);
 }
 
