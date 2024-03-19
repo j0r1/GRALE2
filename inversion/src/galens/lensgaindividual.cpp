@@ -42,6 +42,26 @@ string LensGAFitness::toString() const
 	return ss.str();
 }
 
+bool_t LensGAFitness::read(serut::SerializationInterface &si)
+{
+	int32_t num;
+	if (!si.readInt32(&num))
+		return si.getErrorString();
+
+	m_fitnesses.resize(num);
+	if (!si.readFloats(m_fitnesses) || !si.readFloat(&m_scaleFactor))
+		return si.getErrorString();
+	return true;
+}
+
+bool_t LensGAFitness::write(serut::SerializationInterface &si) const
+{
+	int32_t num = (int32_t)m_fitnesses.size();
+	if (!si.writeInt32(num) || !si.writeFloats(m_fitnesses) || !si.writeFloat(m_scaleFactor))
+		return si.getErrorString();
+	return true;
+}
+
 #ifdef EATKCONFIG_MPISUPPORT
 bool_t LensGAFitness::MPI_BroadcastLayout(int root, MPI_Comm communicator)
 {
@@ -108,6 +128,27 @@ string LensGAGenome::toString() const
 	return ss.str();
 }
 
+bool_t LensGAGenome::read(serut::SerializationInterface &si)
+{
+	int32_t nums[2];
+	if (!si.readInt32s(nums, 2))
+		return si.getErrorString();
+
+	m_weights.resize(nums[0]);
+	m_sheets.resize(nums[1]);
+	if (!si.readFloats(m_weights) || !si.readFloats(m_sheets) || !si.readFloat(&m_scaleFactor))
+		return si.getErrorString();
+	return true;
+}
+
+bool_t LensGAGenome::write(serut::SerializationInterface &si) const
+{
+	int32_t nums[2] = { (int32_t)m_weights.size(), (int32_t)m_sheets.size() };
+	if (!si.writeInt32s(nums, 2) || !si.writeFloats(m_weights) || !si.writeFloats(m_sheets) || !si.writeFloat(m_scaleFactor))
+		return si.getErrorString();
+	return true;
+}
+
 #ifdef EATKCONFIG_MPISUPPORT
 bool_t LensGAGenome::MPI_BroadcastLayout(int root, MPI_Comm communicator)
 {
@@ -153,6 +194,47 @@ shared_ptr<Individual> LensGAIndividual::createNew(const shared_ptr<eatk::Genome
 			size_t introducedInGeneration) const
 {
 	return make_shared<LensGAIndividual>(genome, fitness, introducedInGeneration);
+}
+
+bool_t LensGAIndividual::read(serut::SerializationInterface &si)
+{
+	auto pGenome = dynamic_cast<LensGAGenome *>(genomePtr());
+	auto pFitness = dynamic_cast<LensGAFitness *>(fitnessPtr());
+	if (!pGenome || !pFitness)
+		return "Genome or fitness is not of the correct type for a LensGAIndividual";
+
+	// TODO: m_lastMutationGeneration? m_introducedInGeneration?
+
+	if (!si.readInt32(&m_parent1) || !si.readInt32(&m_parent2) || !si.readInt32(&m_ownIndex))
+		return si.getErrorString();
+
+	bool_t r;
+	if (!(r = pGenome->read(si)))
+		return r;
+	if (!(r = pFitness->read(si)))
+		return r;
+	return true;
+}
+
+bool_t LensGAIndividual::write(serut::SerializationInterface &si) const
+{
+	auto pGenome = dynamic_cast<const LensGAGenome *>(genomePtr());
+	auto pFitness = dynamic_cast<const LensGAFitness *>(fitnessPtr());
+	if (!pGenome || !pFitness)
+		return "Genome or fitness is not of the correct type for a LensGAIndividual";
+
+	// TODO: m_lastMutationGeneration? m_introducedInGeneration?
+	
+	if (!si.writeInt32(m_parent1) || !si.writeInt32(m_parent2) || !si.writeInt32(m_ownIndex))
+		return si.getErrorString();
+
+	bool_t r;
+	if (!(r = pGenome->write(si)))
+		return r;
+	if (!(r = pFitness->write(si)))
+		return r;
+
+	return true;
 }
 
 LensGAIndividualCreation::LensGAIndividualCreation(const std::shared_ptr<eatk::RandomNumberGenerator> &rng,

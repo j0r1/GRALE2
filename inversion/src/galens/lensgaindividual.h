@@ -3,6 +3,7 @@
 #include "graleconfig.h"
 #include <eatk/population.h>
 #include <eatk/randomnumbergenerator.h>
+#include <serut/serializationinterface.h>
 #include <limits>
 
 namespace grale
@@ -15,6 +16,10 @@ public:
 
 	std::shared_ptr<Fitness> createCopy(bool copyContents = true) const override;
 	std::string toString() const override;
+
+	errut::bool_t read(serut::SerializationInterface &si);
+	errut::bool_t write(serut::SerializationInterface &si) const;
+
 #ifdef EATKCONFIG_MPISUPPORT
 	errut::bool_t MPI_BroadcastLayout(int root, MPI_Comm communicator) override;
 	errut::bool_t MPI_Send(int dest, int tag, MPI_Comm communicator, std::vector<MPI_Request> &requests) const override;
@@ -31,6 +36,9 @@ public:
 
 	std::shared_ptr<Genome> createCopy(bool copyContents = true) const override;
 	std::string toString() const override;
+
+	errut::bool_t read(serut::SerializationInterface &si);
+	errut::bool_t write(serut::SerializationInterface &si) const;
 
 #ifdef EATKCONFIG_MPISUPPORT
 	errut::bool_t MPI_BroadcastLayout(int root, MPI_Comm communicator) override;
@@ -51,6 +59,9 @@ public:
 
 	std::shared_ptr<eatk::Individual> createNew(const std::shared_ptr<eatk::Genome> &genome, const std::shared_ptr<eatk::Fitness> &fitness,
 			   size_t introducedInGeneration = std::numeric_limits<size_t>::max()) const override;
+
+	errut::bool_t read(serut::SerializationInterface &si);
+	errut::bool_t write(serut::SerializationInterface &si) const;
 
 	int m_parent1, m_parent2;
 	int m_ownIndex;
