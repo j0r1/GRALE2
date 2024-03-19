@@ -1,5 +1,6 @@
 #include "lensgaindividual.h"
 #include <sstream>
+#include <cmath>
 
 using namespace eatk;
 using namespace std;
@@ -60,6 +61,15 @@ bool_t LensGAFitness::write(serut::SerializationInterface &si) const
 	if (!si.writeInt32(num) || !si.writeFloats(m_fitnesses) || !si.writeFloat(m_scaleFactor))
 		return si.getErrorString();
 	return true;
+}
+
+void LensGAFitness::checkNaN(size_t populationIndex) const
+{
+	if (isnan(m_scaleFactor))
+		cerr << "DEBUG: fitness[" << populationIndex << "].m_scaleFactor = NaN" << endl;
+	for (size_t i = 0 ; i < m_fitnesses.size() ; i++)
+		if (isnan(m_fitnesses[i]))
+			cerr << "DEBUG: fitness[" << populationIndex << "].m_fitnesses[" << i << "] = NaN" << endl;
 }
 
 #ifdef EATKCONFIG_MPISUPPORT
@@ -147,6 +157,18 @@ bool_t LensGAGenome::write(serut::SerializationInterface &si) const
 	if (!si.writeInt32s(nums, 2) || !si.writeFloats(m_weights) || !si.writeFloats(m_sheets) || !si.writeFloat(m_scaleFactor))
 		return si.getErrorString();
 	return true;
+}
+
+void LensGAGenome::checkNaN(size_t populationIndex) const
+{
+	if (isnan(m_scaleFactor))
+		cerr << "DEBUG: genome[" << populationIndex << "].m_scaleFactor = NaN" << endl;
+	for (size_t i = 0 ; i < m_weights.size() ; i++)
+		if (isnan(m_weights[i]))
+			cerr << "DEBUG: genome[" << populationIndex << "].m_weights[" << i << "] = NaN" << endl;
+	for (size_t i = 0 ; i < m_sheets.size() ; i++)
+		if (isnan(m_sheets[i]))
+			cerr << "DEBUG: genome[" << populationIndex << "].m_sheets[" << i << "] = NaN" << endl;
 }
 
 #ifdef EATKCONFIG_MPISUPPORT

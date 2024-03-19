@@ -20,6 +20,8 @@ public:
 	errut::bool_t read(serut::SerializationInterface &si);
 	errut::bool_t write(serut::SerializationInterface &si) const;
 
+	void checkNaN(size_t populationIndex) const;
+
 #ifdef EATKCONFIG_MPISUPPORT
 	errut::bool_t MPI_BroadcastLayout(int root, MPI_Comm communicator) override;
 	errut::bool_t MPI_Send(int dest, int tag, MPI_Comm communicator, std::vector<MPI_Request> &requests) const override;
@@ -39,6 +41,8 @@ public:
 
 	errut::bool_t read(serut::SerializationInterface &si);
 	errut::bool_t write(serut::SerializationInterface &si) const;
+
+	void checkNaN(size_t populationIndex) const;
 
 #ifdef EATKCONFIG_MPISUPPORT
 	errut::bool_t MPI_BroadcastLayout(int root, MPI_Comm communicator) override;

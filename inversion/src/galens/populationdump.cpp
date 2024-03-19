@@ -66,15 +66,25 @@ void PopulationDump::dumpPopulation(const eatk::Population &population, const st
 
 	fSer.writeInt32(population.size());
 
-	for (auto &ind : population.individuals())
+	for (size_t idx = 0 ; idx < population.size() ; idx++)
 	{
-		auto pInd = dynamic_cast<const LensGAIndividual *>(ind.get());
+		auto pInd = dynamic_cast<const LensGAIndividual *>(population.individual(idx).get());
 		if (!pInd)
 		{
 			cerr << "WARNING: individual is of incorrect type, can't dump to file" << endl;
 			return;
 		}
 		pInd->write(fSer);
+
+		auto pGenome = dynamic_cast<const LensGAGenome *>(pInd->genomePtr());
+		auto pFitness = dynamic_cast<const LensGAFitness *>(pInd->fitnessPtr());
+		if (!pGenome || !pFitness)
+			cerr << "WARNING: Genome or fitness is not of the correct type for a LensGAIndividual" << endl;
+		else
+		{
+			pGenome->checkNaN(idx);
+			pFitness->checkNaN(idx);
+		}
 	}
 }
 
