@@ -515,12 +515,15 @@ protected:
 						 const grale::LensGAConvergenceParameters &convParams,
 						 const std::shared_ptr<grale::LensGAMultiPopulationParameters> &multiPopParams)
 	{
-		WriteLineStdout("GAMESSAGESTR:Running GA algorithm");
-
 		const grale::GAParameters *pParams = dynamic_cast<const grale::GAParameters*>(&eaParams);
 		if (!pParams)
 			return "Invalid EA parameters for GA";
 		const grale::GAParameters &params = *pParams;
+
+		WriteLineStdout("GAMESSAGESTR:Running GA algorithm, selection pressure = " + std::to_string(params.getSelectionPressure()) +
+				        ", elitism = " + std::to_string((int)params.getUseElitism()) +
+						", always include best = " + std::to_string((int)params.getAlwaysIncludeBest()) + 
+						", crossover rate = " + std::to_string(params.getCrossOverRate()));
 
 		errut::bool_t r;
 		MyGA ga;
