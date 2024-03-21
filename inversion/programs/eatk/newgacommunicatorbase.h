@@ -442,23 +442,31 @@ protected:
 
 		if (eaType == "JADE")
 		{
-			WriteLineStdout("GAMESSAGESTR:Running JADE algorithm");
-
 			const grale::JADEParameters *pParams = dynamic_cast<const grale::JADEParameters*>(&eaParams);
 			if (!pParams)
 				return "Invalid EA parameters for JADE";
 			const grale::JADEParameters &params = *pParams;
+			double p = params.getBestFraction_p();
+			double c = params.getParameterUpdateFraction_c();
+			bool useArch = params.useExternalArchive();
+			double initMuF = params.getInitialMeanF();
+			double initMuCR = params.getInitialMeanCR();
+
+			WriteLineStdout("GAMESSAGESTR:Running JADE algorithm, p = " + std::to_string(p) + 
+					        ", c = " + std::to_string(c) + ", useArchive = " + std::to_string((int)useArch) +
+							", initMuF = " + std::to_string(initMuF) + ", initMuCR = " + std::to_string(initMuCR));
 
 			if (numObj == 1)
 			{
-				evolver = std::make_unique<grale::LensJADEEvolver>(rng, mut, cross, comparison); // TODO: make other JADE parameters configurable?
+				evolver = std::make_unique<grale::LensJADEEvolver>(rng, mut, cross, comparison, 0,
+						                                           p, c, useArch, initMuF, initMuCR);
 			}
 			else // multi-objective
 			{
 				auto ndCreator = std::make_shared<eatk::FasterNonDominatedSetCreator>(comparison, numObj);
 				evolver = std::make_unique<grale::LensJADEEvolver>(rng, mut, cross, comparison,
 						  -1, // signals multi-objective
-						  0.05, 0.1, true, 0.5, 0.5, // TODO: make parameters configurable
+						  p, c, useArch, initMuF, initMuCR,
 						  numObj, ndCreator);
 			}
 		}

@@ -32,5 +32,12 @@ ctypedef const DEParameters* DEParametersPtrConst
 
 cdef extern from "grale/deparameters.h" namespace "grale":
     cdef cppclass JADEParameters(EAParameters):
-        JADEParameters()
+        JADEParameters(double p, double c, cbool useArchive, double initMuF, double initMuCR)
+        double getBestFraction_p() const
+        double getParameterUpdateFraction_c() const
+        cbool useExternalArchive() const
+        double getInitialMeanF() const
+        double getInitialMeanCR() const
+
+ctypedef const JADEParameters* JADEParametersPtrConst
 

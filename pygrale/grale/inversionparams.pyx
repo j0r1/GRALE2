@@ -598,15 +598,23 @@ cdef class DEParameters(EAParameters):
 cdef class JADEParameters(EAParameters):
     """General parameters for the JADE algorithm."""
     
-    def __init__(self): # TODO: add parameters
+    def __init__(self, p = 0.05, c = 0.1, usearchive = True, initmeanF = 0.5, initmeanCR = 0.5):
         """__init__()
         
         TODO
         """
-        self.m_pParams = unique_ptr[eaparameters.EAParameters](new eaparameters.JADEParameters())
+        self.m_pParams = unique_ptr[eaparameters.EAParameters](new eaparameters.JADEParameters(p, c, usearchive, initmeanF, initmeanCR))
 
     def _fillInSettings(self, r):
-        pass # No parameters for now
+        cdef eaparameters.JADEParametersPtrConst pParams = dynamic_cast[eaparameters.JADEParametersPtrConst](self.m_pParams.get())
+        if not pParams:
+            raise Exception("Internal error: can't dynamic_cast parameters to correct type")
+
+        r["p"] = deref(pParams).getBestFraction_p()
+        r["c"] = deref(pParams).getParameterUpdateFraction_c()
+        r["usearchive"] = deref(pParams).useExternalArchive()
+        r["initmeanF"] = deref(pParams).getInitialMeanF()
+        r["initmeanCR"] = deref(pParams).getInitialMeanCR()
 
 cdef class GAParameters(EAParameters):
     """General parameters for the genetic algorithm."""

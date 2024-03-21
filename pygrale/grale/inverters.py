@@ -120,15 +120,8 @@ class Inverter(object):
         io = timed_or_untimed_io.IO(outFd, inFd) if not debugCaptureProcessCommandsFile else IOWrapper(outFd, inFd, debugCaptureProcessCommandsFile)
         return io
 
-    def _writeInverterParameters(self, io, moduleName, calcType, populationSize,
-                                 gaParams, lensInversionParameters, convergenceParams,
-                                 multiPopParams, eaType):
-        io.writeLine("FITNESSOBJECT:{}".format(moduleName))
-        io.writeLine("CALCULATOR:{}".format(calcType))
-        io.writeLine("POPULATIONSIZE:{}".format(populationSize))
-        io.writeLine("EATYPE:{}".format(eaType))
-
-        # TODO: different parameters for different EA type (GA vs DE)
+    def _getEAParameterBytes(self, gaParams, eaType):
+        # Different parameters for different EA type (GA vs DE)
         if not gaParams: gaParams = { }
         if eaType == "GA":
             paramClass = inversionparams.GAParameters
@@ -140,7 +133,17 @@ class Inverter(object):
             raise Exception("Unknown EA type '{}'".format(eaType))
 
         paramObject = paramClass(**gaParams)
-        gaParamsBytes = paramObject.toBytes()
+        return paramObject.toBytes()
+
+    def _writeInverterParameters(self, io, moduleName, calcType, populationSize,
+                                 gaParams, lensInversionParameters, convergenceParams,
+                                 multiPopParams, eaType):
+        io.writeLine("FITNESSOBJECT:{}".format(moduleName))
+        io.writeLine("CALCULATOR:{}".format(calcType))
+        io.writeLine("POPULATIONSIZE:{}".format(populationSize))
+        io.writeLine("EATYPE:{}".format(eaType))
+
+        gaParamsBytes = self._getEAParameterBytes(gaParams, eaType)
 
         _writeParameters(io, "GAPARAMS", gaParamsBytes)
         _writeParameters(io, "GAFACTORYPARAMS", lensInversionParameters.toBytes())
