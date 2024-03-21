@@ -264,6 +264,7 @@ scalepriority_bayesweaklensing                   300
 fitness_pointgroupoverlap_rmstype                'AllBetas'
 fitness_pointimageoverlap_scaletype              'MinMax'
 fitness_timedelay_type                           'NoSrc'
+fitness_timedelay_nosrc_cutoff                   0.0
 fitness_weaklensing_type                         'AveragedEllipticities'
 fitness_bayesweaklensing_zdist_values            None
 fitness_bayesweaklensing_zdist_range             None
@@ -292,7 +293,7 @@ to ``MinMax``. In case the `median of absolute deviations <https://en.wikipedia.
 should be used instead, this option can be set to ``MAD``.
 
 The ``fitness_timedelay_type`` can also be ``Paper2009``, to use the older one from
-the 2009 article [#4]_.
+the 2009 article [#4]_. TODO: describe ``"fitness_timedelay_nosrc_cutoff``
 
 For the weak lensing fitness, the data is by default interpreted as (averaged)
 ellipticity measurements. This corresponds the default value of ``AveragedEllipticities``
