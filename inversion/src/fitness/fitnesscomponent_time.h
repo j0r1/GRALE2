@@ -27,6 +27,7 @@ private:
 	TDFitnessType m_fitnessType;
 	std::vector<std::pair<int,int>> m_referencePoints; // for relative TD fitness
 	std::vector<float> m_tdScaleFactors;
+	float m_nosrcCutoff; // If the NoSrc fitness value is below this, it is set to zero (can help multi-objective)
 };
 
 } // end namespace

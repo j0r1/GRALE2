@@ -137,6 +137,25 @@ bool FitnessComponent_TimeDelay::processFitnessOption(const std::string &optionN
 		return false;
 	}
 
+	if (optionName == "nosrc_cutoff")
+	{
+		if (!value.isReal())
+		{
+			setErrorString("Value for '" + optionName + "' should be a real number"); 
+			return false;
+		}
+
+		double v = value.getRealValue();
+		if (v < 0)
+		{
+			setErrorString("Value for '" + optionName + "' should be zero or positive, but is " + to_string(v));
+			return false;
+		}
+
+		m_nosrcCutoff = v;
+		return true;
+	}
+
 	setErrorString("Unknown option");
 	return false;
 }
@@ -149,6 +168,12 @@ bool FitnessComponent_TimeDelay::finalize(double zd, const Cosmology *pCosm)
 		return false;
 	}
 
+	if (m_nosrcCutoff > 0 && m_fitnessType != NoSrc)
+	{
+		setErrorString("Fitness cutoff was set to " + to_string(m_nosrcCutoff) + ", but this is only allowed for the NoSrc calculation type");
+		return false;
+	}
+
 	return true;
 }
 
@@ -157,7 +182,11 @@ bool FitnessComponent_TimeDelay::calculateFitness(const ProjectedImagesInterface
 	if (m_fitnessType == Paper2009)
 		fitness = calculateTimeDelayFitnessPaper2009(iface, getUsedImagesDataIndices(), m_tdScaleFactors);
 	else if (m_fitnessType == NoSrc)
+	{
 		fitness = calculateTimeDelayFitnessNoSrc(iface, getUsedImagesDataIndices(), m_tdScaleFactors);
+		if (fitness < m_nosrcCutoff)
+			fitness = 0;
+	}
 	else
 	{
 		setErrorString("Unknown TD fitness type");

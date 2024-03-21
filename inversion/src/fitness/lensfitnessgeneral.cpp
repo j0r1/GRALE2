@@ -281,6 +281,7 @@ unique_ptr<ConfigurationParameters> LensFitnessGeneral::getDefaultParametersInst
 	pParams->setParameter("fitness_pointimageoverlap_scaletype", string("MinMax"));
 	pParams->setParameter("fitness_pointgroupoverlap_rmstype", string("AllBetas"));
 	pParams->setParameter("fitness_timedelay_type", string("NoSrc"));
+	pParams->setParameter("fitness_timedelay_nosrc_cutoff", 0.0);
 	pParams->setParameter("fitness_weaklensing_type", string("AveragedEllipticities"));
 
 	pParams->setParameterEmpty("fitness_bayesweaklensing_zdist_values");
