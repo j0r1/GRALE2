@@ -2361,6 +2361,8 @@ Arguments:
    or `errorbar <https://matplotlib.org/api/_as_gen/matplotlib.pyplot.errorbar.html#matplotlib.pyplot.errorbar>`_
    functions in matplotlib.
 """
+    imgList = [ i["imgdata"] if type(i) == dict else i for i in imgList ]
+
     maxImagePoints = max([ len(img) for src in imgList for img in src.getAllImagePoints() ])
     if maxImagePoints == 1: # All point images
         densityInfo, numSubLenses = getDensitiesAtImagePositions(lens, imgList, False, densFunction, forceAverage)
