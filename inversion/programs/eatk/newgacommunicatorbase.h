@@ -258,6 +258,53 @@ protected:
 	}
 };
 
+class ReuseCreation : public eatk::IndividualCreation
+{
+public:
+	ReuseCreation(const eatk::Population &pop)
+	{
+		if (pop.size() == 0)
+			return;
+
+		m_referenceIndividual = pop.individual(0)->createCopy();
+		m_referenceGenome = m_referenceIndividual->genomePtr()->createCopy();
+		m_referenceFitness = m_referenceIndividual->fitnessPtr()->createCopy();
+
+		for (auto &i : pop.individuals())
+			m_genomePool.push_back(i->genomePtr()->createCopy());
+	}
+
+	std::shared_ptr<eatk::Genome> createInitializedGenome() override
+	{
+		if (m_genomePool.size() == 0)
+			return nullptr;
+		auto genome = m_genomePool.front();
+		m_genomePool.pop_front();
+		return genome;
+	}
+
+	std::shared_ptr<eatk::Genome> createUnInitializedGenome() override
+	{ 
+		if (!m_referenceGenome.get())
+			return nullptr;
+		return m_referenceGenome->createCopy(false);
+	}
+
+	std::shared_ptr<eatk::Fitness> createEmptyFitness() override
+	{
+		if (!m_referenceFitness.get())
+			return nullptr;
+		return m_referenceFitness->createCopy(false);
+	}
+
+	std::shared_ptr<eatk::Individual> createReferenceIndividual() override { return m_referenceIndividual; }
+private:
+	std::list<std::shared_ptr<eatk::Genome>> m_genomePool;
+	std::shared_ptr<eatk::Individual> m_referenceIndividual;
+	std::shared_ptr<eatk::Genome> m_referenceGenome;
+	std::shared_ptr<eatk::Fitness> m_referenceFitness;
+};
+
 // TODO: rename this, is from copy-paste
 class NewGACommunicatorBase : public InversionCommunicator
 {
@@ -387,11 +434,11 @@ protected:
 			return "Can't get calculator: " + r.getErrorString();
 
 		if (eaType == "GA")
-			r = runGA_GA(rng, creation, comparison, *calc, popSize, lensFitnessObjectType, calculatorType, calcFactory, genomeCalculator,
-					        factoryParamBytes, params, convParams, multiPopParams);
+			r = runGA_GA(rng, creation, comparison, *calc, popSize, genomeCalculator->allowNegativeValues(), genomeCalculator->getNumberOfObjectives(),
+					        params, convParams, multiPopParams);
 		else if (eaType == "DE" || eaType == "JADE")
-			r = runGA_DE(rng, creation, comparison, *calc, popSize, lensFitnessObjectType, calculatorType, calcFactory, genomeCalculator,
-					        factoryParamBytes, params, convParams, multiPopParams, eaType);
+			r = runGA_DE(rng, creation, comparison, *calc, popSize, genomeCalculator->allowNegativeValues(), genomeCalculator->getNumberOfObjectives(),
+					        params, convParams, multiPopParams, eaType);
 		else
 			r = "Unknown EA type '" + eaType + "', should be either GA, DE or JADE";
 
@@ -402,14 +449,11 @@ protected:
 	// TODO: merge more common code from the GA and DE versions
 
 	errut::bool_t runGA_DE(const std::shared_ptr<eatk::RandomNumberGenerator> &rng,
-						 grale::LensGAIndividualCreation &creation,
+						 eatk::IndividualCreation &creation,
 						 const std::shared_ptr<grale::LensGAFitnessComparison> &comparison,
 						 eatk::PopulationFitnessCalculation &calc,
-			             int popSize, const std::string &lensFitnessObjectType,
-						 const std::string &calculatorType,
-	                     grale::LensGACalculatorFactory &calcFactory, 
-						 const std::shared_ptr<grale::LensGAGenomeCalculator> &genomeCalculator,
-						 const std::vector<uint8_t> &factoryParamBytes,
+			             int popSize,
+						 bool allowNegative, size_t numObjectives,
 						 const grale::EAParameters &eaParams,
 						 const grale::LensGAConvergenceParameters &convParams,
 						 const std::shared_ptr<grale::LensGAMultiPopulationParameters> &multiPopParams,
@@ -423,20 +467,19 @@ protected:
 		// TODO: At the moment we need this for the stop criterion
 		std::shared_ptr<grale::LensGAGenomeMutation> mutation = std::make_shared<grale::LensGAGenomeMutation>(rng, 
 						   1.0, // chance multiplier; has always been set to one
-						   genomeCalculator->allowNegativeValues(),
+						   allowNegative,
 						   0, // mutation amplitude, will be in the stop criterion
 						   true); // absolute or small mutation, will be set in the stop criterion
 
 		// TODO: this stop criterion where the mutation amplitude is changed doesn't really
 		//       make sense (not the kind of mutation in DE)
 
-		int numObj = genomeCalculator->getNumberOfObjectives();
 		Stop stop(mutation);
-		if (!(r = stop.initialize(numObj, convParams)))
+		if (!(r = stop.initialize(numObjectives, convParams)))
 			return "Can't initialize stop criterion: " + r.getErrorString();
 
 		auto mut = std::make_shared<grale::LensDEMutation>();
-		auto cross = std::make_shared<grale::LensDECrossover>(rng, genomeCalculator->allowNegativeValues());
+		auto cross = std::make_shared<grale::LensDECrossover>(rng, allowNegative);
 
 		std::unique_ptr<eatk::PopulationEvolver> evolver;
 
@@ -456,18 +499,18 @@ protected:
 					        ", c = " + std::to_string(c) + ", useArchive = " + std::to_string((int)useArch) +
 							", initMuF = " + std::to_string(initMuF) + ", initMuCR = " + std::to_string(initMuCR));
 
-			if (numObj == 1)
+			if (numObjectives == 1)
 			{
 				evolver = std::make_unique<grale::LensJADEEvolver>(rng, mut, cross, comparison, 0,
 						                                           p, c, useArch, initMuF, initMuCR);
 			}
 			else // multi-objective
 			{
-				auto ndCreator = std::make_shared<eatk::FasterNonDominatedSetCreator>(comparison, numObj);
+				auto ndCreator = std::make_shared<eatk::FasterNonDominatedSetCreator>(comparison, numObjectives);
 				evolver = std::make_unique<grale::LensJADEEvolver>(rng, mut, cross, comparison,
 						  -1, // signals multi-objective
 						  p, c, useArch, initMuF, initMuCR,
-						  numObj, ndCreator);
+						  numObjectives, ndCreator);
 			}
 		}
 		else if (eaType == "DE")
@@ -481,15 +524,15 @@ protected:
 
 			WriteLineStdout("GAMESSAGESTR:Running DE algorithm, F = " + std::to_string(F) + ", CR = " + std::to_string(CR));
 
-			if (numObj == 1) // Single objective
+			if (numObjectives == 1) // Single objective
 			{
 				evolver = std::make_unique<grale::LensDEEvolver>(rng, mut, F, cross, CR, comparison);
 			}
 			else // multi-objective
 			{
-				auto ndCreator = std::make_shared<eatk::FasterNonDominatedSetCreator>(comparison, numObj);
+				auto ndCreator = std::make_shared<eatk::FasterNonDominatedSetCreator>(comparison, numObjectives);
 				evolver = std::make_unique<grale::LensDEEvolver>(rng, mut, params.getF(), cross, params.getCR(), comparison,
-						                                         -1, numObj, ndCreator); // -1 signals multi-objective
+						                                         -1, numObjectives, ndCreator); // -1 signals multi-objective
 			}
 		}
 
@@ -503,14 +546,11 @@ protected:
 	}
 
 	errut::bool_t runGA_GA(const std::shared_ptr<eatk::RandomNumberGenerator> &rng,
-						 grale::LensGAIndividualCreation &creation,
+						 eatk::IndividualCreation &creation,
 						 const std::shared_ptr<grale::LensGAFitnessComparison> &comparison,
 						 eatk::PopulationFitnessCalculation &calc,
-			             int popSize, const std::string &lensFitnessObjectType,
-						 const std::string &calculatorType,
-	                     grale::LensGACalculatorFactory &calcFactory, 
-						 const std::shared_ptr<grale::LensGAGenomeCalculator> &genomeCalculator,
-						 const std::vector<uint8_t> &factoryParamBytes,
+			             int popSize,
+						 bool allowNegative, size_t numObjectives,
 						 const grale::EAParameters &eaParams,
 						 const grale::LensGAConvergenceParameters &convParams,
 						 const std::shared_ptr<grale::LensGAMultiPopulationParameters> &multiPopParams)
@@ -530,24 +570,24 @@ protected:
 
 		std::vector<std::shared_ptr<grale::LensGAGenomeMutation>> mutations;
 
-		auto getEvolver = [&rng, &genomeCalculator, &params, &mutations]()
+		auto getEvolver = [&rng, allowNegative, numObjectives, &params, &mutations]()
 		{
 			auto mutation = std::make_shared<grale::LensGAGenomeMutation>(rng, 
 						   1.0, // chance multiplier; has always been set to one
-						   genomeCalculator->allowNegativeValues(),
+						   allowNegative,
 						   0, // mutation amplitude, will be in the stop criterion
 						   true); // absolute or small mutation, will be set in the stop criterion
 
 			mutations.push_back(mutation);
 
 			std::shared_ptr<grale::LensGACrossoverBase> cross;
-			if (genomeCalculator->getNumberOfObjectives() == 1)
+			if (numObjectives == 1)
 				cross = std::make_shared<grale::LensGASingleObjectiveCrossover>(params.getSelectionPressure(),
 							  params.getUseElitism(),
 							  params.getAlwaysIncludeBest(),
 							  params.getCrossOverRate(),
 							  rng,
-							  genomeCalculator->allowNegativeValues(),
+							  allowNegative,
 							  mutation);
 			else
 				cross = std::make_shared<grale::LensGAMultiObjectiveCrossover>(params.getSelectionPressure(),
@@ -555,9 +595,9 @@ protected:
 							  params.getAlwaysIncludeBest(),
 							  params.getCrossOverRate(),
 							  rng,
-							  genomeCalculator->allowNegativeValues(),
+							  allowNegative,
 							  mutation,
-							  genomeCalculator->getNumberOfObjectives());
+							  numObjectives);
 
 			return cross;
 		};
@@ -569,13 +609,30 @@ protected:
 			assert(mutations.size() == 1);
 			Stop stop(mutations[0]);
 
-			if (!(r = stop.initialize(genomeCalculator->getNumberOfObjectives(), convParams)))
+			if (!(r = stop.initialize(numObjectives, convParams)))
 				return "Error initializing convergence checker: " + r.getErrorString();
 
 			if (!(r = ga.run(creation, *cross, calc, stop, popSize)))
 				return "Error running GA: " + r.getErrorString();
 
-			m_best = cross->getBestIndividuals();
+			if (std::getenv("GRALE_JADEFINISH"))
+			{
+				WriteLineStdout("GAMESSAGESTR:EXPERIMENTAL JADE FINISH");
+
+				ReuseCreation reuseCreation(*(ga.getPopulation()));
+				size_t generationOffset = ga.getNumberOfGenerations(); // TODO: use this in reporting
+
+				grale::JADEParameters defaultJADEParams;
+				grale::LensGAConvergenceParameters finalConvParams;
+
+				finalConvParams.setConvergenceFactorsAndMutationSizes({0.05}, {-1});
+
+				if (!(r = runGA_DE(rng, reuseCreation, comparison, calc, popSize, allowNegative, numObjectives, defaultJADEParams,
+								   finalConvParams, nullptr, "JADE")))
+					return "Can't run JADE finish: " + r.getErrorString();
+			}
+			else
+				m_best = cross->getBestIndividuals();
 		}
 		else // Use several populations, with migration
 		{
@@ -591,7 +648,6 @@ protected:
 				popSizes.push_back(popSize);
 
 			std::shared_ptr<eatk::BestIndividualMerger> merger;
-			size_t numObjectives = genomeCalculator->getNumberOfObjectives();
 			if (numObjectives == 1)
 				merger = std::make_shared<eatk::SingleObjectiveBestIndividualMerger>(comparison);
 			else
@@ -616,7 +672,7 @@ protected:
 
 			assert(mutations.size() > 1);
 			MultiStop stop(mutations);
-			if (!(r = stop.initialize(genomeCalculator->getNumberOfObjectives(), convParams)))
+			if (!(r = stop.initialize(numObjectives, convParams)))
 				return "Error initializing multi-population convergence checker: " + r.getErrorString();
 
 			if (!(r = ga.run(creation, multiPopEvolver, calc, stop, migration, popSizes)))
