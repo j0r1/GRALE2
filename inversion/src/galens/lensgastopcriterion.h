@@ -15,7 +15,7 @@ class LensFitnessObject;
 class LensGAStopCriterion : public eatk::StopCriterion
 {
 public:
-	LensGAStopCriterion(const std::shared_ptr<LensGAGenomeMutation> &mutation);
+	LensGAStopCriterion(const std::shared_ptr<LensGAGenomeMutation> &mutation, size_t generationNumberOffset = 0);
 
 	errut::bool_t initialize(size_t numObjectives, const LensGAConvergenceParameters &convParams);
 	errut::bool_t analyze(const eatk::PopulationEvolver &evolver, size_t generationNumber, bool &shouldStop) override;
@@ -34,6 +34,7 @@ private:
 	bool m_stopped;
 
 	std::chrono::time_point<std::chrono::steady_clock> m_lastFitnessReportTime;
+	size_t m_generationNumberOffset;
 };
 
 }

@@ -10,8 +10,8 @@ using namespace errut;
 namespace grale
 {
 
-LensGAStopCriterion::LensGAStopCriterion(const std::shared_ptr<LensGAGenomeMutation> &mutation)
-	: m_mutation(mutation)
+LensGAStopCriterion::LensGAStopCriterion(const std::shared_ptr<LensGAGenomeMutation> &mutation, size_t generationNumberOffset)
+	: m_mutation(mutation), m_generationNumberOffset(generationNumberOffset)
 { 
 	m_numObjectives = 0; // means not initialized
 	m_lastFitnessReportTime = chrono::steady_clock::now();
@@ -88,7 +88,7 @@ bool_t LensGAStopCriterion::analyze(const eatk::PopulationEvolver &evolver, size
 
 	std::stringstream ss;
 	// Logging generation-1 for comparison with old code
-	ss << "Generation " << (generationNumber-1) << ": " << m_pFitnessHistory->getDebugInfo();
+	ss << "Generation " << (generationNumber-1 + m_generationNumberOffset) << ": " << m_pFitnessHistory->getDebugInfo();
 	onReport(ss.str());
 
 	if (m_pFitnessHistory->isFinished())

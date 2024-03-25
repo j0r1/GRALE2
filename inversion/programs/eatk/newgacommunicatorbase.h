@@ -177,8 +177,8 @@ private:
 class Stop : public grale::LensGAStopCriterion
 {
 public:
-	Stop(const std::shared_ptr<grale::LensGAGenomeMutation> &mutation, int popId = -1)
-		: grale::LensGAStopCriterion(mutation), m_popId(popId) { }
+	Stop(const std::shared_ptr<grale::LensGAGenomeMutation> &mutation, int popId = -1, size_t generationOffsetForReporting = 0)
+		: grale::LensGAStopCriterion(mutation, generationOffsetForReporting), m_popId(popId) { }
 protected:
 	void onReport(const std::string &s)	const override
 	{
@@ -433,9 +433,9 @@ protected:
 								factoryParamBytes, creation, calc)))
 			return "Can't get calculator: " + r.getErrorString();
 
-		if (eaType == "GA")
+		if (eaType == "GA" || eaType == "GA+JADE")
 			r = runGA_GA(rng, creation, comparison, *calc, popSize, genomeCalculator->allowNegativeValues(), genomeCalculator->getNumberOfObjectives(),
-					        params, convParams, multiPopParams);
+					        params, convParams, multiPopParams, eaType);
 		else if (eaType == "DE" || eaType == "JADE")
 			r = runGA_DE(rng, creation, comparison, *calc, popSize, genomeCalculator->allowNegativeValues(), genomeCalculator->getNumberOfObjectives(),
 					        params, convParams, multiPopParams, eaType);
@@ -457,7 +457,7 @@ protected:
 						 const grale::EAParameters &eaParams,
 						 const grale::LensGAConvergenceParameters &convParams,
 						 const std::shared_ptr<grale::LensGAMultiPopulationParameters> &multiPopParams,
-						 const std::string &eaType)
+						 const std::string &eaType, size_t generationOffsetForReporting = 0)
 	{
 		errut::bool_t r;
 
@@ -474,7 +474,7 @@ protected:
 		// TODO: this stop criterion where the mutation amplitude is changed doesn't really
 		//       make sense (not the kind of mutation in DE)
 
-		Stop stop(mutation);
+		Stop stop(mutation, -1, generationOffsetForReporting);
 		if (!(r = stop.initialize(numObjectives, convParams)))
 			return "Can't initialize stop criterion: " + r.getErrorString();
 
@@ -553,7 +553,8 @@ protected:
 						 bool allowNegative, size_t numObjectives,
 						 const grale::EAParameters &eaParams,
 						 const grale::LensGAConvergenceParameters &convParams,
-						 const std::shared_ptr<grale::LensGAMultiPopulationParameters> &multiPopParams)
+						 const std::shared_ptr<grale::LensGAMultiPopulationParameters> &multiPopParams,
+						 const std::string &eaType)
 	{
 		const grale::GAParameters *pParams = dynamic_cast<const grale::GAParameters*>(&eaParams);
 		if (!pParams)
@@ -564,6 +565,19 @@ protected:
 				        ", elitism = " + std::to_string((int)params.getUseElitism()) +
 						", always include best = " + std::to_string((int)params.getAlwaysIncludeBest()) + 
 						", crossover rate = " + std::to_string(params.getCrossOverRate()));
+
+		if (eaType == "GA")
+		{
+			// Nothing to do
+		}
+		else if (eaType == "GA+JADE")
+		{
+			WriteLineStdout("GAMESSAGESTR:Will add JADE after standard GA run");
+			if (multiPopParams.get())
+				return "GA+JADE doesn't work with multiple populations";
+		}
+		else
+			return "Unexpected eaType '" + eaType + "'";
 
 		errut::bool_t r;
 		MyGA ga;
@@ -615,20 +629,20 @@ protected:
 			if (!(r = ga.run(creation, *cross, calc, stop, popSize)))
 				return "Error running GA: " + r.getErrorString();
 
-			if (std::getenv("GRALE_JADEFINISH"))
+			if (eaType == "GA+JADE")
 			{
 				WriteLineStdout("GAMESSAGESTR:EXPERIMENTAL JADE FINISH");
 
 				ReuseCreation reuseCreation(*(ga.getPopulation()));
-				size_t generationOffset = ga.getNumberOfGenerations(); // TODO: use this in reporting
+				size_t generationOffset = ga.getNumberOfGenerations();
 
 				grale::JADEParameters defaultJADEParams;
 				grale::LensGAConvergenceParameters finalConvParams;
 
-				finalConvParams.setConvergenceFactorsAndMutationSizes({0.05}, {-1});
+				finalConvParams.setConvergenceFactorsAndMutationSizes({0.05}, {-1}); // TODO: make this configurable somehow
 
 				if (!(r = runGA_DE(rng, reuseCreation, comparison, calc, popSize, allowNegative, numObjectives, defaultJADEParams,
-								   finalConvParams, nullptr, "JADE")))
+								   finalConvParams, nullptr, "JADE", generationOffset)))
 					return "Can't run JADE finish: " + r.getErrorString();
 			}
 			else

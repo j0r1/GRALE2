@@ -912,7 +912,7 @@ cdef class ConvergenceParameters(object):
     def __init__(self, parameterDict = None, eaType = None): # eaType is only used for the defaults
         if not parameterDict:
             # Defaults
-            if eaType == "GA":
+            if eaType == "GA" or eaType == "GA+JADE":
                 parameterDict = {
                     "maximumgenerations": 16384,
                     "historysize": 250,

@@ -123,7 +123,7 @@ class Inverter(object):
     def _getEAParameterBytes(self, gaParams, eaType):
         # Different parameters for different EA type (GA vs DE)
         if not gaParams: gaParams = { }
-        if eaType == "GA":
+        if eaType == "GA" or eaType == "GA+JADE":
             paramClass = inversionparams.GAParameters
         elif eaType == "DE":
             paramClass = inversionparams.DEParameters
