@@ -552,7 +552,7 @@ protected:
 			             int popSize,
 						 bool allowNegative, size_t numObjectives,
 						 const grale::EAParameters &eaParams,
-						 const grale::LensGAConvergenceParameters &convParams,
+						 const grale::LensGAConvergenceParameters &convParams0,
 						 const std::shared_ptr<grale::LensGAMultiPopulationParameters> &multiPopParams,
 						 const std::string &eaType)
 	{
@@ -566,15 +566,41 @@ protected:
 						", always include best = " + std::to_string((int)params.getAlwaysIncludeBest()) + 
 						", crossover rate = " + std::to_string(params.getCrossOverRate()));
 
+
+		grale::LensGAConvergenceParameters convParamsGA;
+		grale::LensGAConvergenceParameters convParamsJADE;
+
 		if (eaType == "GA")
 		{
 			// Nothing to do
+			convParamsGA = convParams0;
 		}
 		else if (eaType == "GA+JADE")
 		{
 			WriteLineStdout("GAMESSAGESTR:Will add JADE after standard GA run");
 			if (multiPopParams.get())
 				return "GA+JADE doesn't work with multiple populations";
+
+			// To make sure that history size and max generations are copies
+			convParamsGA = convParams0;
+			convParamsJADE = convParams0;
+
+			// Split conversion parameters: last is for JADE
+			std::vector<double> factors = convParams0.getConvergenceFactors();
+			std::vector<double> mutSizes = convParams0.getConvergenceSmallMutationSizes();
+
+			if (factors.size() > 0 && mutSizes.size() > 0)
+			{
+				double deConvFactor = factors.back();
+				double deMutSize = mutSizes.back(); // This isn't actually used though
+				factors.resize(factors.size()-1); // Remove last
+				mutSizes.resize(mutSizes.size()-1);
+
+				if (!convParamsGA.setConvergenceFactorsAndMutationSizes(factors, mutSizes))
+					return "Can't set GA convergence factors: " + convParamsGA.getErrorString();
+				if (!convParamsJADE.setConvergenceFactorsAndMutationSizes({deConvFactor}, {deMutSize}))
+					return "Can't set JADE convergence factors: " + convParamsJADE.getErrorString();
+			}
 		}
 		else
 			return "Unexpected eaType '" + eaType + "'";
@@ -623,7 +649,7 @@ protected:
 			assert(mutations.size() == 1);
 			Stop stop(mutations[0]);
 
-			if (!(r = stop.initialize(numObjectives, convParams)))
+			if (!(r = stop.initialize(numObjectives, convParamsGA)))
 				return "Error initializing convergence checker: " + r.getErrorString();
 
 			if (!(r = ga.run(creation, *cross, calc, stop, popSize)))
@@ -636,13 +662,10 @@ protected:
 				ReuseCreation reuseCreation(*(ga.getPopulation()));
 				size_t generationOffset = ga.getNumberOfGenerations();
 
-				grale::JADEParameters defaultJADEParams;
-				grale::LensGAConvergenceParameters finalConvParams;
-
-				finalConvParams.setConvergenceFactorsAndMutationSizes({0.05}, {-1}); // TODO: make this configurable somehow
+				grale::JADEParameters defaultJADEParams; // TODO: make this configurable somehow
 
 				if (!(r = runGA_DE(rng, reuseCreation, comparison, calc, popSize, allowNegative, numObjectives, defaultJADEParams,
-								   finalConvParams, nullptr, "JADE", generationOffset)))
+								   convParamsJADE, nullptr, "JADE", generationOffset)))
 					return "Can't run JADE finish: " + r.getErrorString();
 			}
 			else
@@ -686,7 +709,7 @@ protected:
 
 			assert(mutations.size() > 1);
 			MultiStop stop(mutations);
-			if (!(r = stop.initialize(numObjectives, convParams)))
+			if (!(r = stop.initialize(numObjectives, convParamsGA)))
 				return "Error initializing multi-population convergence checker: " + r.getErrorString();
 
 			if (!(r = ga.run(creation, multiPopEvolver, calc, stop, migration, popSizes)))

@@ -912,12 +912,19 @@ cdef class ConvergenceParameters(object):
     def __init__(self, parameterDict = None, eaType = None): # eaType is only used for the defaults
         if not parameterDict:
             # Defaults
-            if eaType == "GA" or eaType == "GA+JADE":
+            if eaType == "GA":
                 parameterDict = {
                     "maximumgenerations": 16384,
                     "historysize": 250,
                     "convergencefactors": [  0.1, 0.05 ],
                     "smallmutationsizes": [ -1.0, 0.1 ]  # Negative means large mutation
+                }
+            elif eaType == "GA+JADE":
+                parameterDict = {
+                    "maximumgenerations": 16384,
+                    "historysize": 250,
+                    "convergencefactors": [  0.1, 0.05, 0.05 ], # Last entry is for JADE finish
+                    "smallmutationsizes": [ -1.0, 0.1, -1 ]  # Negative means large mutation
                 }
             elif eaType == "DE" or eaType == "JADE":
                 parameterDict = {
