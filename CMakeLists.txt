@@ -17,10 +17,15 @@ CHECK_CXX_COMPILER_FLAG("-std=c++17" COMPILER_SUPPORTS_CXX17)
 if(COMPILER_SUPPORTS_CXX17)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
 else()
-	# Test if the compiler already supports C++17
-	check_cxx_source_compiles("#include <utility>\n\nint main(void)\n{\n\tauto f = [](auto x)\n\t{\n\t\treturn x*x;\n\t};\n\tauto [ a, b ] = std::pair<double, int>(1.0,1);\n\treturn 0;\n}\n" C17AVAIL)
-	if (NOT C17AVAIL)
-		message(FATAL_ERROR "The compiler ${CMAKE_CXX_COMPILER} has no C++17 support.")
+	CHECK_CXX_COMPILER_FLAG("/std:c++17" COMPILER_SUPPORTS_CXX17_VS) # For visual studio
+	if(COMPILER_SUPPORTS_CXX17_VS)
+		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /std:c++17")
+	else()
+		# Test if the compiler already supports C++17
+		check_cxx_source_compiles("#include <utility>\n\nint main(void)\n{\n\tauto f = [](auto x)\n\t{\n\t\treturn x*x;\n\t};\n\tauto [ a, b ] = std::pair<double, int>(1.0,1);\n\treturn 0;\n}\n" C17AVAIL)
+		if (NOT C17AVAIL)
+			message(FATAL_ERROR "The compiler ${CMAKE_CXX_COMPILER} has no C++17 support.")
+		endif()
 	endif()
 endif()
 
