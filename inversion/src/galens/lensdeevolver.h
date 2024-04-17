@@ -18,7 +18,9 @@ public:
 		const std::shared_ptr<eatk::DifferentialEvolutionCrossover> &cross,
 		double CR,
 		const std::shared_ptr<eatk::FitnessComparison> &fitComp, int objectiveNumber = 0, size_t numObjectives = 1,
-		const std::shared_ptr<eatk::NonDominatedSetCreator> &ndCreator = nullptr);
+		const std::shared_ptr<eatk::NonDominatedSetCreator> &ndCreator = nullptr,
+		bool needStrictlyBetter = true
+		);
 
 	errut::bool_t check(const std::shared_ptr<eatk::Population> &population) override;
 	// We need to override this function to copy the calculated scale factors to the genomes
@@ -41,7 +43,8 @@ public:
 		double initMuF = 0.5,
 		double initMuCR = 0.5,
 		size_t numObjectives = 1,
-		const std::shared_ptr<eatk::NonDominatedSetCreator> &ndCreator = nullptr
+		const std::shared_ptr<eatk::NonDominatedSetCreator> &ndCreator = nullptr,
+		bool needStrictlyBetter = true
 		);
 
 	errut::bool_t check(const std::shared_ptr<eatk::Population> &population) override;

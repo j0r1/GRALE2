@@ -494,15 +494,18 @@ protected:
 			bool useArch = params.useExternalArchive();
 			double initMuF = params.getInitialMeanF();
 			double initMuCR = params.getInitialMeanCR();
+			bool needStrictlyBetter = params.getNeedStrictlyBetter();
 
 			WriteLineStdout("GAMESSAGESTR:Running JADE algorithm, p = " + std::to_string(p) + 
 					        ", c = " + std::to_string(c) + ", useArchive = " + std::to_string((int)useArch) +
-							", initMuF = " + std::to_string(initMuF) + ", initMuCR = " + std::to_string(initMuCR));
+							", initMuF = " + std::to_string(initMuF) + ", initMuCR = " + std::to_string(initMuCR) + 
+							", needStrictlyBetter = " + std::to_string(needStrictlyBetter));
 
 			if (numObjectives == 1)
 			{
 				evolver = std::make_unique<grale::LensJADEEvolver>(rng, mut, cross, comparison, 0,
-						                                           p, c, useArch, initMuF, initMuCR);
+						                                           p, c, useArch, initMuF, initMuCR,
+																   1, nullptr, needStrictlyBetter);
 			}
 			else // multi-objective
 			{
@@ -510,7 +513,8 @@ protected:
 				evolver = std::make_unique<grale::LensJADEEvolver>(rng, mut, cross, comparison,
 						  -1, // signals multi-objective
 						  p, c, useArch, initMuF, initMuCR,
-						  numObjectives, ndCreator);
+						  numObjectives, ndCreator,
+						  needStrictlyBetter);
 			}
 		}
 		else if (eaType == "DE")
@@ -521,18 +525,22 @@ protected:
 			const grale::DEParameters &params = *pParams;
 			double F = params.getF();
 			double CR = params.getCR();
+			bool needStrictlyBetter = params.getNeedStrictlyBetter();
 
-			WriteLineStdout("GAMESSAGESTR:Running DE algorithm, F = " + std::to_string(F) + ", CR = " + std::to_string(CR));
+			WriteLineStdout("GAMESSAGESTR:Running DE algorithm, F = " + std::to_string(F) + ", CR = " + std::to_string(CR) +
+					        ", needStrictlyBetter = " + std::to_string(needStrictlyBetter));
 
 			if (numObjectives == 1) // Single objective
 			{
-				evolver = std::make_unique<grale::LensDEEvolver>(rng, mut, F, cross, CR, comparison);
+				evolver = std::make_unique<grale::LensDEEvolver>(rng, mut, F, cross, CR, comparison,
+						                                         0, 1, nullptr, needStrictlyBetter);
 			}
 			else // multi-objective
 			{
 				auto ndCreator = std::make_shared<eatk::FasterNonDominatedSetCreator>(comparison, numObjectives);
 				evolver = std::make_unique<grale::LensDEEvolver>(rng, mut, params.getF(), cross, params.getCR(), comparison,
-						                                         -1, numObjectives, ndCreator); // -1 signals multi-objective
+						                                         -1, numObjectives, ndCreator,
+																 needStrictlyBetter); // -1 signals multi-objective
 			}
 		}
 

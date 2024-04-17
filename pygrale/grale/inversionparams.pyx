@@ -580,12 +580,12 @@ cdef class EAParameters(object):
 cdef class DEParameters(EAParameters):
     """General parameters for the DE algorithm."""
     
-    def __init__(self, F = 0.5, CR = 0.5): # TODO: what are good defaults?
+    def __init__(self, F = 0.5, CR = 0.5, needstrictlybetter = True): # TODO: what are good defaults?
         """__init__()
         
         TODO
         """
-        self.m_pParams = unique_ptr[eaparameters.EAParameters](new eaparameters.DEParameters(F, CR))
+        self.m_pParams = unique_ptr[eaparameters.EAParameters](new eaparameters.DEParameters(F, CR, needstrictlybetter))
 
     def _fillInSettings(self, r):
         cdef eaparameters.DEParametersPtrConst pParams = dynamic_cast[eaparameters.DEParametersPtrConst](self.m_pParams.get())
@@ -594,16 +594,17 @@ cdef class DEParameters(EAParameters):
 
         r["F"] = deref(pParams).getF()
         r["CR"] = deref(pParams).getCR()
+        r["needstrictlybetter"] = deref(pParams).getNeedStrictlyBetter()
 
 cdef class JADEParameters(EAParameters):
     """General parameters for the JADE algorithm."""
     
-    def __init__(self, p = 0.05, c = 0.1, usearchive = True, initmeanF = 0.5, initmeanCR = 0.5):
+    def __init__(self, p = 0.05, c = 0.1, usearchive = True, initmeanF = 0.5, initmeanCR = 0.5, needstrictlybetter = True):
         """__init__()
         
         TODO
         """
-        self.m_pParams = unique_ptr[eaparameters.EAParameters](new eaparameters.JADEParameters(p, c, usearchive, initmeanF, initmeanCR))
+        self.m_pParams = unique_ptr[eaparameters.EAParameters](new eaparameters.JADEParameters(p, c, usearchive, initmeanF, initmeanCR, needstrictlybetter))
 
     def _fillInSettings(self, r):
         cdef eaparameters.JADEParametersPtrConst pParams = dynamic_cast[eaparameters.JADEParametersPtrConst](self.m_pParams.get())
@@ -615,6 +616,7 @@ cdef class JADEParameters(EAParameters):
         r["usearchive"] = deref(pParams).useExternalArchive()
         r["initmeanF"] = deref(pParams).getInitialMeanF()
         r["initmeanCR"] = deref(pParams).getInitialMeanCR()
+        r["needstrictlybetter"] = deref(pParams).getNeedStrictlyBetter()
 
 cdef class GAParameters(EAParameters):
     """General parameters for the genetic algorithm."""

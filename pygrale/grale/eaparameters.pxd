@@ -24,20 +24,22 @@ ctypedef const GAParameters* GAParametersPtrConst
 
 cdef extern from "grale/deparameters.h" namespace "grale":
     cdef cppclass DEParameters(EAParameters):
-        DEParameters(double F, double CR)
+        DEParameters(double F, double CR, cbool needStrictlyBetter)
         double getF() const
         double getCR() const
+        cbool getNeedStrictlyBetter() const
 
 ctypedef const DEParameters* DEParametersPtrConst
 
 cdef extern from "grale/deparameters.h" namespace "grale":
     cdef cppclass JADEParameters(EAParameters):
-        JADEParameters(double p, double c, cbool useArchive, double initMuF, double initMuCR)
+        JADEParameters(double p, double c, cbool useArchive, double initMuF, double initMuCR, cbool needStrictlyBetter)
         double getBestFraction_p() const
         double getParameterUpdateFraction_c() const
         cbool useExternalArchive() const
         double getInitialMeanF() const
         double getInitialMeanCR() const
+        cbool getNeedStrictlyBetter() const
 
 ctypedef const JADEParameters* JADEParametersPtrConst
 

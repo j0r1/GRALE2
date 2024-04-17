@@ -14,8 +14,9 @@ LensDEEvolver::LensDEEvolver(
 		const shared_ptr<eatk::DifferentialEvolutionCrossover> &cross,
 		double CR,
 		const shared_ptr<eatk::FitnessComparison> &fitComp, int objectiveNumber, size_t numObjectives,
-		const shared_ptr<eatk::NonDominatedSetCreator> &ndCreator)
-	: eatk::DifferentialEvolutionEvolver(rng, mut, F, cross, CR, fitComp, objectiveNumber, numObjectives, ndCreator)
+		const shared_ptr<eatk::NonDominatedSetCreator> &ndCreator,
+		bool needStrictlyBetter)
+	: eatk::DifferentialEvolutionEvolver(rng, mut, F, cross, CR, fitComp, objectiveNumber, numObjectives, ndCreator, needStrictlyBetter)
 {
 }
 
@@ -77,9 +78,10 @@ LensJADEEvolver::LensJADEEvolver(
 		double initMuF,
 		double initMuCR,
 		size_t numObjectives,
-		const shared_ptr<eatk::NonDominatedSetCreator> &ndCreator
+		const shared_ptr<eatk::NonDominatedSetCreator> &ndCreator,
+		bool needStrictlyBetter
 	) 
-	: eatk::JADEEvolver(rng, mut, cross, fitComp, objectiveNumber, p, c, useArchive, initMuF, initMuCR, numObjectives, ndCreator) // TODO: other parameters
+	: eatk::JADEEvolver(rng, mut, cross, fitComp, objectiveNumber, p, c, useArchive, initMuF, initMuCR, numObjectives, ndCreator, needStrictlyBetter)
 {
 }
 
