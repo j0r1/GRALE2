@@ -8,302 +8,30 @@
 #include "inversioncommunicatornewga.h"
 #include "constants.h"
 #include "lensgaindividual.h"
-#include "lensgagenomemutation.h"
 #include "lensgagenomecrossover.h"
 #include "lensgafitnesscomparison.h"
 #include "lensgasingleobjectivecrossover.h"
 #include "lensgamultiobjectivecrossover.h"
-#include "lensgastopcriterion.h"
 #include "lensdemutationcrossover.h"
 #include "lensdeevolver.h"
 #include "lensfitnessgeneral.h"
 #include "lensgaconvergenceparameters.h"
 #include "randomnumbergenerator.h"
+#include "ea.h"
+#include "preferredindividualselector.h"
+#include "stop.h"
+#include "exchange.h"
+#include "reusecreation.h"
 #include <serut/memoryserializer.h>
-#include <eatk/evolutionaryalgorithm.h>
 #include <eatk/singlethreadedpopulationfitnesscalculation.h>
 #include <eatk/multithreadedpopulationfitnesscalculation.h>
-#include <eatk/multipopulationevolver.h>
 #include <eatk/fasternondominatedsetcreator.h>
 #include <eatk/fitnessbasedduplicateremoval.h>
 #include <serut/vectorserializer.h>
 
-#include <iostream>
 #include <sstream>
 #include <string>
-#include <memory>
 #include <limits>
-#include <chrono>
-
-class Timer {
-public:
-    Timer() {
-        start();
-    }
-
-    void start() {
-        beg = std::chrono::steady_clock::now();
-    }
-
-    void stop() {
-        end = std::chrono::steady_clock::now();
-    }
-
-    double duration() {
-        return std::chrono::duration_cast<std::chrono::nanoseconds>(end - beg).count();
-    }
-private:
-    std::chrono::time_point<std::chrono::steady_clock> beg;
-    std::chrono::time_point<std::chrono::steady_clock> end;
-};
-
-class MyGA : public eatk::EvolutionaryAlgorithm
-{
-public:
-	MyGA() { }
-	~MyGA()
-	{
-		double dtSum = 0;
-		double dt2Sum = 0;
-		for (auto dt : m_intervals)
-		{
-			dtSum += dt;
-			dt2Sum += dt*dt;
-		}
-
-		double avg = dtSum/m_intervals.size();
-		double stddev = SQRT(dt2Sum/m_intervals.size() - avg*avg);
-		std::cerr << "Avg = " << avg/1e6 << " ms, stddev = " << stddev/1e6 << " ms" << std::endl;
-	}
-
-	Timer m_timer;
-	std::vector <double> m_intervals;
-
-	errut::bool_t onBeforeFitnessCalculation(size_t generation, const std::shared_ptr<eatk::Population> &population) override
-	{
-		m_timer.start();
-	// 	cout << "# Generation " << generation << ", before calculation: " << endl;
-	// 	for (auto &i : population->individuals())
-	// 		cout << i->fitness()->toString() << endl;
-		return true;
-	}
-
-    errut::bool_t onFitnessCalculated(size_t generation, const std::shared_ptr<eatk::Population> &population) override
-	{
-		m_timer.stop();
-		m_intervals.push_back(m_timer.duration());
-	// 	cout << "# Generation " << generation << ", calculated: " << endl;
-	// 	for (auto &i : population->individuals())
-	// 		cout << i->fitness()->toString() << endl;
-		return true;
-	}
-
-	errut::bool_t onBeforeFitnessCalculation(size_t generation, const std::vector<std::shared_ptr<eatk::Population>> &populations) override
-	{
-		m_timer.start();
-		return true;
-	}
-
-    errut::bool_t onFitnessCalculated(size_t generation, const std::vector<std::shared_ptr<eatk::Population>> &populations) override
-	{
-		m_timer.stop();
-		m_intervals.push_back(m_timer.duration());
-		return true;
-	}
-};
-
-class PreferredIndividualSelector
-{
-public:
-	PreferredIndividualSelector() { }
-	virtual ~PreferredIndividualSelector() { }
-	virtual errut::bool_t select(const std::vector<std::shared_ptr<eatk::Individual>> &best,
-								 std::shared_ptr<eatk::Individual> &selected)
-	{
-		return "Not implemented";
-	}
-};
-
-class SubsequentBestIndividualSelector : public PreferredIndividualSelector
-{
-public:
-	SubsequentBestIndividualSelector(size_t numObjectives,
-									 const std::shared_ptr<eatk::FitnessComparison> &fitComp)
-		: m_numObjectives(numObjectives), m_cmp(fitComp) { }
-	~SubsequentBestIndividualSelector() { }
-	
-	errut::bool_t select(const std::vector<std::shared_ptr<eatk::Individual>> &bestIndividuals,
-								 std::shared_ptr<eatk::Individual> &selected) override
-	{
-		std::vector<std::shared_ptr<eatk::Individual>> genomes = bestIndividuals;
-		std::vector<std::shared_ptr<eatk::Individual>> genomes2;
-		std::shared_ptr<eatk::Individual> best;
-
-		if (genomes.size() == 0)
-			return "No best individuals to select one from";
-
-		for (size_t comp = 0 ; comp < m_numObjectives ; comp++)
-		{
-			best = genomes[0];
-
-			for (auto &i : genomes)
-			{
-				if (m_cmp->isFitterThan(i->fitnessRef(), best->fitnessRef(), comp))
-					best = i;
-			}
-
-			genomes2.clear();
-
-			// Ok, now we know a genome that has the lowest 'comp' fitness, let's see it there
-			// are others which perfom equally well
-			for (auto &i : genomes)
-			{
-				// if 'best' is not fitter than 'i' it must have the same fitness with respect to this component
-				if (!m_cmp->isFitterThan(best->fitnessRef(), i->fitnessRef(), comp))
-					genomes2.push_back(i);
-			}
-
-			swap(genomes, genomes2);
-			genomes2.clear();
-		}
-		selected = best;
-		return true;
-	}
-private:
-	size_t m_numObjectives;
-	std::shared_ptr<eatk::FitnessComparison> m_cmp;
-};
-
-class Stop : public grale::LensGAStopCriterion
-{
-public:
-	Stop(const std::shared_ptr<grale::LensGAGenomeMutation> &mutation, int popId = -1, size_t generationOffsetForReporting = 0)
-		: grale::LensGAStopCriterion(mutation, generationOffsetForReporting), m_popId(popId) { }
-protected:
-	void onReport(const std::string &s)	const override
-	{
-		if (m_popId < 0)
-			WriteLineStdout("GAMESSAGESTR:" + s);
-		else
-			WriteLineStdout("GAMESSAGESTR: P(" + std::to_string(m_popId) + "):" + s);
-	}
-private:
-	int m_popId;
-};
-
-class MultiStop : public eatk::StopCriterion
-{
-public:
-	MultiStop(const std::vector<std::shared_ptr<grale::LensGAGenomeMutation>> &mutations)
-	{
-		for (int i = 0 ; i < (int)mutations.size() ; i++)
-			m_stops.push_back(std::make_shared<Stop>(mutations[i], i));
-	}
-
-	errut::bool_t initialize(size_t numObjectives, const grale::LensGAConvergenceParameters &convParams)
-	{
-		errut::bool_t r;
-		for (auto &stop : m_stops)
-		{
-			if (!(r = stop->initialize(numObjectives, convParams)))
-				return "Unable to initialize stop criterion for subpopulation: " + r.getErrorString();
-		}
-		return true;
-	}
-
-	errut::bool_t analyze(const eatk::PopulationEvolver &ev, size_t generation, bool &shouldStop)
-	{
-		if (generation <= 1)
-		{
-			if (dynamic_cast<const eatk::MultiPopulationEvolver *>(&ev) == nullptr)
-				return "Evolver doesn't appear to be a 'MultiPopulationEvolver'";
-		}
-
-		const eatk::MultiPopulationEvolver &multiEvolver = static_cast<const eatk::MultiPopulationEvolver &>(ev);
-		auto &singleEvolvers = multiEvolver.getSinglePopulationEvolvers();
-
-		if (singleEvolvers.size() != m_stops.size())
-			return "Number of single population evolvers (" + std::to_string(singleEvolvers.size()) + ") doesn't match number individual stop criteria (" + std::to_string(m_stops.size()) + ")";
-
-		bool stop = true;
-		errut::bool_t r;
-
-		for (size_t i = 0 ; i < m_stops.size() ; i++)
-		{
-			bool shouldStopSingle = false;
-
-			if (!(r = m_stops[i]->analyze(*singleEvolvers[i], generation, shouldStopSingle)))
-				return "Error running stop criterion for population " + std::to_string(i) + ": " + r.getErrorString();
-			if (!shouldStopSingle)
-				stop = false;
-		}
-
-		// Stop if all populations indicate stop
-		shouldStop = stop;
-
-		return true;
-	}
-private:
-	std::vector<std::shared_ptr<Stop>> m_stops;
-};
-
-class MyExchange : public eatk::SequentialRandomIndividualExchange
-{
-public:
-	MyExchange(const std::shared_ptr<eatk::RandomNumberGenerator> &rng, size_t iterations) : eatk::SequentialRandomIndividualExchange(rng, iterations) { }
-protected:
-	void onExchange(size_t generation, size_t srcPop, size_t srcIndividualIdx, size_t dstPop, size_t dstIndividualIdx) override
-	{
-		std::cerr << "Generation " << generation << ": migrating " << srcIndividualIdx << " from pop " << srcPop << " to " << dstIndividualIdx << " in pop " << dstPop << std::endl;
-	}
-};
-
-class ReuseCreation : public eatk::IndividualCreation
-{
-public:
-	ReuseCreation(const eatk::Population &pop)
-	{
-		if (pop.size() == 0)
-			return;
-
-		m_referenceIndividual = pop.individual(0)->createCopy();
-		m_referenceGenome = m_referenceIndividual->genomePtr()->createCopy();
-		m_referenceFitness = m_referenceIndividual->fitnessPtr()->createCopy();
-
-		for (auto &i : pop.individuals())
-			m_genomePool.push_back(i->genomePtr()->createCopy());
-	}
-
-	std::shared_ptr<eatk::Genome> createInitializedGenome() override
-	{
-		if (m_genomePool.size() == 0)
-			return nullptr;
-		auto genome = m_genomePool.front();
-		m_genomePool.pop_front();
-		return genome;
-	}
-
-	std::shared_ptr<eatk::Genome> createUnInitializedGenome() override
-	{ 
-		if (!m_referenceGenome.get())
-			return nullptr;
-		return m_referenceGenome->createCopy(false);
-	}
-
-	std::shared_ptr<eatk::Fitness> createEmptyFitness() override
-	{
-		if (!m_referenceFitness.get())
-			return nullptr;
-		return m_referenceFitness->createCopy(false);
-	}
-
-	std::shared_ptr<eatk::Individual> createReferenceIndividual() override { return m_referenceIndividual; }
-private:
-	std::list<std::shared_ptr<eatk::Genome>> m_genomePool;
-	std::shared_ptr<eatk::Individual> m_referenceIndividual;
-	std::shared_ptr<eatk::Genome> m_referenceGenome;
-	std::shared_ptr<eatk::Fitness> m_referenceFitness;
-};
 
 // TODO: rename this, is from copy-paste
 class NewGACommunicatorBase : public InversionCommunicator
