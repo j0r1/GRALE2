@@ -141,27 +141,45 @@ bool_t InversionCommunicator::runModule(const std::string &lensFitnessObjectType
 {
 	bool_t r;
 	int popSize = 0;
+	int numEAs = 0;
 
 	if (!(r = readLineWithPrefix("POPULATIONSIZE", popSize, 10000)))
 		return "Error reading population size: " + r.getErrorString();
 	if (popSize < 1)
 		return "A negative population size was specified";
 
-	string eaType;
-	if (!(r = readLineWithPrefix("EATYPE", eaType, 10000)))
-		return "Error reading EA type: " + r.getErrorString();
+	if (!(r = readLineWithPrefix("NUMEAS", numEAs, 10000)))
+		return "Error reading number of EAs";
 
-	vector<uint8_t> gaParamBytes;
-	if (!(r = readLineAndBytesWithPrefix("GAPARAMS", gaParamBytes, 10000)))
-		return "Error reading GA parameters: " + r.getErrorString();
-	
+	if (numEAs < 1)
+		return "At least one EA should be present, but got " + to_string(numEAs);
+
+	vector<string> allEATypes;
+	vector<vector<uint8_t>> allEAParamBytes;
+	vector<vector<uint8_t>> allConvParamsBytes;
+
+	for (int i = 0 ; i < numEAs ; i++)
+	{
+		string eaType;
+		if (!(r = readLineWithPrefix("EATYPE", eaType, 10000)))
+			return "Error reading EA type: " + r.getErrorString();
+
+		vector<uint8_t> gaParamBytes;
+		if (!(r = readLineAndBytesWithPrefix("GAPARAMS", gaParamBytes, 10000)))
+			return "Error reading GA parameters: " + r.getErrorString();
+		
+		vector<uint8_t> convParamsBytes;
+		if (!(r = readLineAndBytesWithPrefix("CONVERGENCEPARAMS", convParamsBytes, 10000)))
+			return "Error reading convergence parameters: " + r.getErrorString();
+
+		allEATypes.push_back(eaType);
+		allEAParamBytes.push_back(gaParamBytes);
+		allConvParamsBytes.push_back(convParamsBytes);
+	}
+
 	vector<uint8_t> calcParamBytes;
 	if (!(r = readLineAndBytesWithPrefix("GAFACTORYPARAMS", calcParamBytes, 10000)))
 		return "Error reading GA factory parameters: " + r.getErrorString();
-
-	vector<uint8_t> convParamsBytes;
-	if (!(r = readLineAndBytesWithPrefix("CONVERGENCEPARAMS", convParamsBytes, 10000)))
-		return "Error reading convergence parameters: " + r.getErrorString();
 
 	vector<uint8_t> multiPopParamsBytes;
 	if (!(r = readLineAndBytesWithPrefix("MULTIPOPPARAMS", multiPopParamsBytes, 10000)))
@@ -181,21 +199,31 @@ bool_t InversionCommunicator::runModule(const std::string &lensFitnessObjectType
 	if (!pCalculatorFactory)
 		return "Calculator type '" + calculatorType + "' is not known";
 
-	unique_ptr<EAParameters> eaParams;
-	serut::MemorySerializer mSer(gaParamBytes.data(), gaParamBytes.size(), 0, 0);
-	if (!(r = EAParameters::read(mSer, eaParams)))
-		return "Unable to load EA parameters from received data: " + r.getErrorString();
+	vector<unique_ptr<EAParameters>> allEAParams;
 
-	if (!eaParams.get())
-		return "Internal error: read EAParameters is null";
+	for (auto &gaParamBytes : allEAParamBytes)
+	{
+		unique_ptr<EAParameters> eaParams;
+		serut::MemorySerializer mSer(gaParamBytes.data(), gaParamBytes.size(), 0, 0);
+		if (!(r = EAParameters::read(mSer, eaParams)))
+			return "Unable to load EA parameters from received data: " + r.getErrorString();
+
+		if (!eaParams.get())
+			return "Internal error: read EAParameters is null";
+	
+		allEAParams.push_back(move(eaParams));
+	}
+
+	vector<LensGAConvergenceParameters> allConvParams(allConvParamsBytes.size());
+	for (size_t i = 0 ; i < allConvParamsBytes.size() ; i++)
+	{
+		if (!(r = loadFromBytes(allConvParams[i], allConvParamsBytes[i])))
+			return "Unable to load convergence parameters from received data: " + r.getErrorString();
+	}
 
 	auto calculatorParams = pCalculatorFactory->createParametersInstance();
 	if (!(r = loadFromBytes(*calculatorParams, calcParamBytes)))
 		return "Can't load calculator parameters from received data: " + r.getErrorString();
-
-	LensGAConvergenceParameters convParams;
-	if (!(r = loadFromBytes(convParams, convParamsBytes)))
-		return "Unable to load convergence parameters from received data: " + r.getErrorString();
 
 	shared_ptr<LensGAMultiPopulationParameters> multiPopParams;
 	if (multiPopParamsBytes.size() > 0)
@@ -213,8 +241,8 @@ bool_t InversionCommunicator::runModule(const std::string &lensFitnessObjectType
 		return "Unable to initialize calculator: " + r.getErrorString();
 
 	if (!(r = runGA(popSize, lensFitnessObjectType, calculatorType, *pCalculatorFactory,
-	                calculatorInstance, calcParamBytes, *eaParams, convParams, multiPopParams,
-					eaType)))
+	                calculatorInstance, calcParamBytes, allEAParams, allConvParams, multiPopParams,
+					allEATypes)))
 		return r;
 
 	LOG(Log::DBG, "Finished runGA");
@@ -231,10 +259,11 @@ bool_t InversionCommunicator::runModule(const std::string &lensFitnessObjectType
 bool_t InversionCommunicator::runGA(int popSize, const std::string &lensFitnessObjectType, 
 	                     const std::string &calcType, grale::LensGACalculatorFactory &calcFactory,
 						 const std::shared_ptr<grale::LensGAGenomeCalculator> &genomeCalculator,
-						 const std::vector<uint8_t> &factoryParamBytes, const grale::EAParameters &params,
-						 const grale::LensGAConvergenceParameters &convParams,
+						 const std::vector<uint8_t> &factoryParamBytes,
+						 const std::vector<std::unique_ptr<grale::EAParameters>> &allEAParams,
+						 const std::vector<grale::LensGAConvergenceParameters> &convParams,
 						 const std::shared_ptr<grale::LensGAMultiPopulationParameters> &multiPopParams,
-						 const std::string &eaType)
+						 const std::vector<std::string> &allEATypes)
 {
 	return "Not implemented in base class";
 }

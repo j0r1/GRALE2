@@ -30,13 +30,15 @@ using namespace errut;
 namespace grale
 {
 
-GAParameters::GAParameters(double selectionPressure, bool useElitism, bool alwaysIncludeBest, double crossOverRate)
+GAParameters::GAParameters(double selectionPressure, bool useElitism, bool alwaysIncludeBest, double crossOverRate,
+		                   double smallMutationSize)
 	: EAParameters(EAParameters::GA)
 {
 	m_selectionPressure = selectionPressure;
 	m_useElitism = useElitism;
 	m_alwaysIncludeBest = alwaysIncludeBest;
 	m_crossOverRate = crossOverRate;
+	m_smallMutSize = smallMutationSize;
 }
 
 GAParameters::~GAParameters()
@@ -51,7 +53,8 @@ bool_t GAParameters::readInternal(serut::SerializationInterface &si)
 	int32_t flags = 0;
 	if (!si.readDouble(&m_selectionPressure) || 
 	    !si.readInt32(&flags) ||
-		!si.readDouble(&m_crossOverRate))
+		!si.readDouble(&m_crossOverRate) ||
+		!si.readDouble(&m_smallMutSize))
 		return si.getErrorString();
 
 	m_useElitism = (flags&GAPARAMETERSFLAG_BIT_USEELITISM)?true:false;
@@ -70,7 +73,8 @@ bool_t GAParameters::writeInternal(serut::SerializationInterface &si) const
 
 	if (!si.writeDouble(m_selectionPressure) ||
 	    !si.writeInt32(flags) ||
-		!si.writeDouble(m_crossOverRate))
+		!si.writeDouble(m_crossOverRate) ||
+		!si.writeDouble(m_smallMutSize))
 		return si.getErrorString();
 
 	return true;

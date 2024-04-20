@@ -10,8 +10,8 @@ using namespace errut;
 namespace grale
 {
 
-LensGAStopCriterion::LensGAStopCriterion(const std::shared_ptr<LensGAGenomeMutation> &mutation, size_t generationNumberOffset)
-	: m_mutation(mutation), m_generationNumberOffset(generationNumberOffset)
+LensGAStopCriterion::LensGAStopCriterion(size_t generationNumberOffset)
+	: m_generationNumberOffset(generationNumberOffset)
 { 
 	m_numObjectives = 0; // means not initialized
 	m_lastFitnessReportTime = chrono::steady_clock::now();
@@ -30,34 +30,11 @@ bool_t LensGAStopCriterion::initialize(size_t numObjectives, const LensGAConverg
 	m_maxGenerations = convParams.getMaximumNumberOfGenerations();
 
 	int histSize = convParams.getConvergenceHistorySize();
-	m_fitnessConvergenceFactors = convParams.getConvergenceFactors();
-	m_mutationSizes = convParams.getConvergenceSmallMutationSizes();
+	m_fitnessConvergenceFactor = convParams.getConvergenceFactor();
 
-	if (m_fitnessConvergenceFactors.size() != m_mutationSizes.size() || m_fitnessConvergenceFactors.size() < 1)
-		return "Unexpected: invalid convergence or mutation settings (should have been checked before)";
-	
-	m_pFitnessHistory = make_unique<MultiFitnessHistory>(m_numObjectives, histSize, 0); // Convergence factor will be reset in the next subroutine
-	m_convergenceFactorPos = 0;
-	updateMutationAndConvergenceInfo();
+	m_pFitnessHistory = make_unique<MultiFitnessHistory>(m_numObjectives, histSize, m_fitnessConvergenceFactor); // Convergence factor will be reset in the next subroutine
 
 	return true;
-}
-
-void LensGAStopCriterion::updateMutationAndConvergenceInfo()
-{
-	float mutationSize = m_mutationSizes[m_convergenceFactorPos];
-	bool useAbsoluteMutation = (mutationSize < 0)?true:false;
-
-	m_mutation->setAbsoluteMutation(useAbsoluteMutation);
-	m_mutation->setMutationAmplitude(mutationSize);
-	
-	m_pFitnessHistory->reset(m_fitnessConvergenceFactors[m_convergenceFactorPos]);
-	m_convergenceFactorPos++;
-
-	if (!useAbsoluteMutation)
-		cout << "DEBUG: Setting small mutation with size " << to_string(mutationSize) << endl;
-	else
-		cout << "DEBUG: Setting large mutations" << endl;
 }
 
 bool_t LensGAStopCriterion::analyze(const eatk::PopulationEvolver &evolver, size_t generationNumber, bool &shouldStop)
@@ -93,18 +70,13 @@ bool_t LensGAStopCriterion::analyze(const eatk::PopulationEvolver &evolver, size
 
 	if (m_pFitnessHistory->isFinished())
 	{
-		if (m_convergenceFactorPos == m_fitnessConvergenceFactors.size())
-		{
-			shouldStop = true;
-			m_stopped = true;
-		}
-		else
-			updateMutationAndConvergenceInfo();
+		shouldStop = true;
+		m_stopped = true;
 	}
 
 	m_pFitnessHistory->advance();
 
-	if (generationNumber > m_maxGenerations)
+	if (generationNumber > m_maxGenerations) // TODO: use generationNumber + generationNumberOffset here?
 		shouldStop = true;
 
 	auto now = chrono::steady_clock::now();

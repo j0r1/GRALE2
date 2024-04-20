@@ -35,13 +35,17 @@ class GRALE_IMPORTEXPORT GAParameters : public EAParameters
 {
 public:
 	GAParameters(double selectionPressure = 2.5, bool useElitism = true, 
-	             bool alwaysIncludeBest = true, double crossoverRate = 0.9);
+	             bool alwaysIncludeBest = true, double crossoverRate = 0.9,
+				 double smallMutationSize = -1); // Negative means absolute mutation
 	~GAParameters();
 
 	double getSelectionPressure() const													{ return m_selectionPressure; }
 	bool getUseElitism() const															{ return m_useElitism; }
 	bool getAlwaysIncludeBest() const													{ return m_alwaysIncludeBest; }
 	double getCrossOverRate() const														{ return m_crossOverRate; }
+
+	// Negative or zero means absolute mutation
+	double getSmallMutationSize() const													{ return m_smallMutSize; }
 protected:
 	errut::bool_t readInternal(serut::SerializationInterface &si) override;
 	errut::bool_t writeInternal(serut::SerializationInterface &si) const override;
@@ -50,6 +54,7 @@ private:
 	bool m_useElitism;
 	bool m_alwaysIncludeBest;
 	double m_crossOverRate;
+	double m_smallMutSize;
 };
 
 } // end namespace

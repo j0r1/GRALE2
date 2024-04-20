@@ -41,10 +41,10 @@ protected:
 	                     grale::LensGACalculatorFactory &calcFactory, 
 						 const std::shared_ptr<grale::LensGAGenomeCalculator> &genomeCalculator,
 						 const std::vector<uint8_t> &factoryParamBytes,
-						 const grale::EAParameters &params,
-						 const grale::LensGAConvergenceParameters &convParams,
+						 const std::vector<std::unique_ptr<grale::EAParameters>> &allEAParams,
+						 const std::vector<grale::LensGAConvergenceParameters> &convParams,
 						 const std::shared_ptr<grale::LensGAMultiPopulationParameters> &multiPopParams,
-						 const std::string &eaType);
+						 const std::vector<std::string> &allEATypes);
 
 	bool_t readLineWithPrefix(const std::string &prefix, std::string &value, int timeoutMSec);
 	bool_t readLineWithPrefix(const std::string &prefix, int &value, int timeoutMSec);

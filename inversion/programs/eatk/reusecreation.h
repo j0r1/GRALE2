@@ -3,21 +3,40 @@
 #include <eatk/individual.h>
 #include <eatk/population.h>
 #include <list>
+#include <iostream>
 
 class ReuseCreation : public eatk::IndividualCreation
 {
 public:
-	ReuseCreation(const eatk::Population &pop)
+	ReuseCreation(const std::vector<std::shared_ptr<eatk::Population>> &pops)
 	{
-		if (pop.size() == 0)
+		if (pops.size() == 0)
 			return;
 
-		m_referenceIndividual = pop.individual(0)->createCopy();
+		for (auto &pop0 : pops)
+		{
+			const eatk::Population &pop = *pop0;
+			if (pop.size() == 0)
+				continue;
+
+			m_referenceIndividual = pop.individual(0)->createCopy();
+			break;
+		}
+
+		if (!m_referenceIndividual.get()) // Empty populations
+			return; 
+
 		m_referenceGenome = m_referenceIndividual->genomePtr()->createCopy();
 		m_referenceFitness = m_referenceIndividual->fitnessPtr()->createCopy();
 
-		for (auto &i : pop.individuals())
-			m_genomePool.push_back(i->genomePtr()->createCopy());
+		for (auto &pop0 : pops)
+		{
+			const eatk::Population &pop = *pop0;
+			for (auto &i : pop.individuals())
+				m_genomePool.push_back(i->genomePtr()->createCopy());
+		}
+
+		std::cerr << "DEBUG ReuseCreation: added " << m_genomePool.size() << " genomes to reuse" << std::endl;
 	}
 
 	std::shared_ptr<eatk::Genome> createInitializedGenome() override
@@ -26,6 +45,7 @@ public:
 			return nullptr;
 		auto genome = m_genomePool.front();
 		m_genomePool.pop_front();
+		std::cerr << "DEBUG ReuseCreation::createInitializedGenome called, " << m_genomePool.size() << " genomes remaining" << std::endl;
 		return genome;
 	}
 

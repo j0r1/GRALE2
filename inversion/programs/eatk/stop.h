@@ -1,7 +1,6 @@
 #pragma once
 
 #include "lensgastopcriterion.h"
-#include "lensgagenomemutation.h"
 #include "inputoutput.h"
 #include <eatk/multipopulationevolver.h>
 #include <memory>
@@ -9,8 +8,8 @@
 class Stop : public grale::LensGAStopCriterion
 {
 public:
-	Stop(const std::shared_ptr<grale::LensGAGenomeMutation> &mutation, int popId = -1, size_t generationOffsetForReporting = 0)
-		: grale::LensGAStopCriterion(mutation, generationOffsetForReporting), m_popId(popId) { }
+	Stop(int popId, size_t generationOffsetForReporting)
+		: grale::LensGAStopCriterion(generationOffsetForReporting), m_popId(popId) { }
 protected:
 	void onReport(const std::string &s)	const override
 	{
@@ -26,10 +25,10 @@ private:
 class MultiStop : public eatk::StopCriterion
 {
 public:
-	MultiStop(const std::vector<std::shared_ptr<grale::LensGAGenomeMutation>> &mutations)
+	MultiStop(size_t numEvolvers, size_t generationOffsetForReporting)
 	{
-		for (int i = 0 ; i < (int)mutations.size() ; i++)
-			m_stops.push_back(std::make_shared<Stop>(mutations[i], i));
+		for (int i = 0 ; i < (int)numEvolvers ; i++)
+			m_stops.push_back(std::make_shared<Stop>(i, generationOffsetForReporting));
 	}
 
 	errut::bool_t initialize(size_t numObjectives, const grale::LensGAConvergenceParameters &convParams)

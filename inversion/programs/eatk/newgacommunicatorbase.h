@@ -134,19 +134,24 @@ protected:
 	                     grale::LensGACalculatorFactory &calcFactory, 
 						 const std::shared_ptr<grale::LensGAGenomeCalculator> &genomeCalculator,
 						 const std::vector<uint8_t> &factoryParamBytes,
-						 const grale::EAParameters &params,
-						 const grale::LensGAConvergenceParameters &convParams,
+						 const std::vector<std::unique_ptr<grale::EAParameters>> &allEAParams,
+						 const std::vector<grale::LensGAConvergenceParameters> &allConvParams,
 						 const std::shared_ptr<grale::LensGAMultiPopulationParameters> &multiPopParams,
-						 const std::string &eaType)
+						 const std::vector<std::string> &allEATypes)
 	{
+		if (allEATypes.size() != allEAParams.size() || allEATypes.size() != allConvParams.size())
+			return "Unexpected mismatch between number of EA types (" + std::to_string(allEATypes.size()) +
+				   "), EA parameters (" + std::to_string(allEAParams.size()) + ") and convergence parameters (" + 
+				   std::to_string(allConvParams.size()) + ")";
+
+		// TODO: Check type name and parameters
+		for (size_t i = 0 ; i < allEATypes.size() ; i++)
+		{
+			// TODO
+		}
+
 		std::shared_ptr<grale::RandomNumberGenerator> rng = std::make_shared<grale::RandomNumberGenerator>();
 		WriteLineStdout("GAMESSAGESTR:RNG SEED: " + std::to_string(rng->getSeed()));
-
-		grale::LensGAIndividualCreation creation(rng, 
-						  genomeCalculator->getNumberOfBasisFunctions(),
-						  genomeCalculator->getNumberOfSheets(),
-						  genomeCalculator->allowNegativeValues(),
-						  genomeCalculator->getNumberOfObjectives());
 
 		auto comparison = std::make_shared<grale::LensGAFitnessComparison>();
 		m_selector = std::make_shared<SubsequentBestIndividualSelector>(
@@ -157,26 +162,70 @@ protected:
 		std::shared_ptr<eatk::PopulationFitnessCalculation> calc;
 		errut::bool_t r;
 
-		if (!(r = getCalculator(lensFitnessObjectType, calculatorType, calcFactory, genomeCalculator,
-								factoryParamBytes, creation, calc)))
-			return "Can't get calculator: " + r.getErrorString();
+		std::unique_ptr<eatk::IndividualCreation> creation;
+		{
+			std::unique_ptr<grale::LensGAIndividualCreation> lensGACreation = std::make_unique<grale::LensGAIndividualCreation>(rng, 
+							  genomeCalculator->getNumberOfBasisFunctions(),
+							  genomeCalculator->getNumberOfSheets(),
+							  genomeCalculator->allowNegativeValues(),
+							  genomeCalculator->getNumberOfObjectives());
 
-		if (eaType == "GA" || eaType == "GA+JADE")
-			r = runGA_GA(rng, creation, comparison, *calc, popSize, genomeCalculator->allowNegativeValues(), genomeCalculator->getNumberOfObjectives(),
-					        params, convParams, multiPopParams, eaType);
-		else if (eaType == "DE" || eaType == "JADE")
-			r = runGA_DE(rng, creation, comparison, *calc, popSize, genomeCalculator->allowNegativeValues(), genomeCalculator->getNumberOfObjectives(),
-					        params, convParams, multiPopParams, eaType);
-		else
-			r = "Unknown EA type '" + eaType + "', should be either GA, DE or JADE";
+			if (!(r = getCalculator(lensFitnessObjectType, calculatorType, calcFactory, genomeCalculator,
+									factoryParamBytes, *lensGACreation, calc)))
+				return "Can't get calculator: " + r.getErrorString();
+
+			creation = std::move(lensGACreation);
+		}
+
+		// For compatibility with previous approach, in multi-objective GA we need to copy this as
+		// well (for elitism); it's a vector of vectors for the multi-pop case
+		std::vector<std::vector<std::shared_ptr<eatk::Individual>>> previousBestIndividuals;
+		size_t generationCount = 0;
+
+		for (size_t i = 0 ; i < allEATypes.size() ; i++)
+		{
+			std::string eaType = allEATypes[i];
+			size_t numGen = 0;
+			std::unique_ptr<eatk::IndividualCreation> reuseCreation;
+
+			if (eaType == "GA")
+				std::tie(r, previousBestIndividuals, reuseCreation, numGen) = runGA_GA(rng, *creation, comparison, *calc, popSize, genomeCalculator->allowNegativeValues(), genomeCalculator->getNumberOfObjectives(),
+								*(allEAParams[i]), allConvParams[i], multiPopParams, eaType, generationCount, previousBestIndividuals);
+			else if (eaType == "DE" || eaType == "JADE")
+				std::tie(r, previousBestIndividuals, reuseCreation, numGen) = runGA_DE(rng, *creation, comparison, *calc, popSize, genomeCalculator->allowNegativeValues(), genomeCalculator->getNumberOfObjectives(),
+								*(allEAParams[i]), allConvParams[i], multiPopParams, eaType, generationCount, previousBestIndividuals);
+			else
+				r = "Unknown EA type '" + eaType + "', should be either GA, DE or JADE";
+
+			if (!r)
+				break;
+
+			std::swap(creation, reuseCreation); // Make sure the next algorithm starts where this one left off
+
+			generationCount += numGen;
+		}
+
+		// Note: m_best must be set inside the subroutines; previousBest can be the one from multiple
+		//       populations, don't want to recalculate the non-dominated set here
 
 		calculatorCleanup();
 		return r;
 	}
 
-	// TODO: merge more common code from the GA and DE versions
+	static inline std::tuple<errut::bool_t,
+		                                std::vector<std::vector<std::shared_ptr<eatk::Individual>>>,
+						                std::unique_ptr<eatk::IndividualCreation>, size_t> E(const std::string &msg)
 
-	errut::bool_t runGA_DE(const std::shared_ptr<eatk::RandomNumberGenerator> &rng,
+	{
+		std::vector<std::vector<std::shared_ptr<eatk::Individual>>> dummy;
+		errut::bool_t r = msg;
+		return { r, dummy, nullptr, 0 };
+	};
+
+	std::tuple<errut::bool_t,
+		       std::vector<std::vector<std::shared_ptr<eatk::Individual>>>,
+			   std::unique_ptr<eatk::IndividualCreation>,
+			   size_t> runGA_DE(const std::shared_ptr<eatk::RandomNumberGenerator> &rng,
 						 eatk::IndividualCreation &creation,
 						 const std::shared_ptr<grale::LensGAFitnessComparison> &comparison,
 						 eatk::PopulationFitnessCalculation &calc,
@@ -185,26 +234,20 @@ protected:
 						 const grale::EAParameters &eaParams,
 						 const grale::LensGAConvergenceParameters &convParams,
 						 const std::shared_ptr<grale::LensGAMultiPopulationParameters> &multiPopParams,
-						 const std::string &eaType, size_t generationOffsetForReporting = 0)
+						 const std::string &eaType, size_t generationOffsetForReporting,
+						 const std::vector<std::vector<std::shared_ptr<eatk::Individual>>> &previousBest)
 	{
+		if (previousBest.size() > 0)
+			WriteLineStdout("GAMESSAGESTR:WARNING: nog using previous best for initialization of DE/JADE");
+
 		errut::bool_t r;
 
 		if (multiPopParams.get())
-			return "DE/JADE only works with a single population";
+			return E("DE/JADE only works with a single population");
 
-		// TODO: At the moment we need this for the stop criterion
-		std::shared_ptr<grale::LensGAGenomeMutation> mutation = std::make_shared<grale::LensGAGenomeMutation>(rng, 
-						   1.0, // chance multiplier; has always been set to one
-						   allowNegative,
-						   0, // mutation amplitude, will be in the stop criterion
-						   true); // absolute or small mutation, will be set in the stop criterion
-
-		// TODO: this stop criterion where the mutation amplitude is changed doesn't really
-		//       make sense (not the kind of mutation in DE)
-
-		Stop stop(mutation, -1, generationOffsetForReporting);
+		Stop stop(-1, generationOffsetForReporting);
 		if (!(r = stop.initialize(numObjectives, convParams)))
-			return "Can't initialize stop criterion: " + r.getErrorString();
+			return E("Can't initialize stop criterion: " + r.getErrorString());
 
 		auto mut = std::make_shared<grale::LensDEMutation>();
 		auto cross = std::make_shared<grale::LensDECrossover>(rng, allowNegative);
@@ -215,7 +258,8 @@ protected:
 		{
 			const grale::JADEParameters *pParams = dynamic_cast<const grale::JADEParameters*>(&eaParams);
 			if (!pParams)
-				return "Invalid EA parameters for JADE";
+				return E("Invalid EA parameters for JADE");
+
 			const grale::JADEParameters &params = *pParams;
 			double p = params.getBestFraction_p();
 			double c = params.getParameterUpdateFraction_c();
@@ -249,7 +293,8 @@ protected:
 		{
 			const grale::DEParameters *pParams = dynamic_cast<const grale::DEParameters*>(&eaParams);
 			if (!pParams)
-				return "Invalid EA parameters for DE";
+				return E("Invalid EA parameters for DE");
+
 			const grale::DEParameters &params = *pParams;
 			double F = params.getF();
 			double CR = params.getCR();
@@ -271,91 +316,63 @@ protected:
 																 needStrictlyBetter); // -1 signals multi-objective
 			}
 		}
+		else
+			return E("Unexpected eaType '" + eaType + "'");
 
 		MyGA ga;
 		if (!(r = ga.run(creation, *evolver, calc, stop, popSize, popSize, popSize*2)))
-			return "Error running GA: " + r.getErrorString();
+			return E("Error running GA: " + r.getErrorString());
 
+		std::vector<std::vector<std::shared_ptr<eatk::Individual>>> allBest = { { evolver->getBestIndividuals() } };
 		m_best = evolver->getBestIndividuals();
 
-		return true;
+		return { true, allBest,
+				 std::make_unique<ReuseCreation>(ga.getPopulations()),
+				 ga.getNumberOfGenerations() };
+
 	}
 
-	errut::bool_t runGA_GA(const std::shared_ptr<eatk::RandomNumberGenerator> &rng,
+	std::tuple<errut::bool_t,
+		       std::vector<std::vector<std::shared_ptr<eatk::Individual>>>,
+			   std::unique_ptr<eatk::IndividualCreation>,
+			   size_t> runGA_GA(const std::shared_ptr<eatk::RandomNumberGenerator> &rng,
 						 eatk::IndividualCreation &creation,
 						 const std::shared_ptr<grale::LensGAFitnessComparison> &comparison,
 						 eatk::PopulationFitnessCalculation &calc,
 			             int popSize,
 						 bool allowNegative, size_t numObjectives,
 						 const grale::EAParameters &eaParams,
-						 const grale::LensGAConvergenceParameters &convParams0,
+						 const grale::LensGAConvergenceParameters &convParamsGA,
 						 const std::shared_ptr<grale::LensGAMultiPopulationParameters> &multiPopParams,
-						 const std::string &eaType)
+						 const std::string &eaType, size_t generationOffsetForReporting,
+						 const std::vector<std::vector<std::shared_ptr<eatk::Individual>>> &previousBestIndividuals)
 	{
 		const grale::GAParameters *pParams = dynamic_cast<const grale::GAParameters*>(&eaParams);
 		if (!pParams)
-			return "Invalid EA parameters for GA";
+			return E("Invalid EA parameters for GA");
 		const grale::GAParameters &params = *pParams;
 
 		WriteLineStdout("GAMESSAGESTR:Running GA algorithm, selection pressure = " + std::to_string(params.getSelectionPressure()) +
 				        ", elitism = " + std::to_string((int)params.getUseElitism()) +
 						", always include best = " + std::to_string((int)params.getAlwaysIncludeBest()) + 
-						", crossover rate = " + std::to_string(params.getCrossOverRate()));
+						", crossover rate = " + std::to_string(params.getCrossOverRate()) +
+						", small mutation size = " + std::to_string(params.getSmallMutationSize()));
 
-
-		grale::LensGAConvergenceParameters convParamsGA;
-		grale::LensGAConvergenceParameters convParamsJADE;
-
-		if (eaType == "GA")
-		{
-			// Nothing to do
-			convParamsGA = convParams0;
-		}
-		else if (eaType == "GA+JADE")
-		{
-			WriteLineStdout("GAMESSAGESTR:Will add JADE after standard GA run");
-			if (multiPopParams.get())
-				return "GA+JADE doesn't work with multiple populations";
-
-			// To make sure that history size and max generations are copies
-			convParamsGA = convParams0;
-			convParamsJADE = convParams0;
-
-			// Split conversion parameters: last is for JADE
-			std::vector<double> factors = convParams0.getConvergenceFactors();
-			std::vector<double> mutSizes = convParams0.getConvergenceSmallMutationSizes();
-
-			if (factors.size() > 0 && mutSizes.size() > 0)
-			{
-				double deConvFactor = factors.back();
-				double deMutSize = mutSizes.back(); // This isn't actually used though
-				factors.resize(factors.size()-1); // Remove last
-				mutSizes.resize(mutSizes.size()-1);
-
-				if (!convParamsGA.setConvergenceFactorsAndMutationSizes(factors, mutSizes))
-					return "Can't set GA convergence factors: " + convParamsGA.getErrorString();
-				if (!convParamsJADE.setConvergenceFactorsAndMutationSizes({deConvFactor}, {deMutSize}))
-					return "Can't set JADE convergence factors: " + convParamsJADE.getErrorString();
-			}
-		}
-		else
-			return "Unexpected eaType '" + eaType + "'";
 
 		errut::bool_t r;
 		MyGA ga;
 
-		std::vector<std::shared_ptr<grale::LensGAGenomeMutation>> mutations;
+		double smallMutSize = params.getSmallMutationSize();
+		bool absoluteMutation = (smallMutSize <= 0)?true:false;
 
-		auto getEvolver = [&rng, allowNegative, numObjectives, &params, &mutations]()
+		auto mutation = std::make_shared<grale::LensGAGenomeMutation>(rng, 
+					   1.0, // chance multiplier; has always been set to one
+					   allowNegative,
+					   smallMutSize,
+					   absoluteMutation);
+
+		auto getEvolver = [&rng, allowNegative, numObjectives, &params, &mutation]()
 		{
-			auto mutation = std::make_shared<grale::LensGAGenomeMutation>(rng, 
-						   1.0, // chance multiplier; has always been set to one
-						   allowNegative,
-						   0, // mutation amplitude, will be in the stop criterion
-						   true); // absolute or small mutation, will be set in the stop criterion
-
-			mutations.push_back(mutation);
-
 			std::shared_ptr<grale::LensGACrossoverBase> cross;
 			if (numObjectives == 1)
 				cross = std::make_shared<grale::LensGASingleObjectiveCrossover>(params.getSelectionPressure(),
@@ -382,32 +399,47 @@ protected:
 		{
 			auto cross = getEvolver();
 
-			assert(mutations.size() == 1);
-			Stop stop(mutations[0]);
+			if (previousBestIndividuals.size() > 1) // expecting one population
+				return E("Only expecting previous best individuals from previous EA step for one population, but got " + std::to_string(previousBestIndividuals.size()));
 
-			if (!(r = stop.initialize(numObjectives, convParamsGA)))
-				return "Error initializing convergence checker: " + r.getErrorString();
-
-			if (!(r = ga.run(creation, *cross, calc, stop, popSize)))
-				return "Error running GA: " + r.getErrorString();
-
-			if (eaType == "GA+JADE")
+			if (previousBestIndividuals.size() == 1)
 			{
-				WriteLineStdout("GAMESSAGESTR:EXPERIMENTAL JADE FINISH");
-
-				ReuseCreation reuseCreation(*(ga.getPopulation()));
-				size_t generationOffset = ga.getNumberOfGenerations();
-
-				grale::JADEParameters defaultJADEParams; // TODO: make this configurable somehow
-
-				if (!(r = runGA_DE(rng, reuseCreation, comparison, calc, popSize, allowNegative, numObjectives, defaultJADEParams,
-								   convParamsJADE, nullptr, "JADE", generationOffset)))
-					return "Can't run JADE finish: " + r.getErrorString();
+				if (auto moCross = dynamic_cast<grale::LensGAMultiObjectiveCrossover*>(cross.get()) ; moCross != nullptr)
+				{
+					WriteLineStdout("GAMESSAGESTR:DEBUG: multi-objective GA, restoring best " + std::to_string(previousBestIndividuals[0].size()) + " individuals");
+					moCross->restoreBestIndividuals(previousBestIndividuals[0]);
+				}
+				else
+					WriteLineStdout("GAMESSAGESTR:DEBUG: not a multi-objective GA, ignoring restoring best " + std::to_string(previousBestIndividuals[0].size()) + " individuals");
 			}
 			else
-				m_best = cross->getBestIndividuals();
+				WriteLineStdout("GAMESSAGESTR:DEBUG: no previous best to restore in GA");
+
+			Stop stop(-1, generationOffsetForReporting);
+
+			if (!(r = stop.initialize(numObjectives, convParamsGA)))
+				return E("Error initializing convergence checker: " + r.getErrorString());
+
+			if (!(r = ga.run(creation, *cross, calc, stop, popSize)))
+				return E("Error running GA: " + r.getErrorString());
+
+			m_best = cross->getBestIndividuals();
+
+			std::vector<std::vector<std::shared_ptr<eatk::Individual>>> allBest = { { cross->getBestIndividuals() } };
+
+			return { true, allBest,
+				 std::make_unique<ReuseCreation>(ga.getPopulations()),
+				 ga.getNumberOfGenerations() };
+
 		}
-		else // Use several populations, with migration
+		return E("TODO: fix multi-pop again");
+		
+		// TODO: disabled multi-population for now: not yet sure how to pass the
+		//       best ones of multiple populations of one algorithm to the next
+		//       Perhaps remove multi-population code alltogether?
+
+		/*
+		// Use several populations, with migration
 		{
 			size_t numPop = multiPopParams->getNumberOfPopulations();
 			if (numPop < 2)
@@ -459,6 +491,7 @@ protected:
 		// 	std::cout << b->fitness()->toString() << std::endl;
 
 		return true;
+		*/
 	}
 
 	virtual errut::bool_t getCalculator(const std::string &lensFitnessObjectType,

@@ -8,7 +8,8 @@ namespace grale
 
 LensGAConvergenceParameters::LensGAConvergenceParameters()
 	: m_maxGenerations(16384),
-	  m_convHistSize(250)
+	  m_convHistSize(250),
+	  m_convFactor(0.1)
 {
 }
 
@@ -16,35 +17,17 @@ LensGAConvergenceParameters::~LensGAConvergenceParameters()
 {
 }
 
-bool LensGAConvergenceParameters::setConvergenceFactorsAndMutationSizes(const vector<double> &convFactors, const vector<double> &mutSizes)
-{
-	if (convFactors.size() != mutSizes.size())
-	{
-		setErrorString("Both arrays should have the same length");
-		return false;
-	}
-	if (convFactors.size() < 1)
-	{
-		setErrorString("At least one entry needs to be provided");
-		return false;
-	}
-	m_convFactors = convFactors;
-	m_convMutSizes = mutSizes;
-	return true;
-}
-
 bool LensGAConvergenceParameters::write(SerializationInterface &si) const
 {
-	int32_t sizes[4] = { (int32_t)m_maxGenerations, (int32_t)m_convHistSize,
-		                 (int32_t)m_convFactors.size(), (int32_t)m_convMutSizes.size() };
-	if (!si.writeInt32s(sizes, 4))
+	int32_t sizes[2] = { (int32_t)m_maxGenerations, (int32_t)m_convHistSize };
+	if (!si.writeInt32s(sizes, 2))
 	{
 		setErrorString("Unable to write integer values: " + si.getErrorString());
 		return false;
 	}
-	if (!si.writeDoubles(m_convFactors) || !si.writeDoubles(m_convMutSizes))
+	if (!si.writeDouble(m_convFactor))
 	{
-		setErrorString("Unable to write convergence or mutation sizes: " + si.getErrorString());
+		setErrorString("Unable to write convergence factor: " + si.getErrorString());
 		return false;
 	}
 	return true;
@@ -52,8 +35,8 @@ bool LensGAConvergenceParameters::write(SerializationInterface &si) const
 
 bool LensGAConvergenceParameters::read(SerializationInterface &si)
 {
-	int32_t sizes[4];
-	if (!si.readInt32s(sizes, 4))
+	int32_t sizes[2];
+	if (!si.readInt32s(sizes, 2))
 	{
 		setErrorString("Unable to read integer values: " + si.getErrorString());
 		return false;
@@ -68,15 +51,14 @@ bool LensGAConvergenceParameters::read(SerializationInterface &si)
 	}
 	m_maxGenerations = (size_t)sizes[0];
 	m_convHistSize = (size_t)sizes[1];
-	m_convFactors.resize((size_t)sizes[2]);
-	m_convMutSizes.resize((size_t)sizes[3]);
 
-	if (!si.readDoubles(m_convFactors) || !si.readDoubles(m_convMutSizes))
+	if (!si.readDouble(&m_convFactor))
 	{
-		setErrorString("Error reading convergence factors or mutation sizes: " + si.getErrorString());
+		setErrorString("Error reading convergence factor: " + si.getErrorString());
 		return false;
 	}
 	return true;
 }
 
 }
+
