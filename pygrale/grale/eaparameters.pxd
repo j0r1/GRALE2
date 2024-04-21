@@ -13,12 +13,13 @@ cdef extern from "grale/eaparameters.h" namespace "grale":
 
 cdef extern from "grale/gaparameters.h" namespace "grale":
     cdef cppclass GAParameters(EAParameters):
-        GAParameters(double selectionPressure, cbool useElitism, cbool alwaysIncludeBest, double crossoverRate)
+        GAParameters(double selectionPressure, cbool useElitism, cbool alwaysIncludeBest, double crossoverRate, double smallMutationSize)
 
         double getSelectionPressure() const
         cbool getUseElitism() const
         cbool getAlwaysIncludeBest() const
         double getCrossOverRate() const
+        double getSmallMutationSize() const
 
 ctypedef const GAParameters* GAParametersPtrConst
 

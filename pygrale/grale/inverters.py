@@ -123,7 +123,7 @@ class Inverter(object):
     def _getEAParameterBytes(self, gaParams, eaType):
         # Different parameters for different EA type (GA vs DE)
         if not gaParams: gaParams = { }
-        if eaType == "GA" or eaType == "GA+JADE":
+        if eaType == "GA" or eaType:
             paramClass = inversionparams.GAParameters
         elif eaType == "DE":
             paramClass = inversionparams.DEParameters
@@ -136,18 +136,30 @@ class Inverter(object):
         return paramObject.toBytes()
 
     def _writeInverterParameters(self, io, moduleName, calcType, populationSize,
-                                 gaParams, lensInversionParameters, convergenceParams,
-                                 multiPopParams, eaType):
+                                 allGAParams, lensInversionParameters, allConvergenceParams,
+                                 multiPopParams, allEATypes):
+        
+        if len(allEATypes) < 1:
+            raise InverterException("At least one EA type must be specified")
+
+        if len(allEATypes) != len(allGAParams):
+            raise InverterException("Not the same number of entries for EA types and parameters ({} != {})".format(len(allEATypes),len(allGAParams)))
+        if len(allEATypes) != len(allConvergenceParams):
+            raise InverterException("Not the same number of entries for EA types and convergence parameters ({} != {})".format(len(allEATypes), len(allConvergenceParams)))
+
         io.writeLine("FITNESSOBJECT:{}".format(moduleName))
         io.writeLine("CALCULATOR:{}".format(calcType))
         io.writeLine("POPULATIONSIZE:{}".format(populationSize))
-        io.writeLine("EATYPE:{}".format(eaType))
+        io.writeLine("NUMEAS:{}".format(len(allEATypes)))
+        
+        for eaType, gaParams, convergenceParams in zip(allEATypes, allGAParams, allConvergenceParams):
+            io.writeLine("EATYPE:{}".format(eaType))
+            
+            gaParamsBytes = self._getEAParameterBytes(gaParams, eaType)
+            _writeParameters(io, "GAPARAMS", gaParamsBytes)
+            _writeParameters(io, "CONVERGENCEPARAMS", convergenceParams.toBytes())
 
-        gaParamsBytes = self._getEAParameterBytes(gaParams, eaType)
-
-        _writeParameters(io, "GAPARAMS", gaParamsBytes)
         _writeParameters(io, "GAFACTORYPARAMS", lensInversionParameters.toBytes())
-        _writeParameters(io, "CONVERGENCEPARAMS", convergenceParams.toBytes())
         _writeParameters(io, "MULTIPOPPARAMS", b"" if multiPopParams is None else multiPopParams.toBytes())
 
     def _run(self, io, returnNds):

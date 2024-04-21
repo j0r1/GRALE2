@@ -85,9 +85,10 @@ def getDefaultModuleParameters(moduleName = "general"):
 
     return inverters.getInversionModuleDefaultConfigurationParameters(moduleName)
 
-def getDefaultGeneticAlgorithmParameters():
-    """Returns the default parameters for the genetic algorithm that's used in lens inversion."""
-    return inversionparams.GAParameters().getSettings()
+# TODO: I don't think is is used anywhere anymore
+#def getDefaultGeneticAlgorithmParameters():
+#    """Returns the default parameters for the genetic algorithm that's used in lens inversion."""
+#    return inversionparams.GAParameters().getSettings()
 
 def getInversionModuleUsage(moduleName = "general"):
     """Returns a usage description that's provided by the specified genetic algorithm 
@@ -151,9 +152,22 @@ def calculateFitness(inputImages, zd, fitnessObjectParameters, lensOrBackProject
 
 def _invertCommon(inverter, feedbackObject, moduleName, calcType, fitnessObjectParameters,
                   massScale, DdAndZd, inputImages, getParamsFunction,
-                  popSize, geneticAlgorithmParameters, returnNds, cosmology,
-                  convergenceParameters, maximumGenerations = None,
-                  multiPopulationParameters = None, eaType = "GA"): # eaType can be GA or DE
+                  popSize, allGeneticAlgorithmParameters, returnNds, cosmology,
+                  allConvergenceParameters, maximumGenerations,
+                  multiPopulationParameters, allEATypes):
+
+    if type(allEATypes) != list:
+        raise InversionException("Expecting allEATypes to be a list")
+    if type(allGeneticAlgorithmParameters) != list:
+        raise InversionException("Expecting allGeneticAlgorithmParameters to be a list")
+    if type(allConvergenceParameters) != list:
+        raise InversionException("Expecting allConvergenceParameters to be a list")
+    
+    # TODO: fill in defaults somehow
+    if len(allEATypes) != len(allGeneticAlgorithmParameters):
+        raise InversionException("Expecting the same amount of EA types and parameters")
+    if len(allEATypes) != len(allConvergenceParameters):
+        raise InversionException("Expecting same amount of EA types and convergence parameters")
 
     # Set to some bad values as they don't make sense for a multi-plane inversion
     Dd, zd = DdAndZd if DdAndZd else (None, float("NaN"))
@@ -163,15 +177,19 @@ def _invertCommon(inverter, feedbackObject, moduleName, calcType, fitnessObjectP
     # Merge fitnessObjectParameters with defaults
     fullFitnessObjParams = _mergeModuleParameters(fitnessObjectParameters, moduleName, cosmology)
 
-    fullConvParams = inversionparams.ConvergenceParameters(None, eaType).toDict() # fetches defaults for EA type
-    for n in convergenceParameters:
-        fullConvParams[n] = convergenceParameters[n]
-    if maximumGenerations is not None:
-        fullConvParams["maximumgenerations"] = maximumGenerations
+    allFullConvParams = []
+    for eaType, convergenceParameters in zip(allEATypes, allConvergenceParameters):
+
+        fullConvParams = inversionparams.ConvergenceParameters(None, eaType).toDict()
+        for n in convergenceParameters:
+            fullConvParams[n] = convergenceParameters[n]
+        if maximumGenerations is not None:
+            fullConvParams["maximumgenerations"] = maximumGenerations
+
+        fullConvParams = inversionparams.ConvergenceParameters(fullConvParams)
+        allFullConvParams.append(fullConvParams)
 
     multiPopParams = None if not multiPopulationParameters else inversionparams.MultiPopulationParameters(multiPopulationParameters)
-
-    fullConvParams = inversionparams.ConvergenceParameters(fullConvParams)
 
     # Get massscale
     if massScale == "auto":
@@ -192,7 +210,7 @@ def _invertCommon(inverter, feedbackObject, moduleName, calcType, fitnessObjectP
     # fitness components are returned.
     dummyFitness, fitnessComponentDescription = inverters.calculateFitness(moduleName, inputImages, zd, fullFitnessObjParams, None) 
 
-    result = inverter.invert(moduleName, calcType, popSize, geneticAlgorithmParameters, params, returnNds, fullConvParams, multiPopParams, eaType)
+    result = inverter.invert(moduleName, calcType, popSize, allGeneticAlgorithmParameters, params, returnNds, allFullConvParams, multiPopParams, allEATypes)
 
     # TODO: this should be removed when the TODO above is fixed
     if not returnNds:

@@ -621,16 +621,17 @@ cdef class JADEParameters(EAParameters):
 cdef class GAParameters(EAParameters):
     """General parameters for the genetic algorithm."""
 
-    def __init__(self, selectionpressure = 2.5, elitism = True, alwaysincludebest = True, crossoverrate = 0.9):
-        """__init__(selectionpressure = 2.5, elitism = True, alwaysincludebest = True, crossoverrate = 0.9)
+    def __init__(self, selectionpressure = 2.5, elitism = True, alwaysincludebest = True, crossoverrate = 0.9, smallmutationsize = -1):
+        """__init__(selectionpressure = 2.5, elitism = True, alwaysincludebest = True, crossoverrate = 0.9, smallmutationsize = -1)
         
         Initializes an object representing general parameters for the genetic algorithm.
         For more information about the meaning of the arguments, refer to the 
         `documentation <http://research.edm.uhasselt.be/jori/mogal/documentation/classmogal_1_1GeneticAlgorithmParams.html>`_
         of the library that's used for the genetic algorithm.
 
+        TODO: update this documentation
         """
-        self.m_pParams = unique_ptr[eaparameters.EAParameters](new eaparameters.GAParameters(selectionpressure, elitism, alwaysincludebest, crossoverrate))
+        self.m_pParams = unique_ptr[eaparameters.EAParameters](new eaparameters.GAParameters(selectionpressure, elitism, alwaysincludebest, crossoverrate, smallmutationsize))
 
     def _fillInSettings(self, r):
         cdef eaparameters.GAParametersPtrConst pParams = dynamic_cast[eaparameters.GAParametersPtrConst](self.m_pParams.get())
@@ -641,6 +642,7 @@ cdef class GAParameters(EAParameters):
         r["elitism"] = deref(pParams).getUseElitism()
         r["alwaysincludebest"] = deref(pParams).getAlwaysIncludeBest()
         r["crossoverrate"] = deref(pParams).getCrossOverRate()
+        r["smallmutationsize"] = deref(pParams).getSmallMutationSize()
 
 cdef class LensInversionParametersMultiPlaneGPU(object):
     """An internal representation of the parameters for the lens multi-plane inversion
@@ -913,30 +915,11 @@ cdef class ConvergenceParameters(object):
 
     def __init__(self, parameterDict = None, eaType = None): # eaType is only used for the defaults
         if not parameterDict:
-            # Defaults
-            if eaType == "GA":
-                parameterDict = {
-                    "maximumgenerations": 16384,
-                    "historysize": 250,
-                    "convergencefactors": [  0.1, 0.05 ],
-                    "smallmutationsizes": [ -1.0, 0.1 ]  # Negative means large mutation
-                }
-            elif eaType == "GA+JADE":
-                parameterDict = {
-                    "maximumgenerations": 16384,
-                    "historysize": 250,
-                    "convergencefactors": [  0.1, 0.05, 0.05 ], # Last entry is for JADE finish
-                    "smallmutationsizes": [ -1.0, 0.1, -1 ]  # Negative means large mutation
-                }
-            elif eaType == "DE" or eaType == "JADE":
-                parameterDict = {
-                    "maximumgenerations": 16384,
-                    "historysize": 250,
-                    "convergencefactors": [ 0.05 ], # TODO: what's a good default? Seems to keep converging for a long time
-                    "smallmutationsizes": [ -1.0 ]  # Mutation size isn't actually used for DE
-                }
-            else:
-                raise Exception("Unknown EA type '{}'".format(eaType))
+            parameterDict = {
+                "maximumgenerations": 16384,
+                "historysize": 250,
+                "convergencefactor": 0.05,
+            }
 
         self.fromDict(parameterDict)
 
@@ -946,8 +929,7 @@ cdef class ConvergenceParameters(object):
 
         knownKeys = [ "maximumgenerations",
                       "historysize",
-                      "convergencefactors",
-                      "smallmutationsizes"]
+                      "convergencefactor" ]
 
         for k in d:
             if not k in knownKeys:
@@ -955,26 +937,13 @@ cdef class ConvergenceParameters(object):
 
         self.m_pParams.setMaximumNumberOfGenerations(d["maximumgenerations"])
         self.m_pParams.setHistorySize(d["historysize"])
-
-        for i in d["convergencefactors"]:
-            factors.push_back(i)
-        for i in d["smallmutationsizes"]:
-            sizes.push_back(i)
-        
-        if factors.size() != sizes.size():
-            raise ConvergenceParametersException("Number of convergence factors must equal the small mutation sizes")
-
-        if not self.m_pParams.setConvergenceFactorsAndMutationSizes(factors, sizes):
-            raise ConvergenceParametersException(S(self.m_pParams.getErrorString()))
-
+        self.m_pParams.setConvergenceFactor(d["convergencefactor"])
 
     def toDict(self):
         d = { }
         d["maximumgenerations"] = self.m_pParams.getMaximumNumberOfGenerations()
         d["historysize"] = self.m_pParams.getConvergenceHistorySize()
-
-        d["convergencefactors"] = [ self.m_pParams.getConvergenceFactors()[i] for i in range(self.m_pParams.getConvergenceFactors().size()) ]
-        d["smallmutationsizes"] = [ self.m_pParams.getConvergenceSmallMutationSizes()[i] for i in range(self.m_pParams.getConvergenceSmallMutationSizes().size()) ]
+        d["convergencefactor"] = self.m_pParams.getConvergenceFactor()
 
         return d
 
