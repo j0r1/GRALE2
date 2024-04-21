@@ -22,6 +22,7 @@
 #include "stop.h"
 #include "exchange.h"
 #include "reusecreation.h"
+#include "rngwrapper.h"
 #include <serut/memoryserializer.h>
 #include <eatk/singlethreadedpopulationfitnesscalculation.h>
 #include <eatk/multithreadedpopulationfitnesscalculation.h>
@@ -150,8 +151,10 @@ protected:
 			// TODO
 		}
 
-		std::shared_ptr<grale::RandomNumberGenerator> rng = std::make_shared<grale::RandomNumberGenerator>();
-		WriteLineStdout("GAMESSAGESTR:RNG SEED: " + std::to_string(rng->getSeed()));
+		std::shared_ptr<grale::RandomNumberGenerator> rng0 = std::make_shared<grale::RandomNumberGenerator>();
+		WriteLineStdout("GAMESSAGESTR:RNG SEED: " + std::to_string(rng0->getSeed()));
+
+		std::shared_ptr<eatk::RandomNumberGenerator> rng = std::make_shared<RngWrapper>(rng0);
 
 		auto comparison = std::make_shared<grale::LensGAFitnessComparison>();
 		m_selector = std::make_shared<SubsequentBestIndividualSelector>(
