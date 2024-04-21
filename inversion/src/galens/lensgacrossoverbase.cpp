@@ -102,8 +102,10 @@ void LensGACrossoverBase::copyScaleFactorFromFitnessToGenome(const shared_ptr<ea
 	}
 }
 
-inline bool areParentsParentsDifferent(const LensGAIndividual &parent1, const LensGAIndividual &parent2)
+inline bool areParentsParentsDifferent(const LensGAIndividual &ind1, const LensGAIndividual &ind2)
 {
+	const LensGAGenome &parent1 = static_cast<const LensGAGenome &>(ind1.genomeRef());
+	const LensGAGenome &parent2 = static_cast<const LensGAGenome &>(ind2.genomeRef());
 	int a1 = parent1.m_parent1;
 	int a2 = parent1.m_parent2;
 	int b1 = parent2.m_parent1;
@@ -160,8 +162,9 @@ errut::bool_t LensGACrossoverBase::crossover(size_t generation, shared_ptr<eatk:
 			for (auto &g : offspring)
 			{
 				auto ind = make_shared<LensGAIndividual>(g, population->individual(0)->fitness()->createCopy(false), generation);
-				ind->m_parent1 = pParent1->m_ownIndex;
-				ind->m_parent2 = pParent2->m_ownIndex;
+				LensGAGenome &genome = static_cast<LensGAGenome&>(ind->genomeRef());
+				genome.m_parent1 = pParent1->m_ownIndex;
+				genome.m_parent2 = pParent2->m_ownIndex;
 				// Own offset will be set later
 				newPop->append(ind);
 			}
@@ -174,8 +177,9 @@ errut::bool_t LensGACrossoverBase::crossover(size_t generation, shared_ptr<eatk:
 			auto ind = pParent->createCopy();
 
 			LensGAIndividual &lensInd = static_cast<LensGAIndividual&>(*ind);
-			lensInd.m_parent1 = pParent->m_ownIndex;
-			lensInd.m_parent2 = -1;
+			LensGAGenome &g = static_cast<LensGAGenome&>(lensInd.genomeRef());
+			g.m_parent1 = pParent->m_ownIndex;
+			g.m_parent2 = -1;
 			// Own offset will be set later
 			newPop->append(ind);
 		}

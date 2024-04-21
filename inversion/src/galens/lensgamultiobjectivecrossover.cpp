@@ -78,8 +78,9 @@ size_t LensGAMultiObjectiveCrossover::elitism(shared_ptr<eatk::Population> &popu
 				//	   system should be thought of?
 				auto ind = ndSet[idx]->createCopy();
 				LensGAIndividual &ind2 = static_cast<LensGAIndividual&>(*ind);
-				ind2.m_parent1 = 0;
-				ind2.m_parent2 = -1;
+				LensGAGenome &g = static_cast<LensGAGenome&>(ind2.genomeRef());
+				g.m_parent1 = 0;
+				g.m_parent2 = -1;
 				// std::cout << name << ind2.fitnessRef().toString() << std::endl;
 
 				newPop->append(ind);

@@ -101,6 +101,7 @@ bool_t LensGAFitness::MPI_Recv(int src, int tag, MPI_Comm communicator,
 #endif // EATKCONFIG_MPISUPPORT
 
 LensGAGenome::LensGAGenome(size_t numWeights, size_t numSheetValues)
+	: m_parent1(-1), m_parent2(-1)
 {
 	m_weights.resize(numWeights);
 	m_sheets.resize(numSheetValues);
@@ -117,6 +118,8 @@ shared_ptr<eatk::Genome> LensGAGenome::createCopy(bool copyContents) const
 		for (size_t i = 0 ; i < m_sheets.size() ; i++)
 			c->m_sheets[i] = m_sheets[i];
 		c->m_scaleFactor = m_scaleFactor;
+		c->m_parent1 = m_parent1;
+		c->m_parent2 = m_parent2;
 	}
 	return c;
 }
@@ -134,18 +137,20 @@ string LensGAGenome::toString() const
 		for (auto x : m_sheets)
 			ss << " " << x;
 	}
-	ss << " * " << m_scaleFactor << " ]";
+	ss << " * " << m_scaleFactor << "| (" << m_parent1 << "," << m_parent2 << ") ]";
 	return ss.str();
 }
 
 bool_t LensGAGenome::read(serut::SerializationInterface &si)
 {
-	int32_t nums[2];
-	if (!si.readInt32s(nums, 2))
+	int32_t nums[4];
+	if (!si.readInt32s(nums, 4))
 		return si.getErrorString();
 
 	m_weights.resize(nums[0]);
 	m_sheets.resize(nums[1]);
+	m_parent1 = nums[2];
+	m_parent2 = nums[3];
 	if (!si.readFloats(m_weights) || !si.readFloats(m_sheets) || !si.readFloat(&m_scaleFactor))
 		return si.getErrorString();
 	return true;
@@ -153,7 +158,7 @@ bool_t LensGAGenome::read(serut::SerializationInterface &si)
 
 bool_t LensGAGenome::write(serut::SerializationInterface &si) const
 {
-	int32_t nums[2] = { (int32_t)m_weights.size(), (int32_t)m_sheets.size() };
+	int32_t nums[4] = { (int32_t)m_weights.size(), (int32_t)m_sheets.size(), (int32_t)m_parent1, (int32_t)m_parent2 };
 	if (!si.writeInt32s(nums, 2) || !si.writeFloats(m_weights) || !si.writeFloats(m_sheets) || !si.writeFloat(m_scaleFactor))
 		return si.getErrorString();
 	return true;
@@ -208,7 +213,7 @@ bool_t LensGAGenome::MPI_Recv(int src, int tag, MPI_Comm communicator,
 
 LensGAIndividual::LensGAIndividual(const shared_ptr<Genome> &genome, const shared_ptr<Fitness> &fitness,
 			size_t introducedInGeneration)
-	: Individual(genome, fitness, introducedInGeneration), m_parent1(-1), m_parent2(-1), m_ownIndex(-1)
+	: Individual(genome, fitness, introducedInGeneration), m_ownIndex(-1)
 {
 }
 
@@ -227,7 +232,7 @@ bool_t LensGAIndividual::read(serut::SerializationInterface &si)
 
 	// TODO: m_lastMutationGeneration? m_introducedInGeneration?
 
-	if (!si.readInt32(&m_parent1) || !si.readInt32(&m_parent2) || !si.readInt32(&m_ownIndex))
+	if (!si.readInt32(&m_ownIndex))
 		return si.getErrorString();
 
 	bool_t r;
@@ -247,7 +252,7 @@ bool_t LensGAIndividual::write(serut::SerializationInterface &si) const
 
 	// TODO: m_lastMutationGeneration? m_introducedInGeneration?
 	
-	if (!si.writeInt32(m_parent1) || !si.writeInt32(m_parent2) || !si.writeInt32(m_ownIndex))
+	if (!si.writeInt32(m_ownIndex))
 		return si.getErrorString();
 
 	bool_t r;

@@ -53,6 +53,7 @@ public:
 	std::vector<float> m_weights;
 	std::vector<float> m_sheets;
 	float m_scaleFactor;
+	int m_parent1, m_parent2;
 };
 
 class LensGAIndividual : public eatk::Individual
@@ -67,7 +68,6 @@ public:
 	errut::bool_t read(serut::SerializationInterface &si);
 	errut::bool_t write(serut::SerializationInterface &si) const;
 
-	int m_parent1, m_parent2;
 	int m_ownIndex;
 };
 

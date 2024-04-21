@@ -41,8 +41,9 @@ size_t LensGASingleObjectiveCrossover::elitism(shared_ptr<eatk::Population> &pop
 	{
 		auto ind = population->individual(0)->createCopy();
 		LensGAIndividual &i = static_cast<LensGAIndividual&>(*ind);
-		i.m_parent1 = 0;
-		i.m_parent2 = -1;
+		LensGAGenome &g = static_cast<LensGAGenome&>(i.genomeRef());
+		g.m_parent1 = 0;
+		g.m_parent2 = -1;
 		newPop->append(ind);
 	};
 
