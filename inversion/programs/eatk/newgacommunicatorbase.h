@@ -151,10 +151,16 @@ protected:
 			// TODO
 		}
 
+
 		std::shared_ptr<grale::RandomNumberGenerator> rng0 = std::make_shared<grale::RandomNumberGenerator>();
 		WriteLineStdout("GAMESSAGESTR:RNG SEED: " + std::to_string(rng0->getSeed()));
 
+#if 0
 		std::shared_ptr<eatk::RandomNumberGenerator> rng = std::make_shared<RngWrapper>(rng0);
+#else
+		std::shared_ptr<eatk::RandomNumberGenerator> rng = rng0;
+#endif
+
 
 		auto comparison = std::make_shared<grale::LensGAFitnessComparison>();
 		m_selector = std::make_shared<SubsequentBestIndividualSelector>(
