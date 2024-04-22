@@ -412,6 +412,19 @@ protected:
 			return cross;
 		};
 
+		auto restorePreviousBest = [&previousBestIndividuals](std::shared_ptr<grale::LensGACrossoverBase> &evolver, size_t i)
+		{
+			assert(i < previousBestIndividuals.size());
+
+			if (auto moCross = dynamic_cast<grale::LensGAMultiObjectiveCrossover*>(evolver.get()) ; moCross != nullptr)
+			{
+				WriteLineStdout("GAMESSAGESTR:DEBUG: multi-objective GA, restoring best " + std::to_string(previousBestIndividuals[i].size()) + " individuals");
+				moCross->restoreBestIndividuals(previousBestIndividuals[i]);
+			}
+			else
+				WriteLineStdout("GAMESSAGESTR:DEBUG: not a multi-objective GA, ignoring restoring best " + std::to_string(previousBestIndividuals[i].size()) + " individuals");
+		};
+
 		if (!multiPopParams.get()) // Single population only
 		{
 			auto cross = getEvolver();
@@ -420,15 +433,7 @@ protected:
 				return E("Only expecting previous best individuals from previous EA step for one population, but got " + std::to_string(previousBestIndividuals.size()));
 
 			if (previousBestIndividuals.size() == 1)
-			{
-				if (auto moCross = dynamic_cast<grale::LensGAMultiObjectiveCrossover*>(cross.get()) ; moCross != nullptr)
-				{
-					WriteLineStdout("GAMESSAGESTR:DEBUG: multi-objective GA, restoring best " + std::to_string(previousBestIndividuals[0].size()) + " individuals");
-					moCross->restoreBestIndividuals(previousBestIndividuals[0]);
-				}
-				else
-					WriteLineStdout("GAMESSAGESTR:DEBUG: not a multi-objective GA, ignoring restoring best " + std::to_string(previousBestIndividuals[0].size()) + " individuals");
-			}
+				restorePreviousBest(cross, 0);
 			else
 				WriteLineStdout("GAMESSAGESTR:DEBUG: no previous best to restore in GA");
 
@@ -449,21 +454,14 @@ protected:
 				 ga.getNumberOfGenerations() };
 
 		}
-		return E("TODO: fix multi-pop again");
-		
-		// TODO: disabled multi-population for now: not yet sure how to pass the
-		//       best ones of multiple populations of one algorithm to the next
-		//       Perhaps remove multi-population code alltogether?
-
-		/*
-		// Use several populations, with migration
+		else // Use several populations, with migration
 		{
 			size_t numPop = multiPopParams->getNumberOfPopulations();
 			if (numPop < 2)
-				return "At least 2 populations are needed for a multi-population GA";
+				return E("At least 2 populations are needed for a multi-population GA");
 
 			if (numPop > 64) // TODO: what's a reasonable upper limit?
-				return "Currently there's a maximum of 64 populations";
+				return E("Currently there's a maximum of 64 populations");
 
 			std::vector<size_t> popSizes;
 			for (size_t i = 0 ; i < numPop ; i++)
@@ -479,36 +477,61 @@ protected:
 				merger = std::make_shared<eatk::MultiObjectiveBestIndividualMerger>(ndCreator, dupRemoval);
 			}
 
+			if (previousBestIndividuals.size() == 0)
+				WriteLineStdout("GAMESSAGESTR:DEBUG: no previous best to restore in multi-population GA");
+			else if (previousBestIndividuals.size() != numPop)
+				return E("Expecting to restore previous best individuals from " + std::to_string(numPop) + " subpopulations, but got " + std::to_string(previousBestIndividuals.size()));
+
 			std::vector<std::shared_ptr<eatk::PopulationEvolver>> evolvers;
 			for (size_t i = 0 ; i < numPop ; i++)
-				evolvers.push_back(getEvolver());
+			{
+				auto evolver = getEvolver();
+				evolvers.push_back(evolver);
+
+				// Restore previous best for each evolver
+				if (previousBestIndividuals.size() > 0) // We've already checked the size matches numPop
+					restorePreviousBest(evolver, i);
+			}
 
 			eatk::MultiPopulationEvolver multiPopEvolver(evolvers, merger);
 
+			// Adjust numberOfInitialGenerationsToSkip based on generationOffsetForReporting
+			size_t numGenerationsToSkip = multiPopParams->getNumberOfInitialGenerationsToSkip();
+			if (generationOffsetForReporting > numGenerationsToSkip)
+				numGenerationsToSkip = 0;
+			else
+				numGenerationsToSkip -= generationOffsetForReporting;
+
+			if (numGenerationsToSkip != multiPopParams->getNumberOfInitialGenerationsToSkip())
+				WriteLineStdout("GAMESSAGESTR:DEBUG: adjusted numGenerationsToSkip from " + 
+						        std::to_string(multiPopParams->getNumberOfInitialGenerationsToSkip()) + " to " + 
+								std::to_string(numGenerationsToSkip) + " based on generationOffsetForReporting (" + 
+								std::to_string(generationOffsetForReporting) + ")");
+
 			auto migrationCheck = std::make_shared<eatk::UniformProbabilityMigrationCheck>(rng,
 					                                                                       (float)multiPopParams->getMigrationGenerationFraction(),
-																						   multiPopParams->getNumberOfInitialGenerationsToSkip());
+																						   numGenerationsToSkip);
 			auto migrationExchange = std::make_shared<MyExchange>(rng, multiPopParams->getNumberOfIndividualsToLeavePopulation());
 
 			eatk::BasicMigrationStrategy migration(migrationCheck, migrationExchange);
 
-			assert(mutations.size() > 1);
-			MultiStop stop(mutations);
+			MultiStop stop(evolvers.size(), generationOffsetForReporting);
 			if (!(r = stop.initialize(numObjectives, convParamsGA)))
-				return "Error initializing multi-population convergence checker: " + r.getErrorString();
+				return E("Error initializing multi-population convergence checker: " + r.getErrorString());
 
 			if (!(r = ga.run(creation, multiPopEvolver, calc, stop, migration, popSizes)))
-				return "Error running GA: " + r.getErrorString();
+				return E("Error running GA: " + r.getErrorString());
 
 			m_best = multiPopEvolver.getBestIndividuals();
+
+			std::vector<std::vector<std::shared_ptr<eatk::Individual>>> allBest;
+			for (auto &evolver : evolvers)
+				allBest.push_back(evolver->getBestIndividuals());
+
+			return { true, allBest,
+				 std::make_unique<ReuseCreation>(ga.getPopulations()),
+				 ga.getNumberOfGenerations() };
 		}
-
-		// std::cout << "Best: " << std::endl;
-		// for (auto &b: m_best)
-		// 	std::cout << b->fitness()->toString() << std::endl;
-
-		return true;
-		*/
 	}
 
 	virtual errut::bool_t getCalculator(const std::string &lensFitnessObjectType,
