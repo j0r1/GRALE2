@@ -45,7 +45,7 @@ public:
 			return nullptr;
 		auto genome = m_genomePool.front();
 		m_genomePool.pop_front();
-		std::cerr << "DEBUG ReuseCreation::createInitializedGenome called, " << m_genomePool.size() << " genomes remaining" << std::endl;
+		//std::cerr << "DEBUG ReuseCreation::createInitializedGenome called, " << m_genomePool.size() << " genomes remaining" << std::endl;
 		return genome;
 	}
 
