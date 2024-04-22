@@ -193,6 +193,14 @@ protected:
 
 		for (size_t i = 0 ; i < allEATypes.size() ; i++)
 		{
+			// Don't process this anymore
+			if (generationCount > allConvParams[i].getMaximumNumberOfGenerations())
+			{
+				WriteLineStdout("GAMESSAGESTR:DEBUG: generationCount (" + std::to_string(generationCount) + ") > allConvParams[" + std::to_string(i) + 
+						        "].getMaximumNumberOfGenerations() (" + std::to_string(allConvParams[i].getMaximumNumberOfGenerations()) + "), skipping next EA in line (" + allEATypes[i] + ")");
+				continue;
+			}
+
 			std::string eaType = allEATypes[i];
 			size_t numGen = 0;
 			std::unique_ptr<eatk::IndividualCreation> reuseCreation;

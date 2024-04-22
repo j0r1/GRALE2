@@ -10,8 +10,8 @@ using namespace errut;
 namespace grale
 {
 
-LensGAStopCriterion::LensGAStopCriterion(size_t generationNumberOffset)
-	: m_generationNumberOffset(generationNumberOffset)
+LensGAStopCriterion::LensGAStopCriterion(size_t generationNumberOffset, bool useGenerationNumberOffsetInStop)
+	: m_generationNumberOffset(generationNumberOffset), m_genOffsetInStop(useGenerationNumberOffsetInStop)
 { 
 	m_numObjectives = 0; // means not initialized
 	m_lastFitnessReportTime = chrono::steady_clock::now();
@@ -76,8 +76,16 @@ bool_t LensGAStopCriterion::analyze(const eatk::PopulationEvolver &evolver, size
 
 	m_pFitnessHistory->advance();
 
-	if (generationNumber > m_maxGenerations) // TODO: use generationNumber + generationNumberOffset here?
-		shouldStop = true;
+	if (m_genOffsetInStop)
+	{
+		if (generationNumber + m_generationNumberOffset > m_maxGenerations)
+			shouldStop = true;
+	}
+	else
+	{
+		if (generationNumber > m_maxGenerations)
+			shouldStop = true;
+	}
 
 	auto now = chrono::steady_clock::now();
 	// For similarity of the logs, in MOGAL a 10 second interval was used
