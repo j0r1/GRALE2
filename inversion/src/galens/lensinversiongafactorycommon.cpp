@@ -175,7 +175,7 @@ float LensInversionGAFactoryCommon::getScalingMassSum(const vector<float> &basis
 float LensInversionGAFactoryCommon::getStepsAndStepSize(pair<float,float> startStopValue, int iteration,
                                                         vector<pair<float,float>> &steps) const
 {
-	assert(startStopValue.first < startStopValue.second);
+	assert(startStopValue.first <= startStopValue.second);
 	
 	int numiterationsteps = (iteration == 0)?m_massScaleSearchParams.getStepsOnFirstIteration():m_massScaleSearchParams.getStepsOnSubsequentIterations();
 	steps.resize(numiterationsteps);
@@ -215,6 +215,9 @@ pair<float,float> LensInversionGAFactoryCommon::getInitialStartStopValues(const 
 void LensInversionGAFactoryCommon::updateStartStopValues(pair<float,float> &startStopValue, pair<float,float> startStopValue0,
 										float currentBestScaleFactor, float stepsize) const
 {
+	assert(stepsize >= 0);
+	assert(startStopValue.first <= startStopValue.second);
+
 	startStopValue.first = currentBestScaleFactor-stepsize;
 	startStopValue.second = currentBestScaleFactor+stepsize;
 
@@ -223,6 +226,10 @@ void LensInversionGAFactoryCommon::updateStartStopValues(pair<float,float> &star
 		startStopValue.first = startStopValue0.first;
 	if (startStopValue.second > startStopValue0.second)
 		startStopValue.second = startStopValue0.second;
+
+	// After these adjustments, it's possible that first became larger than second, swap them in this case
+	if (startStopValue.first > startStopValue.second)
+		swap(startStopValue.first, startStopValue.second);
 }
 
 bool_t LensInversionGAFactoryCommon::calculateFitness(const vector<float> &basisFunctionWeights,
