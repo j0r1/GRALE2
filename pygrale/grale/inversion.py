@@ -231,6 +231,17 @@ def _invertCommon(inverter, feedbackObject, moduleName, calcType, fitnessObjectP
                   multiPopulationParameters, eaType):
 
     allEATypes, allGeneticAlgorithmParameters, allConvergenceParameters = getFullEASettings(eaType, geneticAlgorithmParameters, convergenceParameters)
+    if type(allEATypes) != list:
+        raise InversionException("Expecting allEATypes to be a list")
+    if type(allGeneticAlgorithmParameters) != list:
+        raise InversionException("Expecting allGeneticAlgorithmParameters to be a list")
+    if type(allConvergenceParameters) != list:
+        raise InversionException("Expecting allConvergenceParameters to be a list")
+    
+    if len(allEATypes) != len(allGeneticAlgorithmParameters):
+        raise InversionException("Expecting the same amount of EA types and EA parameters")
+    if len(allEATypes) != len(allConvergenceParameters):
+        raise InversionException("Expecting same amount of EA types and convergence parameters")
 
     # Set to some bad values as they don't make sense for a multi-plane inversion
     Dd, zd = DdAndZd if DdAndZd else (None, float("NaN"))
