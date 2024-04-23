@@ -150,24 +150,87 @@ def calculateFitness(inputImages, zd, fitnessObjectParameters, lensOrBackProject
 
     return inverters.calculateFitness(moduleName, inputImages, zd, fullFitnessObjParams, lens=lens, bpImages=bpImages)
 
+def _adjustEAAndConvergenceParameters(eaType, eaCount, eaParams, convParams):
+
+    paramClass = inverters._getEAParameterClass(eaType)
+
+    # First do the EA parameters
+    if eaType == "GA":
+        if not "smallmutationsize" in eaParams:
+            if eaCount == 1:
+                eaParams["smallmutationsize"] = -1 # Large mutation setting
+            else:
+                # Default to small mutation settings with mutation size 0.1
+                eaParams["smallmutationsize"] = 0.1*(0.5**(eaCount-2))
+
+    # Extend with defaults and complete dictionary
+    params = paramClass(**eaParams).getSettings()
+    for k in params:
+        eaParams[k] = params[k]
+
+    # Then do the convergence parameters
+    if eaType == "GA":
+        if not "convergencefactor" in convParams:
+            if eaCount == 1:
+                convParams["convergencefactor"] = 0.1
+            else:
+                convParams["convergencefactor"] = 0.05
+
+    # Extend again with the defaults
+    defaultParams = inversionparams.ConvergenceParameters(None, eaType).toDict()
+    for k in defaultParams:
+        if not k in convParams:
+            convParams[k] = defaultParams[k]
+
+def getFullEASettings(eaType = "GA", geneticAlgorithmParameters = {}, convergenceParameters = {}):
+    """TODO"""
+
+    # First, convert the eaType to a list
+    if type(eaType) == list:
+        allEATypes = copy.deepcopy(eaType) # Nothing to do
+    else:
+        if eaType == "GA":
+            # This specifies the default of two GA instances in a row
+            # Different mutation settings and convergence settings will
+            # be set later if needed
+            allEATypes = [ "GA", "GA" ]
+        elif eaType == "GA+JADE":
+            allEATypes = [ "GA", "GA", "JADE" ]
+        else:
+            allEATypes = [ eaType ]
+
+    numEAs = len(allEATypes)
+    if type(geneticAlgorithmParameters) == list:
+        allGeneticAlgorithmParameters = copy.deepcopy(geneticAlgorithmParameters) # Nothing to do
+    else:
+        # Make a copy of the specified parameters according to the number of EAs,
+        # so that the same settings will be used as much as possible
+        allGeneticAlgorithmParameters = [ copy.deepcopy(geneticAlgorithmParameters) for i in range(numEAs)]
+
+    if type(convergenceParameters) == list:
+        allConvergenceParameters = copy.deepcopy(convergenceParameters) # Nothing to do
+    else:
+        # Same as above
+        allConvergenceParameters = [ copy.deepcopy(convergenceParameters) for i in range(numEAs) ]
+
+    eaCounts = { }
+
+    for ea,eaParams,convParams in zip(allEATypes, allGeneticAlgorithmParameters, allConvergenceParameters):
+        if not ea in eaCounts:
+            eaCounts[ea] = 0
+
+        eaCounts[ea] += 1
+        _adjustEAAndConvergenceParameters(ea, eaCounts[ea], eaParams, convParams)
+
+    return allEATypes, allGeneticAlgorithmParameters, allConvergenceParameters
+
 def _invertCommon(inverter, feedbackObject, moduleName, calcType, fitnessObjectParameters,
                   massScale, DdAndZd, inputImages, getParamsFunction,
-                  popSize, allGeneticAlgorithmParameters, returnNds, cosmology,
-                  allConvergenceParameters, maximumGenerations,
-                  multiPopulationParameters, allEATypes):
+                  popSize, geneticAlgorithmParameters, returnNds, cosmology,
+                  convergenceParameters, maximumGenerations,
+                  multiPopulationParameters, eaType):
 
-    if type(allEATypes) != list:
-        raise InversionException("Expecting allEATypes to be a list")
-    if type(allGeneticAlgorithmParameters) != list:
-        raise InversionException("Expecting allGeneticAlgorithmParameters to be a list")
-    if type(allConvergenceParameters) != list:
-        raise InversionException("Expecting allConvergenceParameters to be a list")
-    
-    # TODO: fill in defaults somehow
-    if len(allEATypes) != len(allGeneticAlgorithmParameters):
-        raise InversionException("Expecting the same amount of EA types and parameters")
-    if len(allEATypes) != len(allConvergenceParameters):
-        raise InversionException("Expecting same amount of EA types and convergence parameters")
+    allEATypes, allGeneticAlgorithmParameters, allConvergenceParameters = getFullEASettings(eaType, geneticAlgorithmParameters, convergenceParameters)
 
     # Set to some bad values as they don't make sense for a multi-plane inversion
     Dd, zd = DdAndZd if DdAndZd else (None, float("NaN"))
@@ -177,17 +240,12 @@ def _invertCommon(inverter, feedbackObject, moduleName, calcType, fitnessObjectP
     # Merge fitnessObjectParameters with defaults
     fullFitnessObjParams = _mergeModuleParameters(fitnessObjectParameters, moduleName, cosmology)
 
-    allFullConvParams = []
-    for eaType, convergenceParameters in zip(allEATypes, allConvergenceParameters):
-
-        fullConvParams = inversionparams.ConvergenceParameters(None, eaType).toDict()
-        for n in convergenceParameters:
-            fullConvParams[n] = convergenceParameters[n]
+    # Force same setting of maximumGenerations if specified
+    for fullConvParams in allConvergenceParameters:
         if maximumGenerations is not None:
             fullConvParams["maximumgenerations"] = maximumGenerations
 
-        fullConvParams = inversionparams.ConvergenceParameters(fullConvParams)
-        allFullConvParams.append(fullConvParams)
+    allConvergenceParameters = [ inversionparams.ConvergenceParameters(d) for d in allConvergenceParameters ]
 
     multiPopParams = None if not multiPopulationParameters else inversionparams.MultiPopulationParameters(multiPopulationParameters)
 
@@ -210,7 +268,7 @@ def _invertCommon(inverter, feedbackObject, moduleName, calcType, fitnessObjectP
     # fitness components are returned.
     dummyFitness, fitnessComponentDescription = inverters.calculateFitness(moduleName, inputImages, zd, fullFitnessObjParams, None) 
 
-    result = inverter.invert(moduleName, calcType, popSize, allGeneticAlgorithmParameters, params, returnNds, allFullConvParams, multiPopParams, allEATypes)
+    result = inverter.invert(moduleName, calcType, popSize, allGeneticAlgorithmParameters, params, returnNds, allConvergenceParameters, multiPopParams, allEATypes)
 
     # TODO: this should be removed when the TODO above is fixed
     if not returnNds:

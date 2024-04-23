@@ -90,6 +90,18 @@ def _waitForInverterIdentification(io):
     version = line[len(invId):]
     return version
 
+def _getEAParameterClass(eaType):
+    if eaType == "GA":
+        paramClass = inversionparams.GAParameters
+    elif eaType == "DE":
+        paramClass = inversionparams.DEParameters
+    elif eaType == "JADE":
+        paramClass = inversionparams.JADEParameters
+    else:
+        raise Exception("Unknown EA type '{}'".format(eaType))
+
+    return paramClass
+
 class Inverter(object):
     def __init__(self, args, inversionType, extraEnv = None, feedbackObject = None, readDescriptor = None, 
                  writeDescriptor = None):
@@ -122,16 +134,9 @@ class Inverter(object):
 
     def _getEAParameterBytes(self, gaParams, eaType):
         # Different parameters for different EA type (GA vs DE)
-        if not gaParams: gaParams = { }
-        if eaType == "GA" or eaType:
-            paramClass = inversionparams.GAParameters
-        elif eaType == "DE":
-            paramClass = inversionparams.DEParameters
-        elif eaType == "JADE":
-            paramClass = inversionparams.JADEParameters
-        else:
-            raise Exception("Unknown EA type '{}'".format(eaType))
-
+        if not gaParams: gaParams = { } # TODO: this should not happen anymore
+        
+        paramClass = _getEAParameterClass(eaType)
         paramObject = paramClass(**gaParams)
         return paramObject.toBytes()
 
