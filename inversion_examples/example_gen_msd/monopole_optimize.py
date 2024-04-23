@@ -73,12 +73,17 @@ lens, _, _ = iws.invertBasisFunctions(popSize,
         # (used to avoid negative densities) would be used.
         "scalepriority_deflectionangle": 0
     },
-    convergenceParameters={
-        # We'll add an extra step in the convergence checks, that allows
-        # some smaller modifications to the basis functions as well
-        "smallmutationsizes": [-1.0,0.1,0.02],
-        "convergencefactors": [0.1,0.05,0.01]
-    },
+
+    # We'll add an extra step in the convergence checks, that allows
+    # some smaller modifications to the basis functions as well
+    eaType = [ "GA", "GA", "GA" ],
+    convergenceParameters = [ { "convergencefactor": 0.1 },
+                              { "convergencefactor": 0.05 },
+                              { "convergencefactor": 0.01 } ],
+                                   
+    geneticAlgorithmParameters = [ { "smallmutationsize": -1.0 },
+                                   { "smallmutationsize": 0.1 },
+                                   { "smallmutationsize": 0.02 } ],
     baseLens=baseLens,
     allowNegativeValues=True,
 )
