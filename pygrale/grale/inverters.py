@@ -467,13 +467,13 @@ class SingleProcessGdbInverter(Inverter):
     To be able to interact with GDB, it is started in an `xterm <https://en.wikipedia.org/wiki/Xterm>`_
     process. This is meant to make debugging this multi-process architecure 
     somewhat easier."""
-    def __init__(self, feedbackObject = None):
+    def __init__(self, feedbackObject = None, gdbExe = "gdb"):
         """Initializes an instance of this class; a specific :mod:`feedback <grale.feedback>`
         object can be specified for status updates."""
         self.pipePair = privutil.PipePair() # Keep it for the lifetime of this object
         pp = self.pipePair
         super(SingleProcessGdbInverter, self).__init__([ "xterm", "-e", 
-                                                         "gdb grale_invert_newga -ex 'set args {} {}' ; echo sleeping 10 seconds; sleep 10".format(pp.wrFileName, pp.rdFileName),
+                                                         gdbExe + " grale_invert_newga -ex 'set args {} {}' ; echo sleeping 10 seconds; sleep 10".format(pp.wrFileName, pp.rdFileName),
                                                          ], 
                                                          "Single process GDB", feedbackObject=feedbackObject,
                                                          extraEnv = { "GRALE_NUMTHREADS": "1" },
@@ -535,6 +535,9 @@ def createInverterFromString(inverter):
 
     if inverter.lower() == "gdb":
         return SingleProcessGdbInverter()
+
+    if inverter.lower() == "cgdb":
+        return SingleProcessGdbInverter(gdbExe = "cgdb")
 
     if inverter.lower().startswith(mpiPrefix):
         rest = inverter[len(mpiPrefix):]
