@@ -4,6 +4,7 @@
 #include "inputoutput.h"
 #include "gaparameters.h"
 #include "deparameters.h"
+#include "rndparameters.h"
 #include "lensinversiongafactorycommon.h"
 #include "inversioncommunicatornewga.h"
 #include "constants.h"
@@ -211,6 +212,9 @@ protected:
 			else if (eaType == "DE" || eaType == "JADE")
 				std::tie(r, previousBestIndividuals, reuseCreation, numGen) = runGA_DE(rng, *creation, comparison, *calc, popSize, genomeCalculator->allowNegativeValues(), genomeCalculator->getNumberOfObjectives(),
 								*(allEAParams[i]), allConvParams[i], multiPopParams, eaType, generationCount, previousBestIndividuals);
+			else if (eaType == "RND")
+				std::tie(r, previousBestIndividuals, reuseCreation, numGen) = runGA_RND(rng, *creation, popSize, 
+								*(allEAParams[i]), multiPopParams);
 			else
 				r = "Unknown EA type '" + eaType + "', should be either GA, DE or JADE";
 
@@ -238,6 +242,65 @@ protected:
 		errut::bool_t r = msg;
 		return { r, dummy, nullptr, 0 };
 	};
+
+	std::tuple<errut::bool_t,
+		       std::vector<std::vector<std::shared_ptr<eatk::Individual>>>,
+			   std::unique_ptr<eatk::IndividualCreation>,
+			   size_t> runGA_RND(const std::shared_ptr<eatk::RandomNumberGenerator> &rng,
+						 eatk::IndividualCreation &creation,
+			             int popSize,
+						 const grale::EAParameters &eaParams,
+						 const std::shared_ptr<grale::LensGAMultiPopulationParameters> &multiPopParams)
+	{
+		if (dynamic_cast<ReuseCreation*>(&creation) == nullptr)
+			return E("Seems that RND step is first in line, but it should use the result from another algorithm");
+
+		const grale::RNDParameters *pParams = dynamic_cast<const grale::RNDParameters*>(&eaParams);
+		if (pParams == nullptr)
+			return E("Expecting parameters of type RNDParameters for RND step");
+		const grale::RNDParameters &params = *pParams;
+		double scale = params.getScale();
+		double minFactor = 1.0-scale;
+		double maxFactor = 1.0+scale;
+
+		if (minFactor < 0)
+			return E("Got negative factor from scale factor " + std::to_string(minFactor));
+
+		WriteLineStdout("GAMESSAGESTR:Running RND, applying some random factor between 1-scale and 1+scale, scale = " + std::to_string(scale));
+
+		// We'll use a temporary population to store the new genomes in
+		std::shared_ptr<eatk::Population> tmpPop = std::make_shared<eatk::Population>();
+		std::shared_ptr<eatk::Genome> genome;
+		while (true)
+		{
+			genome = creation.createInitializedGenome();
+			if (genome.get() == nullptr) // We've processed everything
+				break;
+
+			// Create copy and modify it slightly
+			genome = genome->createCopy();
+			grale::LensGAGenome &g = static_cast<grale::LensGAGenome&>(*genome);
+			g.m_parent1 = -1;
+			g.m_parent2 = -1;
+
+			for (auto &x : g.m_weights)
+				x *= rng->getRandomFloat((float)minFactor, (float)maxFactor);
+			for (auto &x : g.m_sheets)
+				x *= rng->getRandomFloat((float)minFactor, (float)maxFactor);
+
+			// Add this to our new population
+			auto ind = std::make_shared<grale::LensGAIndividual>(genome, creation.createEmptyFitness());
+			tmpPop->append(ind);
+		}
+
+		// Note that we're not changing m_best in this step!
+
+		std::vector<std::shared_ptr<eatk::Population>> populations { tmpPop };
+		std::vector<std::vector<std::shared_ptr<eatk::Individual>>> emptyBest;
+
+		return { true, emptyBest, std::make_unique<ReuseCreation>(populations), 1 };
+
+	}
 
 	std::tuple<errut::bool_t,
 		       std::vector<std::vector<std::shared_ptr<eatk::Individual>>>,
