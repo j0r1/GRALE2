@@ -81,6 +81,7 @@ set(HEADERS
 	galens/lensgamultipopulationparameters.h
 	galens/eaparameters.h
 	galens/deparameters.h
+	galens/rndparameters.h
 	opencl/openclkernel.h
 	opencl/opencllibrary.h
 	thirdparty/WildMagic5/Wm5Assert.h
@@ -173,6 +174,7 @@ set(SOURCES
 	galens/lensgamultipopulationparameters.cpp
 	galens/eaparameters.cpp
 	galens/deparameters.cpp
+	galens/rndparameters.cpp
 	opencl/openclkernel.cpp
 	opencl/opencllibrary.cpp
 	thirdparty/WildMagic5/Wm5Assert.cpp

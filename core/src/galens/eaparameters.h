@@ -12,7 +12,7 @@ namespace grale
 class EAParameters
 {
 public:
-	enum ParameterType { GA, DE, JADE };
+	enum ParameterType { GA, DE, JADE, RND };
 	virtual ~EAParameters();
 
 	static errut::bool_t read(serut::SerializationInterface &si, std::unique_ptr<EAParameters> &parameters);
