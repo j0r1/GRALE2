@@ -44,3 +44,10 @@ cdef extern from "grale/deparameters.h" namespace "grale":
 
 ctypedef const JADEParameters* JADEParametersPtrConst
 
+cdef extern from "grale/rndparameters.h" namespace "grale":
+    cdef cppclass RNDParameters(EAParameters):
+        RNDParameters(double scale)
+        double getScale() const
+
+ctypedef const RNDParameters* RNDParametersPtrConst
+

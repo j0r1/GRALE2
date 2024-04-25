@@ -97,6 +97,8 @@ def _getEAParameterClass(eaType):
         paramClass = inversionparams.DEParameters
     elif eaType == "JADE":
         paramClass = inversionparams.JADEParameters
+    elif eaType == "RND":
+        paramClass = inversionparams.RNDParameters
     else:
         raise Exception("Unknown EA type '{}'".format(eaType))
 

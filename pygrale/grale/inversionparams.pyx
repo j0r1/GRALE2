@@ -577,6 +577,23 @@ cdef class EAParameters(object):
 
         return <bytes>vSer.getBufferPointer()[0:vSer.getBufferSize()]
 
+cdef class RNDParameters(EAParameters):
+    """TODO"""
+    
+    def __init__(self, scale = 1e-5):
+        """__init__()
+        
+        TODO
+        """
+        self.m_pParams = unique_ptr[eaparameters.EAParameters](new eaparameters.RNDParameters(scale))
+
+    def _fillInSettings(self, r):
+        cdef eaparameters.RNDParametersPtrConst pParams = dynamic_cast[eaparameters.RNDParametersPtrConst](self.m_pParams.get())
+        if not pParams:
+            raise Exception("Internal error: can't dynamic_cast parameters to correct type")
+
+        r["scale"] = deref(pParams).getScale()
+
 cdef class DEParameters(EAParameters):
     """General parameters for the DE algorithm."""
     
