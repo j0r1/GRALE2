@@ -267,6 +267,7 @@ protected:
 			return E("Got negative factor from scale factor " + std::to_string(minFactor));
 
 		WriteLineStdout("GAMESSAGESTR:Running RND, applying some random factor between 1-scale and 1+scale, scale = " + std::to_string(scale));
+		WriteLineStdout("GAMESSAGESTR:Note that this RND step will not update the best solutions so far");
 
 		// We'll use a temporary population to store the new genomes in
 		std::shared_ptr<eatk::Population> tmpPop = std::make_shared<eatk::Population>();
@@ -298,7 +299,7 @@ protected:
 		std::vector<std::shared_ptr<eatk::Population>> populations { tmpPop };
 		std::vector<std::vector<std::shared_ptr<eatk::Individual>>> emptyBest;
 
-		return { true, emptyBest, std::make_unique<ReuseCreation>(populations), 1 };
+		return { true, emptyBest, std::make_unique<ReuseCreation>(populations), 0 };
 
 	}
 
