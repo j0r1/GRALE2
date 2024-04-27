@@ -1950,7 +1950,8 @@ Arguments:
     return [ xpoints, ypoints ]
 
 
-def plotImagesData(imgDat, angularUnit = "default", plotHull = False, skipTriangles = False, axes = None, fillTriangles = False):
+def plotImagesData(imgDat, angularUnit = "default", plotHull = False, skipTriangles = False, axes = None, fillTriangles = False,
+                   imagePlotOptionsFunction = None):
     """Creates a plot of either a single images data set, or a list
 of them. In the first case, each image will be drawn with a different
 color, in the second, each complete images data set (typically
@@ -1978,6 +1979,9 @@ Arguments:
    matplotlib axes object as well. 
 
  - `fillTriangles`: if set, the triangulation, if present, will be filled.
+
+ - `imagePlotOptionsFunction`: TODO
+
 """
     angularUnit = _getAngularUnit(angularUnit)
 
@@ -2053,7 +2057,7 @@ Arguments:
         axes = plt.gca()
 
     if type(imgDat) == list: # Each source in different color
-        for im in imgDat:
+        for srcIdx, im in enumerate(imgDat):
             im = im["imgdata"] if type(im) == dict and "imgdata" in im else im
             x, y = [], []
             segs = set()
@@ -2065,7 +2069,8 @@ Arguments:
                     addHull(im, idx, x, y)
             
             segsToCoords(segs, x, y)
-            p = axes.plot(x, y, ".-")
+            kwargs = {} if imagePlotOptionsFunction is None else imagePlotOptionsFunction(srcIdx, -1)
+            p = axes.plot(x, y, ".-", **kwargs)
 
             col = p[0].get_color()
             col = colors.to_rgb(col) + (0.3,)
@@ -2089,7 +2094,8 @@ Arguments:
             if plotHull:
                 addHull(imgDat, idx, x, y)
 
-            p = axes.plot(x, y, ".-")
+            kwargs = {} if imagePlotOptionsFunction is None else imagePlotOptionsFunction(0, idx)
+            p = axes.plot(x, y, ".-", **kwargs)
 
             col = p[0].get_color()
             col = colors.to_rgb(col) + (0.3,)
