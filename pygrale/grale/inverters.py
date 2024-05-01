@@ -136,7 +136,9 @@ class Inverter(object):
 
     def _getEAParameterBytes(self, gaParams, eaType):
         # Different parameters for different EA type (GA vs DE)
-        if not gaParams: gaParams = { } # TODO: this should not happen anymore
+        if not gaParams:
+            # This should not happen anymore
+            raise InverterException("Unexpected: gaParams should be set")
         
         paramClass = _getEAParameterClass(eaType)
         paramObject = paramClass(**gaParams)
