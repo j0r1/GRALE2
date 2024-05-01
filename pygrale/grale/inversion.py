@@ -268,15 +268,14 @@ def _invertCommon(inverter, feedbackObject, moduleName, calcType, fitnessObjectP
 
     params = getParamsFunction(fullFitnessObjParams, massScale)
 
-    # TODO: for now, we're getting the component description in a separate way as it
-    #       is not yet integrated in mogal. Once it is, this should be removed
     # By setting the last parameter to None, no calculation is performed and only the
-    # fitness components are returned.
+    # fitness components are returned. By doing this up front, we can log the 
+    # fitness component description
     dummyFitness, fitnessComponentDescription = inverters.calculateFitness(moduleName, inputImages, zd, fullFitnessObjParams, None) 
+    feedbackObject.onStatus("Fitness component order: {}".format(fitnessComponentDescription))
 
     result = inverter.invert(moduleName, calcType, popSize, allGeneticAlgorithmParameters, params, returnNds, allConvergenceParameters, multiPopParams, allEATypes)
 
-    # TODO: this should be removed when the TODO above is fixed
     if not returnNds:
         result = (result[0], result[1], fitnessComponentDescription)
     else:
