@@ -3,7 +3,6 @@ classes to help you make animations.
 """
 
 from . import privutil
-from . import privutilcython
 from . import images
 from . import lenses
 from . import feedback
@@ -559,8 +558,7 @@ def plotDensityInteractive(lensOrLensInfo, numX=75, numY=75, height=600, xlabel=
 
     lensInfo = _toLensInfo(lensOrLensInfo)
 
-    # TODO: can we replace this using a gridfunction?
-    plotArray = privutilcython.resample2DArray(lensInfo.getDensityPoints(renderer, feedbackObject), numY, numX)
+    plotArray = gridfunction.resample2DArray(lensInfo.getDensityPoints(renderer, feedbackObject), numY, numX)
     bottomLeft = lensInfo.getBottomLeft()
     topRight = lensInfo.getTopRight()
 
@@ -1384,8 +1382,7 @@ Arguments:
     lensInfo = _toLensInfo(lensOrLensInfo)
     gpVersion = _getGnuplotVersion(gnuplotExe)
     
-    # TODO: can we replace this using a gridfunction?
-    plotArray = privutilcython.resample2DArray(lensInfo.getDensityPoints(renderer, feedbackObject), numY, numX)
+    plotArray = gridfunction.resample2DArray(lensInfo.getDensityPoints(renderer, feedbackObject), numY, numX)
     bottomLeft = lensInfo.getBottomLeft()
     topRight = lensInfo.getTopRight()
 

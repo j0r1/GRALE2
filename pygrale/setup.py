@@ -46,15 +46,6 @@ extensions = [
         define_macros = [ ] + cfg["extraDefines"],
         extra_compile_args = cfg["extraFlags"]
     ),
-    Extension("grale.privutilcython", 
-        [ "grale/privutilcython.pyx" ],
-        include_dirs = cfg["extraIncludes"],
-        libraries = cfg["libraries"],
-        library_dirs = cfg["libDirs"],
-        language = "c++",
-        define_macros = [ ] + cfg["extraDefines"],
-        extra_compile_args = cfg["extraFlags"]
-    ),
     Extension("grale.inversionparams", 
         [ "grale/inversionparams.pyx" ],
         include_dirs = cfg["extraIncludes"],

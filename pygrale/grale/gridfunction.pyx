@@ -245,5 +245,13 @@ cdef class GridFunction:
 
         raise GridFunctionException("Bad points array dimensions")
 
+def resample2DArray(data, numY, numX):
+    """Helper function to resample 2D data to other dimensions"""
+    if len(data.shape) != 2:
+        raise GridFunctionException("Expecting a 2D grid")
 
+    gf = GridFunction(data, (0,0), (data.shape[1]-1,data.shape[0]-1))
+    xypoints = np.empty(dtype=np.double, shape=(numY, numX, 2))
+    xypoints[:,:,0], xypoints[:,:,1] = np.meshgrid(np.linspace(0, data.shape[1]-1, numX), np.linspace(0, data.shape[0]-1, numY))
+    return gf.evaluate(xypoints)
 
