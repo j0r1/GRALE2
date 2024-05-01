@@ -85,11 +85,6 @@ def getDefaultModuleParameters(moduleName = "general"):
 
     return inverters.getInversionModuleDefaultConfigurationParameters(moduleName)
 
-# TODO: I don't think is is used anywhere anymore
-#def getDefaultGeneticAlgorithmParameters():
-#    """Returns the default parameters for the genetic algorithm that's used in lens inversion."""
-#    return inversionparams.GAParameters().getSettings()
-
 def getInversionModuleUsage(moduleName = "general"):
     """Returns a usage description that's provided by the specified genetic algorithm 
     module. The usage information for the ``general`` module can be viewed here: :ref:`usage <usage-module-general>`

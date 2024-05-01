@@ -361,12 +361,6 @@ def createSubdivisionGrid(size, center, lensInfo, minSquares, maxSquares, startS
        idea).
     """
 
-    #from . import plotutil
-
-    # Will use existing result if already calculated
-    # TODO: is this still needed?
-    #lensInfo = plotutil.plotDensity(lensInfo, axes=False) 
-
     densPoints = lensInfo.getDensityPoints()
     if useAbsoluteValues:
         densPoints = np.absolute(densPoints)
