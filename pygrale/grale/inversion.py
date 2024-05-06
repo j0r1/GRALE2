@@ -178,7 +178,36 @@ def _adjustEAAndConvergenceParameters(eaType, eaCount, eaParams, convParams):
             convParams[k] = defaultParams[k]
 
 def getFullEASettings(eaType = "GA", geneticAlgorithmParameters = {}, convergenceParameters = {}):
-    """TODO"""
+    """This function is used to convert defaults for an evolutionary algorithm (EA) stage
+    to full parameters. It is used by the :func:`invert` and :func:`invertMultiPlane`
+    functions. The underlying code uses lists of different EA types, parameters for the
+    algorithm, and parameters used to check for convergence. For convenience, certain
+    predefined names can be expanded to such lists as well.
+
+    Arguments:
+    
+     - `eaType`: if this is a list, it should contain entries "GA", "DE", "JADE" or
+       "RND". It can also be a string, which in turn will be converted to such a list:
+     
+        - "GA" will be converted to [ "GA", "GA" ], representing the two stage genetic
+          algorithm approach, where the first one will typically use large mutations
+          and the second one smaller ones.
+        - "DE" is expanded to [ "DE" ], representing a classical `diffential evolution <https://link.springer.com/article/10.1023/A:1008202821328>`_
+          optimization.
+        - "JADE" is interpreted as [ "JADE" ], corresponding to the `JADE <https://ieeexplore.ieee.org/document/4424751>`_
+          algorithm, a self adapting differential evolution version.
+        - "GA+JADE" is expanded to [ "GA", "GA", "JADE" ], the standard two-stage
+          genetic algorithm followed by a JADE step to zoom in on the optimum more closely.
+
+     - `geneticAlgorithmParameters` (should really be called just `algorithmParameters`): if
+       this is a dictionary it will be replaced by a list containing as many copies of the
+       dictionary as there are entries in the `eaType` list. Then, defaults for each EA
+       are filled in, for settings that are not already present.
+
+     - `convergenceParameters`: similar to the previous argument, if this is a dictionary
+       it will first be copied a number of times. Then, defaults for the algorithm will be
+       added.
+    """
 
     # First, convert the eaType to a list
     if type(eaType) == list:
@@ -360,21 +389,9 @@ def invertMultiPlane(inputImages, basisLensesAndRedshifts, popSize, moduleName="
         - `firstIterationSteps`
         - `nextIterationSteps`
 
-     - `convergenceParameters`: controls the different stages in the genetic algorithm
-       by setting the dictionary that's used to initialize a 
-       :class:`ConvergenceParameters <grale.inversionparams.ConvergenceParameters>`
-       instance.
+     - `convergenceParameters`: see :func:`getFullEASettings`.
 
-     - `geneticAlgorithmParameters`: a dictionary with general genetic algorithm parameters
-       that should be changed from their defaults. Known names and their defaults are
-
-        - ``selectionpressure`` (default is 2.5)
-        - ``elitism`` (default is ``True``)
-        - ``alwaysincludebest`` (default is ``True``)
-        - ``crossoverrate`` (default is 0.9)
-
-       For more information about their meaning, refer to the `documentation <http://research.edm.uhasselt.be/jori/mogal/documentation/classmogal_1_1GeneticAlgorithmParams.html>`_
-       of the library that's used for the genetic algorithm.
+     - `geneticAlgorithmParameters`: see :func:`getFullEASettings`.
 
      - `returnNds`: by default, this function will return a single gravitational lens
        model. If there are several fitness measures however, the end result is actually
@@ -404,7 +421,7 @@ def invertMultiPlane(inputImages, basisLensesAndRedshifts, popSize, moduleName="
 
      - `multiPopulationParameters`: TODO
 
-     - `eaType`: TODO
+     - `eaType`: see :func:`getFullEASettings`.
     """
         
     if massScale == "auto" or massScale == "auto_nocheck":
@@ -523,21 +540,9 @@ def invert(inputImages, basisFunctions, zd, Dd, popSize, moduleName = "general",
         - `firstIterationSteps`
         - `nextIterationSteps`
 
-     - `convergenceParameters`: controls the different stages in the genetic algorithm
-       by setting the dictionary that's used to initialize a 
-       :class:`ConvergenceParameters <grale.inversionparams.ConvergenceParameters>`
-       instance.
+     - `convergenceParameters`: see :func:`getFullEASettings`.
 
-     - `geneticAlgorithmParameters`: a dictionary with general genetic algorithm parameters
-       that should be changed from their defaults. Known names and their defaults are
-
-        - ``selectionpressure`` (default is 2.5)
-        - ``elitism`` (default is ``True``)
-        - ``alwaysincludebest`` (default is ``True``)
-        - ``crossoverrate`` (default is 0.9)
-
-       For more information about their meaning, refer to the `documentation <http://research.edm.uhasselt.be/jori/mogal/documentation/classmogal_1_1GeneticAlgorithmParams.html>`_
-       of the library that's used for the genetic algorithm.
+     - `geneticAlgorithmParameters`: see :func:`getFullEASettings`
 
      - `returnNds`: by default, this function will return a single gravitational lens
        model. If there are several fitness measures however, the end result is actually
@@ -561,7 +566,7 @@ def invert(inputImages, basisFunctions, zd, Dd, popSize, moduleName = "general",
 
      - `multiPopulationParameters`: TODO
 
-     - `eaType`: TODO
+     - `eaType`: see :func:`getFullEASettings`.
     """
 
     def getParamsFunction(fullFitnessObjParams, massScale):

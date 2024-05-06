@@ -25,7 +25,7 @@ Core functions
 
 .. autofunction:: getDefaultModuleParameters
 
-.. autofunction:: getDefaultGeneticAlgorithmParameters
+.. autofunction:: getFullEASettings
 
 .. autofunction:: getInversionModuleUsage
 
