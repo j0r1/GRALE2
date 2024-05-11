@@ -647,8 +647,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def _startNewFile(self):
 
         layerUids = [ l.getUuid() for l,v in self.ui.m_listWidget.getLayersAndVisibilities() ]
-        for uuid in layerUids:
-            self.ui.m_listWidget.removeLayer(uuid)
+        self.ui.m_listWidget.removeLayers(layerUids)
 
         if self.view:
             self.view.setScene(None) # Needed to prevent crash
