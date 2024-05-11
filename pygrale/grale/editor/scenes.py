@@ -116,8 +116,11 @@ class LayerScene(GraphicsScene):
                     uuid = self._addPoint(pos, label)
                     if modInfo["control"] == True:
                         curItem, curLayer = self.getCurrentItemAndLayer()
-                        ptItem = curItem.getPointItem(uuid)
-                        ptItem.toggleFocus()
+                        if curItem:
+                            ptItem = curItem.getPointItem(uuid)
+                            ptItem.toggleFocus()
+                        else:
+                            print("WARNING: Unexpected, current item is None")
                 else:
                     fi.clearFocus()
             else: # clear selection and focus
