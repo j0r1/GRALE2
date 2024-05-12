@@ -1903,7 +1903,7 @@ the same as for :func:`plotAverageDensityProfile`."""
 
     return rLimits, iv
 
-def plotSubdivisionGrid(cells, angularUnit = "default", axes = None, **kwargs):
+def plotSubdivisionGrid(cells, angularUnit = "default", axes = None, squareScale = 1.0, **kwargs):
     """Creates a plot of the specified subdivision grid, obtained by
 a function from the :mod:`grid<grale.grid>` module for example.
 
@@ -1916,6 +1916,8 @@ Arguments:
  - `axes`: the default will cause a new plot to be created, but you can specify an existing
    matplotlib axes object as well. The value `False` has a special meaning: in that case,
    the calculations will be performed as usual, but an actual plot will not be created.
+
+ - `squareScale`: TODO
 
  - `kwargs`: these parameters will be passed on to the `imshow <https://matplotlib.org/devdocs/api/_as_gen/matplotlib.axes.Axes.imshow.html>`_
    function in matplotlib.
@@ -1933,6 +1935,7 @@ Arguments:
         cx /= angularUnit
         cy /= angularUnit
         w2 /= angularUnit
+        w2 *= squareScale
 
         xpoints += [cx-w2, cx-w2, cx+w2, cx+w2, cx-w2, None]
         ypoints += [cy-w2, cy+w2, cy+w2, cy-w2, cy-w2, None]
