@@ -21,7 +21,7 @@ class GridException(Exception):
     the grid creation."""
     pass
 
-_defaultExcludeFunction = lambda pos, size: False
+_defaultExcludeFunction = lambda pos, size, inUniformStep: False
 
 def _realCellCenterAndSize(size, center, cell):
     cellSize = float(cell["size"])*size
@@ -51,7 +51,7 @@ def createUniformGrid(size, center, axisSubDivisions, excludeFunction = None):
     `axisSubDivisions` cells in X and Y directions.
 
     If `excludeFunction` is specified, for each grid cell it will be called as
-    ``excludeFunction(cellCenter, cellSize)``, and if the function returns ``True``
+    ``excludeFunction(cellCenter, cellSize, True)``, and if the function returns ``True``
     then that particular cell will not be included in the final grid.
     """
 
@@ -79,7 +79,7 @@ def createUniformGrid(size, center, axisSubDivisions, excludeFunction = None):
             }
 
             realPos, realSize = _realCellCenterAndSize(size, center, cell)
-            if not excludeFunction(realPos, realSize):
+            if not excludeFunction(realPos, realSize, True):
                 grid["cells"].append(cell)
 
     return grid
@@ -179,7 +179,7 @@ def _createSubdivisionGridForThreshold(f, size, center, thresholdMass, startSubD
                     del cell["marked"]
 
                 realPos, realSize = _realCellCenterAndSize(size, center, cell)
-                if not excludeFunction(realPos, realSize):
+                if not excludeFunction(realPos, realSize, False):
                     grid["cells"].append(cell)
             
             return grid
@@ -265,7 +265,8 @@ def createSubdivisionGridForFunction(targetDensityFunction, size, center, minSqu
        refinement has been reached. By setting this option to 5 for example, you'd start from
        a uniform 5x5 grid, of which each cell will be refined further.
      - `excludeFunction`: if specified, for each grid cell it will be called as 
-       ``excludeFunction(cellCenter, cellSize)``, and if the function returns ``True``
+       ``excludeFunction(cellCenter, cellSize, True)`` for the initial uniform grid (see `startSubDiv`), and
+       as ``excludeFunction(cellCenter, cellSize, False)`` for the next subdivision steps. If the function returns ``True``
        then that particular cell will not be included in the final grid.
      - `maxIntegrationSubDiv`: to determine if a cell needs to be subdivided, the algorithm
        will integrate the contents numerically. This number specifies the maximum number of
