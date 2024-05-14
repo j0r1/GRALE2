@@ -1015,3 +1015,47 @@ def createThetaGridAndImagesMask(bottomLeft, topRight, NX, NY, maskRegions, enla
         mask = enlargeMask(mask, enlargeOffsets)
     
     return thetas, mask
+
+def adjustShearMeasurements(pixelFrameCoords, pixelFrameGamma1, pixelFrameGamma2, centeredRaDecCoords, tol=None):
+    """TODO"""
+       
+    origShape1 = pixelFrameGamma1.shape
+    origShape2 = pixelFrameGamma2.shape
+    pixelFrameCoords = pixelFrameCoords.copy().reshape((-1,2))
+    centeredRaDecCoords = centeredRaDecCoords.copy().reshape((-1,2))
+    
+    def getScale(coords):
+        return np.sum((np.max(coords,axis=0) - np.min(coords, axis=0))**2)**0.5
+    
+    pfScale = getScale(pixelFrameCoords)
+    pixelFrameCoords /= pfScale
+    rdScale = getScale(centeredRaDecCoords)
+    centeredRaDecCoords /= rdScale
+    
+    startOffset = np.mean(centeredRaDecCoords, axis=0) - np.mean(pixelFrameCoords, axis=0)
+    
+    # Find rotation angle
+    def getRotMatrix(rotAngle):
+        return np.array([
+            [ np.cos(rotAngle), -np.sin(rotAngle) ],
+            [ np.sin(rotAngle), np.cos(rotAngle) ]
+        ])
+    
+    def fitness(params):
+        x0, y0, scale, rotAngle = params
+        rotScaledOffset = np.matmul(getRotMatrix(rotAngle), pixelFrameCoords.T).T*scale
+        rotScaledOffset[:,0] += x0
+        rotScaledOffset[:,1] += y0
+        
+        return np.sum((centeredRaDecCoords - rotScaledOffset)**2)
+        
+    from scipy.optimize import minimize
+    r = minimize(fitness, (startOffset[0], startOffset[1], 1, 0), method="Nelder-Mead", tol=tol)
+    if not r.success:
+        raise Exception("Couldn't optimize to find rotation angle between frames")
+    
+    angle = r.x[3]
+    
+    pixelFrameGamma = np.concatenate((pixelFrameGamma1.reshape((-1,1)), pixelFrameGamma2.reshape(-1,1)), axis=1)
+    rotGamma = np.matmul(getRotMatrix(2*angle), pixelFrameGamma.T).T
+    return rotGamma[:,0].reshape(origShape1), rotGamma[:,1].reshape(origShape2), angle
