@@ -1016,13 +1016,16 @@ def createThetaGridAndImagesMask(bottomLeft, topRight, NX, NY, maskRegions, enla
     
     return thetas, mask
 
-def adjustShearMeasurements(pixelFrameCoords, pixelFrameGamma1, pixelFrameGamma2, centeredRaDecCoords, tol=None):
+def adjustShearMeasurements(pixelFrameCoords, pixelFrameGamma1, pixelFrameGamma2, centeredRaDecCoords, mirror=False, tol=None):
     """TODO"""
        
     origShape1 = pixelFrameGamma1.shape
     origShape2 = pixelFrameGamma2.shape
     pixelFrameCoords = pixelFrameCoords.copy().reshape((-1,2))
     centeredRaDecCoords = centeredRaDecCoords.copy().reshape((-1,2))
+    
+    if mirror:
+        centeredRaDecCoords[:,0] = -centeredRaDecCoords[:,0]
     
     def getScale(coords):
         return np.sum((np.max(coords,axis=0) - np.min(coords, axis=0))**2)**0.5
@@ -1058,4 +1061,7 @@ def adjustShearMeasurements(pixelFrameCoords, pixelFrameGamma1, pixelFrameGamma2
     
     pixelFrameGamma = np.concatenate((pixelFrameGamma1.reshape((-1,1)), pixelFrameGamma2.reshape(-1,1)), axis=1)
     rotGamma = np.matmul(getRotMatrix(2*angle), pixelFrameGamma.T).T
+    
+    if mirror:
+        rotGamma[:,1] = -rotGamma[:,1]
     return rotGamma[:,0].reshape(origShape1), rotGamma[:,1].reshape(origShape2), angle
