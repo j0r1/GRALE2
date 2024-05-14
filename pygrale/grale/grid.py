@@ -118,10 +118,13 @@ def _integrateGridFunction(f, center, size, minPointDist):
     return pixels.sum()
 
 def _createSubdivisionGridForThreshold(f, size, center, thresholdMass, startSubDiv, excludeFunction,
-        maxIntegrationSubDiv, keepLarger, cache, checkSubDivFunction):
+        maxIntegrationSubDiv, keepLarger, cache, checkSubDivFunction, maxSquares):
     
     grid = createUniformGrid(size, center, startSubDiv, excludeFunction)
     gridCells = grid["cells"]
+    if len(gridCells) > maxSquares:
+        raise GridException("Initial uniform subdivision leads to more cells than the specified maximum")
+
     minPointDist = size/float(maxIntegrationSubDiv)
 
     count = 0
@@ -301,7 +304,8 @@ def createSubdivisionGridForFunction(targetDensityFunction, size, center, minSqu
     f = targetDensityFunction # To make a name switch easier
     if minSquares >= maxSquares:
         raise GridException("Minimal number of cells must be smaller than maximum")
-    if maxSquares < startSubDiv**2:
+    
+    if excludeFunction is None and maxSquares < startSubDiv**2:
         raise GridException("Requested initial subdivision leads to more cells than the specified maximum")
 
     # Note that this isn't really the total mass, we should multiply with Dd**2 for this
@@ -327,7 +331,7 @@ def createSubdivisionGridForFunction(targetDensityFunction, size, center, minSqu
             subDivFraction /= (1.0 + diffFrac)
             grid = _createSubdivisionGridForThreshold(f, size, center, totalMass*subDivFraction, startSubDiv, 
                                                       excludeFunction, maxIntegrationSubDiv, keepLarger, massCache,
-                                                      checkSubDivFunction)
+                                                      checkSubDivFunction, maxSquares)
 
         if len(grid["cells"]) < minSquares:
             raise GridException("Unable to find a grid that has a larger number of squares than the specified minimum")
@@ -343,7 +347,7 @@ def createSubdivisionGridForFunction(targetDensityFunction, size, center, minSqu
             subDivFraction *= (1.0 + diffFrac)
             grid = _createSubdivisionGridForThreshold(f, size, center, totalMass*subDivFraction, startSubDiv, 
                                                       excludeFunction, maxIntegrationSubDiv, keepLarger, massCache,
-                                                      checkSubDivFunction)
+                                                      checkSubDivFunction, maxSquares)
 
         if len(grid["cells"]) > maxSquares:
             raise GridException("Unable to find a grid that has a smaller number of squares than the specified maximum")
