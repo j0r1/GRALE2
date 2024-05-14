@@ -22,6 +22,7 @@ class GridException(Exception):
     pass
 
 _defaultExcludeFunction = lambda pos, size, inUniformStep: False
+_defaultSubDivFunction = lambda pos, size: True
 
 def _realCellCenterAndSize(size, center, cell):
     cellSize = float(cell["size"])*size
@@ -117,7 +118,7 @@ def _integrateGridFunction(f, center, size, minPointDist):
     return pixels.sum()
 
 def _createSubdivisionGridForThreshold(f, size, center, thresholdMass, startSubDiv, excludeFunction,
-        maxIntegrationSubDiv, keepLarger, cache):
+        maxIntegrationSubDiv, keepLarger, cache, checkSubDivFunction):
     
     grid = createUniformGrid(size, center, startSubDiv, excludeFunction)
     gridCells = grid["cells"]
@@ -139,15 +140,22 @@ def _createSubdivisionGridForThreshold(f, size, center, thresholdMass, startSubD
             else:
                 # Check if we need to subdivide this
                 realPos, realSize = _realCellCenterAndSize(size, center, cell)
-                key = (realPos[0], realPos[1], realSize)
-                if key in cache:
-                    cellMass = cache[key]
-                else:
-                    cellMass = _integrateGridFunction(f, realPos, realSize, minPointDist)
-                    cache[key] = cellMass
+
+                shouldSubDiv = False
+                if checkSubDivFunction(realPos, realSize): # We're allowed to subdivide this
+
+                    key = (realPos[0], realPos[1], realSize)
+                    if key in cache:
+                        cellMass = cache[key]
+                    else:
+                        cellMass = _integrateGridFunction(f, realPos, realSize, minPointDist)
+                        cache[key] = cellMass
+
+                    if cellMass > thresholdMass:
+                        shouldSubDiv = True
 
                 #print("cellMass=",cellMass, "thresholdMass=",thresholdMass)
-                if cellMass > thresholdMass:
+                if shouldSubDiv:
 
                     gotSubDiv = True
 
@@ -191,7 +199,8 @@ def createSubdivisionGridForFITS(fitsHDUEntry, centerRaDec, gridSize, gridCenter
         maxIntegrationSubDiv = 256,
         keepLarger = False,
         ignoreOffset = True,
-        useAbsoluteValues = True):
+        useAbsoluteValues = True,
+        checkSubDivFunction = None):
     """Creates a subdivision grid that's based on an entry of a FITS file. It calls
     :func:`createSubdivisionGridForFunction` internally, where you can find the
     explanation of the algorithm used.
@@ -218,6 +227,8 @@ def createSubdivisionGridForFITS(fitsHDUEntry, centerRaDec, gridSize, gridCenter
 
     if not excludeFunction:
         excludeFunction = _defaultExcludeFunction
+    if not checkSubDivFunction:
+        checkSubDivFunction = _defaultSubDivFunction
 
     hduCopy = tmpClass
     hduCopy.data = fitsHDUEntry.data.copy()
@@ -238,12 +249,13 @@ def createSubdivisionGridForFITS(fitsHDUEntry, centerRaDec, gridSize, gridCenter
 
     f = gridfunction.GridFunction.createFromFITS(hduCopy, centerRaDec, True)
     return createSubdivisionGridForFunction(f.evaluate, gridSize, gridCenter, minSquares, maxSquares, startSubDiv, 
-                                        excludeFunction, maxIntegrationSubDiv, keepLarger)
+                                        excludeFunction, maxIntegrationSubDiv, keepLarger, checkSubDivFunction)
 
 def createSubdivisionGridForFunction(targetDensityFunction, size, center, minSquares, maxSquares, startSubDiv = 1, 
-        excludeFunction = _defaultExcludeFunction,
+        excludeFunction = None,
         maxIntegrationSubDiv = 256,
-        keepLarger = False):
+        keepLarger = False,
+        checkSubDivFunction = None):
     """Creates a grid of which the cell density is based on the values provided by a function `f`,
     and do the refinement in such a way that the resulting number of grid cells is within the
     specified bounds. This is the core function that's used by :func:`createSubdivisionGrid`
@@ -281,6 +293,11 @@ def createSubdivisionGridForFunction(targetDensityFunction, size, center, minSqu
     within the desired bounds.
     """
 
+    if not excludeFunction:
+        excludeFunction = _defaultExcludeFunction
+    if not checkSubDivFunction:
+        checkSubDivFunction = _defaultSubDivFunction
+
     f = targetDensityFunction # To make a name switch easier
     if minSquares >= maxSquares:
         raise GridException("Minimal number of cells must be smaller than maximum")
@@ -309,7 +326,8 @@ def createSubdivisionGridForFunction(targetDensityFunction, size, center, minSqu
             maxIt -= 1
             subDivFraction /= (1.0 + diffFrac)
             grid = _createSubdivisionGridForThreshold(f, size, center, totalMass*subDivFraction, startSubDiv, 
-                                                      excludeFunction, maxIntegrationSubDiv, keepLarger, massCache)
+                                                      excludeFunction, maxIntegrationSubDiv, keepLarger, massCache,
+                                                      checkSubDivFunction)
 
         if len(grid["cells"]) < minSquares:
             raise GridException("Unable to find a grid that has a larger number of squares than the specified minimum")
@@ -324,7 +342,8 @@ def createSubdivisionGridForFunction(targetDensityFunction, size, center, minSqu
             maxIt -= 1
             subDivFraction *= (1.0 + diffFrac)
             grid = _createSubdivisionGridForThreshold(f, size, center, totalMass*subDivFraction, startSubDiv, 
-                                                      excludeFunction, maxIntegrationSubDiv, keepLarger, massCache)
+                                                      excludeFunction, maxIntegrationSubDiv, keepLarger, massCache,
+                                                      checkSubDivFunction)
 
         if len(grid["cells"]) > maxSquares:
             raise GridException("Unable to find a grid that has a smaller number of squares than the specified maximum")
@@ -335,11 +354,12 @@ def createSubdivisionGridForFunction(targetDensityFunction, size, center, minSqu
     raise GridException("A grid of the requested size could not be constructed")
 
 def createSubdivisionGrid(size, center, lensInfo, minSquares, maxSquares, startSubDiv = 1, 
-        excludeFunction = _defaultExcludeFunction,
+        excludeFunction = None,
         maxIntegrationSubDiv = 256,
         keepLarger = False,
         ignoreOffset = True,
-        useAbsoluteValues = True):
+        useAbsoluteValues = True,
+        checkSubDivFunction = None):
 
     """Creates a subdivision grid that's based on the specified gravitational lens information.
     Internally, the function :func:`createSubdivisionGridForFunction` is called, where you 
@@ -362,6 +382,11 @@ def createSubdivisionGrid(size, center, lensInfo, minSquares, maxSquares, startS
        idea).
     """
 
+    if not excludeFunction:
+        excludeFunction = _defaultExcludeFunction
+    if not checkSubDivFunction:
+        checkSubDivFunction = _defaultSubDivFunction
+
     densPoints = lensInfo.getDensityPoints()
     if useAbsoluteValues:
         densPoints = np.absolute(densPoints)
@@ -376,7 +401,7 @@ def createSubdivisionGrid(size, center, lensInfo, minSquares, maxSquares, startS
     f = gridfunction.GridFunction(densPoints, lensInfo.getBottomLeft(), lensInfo.getTopRight())
 
     return createSubdivisionGridForFunction(f.evaluate, size, center, minSquares, maxSquares, startSubDiv, 
-                                        excludeFunction, maxIntegrationSubDiv, keepLarger)
+                                        excludeFunction, maxIntegrationSubDiv, keepLarger, checkSubDivFunction)
 
 def fitMultiplePlummerLens(gridCells, Dd, targetDensityFunction, sizeFactor = 1.7):
     """Fits a mass distribution based on multiple Plummer base functions that are
