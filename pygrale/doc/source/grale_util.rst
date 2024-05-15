@@ -18,3 +18,5 @@ grale.util
 .. autofunction:: parallelFindOptimizedSourcePositions
 
 .. autofunction:: nelderMeadSourcePositionOptimizer
+
+.. autofunction:: adjustShearMeasurements
