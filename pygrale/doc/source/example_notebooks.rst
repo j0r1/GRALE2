@@ -82,3 +82,7 @@ Example Jupyter notebooks
  * Using the code from the lens potential extrapolation to obtain lenses with different
    MSD-like effects for different sources: `potentialextrap_multisheet.ipynb <_static/potentialextrap_multisheet.ipynb>`_
 
+ * This example uses the A2744 data from `Weak gravitational lensing measurements of Abell 2744 using JWST and shear measurement algorithm pyRRG-JWST <https://ui.adsabs.harvard.edu/abs/2024MNRAS.529..802H/abstract>`_
+   to recreate (more or less) their Fig. 6 plot that estimates the mass density from the weak
+   lensing measurements: `a2744-wldatatest.ipynb <_static/a2744-wldatatest.ipynb>`_
+
