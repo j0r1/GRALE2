@@ -911,6 +911,8 @@ class InversionWorkSpace(object):
 
         In a multi-plane scenario, ``lpIdx`` can be used to specify only one
         lens plane.
+
+        TODO: excludeFunction
         """
         
         if lpIdx == "all":
@@ -961,6 +963,8 @@ class InversionWorkSpace(object):
         lens plane. Alternatively, a single plane lens model or :class:`LensInfo <grale.plotutil.LensInfo>`
         instance can be used for a specific lens plane, but in that case ``lpIdx`` must be
         set to the correct lens plane index.
+
+        TODO: checkSubDivFunction, excludeFunction
         """
         
         if ( (not self.isMultiPlane) or
@@ -1377,7 +1381,9 @@ class InversionWorkSpace(object):
 
     def setStrongAndWeakBasisFunctions(self, strongSubDivInfo, weakSubDiv = None, weakRegionSize = 0,
                                        weakRegionCenter = None, weakRandomFraction = "onesquare",
-                                       weakMassScale = None, ignoreWLMassInMassScaleSearch = False):
+                                       weakMassScale = None, ignoreWLMassInMassScaleSearch = False,
+                                       strongExcludeFunction = None, strongCheckSubDivFunction = None,
+                                       weakExcludeFunction = None):
         """This is a convenience function for strong&weak inversions. It sets basis functions
         based on a strong lensing grid (uniform or subdivision grid) as well as a uniform grid
         for the weak lensing region. It returns a tuple containing the created grids for strong
@@ -1414,6 +1420,12 @@ class InversionWorkSpace(object):
           lensing mass is included, this search should either be expanded (set `massScaleSearchType`
           to ``wide`` instead of ``regular``), or the masses of the basis functions in the weak
           lensing area should not be counted in this search.
+
+        - `strongExcludeFunction`: TODO
+
+        - `strongCheckSubDivFunction`: TODO 
+
+        - `weakExcludeFunction`: TODO
         """
 
         if len(self.zd) != 1:
@@ -1424,7 +1436,8 @@ class InversionWorkSpace(object):
 
         try:
             baseLens, minDiv, maxDiv = strongSubDivInfo
-            self.setSubdivisionGrid(baseLens, minDiv, maxDiv)
+            self.setSubdivisionGrid(baseLens, minDiv, maxDiv, excludeFunction=strongExcludeFunction,
+                                    checkSubDivFunction=strongCheckSubDivFunction)
             strongGrid = copy.deepcopy(self.getGrid())
         except Exception as e:
             #print("DEBUG: ", e)
@@ -1432,7 +1445,7 @@ class InversionWorkSpace(object):
 
         if not strongGrid:
             try:
-                self.setUniformGrid(strongSubDivInfo)
+                self.setUniformGrid(strongSubDivInfo, excludeFunction=strongExcludeFunction)
                 strongGrid = copy.deepcopy(self.getGrid())
             except Exception as e:
                 #print("DEBUG2: ", e)
@@ -1458,7 +1471,8 @@ class InversionWorkSpace(object):
                 weakRandomFraction = 1.0/weakSubDiv
 
             self.setUniformGrid(weakSubDiv, randomFraction=weakRandomFraction,
-                                regionSize=weakRegionSize, regionCenter=weakRegionCenter)
+                                regionSize=weakRegionSize, regionCenter=weakRegionCenter,
+                                excludeFunction=weakExcludeFunction)
             weakGrid = copy.deepcopy(self.getGrid())
 
             lensModelFunction = dummyLensModelFunction if ignoreWLMassInMassScaleSearch else defaultLensModelFunction

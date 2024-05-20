@@ -223,6 +223,7 @@ def createSubdivisionGridForFITS(fitsHDUEntry, centerRaDec, gridSize, gridCenter
        becomes zero.
      - `useAbsoluteValues`: set to ``False`` to allow negative values (probably not a good
        idea).
+     - `checkSubDivFunction`: TODO
     """
 
     class tmpClass(object):
@@ -289,6 +290,7 @@ def createSubdivisionGridForFunction(targetDensityFunction, size, center, minSqu
        fewer parts according to their size.
      - `keepLarger`: if ``True``, after subdividing a grid cell, the original cell will also
        be kept in the list of cells.
+     - `checkSubDivFunction`: TODO
 
     Refinement algorithm: in a helper routine, each cell will be split into four smaller cells
     whenever the integrated value of the cell exceeds some threshold. The main function then
@@ -384,6 +386,7 @@ def createSubdivisionGrid(size, center, lensInfo, minSquares, maxSquares, startS
        becomes zero.
      - `useAbsoluteValues`: set to ``False`` to allow negative values (probably not a good
        idea).
+     - `checkSubDivFunction`: TODO
     """
 
     if not excludeFunction:
