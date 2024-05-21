@@ -983,6 +983,11 @@ of course.
 Background FITS & matched RGB
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+.. _tut-graleeditor-screencast-overlay:
+
+(there's also a `screencast <https://drive.google.com/file/d/1Fj47CwIVX0buPbbJ4kcr1ts0ihSIM7_5/view?usp=sharing>`_
+that shows this procedure)
+
 To create such a background FITS and matching RGB image, you start by adding
 a FITS layer. To specify which point in the FITS image corresponds to the center
 of the coordinate system, you can double click on that point. Alternatively, 

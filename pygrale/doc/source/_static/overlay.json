@@ -1,0 +1,116 @@
+{
+    "state": {
+        "activelayerindex": 1,
+        "globalsettings": {
+            "axisleft": true,
+            "ispointsizefixed": true,
+            "nextmatchpointfits": 4,
+            "nextmatchpointrgb": 8,
+            "pointsizearcsecsize": 0.1,
+            "pointsizepixelsize": 24,
+            "showaxes": false,
+            "showmatchpoints": true
+        },
+        "layers": [
+            {
+                "center": [
+                    330.472325,
+                    -59.9454361111111
+                ],
+                "fitsfile": "hst_12817_01_acs_wfc_f606w_drz.fits",
+                "hduidx": 1,
+                "minmax": [
+                    0.0,
+                    1.0
+                ],
+                "name": "FITS Image layer",
+                "points": [
+                    {
+                        "label": "2",
+                        "xy": [
+                            3629.5002563035705,
+                            5041.623899588751
+                        ]
+                    },
+                    {
+                        "label": "0",
+                        "xy": [
+                            2955.8127267226523,
+                            4244.105328270989
+                        ]
+                    },
+                    {
+                        "label": "1",
+                        "xy": [
+                            4003.55510351549,
+                            3566.337120444811
+                        ]
+                    },
+                    {
+                        "label": "3",
+                        "xy": [
+                            4550.5769923803855,
+                            4033.1315550509125
+                        ]
+                    }
+                ]
+            },
+            {
+                "name": "RGB Image layer",
+                "points": [
+                    {
+                        "label": "3",
+                        "xy": [
+                            4225.391830641602,
+                            3352.4228584527536
+                        ]
+                    },
+                    {
+                        "label": "2",
+                        "xy": [
+                            4170.0884578809555,
+                            1077.5360790248762
+                        ]
+                    },
+                    {
+                        "label": "1",
+                        "xy": [
+                            3026.105771008668,
+                            3342.2215276664083
+                        ]
+                    },
+                    {
+                        "label": "0",
+                        "xy": [
+                            2450.8189983720754,
+                            1344.6829066967769
+                        ]
+                    }
+                ],
+                "rgbfile": "Hubble_image_of_the_galaxy_cluster_Abell_3827.jpg",
+                "transform": [
+                    -0.022646160107321456,
+                    0.01967140657767036,
+                    0.0,
+                    -0.019700491878661675,
+                    -0.02263542699420107,
+                    0.0,
+                    131.2582435076855,
+                    -22.437953991832327,
+                    1.0
+                ]
+            }
+        ],
+        "visibilities": [
+            true,
+            true
+        ]
+    },
+    "view": {
+        "center": [
+            19.8522036651868,
+            3.8473262917028683
+        ],
+        "zoom": 6.498019170849876
+    }
+}

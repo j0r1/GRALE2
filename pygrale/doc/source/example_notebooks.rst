@@ -93,3 +93,15 @@ Example Jupyter notebooks
    to recreate (more or less) their Fig. 6 plot that estimates the mass density from the weak
    lensing measurements: `a2744-wldatatest.ipynb <_static/a2744-wldatatest.ipynb>`_
 
+ * Quick'n'dirty hybrid inversion of A3827: :class:`SIE profiles <grale.lenses.SIELens>` combined with
+   a uniform low-resolution grid of :class:`Plummers <grale.lenses.PlummerLens>` for a slightly better
+   result.
+
+   * This starts from the `overlay.json <_static/overlay.json>`_ file that was created in 
+     the :ref:`screencast <tut-graleeditor-screencast-overlay>`
+   * Then estimates the SIEs positions, rotations and ellipticities from contours made in the
+     GRALE editor (as shown in this `screencast <https://drive.google.com/file/d/1AGEfVo137m-eGBRWj2rtOjYtNU0r1gWh/view?usp=sharing>`_),
+     finally storing the data in an :class:`ImagesData <grale.images.ImagesData>` file: `galaxies.imgdata <_static/galaxies.imgdata>`_
+   * The notebook `a3827hybrid.ipynb <_static/a3827hybrid.ipynb>`_ then illustrates how SIE basis functions can 
+     be estimated from this file and used in the inversion script `a3827hybrid_invert.py <_static/a3827hybrid_invert.py>`_
+
