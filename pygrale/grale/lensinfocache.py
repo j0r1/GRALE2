@@ -38,8 +38,8 @@ class LensInfoCache(object):
         """TODO"""
         for n in self.liCache:
             # TODO: use a feedbackobject
-            print("Saving", n, "as", self.liCache[n]["filename"])
             cfn = self._getCacheFileName(n)
+            print("Saving", self.liCache[n]["filename"], "as", cfn)
             pickle.dump(self.liCache[n], open(cfn,"wb"))
 
     def getLensInfoEntry(self, fileNameOrLens):       
