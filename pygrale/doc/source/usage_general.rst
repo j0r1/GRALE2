@@ -22,12 +22,12 @@ measures are:
    area encompassing all backprojected points is used as a distance scale
    in determining the overlap, but the median of absolute deviations
    `MAD <https://en.wikipedia.org/wiki/Median_absolute_deviation>`_ can be
-   used as well (see the section about `'module parameters'`).
+   used as well (see the section about :ref:`module parameters <moduleparameters>`).
 
  - ``pointgroupoverlap``: an experimental fitness measure, which backprojects
    specific points and estimates the RMS in the image plane. Either the
    average source position is used, or each backprojected image is used
-   separately as a source position estimate (see the section about `'module parameters'`).
+   separately as a source position estimate (see the section about :ref:`module parameters <moduleparameters>`).
    The magnification matrix is used to map differences in the source plane to 
    differences in the image plane.
 
@@ -46,7 +46,7 @@ measures are:
    multiply-imaged sources, a fitness measure will be calculated as described
    in Liesenborgs et al (2009) [#4]_ or as in Liesenborgs et al (2020) [#5]_.
    You can select which type to use using the `fitness_timedelay_type`
-   parameters (see the section about `'module parameters'`).
+   parameters (see the section about :ref:`module parameters <moduleparameters>`).
 
  - ``causticpenalty``: also described in Liesenborgs et al (2009) [#4]_, it is
    also possible to add a fitness measure to try to prevent a caustic from
@@ -56,14 +56,14 @@ measures are:
    measure will be provided for this, as described in Liesenborgs et al (2020) [#5]_.
    By default, the shear data will be interpreted as averaged ellipticities, but
    if desired (for testing purposes for example), real shear, or actual reduced
-   shear can be specified as well (see the section about `'module parameters'`).
+   shear can be specified as well (see the section about :ref:`module parameters <moduleparameters>`).
    For each data point, a weight can be specified.
 
  - ``kappathreshold``: if it's certain that the convergence (:math:`\kappa`) values
    at certain locations should not exceed a certain threshold, this fitness
    measure is added.
 
- - ``bayesweaklensing``: TODO, bayesian, per galaxy
+ - ``bayesweaklensing``: TODO, bayesian, per galaxy `notebook <_static/bayesianweaklensing.ipynb>`_
 
 In general, when more than one fitness measure is used, at the end of the 
 algorithm a set of mass maps is found in which no single one will be better
@@ -71,7 +71,7 @@ than another with respect to all fitness measures. While you can specify that
 all of these solutions need to be retrieved, usually you'll just want
 to keep a single solution. To choose this solution, the order of importance 
 of the fitness measures can be left to the default or you can specify it 
-yourself. See the section about `'module parameters'` for more information.
+yourself. See the section about :ref:`module parameters <moduleparameters>` for more information.
 
 Input images data list
 ----------------------
@@ -197,6 +197,12 @@ is contained in this entry, and can be one of the following:
    The only fitness measure to which this type of data is relevant, is
    ``bayesweaklensing``.
 
+ - ``bayesdensityprior``: TODO
+
+ - ``bayesstronglensing``: TODO
+
+ - ``bayesmagnification``: TODO
+
  - ``kappathresholdpoints``: this data set should only contain a single 'image',
    a set of points at which the convergence :math:`\kappa` is calculated. The
    mandatory extra (real valued) parameter ``threshold`` specifies if a penalty
@@ -227,6 +233,7 @@ is contained in this entry, and can be one of the following:
    The only fitness measure to which this type of data is relevant, is 
    ``pointimagenull``.
 
+.. _moduleparameters:
 
 Module parameters
 -----------------
@@ -272,6 +279,7 @@ fitness_bayesweaklensing_zdist_numsamples        16
 fitness_bayesweaklensing_b_over_a_distribution   None
 fitness_bayesweaklensing_sigmafactor             3.0
 fitness_bayesweaklensing_sigmasteps              7
+fitness_bayesweaklensing_stronglenssigma         0.0
 ================================================ =========================
 
 In case input is provided with ``pointgroupimages`` type, the ``pointgroupoverlap``
@@ -329,6 +337,11 @@ and extended images as input, the fitness measures ``pointimageoverlap`` and
 the fitness value that corresponds to most images will have the best
 priority for the default settings. So if there are more point images than
 extended images, the point image criterion will be considered first.
+
+TODO: describe bayes options
+
+TODO: fitness_bayesweaklensing_stronglenssigma must be specified in absolute
+      units, e.g 1*ANGLE_ARCSEC
 
 .. rubric:: References
 
