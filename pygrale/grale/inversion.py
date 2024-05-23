@@ -1379,11 +1379,59 @@ class InversionWorkSpace(object):
 
         return bpImages
 
+    def _getStrongAndWeakGrids(self, strongSubDivInfo, weakSubDiv = None, weakRegionSize = 0,
+                               weakRegionCenter = None, weakRandomFraction = "onesquare",
+                               strongExcludeFunction = None, strongCheckSubDivFunction = None,
+                               weakExcludeFunction = None):
+
+        if len(self.zd) != 1:
+            raise InversionException("This is meant for a single lensplane")
+
+        # Create the SL grid
+        strongGrid = None
+
+        try:
+            baseLens, minDiv, maxDiv = strongSubDivInfo
+            self.setSubdivisionGrid(baseLens, minDiv, maxDiv, excludeFunction=strongExcludeFunction,
+                                    checkSubDivFunction=strongCheckSubDivFunction)
+            strongGrid = copy.deepcopy(self.getGrid())
+        except Exception as e:
+            #print("DEBUG: ", e)
+            pass
+
+        if not strongGrid:
+            try:
+                self.setUniformGrid(strongSubDivInfo, excludeFunction=strongExcludeFunction)
+                strongGrid = copy.deepcopy(self.getGrid())
+            except Exception as e:
+                #print("DEBUG2: ", e)
+                raise InversionException("'subDivInfo' must either be an integer for a uniform subdivision, or a tuple (lens, minSubDiv, maxSubDiv)")
+
+        weakGrid = None
+        if weakSubDiv:
+            if not weakRegionSize:
+                raise InversionException("A separate weak lensing region size must be specified")
+
+            if weakRandomFraction == "onesquare":
+                weakRandomFraction = 1.0/weakSubDiv
+
+            self.setUniformGrid(weakSubDiv, randomFraction=weakRandomFraction,
+                                regionSize=weakRegionSize, regionCenter=weakRegionCenter,
+                                excludeFunction=weakExcludeFunction)
+            weakGrid = copy.deepcopy(self.getGrid())
+
+        return strongGrid, weakGrid
+
     def setStrongAndWeakBasisFunctions(self, strongSubDivInfo, weakSubDiv = None, weakRegionSize = 0,
                                        weakRegionCenter = None, weakRandomFraction = "onesquare",
                                        weakMassScale = None, ignoreWLMassInMassScaleSearch = False,
                                        strongExcludeFunction = None, strongCheckSubDivFunction = None,
-                                       weakExcludeFunction = None):
+                                       weakExcludeFunction = None,
+                                       strongLensModelFunction = defaultLensModelFunction,
+                                       strongLensModelInitialParams = {},
+                                       weakLensModelFunction = defaultLensModelFunction,
+                                       weakLensModelInitialParams = {}
+                                       ):
         """This is a convenience function for strong&weak inversions. It sets basis functions
         based on a strong lensing grid (uniform or subdivision grid) as well as a uniform grid
         for the weak lensing region. It returns a tuple containing the created grids for strong
@@ -1426,33 +1474,24 @@ class InversionWorkSpace(object):
         - `strongCheckSubDivFunction`: TODO 
 
         - `weakExcludeFunction`: TODO
+
+        - `strongLensModelFunction`: TODO
+
+        - `strongLensModelInitialParams`: TODO
+
+        - `weakLensModelFunction`: TODO
+        
+        - `weakLensModelInitialParams`: TODO
+
         """
 
-        if len(self.zd) != 1:
-            raise InversionException("This is meant for a single lensplane")
-
-        # Create the SL grid
-        strongGrid = None
-
-        try:
-            baseLens, minDiv, maxDiv = strongSubDivInfo
-            self.setSubdivisionGrid(baseLens, minDiv, maxDiv, excludeFunction=strongExcludeFunction,
-                                    checkSubDivFunction=strongCheckSubDivFunction)
-            strongGrid = copy.deepcopy(self.getGrid())
-        except Exception as e:
-            #print("DEBUG: ", e)
-            pass
-
-        if not strongGrid:
-            try:
-                self.setUniformGrid(strongSubDivInfo, excludeFunction=strongExcludeFunction)
-                strongGrid = copy.deepcopy(self.getGrid())
-            except Exception as e:
-                #print("DEBUG2: ", e)
-                raise InversionException("'subDivInfo' must either be an integer for a uniform subdivision, or a tuple (lens, minSubDiv, maxSubDiv)")
+        strongGrid, weakGrid = self._getStrongAndWeakGrids(strongSubDivInfo, weakSubDiv, weakRegionSize,
+                                                           weakRegionCenter, weakRandomFraction,
+                                                           strongExcludeFunction, strongCheckSubDivFunction,
+                                                           weakExcludeFunction)
 
         def dummyLensModelFunction(operation, operationInfo, parameters):
-            r = defaultLensModelFunction(operation, operationInfo, parameters)
+            r = weakLensModelFunction(operation, operationInfo, parameters)
             
             # Set the mass that's counted in determining the scale factor in the GA to (almost) zero
             # (zero is not allowed by the GA)
@@ -1460,30 +1499,22 @@ class InversionWorkSpace(object):
                 return (r[0], 0.1)
             return r
 
-        weakGrid = None
-        if weakSubDiv:
+        if weakGrid:
             if not weakMassScale:
                 raise InversionException("A mass scale for the weak lensing region is required")
-            if not weakRegionSize:
-                raise InversionException("A separate weak lensing region size must be specified")
 
-            if weakRandomFraction == "onesquare":
-                weakRandomFraction = 1.0/weakSubDiv
-
-            self.setUniformGrid(weakSubDiv, randomFraction=weakRandomFraction,
-                                regionSize=weakRegionSize, regionCenter=weakRegionCenter,
-                                excludeFunction=weakExcludeFunction)
-            weakGrid = copy.deepcopy(self.getGrid())
-
-            lensModelFunction = dummyLensModelFunction if ignoreWLMassInMassScaleSearch else defaultLensModelFunction
+            lensModelFunction = dummyLensModelFunction if ignoreWLMassInMassScaleSearch else weakLensModelFunction
             
         # Add the basisfunction
         self.clearBasisFunctions()
         self.setGrid(strongGrid)
-        self.addBasisFunctionsBasedOnCurrentGrid() # TODO: options?
+        self.addBasisFunctionsBasedOnCurrentGrid(strongLensModelFunction, strongLensModelInitialParams)
         if weakGrid:
             self.setGrid(weakGrid)
-            self.addBasisFunctionsBasedOnCurrentGrid(lensModelFunction, { "totalmass": weakMassScale })
+            params = { "totalmass": weakMassScale }
+            for k in weakLensModelInitialParams:
+                params[k] = weakLensModelInitialParams[k]
+            self.addBasisFunctionsBasedOnCurrentGrid(lensModelFunction, params)
 
         return strongGrid, weakGrid
 
