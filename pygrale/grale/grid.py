@@ -117,7 +117,133 @@ def _integrateGridFunction(f, center, size, minPointDist):
     pixels *= dxy[0]*dxy[1]
     return pixels.sum()
 
-def _createSubdivisionGridForThreshold(f, size, center, thresholdMass, startSubDiv, excludeFunction,
+def _getNewSubDivCells(f, gridCells, size, center, minPointDist, cache, thresholdMass, keepLarger,
+                       checkSubDivFunction):
+        
+    newCells = [ ]
+    gotSubDiv = False
+
+    for cell in gridCells:
+        if "marked" in cell: 
+            # just keeping a larger cell that's been subdivided, or one that did not
+            # contain enough mass
+            newCells.append(cell)
+        else:
+            # Check if we need to subdivide this
+            realPos, realSize = _realCellCenterAndSize(size, center, cell)
+
+            shouldSubDiv = False
+            if checkSubDivFunction(realPos, realSize): # We're allowed to subdivide this
+
+                key = (realPos[0], realPos[1], realSize)
+                if key in cache:
+                    cellMass = cache[key]
+                else:
+                    cellMass = _integrateGridFunction(f, realPos, realSize, minPointDist)
+                    cache[key] = cellMass
+
+                if cellMass > thresholdMass:
+                    shouldSubDiv = True
+
+            #print("cellMass=",cellMass, "thresholdMass=",thresholdMass)
+            if shouldSubDiv:
+
+                gotSubDiv = True
+
+                if keepLarger:
+                    cell["marked"] = True
+                    newCells.append(cell)
+
+                origSize = cell["size"]
+                origX, origY = cell["center"]
+                newCells.append({ "size": origSize/2,
+                                    "center": [ origX-origSize/4, origY-origSize/4 ] })
+                newCells.append({ "size": origSize/2,
+                                    "center": [ origX-origSize/4, origY+origSize/4 ] })
+                newCells.append({ "size": origSize/2,
+                                    "center": [ origX+origSize/4, origY+origSize/4 ] })
+                newCells.append({ "size": origSize/2,
+                                    "center": [ origX+origSize/4, origY-origSize/4 ] })
+
+            else:
+                cell["marked"] = True
+                newCells.append(cell)
+
+    return newCells, gotSubDiv
+
+def _checkGridExcludeFunction(grid, gridCells, size, center, excludeFunction):
+    grid["cells"] = [ ]
+    for cell in gridCells:
+        if "marked" in cell:
+            del cell["marked"]
+
+        realPos, realSize = _realCellCenterAndSize(size, center, cell)
+    
+        if not excludeFunction(realPos, realSize, False):
+            grid["cells"].append(cell)
+    
+def _createSubdivisionGridForThreshold_Multi(f, 
+        # { "size": , "center": , "startsubdiv": }
+        subdivRegionInfo, # list of these ^ things
+        thresholdMass,
+        excludeFunction,
+        maxIntegrationSubDiv, keepLarger, cache, checkSubDivFunction, maxSquares):
+    
+    if not subdivRegionInfo:
+        raise GridException("No subdivision regions were specified")
+    
+    allGrids = [ createUniformGrid(x["size"], x["center"], x["startsubdiv"], excludeFunction) for x in subdivRegionInfo ]
+    allGridCells = [ copy.copy(grid["cells"]) for grid in allGrids ]
+    allGridCellCount = sum([ len(cells) for cells in allGridCells ])
+    
+    if allGridCellCount > maxSquares:
+        raise GridException("Initial uniform subdivision leads to more cells than the specified maximum")
+
+    minPointDists = [ x["size"]/float(maxIntegrationSubDiv) for x in subdivRegionInfo ]
+
+    count = 0
+    maxCount = 4096
+    while count < maxCount:
+        count += 1
+        #print("count = ", count)
+        allNewCells = [ ]
+        gotSubDiv = False
+
+        for gridCells, minPointDist, regionInfo in zip(allGridCells, minPointDists, subdivRegionInfo):
+
+            newCells, gotSubDivPart = _getNewSubDivCells(f, gridCells, regionInfo["size"], regionInfo["center"],
+                                          minPointDist, cache, thresholdMass, keepLarger,
+                                          checkSubDivFunction)
+            if gotSubDivPart:
+                gotSubDiv = True
+
+            allNewCells.append(newCells)
+        
+        allGridCells = allNewCells
+        if not gotSubDiv:
+            
+            # We're done, check the excludeFunction
+
+            for grid, gridCells, regionInfo in zip(allGrids, allGridCells, subdivRegionInfo):
+            
+                _checkGridExcludeFunction(grid, gridCells, regionInfo["size"],
+                                          regionInfo["center"], excludeFunction)            
+            return allGrids
+
+    raise GridException("Unexpected: couldn't find a subdivision grid within {} iterations".format(maxCount))
+
+def _createSubdivisionGridForThreshold_new(f, size, center, thresholdMass, startSubDiv, excludeFunction,
+        maxIntegrationSubDiv, keepLarger, cache, checkSubDivFunction, maxSquares):
+    return _createSubdivisionGridForThreshold_Multi(f, [ {
+                    "size": size,
+                    "center": center,
+                    "startsubdiv": startSubDiv
+                }], 
+                thresholdMass, excludeFunction, maxIntegrationSubDiv, keepLarger, 
+                cache, checkSubDivFunction,
+                maxSquares)[0]
+
+def _createSubdivisionGridForThreshold_old(f, size, center, thresholdMass, startSubDiv, excludeFunction,
         maxIntegrationSubDiv, keepLarger, cache, checkSubDivFunction, maxSquares):
     
     grid = createUniformGrid(size, center, startSubDiv, excludeFunction)
@@ -132,70 +258,19 @@ def _createSubdivisionGridForThreshold(f, size, center, thresholdMass, startSubD
     while count < maxCount:
         count += 1
         #print("count = ", count)
-        newCells = [ ]
-        gotSubDiv = False
-
-        for cell in gridCells:
-            if "marked" in cell: 
-                # just keeping a larger cell that's been subdivided, or one that did not
-                # contain enough mass
-                newCells.append(cell)
-            else:
-                # Check if we need to subdivide this
-                realPos, realSize = _realCellCenterAndSize(size, center, cell)
-
-                shouldSubDiv = False
-                if checkSubDivFunction(realPos, realSize): # We're allowed to subdivide this
-
-                    key = (realPos[0], realPos[1], realSize)
-                    if key in cache:
-                        cellMass = cache[key]
-                    else:
-                        cellMass = _integrateGridFunction(f, realPos, realSize, minPointDist)
-                        cache[key] = cellMass
-
-                    if cellMass > thresholdMass:
-                        shouldSubDiv = True
-
-                #print("cellMass=",cellMass, "thresholdMass=",thresholdMass)
-                if shouldSubDiv:
-
-                    gotSubDiv = True
-
-                    if keepLarger:
-                        cell["marked"] = True
-                        newCells.append(cell)
-
-                    origSize = cell["size"]
-                    origX, origY = cell["center"]
-                    newCells.append({ "size": origSize/2,
-                                      "center": [ origX-origSize/4, origY-origSize/4 ] })
-                    newCells.append({ "size": origSize/2,
-                                      "center": [ origX-origSize/4, origY+origSize/4 ] })
-                    newCells.append({ "size": origSize/2,
-                                      "center": [ origX+origSize/4, origY+origSize/4 ] })
-                    newCells.append({ "size": origSize/2,
-                                      "center": [ origX+origSize/4, origY-origSize/4 ] })
-
-                else:
-                    cell["marked"] = True
-                    newCells.append(cell)
-
+        
+        newCells, gotSubDiv = _getNewSubDivCells(f, gridCells, size, center, minPointDist, cache,
+                                                  thresholdMass, keepLarger, checkSubDivFunction)
+        
         gridCells = newCells
         if not gotSubDiv:
             # We're done, check the excludeFunction
-            grid["cells"] = [ ]
-            for cell in gridCells:
-                if "marked" in cell:
-                    del cell["marked"]
-
-                realPos, realSize = _realCellCenterAndSize(size, center, cell)
-                if not excludeFunction(realPos, realSize, False):
-                    grid["cells"].append(cell)
-            
+            _checkGridExcludeFunction(grid, gridCells, size, center, excludeFunction)
             return grid
 
     raise GridException("Unexpected: couldn't find a subdivision grid within {} iterations".format(maxCount))
+
+_createSubdivisionGridForThreshold = _createSubdivisionGridForThreshold_old
 
 def createSubdivisionGridForFITS(fitsHDUEntry, centerRaDec, gridSize, gridCenter, minSquares, maxSquares, startSubDiv = 1,
         excludeFunction = None,
