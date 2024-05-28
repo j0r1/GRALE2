@@ -653,6 +653,66 @@ def defaultLensModelFunction(operation, operationInfo, parameters):
     lens = classes[parameters["basistype"]](parameters["Dd"], { "width": width, "mass": mass })
     return lens, mass
 
+# We need a new type to disambiguate between a list of regions in a single
+# lensplane, and regions for multiple lens planes
+class Regions(object):
+    def __init__(self, regionInfoList):
+        if type(regionInfoList) == dict:
+            regionInfoList = [ regionInfoList ]
+
+        self.regionInfoList = []
+        for regionInfo in regionInfoList:
+            size = regionInfo["size"]
+            center = regionInfo["center"] if "center" in regionInfo else [0.0, 0.0]
+            self.regionInfoList.append({ "size": size, "center": center })
+
+    def getNumberOfRegions(self):
+        return len(self.regionInfoList)
+    
+    def getRegions(self):
+        return self.regionInfoList
+
+def _getLensPlaneRegions(regionSize, regionCenter, multiRegionInfo, numPlanes):
+    # Get the region info, store as a list of Regions, one entry in the
+    # list per lensplane
+    if regionSize is None:
+        if regionCenter is not None:
+            raise InversionException("regionCenter must be None if regionSize is")
+        if not multiRegionInfo:
+            raise InversionException("No region information is present")
+        
+        if type(multiRegionInfo) == Regions:
+            lensplaneRegions = [ copy.copy(multiRegionInfo) for x in range(numPlanes) ]
+        elif type(multiRegionInfo) == list: # assume it's a list of Regions instances
+            lensplaneRegions = []
+            for x in multiRegionInfo:
+                if type(x) != Regions:
+                    raise InversionException("Each entry in multiRegionInfo must be a Regions object")
+                lensplaneRegions.append(copy.copy(x))
+
+    else:
+        if multiRegionInfo is not None:
+            raise InversionException("If regionSize is set, multiRegionInfo must be None")
+        
+        if type(regionSize) != list:
+            if regionCenter is None:
+                regionCenter = [0.0, 0.0]
+            lensplaneRegions = [ Regions({"size": regionSize, "center": regionCenter}) for x in range(numPlanes) ]
+        else:
+            if len(regionSize) != numPlanes:
+                raise InversionException("There must be the same amount of region sizes as lens planes")
+
+            if regionCenter is None:
+                regionCenter = [ [0.0, 0.0] for x in range(numPlanes) ]
+            
+            lensplaneRegions = [ Regions({"size": regionSize[i], "center": regionCenter[i]}) for i in range(len(regionSize)) ]
+
+    for regions in lensplaneRegions:
+        for r in regions.getRegions():
+            if r["size"] <= 0:
+                raise InversionException("Invalid region size {} was specified".format(r["size"]))
+
+    return lensplaneRegions
 
 class InversionWorkSpace(object):
     """This class tries to make it more straightforward to perform lens inversions
@@ -680,7 +740,8 @@ class InversionWorkSpace(object):
     optimized, you can also set basis functions directly (see e.g. :func:`addBasisFunctions`)
     and optimize their weights using :func:`invertBasisFunctions`.
     """
-    def __init__(self, zLens, regionSize, regionCenter = [0, 0], inverter = "default", 
+    def __init__(self, zLens, regionSize = None, regionCenter = None, multiRegionInfo = None,
+                 inverter = "default", 
                  renderer = "default", feedbackObject = "default", cosmology = "default"):
         
         """Constructor for this class.
@@ -698,6 +759,8 @@ class InversionWorkSpace(object):
 
            In case of a multi-plane inversion, you can specify different sizes for each plane
            if desired, otherwise the same settings will be used for all planes.
+
+         - `multiRegionInfo`: TODO
 
          - `inverter`: specifies the inverter to be used. See the :mod:`inverters<grale.inverters>`
 
@@ -737,22 +800,12 @@ class InversionWorkSpace(object):
         self.cosm = cosmology
         self.inversionArgs = { }
 
-        if type(regionSize) != list:
-            regionSize = [ copy.deepcopy(regionSize) for x in range(len(zLens)) ]
-            regionCenter = [ copy.deepcopy(regionCenter) for x in range(len(zLens)) ]
-
-        if len(regionSize) != len(zLens):
-            raise InversionException("There must be the same amount of region sizes as lens planes")
-
-        for r in regionSize:
-            if r <= 0:
-                raise InversionException("Invalid region size")
+        # Get the region info, store as a list of Regions, one entry in the
+        # list per lensplane
+        self.lensplaneRegions = _getLensPlaneRegions(regionSize, regionCenter, multiRegionInfo, len(zLens))
+        # TODO: check that self.regionSize and self.regionCenter are no longer used!
         
-        # Rough indication of grid position and dimensions, but randomness
-        # may be added unless specified otherwise
-        self.regionSize = copy.deepcopy(regionSize)
-        self.regionCenter = copy.deepcopy(regionCenter)
-        self.grid = [ None for z in zLens ]
+        self.grid = [ None for z in zLens ] # TODO: wrap the entries in some class
         self.clearBasisFunctions() # initializes self.basisFunctions
         
         self.renderer = renderer
@@ -781,24 +834,56 @@ class InversionWorkSpace(object):
         lpIdx = self._checkLensPlaneIndex(lpIdx)
         return self.Dd[lpIdx]
 
-    def setRegionSize(self, regionSize, regionCenter = [0, 0], lpIdx = "all"):
+    def setRegionSize(self, regionSize = None, regionCenter = None, 
+                      multiRegionInfo = None, lpIdx = "all"):
+    
         """Set the inversion region, same as in the constructor: `regionSize` and 
         `regionCenter` are the width, height and center of the region in which the
         inversion should take plane. This will be used to base the
         grid dimensions on, but by default some randomness will be added 
         (see e.g. :func:`setUniformGrid`).
+
+        TODO: multiRegionInfo
         
         In a multi-plane scenario, ``lpIdx`` can be used to specify a particular
         lens plane for which the region should be set.
         """
-        if lpIdx == "all":
-            for i in range(len(self.regionSize)):
-                self.regionSize[i] = copy.deepcopy(regionSize)
-                self.regionCenter[i] = copy.deepcopy(regionCenter)
-        else:
+
+        if lpIdx != "all":
             lpIdx = self._checkLensPlaneIndex(lpIdx)
-            self.regionSize[lpIdx] = regionSize
-            self.regionCenter[lpIdx] = copy.deepcopy(regionCenter)
+
+        if regionSize is None:
+            if regionCenter is not None:
+                raise InversionException("regionCenter must be None if regionSize is")
+            if not multiRegionInfo:
+                raise InversionException("No region information is present")
+            
+            if type(multiRegionInfo) != Regions:
+                raise InversionException("multiRegionInfo must be of type Regions")
+
+            for r in multiRegionInfo.getRegions():
+                if r["size"] <= 0:
+                    raise InversionException("Invalid region size {} was specified".format(r["size"]))
+
+            if lpIdx == "all":
+                for i in range(len(self.zd)):
+                    self.lensplaneRegions[i] = copy.copy(multiRegionInfo)
+            else:
+                self.lensplaneRegions[lpIdx] = copy.copy(multiRegionInfo)
+
+        else:
+            if multiRegionInfo is not None:
+                raise InversionException("If regionSize is set, multiRegionInfo must be None")
+            
+            if regionCenter is None:
+                regionCenter = [0.0, 0.0]
+            if regionSize <= 0:
+                raise InversionException("Invalid region size {} was specified".format(regionSize))
+
+            if lpIdx == "all":
+                self.lensplaneRegions = [ Regions({"size": regionSize, "center": regionCenter }) for i in range(len(self.zd)) ]
+            else:
+                self.lensplaneRegions[lpIdx] = Regions({"size": regionSize, "center": regionCenter })
 
     def getCosmology(self):
         """Returns the cosmological model that was specified during initialization."""
