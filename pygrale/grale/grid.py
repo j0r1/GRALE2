@@ -46,6 +46,48 @@ def fractionalGridToRealGrid(grid):
     """ 
     return _fractionalGridToRealGrid(grid)
 
+def createMultiUniformGrid(uniformRegionInfo, # [ { size, center, axissubdiv } ]
+                           excludeFunction = None):
+    
+    if not uniformRegionInfo:
+        raise GridException("No regions were specified")
+
+    for inf in uniformRegionInfo:
+        if inf["axissubdiv"] < 1:
+            raise GridException("The number of axis subdivisions for each uniform grid must be at least 1")
+
+    if not excludeFunction:
+        excludeFunction = _defaultExcludeFunction
+
+    allGrids = []
+    for inf in uniformRegionInfo:
+        size, center, axisSubDivisions = inf["size"], inf["center"], inf["axissubdiv"]
+
+        grid = { "size": size, "center": center, "cells": [ ] }
+        doubleCellSize = Fraction(2, axisSubDivisions)
+        cellSize = doubleCellSize/2
+        for y in range(axisSubDivisions):
+            # This calculates from -1 to 1
+            cellCenterY = Fraction(-1,1) + Fraction(1, axisSubDivisions) + y*doubleCellSize
+            cellCenterY /= 2 # to make it go from -1/2 to 1/2 (so that the width is 1)
+
+            for x in range(axisSubDivisions):
+                cellCenterX = Fraction(-1,1) + Fraction(1, axisSubDivisions) + x*doubleCellSize
+                cellCenterX /= 2
+
+                cell = {
+                    "center": [ cellCenterX, cellCenterY ],
+                    "size": cellSize
+                }
+
+                realPos, realSize = _realCellCenterAndSize(size, center, cell)
+                if not excludeFunction(realPos, realSize, True):
+                    grid["cells"].append(cell)
+
+        allGrids.append(grid)
+
+    return allGrids
+
 def createUniformGrid(size, center, axisSubDivisions, excludeFunction = None):
     """Creates a uniform grid, centered on the X,Y coordinates in `center` and
     with width and height specified by `size`. The generated grid will be have
@@ -56,34 +98,8 @@ def createUniformGrid(size, center, axisSubDivisions, excludeFunction = None):
     then that particular cell will not be included in the final grid.
     """
 
-    if axisSubDivisions < 1:
-        raise GridException("The number of axis subdivisions for a uniform grid must be at least 1")
-
-    if not excludeFunction:
-        excludeFunction = _defaultExcludeFunction
-
-    grid = { "size": size, "center": center, "cells": [ ] }
-    doubleCellSize = Fraction(2, axisSubDivisions)
-    cellSize = doubleCellSize/2
-    for y in range(axisSubDivisions):
-        # This calculates from -1 to 1
-        cellCenterY = Fraction(-1,1) + Fraction(1, axisSubDivisions) + y*doubleCellSize
-        cellCenterY /= 2 # to make it go from -1/2 to 1/2 (so that the width is 1)
-
-        for x in range(axisSubDivisions):
-            cellCenterX = Fraction(-1,1) + Fraction(1, axisSubDivisions) + x*doubleCellSize
-            cellCenterX /= 2
-
-            cell = {
-                "center": [ cellCenterX, cellCenterY ],
-                "size": cellSize
-            }
-
-            realPos, realSize = _realCellCenterAndSize(size, center, cell)
-            if not excludeFunction(realPos, realSize, True):
-                grid["cells"].append(cell)
-
-    return grid
+    return createMultiUniformGrid([{ "center": center, "size": size, "axissubdiv": axisSubDivisions}], 
+                                  excludeFunction)[0]
 
 def _integrateGridFunction(f, center, size, minPointDist):
     num = int(size/minPointDist)
