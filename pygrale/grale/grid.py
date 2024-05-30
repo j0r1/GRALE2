@@ -207,11 +207,18 @@ def _createSubdivisionGridForThreshold_Multi(f,
     
     if not subdivRegionInfo:
         raise GridException("No subdivision regions were specified")
-    
+
     allGrids = [ createUniformGrid(x["size"], x["center"], x["startsubdiv"], excludeFunction) for x in subdivRegionInfo ]
     allGridCells = [ copy.copy(grid["cells"]) for grid in allGrids ]
     allGridCellCount = sum([ len(cells) for cells in allGridCells ])
     
+    if type(f) != list:
+        f = [ f for x in subdivRegionInfo ]
+
+    if len(f) != len(subdivRegionInfo):
+        raise GridException("Expecting as many functions as regions")
+    allFunctions = f # Rename so we can reuse f below
+
     if allGridCellCount > maxSquares:
         raise GridException("Initial uniform subdivision leads to more cells than the specified maximum")
 
@@ -225,7 +232,7 @@ def _createSubdivisionGridForThreshold_Multi(f,
         allNewCells = [ ]
         gotSubDiv = False
 
-        for gridCells, minPointDist, regionInfo in zip(allGridCells, minPointDists, subdivRegionInfo):
+        for f, gridCells, minPointDist, regionInfo in zip(allFunctions, allGridCells, minPointDists, subdivRegionInfo):
 
             newCells, gotSubDivPart = _getNewSubDivCells(f, gridCells, regionInfo["size"], regionInfo["center"],
                                           minPointDist, cache, thresholdMass, keepLarger,
@@ -240,7 +247,7 @@ def _createSubdivisionGridForThreshold_Multi(f,
             
             # We're done, check the excludeFunction
 
-            for grid, gridCells, regionInfo in zip(allGrids, allGridCells, subdivRegionInfo):
+            for f, grid, gridCells, regionInfo in zip(allFunctions, allGrids, allGridCells, subdivRegionInfo):
             
                 _checkGridExcludeFunction(grid, gridCells, regionInfo["size"],
                                           regionInfo["center"], excludeFunction)            
@@ -467,20 +474,30 @@ def createMultiSubdivisionGrid(subdivRegionInfo, # [ { size, center, startsubdiv
     if not checkSubDivFunction:
         checkSubDivFunction = _defaultSubDivFunction
 
-    densPoints = lensInfo.getDensityPoints()
-    if useAbsoluteValues:
-        densPoints = np.absolute(densPoints)
+    if type(lensInfo) != list:
+        allLensInfo = [ lensInfo for x in subdivRegionInfo ]
+    else:
+        if len(lensInfo) != len(subdivRegionInfo):
+            raise GridException("Expecting the same amount of lensInfo instances as regions")
+        allLensInfo = lensInfo
+        
+    allFunctions = []
+    for lensInfo in allLensInfo:
+        densPoints = lensInfo.getDensityPoints()
+        if useAbsoluteValues:
+            densPoints = np.absolute(densPoints)
 
-    offset = densPoints.min()
-    if offset < 0:
-        raise GridException("Detected negative value in density points, can't handle this")
+        offset = densPoints.min()
+        if offset < 0:
+            raise GridException("Detected negative value in density points, can't handle this")
 
-    if ignoreOffset:
-        densPoints = densPoints - offset
+        if ignoreOffset:
+            densPoints = densPoints - offset
 
-    f = gridfunction.GridFunction(densPoints, lensInfo.getBottomLeft(), lensInfo.getTopRight())
+        f = gridfunction.GridFunction(densPoints, lensInfo.getBottomLeft(), lensInfo.getTopRight())
+        allFunctions.append(f.evaluate)
 
-    return createMultiSubdivisionGridForFunction(f.evaluate, subdivRegionInfo, minSquares, maxSquares, 
+    return createMultiSubdivisionGridForFunction(allFunctions, subdivRegionInfo, minSquares, maxSquares,
                                         excludeFunction, maxIntegrationSubDiv, keepLarger, checkSubDivFunction)
 
 def createSubdivisionGrid(size, center, lensInfo, minSquares, maxSquares, startSubDiv = 1, 
