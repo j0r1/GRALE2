@@ -672,6 +672,22 @@ class Regions(object):
     def getRegions(self):
         return self.regionInfoList
 
+class _MultiGridWrapper(object):
+    def __init__(self, singleOrMultiGrid):
+        if type(singleOrMultiGrid) == dict: # Single grid
+            self.multiGrid = [ copy.copy(singleOrMultiGrid) ]
+        else:
+            self.multiGrid = copy.copy(singleOrMultiGrid)
+
+    def getNumberOfGrids(self):
+        return len(self.multiGrid)
+
+    def getGrid(self, idx = 0):
+        return copy.copy(self.multiGrid[idx])
+    
+    def getAllGrids(self):
+        return copy.copy(self.multiGrid)
+
 def _getLensPlaneRegions(regionSize, regionCenter, multiRegionInfo, numPlanes):
     # Get the region info, store as a list of Regions, one entry in the
     # list per lensplane
@@ -803,9 +819,8 @@ class InversionWorkSpace(object):
         # Get the region info, store as a list of Regions, one entry in the
         # list per lensplane
         self.lensplaneRegions = _getLensPlaneRegions(regionSize, regionCenter, multiRegionInfo, len(zLens))
-        # TODO: check that self.regionSize and self.regionCenter are no longer used!
-        
-        self.grid = [ None for z in zLens ] # TODO: wrap the entries in some class
+        self.grid: list[_MultiGridWrapper] = [ None for z in zLens ]
+
         self.clearBasisFunctions() # initializes self.basisFunctions
         
         self.renderer = renderer
@@ -949,7 +964,7 @@ class InversionWorkSpace(object):
         grid is relevant.
         """
         lpIdx = self._checkLensPlaneIndex(lpIdx)
-        self.grid[lpIdx] = grid
+        self.grid[lpIdx] = _MultiGridWrapper(grid)
 
     def getGrid(self, lpIdx = None):
         """Retrieves the currently set grid, e.g. for plotting using 
@@ -959,26 +974,49 @@ class InversionWorkSpace(object):
         plane.
         """
         lpIdx = self._checkLensPlaneIndex(lpIdx)
-        return self.grid[lpIdx]
+        g = self.grid[lpIdx]
+        assert type(g) == _MultiGridWrapper, "Internal error: type _MultiGridWrapper expected"
+        if g.getNumberOfGrids() == 1:
+            return g.getGrid(0)
+        return g.getAllGrids()
 
-    def _getGridDimensions(self, randomFraction, regionSize, regionCenter, lpIdx):
-        if regionSize is None:
-            regionSize = self.regionSize[lpIdx]
-        if regionCenter is None:
-            regionCenter = self.regionCenter[lpIdx]
+    def _getGridDimensions(self, randomFraction, regionSize, regionCenter, 
+                           multiRegionInfo, lpIdx) -> _MultiGridWrapper:
+        
+        if regionSize is not None:
+            if multiRegionInfo is not None:
+                raise Exception("regionSize and multiRegionInfo cannot be set at same time")
+            
+            if regionCenter is None:
+                regionCenter = [ 0, 0 ]
 
-        if type(randomFraction) == float: # Just a number, use the default method
-            w = regionSize
-            dx = (random.random()-0.5) * w*randomFraction
-            dy = (random.random()-0.5) * w*randomFraction
-            c = [ regionCenter[0] + dx, regionCenter[1] + dy ]
-        else: # assume it's something we can call to obtain the grid dimensions
-            w, c = randomFraction(regionSize, copy.copy(regionCenter))
+            regions = Regions({"size": regionSize, "center": regionCenter})
+        else:
+            if regionCenter is not None:
+                raise Exception("regionCenter must be None if regionSize is None")
+            if multiRegionInfo is None:
+                # Nothing passed as parameter, use stored region
+                regions = self.lensplaneRegions[lpIdx]
+                assert type(regions) == Regions, "Internal error: regions type should be Regions but is {}".format(type(regions))
+            else:
+                regions = Regions(multiRegionInfo)
 
-        return w, c
+        multiGrid = []
+        for reg in regions.getRegions():
+
+            if type(randomFraction) == float: # Just a number, use the default method
+                w = reg["size"]
+                dx = (random.random()-0.5) * w*randomFraction
+                dy = (random.random()-0.5) * w*randomFraction
+                c = [ reg["center"][0] + dx, reg["center"][1] + dy ]
+            else: # assume it's something we can call to obtain the grid dimensions
+                w, c = randomFraction(reg["size"], copy.copy(reg["center"]))
+
+            multiGrid.append({"size": w, "center": c})
+        return _MultiGridWrapper(multiGrid)
     
     def setUniformGrid(self, subDiv, randomFraction = 0.05, regionSize = None, regionCenter = None,
-                       lpIdx = "all", excludeFunction = None):
+                       multiRegionInfo = None, lpIdx = "all", excludeFunction = None):
         """Based on the size and center provided during initialization, create
         a uniform grid with `subDiv` subdivisions along each axis, resulting
         in `subDiv`x`subDiv` cells. 
@@ -997,40 +1035,81 @@ class InversionWorkSpace(object):
         In a multi-plane scenario, ``lpIdx`` can be used to specify only one
         lens plane.
 
+        TODO: multiRegionInfo
+
         TODO: excludeFunction
         """
         
+        if type(subDiv) != list:
+            subDiv = [ subDiv ] # One subdiv for each multi-grid part
+
+        def processIdx(i) -> _MultiGridWrapper:
+            g = self._getGridDimensions(randomFraction, regionSize, regionCenter, multiRegionInfo, i)
+            g = g.getAllGrids()
+            if len(g) != len(subDiv):
+                raise Exception("For multi-grid {} there are {} entries, but you specified {} subdivisions".format(i,len(g),len(subDiv)))
+
+            g = copy.deepcopy(g)
+            for part,sd in zip(g,subDiv):
+                part["axissubdiv"] = sd
+            return _MultiGridWrapper(gridModule.createMultiUniformGrid(g, excludeFunction))
+
         if lpIdx == "all":
             for i in range(len(self.grid)):
-                w, c = self._getGridDimensions(randomFraction, regionSize, regionCenter, i)
-                self.grid[i] = gridModule.createUniformGrid(w, c, subDiv, excludeFunction=excludeFunction)
+                self.grid[i] = processIdx(i)
         else:
             lpIdx = self._checkLensPlaneIndex(lpIdx)
-            w, c = self._getGridDimensions(randomFraction, regionSize, regionCenter, lpIdx)
-            self.grid[lpIdx] = gridModule.createUniformGrid(w, c, subDiv, excludeFunction=excludeFunction)
+            self.grid[lpIdx] = processIdx(lpIdx)
 
-    def _getSinglePlaneSubDivGrid(self, lensOrLensInfo,  minSquares, maxSquares, startSubDiv, randomFraction, regionSize, regionCenter,
-                                  lensFilter, lensInfoFilter, lpIdx, excludeFunction, checkSubDivFunction):
+    def _getSinglePlaneSubDivGrid(self, lensOrLensInfo,  minSquares, maxSquares, startSubDiv, multiRegionInfo,
+                                  randomFraction, regionSize, regionCenter,
+                                  lensFilter, lensInfoFilter, lpIdx, excludeFunction,
+                                  checkSubDivFunction) -> _MultiGridWrapper:
 
-        w, c = self._getGridDimensions(randomFraction, regionSize, regionCenter, lpIdx)
+        g = self._getGridDimensions(randomFraction, regionSize, regionCenter, multiRegionInfo, lpIdx)
+        g = copy.deepcopy(g.getAllGrids())
+
+        if type(startSubDiv) == list: # A list with a subdiv entry for each region
+            if len(startSubDiv) != len(g):
+                raise InversionException("Expecting as man start subdivisions as regions")
+        else:
+            # Just a number, create a list 
+            startSubDiv = [ startSubDiv for x in g ]
+
+        for part, sd in zip(g, startSubDiv):
+            g["startsubdiv"] = sd
+
         if isinstance(lensOrLensInfo, plotutil.DensInfo):
             lensInfo = lensOrLensInfo
+            lensInfo = lensInfoFilter(lensInfo, lpIdx)
         else:
-            extraFrac = 1.0001
+            # Treat each grid part separately
+            allLensInfos = []
+            for part in g:
+                w,c = part["size"], part["center"]
+
+                extraFrac = 1.0001
+                
+                bl = [ c[0] - (w*extraFrac)/2, c[1] - (w*extraFrac)/2 ]
+                tr = [ c[0] + (w*extraFrac)/2, c[1] + (w*extraFrac)/2 ]
+                lensOrLensInfo = lensFilter(lensOrLensInfo, bl, tr, lpIdx)
+
+                lensInfo = plotutil.LensInfo(lensOrLensInfo, bottomleft=bl, topright=tr)
+                # Run this here already, since we know the renderer and feedbackobject here
+                lensInfo.getDensityPoints(self.renderer, self.feedbackObject)
             
-            bl = [ c[0] - (w*extraFrac)/2, c[1] - (w*extraFrac)/2 ]
-            tr = [ c[0] + (w*extraFrac)/2, c[1] + (w*extraFrac)/2 ]
-            lensOrLensInfo = lensFilter(lensOrLensInfo, bl, tr, lpIdx)
+                lensInfo = lensInfoFilter(lensInfo, lpIdx)
+                allLensInfos.append(lensInfo)
 
-            lensInfo = plotutil.LensInfo(lensOrLensInfo, bottomleft=bl, topright=tr)
-            # Run this here already, since we know the renderer and feedbackobject here
-            lensInfo.getDensityPoints(self.renderer, self.feedbackObject)
-        
-        lensInfo = lensInfoFilter(lensInfo, lpIdx)
-        return gridModule.createSubdivisionGrid(w, c, lensInfo, minSquares, maxSquares, startSubDiv, excludeFunction=excludeFunction,
-                                                checkSubDivFunction=checkSubDivFunction)
+            lensInfo = allLensInfos
+                
+        grids = gridModule.createMultiSubdivisionGrid(g, lensInfo, minSquares, maxSquares,
+                                                     excludeFunction=excludeFunction,
+                                                     checkSubDivFunction=checkSubDivFunction)
+        return _MultiGridWrapper(grids)
 
-    def setSubdivisionGrid(self, lensOrLensInfo, minSquares, maxSquares, startSubDiv = 1, randomFraction = 0.05, regionSize = None, regionCenter = None,
+    def setSubdivisionGrid(self, lensOrLensInfo, minSquares, maxSquares, startSubDiv = 1, randomFraction = 0.05,
+                           regionSize = None, regionCenter = None, multiRegionInfo = None,
                            lensFilter = None, lensInfoFilter = None, lpIdx = None, excludeFunction=None, checkSubDivFunction=None):
         """Based on the lens that's provided as input, create a subdivision grid
         where regions with more mass are subdivided further, such that the number
@@ -1063,8 +1142,8 @@ class InversionWorkSpace(object):
             if lensInfoFilter is None:
                 lensInfoFilter = lambda x, idx: x
 
-            self.grid[lpIdx] = self._getSinglePlaneSubDivGrid(lensOrLensInfo, minSquares, maxSquares, startSubDiv, randomFraction, regionSize, regionCenter, lensFilter, lensInfoFilter, lpIdx,
-                                                              excludeFunction, checkSubDivFunction)
+            self.grid[lpIdx] = self._getSinglePlaneSubDivGrid(lensOrLensInfo, minSquares, maxSquares, startSubDiv, randomFraction, regionSize, regionCenter, multiRegionInfo,
+                                                              lensFilter, lensInfoFilter, lpIdx, excludeFunction, checkSubDivFunction)
             return
 
         # Here, we have a multi-plane container, do a similar subdivision
@@ -1082,7 +1161,8 @@ class InversionWorkSpace(object):
 
             # TODO: use an entry from an array for excludeFunction and checkSubDivFunction?
 
-            self.grid[i] = self._getSinglePlaneSubDivGrid(lensesAndRedshifts[i]["lens"], minSquares, maxSquares, startSubDiv, randomFraction, regionSize, regionCenter, fltrLens, fltrInf, i,
+            self.grid[i] = self._getSinglePlaneSubDivGrid(lensesAndRedshifts[i]["lens"], minSquares, maxSquares, startSubDiv, randomFraction, regionSize, regionCenter, multiRegionInfo,
+                                                          fltrLens, fltrInf, i,
                                                           excludeFunction, checkSubDivFunction)
        
     def setDefaultInversionArguments(self, **kwargs):
