@@ -674,10 +674,25 @@ class Regions(object):
 
 class _MultiGridWrapper(object):
     def __init__(self, singleOrMultiGrid):
-        if type(singleOrMultiGrid) == dict: # Single grid
-            self.multiGrid = [ copy.copy(singleOrMultiGrid) ]
-        else:
-            self.multiGrid = copy.copy(singleOrMultiGrid)
+        singleOrMultiGrid = copy.copy(singleOrMultiGrid)
+
+        if type(singleOrMultiGrid) == dict:    
+            singleOrMultiGrid = [ singleOrMultiGrid ]
+        elif type(singleOrMultiGrid) != list:
+            raise InversionException("Unexpected argument type {}".type(singleOrMultiGrid))
+
+        newList = []
+        for entry in singleOrMultiGrid:
+            if not ("size" in entry and "center" in entry):
+                raise Exception("No size or center present in grid/cell info")
+            
+            if not "cells" in entry:
+                # We may be dealing with a list of absolute cells, convert to fractional
+                entry["cells"] = { "size": 1, "center": [0,0]}
+
+            newList.append(entry)
+
+        self.multiGrid = newList            
 
     def getNumberOfGrids(self):
         return len(self.multiGrid)
@@ -705,12 +720,14 @@ def _getLensPlaneRegions(regionSize, regionCenter, multiRegionInfo, numPlanes):
                 if type(x) != Regions:
                     raise InversionException("Each entry in multiRegionInfo must be a Regions object")
                 lensplaneRegions.append(copy.copy(x))
+        else:
+            raise InversionException("Unexpected type for multiRegionInfo, should be Regions or list, but is {}".format(type(multiRegionInfo)))
 
-    else:
+    else: # regionSize is set
         if multiRegionInfo is not None:
             raise InversionException("If regionSize is set, multiRegionInfo must be None")
         
-        if type(regionSize) != list:
+        if type(regionSize) != list: # a float, an int, perhaps a numpy object
             if regionCenter is None:
                 regionCenter = [0.0, 0.0]
             lensplaneRegions = [ Regions({"size": regionSize, "center": regionCenter}) for x in range(numPlanes) ]
@@ -874,7 +891,7 @@ class InversionWorkSpace(object):
                 raise InversionException("No region information is present")
             
             if type(multiRegionInfo) != Regions:
-                raise InversionException("multiRegionInfo must be of type Regions")
+                multiRegionInfo = Regions(multiRegionInfo)
 
             for r in multiRegionInfo.getRegions():
                 if r["size"] <= 0:
@@ -981,7 +998,7 @@ class InversionWorkSpace(object):
         return g.getAllGrids()
 
     def _getGridDimensions(self, randomFraction, regionSize, regionCenter, 
-                           multiRegionInfo, lpIdx) -> _MultiGridWrapper:
+                           multiRegionInfo, lpIdx) -> Regions:
         
         if regionSize is not None:
             if multiRegionInfo is not None:
@@ -991,7 +1008,7 @@ class InversionWorkSpace(object):
                 regionCenter = [ 0, 0 ]
 
             regions = Regions({"size": regionSize, "center": regionCenter})
-        else:
+        else: # regionSize is None
             if regionCenter is not None:
                 raise Exception("regionCenter must be None if regionSize is None")
             if multiRegionInfo is None:
@@ -999,7 +1016,7 @@ class InversionWorkSpace(object):
                 regions = self.lensplaneRegions[lpIdx]
                 assert type(regions) == Regions, "Internal error: regions type should be Regions but is {}".format(type(regions))
             else:
-                regions = Regions(multiRegionInfo)
+                regions = Regions(multiRegionInfo) if type(regions) != Regions else copy.deepcopy(multiRegionInfo)
 
         multiGrid = []
         for reg in regions.getRegions():
@@ -1013,7 +1030,8 @@ class InversionWorkSpace(object):
                 w, c = randomFraction(reg["size"], copy.copy(reg["center"]))
 
             multiGrid.append({"size": w, "center": c})
-        return _MultiGridWrapper(multiGrid)
+
+        return Regions(multiGrid)
     
     def setUniformGrid(self, subDiv, randomFraction = 0.05, regionSize = None, regionCenter = None,
                        multiRegionInfo = None, lpIdx = "all", excludeFunction = None):
@@ -1044,15 +1062,15 @@ class InversionWorkSpace(object):
             subDiv = [ subDiv ] # One subdiv for each multi-grid part
 
         def processIdx(i) -> _MultiGridWrapper:
-            g = self._getGridDimensions(randomFraction, regionSize, regionCenter, multiRegionInfo, i)
-            g = g.getAllGrids()
-            if len(g) != len(subDiv):
-                raise Exception("For multi-grid {} there are {} entries, but you specified {} subdivisions".format(i,len(g),len(subDiv)))
+            r = self._getGridDimensions(randomFraction, regionSize, regionCenter, multiRegionInfo, i)
+            r = r.getRegions()
+            if len(r) != len(subDiv):
+                raise Exception("For multi-grid {} there are {} entries, but you specified {} subdivisions".format(i,len(r),len(subDiv)))
 
-            g = copy.deepcopy(g)
-            for part,sd in zip(g,subDiv):
+            r = copy.deepcopy(r)
+            for part,sd in zip(r,subDiv):
                 part["axissubdiv"] = sd
-            return _MultiGridWrapper(gridModule.createMultiUniformGrid(g, excludeFunction))
+            return _MultiGridWrapper(gridModule.createMultiUniformGrid(r, excludeFunction))
 
         if lpIdx == "all":
             for i in range(len(self.grid)):
@@ -1066,18 +1084,18 @@ class InversionWorkSpace(object):
                                   lensFilter, lensInfoFilter, lpIdx, excludeFunction,
                                   checkSubDivFunction) -> _MultiGridWrapper:
 
-        g = self._getGridDimensions(randomFraction, regionSize, regionCenter, multiRegionInfo, lpIdx)
-        g = copy.deepcopy(g.getAllGrids())
+        r = self._getGridDimensions(randomFraction, regionSize, regionCenter, multiRegionInfo, lpIdx)
+        r = copy.deepcopy(r.getRegions())
 
         if type(startSubDiv) == list: # A list with a subdiv entry for each region
-            if len(startSubDiv) != len(g):
+            if len(startSubDiv) != len(r):
                 raise InversionException("Expecting as man start subdivisions as regions")
         else:
             # Just a number, create a list 
-            startSubDiv = [ startSubDiv for x in g ]
+            startSubDiv = [ startSubDiv for x in r ]
 
-        for part, sd in zip(g, startSubDiv):
-            g["startsubdiv"] = sd
+        for part, sd in zip(r, startSubDiv):
+            part["startsubdiv"] = sd
 
         if isinstance(lensOrLensInfo, plotutil.DensInfo):
             lensInfo = lensOrLensInfo
@@ -1085,7 +1103,7 @@ class InversionWorkSpace(object):
         else:
             # Treat each grid part separately
             allLensInfos = []
-            for part in g:
+            for part in r:
                 w,c = part["size"], part["center"]
 
                 extraFrac = 1.0001
@@ -1102,11 +1120,10 @@ class InversionWorkSpace(object):
                 allLensInfos.append(lensInfo)
 
             lensInfo = allLensInfos
-                
-        grids = gridModule.createMultiSubdivisionGrid(g, lensInfo, minSquares, maxSquares,
+
+        return _MultiGridWrapper(gridModule.createMultiSubdivisionGrid(r, lensInfo, minSquares, maxSquares,
                                                      excludeFunction=excludeFunction,
-                                                     checkSubDivFunction=checkSubDivFunction)
-        return _MultiGridWrapper(grids)
+                                                     checkSubDivFunction=checkSubDivFunction))
 
     def setSubdivisionGrid(self, lensOrLensInfo, minSquares, maxSquares, startSubDiv = 1, randomFraction = 0.05,
                            regionSize = None, regionCenter = None, multiRegionInfo = None,
@@ -1128,7 +1145,7 @@ class InversionWorkSpace(object):
         instance can be used for a specific lens plane, but in that case ``lpIdx`` must be
         set to the correct lens plane index.
 
-        TODO: checkSubDivFunction, excludeFunction
+        TODO: multiRegionInfo, checkSubDivFunction, excludeFunction
         """
         
         if ( (not self.isMultiPlane) or
@@ -1381,23 +1398,25 @@ class InversionWorkSpace(object):
         """
         lpIdx = self._checkLensPlaneIndex(lpIdx)
 
-        tmpBasisFunctions = [ ]
-        lensModelFunctionParameters = lensModelFunction("start", { 
-            "grid": self.grid[lpIdx], 
-            "lensplaneindex": lpIdx,
-            "workspace": self }, initialParameters)
+        for grid in self.grid[lpIdx]:
+            
+            tmpBasisFunctions = [ ]
+            lensModelFunctionParameters = lensModelFunction("start", { 
+                "grid": self.grid[lpIdx], 
+                "lensplaneindex": lpIdx,
+                "workspace": self }, initialParameters)
 
-        grid = gridModule._fractionalGridToRealGrid(self.grid[lpIdx]) if type(self.grid[lpIdx]) == dict else copy.deepcopy(self.grid[lpIdx])
-        for cell in grid:
-            center, size = cell["center"], cell["size"]
-            lens, mass = lensModelFunction("add", { "center": center, "size": size }, lensModelFunctionParameters)
-            entry = { "lens": lens, "center": center }
-            if mass is not None:
-                entry["mass"] = mass
+            grid = gridModule._fractionalGridToRealGrid(grid)
+            for cell in grid:
+                center, size = cell["center"], cell["size"]
+                lens, mass = lensModelFunction("add", { "center": center, "size": size }, lensModelFunctionParameters)
+                entry = { "lens": lens, "center": center }
+                if mass is not None:
+                    entry["mass"] = mass
 
-            tmpBasisFunctions.append(entry)
+                tmpBasisFunctions.append(entry)
 
-        self.addBasisFunctions(tmpBasisFunctions, lpIdx)
+            self.addBasisFunctions(tmpBasisFunctions, lpIdx)
 
     def estimateStrongLensingMass(self, skipParamCheck = False):
         """Calls :func:`estimateStrongLensingMass <grale.inversion.estimateStrongLensingMass>`
