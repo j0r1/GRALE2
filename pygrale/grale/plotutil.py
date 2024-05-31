@@ -1924,21 +1924,34 @@ Arguments:
 """
     angularUnit = _getAngularUnit(angularUnit)
 
+    if type(cells) == dict:
+        cells = [ cells ]
+    elif type(cells) == list:
+        pass # Ok, multi-grid
+    else:
+        raise PlotException("Expecting a dictionary or list of dictionaries as grid")
+    
+    grids = copy.deepcopy(cells)
+    for cells in grids:
+        if not "cells" in cells: # Perhaps absolute cell info, convert to fractional format
+            cells["cells"] = { "size": 1, "center": [0, 0] }
+
     from . import grid
 
     xpoints, ypoints = [], []
-    for c in cells["cells"]:
-        rc = grid._realCellCenterAndSize(cells["size"], cells["center"], c)
-        cx, cy = rc[0]
-        w2 = rc[1]/2.0
+    for cells in grids:
+        for c in cells["cells"]:
+            rc = grid._realCellCenterAndSize(cells["size"], cells["center"], c)
+            cx, cy = rc[0]
+            w2 = rc[1]/2.0
 
-        cx /= angularUnit
-        cy /= angularUnit
-        w2 /= angularUnit
-        w2 *= squareScale
+            cx /= angularUnit
+            cy /= angularUnit
+            w2 /= angularUnit
+            w2 *= squareScale
 
-        xpoints += [cx-w2, cx-w2, cx+w2, cx+w2, cx-w2, None]
-        ypoints += [cy-w2, cy+w2, cy+w2, cy-w2, cy-w2, None]
+            xpoints += [cx-w2, cx-w2, cx+w2, cx+w2, cx-w2, None]
+            ypoints += [cy-w2, cy+w2, cy+w2, cy-w2, cy-w2, None]
 
     if axes is not False:
         if axes is None:
