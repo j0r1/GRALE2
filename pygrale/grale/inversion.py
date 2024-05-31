@@ -688,7 +688,7 @@ class _MultiGridWrapper(object):
             
             if not "cells" in entry:
                 # We may be dealing with a list of absolute cells, convert to fractional
-                entry["cells"] = { "size": 1, "center": [0,0]}
+                entry["cells"] = [ { "size": 1, "center": [0,0]} ]
 
             newList.append(entry)
 
@@ -836,6 +836,9 @@ class InversionWorkSpace(object):
         # Get the region info, store as a list of Regions, one entry in the
         # list per lensplane
         self.lensplaneRegions = _getLensPlaneRegions(regionSize, regionCenter, multiRegionInfo, len(zLens))
+        if len(self.lensplaneRegions) != len(self.zd):
+            raise InversionException("The must be an equal amount of lensplanes and Regions objects (one for each lensplane)")
+
         self.grid: list[_MultiGridWrapper] = [ None for z in zLens ]
 
         self.clearBasisFunctions() # initializes self.basisFunctions
@@ -1016,7 +1019,7 @@ class InversionWorkSpace(object):
                 regions = self.lensplaneRegions[lpIdx]
                 assert type(regions) == Regions, "Internal error: regions type should be Regions but is {}".format(type(regions))
             else:
-                regions = Regions(multiRegionInfo) if type(regions) != Regions else copy.deepcopy(multiRegionInfo)
+                regions = Regions(multiRegionInfo) if type(multiRegionInfo) != Regions else copy.deepcopy(multiRegionInfo)
 
         multiGrid = []
         for reg in regions.getRegions():
@@ -1058,12 +1061,13 @@ class InversionWorkSpace(object):
         TODO: excludeFunction
         """
         
-        if type(subDiv) != list:
-            subDiv = [ subDiv ] # One subdiv for each multi-grid part
-
-        def processIdx(i) -> _MultiGridWrapper:
+        def processIdx(i, subDiv) -> _MultiGridWrapper:
             r = self._getGridDimensions(randomFraction, regionSize, regionCenter, multiRegionInfo, i)
             r = r.getRegions()
+
+            if type(subDiv) != list:
+                subDiv = [ subDiv for x in r ] # One subdiv for each multi-grid part
+
             if len(r) != len(subDiv):
                 raise Exception("For multi-grid {} there are {} entries, but you specified {} subdivisions".format(i,len(r),len(subDiv)))
 
@@ -1074,13 +1078,13 @@ class InversionWorkSpace(object):
 
         if lpIdx == "all":
             for i in range(len(self.grid)):
-                self.grid[i] = processIdx(i)
+                self.grid[i] = processIdx(i, subDiv)
         else:
             lpIdx = self._checkLensPlaneIndex(lpIdx)
-            self.grid[lpIdx] = processIdx(lpIdx)
+            self.grid[lpIdx] = processIdx(lpIdx, subDiv)
 
-    def _getSinglePlaneSubDivGrid(self, lensOrLensInfo,  minSquares, maxSquares, startSubDiv, multiRegionInfo,
-                                  randomFraction, regionSize, regionCenter,
+    def _getSinglePlaneSubDivGrid(self, lensOrLensInfo,  minSquares, maxSquares, startSubDiv,
+                                  randomFraction, regionSize, regionCenter, multiRegionInfo,
                                   lensFilter, lensInfoFilter, lpIdx, excludeFunction,
                                   checkSubDivFunction) -> _MultiGridWrapper:
 
@@ -1398,11 +1402,11 @@ class InversionWorkSpace(object):
         """
         lpIdx = self._checkLensPlaneIndex(lpIdx)
 
-        for grid in self.grid[lpIdx]:
+        for grid in self.grid[lpIdx].getAllGrids():
             
             tmpBasisFunctions = [ ]
             lensModelFunctionParameters = lensModelFunction("start", { 
-                "grid": self.grid[lpIdx], 
+                "grid": grid, 
                 "lensplaneindex": lpIdx,
                 "workspace": self }, initialParameters)
 
