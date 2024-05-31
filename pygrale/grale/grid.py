@@ -212,9 +212,7 @@ def _createSubdivisionGridForThreshold_Multi(f,
     allGridCells = [ copy.copy(grid["cells"]) for grid in allGrids ]
     allGridCellCount = sum([ len(cells) for cells in allGridCells ])
     
-    if type(f) != list:
-        f = [ f for x in subdivRegionInfo ]
-
+    assert type(f) == list, "Expecting a list of functions"
     if len(f) != len(subdivRegionInfo):
         raise GridException("Expecting as many functions as regions")
     allFunctions = f # Rename so we can reuse f below
@@ -347,12 +345,17 @@ def createMultiSubdivisionGridForFunction(targetDensityFunction,
         if not "startsubdiv" in x:
             x["startsubdiv"] = 1
 
+    if type(targetDensityFunction) != list:
+        targetDensityFunction = [ targetDensityFunction for x in subdivRegionInfo ]
+
+    if len(targetDensityFunction) != len(subdivRegionInfo):
+        raise GridException("When specifying a list of functions, as many as subdivision regions should be specified")
+
     if not excludeFunction:
         excludeFunction = _defaultExcludeFunction
     if not checkSubDivFunction:
         checkSubDivFunction = _defaultSubDivFunction
 
-    f = targetDensityFunction # To make a name switch easier
     if minSquares >= maxSquares:
         raise GridException("Minimal number of cells must be smaller than maximum")
     
@@ -361,7 +364,7 @@ def createMultiSubdivisionGridForFunction(targetDensityFunction,
 
     # Note that this isn't really the total mass, we should multiply with Dd**2 for this
     minPointDists = [ x["size"]/float(maxIntegrationSubDiv) for x in subdivRegionInfo ]
-    totalMasses = [ _integrateGridFunction(f, x["center"], x["size"], minPointDist) for x, minPointDist in zip(subdivRegionInfo, minPointDists) ]
+    totalMasses = [ _integrateGridFunction(f, x["center"], x["size"], minPointDist) for f, x, minPointDist in zip(targetDensityFunction, subdivRegionInfo, minPointDists) ]
     totalMass = sum(totalMasses)
     #print("total mass in area:", totalMass*lensInfo["Dd"]**2)
 
@@ -383,7 +386,7 @@ def createMultiSubdivisionGridForFunction(targetDensityFunction,
         while not allGrids or (totalCells(allGrids) < minSquares and maxIt > 0):
             maxIt -= 1
             subDivFraction /= (1.0 + diffFrac)
-            allGrids = _createSubdivisionGridForThreshold_Multi(f, subdivRegionInfo, totalMass*subDivFraction,
+            allGrids = _createSubdivisionGridForThreshold_Multi(targetDensityFunction, subdivRegionInfo, totalMass*subDivFraction,
                                                       excludeFunction, maxIntegrationSubDiv, keepLarger, massCache,
                                                       checkSubDivFunction, maxSquares)
 
@@ -399,7 +402,7 @@ def createMultiSubdivisionGridForFunction(targetDensityFunction,
         while totalCells(allGrids) > maxSquares and maxIt > 0:
             maxIt -= 1
             subDivFraction *= (1.0 + diffFrac)
-            allGrids= _createSubdivisionGridForThreshold_Multi(f, subdivRegionInfo, totalMass*subDivFraction,
+            allGrids= _createSubdivisionGridForThreshold_Multi(targetDensityFunction, subdivRegionInfo, totalMass*subDivFraction,
                                                       excludeFunction, maxIntegrationSubDiv, keepLarger, massCache,
                                                       checkSubDivFunction, maxSquares)
 
