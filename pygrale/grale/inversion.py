@@ -1567,10 +1567,11 @@ class InversionWorkSpace(object):
 
         return bpImages
 
-    def _getStrongAndWeakGrids(self, strongSubDivInfo, weakSubDiv = None, weakRegionSize = 0,
-                               weakRegionCenter = None, weakRandomFraction = "onesquare",
-                               strongExcludeFunction = None, strongCheckSubDivFunction = None,
-                               weakExcludeFunction = None):
+    def _getStrongAndWeakGrids(self, strongSubDivInfo, weakSubDiv, weakRegionSize,
+                               weakRegionCenter, weakMultiRegionInfo,
+                               weakRandomFraction,
+                               strongExcludeFunction, strongCheckSubDivFunction,
+                               weakExcludeFunction):
 
         if len(self.zd) != 1:
             raise InversionException("This is meant for a single lensplane")
@@ -1578,40 +1579,50 @@ class InversionWorkSpace(object):
         # Create the SL grid
         strongGrid = None
 
-        try:
-            baseLens, minDiv, maxDiv = strongSubDivInfo
-            self.setSubdivisionGrid(baseLens, minDiv, maxDiv, excludeFunction=strongExcludeFunction,
-                                    checkSubDivFunction=strongCheckSubDivFunction)
-            strongGrid = copy.deepcopy(self.getGrid())
-        except Exception as e:
-            #print("DEBUG: ", e)
-            pass
+        if strongSubDivInfo:
+            
+            if type(strongSubDivInfo) == dict:
+                startSubDiv = 1
+                baseLens, minDiv, maxDiv = strongSubDivInfo["lens"], strongSubDivInfo["mindiv"], strongSubDivInfo["maxdiv"]
+                if "startsubdiv" in strongSubDivInfo:
+                    startSubDiv = strongSubDivInfo["startsubdiv"]
 
-        if not strongGrid:
-            try:
+                self.setSubdivisionGrid(baseLens, minDiv, maxDiv, startSubDiv,
+                                    excludeFunction=strongExcludeFunction,
+                                    checkSubDivFunction=strongCheckSubDivFunction)
+            
+            elif type(strongSubDivInfo) == list: # Can either be subdiv info (old style) or uniform info
+                if issubclass(type(strongSubDivInfo[0]), lenses.GravitationalLens):
+                    baseLens, minDiv, maxDiv = strongSubDivInfo
+    
+                    self.setSubdivisionGrid(baseLens, minDiv, maxDiv, 1,
+                                    excludeFunction=strongExcludeFunction,
+                                    checkSubDivFunction=strongCheckSubDivFunction)
+                else: # Try uniform grid, if subdiv entries for each grid
+                    self.setUniformGrid(strongSubDivInfo, excludeFunction=strongExcludeFunction)
+            else: # Try uniform grid, perhaps it's just a number
                 self.setUniformGrid(strongSubDivInfo, excludeFunction=strongExcludeFunction)
-                strongGrid = copy.deepcopy(self.getGrid())
-            except Exception as e:
-                #print("DEBUG2: ", e)
-                raise InversionException("'subDivInfo' must either be an integer for a uniform subdivision, or a tuple (lens, minSubDiv, maxSubDiv)")
+
+            strongGrid = copy.deepcopy(self.getGrid())
 
         weakGrid = None
         if weakSubDiv:
-            if not weakRegionSize:
-                raise InversionException("A separate weak lensing region size must be specified")
 
             if weakRandomFraction == "onesquare":
                 weakRandomFraction = 1.0/weakSubDiv
 
             self.setUniformGrid(weakSubDiv, randomFraction=weakRandomFraction,
                                 regionSize=weakRegionSize, regionCenter=weakRegionCenter,
+                                multiRegionInfo=weakMultiRegionInfo,
                                 excludeFunction=weakExcludeFunction)
             weakGrid = copy.deepcopy(self.getGrid())
 
         return strongGrid, weakGrid
 
-    def setStrongAndWeakBasisFunctions(self, strongSubDivInfo, weakSubDiv = None, weakRegionSize = 0,
-                                       weakRegionCenter = None, weakRandomFraction = "onesquare",
+    def setStrongAndWeakBasisFunctions(self, strongSubDivInfo, weakSubDiv = None, weakRegionSize = None,
+                                       weakRegionCenter = None,
+                                       weakMultiRegionInfo = None,
+                                       weakRandomFraction = "onesquare",
                                        weakMassScale = None, ignoreWLMassInMassScaleSearch = False,
                                        strongExcludeFunction = None, strongCheckSubDivFunction = None,
                                        weakExcludeFunction = None,
@@ -1631,6 +1642,7 @@ class InversionWorkSpace(object):
            to be created for the strong lensing region (see :func:`setUniformGrid`). Alternatively,
            it can be a tuple (lens, minSubDiv, maxSubDiv) which will be used to create a
            subdivision grid through a call to :func:`setSubdivisionGrid`.
+           TODO: Update this for dict style arguments
 
         - `weakSubDiv`: this should be a number that specifies the uniform subdivision parameter
           for the :func:`setUniformGrid` call for the weak lensing region. If this is set to zero
@@ -1639,8 +1651,9 @@ class InversionWorkSpace(object):
         - `weakRegionSize`: this specifies the size of the grid for the weak lensing area. The
           strong lensing size is the one that was specified in the constructor.
 
-        - `weakRegionCenter`: the default is to use the same center as the strong lensing grid,
-          as specified in the constructor. A different value can be set with this parameter.
+        - `weakRegionCenter`: TODO
+        
+        - `weakMultiRegionInfo`: TODO
 
         - `weakRandomFraction`: the default will add a random offset to the weak lensing grid
           that's based on the grid cell size. A different value will be passed directly to the
@@ -1674,7 +1687,8 @@ class InversionWorkSpace(object):
         """
 
         strongGrid, weakGrid = self._getStrongAndWeakGrids(strongSubDivInfo, weakSubDiv, weakRegionSize,
-                                                           weakRegionCenter, weakRandomFraction,
+                                                           weakRegionCenter, weakMultiRegionInfo,
+                                                           weakRandomFraction,
                                                            strongExcludeFunction, strongCheckSubDivFunction,
                                                            weakExcludeFunction)
 
