@@ -1934,7 +1934,7 @@ Arguments:
     grids = copy.deepcopy(cells)
     for cells in grids:
         if not "cells" in cells: # Perhaps absolute cell info, convert to fractional format
-            cells["cells"] = { "size": 1, "center": [0, 0] }
+            cells["cells"] = [ { "size": 1, "center": [0, 0] } ]
 
     from . import grid
 
