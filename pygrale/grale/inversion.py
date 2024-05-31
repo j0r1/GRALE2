@@ -1701,22 +1701,26 @@ class InversionWorkSpace(object):
                 return (r[0], 0.1)
             return r
 
+        # Add the basisfunction
+        self.clearBasisFunctions()
+        if strongGrid:
+            self.setGrid(strongGrid)
+            self.addBasisFunctionsBasedOnCurrentGrid(strongLensModelFunction, strongLensModelInitialParams)
+
         if weakGrid:
+            self.setGrid(weakGrid)
+
             if not weakMassScale:
                 raise InversionException("A mass scale for the weak lensing region is required")
 
             lensModelFunction = dummyLensModelFunction if ignoreWLMassInMassScaleSearch else weakLensModelFunction
-            
-        # Add the basisfunction
-        self.clearBasisFunctions()
-        self.setGrid(strongGrid)
-        self.addBasisFunctionsBasedOnCurrentGrid(strongLensModelFunction, strongLensModelInitialParams)
-        if weakGrid:
-            self.setGrid(weakGrid)
             params = { "totalmass": weakMassScale }
             for k in weakLensModelInitialParams:
                 params[k] = weakLensModelInitialParams[k]
             self.addBasisFunctionsBasedOnCurrentGrid(lensModelFunction, params)
+
+        if not strongGrid and not weakGrid:
+            raise InversionException("Neither a grid for the strong lensing regions(s) nor for the weak lensing one was specified")
 
         return strongGrid, weakGrid
 
