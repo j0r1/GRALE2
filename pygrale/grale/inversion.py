@@ -1597,7 +1597,7 @@ class InversionWorkSpace(object):
                                     excludeFunction=strongExcludeFunction,
                                     checkSubDivFunction=strongCheckSubDivFunction)
             
-            elif type(strongSubDivInfo) == list: # Can either be subdiv info (old style) or uniform info
+            elif type(strongSubDivInfo) == list or type(strongSubDivInfo) == tuple: # Can either be subdiv info (old style) or uniform info
                 if issubclass(type(strongSubDivInfo[0]), lenses.GravitationalLens):
                     baseLens, minDiv, maxDiv = strongSubDivInfo
     
