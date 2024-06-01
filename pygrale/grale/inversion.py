@@ -714,12 +714,18 @@ def _getLensPlaneRegions(regionSize, regionCenter, multiRegionInfo, numPlanes):
         
         if type(multiRegionInfo) == Regions:
             lensplaneRegions = [ copy.copy(multiRegionInfo) for x in range(numPlanes) ]
-        elif type(multiRegionInfo) == list: # assume it's a list of Regions instances
-            lensplaneRegions = []
-            for x in multiRegionInfo:
-                if type(x) != Regions:
-                    raise InversionException("Each entry in multiRegionInfo must be a Regions object")
-                lensplaneRegions.append(copy.copy(x))
+        elif type(multiRegionInfo) == list:
+            if numPlanes == 1:
+                lensplaneRegions = [ Regions(copy.copy(multiRegionInfo)) ]
+            else:
+                # assume it's a list of Regions instances
+                lensplaneRegions = []
+                for x in multiRegionInfo:
+                    if type(x) != Regions:
+                        raise InversionException("Each entry in multiRegionInfo must be a Regions object")
+                    lensplaneRegions.append(copy.copy(x))
+        elif numPlanes == 1: # Here we know that every region is in the same lens plane
+            lensplaneRegions = [ Regions(copy.copy(multiRegionInfo)) ]
         else:
             raise InversionException("Unexpected type for multiRegionInfo, should be Regions or list, but is {}".format(type(multiRegionInfo)))
 
