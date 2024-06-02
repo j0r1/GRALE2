@@ -11,9 +11,8 @@ Examples for how these functions can be used, can be found in the notebooks
 """
 from fractions import Fraction
 from . import gridfunction
-import pprint
 import numpy as np
-import sys
+import random
 import copy
 
 class GridException(Exception):
@@ -48,6 +47,7 @@ def fractionalGridToRealGrid(grid):
 
 def createMultiUniformGrid(uniformRegionInfo, # [ { size, center, axissubdiv } ]
                            excludeFunction = None):
+    """TODO"""
     
     if not uniformRegionInfo:
         raise GridException("No regions were specified")
@@ -649,6 +649,134 @@ def _debugPlot(g):
         print(x+size/2, y-size/2)
         print(x-size/2, y-size/2)
         print()
+
+class MultiGridCreator(object):
+    """TODO"""
+
+    def __init__(self, regionSize = None, regionCenter = None, multiRegionInfo = None,
+                 defaultRandomFraction = 0.05):
+        """TODO""" # defaultRandomFraction can also be a function
+      
+        self.defaultRandomFraction = defaultRandomFraction
+        self.multiRegionInfo = []
+        self.setRegionSize(regionSize, regionCenter, multiRegionInfo)
+
+    def setRegionSize(self, regionSize = None, regionCenter = None, 
+                      multiRegionInfo = None):
+        """TODO"""
+
+        if multiRegionInfo:
+            if not (regionSize is None and regionCenter is None):
+                raise GridException("If multiRegionInfo is set, regionSize and regionCenter must be None")
+
+            self.multiRegionInfo = []
+            if type(multiRegionInfo) == dict:
+                multiRegionInfo = [ multiRegionInfo ]
+
+            for reg in multiRegionInfo:
+                ctr = [0.0,0.0] if (not "center" in reg or not reg["center"]) else copy.copy(reg["center"])
+                sz = float(reg["size"])
+                if sz <= 0:
+                    raise GridException("Invalid region size {} was specified".format(sz))
+
+                self.multiRegionInfo.append({"center": ctr, "size": sz})
+
+        else: # multiRegionInfo is None
+            if not regionSize:
+                raise GridException("No region info was specified")
+
+            ctr = [0.0, 0.0] if not regionCenter else copy.copy(regionCenter)
+            sz = float(regionSize)
+            if sz <= 0:
+                raise GridException("Invalid region size {} was specified".format(sz))
+
+            self.multiRegionInfo = [ { "size": sz, "center": ctr }]
+
+    def _getRandomizedRegions(self, randomFraction):
+        randomizedMultiReg = []
+        for reg in self.multiRegionInfo:
+
+            if type(randomFraction) == float: # Just a number, use the default method
+                w = reg["size"]
+                dx = (random.random()-0.5) * w*randomFraction
+                dy = (random.random()-0.5) * w*randomFraction
+                c = [ reg["center"][0] + dx, reg["center"][1] + dy ]
+            else: # assume it's something we can call to obtain the grid dimensions
+                w, c = randomFraction(reg["size"], copy.copy(reg["center"]))
+
+            randomizedMultiReg.append({"size": w, "center": c})
+
+        return randomizedMultiReg
+
+    def getUniformGrid(self, subDiv, randomFraction = None, excludeFunction = None):
+        """TODO"""
+        
+        if randomFraction is None:
+            randomFraction = self.defaultRandomFraction
+
+        randomizedMultiReg = self._getRandomizedRegions(randomFraction)
+        if type(subDiv) != list and type(subDiv) != tuple:
+            subDiv = [ subDiv for x in randomizedMultiReg ] # One subdiv for each multi-grid part
+
+        if len(randomizedMultiReg) != len(subDiv):
+            raise Exception("There are {} multi-grid entries, but you specified {} subdivisions".format(len(randomizedMultiReg),len(subDiv)))
+
+        for part,sd in zip(randomizedMultiReg,subDiv):
+            part["axissubdiv"] = sd
+        return createMultiUniformGrid(randomizedMultiReg, excludeFunction)
+
+    def getSubdivisionGrid(self, lensOrLensInfo, minSquares, maxSquares, startSubDiv = 1, 
+                           randomFraction = None, lensFilter = None, lensFilterParams = {},
+                           lensInfoFilter = None, lensInfoFilterParams = {},
+                           excludeFunction=None, checkSubDivFunction=None,
+                           renderer = "default", feedbackObject = "default"):
+        """TODO"""
+        
+        if lensFilter is None:
+            lensFilter = lambda x, bl, tr, **params: x
+        if lensInfoFilter is None:
+            lensInfoFilter = lambda x, **params: x
+
+        randomizedMultiReg = self._getRandomizedRegions(randomFraction)
+
+        if type(startSubDiv) == list or type(startSubDiv) == tuple: # A list with a subdiv entry for each region
+            if len(startSubDiv) != len(randomizedMultiReg):
+                raise GridException("Expecting as many start subdivisions as regions")
+        else:
+            # Just a number, create a list 
+            startSubDiv = [ startSubDiv for x in randomizedMultiReg ]
+
+        for part, sd in zip(randomizedMultiReg, startSubDiv):
+            part["startsubdiv"] = sd
+
+        from . import plotutil
+
+        if isinstance(lensOrLensInfo, plotutil.DensInfo):
+            lensInfo = lensOrLensInfo
+            lensInfo = lensInfoFilter(lensInfo, **lensInfoFilterParams)
+        else:
+            # Treat each grid part separately
+            allLensInfos = []
+            for part in randomizedMultiReg:
+                w,c = part["size"], part["center"]
+
+                extraFrac = 1.0001
+                
+                bl = [ c[0] - (w*extraFrac)/2, c[1] - (w*extraFrac)/2 ]
+                tr = [ c[0] + (w*extraFrac)/2, c[1] + (w*extraFrac)/2 ]
+                lensOrLensInfo = lensFilter(lensOrLensInfo, bl, tr, **lensFilterParams)
+
+                lensInfo = plotutil.LensInfo(lensOrLensInfo, bottomleft=bl, topright=tr)
+                lensInfo.getDensityPoints(renderer, feedbackObject)
+            
+                lensInfo = lensInfoFilter(lensInfo, **lensInfoFilterParams)
+                allLensInfos.append(lensInfo)
+
+            lensInfo = allLensInfos
+
+        return createMultiSubdivisionGrid(randomizedMultiReg, lensInfo, minSquares, maxSquares,
+                                                     excludeFunction=excludeFunction,
+                                                     checkSubDivFunction=checkSubDivFunction)
 
 def main():
     #grid = createUniformGrid(123, [-1, -2], 5)
