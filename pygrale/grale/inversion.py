@@ -1099,37 +1099,45 @@ class InversionWorkSpace(object):
         and finally
         :func:`invertBasisFunctions <grale.inversion.InversionWorkSpace.invertBasisFunctions>`.
         """
-        newKwargs = { }
-        newKwargs["inverter"] = self.inverter
-        newKwargs["feedbackObject"] = self.feedbackObject
-        for a in self.inversionArgs:
-            newKwargs[a] = self.inversionArgs[a]
 
-        for a in kwargs:
-            newKwargs[a] = kwargs[a]
+        if sum([len(bf) for bf in self.basisFunctions]) != 0:
+            raise InversionException("It seems that some basisfunctions are present already, perhaps you want 'invertBasisFunctions' (or call clearBasisFunctions)")
 
-        self.clearBasisFunctions()
+        try:
+            newKwargs = { }
+            newKwargs["inverter"] = self.inverter
+            newKwargs["feedbackObject"] = self.feedbackObject
+            for a in self.inversionArgs:
+                newKwargs[a] = self.inversionArgs[a]
 
-        initialParameters = { }
-        if "basisFunctionType" in newKwargs:
-            initialParameters["basistype"] = newKwargs["basisFunctionType"]
-            del newKwargs["basisFunctionType"]
+            for a in kwargs:
+                newKwargs[a] = kwargs[a]
 
-        if "rescaleBasisFunctions" in newKwargs:
-            initialParameters["rescale"] = newKwargs["rescaleBasisFunctions"]
-            del newKwargs["rescaleBasisFunctions"]
+            self.clearBasisFunctions()
 
-        if "gridSizeFactor" in newKwargs:
-            initialParameters["sizefactor"] = newKwargs["gridSizeFactor"]
-            del newKwargs["gridSizeFactor"]
+            initialParameters = { }
+            if "basisFunctionType" in newKwargs:
+                initialParameters["basistype"] = newKwargs["basisFunctionType"]
+                del newKwargs["basisFunctionType"]
 
-        if "massScale" in newKwargs:
-            initialParameters["totalmass"] = newKwargs["massScale"]
+            if "rescaleBasisFunctions" in newKwargs:
+                initialParameters["rescale"] = newKwargs["rescaleBasisFunctions"]
+                del newKwargs["rescaleBasisFunctions"]
 
-        for i in range(len(self.zd)): # For each grid
-            self.addBasisFunctionsBasedOnCurrentGrid(initialParameters=initialParameters, lpIdx=i)
-        # Already processed default arguments
-        return self.invertBasisFunctions(populationSize, **newKwargs, ignoreDefaultArguments=True)
+            if "gridSizeFactor" in newKwargs:
+                initialParameters["sizefactor"] = newKwargs["gridSizeFactor"]
+                del newKwargs["gridSizeFactor"]
+
+            if "massScale" in newKwargs:
+                initialParameters["totalmass"] = newKwargs["massScale"]
+
+            for i in range(len(self.zd)): # For each grid
+                self.addBasisFunctionsBasedOnCurrentGrid(initialParameters=initialParameters, lpIdx=i)
+            # Already processed default arguments
+            return self.invertBasisFunctions(populationSize, **newKwargs, ignoreDefaultArguments=True)
+        finally:
+            # Clear the basis functions again
+            self.clearBasisFunctions()
 
     def clearBasisFunctions(self, lpIdx = "all"):
         """Clears the list of basis functions that will be used in
