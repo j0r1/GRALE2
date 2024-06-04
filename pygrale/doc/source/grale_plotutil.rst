@@ -49,6 +49,8 @@ Functions to create matplotlib plots
 
 .. autofunction:: plotImagesData
 
+.. autofunction:: plotShearComponents
+
 Functions to create gnuplot plots
 ---------------------------------
 
@@ -58,6 +60,8 @@ Functions to create gnuplot plots
 
 Functions to create FITS files
 ------------------------------
+
+.. autofunction:: createEmptyFITS
 
 .. autofunction:: plotDensityFITS
 

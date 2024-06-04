@@ -1740,7 +1740,7 @@ Example::
 
     renderer, feedbackObject = privutil.initRendererAndFeedback(renderer, feedbackObject, "LENSPLANE")
 
-    f = createEmptyFits(numX, numY,
+    f = createEmptyFITS(numX, numY,
                         1.0*numX/(numX-1)*angularWidth/ANGLE_DEGREE, 
                         1.0*numY/(numY-1)*angularHeight/ANGLE_DEGREE, centerRA/ANGLE_DEGREE,
                         centerDec/ANGLE_DEGREE, numX/2.0, numY/2.0)
@@ -1964,7 +1964,8 @@ Arguments:
 
 
 def plotImagesData(imgDat, angularUnit = "default", plotHull = False, skipTriangles = False, axes = None, fillTriangles = False,
-                   imagePlotOptionsFunction = None):
+                   imagePlotOptionsFunction = None, shearLengthMultiplier = 1,
+                   shearPlotOptionsFunction = None):
     """Creates a plot of either a single images data set, or a list
 of them. In the first case, each image will be drawn with a different
 color, in the second, each complete images data set (typically
@@ -1994,6 +1995,10 @@ Arguments:
  - `fillTriangles`: if set, the triangulation, if present, will be filled.
 
  - `imagePlotOptionsFunction`: TODO
+
+ - `shearLengthMultiplier`: TODO
+
+ - `shearPlotOptionsFunction`: TODO
 
 """
     angularUnit = _getAngularUnit(angularUnit)
@@ -2064,61 +2069,81 @@ Arguments:
             x.append(None)
             y.append(None)
     
+    def isShearImgData(imgDat):
+        return imgDat.hasProperty("shear1") and imgDat.hasProperty("shear2")
+
     import matplotlib.colors as colors
     if axes is None:
         import matplotlib.pyplot as plt
         axes = plt.gca()
 
+    def plotShearImgData(imgDat, srcIdx, merge):
+        if merge:
+            props = np.array([ [ p["position"][0], p["position"][1], p["shear"][0], p["shear"][1] ] for img in imgDat.getAllImagePoints() for p in img ])
+            kwargs = {} if shearPlotOptionsFunction is None else shearPlotOptionsFunction(srcIdx, -1)
+            plotShearComponents(props[:,:2], props[:,2], props[:,3], shearLengthMultiplier, angularUnit, **kwargs)
+        else:
+            for imgIdx, img in enumerate(imgDat.getAllImagePoints()):
+                props = np.array([ [ p["position"][0], p["position"][1], p["shear"][0], p["shear"][1] ] for p in img ])
+                kwargs = {} if shearPlotOptionsFunction is None else shearPlotOptionsFunction(srcIdx, imgIdx)
+                plotShearComponents(props[:,:2], props[:,2], props[:,3], shearLengthMultiplier, angularUnit, **kwargs)
+
     if type(imgDat) == list: # Each source in different color
         for srcIdx, im in enumerate(imgDat):
             im = im["imgdata"] if type(im) == dict and "imgdata" in im else im
-            x, y = [], []
-            segs = set()
+            if isShearImgData(im):
+                plotShearImgData(im, srcIdx, True)
+            else:
+                x, y = [], []
+                segs = set()
 
-            num = im.getNumberOfImages()
-            for idx in range(num):
-                processImage(im, idx, x, y, segs)
-                if plotHull:
-                    addHull(im, idx, x, y)
-            
-            segsToCoords(segs, x, y)
-            kwargs = {} if imagePlotOptionsFunction is None else imagePlotOptionsFunction(srcIdx, -1)
-            p = axes.plot(x, y, ".-", **kwargs)
-
-            col = p[0].get_color()
-            col = colors.to_rgb(col) + (0.3,)
-            col = colors.to_hex(col, True)
-            triangles = [ ] if fillTriangles else None
-
-            if triangles is not None:
+                num = im.getNumberOfImages()
                 for idx in range(num):
-                    getImageTriangles(im, idx, triangles, col)
-                axes.fill(*triangles)
-            
+                    processImage(im, idx, x, y, segs)
+                    if plotHull:
+                        addHull(im, idx, x, y)
+                
+                segsToCoords(segs, x, y)
+                kwargs = {} if imagePlotOptionsFunction is None else imagePlotOptionsFunction(srcIdx, -1)
+                p = axes.plot(x, y, ".-", **kwargs)
+
+                col = p[0].get_color()
+                col = colors.to_rgb(col) + (0.3,)
+                col = colors.to_hex(col, True)
+                triangles = [ ] if fillTriangles else None
+
+                if triangles is not None:
+                    for idx in range(num):
+                        getImageTriangles(im, idx, triangles, col)
+                    axes.fill(*triangles)
+                
     else: # Each image of this one source in different color
         imgDat = imgDat["imgdata"] if type(imgDat) == dict and "imgdata" in imgDat else imgDat
-        num = imgDat.getNumberOfImages()
-        for idx in range(num):
-            x, y = [], []
-            segs = set()
-            processImage(imgDat, idx, x, y, segs)
-                
-            segsToCoords(segs, x, y)
-            if plotHull:
-                addHull(imgDat, idx, x, y)
+        if isShearImgData(imgDat):
+            plotShearImgData(imgDat, 0, False)
+        else:
+            num = imgDat.getNumberOfImages()
+            for idx in range(num):
+                x, y = [], []
+                segs = set()
+                processImage(imgDat, idx, x, y, segs)
+                    
+                segsToCoords(segs, x, y)
+                if plotHull:
+                    addHull(imgDat, idx, x, y)
 
-            kwargs = {} if imagePlotOptionsFunction is None else imagePlotOptionsFunction(0, idx)
-            p = axes.plot(x, y, ".-", **kwargs)
+                kwargs = {} if imagePlotOptionsFunction is None else imagePlotOptionsFunction(0, idx)
+                p = axes.plot(x, y, ".-", **kwargs)
 
-            col = p[0].get_color()
-            col = colors.to_rgb(col) + (0.3,)
-            col = colors.to_hex(col, True)
-            triangles = [ ] if fillTriangles else None
-            if triangles is not None:
-                getImageTriangles(imgDat, idx, triangles, col)
-                axes.fill(*triangles)
+                col = p[0].get_color()
+                col = colors.to_rgb(col) + (0.3,)
+                col = colors.to_hex(col, True)
+                triangles = [ ] if fillTriangles else None
+                if triangles is not None:
+                    getImageTriangles(imgDat, idx, triangles, col)
+                    axes.fill(*triangles)
 
-def createEmptyFits(xPix, yPix, angularWidthDeg, angularHeightDeg, raCenterDeg, decCenterDeg, xpCenter, ypCenter):
+def createEmptyFITS(xPix, yPix, angularWidthDeg, angularHeightDeg, raCenterDeg, decCenterDeg, xpCenter, ypCenter):
     """Helper function to create an empty FITS file. 
 
 Arguments:
@@ -2182,7 +2207,7 @@ Arguments:
     angularHeightDeg = (tr[1]-bl[1])/ANGLE_DEGREE
     xpCenter = xPix/2.0
     ypCenter = yPix/2.0
-    f = createEmptyFits(xPix, yPix, angularWidthDeg, angularHeightDeg, raCenterDeg, decCenterDeg, xpCenter, ypCenter)
+    f = createEmptyFITS(xPix, yPix, angularWidthDeg, angularHeightDeg, raCenterDeg, decCenterDeg, xpCenter, ypCenter)
     
     imgPlane = lensInfo.getImagePlane(renderer, feedbackObject)
     data = imgPlane.renderImages(sources) if not plotSources else imgPlane.renderSources(sources)
@@ -2212,7 +2237,7 @@ Arguments:
     angularHeightDeg = (tr[1]-bl[1])/ANGLE_DEGREE
     xpCenter = xPix/2.0
     ypCenter = yPix/2.0
-    f = createEmptyFits(xPix, yPix, angularWidthDeg, angularHeightDeg, raCenterDeg, decCenterDeg, xpCenter, ypCenter)
+    f = createEmptyFITS(xPix, yPix, angularWidthDeg, angularHeightDeg, raCenterDeg, decCenterDeg, xpCenter, ypCenter)
     
     data = lensInfo.getDensityPixels(renderer, feedbackObject)
     f[0].data = np.fliplr(data)
@@ -2422,6 +2447,44 @@ Arguments:
             plt.errorbar(X/angularUnit, Yavg/densityUnit, Ystd/densityUnit, fmt='.', **kwargs)
 
     return X, Yavg, Ystd, numSubLenses
+    
+def plotShearComponents(thetas, gamma1, gamma2, lengthMultiplier, angularUnit="default",
+                        axes=None, **kwargs):
+    """TODO"""
+
+    thetas, gamma1, gamma2 = np.array(thetas), np.array(gamma1), np.array(gamma2)
+    thetas = thetas.reshape((-1,2))
+    gamma1 = gamma1.reshape((-1,))
+    gamma2 = gamma2.reshape((-1,))
+
+    g = (gamma1**2 + gamma2**2)**0.5
+    angles = 0.5*np.arctan2(gamma2, gamma1)
+    vx = g*np.cos(angles)
+    vy = g*np.sin(angles)
+    vectorField = np.empty((thetas.shape[0],4))
+    vectorField[:,:2] = thetas
+    vectorField[:,2] = vx
+    vectorField[:,3] = vy
+
+    angularUnit = _getAngularUnit(angularUnit)
+
+    xCoords, yCoords = [], []
+    for cx, cy, vx, vy in vectorField:
+        length = (vx**2+vy**2)**0.5
+        phi = np.arctan2(vy, vx)
+        
+        xCoords.append((cx/angularUnit - length*lengthMultiplier*np.cos(phi)))
+        xCoords.append((cx/angularUnit + length*lengthMultiplier*np.cos(phi)))
+        xCoords.append(None)
+        yCoords.append((cy/angularUnit - length*lengthMultiplier*np.sin(phi)))
+        yCoords.append((cy/angularUnit + length*lengthMultiplier*np.sin(phi)))
+        yCoords.append(None)
+
+    if axes is None:
+        import matplotlib.pyplot as plt
+        axes = plt.gca()
+
+    plt.plot(xCoords, yCoords, '-', **kwargs)
 
 def _getAngularUnit(u):
     if u == "default":
