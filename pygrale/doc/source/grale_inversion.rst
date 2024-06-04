@@ -18,6 +18,11 @@ InversionWorkSpace
 
    .. automethod:: __init__
 
+.. autoclass:: Regions
+   :members:
+
+   .. automethod:: __init__
+
 Core functions
 --------------
 

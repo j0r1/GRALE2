@@ -656,7 +656,10 @@ def defaultLensModelFunction(operation, operationInfo, parameters):
 # We need a new type to disambiguate between a list of regions in a single
 # lensplane, and regions for multiple lens planes
 class Regions(object):
+    """TODO"""
+
     def __init__(self, regionInfoList):
+        """TODO"""
         if type(regionInfoList) == dict:
             regionInfoList = [ regionInfoList ]
 
@@ -667,9 +670,11 @@ class Regions(object):
             self.regionInfoList.append({ "size": size, "center": center })
 
     def getNumberOfRegions(self):
+        """TODO"""
         return len(self.regionInfoList)
     
     def getRegions(self):
+        """TODO"""
         return self.regionInfoList
 
 class _MultiGridWrapper(object):
@@ -1026,7 +1031,7 @@ class InversionWorkSpace(object):
         instance can be used for a specific lens plane, but in that case ``lpIdx`` must be
         set to the correct lens plane index.
 
-        TODO: multiRegionInfo, checkSubDivFunction, excludeFunction
+        TODO: multiRegionInfo, checkSubDivFunction, excludeFunction, lensFilter, lensInfoFilter
         """
 
         def process(i, lensFilter, lensInfoFilter) -> _MultiGridWrapper:
