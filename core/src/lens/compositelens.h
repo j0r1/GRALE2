@@ -97,6 +97,7 @@ public:
 	bool getAlphaVector(Vector2D<double> theta, Vector2D<double> *pAlpha) const;
 	double getSurfaceMassDensity(Vector2D<double> theta) const;
 	bool getAlphaVectorDerivatives(Vector2D<double> theta, double &axx, double &ayy, double &axy) const;
+	bool getAlphaVectorSecondDerivatives(Vector2D<double> theta, double &axxx, double &ayyy, double &axxy, double &ayyx) const;
 	void setDerivativeAngularDistanceScale(double distanceScale);
 	bool getProjectedPotential(double D_s, double D_ds, Vector2D<double> theta, double *pPotentialValue) const;
 

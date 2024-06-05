@@ -31,6 +31,7 @@
 #include <serut/memoryserializer.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdexcept>
 
 namespace grale
 {
@@ -416,6 +417,90 @@ bool CompositeLens::getAlphaVectorDerivatives(Vector2D<double> theta, double &ax
 	ayy = ayySum;
 	axy = axySum;
 	
+	return true;
+}
+
+bool CompositeLens::getAlphaVectorSecondDerivatives(Vector2D<double> theta, double &axxx, double &ayyy, double &axxy, double &ayyx) const
+{
+	double axxxSum = 0;
+	double ayyySum = 0;
+	double axxySum = 0;
+	double ayyxSum = 0;
+
+	for (size_t i = 0 ; i < m_lenses.size() ; i++)
+	{
+		Vector2D<double> theta0 = theta - m_positions[i];
+		double rotationangle = m_angles[i];
+		double axxx0, ayyy0, axxy0, ayyx0;
+		double ca = COS(rotationangle);
+		double sa = SIN(rotationangle);
+		double factor = m_factors[i];
+
+		theta0 = Vector2D<double>(theta0.getX()*ca+theta0.getY()*sa,
+			                      -theta0.getX()*sa+theta0.getY()*ca);
+
+		if (!m_lenses[i]->getAlphaVectorSecondDerivatives(theta0, axxx0, ayyy0, axxy0, ayyx0))
+		{
+			setErrorString(m_lenses[i]->getErrorString());
+			return false;
+		}
+
+		axxx0 *= factor;
+		axxy0 *= factor;
+		ayyx0 *= factor;
+		ayyy0 *= factor;
+
+		double R[2][2] = { { ca, -sa}, { sa, ca } };
+		auto A = [axxx0, ayyy0, axxy0, ayyx0](size_t a, size_t b, size_t c)
+		{
+			assert(a == 0 || a == 1);
+			assert(b == 0 || b == 1);
+			assert(c == 0 || c == 1);
+			size_t num = a | (b<<1) | (c<<2);
+			switch (num)
+			{
+			case 0: // xxx
+				return axxx0;
+			case 1: // yxx
+			case 2: // xyx
+			case 4: // xxy
+				return axxy0;
+			case 3: // yyx
+			case 5: // yxy
+			case 6: // yyx
+				return ayyx0;
+			case 7: // yyy
+				return ayyy0;
+			}
+			throw std::runtime_error("Internal error, num = " + std::to_string(num));
+		};
+		
+		auto sumIt = [&R,&A](size_t u, size_t v, size_t w)
+		{
+			double s = 0;
+			for (size_t a = 0 ; a < 2 ; a++)
+				for (size_t b = 0 ; b < 2 ; b++)
+					for(size_t c = 0 ; c < 2 ; c++)
+						s += R[u][a]*R[v][b]*R[w][c]*A(a,b,c);
+			return s;
+		};
+
+		double axxx1 = sumIt(0, 0, 0);
+		double ayyy1 = sumIt(1, 1, 1);
+		double axxy1 = sumIt(0, 0, 1);
+		double ayyx1 = sumIt(1, 1, 0);
+		
+		axxxSum += axxx1;
+		ayyySum += ayyy1;
+		axxySum += axxy1;
+		ayyxSum += ayyx1;
+	}
+
+	axxx = axxxSum;
+	ayyy = ayyySum;
+	axxy = axxySum;
+	ayyx = ayyxSum;
+
 	return true;
 }
 

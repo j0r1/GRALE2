@@ -88,5 +88,11 @@ double PointmassLens::getProfileSurfaceMassDensity(double thetaLength) const
 	return 0;
 }
 
+bool PointmassLens::getSurfaceMassDensityDerivative(double thetaLength, double &deriv) const
+{
+	deriv = 0;
+	return true;
+}
+
 } // end namespace
 

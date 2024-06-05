@@ -95,6 +95,15 @@ bool MassSheetLens::getAlphaVectorDerivatives(Vector2D<double> theta, double &ax
 	axy = 0;
 	return true;
 }
+
+bool MassSheetLens::getAlphaVectorSecondDerivatives(Vector2D<double> theta, double &axxx, double &ayyy, double &axxy, double &ayyx) const
+{
+	axxx = 0;
+	ayyy = 0;
+	axxy = 0;
+	ayyx = 0;
+	return true;
+}
 	
 bool MassSheetLens::getProjectedPotential(double D_s, double D_ds, Vector2D<double> theta, double *pPotentialValue) const
 {
