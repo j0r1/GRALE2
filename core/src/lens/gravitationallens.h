@@ -127,6 +127,8 @@ public:
 	virtual bool getAlphaVectorDerivatives(Vector2D<double> theta, double &axx, 
 			                       double &ayy, double &axy) const;
 
+	virtual bool getAlphaVectorSecondDerivatives(Vector2D<double> theta, double &axxx, double &ayyy, double &axxy, double &ayyx) const;
+
 	/** Calculate inverse magnification from derivatives of deflection angle. */
 	static double getInverseMagnification(double D_s, double D_ds, double axx, 
 			                      double ayy, double axy) 				{ double f = D_ds/D_s; return (1.0-f*axx)*(1.0-f*ayy)-f*f*axy*axy; }

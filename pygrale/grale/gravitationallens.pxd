@@ -76,6 +76,7 @@ cdef extern from "grale/gravitationallens.h" namespace "grale":
         bool traceTheta(double Ds, double Dds, Vector2Dd theta, Vector2Dd *beta)
         bool getAlphaVector(Vector2Dd theta, Vector2Dd *alpha)
         bool getAlphaVectorDerivatives(Vector2Dd theta, double &axx, double &ayy, double &axy)
+        bool getAlphaVectorSecondDerivatives(Vector2Dd theta, double &axxx, double &ayyy, double &axxy, double &ayyx)
         double getInverseMagnification(double Ds, double Dds, Vector2Dd theta)
         double getSurfaceMassDensity(Vector2Dd theta)
         double getLensDistance()

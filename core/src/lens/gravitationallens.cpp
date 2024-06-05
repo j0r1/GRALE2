@@ -159,6 +159,45 @@ bool GravitationalLens::getAlphaVectorDerivatives(Vector2D<double> theta, double
 	return true;
 }
 
+bool GravitationalLens::getAlphaVectorSecondDerivatives(Vector2D<double> theta, double &axxx, double &ayyy, double &axxy, double &ayyx) const
+{
+	double dtheta = m_derivDistScale;
+	if (dtheta < 0)
+	{
+		setErrorString("Using derivative numerical approximation code but typical scale was not set!");
+		return false;
+	}
+
+	double axx0, ayy0, axy0;
+
+	if (!getAlphaVectorDerivatives(theta, axx0, ayy0, axy0))
+		return false;
+
+	double axx_x, ayy_x, axy_x;
+	if (!getAlphaVectorDerivatives(theta + Vector2Dd(dtheta, 0.0), axx_x, ayy_x, axy_x))
+	{
+		axx_x = axx0;
+		ayy_x = ayy0;
+		axy_x = axy0;
+	}
+
+	double axx_y, ayy_y, axy_y;
+	if (!getAlphaVectorDerivatives(theta + Vector2Dd(0.0, dtheta), axx_y, ayy_y, axy_y))
+	{
+		axx_y = axx0;
+		ayy_y = ayy0;
+		axy_y = axy0;
+	}
+
+	axxx = (axx_x - axx0)/dtheta;
+	ayyy = (ayy_y - ayy0)/dtheta;
+	axxy = 0.5*(axx_y - axx0)/dtheta + 0.5*(axy_x - axy0)/dtheta;
+	ayyx = 0.5*(ayy_x - ayy0)/dtheta + 0.5*(axy_y - axy0)/dtheta;
+
+	return true;
+}
+
+
 double GravitationalLens::getInverseMagnification(double D_s, double D_ds, Vector2D<double> theta) const
 {
 	double factor = D_ds/D_s;

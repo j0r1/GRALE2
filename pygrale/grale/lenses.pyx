@@ -194,6 +194,29 @@ cdef class GravitationalLens:
 
         return derivatives
 
+    cdef _getAlphaVectorSecondDerivatives1(self, np.ndarray[double, ndim=1] thetas):
+
+        cdef double axxx = 0, ayyy = 0, axxy = 0, ayyx = 0
+        cdef np.ndarray[double,ndim=1] derivatives
+        cdef int l,i,j
+
+        if thetas.shape[0] % 2 == 0:
+            l = thetas.shape[0]
+            derivatives = np.zeros([(l//2)*4], dtype = np.double)
+            j = 0
+            for i in range(0,l,2):
+                if not self._lens().getAlphaVectorSecondDerivatives(Vector2Dd(thetas[i], thetas[i+1]), axxx, ayyy, axxy, ayyx):
+                    raise LensException(S(self._lens().getErrorString()))
+                derivatives[j] = axxx
+                derivatives[j+1] = ayyy
+                derivatives[j+2] = axxy
+                derivatives[j+3] = ayyx
+                j += 4
+        else:
+            raise LensException("Bad 1D array dimensions, must be a multiple of two")
+
+        return derivatives
+
     cdef _getInverseMagnification1(self, double Ds, double Dds, np.ndarray[double, ndim=1] thetas):
         
         cdef np.ndarray[double,ndim=1] invMags
@@ -359,6 +382,47 @@ cdef class GravitationalLens:
             raise LensException("Bad 1D array dimensions, must be a multiple of two")
 
         return derivatives
+
+    cdef _getAlphaVectorSecondDerivatives1_new(self, np.ndarray[double, ndim=1] thetas):
+
+        cdef double axxx = 0, ayyy = 0, axxy = 0, ayyx = 0
+        cdef np.ndarray[double,ndim=1] derivatives
+        cdef int l,i,j
+        cdef double *pThetaX
+        cdef double *pThetaY
+        cdef double *pAlphaXXX
+        cdef double *pAlphaYYY
+        cdef double *pAlphaXXY
+        cdef double *pAlphaYYX
+        cdef size_t thetaStride, alphaStride
+        cdef string errStr
+        cdef size_t numTreads = getNumberOfCalculationThreads()
+
+        print("_getAlphaVectorSecondDerivatives1_new")
+
+        if thetas.shape[0] % 2 == 0:
+            pThetaX = &thetas[0]
+            pThetaY = &thetas[1]
+
+            l = thetas.shape[0]
+            derivatives = np.zeros([(l//2)*4], dtype = np.double)
+            pAlphaXXX = &derivatives[0]
+            pAlphaYYY = &derivatives[1]
+            pAlphaXXY = &derivatives[2]
+            pAlphaYYX = &derivatives[3]
+
+            thetaStride = 2
+            alphaStride = 4
+
+            if not threadcalc.threadsGetAlphaVectorSecondDerivatives(deref(self._lens()), errStr,
+                    pThetaX, pThetaY, thetaStride, pAlphaXXX, pAlphaYYY, pAlphaXXY, pAlphaYYX,
+                    alphaStride, l//2, numTreads):
+                raise LensException(S(errStr))
+        else:
+            raise LensException("Bad 1D array dimensions, must be a multiple of two")
+
+        return derivatives
+
 
     cdef _getInverseMagnification1_new(self, double Ds, double Dds, np.ndarray[double, ndim=1] thetas):
         
@@ -549,6 +613,17 @@ cdef class GravitationalLens:
         """
         thetas = np.array(thetas)
         return self._reshapeAndCall1D(lambda x : self._getAlphaVectorDerivatives1_new(x) if experimentalThreads else self._getAlphaVectorDerivatives1(x), thetas, 2, 3)
+
+    def getAlphaVectorSecondDerivatives(self, thetas):
+        r"""getAlphaVectorSecondDerivatives(thetas)
+
+        Returns the second derivatives of the deflection angle at the positions specified in 'thetas'.
+        For each position (thetax, thetay), three values (axxx, ayyy, axxy, ayyx) are returned, where
+
+        TODO
+        """
+        thetas = np.array(thetas)
+        return self._reshapeAndCall1D(lambda x : self._getAlphaVectorSecondDerivatives1_new(x) if experimentalThreads else self._getAlphaVectorSecondDerivatives1(x), thetas, 2, 4)
 
     def getInverseMagnification(self, Ds, Dds, thetas):
         """getInverseMagnification(Ds, Dds, thetas)

@@ -230,6 +230,59 @@ bool threadsGetAlphaVectorDerivatives(grale::GravitationalLens &l, std::string &
 	return runThreads(l, errStr, numElements, nThreads, calcSingleThread, startNewThread, update);
 }
 
+bool threadsGetAlphaVectorSecondDerivatives(grale::GravitationalLens &l, std::string &errStr,
+					   const double *thetaX, const double *thetaY, size_t thetaStride,
+					   double *alphaXXX, double *alphaYYY, double *alphaXXY, double *alphaYYX,
+					   size_t alphaStride,
+					   size_t numElements,
+					   size_t nThreads)
+{
+	auto getAlphaSecondDerivs = [&l](string *errStr,
+							   const double *thetaX, const double *thetaY, size_t thetaStride,
+	                           double *alphaXXX, double *alphaYYY, double *alphaXXY, double *alphaYYX,
+							   size_t alphaStride, size_t numElements)
+	{
+		for (size_t i = 0 ; i < numElements ; i++)
+		{
+			Vector2Dd t(*thetaX, *thetaY);
+			if (!l.getAlphaVectorSecondDerivatives(t, *alphaXXX, *alphaYYY, *alphaXXY, *alphaYYX))
+			{
+				*errStr = "Can't calculate alpha derivatives: " + l.getErrorString();
+				break;
+			}
+
+			thetaX += thetaStride;
+			thetaY += thetaStride;
+			alphaXXX += alphaStride;
+			alphaYYY += alphaStride;
+			alphaXXY += alphaStride;
+			alphaYYX += alphaStride;
+		}
+	};
+
+	auto calcSingleThread = [&getAlphaSecondDerivs, thetaX, thetaY, thetaStride, alphaXXX, alphaYYY, alphaXXY, alphaYYX, alphaStride](string &errStr, size_t numElements)
+	{
+		getAlphaSecondDerivs(&errStr, thetaX, thetaY, thetaStride, alphaXXX, alphaYYY, alphaXXY, alphaYYX, alphaStride, numElements);
+	};
+
+	auto startNewThread = [&getAlphaSecondDerivs, &thetaX, &thetaY, thetaStride, &alphaXXX, &alphaYYY, &alphaXXY, &alphaYYX, alphaStride](string &errStr, size_t numElements)
+	{
+		return thread(getAlphaSecondDerivs, &errStr, thetaX, thetaY, thetaStride, alphaXXX, alphaYYY, alphaXXY, alphaYYX, alphaStride, numElements);
+	};
+
+	auto update = [&thetaX, &thetaY, thetaStride, &alphaXXX, &alphaYYY, &alphaXXY, &alphaYYX, alphaStride](size_t numElements)
+	{
+		thetaX += numElements*thetaStride;
+		thetaY += numElements*thetaStride;
+		alphaXXX += numElements*alphaStride;
+		alphaYYY += numElements*alphaStride;
+		alphaXXY += numElements*alphaStride;
+		alphaYYX += numElements*alphaStride;
+	};
+
+	return runThreads(l, errStr, numElements, nThreads, calcSingleThread, startNewThread, update);
+}
+
 bool threadsGetInverseMagnification(grale::GravitationalLens &l, std::string &errStr,
 		               double Ds, double Dds,
 					   const double *thetaX, const double *thetaY, size_t thetaStride,
