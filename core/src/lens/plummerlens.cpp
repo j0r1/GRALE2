@@ -26,6 +26,7 @@
 #include "graleconfig.h"
 #include "plummerlens.h"
 #include "constants.h"
+#include <iostream>
 
 namespace grale
 {
@@ -107,6 +108,18 @@ double PlummerLens::getProfileSurfaceMassDensity(double thetaLength) const
 	double denom = (1.0+scaledtheta*scaledtheta)*getLensDistance();
 	double dens =  mass/(CONST_PI*angularwidth2*denom*denom);
 	return dens;
+}
+
+bool PlummerLens::getSurfaceMassDensityDerivative(double thetaLength, double &deriv) const
+{
+	double scaledTheta = thetaLength/angularwidth;
+	double denom1 = scaledTheta*scaledTheta + 1.0;
+	double denom3 = denom1*denom1*denom1;
+	double angularWidth2 = angularwidth*angularwidth;
+	double angularWidth3 = angularWidth2*angularwidth;
+	double Dd = getLensDistance();
+	deriv = (-4.0*mass/(CONST_PI*Dd*Dd*angularWidth3))*(scaledTheta/denom3);
+	return true;
 }
 
 bool PlummerLens::getProjectedPotential(double D_s, double D_ds, Vector2D<double> theta, 

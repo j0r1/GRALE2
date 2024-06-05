@@ -56,6 +56,7 @@ public:
 	~SymmetricLens();
 	bool getAlphaVector(Vector2D<double> theta,Vector2D<double> *pAlpha) const;
 	bool getAlphaVectorDerivatives(Vector2D<double> theta, double &axx, double &ayy, double &axy) const;
+	bool getAlphaVectorSecondDerivatives(Vector2D<double> theta, double &axxx, double &ayyy, double &axxy, double &ayyx) const override;
 	double getSurfaceMassDensity(Vector2D<double> theta) const			{ return getProfileSurfaceMassDensity(theta.getLength()); }
 
     static SymmetricLens *cast(GravitationalLens *pLens);
@@ -72,6 +73,8 @@ public:
 	 *  return the mass density at the radius described by \c thetaLength.
 	 */
 	virtual double getProfileSurfaceMassDensity(double thetaLength) const = 0;
+
+	virtual bool getSurfaceMassDensityDerivative(double thetaLength, double &deriv) const;
 };
 
 } // end namespace

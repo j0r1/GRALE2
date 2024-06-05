@@ -126,6 +126,60 @@ bool SymmetricLens::getAlphaVectorDerivatives(Vector2D<double> theta, double &ax
 	return true;
 }
 
+bool SymmetricLens::getAlphaVectorSecondDerivatives(Vector2D<double> theta, double &axxx, double &ayyy, double &axxy, double &ayyx) const
+{
+	double sigmaDeriv = 0;
+	double thetaLength = theta.getLength();
+
+	if (!getSurfaceMassDensityDerivative(thetaLength, sigmaDeriv))
+		return false;
+
+	double sigma = getProfileSurfaceMassDensity(thetaLength);
+	double M = getMassInside(thetaLength);
+	double Dd = getLensDistance();
+	double theta2 = theta.getLengthSquared();
+	double denom2 = theta2*theta2;
+	double denom3 = denom2*theta2;
+	double denom5_2 = denom2*thetaLength;
+	double denom3_2 = theta2*thetaLength;
+
+	double theta_x = theta.getX();
+	double theta_x2 = theta_x*theta_x;
+	double theta_x3 = theta_x2*theta_x;
+	double theta_y = theta.getY();
+	double theta_y2 = theta_y*theta_y;
+	double theta_y3 = theta_y2*theta_y;
+
+	double Mderiv = 2.0*CONST_PI*Dd*Dd*thetaLength*sigma;
+	double Mderiv2 = 2.0*CONST_PI*Dd*Dd*(sigma + thetaLength*sigmaDeriv);
+
+	if (theta_x != 0 || theta_y != 0)
+	{
+		axxx = theta_x3*Mderiv2/denom2 + 8.0*theta_x3*M/denom3 - 5.0*theta_x3*Mderiv/denom5_2 
+			- 6.0*theta_x*M/denom2 + 3.0*theta_x*Mderiv/denom3_2;
+		ayyy = theta_y3*Mderiv2/denom2 + 8.0*theta_y3*M/denom3 - 5.0*theta_y3*Mderiv/denom5_2 
+			- 6.0*theta_y*M/denom2 + 3.0*theta_y*Mderiv/denom3_2;
+		axxy = theta_x2*theta_y*Mderiv2/denom2 + 8.0*theta_x2*theta_y*M/denom3 - 5.0*theta_x2*theta_y*Mderiv/denom5_2
+			- 2.0*theta_y*M/denom2 + theta_y*Mderiv/denom3_2;
+		ayyx = theta_y2*theta_x*Mderiv2/denom2 + 8.0*theta_y2*theta_x*M/denom3 - 5.0*theta_y2*theta_x*Mderiv/denom5_2
+			- 2.0*theta_x*M/denom2 + theta_x*Mderiv/denom3_2;
+	}
+	else
+	{
+		axxx = 0;
+		ayyy = 0;
+		axxy = 0;
+		ayyx = 0;
+	}
+	double A = 4.0*CONST_G/(SPEED_C*SPEED_C*Dd);
+	axxx *= A;
+	ayyy *= A;
+	axxy *= A;
+	ayyx *= A;
+
+	return true;
+}
+
 SymmetricLens *SymmetricLens::cast(GravitationalLens *pLens)
 {
     return dynamic_cast<SymmetricLens *>(pLens);
@@ -134,6 +188,12 @@ SymmetricLens *SymmetricLens::cast(GravitationalLens *pLens)
 const SymmetricLens *SymmetricLens::cast(const GravitationalLens *pLens)
 {
     return dynamic_cast<const SymmetricLens *>(pLens);
+}
+
+bool SymmetricLens::getSurfaceMassDensityDerivative(double thetaLength, double &deriv) const
+{
+	setErrorString("Derivative or surface mass density is not implemented for this lens");
+	return false;
 }
 
 } // end namespace
