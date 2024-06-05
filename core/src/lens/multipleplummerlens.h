@@ -71,6 +71,7 @@ public:
 	double getSurfaceMassDensity(Vector2D<double> theta) const;
 	bool getProjectedPotential(double D_s, double D_ds, Vector2D<double> theta, double *pPotentialValue) const;
 	bool getAlphaVectorDerivatives(Vector2D<double> theta, double &axx, double &ayy, double &axy) const;
+	bool getAlphaVectorSecondDerivatives(Vector2D<double> theta, double &axxx, double &ayyy, double &axxy, double &ayyx) const override;
 
 	bool getSuggestedScales(double *pDeflectionScale, double *pPotentialScale) const;
 	bool getCLParameterCounts(int *pNumIntParams, int *pNumFloatParams) const;

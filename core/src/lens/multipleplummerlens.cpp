@@ -174,6 +174,39 @@ bool MultiplePlummerLens::getAlphaVectorDerivatives(Vector2D<double> theta, doub
 	return true;
 }
 
+bool MultiplePlummerLens::getAlphaVectorSecondDerivatives(Vector2D<double> theta, double &axxx, double &ayyy, double &axxy, double &ayyx) const
+{
+	double axxxSum = 0, ayyySum = 0, axxySum = 0, ayyxSum = 0;
+
+	for (int k = 0 ; k < numlenses ; k++)
+	{
+		Vector2Dd diff = theta-lensinfo[k].getAngularPosition();
+		Vector2Dd scaledDiff = diff/scalefactor;
+		double w = lensinfo[k].getAngularWidth();
+		double denom1 = scaledDiff.getLengthSquared()+w*w;
+		double denom2 = denom1*denom1;
+		double denom3 = denom2*denom1;
+		double theta_x = scaledDiff.getX();
+		double theta_y = scaledDiff.getY();
+		double theta_x2 = theta_x*theta_x;
+		double theta_y2 = theta_y*theta_y;
+		double theta_x3 = theta_x2*theta_x;
+		double theta_y3 = theta_y2*theta_y;
+		double frac = lensinfo[k].getMass();
+
+		axxxSum += frac*(8.0*theta_x3/denom3 - 6.0*theta_x/denom2);
+		ayyySum += frac*(8.0*theta_y3/denom3 - 6.0*theta_y/denom2);
+		axxySum += frac*(8.0*theta_x2*theta_y/denom3 - 2.0*theta_y/denom2);
+		ayyxSum += frac*(8.0*theta_y2*theta_x/denom3 - 2.0*theta_x/denom2);
+	}
+
+	axxx = axxxSum/scalefactor;
+	ayyy = ayyySum/scalefactor;
+	axxy = axxySum/scalefactor;
+	ayyx = ayyxSum/scalefactor;
+	return true;
+}
+
 double MultiplePlummerLens::getDerivAlphaTheta(int i,int j,Vector2D<double> theta) const
 {
 	double deriv = 0;
