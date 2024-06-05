@@ -93,6 +93,12 @@ double SISLens::getProfileSurfaceMassDensity(double thetaLength) const
 	return m_densFactor/thetaLength;
 }
 
+bool SISLens::getSurfaceMassDensityDerivative(double thetaLength, double &deriv) const
+{
+	deriv = -m_densFactor/(thetaLength*thetaLength);
+	return true;
+}
+
 bool SISLens::getProjectedPotential(double D_s, double D_ds, Vector2D<double> theta, 
 	                                double *pPotentialValue) const
 {

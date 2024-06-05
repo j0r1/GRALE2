@@ -76,6 +76,7 @@ protected:
 	bool processParameters(const GravitationalLensParams *pLensParams);
 	double getMassInside(double thetaLength) const;
 	double getProfileSurfaceMassDensity(double thetaLength) const;
+	bool getSurfaceMassDensityDerivative(double thetaLength, double &deriv) const override;
 private:
 	double m_massFactor, m_densFactor, m_core, m_coreSquared;
 };

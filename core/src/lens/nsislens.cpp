@@ -104,5 +104,13 @@ double NSISLens::getProfileSurfaceMassDensity(double thetaLength) const
 	return m_densFactor/SQRT(thetaLength*thetaLength+m_coreSquared);
 }
 
+bool NSISLens::getSurfaceMassDensityDerivative(double thetaLength, double &deriv) const
+{
+	double denom1 = thetaLength*thetaLength + m_coreSquared;
+	double denom3_2 = denom1*SQRT(denom1);
+	deriv = -m_densFactor*thetaLength/denom3_2;
+	return true;
+}
+
 } // end namespace
 
