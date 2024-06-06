@@ -68,6 +68,7 @@ void LensFitnessGeneral::clear()
 	m_totalDeflectionFlags.clear();
 	m_totalDerivativeFlags.clear();
 	m_totalPotentialFlags.clear();
+	m_totalSecondDerivFlags.clear();
 	m_totalInverseFlags.clear();
 	m_totalShearFlags.clear();
 	m_totalConvergenceFlags.clear();
@@ -78,6 +79,7 @@ void LensFitnessGeneral::clear()
 	m_shortDeflectionFlags.clear();
 	m_shortDerivativeFlags.clear();
 	m_shortPotentialFlags.clear();
+	m_shortSecondDerivFlags.clear();
 	m_shortInverseFlags.clear();
 	m_shortShearFlags.clear();
 	m_shortConvergenceFlags.clear();
@@ -436,6 +438,7 @@ bool LensFitnessGeneral::init(double z_d, std::list<ImagesDataExtended *> &image
 			m_totalDeflectionFlags,
 			m_totalDerivativeFlags,
 			m_totalPotentialFlags,
+			m_totalSecondDerivFlags,
 			m_totalInverseFlags,
 			m_totalShearFlags,
 			m_totalConvergenceFlags,
@@ -470,6 +473,7 @@ bool LensFitnessGeneral::init(double z_d, std::list<ImagesDataExtended *> &image
 			m_shortDeflectionFlags,
 			m_shortDerivativeFlags,
 			m_shortPotentialFlags,
+			m_shortSecondDerivFlags,
 			m_shortInverseFlags,
 			m_shortShearFlags,
 			m_shortConvergenceFlags,
@@ -606,6 +610,7 @@ bool LensFitnessGeneral::inspectImagesByComponents(list<ImagesDataExtended *> &i
 	vector<bool> &deflectionFlags,
 	vector<bool> &derivativeFlags,
 	vector<bool> &potentialFlags,
+	vector<bool> &secondDerivFlags,
 	vector<bool> &inverseFlags,
 	vector<bool> &shearFlags,
 	vector<bool> &convergenceFlags,
@@ -614,6 +619,7 @@ bool LensFitnessGeneral::inspectImagesByComponents(list<ImagesDataExtended *> &i
 	deflectionFlags.clear();
 	derivativeFlags.clear();
 	potentialFlags.clear();
+	secondDerivFlags.clear();
 	inverseFlags.clear();
 	shearFlags.clear();
 	convergenceFlags.clear();
@@ -630,17 +636,19 @@ bool LensFitnessGeneral::inspectImagesByComponents(list<ImagesDataExtended *> &i
 		// Process image in this component (component should ignore image if unknown type name)
 
 		bool totNeedDefl = false, totNeedDeflDeriv = false, totNeedPotential = false,
-			 totNeedInvMag = false, totNeedShear = false, totNeedConv = false;
+			 totNeedInvMag = false, totNeedShear = false, totNeedConv = false,
+			 totNeedDeflSecondDeriv = false;
 
 		for (auto pComp : components)
 		{
 			assert(pComp.get());
 
 			bool needDefl = false, needDeflDeriv = false, needPotential = false,
-				 needInvMag = false, needShear = false, needConv = false;
+				 needInvMag = false, needShear = false, needConv = false,
+				 needDeflSecondDeriv = false;
 
 			if (!pComp->inspectImagesData(imgDatCount, *pImgDat, needDefl, needDeflDeriv, needPotential,
-						                  needInvMag, needShear, needConv))
+						                  needInvMag, needShear, needConv, needDeflSecondDeriv))
 			{
 				setErrorString("Unable to process images data entry " + numStr + " by component " +
 						       pComp->getObjectName() + ": " + pComp->getErrorString());
@@ -662,6 +670,7 @@ bool LensFitnessGeneral::inspectImagesByComponents(list<ImagesDataExtended *> &i
 			if (needInvMag) totNeedInvMag = true;
 			if (needShear) totNeedShear = true;
 			if (needConv) totNeedConv = true;
+			if (needDeflSecondDeriv) totNeedDeflSecondDeriv = true;
 		}
 
 		deflectionFlags.push_back(totNeedDefl);
@@ -670,6 +679,7 @@ bool LensFitnessGeneral::inspectImagesByComponents(list<ImagesDataExtended *> &i
 		inverseFlags.push_back(totNeedInvMag);
 		shearFlags.push_back(totNeedShear);
 		convergenceFlags.push_back(totNeedConv);
+		secondDerivFlags.push_back(totNeedDeflSecondDeriv);
 	}
 
 	calcInverse = reduceFlags(inverseFlags);

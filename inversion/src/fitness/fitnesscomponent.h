@@ -73,7 +73,8 @@ public:
 
 	virtual bool inspectImagesData(int idx, const ImagesDataExtended &imgDat,
 			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
-			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence);
+			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence,
+								   bool &needCalcDeflSecondDeriv);
 
 	// Note that this may be called more than once
 	// TODO: prevent this?

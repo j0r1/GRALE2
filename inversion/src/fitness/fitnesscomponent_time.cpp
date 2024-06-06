@@ -28,7 +28,8 @@ FitnessComponent_TimeDelay::~FitnessComponent_TimeDelay()
 
 bool FitnessComponent_TimeDelay::inspectImagesData(int idx, const ImagesDataExtended &imgDat,
 			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
-			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence)
+			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence,
+								   bool &needCalcDeflSecondDeriv)
 {
 	string typeName;
 

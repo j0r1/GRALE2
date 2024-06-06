@@ -28,7 +28,8 @@ FitnessComponent_PointImagesOverlap::~FitnessComponent_PointImagesOverlap()
 
 bool FitnessComponent_PointImagesOverlap::inspectImagesData(int idx, const ImagesDataExtended &imgDat,
 							   bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
-							   bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence)
+							   bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence,
+							   bool &needCalcDeflSecondDeriv)
 {
 	string typeName;
 
@@ -260,7 +261,8 @@ bool_t FitnessComponent_PointGroupOverlap::extendedOrPointImageDataToPointGroups
 
 bool FitnessComponent_PointGroupOverlap::inspectImagesData(int idx, const ImagesDataExtended &imgDat,
 			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
-			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence)
+			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence,
+								   bool &needCalcDeflSecondDeriv)
 {
 	string typeName;
 
@@ -334,7 +336,8 @@ FitnessComponent_ExtendedImagesOverlap::~FitnessComponent_ExtendedImagesOverlap(
 
 bool FitnessComponent_ExtendedImagesOverlap::inspectImagesData(int idx, const ImagesDataExtended &imgDat,
 			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
-			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence)
+			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence,
+								   bool &needCalcDeflSecondDeriv)
 {
 	string typeName;
 

@@ -135,11 +135,13 @@ public:
 	 *  \param potentialFlags These indicate for which source indices the lens potential at
 	 *                        the image points should be calculated.
 	 *  */
-	virtual void getTotalCalcFlags(std::vector<bool> &deflectionFlags, std::vector<bool> &derivativeFlags, std::vector<bool> &potentialFlags) const = 0;
+	virtual void getTotalCalcFlags(std::vector<bool> &deflectionFlags, std::vector<bool> &derivativeFlags, std::vector<bool> &potentialFlags,
+	                               std::vector<bool> &secondDerivFlags) const = 0;
 
 	/** Same as the LensFitnessObject::getTotalCalcFlags, but this is about the \c massScaleImages
 	 *  list from the LensFitnessObject::init function. */
-	virtual void getShortCalcFlags(std::vector<bool> &deflectionFlags, std::vector<bool> &derivativeFlags, std::vector<bool> &potentialFlags) const = 0;
+	virtual void getShortCalcFlags(std::vector<bool> &deflectionFlags, std::vector<bool> &derivativeFlags, std::vector<bool> &potentialFlags,
+	                               std::vector<bool> &secondDerivFlags) const = 0;
 
 	///@}
 

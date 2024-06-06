@@ -25,7 +25,8 @@ FitnessComponent_KappaThreshold::~FitnessComponent_KappaThreshold()
 
 bool FitnessComponent_KappaThreshold::inspectImagesData(int idx, const ImagesDataExtended &imgDat,
 			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
-			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence)
+			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence,
+								   bool &needCalcDeflSecondDeriv)
 {
 	string typeName;
 
@@ -93,7 +94,8 @@ FitnessComponent_KappaGradient::~FitnessComponent_KappaGradient()
 
 bool FitnessComponent_KappaGradient::inspectImagesData(int idx, const ImagesDataExtended &imgDat,
 								bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
-								bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence)
+								bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence,
+								bool &needCalcDeflSecondDeriv)
 {
 	string typeName;
 

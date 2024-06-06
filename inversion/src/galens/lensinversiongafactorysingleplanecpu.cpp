@@ -258,10 +258,10 @@ bool_t LensInversionGAFactorySinglePlaneCPU::localSubInit(double z_d, const vect
 	if (!m_pDeflectionMatrix->startInit())
 		return "Can't start deflection matrix initialization: " + m_pDeflectionMatrix->getErrorString();
 
-	std::vector<bool> totalDeflectionFlags, totalDerivativeFlags, totalPotentialFlags;
+	std::vector<bool> totalDeflectionFlags, totalDerivativeFlags, totalPotentialFlags, totalSecondDerivFlags;
 
 	LensFitnessObject &fitnessObject = getFitnessObject();
-	fitnessObject.getTotalCalcFlags(totalDeflectionFlags, totalDerivativeFlags, totalPotentialFlags);
+	fitnessObject.getTotalCalcFlags(totalDeflectionFlags, totalDerivativeFlags, totalPotentialFlags, totalSecondDerivFlags);
 	
 	m_pTotalBPMatrix = make_shared<BackProjectMatrix>();
 	if (!(r = m_pTotalBPMatrix->startInit(z_d, basisLenses[0].first->getLensDistance(), m_pDeflectionMatrix.get(),
@@ -271,9 +271,9 @@ bool_t LensInversionGAFactorySinglePlaneCPU::localSubInit(double z_d, const vect
 
 	if (shortImagesVector.size() > 0) // Ok, can improve speed in mass-scale calculation
 	{
-		std::vector<bool> shortDeflectionFlags, shortDerivativeFlags, shortPotentialFlags;
+		std::vector<bool> shortDeflectionFlags, shortDerivativeFlags, shortPotentialFlags, shortSecondDerivFlags;
 
-		fitnessObject.getShortCalcFlags(shortDeflectionFlags, shortDerivativeFlags, shortPotentialFlags);
+		fitnessObject.getShortCalcFlags(shortDeflectionFlags, shortDerivativeFlags, shortPotentialFlags, shortSecondDerivFlags);
 
 		m_pShortBPMatrix = make_shared<BackProjectMatrix>();
 		if (!(r = m_pShortBPMatrix->startInit(z_d, basisLenses[0].first->getLensDistance(), m_pDeflectionMatrix.get(),

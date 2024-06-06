@@ -101,7 +101,8 @@ FitnessComponent::~FitnessComponent()
 
 bool FitnessComponent::inspectImagesData(int idx, const ImagesDataExtended &imgDat,
 			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
-			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence)
+			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence,
+								   bool &needCalcDeflSecondDeriv)
 {
 	setErrorString("FitnessComponent::inspectImagesData needs to be implemented in a subclass");
 	return false;

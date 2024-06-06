@@ -29,7 +29,8 @@ FitnessComponent_WeakLensing::~FitnessComponent_WeakLensing()
 
 bool FitnessComponent_WeakLensing::inspectImagesData(int idx, const ImagesDataExtended &imgDat,
 			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
-			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence)
+			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence,
+								   bool &needCalcDeflSecondDeriv)
 {
 	string typeName;
 
@@ -144,7 +145,8 @@ FitnessComponent_WeakLensing_Bayes::~FitnessComponent_WeakLensing_Bayes()
 
 bool FitnessComponent_WeakLensing_Bayes::inspectImagesData(int idx, const ImagesDataExtended &imgDat,
 			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
-			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence)
+			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence,
+								   bool &needCalcDeflSecondDeriv)
 {
 	string typeName;
 

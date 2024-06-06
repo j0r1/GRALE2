@@ -16,7 +16,8 @@ public:
 
 	bool inspectImagesData(int idx, const ImagesDataExtended &imgDat,
 			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
-			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence) override;
+			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence,
+								   bool &needCalcDeflSecondDeriv) override;
 	bool finalize(double zd, const Cosmology *pCosm) override;
 	bool calculateFitness(const ProjectedImagesInterface &iface, float &fitness) override;
 	bool processFitnessOption(const std::string &optionName, const TypedParameter &value) override;
@@ -45,7 +46,8 @@ public:
 
 	bool inspectImagesData(int idx, const ImagesDataExtended &imgDat,
 			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
-			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence) override;
+			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence,
+								   bool &needCalcDeflSecondDeriv) override;
 	bool calculateFitness(const ProjectedImagesInterface &iface, float &fitness) override;
 	bool processFitnessOption(const std::string &optionName, const TypedParameter &value) override;
 
@@ -67,7 +69,8 @@ public:
 
 	bool inspectImagesData(int idx, const ImagesDataExtended &imgDat,
 			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
-			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence) override;
+			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence,
+								   bool &needCalcDeflSecondDeriv) override;
 	bool calculateFitness(const ProjectedImagesInterface &iface, float &fitness) override;
 	bool finalize(double zd, const Cosmology *pCosm) override;
 private:

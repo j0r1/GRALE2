@@ -21,7 +21,8 @@ FitnessComponent_CausticPenalty::~FitnessComponent_CausticPenalty()
 
 bool FitnessComponent_CausticPenalty::inspectImagesData(int idx, const ImagesDataExtended &imgDat,
 			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
-			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence)
+			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence,
+								   bool &needCalcDeflSecondDeriv)
 {
 	string typeName;
 

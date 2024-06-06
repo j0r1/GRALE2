@@ -15,7 +15,8 @@ public:
 
 	bool inspectImagesData(int idx, const ImagesDataExtended &imgDat,
 			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
-			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence) override;
+			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence,
+								   bool &needCalcDeflSecondDeriv) override;
 	bool calculateFitness(const ProjectedImagesInterface &iface, float &fitness) override;
 private:
 	int m_lastImgIdx;
@@ -42,7 +43,8 @@ public:
 
 	bool inspectImagesData(int idx, const ImagesDataExtended &imgDat,
 			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
-			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence) override;
+			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence,
+								   bool &needCalcDeflSecondDeriv) override;
 	bool calculateFitness(const ProjectedImagesInterface &iface, float &fitness) override;
 private:
 	int m_lastImgIdx;

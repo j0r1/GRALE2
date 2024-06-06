@@ -65,11 +65,15 @@ public:
 	const std::vector<bool> *getTotalShearComponentFlags() const			{ return &m_totalShearFlags; }
 	const std::vector<bool> *getTotalConvergenceFlags() const 				{ return &m_totalConvergenceFlags; }
 
-	void getTotalCalcFlags(std::vector<bool> &deflectionFlags, std::vector<bool> &derivativeFlags, 
-			       std::vector<bool> &potentialFlags) const					{ deflectionFlags = m_totalDeflectionFlags; derivativeFlags = m_totalDerivativeFlags; potentialFlags = m_totalPotentialFlags; }
+	void getTotalCalcFlags(std::vector<bool> &deflectionFlags, 
+	                       std::vector<bool> &derivativeFlags, 
+	                       std::vector<bool> &potentialFlags,
+						   std::vector<bool> &secondDerivFlags) const override { deflectionFlags = m_totalDeflectionFlags; derivativeFlags = m_totalDerivativeFlags; potentialFlags = m_totalPotentialFlags; secondDerivFlags = m_totalSecondDerivFlags; }
 
-	void getShortCalcFlags(std::vector<bool> &deflectionFlags, std::vector<bool> &derivativeFlags, 
-			       std::vector<bool> &potentialFlags) const					{ deflectionFlags = m_shortDeflectionFlags; derivativeFlags = m_shortDerivativeFlags; potentialFlags = m_shortPotentialFlags; }
+	void getShortCalcFlags(std::vector<bool> &deflectionFlags,
+	                       std::vector<bool> &derivativeFlags, 
+	                       std::vector<bool> &potentialFlags,
+						   std::vector<bool> &secondDerivFlags) const override { deflectionFlags = m_shortDeflectionFlags; derivativeFlags = m_shortDerivativeFlags; potentialFlags = m_shortPotentialFlags; secondDerivFlags = m_shortSecondDerivFlags; }
 
 	int getNumberOfFitnessComponents() const								{ return m_numFitnessComponents; }
 
@@ -88,6 +92,7 @@ private:
 		std::vector<bool> &deflectionFlags,
 		std::vector<bool> &derivativeFlags,
 		std::vector<bool> &potentialFlags,
+		std::vector<bool> &secondDerivFlags,
 		std::vector<bool> &inverseFlags,
 		std::vector<bool> &shearFlags,
 		std::vector<bool> &convergenceFlags,
@@ -106,9 +111,9 @@ private:
 
 	bool m_totalInverse, m_totalShear, m_totalConvergence;
 	bool m_shortInverse, m_shortShear, m_shortConvergence;
-	std::vector<bool> m_totalDeflectionFlags, m_totalDerivativeFlags, m_totalPotentialFlags;
+	std::vector<bool> m_totalDeflectionFlags, m_totalDerivativeFlags, m_totalPotentialFlags, m_totalSecondDerivFlags;
 	std::vector<bool> m_totalInverseFlags, m_totalShearFlags, m_totalConvergenceFlags;
-	std::vector<bool> m_shortDeflectionFlags, m_shortDerivativeFlags, m_shortPotentialFlags;
+	std::vector<bool> m_shortDeflectionFlags, m_shortDerivativeFlags, m_shortPotentialFlags, m_shortSecondDerivFlags;
 	std::vector<bool> m_shortInverseFlags, m_shortShearFlags, m_shortConvergenceFlags;
 
 	std::vector<std::shared_ptr<FitnessComponent>> m_totalComponents, m_calculationOrderComponents;
