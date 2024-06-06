@@ -10,6 +10,7 @@
 #include <vector>
 #include <iostream>
 #include <memory>
+#include <stdexcept>
 
 using namespace grale;
 using namespace std;
@@ -67,7 +68,7 @@ int main(void)
 
 		int Nimg = 3;
 		if (!pImg->create(Nimg, true, true))
-			cerr << "Couldn't create image" << endl;
+			throw runtime_error("Couldn't create image");
 
 		for (int j = 0 ; j < Nimg ; j++)
 		{
@@ -92,7 +93,7 @@ int main(void)
 	}
 
 	if (!matrix.startInit())
-		cerr << "Couldn't init matrix" << endl;
+		throw runtime_error("Couldn't init matrix");
 
 	double D_d = 900*DIST_MPC;
 	double z_d = 0.7;
@@ -108,7 +109,7 @@ int main(void)
 
 		pBaseLens = new MultiplePlummerLens();
 		if (!pBaseLens->init(D_d, &params))
-			cerr << "Couldn't init base lens" << endl;
+			throw runtime_error("Couldn't init base lens");
 		cerr << "Using base lens" << endl;
 	}
 	else
@@ -122,10 +123,7 @@ int main(void)
 		MassSheetLensParams params(D_d, 1, 1);
 		sheetLens = shared_ptr<GravitationalLens>(new MassSheetLens());
 		if (!sheetLens->init(D_d, &params))
-		{
-			cerr << "Unable to initialize sheet lens: " << sheetLens->getErrorString() << endl;
-			return -1;
-		}
+			throw runtime_error("Unable to initialize sheet lens: " + sheetLens->getErrorString());
 	}
 	else
 		cerr << "Not using mass sheet" << endl;
@@ -133,7 +131,7 @@ int main(void)
 	BackProjectMatrix bpMatrix;
 	
 	if (!bpMatrix.startInit(z_d, D_d, &matrix, images, ones, ones, ones, ones, pBaseLens, sheetLens.get()))
-		cerr << "Couldn't init BackProjectMatrixNew" << endl;
+		throw runtime_error("Couldn't init BackProjectMatrixNew");
 
 	vector<pair<shared_ptr<GravitationalLens>, Vector2Dd>> basisLenses;
 	for (int i = 0 ; i < NLENSES ; i++) // lenses
@@ -147,23 +145,23 @@ int main(void)
 		PlummerLensParams params(mass, w);
 		shared_ptr<GravitationalLens> pLens(new PlummerLens());
 		if (!pLens->init(D_d, &params))
-			cerr << "Couldn't init lens" << endl;
+			throw runtime_error("Couldn't init lens");
 
 		basisLenses.push_back({pLens, ctr});
 	}
 
 	if (!matrix.endInit(basisLenses))
-		cerr << "Couldn't end matrix init" << endl;
+		throw runtime_error("Couldn't end matrix init");
 
 	if (!bpMatrix.endInit())
-		cerr << "Couldn't end BackProjectMatrixNew" << endl;
+		throw runtime_error("Couldn't end BackProjectMatrixNew");
 
 	vector<float> weights(basisLenses.size());
 	for (auto &w : weights)
 		w = (float)(rng.getRandomDouble()*0.5+0.5);
 
 	if (!matrix.calculateBasisMatrixProducts(weights, true, true, true, true))
-		cerr << "Couldn't calculate matrix product" << endl;
+		throw runtime_error("Couldn't calculate matrix product");
 
 	bpMatrix.storeDeflectionMatrixResults();
 	double scaleFactor = rng.getRandomDouble()+0.5;
@@ -183,12 +181,12 @@ int main(void)
 		MassSheetLensParams params(((SPEED_C*SPEED_C)/(4.0*CONST_PI*CONST_G*D_d)));
 		MassSheetLens l;
 		if (!l.init(D_d, &params))
-			cerr << "Couldn't init mass sheet lens" << endl;
+			throw runtime_error("Couldn't init mass sheet lens");
 		compParams.addLens(sheetFactor, Vector2Dd(0,0), 0, l);
 	}
 	auto compLens = make_shared<CompositeLens>();
 	if (!compLens->init(D_d, &compParams))
-		cerr << "Couldn't init composite lens" << endl;
+		throw runtime_error("Couldn't init composite lens");
 
 	list<ImagesDataExtended *> imageList;
 	for (auto i : images)
@@ -219,7 +217,23 @@ int main(void)
 		int npts = bpMatrix.getNumberOfImagePoints(s);
 		process(npts, bpMatrix.getLensPotential(s), pScaleMatrix, bpSlow.getLensPotential(s), pScaleSlow, maxDiff);
 	}
-	cout << "max diff = " << maxDiff << " arcsec^2" << endl;
+	cout << "max diff potential = " << maxDiff << " arcsec^2" << endl;
+
+	maxDiff = 0;
+	for (int s = 0 ; s < nSrc ; s++)
+	{
+		int npts = bpMatrix.getNumberOfImagePoints(s);
+		process(npts, bpMatrix.getSecondDerivativesXXX(s), 1.0/angScaleMatrix, 
+		        bpSlow.getSecondDerivativesXXX(s), 1.0/angScaleSlow, maxDiff);
+		process(npts, bpMatrix.getSecondDerivativesYYY(s), 1.0/angScaleMatrix, 
+		        bpSlow.getSecondDerivativesYYY(s), 1.0/angScaleSlow, maxDiff);
+		process(npts, bpMatrix.getSecondDerivativesXXY(s), 1.0/angScaleMatrix, 
+		        bpSlow.getSecondDerivativesXXY(s), 1.0/angScaleSlow, maxDiff);
+		process(npts, bpMatrix.getSecondDerivativesYYX(s), 1.0/angScaleMatrix, 
+		        bpSlow.getSecondDerivativesYYX(s), 1.0/angScaleSlow, maxDiff);
+	}
+
+	cout << "max diff a_xxx,a_yyy,a_xxy,a_yyx = " << maxDiff << " arcsec^-1" << endl;
 
 	vector<float> tdMatrix, tdSlow;
 	auto getTimeDelays = [](ProjectedImagesInterface &iface, vector<float> &v)

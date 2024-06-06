@@ -14,6 +14,7 @@
 #include <vector>
 #include <iostream>
 #include <memory>
+#include <stdexcept>
 
 using namespace grale;
 using namespace std;
@@ -71,7 +72,9 @@ int main(int argc, char *argv[])
 
 		int Nimg = 3;
 		if (!pImg->create(Nimg, true, true))
-			cerr << "Couldn't create image" << endl;
+			throw runtime_error("Couldn't create image");
+
+		pImg->setExtraParameter("type", string("extendedimages"));
 
 		for (int j = 0 ; j < Nimg ; j++)
 		{
@@ -96,7 +99,7 @@ int main(int argc, char *argv[])
 	}
 
 	if (!matrix.startInit())
-		cerr << "Couldn't init matrix" << endl;
+		throw runtime_error("Couldn't init matrix");
 
 	double D_d = 900*DIST_MPC;
 	double z_d = 0.7;
@@ -112,7 +115,7 @@ int main(int argc, char *argv[])
 
 		pBaseLens = new MultiplePlummerLens();
 		if (!pBaseLens->init(D_d, &params))
-			cerr << "Couldn't init base lens" << endl;
+			throw runtime_error("Couldn't init base lens");
 		cerr << "Using base lens" << endl;
 	}
 	else
@@ -131,7 +134,7 @@ int main(int argc, char *argv[])
 	BackProjectMatrix bpMatrix;
 	
 	if (!bpMatrix.startInit(z_d, D_d, &matrix, images, ones, ones, ones, ones, pBaseLens, sheetLens.get()))
-		cerr << "Couldn't init BackProjectMatrixNew" << endl;
+		throw runtime_error("Couldn't init BackProjectMatrixNew");
 
 	vector<pair<shared_ptr<GravitationalLens>, Vector2Dd>> basisLenses;
 	for (int i = 0 ; i < NLENSES ; i++) // lenses
@@ -145,23 +148,23 @@ int main(int argc, char *argv[])
 		PlummerLensParams params(mass, w);
 		shared_ptr<GravitationalLens> pLens(new PlummerLens());
 		if (!pLens->init(D_d, &params))
-			cerr << "Couldn't init lens" << endl;
+			throw runtime_error("Couldn't init lens");
 
 		basisLenses.push_back({pLens, ctr});
 	}
 
 	if (!matrix.endInit(basisLenses))
-		cerr << "Couldn't end matrix init" << endl;
+		throw runtime_error("Couldn't end matrix init");
 
 	if (!bpMatrix.endInit())
-		cerr << "Couldn't end BackProjectMatrixNew" << endl;
+		throw runtime_error("Couldn't end BackProjectMatrixNew");
 
 	vector<float> weights(basisLenses.size());
 	for (auto &w : weights)
 		w = (float)(rng.getRandomDouble()*0.5+0.5);
 
 	if (!matrix.calculateBasisMatrixProducts(weights, true, true, true, true))
-		cerr << "Couldn't calculate matrix product" << endl;
+		throw runtime_error("Couldn't calculate matrix product");
 
 	bpMatrix.storeDeflectionMatrixResults();
 	double scaleFactor = rng.getRandomDouble()+0.5;
@@ -181,7 +184,7 @@ int main(int argc, char *argv[])
 
 	auto compLens = make_shared<CompositeLens>();
 	if (!compLens->init(D_d, &compParams))
-		cerr << "Couldn't init composite lens" << endl;
+		throw runtime_error("Couldn't init composite lens");
 
 	list<ImagesDataExtended *> imageList;
 	for (auto i : images)
@@ -216,7 +219,7 @@ int main(int argc, char *argv[])
 
 	PreCalculatedBackProjector preBp;
 	if (!preBp.init(imgs, srcs))
-		cerr << "Couldn't init PreCalculatedBackProjector: " << preBp.getErrorString() << endl;
+		throw runtime_error("Couldn't init PreCalculatedBackProjector: " + preBp.getErrorString());
 
 	double angScalePrecalc = preBp.getAngularScale()/ANGLE_ARCSEC;
 	cout << "angScalePrecalc = " << angScalePrecalc << endl; 
@@ -243,11 +246,11 @@ int main(int argc, char *argv[])
 
 	float fitnessMatrix, fitnessSlow, fitnessPrecalc;
 	if (!pLFO->calculateMassScaleFitness(bpMatrix, fitnessMatrix))
-		cerr << "Can't calculate fitness based on matrix" << endl;
+		throw runtime_error("Can't calculate fitness based on matrix");
 	if (!pLFO->calculateMassScaleFitness(bpSlow, fitnessSlow))
-		cerr << "Can't calculate fitness based on slow" << endl;
+		throw runtime_error("Can't calculate fitness based on slow");
 	if (!pLFO->calculateMassScaleFitness(bpMatrix, fitnessPrecalc))
-		cerr << "Can't calculate fitness based on precalc bp" << endl;
+		throw runtime_error("Can't calculate fitness based on precalc bp");
 
 	cerr << "fitnessMatrix: " << fitnessMatrix << endl;
 	cerr << "fitnessSlow: " << fitnessSlow << endl;
