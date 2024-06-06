@@ -53,10 +53,31 @@ bool BackProjectMatrix::startInit(double z_d, double D_d, DeflectionMatrix *pDef
 		                     const std::vector<ImagesDataExtended *> &images,
 		                     const std::vector<bool> &useDeflections, 
 				     const std::vector<bool> &useDerivatives, 
-				     const std::vector<bool> &usePotentials, 
+				     const std::vector<bool> &usePotentials,
+					 const std::vector<bool> &useSecondDerivs,
 				     const GravitationalLens *pBaseLens,
 					 const GravitationalLens *pSheetLens)
 {
+	// TODO: just a check for now
+	for (bool x : useSecondDerivs)
+	{
+		if (x)
+		{
+			setErrorString("Second derivs of alpha is currently not supported");
+			return false;
+		}
+	}
+
+	// Sanity check
+	if (useDeflections.size() != images.size() ||
+	    useDerivatives.size() != images.size() ||
+		usePotentials.size() != images.size() ||
+		useSecondDerivs.size() != images.size() )
+	{
+		setErrorString("Bad input: all input vectors need to be of equal length");
+		return false;
+	}
+
 	if (m_init)
 	{
 		setErrorString("Already inialized");

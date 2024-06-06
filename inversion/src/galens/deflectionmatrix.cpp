@@ -136,6 +136,33 @@ int DeflectionMatrix::addDerivativePoint(Vector2D<double> point)
 	return existingIndex;
 }
 
+int DeflectionMatrix::addSecondDerivativePoint(Vector2D<double> point)
+{
+	if (m_initialized)
+	{
+		setErrorString("Initialization procedure has already been completed");
+		return -1;
+	}
+
+	if (!m_initializing)
+	{
+		setErrorString("Initialization procedure hasn't been started yet");
+		return -1;
+	}
+
+	const auto it = m_secondDerivativePointSet.find(point);
+	if (it == m_secondDerivativePointSet.end())
+	{
+		int newIndex = m_secondDerivativePoints.size();
+		m_secondDerivativePointSet[point] = newIndex;
+		m_secondDerivativePoints.push_back(point);
+		return newIndex;
+	}
+	
+	int existingIndex = it->second;
+	return existingIndex;
+}
+
 int DeflectionMatrix::addPotentialPoint(Vector2D<double> point)
 {
 	if (m_initialized)
@@ -258,6 +285,38 @@ bool DeflectionMatrix::endInit(const std::vector<std::pair<std::shared_ptr<Gravi
 		}
 	}
 
+	// Build second derivs matrix
+	for (size_t i = 0 ; i < 4 ; i++)
+	{
+		m_secondDerivativeMatrices[i].resize(m_secondDerivativePoints.size());
+		m_secondDerivatives[i].resize(m_secondDerivativePoints.size());
+	}
+
+	for (size_t i = 0 ; i < m_secondDerivativePoints.size() ; i++)
+	{
+		Vector2D<double> point = m_secondDerivativePoints[i];
+		for (size_t j = 0 ; j < 4 ; j++)
+			m_secondDerivativeMatrices[j][i].resize(m_numBasisFunctions);
+
+		for (int j = 0 ; j < m_numBasisFunctions ; j++)
+		{
+			Vector2D<double> relativePoint = point - basisLenses[j].second;
+			double axxx, ayyy, axxy, ayyx;
+
+			if (!basisLenses[j].first->getAlphaVectorSecondDerivatives(relativePoint, axxx, ayyy, axxy, ayyx))
+			{
+				setErrorString(std::string("Couldn't calculate deflection angle second derivatives: ") + basisLenses[j].first->getErrorString());
+				clear();
+				return false;
+			}
+
+			m_secondDerivativeMatrices[0][i][j] = (float)(axxx * m_angularScale);
+			m_secondDerivativeMatrices[1][i][j] = (float)(ayyy * m_angularScale);
+			m_secondDerivativeMatrices[2][i][j] = (float)(axxy * m_angularScale);
+			m_secondDerivativeMatrices[3][i][j] = (float)(ayyx * m_angularScale);
+		}
+	}
+
 	// Build potential matrix
 	
 	m_potentialMatrix.resize(m_potentialPoints.size());
@@ -290,13 +349,17 @@ bool DeflectionMatrix::endInit(const std::vector<std::pair<std::shared_ptr<Gravi
 	m_initialized = true;
 	m_initializing = false;
 
-	int numBytesInMatrices = ((m_deflectionMatrix[0].size()*2 + m_derivativeMatrices[0].size()*3 + m_potentialMatrix.size())*m_numBasisFunctions*sizeof(float));
+	int numBytesInMatrices = ((m_deflectionMatrix[0].size()*2 + 
+	                           m_derivativeMatrices[0].size()*3 + 
+							   m_potentialMatrix.size() +
+							   m_secondDerivativeMatrices[0].size()*4)*m_numBasisFunctions*sizeof(float));
 
 	double MB = ((double)numBytesInMatrices)/(1024.0*1024.0);
 
 	log("Matrices need " + std::to_string(MB) + " MB");
 	log("  Number of deflection points: " + std::to_string(m_deflectionMatrix[0].size()));
 	log("  Number of derivative points: " + std::to_string(m_derivativeMatrices[0].size()));
+	log("  Number of second derivative points: " + std::to_string(m_secondDerivativeMatrices[0].size()));
 	log("  Number of potential points: " + std::to_string(m_potentialMatrix.size()));
 	log("  Number of basis functions: " + std::to_string(m_numBasisFunctions));
 
@@ -331,8 +394,11 @@ void DeflectionMatrix::calculateAngularScale()
 	m_angularScale = maxValue/10.0; // TODO: better criterion? Perhaps based on the actual distribution of the values?
 }
 
-bool DeflectionMatrix::calculateBasisMatrixProducts(const std::vector<float> &basisWeights, bool calcDeflection, bool calcDerivatives, bool calcPotential)
+bool DeflectionMatrix::calculateBasisMatrixProducts(const std::vector<float> &basisWeights, bool calcDeflection, bool calcDerivatives, bool calcPotential,
+                                                    bool calcSecondDerivs)
 {
+	assert(basisWeights.size() == m_numBasisFunctions);
+
 	if (calcDeflection)
 	{
 		int numPoints = m_deflectionMatrix[0].size();
@@ -362,6 +428,29 @@ bool DeflectionMatrix::calculateBasisMatrixProducts(const std::vector<float> &ba
 		}
 	}
 
+	if (calcSecondDerivs)
+	{
+		int numPoints = m_secondDerivativeMatrices[0].size();
+		assert((size_t)numPoints == m_secondDerivativeMatrices[1].size() &&
+		       (size_t)numPoints == m_secondDerivativeMatrices[2].size() &&
+			   (size_t)numPoints == m_secondDerivativeMatrices[3].size());
+
+		for (int i = 0 ; i < numPoints ; i++)
+		{
+			assert(m_secondDerivativeMatrices[0][i].size() == m_numBasisFunctions);
+
+			float axxx = CalculateDotProduct(&(m_secondDerivativeMatrices[0][i][0]), &(basisWeights[0]), m_numBasisFunctions);
+			float ayyy = CalculateDotProduct(&(m_secondDerivativeMatrices[1][i][0]), &(basisWeights[0]), m_numBasisFunctions);
+			float axxy = CalculateDotProduct(&(m_secondDerivativeMatrices[2][i][0]), &(basisWeights[0]), m_numBasisFunctions);
+			float ayyx = CalculateDotProduct(&(m_secondDerivativeMatrices[3][i][0]), &(basisWeights[0]), m_numBasisFunctions);
+
+			m_secondDerivatives[0][i] = axxx;
+			m_secondDerivatives[1][i] = ayyy;
+			m_secondDerivatives[2][i] = axxy;
+			m_secondDerivatives[3][i] = ayyx;
+		}
+	}
+
 	if (calcPotential)
 	{
 		int numPoints = m_potentialMatrix.size();
@@ -382,10 +471,12 @@ void DeflectionMatrix::clear()
 	m_deflectionPointSet.clear();
 	m_derivativePointSet.clear();
 	m_potentialPointSet.clear();
+	m_secondDerivativePointSet.clear();
 
 	m_deflectionPoints.clear();
 	m_derivativePoints.clear();
 	m_potentialPoints.clear();
+	m_secondDerivativePoints.clear();
 
 	m_deflectionMatrix[0].clear();
 	m_deflectionMatrix[1].clear();
@@ -393,12 +484,20 @@ void DeflectionMatrix::clear()
 	m_derivativeMatrices[1].clear();
 	m_derivativeMatrices[2].clear();
 	m_potentialMatrix.clear();
+	m_secondDerivativeMatrices[0].clear();
+	m_secondDerivativeMatrices[1].clear();
+	m_secondDerivativeMatrices[2].clear();
+	m_secondDerivativeMatrices[3].clear();
 
 	m_deflectionAngles.clear();
 	m_derivatives[0].clear();
 	m_derivatives[1].clear();
 	m_derivatives[2].clear();
 	m_potentialValues.clear();
+	m_secondDerivatives[0].clear();
+	m_secondDerivatives[1].clear();
+	m_secondDerivatives[2].clear();
+	m_secondDerivatives[3].clear();
 
 	m_initializing = false;
 	m_initialized = false;

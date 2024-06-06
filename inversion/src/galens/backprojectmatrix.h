@@ -52,6 +52,7 @@ public:
 	               const std::vector<bool> &useDeflections, 
 		       const std::vector<bool> &useDerivatives,
 		       const std::vector<bool> &usePotentials,
+			   const std::vector<bool> &useSecondDerivs,
 		       const GravitationalLens *pBaseLens,
 		       const GravitationalLens *pSheetLens);
 	bool endInit();

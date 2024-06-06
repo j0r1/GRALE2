@@ -266,7 +266,7 @@ bool_t LensInversionGAFactorySinglePlaneCPU::localSubInit(double z_d, const vect
 	m_pTotalBPMatrix = make_shared<BackProjectMatrix>();
 	if (!(r = m_pTotalBPMatrix->startInit(z_d, basisLenses[0].first->getLensDistance(), m_pDeflectionMatrix.get(),
 				         reducedImagesVector, totalDeflectionFlags, totalDerivativeFlags, 
-					 totalPotentialFlags, pBaseLens, pSheetLens)))
+					     totalPotentialFlags, totalSecondDerivFlags, pBaseLens, pSheetLens)))
 		return "Can't start back projection matrix initialization: " + m_pTotalBPMatrix->getErrorString();
 
 	if (shortImagesVector.size() > 0) // Ok, can improve speed in mass-scale calculation
@@ -278,7 +278,7 @@ bool_t LensInversionGAFactorySinglePlaneCPU::localSubInit(double z_d, const vect
 		m_pShortBPMatrix = make_shared<BackProjectMatrix>();
 		if (!(r = m_pShortBPMatrix->startInit(z_d, basisLenses[0].first->getLensDistance(), m_pDeflectionMatrix.get(),
 						 shortImagesVector, shortDeflectionFlags, shortDerivativeFlags, 
-						 shortPotentialFlags, pBaseLens, pSheetLens)))
+						 shortPotentialFlags, shortSecondDerivFlags, pBaseLens, pSheetLens)))
 			return "Can't start short back projection matrix initialization: " + r.getErrorString();
 	}
 	else
@@ -310,7 +310,7 @@ bool_t LensInversionGAFactorySinglePlaneCPU::initializeNewCalculation(const vect
 	else
 		return "Unexpected: got more (" + to_string(sheetValues.size()) + ") mass sheet contributions than expected";
 	
-	m_pDeflectionMatrix->calculateBasisMatrixProducts(basisFunctionWeights, true, true, true);
+	m_pDeflectionMatrix->calculateBasisMatrixProducts(basisFunctionWeights, true, true, true, true);
 	m_pTotalBPMatrix->storeDeflectionMatrixResults();
 	m_pShortBPMatrix->storeDeflectionMatrixResults();
 	return true;

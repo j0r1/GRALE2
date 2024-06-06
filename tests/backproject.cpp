@@ -52,6 +52,7 @@ int main(void)
 	DeflectionMatrix matrix;
 	vector<ImagesDataExtended *> images;
 	vector<bool> ones;
+	vector<bool> zeros;
 #if 1
 	const int NSOURCES = 10;
 	const int NLENSES = 10;
@@ -89,6 +90,7 @@ int main(void)
 		}
 		images.push_back(pImg);
 		ones.push_back(true);
+		zeros.push_back(false);
 	}
 
 	if (!matrix.startInit())
@@ -132,7 +134,7 @@ int main(void)
 
 	BackProjectMatrix bpMatrix;
 	
-	if (!bpMatrix.startInit(z_d, D_d, &matrix, images, ones, ones, ones, pBaseLens, sheetLens.get()))
+	if (!bpMatrix.startInit(z_d, D_d, &matrix, images, ones, ones, ones, zeros, pBaseLens, sheetLens.get()))
 		cerr << "Couldn't init BackProjectMatrixNew" << endl;
 
 	vector<pair<shared_ptr<GravitationalLens>, Vector2Dd>> basisLenses;
@@ -162,7 +164,7 @@ int main(void)
 	for (auto &w : weights)
 		w = (float)(rng.getRandomDouble()*0.5+0.5);
 
-	if (!matrix.calculateBasisMatrixProducts(weights, true, true, true))
+	if (!matrix.calculateBasisMatrixProducts(weights, true, true, true, true))
 		cerr << "Couldn't calculate matrix product" << endl;
 
 	bpMatrix.storeDeflectionMatrixResults();
