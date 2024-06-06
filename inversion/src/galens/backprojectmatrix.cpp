@@ -58,16 +58,6 @@ bool BackProjectMatrix::startInit(double z_d, double D_d, DeflectionMatrix *pDef
 				     const GravitationalLens *pBaseLens,
 					 const GravitationalLens *pSheetLens)
 {
-	// TODO: just a check for now
-	for (bool x : useSecondDerivs)
-	{
-		if (x)
-		{
-			setErrorString("Second derivs of alpha is currently not supported");
-			return false;
-		}
-	}
-
 	// Sanity check
 	if (useDeflections.size() != images.size() ||
 	    useDerivatives.size() != images.size() ||
@@ -97,6 +87,7 @@ bool BackProjectMatrix::startInit(double z_d, double D_d, DeflectionMatrix *pDef
 	m_deflectionIndices.resize(images.size());
 	m_derivativeIndices.resize(images.size());
 	m_potentialIndices.resize(images.size());
+	m_secondDerivativeIndices.resize(images.size());
 
 	m_originalPoints.resize(images.size());
 	m_thetas.resize(images.size());
@@ -105,6 +96,10 @@ bool BackProjectMatrix::startInit(double z_d, double D_d, DeflectionMatrix *pDef
 	m_subDeflectionDerivatives[1].resize(images.size());
 	m_subDeflectionDerivatives[2].resize(images.size());
 	m_subPotentialValues.resize(images.size());
+	m_subDeflectionSecondDerivatives[0].resize(images.size());
+	m_subDeflectionSecondDerivatives[1].resize(images.size());
+	m_subDeflectionSecondDerivatives[2].resize(images.size());
+	m_subDeflectionSecondDerivatives[3].resize(images.size());
 
 	m_betas.resize(images.size());
 	m_alphas.resize(images.size());
@@ -112,6 +107,10 @@ bool BackProjectMatrix::startInit(double z_d, double D_d, DeflectionMatrix *pDef
 	m_ayy.resize(images.size());
 	m_axy.resize(images.size());
 	m_potentials.resize(images.size());
+	m_axxx.resize(images.size());
+	m_ayyy.resize(images.size());
+	m_axxy.resize(images.size());
+	m_ayyx.resize(images.size());
 	m_inverseMagnifications.resize(images.size());
 	m_shearComponent1.resize(images.size());
 	m_convergence.resize(images.size());
@@ -123,6 +122,10 @@ bool BackProjectMatrix::startInit(double z_d, double D_d, DeflectionMatrix *pDef
 		m_baseAyy.resize(images.size());
 		m_baseAxy.resize(images.size());
 		m_basePotentials.resize(images.size());
+		m_baseAxxx.resize(images.size());
+		m_baseAyyy.resize(images.size());
+		m_baseAxxy.resize(images.size());
+		m_baseAyyx.resize(images.size());
 		m_useBaseLens = true;
 	}
 	else
@@ -136,6 +139,10 @@ bool BackProjectMatrix::startInit(double z_d, double D_d, DeflectionMatrix *pDef
 		m_sheetAyy.resize(images.size());
 		m_sheetAxy.resize(images.size());
 		m_sheetPotentials.resize(images.size());
+		m_sheetAxxx.resize(images.size());
+		m_sheetAyyy.resize(images.size());
+		m_sheetAxxy.resize(images.size());
+		m_sheetAyyx.resize(images.size());
 	}
 	else
 		m_useMassSheet = false;
@@ -195,6 +202,35 @@ bool BackProjectMatrix::startInit(double z_d, double D_d, DeflectionMatrix *pDef
 			m_convergence[s].resize(offset);
 		}
 
+		if (useSecondDerivs[s])
+		{
+			m_secondDerivativeIndices[s].resize(offset);
+			for (auto &x : m_secondDerivativeIndices[s])
+				x = -1;
+			for (size_t j = 0 ; j < 4 ; j++)
+				m_subDeflectionSecondDerivatives[j][s].resize(offset);
+			m_axxx[s].resize(offset);
+			m_ayyy[s].resize(offset);
+			m_axxy[s].resize(offset);
+			m_ayyx[s].resize(offset);
+			if (m_useBaseLens)
+			{
+				m_baseAxxx[s].resize(offset);
+				m_baseAyyy[s].resize(offset);
+				m_baseAxxy[s].resize(offset);
+				m_baseAyyx[s].resize(offset);
+			}
+			if (m_useMassSheet)
+			{
+				m_sheetAxxx[s].resize(offset);
+				m_sheetAyyy[s].resize(offset);
+				m_sheetAxxy[s].resize(offset);
+				m_sheetAyyx[s].resize(offset);
+			}
+
+			// TODO: init things that are calculated from these derivatives
+		}
+
 		if (pImgDat->hasTimeDelays() && usePotentials[s])
 		{
 			m_potentialIndices[s].resize(offset);
@@ -249,7 +285,15 @@ bool BackProjectMatrix::startInit(double z_d, double D_d, DeflectionMatrix *pDef
 
 					m_derivativeIndices[s][offset] = pointIndex;
 				}
-
+				if (useSecondDerivs[s])
+				{
+					if ((pointIndex = m_pDeflectionMatrix->addSecondDerivativePoint(point)) < 0)
+					{
+						setErrorString("Couldn't add second derivative point: " + m_pDeflectionMatrix->getErrorString());
+						return false;
+					}
+					m_secondDerivativeIndices[s][offset] = pointIndex;
+				}
 			}
 		}
 
@@ -284,14 +328,23 @@ bool BackProjectMatrix::startInit(double z_d, double D_d, DeflectionMatrix *pDef
 	auto getLensProperties = [&originalPoints, &distanceFractions](const GravitationalLens *pLens,
 								vector<vector<Vector2Dd>> &alphasUnscaled, 
 								vector<vector<double>> &potentialsUnscaled,
+								vector<vector<double>> &axxxsUnscaled,
+								vector<vector<double>> &ayyysUnscaled,
+								vector<vector<double>> &axxysUnscaled,
+								vector<vector<double>> &ayyxsUnscaled,
 								vector<vector<Vector2Df>> &alphas,
 								vector<vector<float>> &potentials,
 								vector<vector<float>> &axxs,
 								vector<vector<float>> &ayys,
-								vector<vector<float>> &axys) -> bool_t
+								vector<vector<float>> &axys,
+								vector<vector<float>> &axxxs) -> bool_t
 	{
 		alphasUnscaled.resize(originalPoints.size());
 		potentialsUnscaled.resize(originalPoints.size());
+		axxxsUnscaled.resize(originalPoints.size());
+		ayyysUnscaled.resize(originalPoints.size());
+		axxysUnscaled.resize(originalPoints.size());
+		ayyxsUnscaled.resize(originalPoints.size());
 
 		for (int s = 0 ; s < originalPoints.size() ; s++)
 		{
@@ -331,6 +384,27 @@ bool BackProjectMatrix::startInit(double z_d, double D_d, DeflectionMatrix *pDef
 					axys[s][i] = (float)axy;
 				}
 			}
+			if ((numPoints = axxxs[s].size()) > 0)
+			{
+				axxxsUnscaled[s].resize(numPoints);
+				ayyysUnscaled[s].resize(numPoints);
+				axxysUnscaled[s].resize(numPoints);
+				ayyxsUnscaled[s].resize(numPoints);
+
+				for (int i = 0 ; i < numPoints ; i++)
+				{
+					Vector2D<double> point = originalPoints[s][i];
+					double axxx, ayyy, axxy, ayyx;
+
+					if (!pLens->getAlphaVectorSecondDerivatives(point, axxx, ayyy, axxy, ayyx))
+						return "Unable to calculate base lens second deflection angle derivatives: " + pLens->getErrorString();
+
+					axxxsUnscaled[s][i] = axxx*(double)distanceFractions[s];
+					ayyysUnscaled[s][i] = ayyy*(double)distanceFractions[s];
+					axxysUnscaled[s][i] = axxy*(double)distanceFractions[s];
+					ayyxsUnscaled[s][i] = ayyx*(double)distanceFractions[s];
+				}
+			}
 			if ((numPoints = potentials[s].size()) > 0)
 			{
 				potentialsUnscaled[s].resize(numPoints);
@@ -353,7 +427,8 @@ bool BackProjectMatrix::startInit(double z_d, double D_d, DeflectionMatrix *pDef
 	if (m_useBaseLens)
 	{
 		bool_t r = getLensProperties(pBaseLens, m_baseAlphasUnscaled, m_basePotentialsUnscaled, 
-				                     m_baseAlphas, m_basePotentials, m_baseAxx, m_baseAyy, m_baseAxy);
+		                             m_baseAxxxUnscaled, m_baseAyyyUnscaled, m_baseAxxyUnscaled, m_baseAyyxUnscaled,
+				                     m_baseAlphas, m_basePotentials, m_baseAxx, m_baseAyy, m_baseAxy, m_baseAxxx);
 		if (!r)
 		{
 			setErrorString("Can't get lens properties for base lens: " + r.getErrorString());
@@ -363,7 +438,8 @@ bool BackProjectMatrix::startInit(double z_d, double D_d, DeflectionMatrix *pDef
 	if (m_useMassSheet)
 	{
 		bool_t r = getLensProperties(pSheetLens, m_sheetAlphasUnscaled, m_sheetPotentialsUnscaled,
-				                     m_sheetAlphas, m_sheetPotentials, m_sheetAxx, m_sheetAyy, m_sheetAxy);
+		                             m_sheetAxxxUnscaled, m_sheetAyyyUnscaled, m_sheetAxxyUnscaled, m_sheetAyyxUnscaled,
+				                     m_sheetAlphas, m_sheetPotentials, m_sheetAxx, m_sheetAyy, m_sheetAxy, m_sheetAxxx);
 
 		if (!r)
 		{
@@ -427,6 +503,17 @@ bool BackProjectMatrix::endInit() // m_pDeflectionMatrix->endInit() must be call
 				for (int i = 0 ; i < numPoints ; i++)
 					m_basePotentials[s][i] = m_basePotentialsUnscaled[s][i]/(angularScale*angularScale);
 			}
+
+			if ((numPoints = m_baseAxxx[s].size()) > 0)
+			{
+				for (int i = 0 ; i < numPoints ; i++)
+				{
+					m_baseAxxx[s][i] = (float)(m_baseAxxxUnscaled[s][i] * angularScale);
+					m_baseAyyy[s][i] = (float)(m_baseAyyyUnscaled[s][i] * angularScale);
+					m_baseAxxy[s][i] = (float)(m_baseAxxyUnscaled[s][i] * angularScale);
+					m_baseAyyx[s][i] = (float)(m_baseAyyxUnscaled[s][i] * angularScale);
+				}
+			}
 		}
 
 		if (m_useMassSheet)
@@ -443,12 +530,33 @@ bool BackProjectMatrix::endInit() // m_pDeflectionMatrix->endInit() must be call
 				for (int i = 0 ; i < numPoints ; i++)
 					m_sheetPotentials[s][i] = m_sheetPotentialsUnscaled[s][i]/(angularScale*angularScale);
 			}
+			if ((numPoints = m_sheetAxxx[s].size()) > 0)
+			{
+				for (int i = 0 ; i < numPoints ; i++)
+				{
+					m_sheetAxxx[s][i] = (float)(m_sheetAxxxUnscaled[s][i] * angularScale);
+					m_sheetAyyy[s][i] = (float)(m_sheetAyyyUnscaled[s][i] * angularScale);
+					m_sheetAxxy[s][i] = (float)(m_sheetAxxyUnscaled[s][i] * angularScale);
+					m_sheetAyyx[s][i] = (float)(m_sheetAyyxUnscaled[s][i] * angularScale);
+				}
+			}
 		}
 	}
 
 	m_originalPoints.clear();
 	m_baseAlphasUnscaled.clear();
 	m_basePotentialsUnscaled.clear();
+	m_baseAxxxUnscaled.clear();
+	m_baseAyyyUnscaled.clear();
+	m_baseAxxyUnscaled.clear();
+	m_baseAyyxUnscaled.clear();
+	
+	m_sheetAlphasUnscaled.clear();
+	m_sheetPotentialsUnscaled.clear();
+	m_sheetAxxxUnscaled.clear();
+	m_sheetAyyyUnscaled.clear();
+	m_sheetAxxyUnscaled.clear();
+	m_sheetAyyxUnscaled.clear();
 
 	m_timeDelayScale = (float)((1.0+m_zd)*m_Dd*angularScale*angularScale/(SPEED_C*60.0*60.0*24.0));
 	m_massSheetScale = SPEED_C*SPEED_C/(4.0*CONST_PI*CONST_G*m_Dd);
@@ -488,6 +596,20 @@ void BackProjectMatrix::storeDeflectionMatrixResults()
 			m_subDeflectionDerivatives[0][s][i] = axx * distanceFraction;
 			m_subDeflectionDerivatives[1][s][i] = ayy * distanceFraction;
 			m_subDeflectionDerivatives[2][s][i] = axy * distanceFraction;
+		}
+
+		numPoints = m_secondDerivativeIndices[s].size();
+		
+		for (int i = 0 ; i < numPoints ; i++)
+		{
+			int index = m_secondDerivativeIndices[s][i];
+			float axxx, ayyy, axxy, ayyx;
+			
+			m_pDeflectionMatrix->getSecondDeflectionDerivatives(index, &axxx, &ayyy, &axxy, &ayyx);
+			m_subDeflectionSecondDerivatives[0][s][i] = axxx * distanceFraction;
+			m_subDeflectionSecondDerivatives[1][s][i] = ayyy * distanceFraction;
+			m_subDeflectionSecondDerivatives[2][s][i] = axxy * distanceFraction;
+			m_subDeflectionSecondDerivatives[3][s][i] = ayyx * distanceFraction;
 		}
 
 		numPoints = m_potentialIndices[s].size();
@@ -543,6 +665,28 @@ void BackProjectMatrix::calculate(float scaleFactor, float massSheetFactor)
 				CalculateAddProductC(&(m_axx[s][0]), (float *)&(m_sheetAxx[s][0]), massSheetFactor, numPoints, &(m_tmpBuffer[0]));
 				CalculateAddProductC(&(m_ayy[s][0]), (float *)&(m_sheetAyy[s][0]), massSheetFactor, numPoints, &(m_tmpBuffer[0]));
 				CalculateAddProductC(&(m_axy[s][0]), (float *)&(m_sheetAxy[s][0]), massSheetFactor, numPoints, &(m_tmpBuffer[0]));
+			}
+		}
+
+		if ((numPoints = m_secondDerivativeIndices[s].size()) > 0)
+		{
+			MultiplyVector(&(m_axxx[s][0]), &(m_subDeflectionSecondDerivatives[0][s][0]), scaleFactor, numPoints);
+			MultiplyVector(&(m_ayyy[s][0]), &(m_subDeflectionSecondDerivatives[1][s][0]), scaleFactor, numPoints);
+			MultiplyVector(&(m_axxy[s][0]), &(m_subDeflectionSecondDerivatives[2][s][0]), scaleFactor, numPoints);
+			MultiplyVector(&(m_ayyx[s][0]), &(m_subDeflectionSecondDerivatives[3][s][0]), scaleFactor, numPoints);
+			if (m_useBaseLens)
+			{
+				AddVector(&(m_axxx[s][0]), &(m_baseAxxx[s][0]), numPoints);
+				AddVector(&(m_ayyy[s][0]), &(m_baseAyyy[s][0]), numPoints);
+				AddVector(&(m_axxy[s][0]), &(m_baseAxxy[s][0]), numPoints);
+				AddVector(&(m_ayyx[s][0]), &(m_baseAyyx[s][0]), numPoints);
+			}
+			if (massSheetFactor != 0 && m_useMassSheet)
+			{
+				CalculateAddProductC(&(m_axxx[s][0]), (float*)&(m_sheetAxxx[s][0]), massSheetFactor, numPoints, &(m_tmpBuffer[0]));
+				CalculateAddProductC(&(m_ayyy[s][0]), (float*)&(m_sheetAyyy[s][0]), massSheetFactor, numPoints, &(m_tmpBuffer[0]));
+				CalculateAddProductC(&(m_axxy[s][0]), (float*)&(m_sheetAxxy[s][0]), massSheetFactor, numPoints, &(m_tmpBuffer[0]));
+				CalculateAddProductC(&(m_ayyx[s][0]), (float*)&(m_sheetAyyx[s][0]), massSheetFactor, numPoints, &(m_tmpBuffer[0]));
 			}
 		}
 

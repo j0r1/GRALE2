@@ -83,6 +83,16 @@ public:
 	const float *getDerivativesYY(int sourceNumber, int imageNumber) const					{ return &(m_ayy[sourceNumber][m_offsets[sourceNumber][imageNumber]]); }
 	const float *getDerivativesXY(int sourceNumber) const							{ return &(m_axy[sourceNumber][0]); }
 	const float *getDerivativesXY(int sourceNumber, int imageNumber) const					{ return &(m_axy[sourceNumber][m_offsets[sourceNumber][imageNumber]]); }
+
+	const float *getSecondDerivativesXXX(int sourceNumber) const						{ return &(m_axxx[sourceNumber][0]); }
+	const float *getSecondDerivativesXXX(int sourceNumber, int imageNumber) const		{ return &(m_axxx[sourceNumber][m_offsets[sourceNumber][imageNumber]]); }
+	const float *getSecondDerivativesYYY(int sourceNumber) const						{ return &(m_ayyy[sourceNumber][0]); }
+	const float *getSecondDerivativesYYY(int sourceNumber, int imageNumber) const		{ return &(m_ayyy[sourceNumber][m_offsets[sourceNumber][imageNumber]]); }
+	const float *getSecondDerivativesXXY(int sourceNumber) const						{ return &(m_axxy[sourceNumber][0]); }
+	const float *getSecondDerivativesXXY(int sourceNumber, int imageNumber) const		{ return &(m_axxy[sourceNumber][m_offsets[sourceNumber][imageNumber]]); }
+	const float *getSecondDerivativesYYX(int sourceNumber) const						{ return &(m_ayyx[sourceNumber][0]); }
+	const float *getSecondDerivativesYYX(int sourceNumber, int imageNumber) const		{ return &(m_ayyx[sourceNumber][m_offsets[sourceNumber][imageNumber]]); }
+
 	const float *getInverseMagnifications(int sourceNumber) const						{ return &(m_inverseMagnifications[sourceNumber][0]); }
 	const float *getInverseMagnifications(int sourceNumber, int imageNumber) const				{ return &(m_inverseMagnifications[sourceNumber][m_offsets[sourceNumber][imageNumber]]); }
 	const float *getShearComponents1(int sourceNumber) const						{ return &(m_shearComponent1[sourceNumber][0]); }
@@ -101,16 +111,19 @@ private:
 
 	std::vector<std::vector<int> > m_deflectionIndices;
 	std::vector<std::vector<int> > m_derivativeIndices;
+	std::vector<std::vector<int> > m_secondDerivativeIndices;
 	std::vector<std::vector<int> > m_potentialIndices;
 
 	std::vector<std::vector<Vector2D<double> > > m_originalPoints; 
 
 	bool m_useBaseLens;
 	std::vector<std::vector<float> > m_baseAxx, m_baseAyy, m_baseAxy;
+	std::vector<std::vector<float> > m_baseAxxx, m_baseAyyy, m_baseAxxy, m_baseAyyx;
 	std::vector<std::vector<float> > m_basePotentials;
 	std::vector<std::vector<Vector2D<float> > > m_baseAlphas;
 	std::vector<std::vector<Vector2D<double> > > m_baseAlphasUnscaled;
 	std::vector<std::vector<double> > m_basePotentialsUnscaled;
+	std::vector<std::vector<double> > m_baseAxxxUnscaled, m_baseAyyyUnscaled, m_baseAxxyUnscaled, m_baseAyyxUnscaled;
 
 	double m_Dd, m_zd;
 	double m_angularScale;
@@ -121,10 +134,12 @@ private:
 	std::vector<std::vector<Vector2D<float> > > m_subDeflectionAngles;
 	std::vector<std::vector<float> > m_subDeflectionDerivatives[3];
 	std::vector<std::vector<float> > m_subPotentialValues;
+	std::vector<std::vector<float> > m_subDeflectionSecondDerivatives[4];
 
 	std::vector<std::vector<Vector2D<float> > > m_betas;
 	std::vector<std::vector<Vector2D<float> > > m_alphas;
 	std::vector<std::vector<float> > m_axx, m_ayy, m_axy;
+	std::vector<std::vector<float> > m_axxx, m_ayyy, m_axxy, m_ayyx;
 	std::vector<std::vector<float> > m_potentials;
 	std::vector<std::vector<float> > m_inverseMagnifications;
 	std::vector<std::vector<float> > m_shearComponent1;
@@ -132,9 +147,11 @@ private:
 
 	std::vector<std::vector<Vector2D<float> > > m_sheetAlphas;
 	std::vector<std::vector<float> > m_sheetAxx, m_sheetAyy, m_sheetAxy;
+	std::vector<std::vector<float> > m_sheetAxxx, m_sheetAyyy, m_sheetAxxy, m_sheetAyyx;
 	std::vector<std::vector<float> > m_sheetPotentials;
 	std::vector<std::vector<Vector2D<double> > > m_sheetAlphasUnscaled;
 	std::vector<std::vector<double> > m_sheetPotentialsUnscaled;
+	std::vector<std::vector<double> > m_sheetAxxxUnscaled, m_sheetAyyyUnscaled, m_sheetAxxyUnscaled, m_sheetAyyxUnscaled;
 	bool m_useMassSheet;
 
 	std::vector<float> m_tmpBuffer;

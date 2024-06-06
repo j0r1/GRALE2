@@ -147,6 +147,16 @@ public:
 	/** Returns alpha_xy values for the points of a specific image of a specific source. */
 	virtual const float *getDerivativesXY(int sourceNumber, int imageNumber) const = 0;
 
+	virtual const float *getSecondDerivativesXXX(int sourceNumber) const = 0;
+	virtual const float *getSecondDerivativesXXX(int sourceNumber, int imageNumber) const = 0;
+	virtual const float *getSecondDerivativesYYY(int sourceNumber) const = 0;
+	virtual const float *getSecondDerivativesYYY(int sourceNumber, int imageNumber) const = 0;
+	virtual const float *getSecondDerivativesXXY(int sourceNumber) const = 0;
+	virtual const float *getSecondDerivativesXXY(int sourceNumber, int imageNumber) const = 0;
+	virtual const float *getSecondDerivativesYYX(int sourceNumber) const = 0;
+	virtual const float *getSecondDerivativesYYX(int sourceNumber, int imageNumber) const = 0;
+
+
 	/** Returns the calculated inverse magnification values for all points of a specific
 	 *  source (expressed in termes of the intensity scale) */
 	virtual const float *getInverseMagnifications(int sourcenum) const = 0;

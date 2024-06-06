@@ -78,6 +78,16 @@ public:
 	const float *getDerivativesYY(int sourceNumber, int imageNumber) const 		{ checkDerivatives(sourceNumber); return &(m_ayy[sourceNumber][m_offsets[sourceNumber][imageNumber]]); }
 	const float *getDerivativesXY(int sourceNumber) const 				{ checkDerivatives(sourceNumber); return &(m_axy[sourceNumber][0]); }
 	const float *getDerivativesXY(int sourceNumber, int imageNumber) const		{ checkDerivatives(sourceNumber); return &(m_axy[sourceNumber][m_offsets[sourceNumber][imageNumber]]); }
+
+	const float *getSecondDerivativesXXX(int sourceNumber) const						{ checkSecondDerivatives(sourceNumber); return &(m_axxx[sourceNumber][0]); }
+	const float *getSecondDerivativesXXX(int sourceNumber, int imageNumber) const		{ checkSecondDerivatives(sourceNumber); return &(m_axxx[sourceNumber][m_offsets[sourceNumber][imageNumber]]); }
+	const float *getSecondDerivativesYYY(int sourceNumber) const						{ checkSecondDerivatives(sourceNumber); return &(m_ayyy[sourceNumber][0]); }
+	const float *getSecondDerivativesYYY(int sourceNumber, int imageNumber) const		{ checkSecondDerivatives(sourceNumber); return &(m_ayyy[sourceNumber][m_offsets[sourceNumber][imageNumber]]); }
+	const float *getSecondDerivativesXXY(int sourceNumber) const						{ checkSecondDerivatives(sourceNumber); return &(m_axxy[sourceNumber][0]); }
+	const float *getSecondDerivativesXXY(int sourceNumber, int imageNumber) const		{ checkSecondDerivatives(sourceNumber); return &(m_axxy[sourceNumber][m_offsets[sourceNumber][imageNumber]]); }
+	const float *getSecondDerivativesYYX(int sourceNumber) const						{ checkSecondDerivatives(sourceNumber); return &(m_ayyx[sourceNumber][0]); }
+	const float *getSecondDerivativesYYX(int sourceNumber, int imageNumber) const		{ checkSecondDerivatives(sourceNumber); return &(m_ayyx[sourceNumber][m_offsets[sourceNumber][imageNumber]]); }
+
 	const float *getInverseMagnifications(int sourceNumber) const			{ checkInvMag(sourceNumber); return &(m_invMag[sourceNumber][0]); }
 	const float *getInverseMagnifications(int sourceNumber, int imageNumber) const	{ checkInvMag(sourceNumber); return &(m_invMag[sourceNumber][m_offsets[sourceNumber][imageNumber]]); }
 	const float *getShearComponents1(int sourceNumber) const 			{ checkShear(sourceNumber); return &(m_shearComponents1[sourceNumber][0]); }
@@ -94,6 +104,7 @@ private:
 	void checkBetas(int sourceNumber) const;
 	void checkAlphas(int sourceNumber) const;
 	void checkDerivatives(int sourceNumber) const;
+	void checkSecondDerivatives(int sourceNumber) const;
 	void checkInvMag(int sourceNumber) const;
 	void checkShear(int sourceNumber) const;
 	void checkConvergence(int sourceNumber) const;
@@ -104,6 +115,7 @@ private:
 	std::vector<std::vector<Vector2D<float> > > m_thetas;
 	std::vector<std::vector<Vector2D<double> > > m_originalThetas;
 	mutable std::vector<std::vector<float> > m_axx, m_ayy, m_axy;
+	mutable std::vector<std::vector<float> > m_axxx, m_ayyy, m_axxy, m_ayyx;
 	mutable std::vector<std::vector<float> > m_invMag;
 	mutable std::vector<std::vector<float> > m_shearComponents1;
 	mutable std::vector<std::vector<float> > m_convergence;

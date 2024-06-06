@@ -58,6 +58,10 @@ ImagesBackProjector::ImagesBackProjector(const shared_ptr<GravitationalLens> &le
 	m_axx.resize(images.size());
 	m_ayy.resize(images.size());
 	m_axy.resize(images.size());
+	m_axxx.resize(images.size());
+	m_ayyy.resize(images.size());
+	m_axxy.resize(images.size());
+	m_ayyx.resize(images.size());
 	m_invMag.resize(images.size());
 	m_shearComponents1.resize(images.size());
 	m_convergence.resize(images.size());
@@ -217,6 +221,39 @@ void ImagesBackProjector::checkDerivatives(int sourceNumber) const
 		m_axx[sourceNumber][i] = (float)axx;
 		m_ayy[sourceNumber][i] = (float)ayy;
 		m_axy[sourceNumber][i] = (float)axy;
+	}
+}
+
+void ImagesBackProjector::checkSecondDerivatives(int sourceNumber) const
+{
+	int numPoints = m_thetas[sourceNumber].size();
+
+	if (m_axxx[sourceNumber].size() == numPoints)
+		return;
+
+	m_axxx[sourceNumber].resize(numPoints);
+	m_ayyy[sourceNumber].resize(numPoints);
+	m_axxy[sourceNumber].resize(numPoints);
+	m_ayyx[sourceNumber].resize(numPoints);
+
+	for (int i = 0 ; i < numPoints ; i++)
+	{
+		double axxx = numeric_limits<double>::quiet_NaN();
+		double ayyy = numeric_limits<double>::quiet_NaN();
+		double axxy = numeric_limits<double>::quiet_NaN();
+		double ayyx = numeric_limits<double>::quiet_NaN();
+
+		m_pLens->getAlphaVectorSecondDerivatives(m_originalThetas[sourceNumber][i], axxx, ayyy, axxy, ayyx);
+
+		axxx *= m_distanceFractions[sourceNumber];
+		ayyy *= m_distanceFractions[sourceNumber];
+		axxy *= m_distanceFractions[sourceNumber];
+		ayyx *= m_distanceFractions[sourceNumber];
+
+		m_axxx[sourceNumber][i] = (float)(axxx*m_angularScale);
+		m_ayyy[sourceNumber][i] = (float)(ayyy*m_angularScale);
+		m_axxy[sourceNumber][i] = (float)(axxy*m_angularScale);
+		m_ayyx[sourceNumber][i] = (float)(ayyx*m_angularScale);
 	}
 }
 

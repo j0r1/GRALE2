@@ -38,6 +38,14 @@ public:
 	const float *getDerivativesYY(int sourceNumber, int imageNumber) const				{ return nullptr; }
 	const float *getDerivativesXY(int sourceNumber) const								{ return nullptr; }
 	const float *getDerivativesXY(int sourceNumber, int imageNumber) const				{ return nullptr; }
+	const float *getSecondDerivativesXXX(int sourceNumber) const						{ return nullptr; }
+	const float *getSecondDerivativesXXX(int sourceNumber, int imageNumber) const		{ return nullptr; }
+	const float *getSecondDerivativesYYY(int sourceNumber) const						{ return nullptr; }
+	const float *getSecondDerivativesYYY(int sourceNumber, int imageNumber) const		{ return nullptr; }
+	const float *getSecondDerivativesXXY(int sourceNumber) const						{ return nullptr; }
+	const float *getSecondDerivativesXXY(int sourceNumber, int imageNumber) const		{ return nullptr; }
+	const float *getSecondDerivativesYYX(int sourceNumber) const						{ return nullptr; }
+	const float *getSecondDerivativesYYX(int sourceNumber, int imageNumber) const		{ return nullptr; }
 	const float *getInverseMagnifications(int sourceNumber) const						{ return nullptr; }
 	const float *getInverseMagnifications(int sourceNumber, int imageNumber) const		{ return nullptr; }
 	const float *getShearComponents1(int sourceNumber) const							{ return nullptr; }
