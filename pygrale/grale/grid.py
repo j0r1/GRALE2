@@ -674,7 +674,7 @@ class MultiGridCreator(object):
                 multiRegionInfo = [ multiRegionInfo ]
 
             for reg in multiRegionInfo:
-                ctr = [0.0,0.0] if (not "center" in reg or not reg["center"]) else copy.copy(reg["center"])
+                ctr = [0.0,0.0] if (not "center" in reg or reg["center"] is None) else copy.copy(reg["center"])
                 sz = float(reg["size"])
                 if sz <= 0:
                     raise GridException("Invalid region size {} was specified".format(sz))
