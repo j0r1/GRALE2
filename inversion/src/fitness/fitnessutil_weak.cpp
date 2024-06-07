@@ -138,6 +138,7 @@ float calculateWeakLensingFitness_Bayes(const ProjectedImagesInterface &interfac
 	const vector<int> &weakIndices,
 	const std::vector<int> &densPriorIndices,
 	const std::vector<int> &magIndices,
+	const std::vector<int> &flexionIndices,
 	const vector<vector<float>> &preCalcDistFrac,
 	const DiscreteFunction<float> &distFracFunction,
 	const std::vector<std::pair<float,float>> &zDistDistFracAndProb,
@@ -375,6 +376,72 @@ float calculateWeakLensingFitness_Bayes(const ProjectedImagesInterface &interfac
 	// cerr << "shearFitness = " << shearFitness << endl;
 	// cerr << "minLogSLProb = " << minLogSLProb << endl;
 	// exit(-1);
+
+	float minLogFlexProb = 0;
+	for (auto s : flexionIndices)
+	{
+		assert(s >= 0 && s < interface.getNumberOfSources());
+		int numPoints = interface.getNumberOfImagePoints(s);
+		// Expecting this to be stored in units of arcsec^-1
+		const float *pFlexOrig1 = interface.getOriginalProperties(ImagesData::FlexionComponent1, s);
+		const float *pFlexOrig2 = interface.getOriginalProperties(ImagesData::FlexionComponent2, s);
+		const float *pFlexOrig3 = interface.getOriginalProperties(ImagesData::FlexionComponent3, s);
+		const float *pFlexOrig4 = interface.getOriginalProperties(ImagesData::FlexionComponent4, s);
+		const float *pFlexSigma1 = interface.getOriginalProperties(ImagesData::FlexionUncertaintyComponent1, s);
+		const float *pFlexSigma2 = interface.getOriginalProperties(ImagesData::FlexionUncertaintyComponent2, s);
+		const float *pFlexSigma3 = interface.getOriginalProperties(ImagesData::FlexionUncertaintyComponent3, s);
+		const float *pFlexSigma4 = interface.getOriginalProperties(ImagesData::FlexionUncertaintyComponent4, s);
+		
+		// We'll need to convert this to arcsec^-1
+		const float unitFactor = ANGLE_ARCSEC/interface.getAngularScale();
+		assert(!isnan(unitFactor));
+		const float *pAxxx = interface.getSecondDerivativesXXX(s);
+		const float *pAyyy = interface.getSecondDerivativesYYY(s);
+		const float *pAxxy = interface.getSecondDerivativesXXY(s);
+		const float *pAyyx = interface.getSecondDerivativesYYX(s);
+		const float *pKappaModel = interface.getConvergence(s);
+
+		for (int i = 0 ; i < numPoints ; i++)
+		{
+			float denom = 1.0f - pKappaModel[i];
+			if (denom == 0) // avoid division by zero
+				denom = epsilon;
+
+			float F_re = unitFactor * 0.5f*(pAxxx[i] + pAyyx[i]);
+			float G_re = unitFactor * 0.5f*(pAxxx[i] - 3.0f*pAyyx[i]);
+			float F_im = unitFactor * 0.5f*(pAyyy[i] + pAxxy[i]);
+			float G_im = unitFactor * (-0.5f)*(pAyyy[i] - 3.0f*pAxxy[i]);
+
+			//cerr << "kappa = " << pKappaModel[i] << endl;
+
+			F_re /= denom;
+			G_re /= denom;
+			F_im /= denom;
+			G_im /= denom;
+
+			//cerr << " F_re " << F_re << " F_im " << F_im << " G_re " << G_re << " G_im " << G_im << endl;
+
+			float relDiff1 = (F_re - pFlexOrig1[i])/pFlexSigma1[i];
+			float relDiff2 = (F_im - pFlexOrig2[i])/pFlexSigma2[i];
+			float relDiff3 = (G_re - pFlexOrig3[i])/pFlexSigma3[i];
+			float relDiff4 = (G_im - pFlexOrig4[i])/pFlexSigma4[i];
+			minLogFlexProb += 0.5f*(relDiff1*relDiff1 + relDiff2*relDiff2 + relDiff3*relDiff3 + relDiff4*relDiff4);
+
+			/*
+			const auto theta = interface.getThetas(s)[i];
+			float u = (float)(interface.getAngularScale()/ANGLE_ARCSEC);
+			float threshold = 1e-5;
+			if (ABS(relDiff1) > threshold || ABS(relDiff2) > threshold || ABS(relDiff3) > threshold || ABS(relDiff4) > threshold)
+			{
+				cerr << "pt " << theta.getX()*u << "," << theta.getY()*u << ": " << endl;
+				cerr << "    " << F_re << " " << F_im << " " << G_re << " " << G_im << endl;
+				cerr << "    " << pFlexOrig1[i] << " " << pFlexOrig2[i] << " " << pFlexOrig3[i] << " " << pFlexOrig4[i] << endl;
+				cerr << "    " << relDiff1 << " " << relDiff2 << " " << relDiff2 << " " << relDiff3 << endl;
+			}*/
+		}
+	}
+
+	shearFitness += minLogFlexProb;
 
 	assert(!isnan(shearFitness));
 	return shearFitness;

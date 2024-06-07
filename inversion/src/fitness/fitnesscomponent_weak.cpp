@@ -130,6 +130,7 @@ FitnessComponent_WeakLensing_Bayes::FitnessComponent_WeakLensing_Bayes(const std
 	addRecognizedTypeName("bayesdensityprior");
 	addRecognizedTypeName("bayesstronglensing");
 	addRecognizedTypeName("bayesmagnification");
+	addRecognizedTypeName("bayesflexion");
 	m_redshiftDistributionNeeded = false;
 	m_howManySigmaFactor = 3.0f;
 	m_numSigmaSamplePoints = 7;
@@ -154,7 +155,8 @@ bool FitnessComponent_WeakLensing_Bayes::inspectImagesData(int idx, const Images
 	if (typeName != "bayesellipticities" && 
 		typeName != "bayesdensityprior" &&
 		typeName != "bayesstronglensing" &&
-		typeName != "bayesmagnification"
+		typeName != "bayesmagnification" &&
+		typeName != "bayesflexion"
 		)
 		return true; // ignore
 
@@ -181,6 +183,29 @@ bool FitnessComponent_WeakLensing_Bayes::inspectImagesData(int idx, const Images
 
 		m_magImages.push_back(idx);
 		needCalcInverseMag = true;
+	}
+	else if (typeName == "bayesflexion")
+	{
+		vector<ImagesData::PropertyName> neededProperties = { ImagesData::FlexionComponent1,
+															 ImagesData::FlexionComponent2,
+															 ImagesData::FlexionComponent3,
+															 ImagesData::FlexionComponent4,
+															 ImagesData::FlexionUncertaintyComponent1,
+															 ImagesData::FlexionUncertaintyComponent2,
+															 ImagesData::FlexionUncertaintyComponent3,
+															 ImagesData::FlexionUncertaintyComponent4 };
+		for (auto p : neededProperties)
+		{
+			if (!imgDat.hasProperty(p))
+			{
+				setErrorString("Need four flexion values and their uncertainties");
+				return false;
+			}
+		}
+
+		m_flexionImages.push_back(idx);
+		needCalcDeflSecondDeriv = true;
+		needCalcConvergence = true; // This is reduced flexion, we'll need kappa as well
 	}
 	else // ellipticities or dens prior
 	{
@@ -422,7 +447,7 @@ bool FitnessComponent_WeakLensing_Bayes::processFitnessOption(const std::string 
 bool FitnessComponent_WeakLensing_Bayes::calculateFitness(const ProjectedImagesInterface &iface, float &fitness)
 {
 	fitness = calculateWeakLensingFitness_Bayes(iface,
-		m_pointGroups, m_slImages, m_elliptImgs, m_priorDensImages, m_magImages,
+		m_pointGroups, m_slImages, m_elliptImgs, m_priorDensImages, m_magImages, m_flexionImages,
 		m_distanceFractionsForZ, m_distFracFunction,
 		m_zDistDistFracAndProb,
 		*m_baDistFunction.get(),

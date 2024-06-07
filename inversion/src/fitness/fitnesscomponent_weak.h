@@ -41,7 +41,7 @@ public:
 	bool processFitnessOption(const std::string &optionName, const TypedParameter &value) override;
 	bool finalize(double zd, const Cosmology *pCosm) override;
 private:
-	std::vector<int> m_elliptImgs, m_priorDensImages, m_slImages, m_magImages;
+	std::vector<int> m_elliptImgs, m_priorDensImages, m_slImages, m_magImages, m_flexionImages;
 	PointGroupStorage m_pointGroups;
 
 	std::vector<std::vector<float>> m_distanceFractionsForZ;
