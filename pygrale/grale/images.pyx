@@ -100,11 +100,23 @@ cdef class ImagesData:
         "alpha": [ imagesdata.DeflectionComponent1, imagesdata.DeflectionComponent2 ],
         "mu": [ imagesdata.Magnification ],
         "musigma": [ imagesdata.MagnificationUncertainty ],
+        "flexion": [ imagesdata.FlexionComponent1, imagesdata.FlexionComponent2, imagesdata.FlexionComponent3, imagesdata.FlexionComponent4 ],
+        "flexion1": [ imagesdata.FlexionComponent1 ],
+        "flexion2": [ imagesdata.FlexionComponent2 ],
+        "flexion3": [ imagesdata.FlexionComponent3 ],
+        "flexion4": [ imagesdata.FlexionComponent4 ],
+        "flexionsigma": [ imagesdata.FlexionUncertaintyComponent1, imagesdata.FlexionUncertaintyComponent2, imagesdata.FlexionUncertaintyComponent3, imagesdata.FlexionUncertaintyComponent4 ],
+        "flexionsigma1": [ imagesdata.FlexionUncertaintyComponent1 ],
+        "flexionsigma2": [ imagesdata.FlexionUncertaintyComponent2 ],
+        "flexionsigma3": [ imagesdata.FlexionUncertaintyComponent3 ],
+        "flexionsigma4": [ imagesdata.FlexionUncertaintyComponent4 ],
     }
     propertyReductions = {
         "shear": [ "shear1", "shear2" ],
         "shearsigma": [ "shearsigma1", "shearsigma2" ],
-        "alpha": [ "alpha1", "alpha2" ]
+        "alpha": [ "alpha1", "alpha2" ],
+        "flexion": [ "flexion1", "flexion2", "flexion3", "flexion4" ],
+        "flexionsigma": [ "flexionsigma1", "flexionsigma2", "flexionsigma3", "flexionsigma4" ],
     }
 
     @staticmethod
@@ -209,11 +221,9 @@ cdef class ImagesData:
 
             if propNameLen == 1:
                 props.push_back(pair[imagesdata.PropertyName, double](propNames[0], value))
-            elif propNameLen == 2:
-                props.push_back(pair[imagesdata.PropertyName, double](propNames[0], value[0]))
-                props.push_back(pair[imagesdata.PropertyName, double](propNames[1], value[1]))
             else:
-                raise ImagesDataException("Internal error: unexpected length {} of property names".format(len(propNameLen)))
+                for i in range(propNameLen):
+                    props.push_back(pair[imagesdata.PropertyName, double](propNames[i], value[i]))
 
         pointNum = self._imgData().addPoint(imageNum, p, props)
         if pointNum < 0:

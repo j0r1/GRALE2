@@ -34,6 +34,14 @@ cdef extern from "grale/imagesdata.h" namespace "grale::ImagesData":
         DeflectionComponent2,
         Magnification,
         MagnificationUncertainty,
+        FlexionComponent1,
+        FlexionComponent2,
+        FlexionComponent3,
+        FlexionComponent4,
+        FlexionUncertaintyComponent1,
+        FlexionUncertaintyComponent2,
+        FlexionUncertaintyComponent3,
+        FlexionUncertaintyComponent4,
         MaxProperty
 
 cdef extern from "grale/imagesdata.h" namespace "grale":
