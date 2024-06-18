@@ -685,7 +685,7 @@ class MultiGridCreator(object):
             if not regionSize:
                 raise GridException("No region info was specified")
 
-            ctr = [0.0, 0.0] if not regionCenter else copy.copy(regionCenter)
+            ctr = [0.0, 0.0] if regionCenter is None else copy.copy(regionCenter)
             sz = float(regionSize)
             if sz <= 0:
                 raise GridException("Invalid region size {} was specified".format(sz))
