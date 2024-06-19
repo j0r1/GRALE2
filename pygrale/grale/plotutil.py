@@ -1788,7 +1788,7 @@ def _getLensFunctionAndDistance(lensInfo):
 
 def plotAverageDensityProfile(lensOrLensInfo, thetaMax, center = [0.0, 0.0], thetaSteps = 512, phiSteps = 512, 
                               angularUnit = "default", densityUnit = 1.0, axes = None, renderer = "default",
-                              feedbackObject = "default", **kwargs):
+                              feedbackObject = "default", thetaMin = 0.0, **kwargs):
     """Creates a plot of the circularly averaged density profile.
 
 Arguments:
@@ -1823,6 +1823,7 @@ Arguments:
 
  - `feedbackObject`: can be used to specify a particular :ref:`feedback mechanism <feedback>`.
 
+ - `thetaMin`: TODO
 """
     angularUnit = _getAngularUnit(angularUnit)
 
@@ -1833,9 +1834,13 @@ Arguments:
                                    topRight = lensInfo.getTopRight())
     F = gf.evaluate
     rMax, rSteps = thetaMax, thetaSteps
+    if thetaMin < 0:
+        raise PlotException("Minimun radius must be at least zero")
+    if thetaMax < thetaMin:
+        raise PlotException("Maximum radius must be greater than minimum radius")
 
     averageValues = np.zeros([rSteps], dtype=np.double)
-    r = np.linspace(0, rMax, rSteps)
+    r = np.linspace(thetaMin, rMax, rSteps)
     pos = np.empty([rSteps, 2], dtype=np.double)
 
     phiSpace = np.linspace(0, 2*np.pi, phiSteps+1)[:-1] # We don't want both phi = 0 and phi = 2 pi
