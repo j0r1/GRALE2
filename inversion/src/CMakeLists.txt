@@ -28,6 +28,7 @@ set(HEADERS
 	galens/lensdeevolver.h
 	galens/populationdump.h
 	galens/lensnsga2evolver.h
+	galens/eaevolverfunctions.h
 	prob/randomnumbergenerator.h
 	fitness/lensfitnessobject.h
 	fitness/numericgradientcalculator.h

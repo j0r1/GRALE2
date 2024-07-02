@@ -1,6 +1,7 @@
 #pragma once
 
 #include "graleconfig.h"
+#include "populationdump.h"
 #include <eatk/nsga2evolver.h>
 
 namespace grale
@@ -17,6 +18,8 @@ public:
 	errut::bool_t check(const std::shared_ptr<eatk::Population> &population) override;
 	// We need to override this function to copy the calculated scale factors to the genomes
 	errut::bool_t createNewPopulation(size_t generation, std::shared_ptr<eatk::Population> &population, size_t targetPopulationSize) override;
+private:
+	PopulationDump m_popDump;
 };
 
 }

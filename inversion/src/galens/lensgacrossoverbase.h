@@ -45,8 +45,6 @@ protected:
 	}
 
 	void pickParentsNoInbreed(const std::shared_ptr<eatk::Population> &population, LensGAIndividual **pParent1, LensGAIndividual **pParent2);
-
-	void copyScaleFactorFromFitnessToGenome(const std::shared_ptr<eatk::Population> &population);
 	void copyPopulationIndex(const std::shared_ptr<eatk::Population> &population);
 
 	errut::bool_t crossover(size_t generation, std::shared_ptr<eatk::Population> &population, std::shared_ptr<eatk::Population> &newPop);

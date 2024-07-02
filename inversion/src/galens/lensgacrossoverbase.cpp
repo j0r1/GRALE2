@@ -1,5 +1,6 @@
 #include "lensgacrossoverbase.h"
 #include "lensgaindividual.h"
+#include "eaevolverfunctions.h"
 #include "utils.h"
 #include <cmath>
 #include <limits>
@@ -23,15 +24,11 @@ LensGACrossoverBase::LensGACrossoverBase(double beta, bool elitism, bool include
 
 bool_t LensGACrossoverBase::check(const shared_ptr<eatk::Population> &population)
 {
-	if (population->size() == 0)
-		return "Empty population";
-	auto &i = population->individual(0);
-	if (!dynamic_cast<const LensGAGenome *>(i->genomePtr()))
-		return "Genome is of wrong type";
-	if (!dynamic_cast<const LensGAFitness *>(i->fitnessPtr()))
-		return "Fitness is of wrong type";
-
 	bool_t r;
+
+	if (!(r = evolverCheck(*population)))
+		return r;
+
 	vector<shared_ptr<eatk::Genome>> testParents = { population->individual(0)->genome(), population->individual(0)->genome() };
 	if (!(r = m_cross.check(testParents)))
 		return "Error in genome crossover check: " + r.getErrorString();
@@ -48,7 +45,7 @@ bool_t LensGACrossoverBase::createNewPopulation(size_t generation, shared_ptr<ea
 	// Note: do this before the checkDumpLoad call, so that that call can also check
 	//       for NaN (before scale factor is calculated/transferred it is also set
 	//       to NaN)
-	copyScaleFactorFromFitnessToGenome(population);
+	copyScaleFactorFromFitnessToGenome(*population);
 
 	m_popDump.checkDumpLoad(generation, *population);
 
@@ -89,16 +86,6 @@ void LensGACrossoverBase::copyPopulationIndex(const std::shared_ptr<eatk::Popula
 		assert(pInd);
 
 		pInd->m_ownIndex = (int)i;
-	}
-}
-
-void LensGACrossoverBase::copyScaleFactorFromFitnessToGenome(const shared_ptr<eatk::Population> &population)
-{
-	for (auto &i : population->individuals())
-	{
-		auto &g = static_cast<LensGAGenome &>(i->genomeRef());
-		auto &f = static_cast<LensGAFitness &>(i->fitnessRef());
-		g.m_scaleFactor = f.m_scaleFactor;
 	}
 }
 
