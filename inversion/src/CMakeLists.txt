@@ -27,6 +27,7 @@ set(HEADERS
 	galens/lensdemutationcrossover.h
 	galens/lensdeevolver.h
 	galens/populationdump.h
+	galens/lensnsga2evolver.h
 	prob/randomnumbergenerator.h
 	fitness/lensfitnessobject.h
 	fitness/numericgradientcalculator.h
@@ -70,6 +71,7 @@ set(SOURCES
 	galens/lensdemutationcrossover.cpp
 	galens/lensdeevolver.cpp
 	galens/populationdump.cpp
+	galens/lensnsga2evolver.cpp
 	prob/randomnumbergenerator.cpp
 	fitness/numericgradientcalculator.cpp
 	fitness/lensfitnessobject.cpp

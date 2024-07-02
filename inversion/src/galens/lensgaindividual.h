@@ -22,6 +22,9 @@ public:
 
 	void checkNaN(size_t populationIndex) const;
 
+	bool hasRealValues() const override { return true; }
+	double getRealValue(size_t objectiveNumber) const override;
+
 #ifdef EATKCONFIG_MPISUPPORT
 	errut::bool_t MPI_BroadcastLayout(int root, MPI_Comm communicator) override;
 	errut::bool_t MPI_Send(int dest, int tag, MPI_Comm communicator, std::vector<MPI_Request> &requests) const override;
@@ -54,6 +57,40 @@ public:
 	std::vector<float> m_sheets;
 	float m_scaleFactor;
 	int m_parent1, m_parent2;
+
+	// For DE-Like crossover
+	static size_t getSize(const eatk::Genome &g0)
+	{
+		const LensGAGenome &g = static_cast<const LensGAGenome&>(g0);
+		return g.m_weights.size() + g.m_sheets.size();
+	}
+
+	static float getValue(const eatk::Genome &g0, size_t pos)
+	{
+		const LensGAGenome &g = static_cast<const LensGAGenome&>(g0);
+		if (pos < g.m_weights.size())
+			return g.m_weights[pos] * g.m_scaleFactor;
+
+		pos -= g.m_weights.size();
+		assert(pos < g.m_sheets.size());
+		return g.m_sheets[pos];
+	}
+
+	static void setValue(eatk::Genome &g0, size_t pos, float value)
+	{
+		LensGAGenome &g = static_cast<LensGAGenome&>(g0);
+		if (pos < g.m_weights.size())
+		{
+			g.m_weights[pos] = value;
+			g.m_scaleFactor = 1.0f; // TODO This is a bit wasteful to do this every time, but it needs to be changed
+		}
+		else
+		{
+			pos -= g.m_weights.size();
+			assert(pos < g.m_sheets.size());
+			g.m_sheets[pos] = value;
+		}
+	}
 };
 
 class LensGAIndividual : public eatk::Individual

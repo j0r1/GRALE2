@@ -17,6 +17,7 @@
 #include "lensdeevolver.h"
 #include "lensfitnessgeneral.h"
 #include "lensgaconvergenceparameters.h"
+#include "lensnsga2evolver.h"
 #include "randomnumbergenerator.h"
 #include "ea.h"
 #include "preferredindividualselector.h"
@@ -162,7 +163,6 @@ protected:
 		std::shared_ptr<eatk::RandomNumberGenerator> rng = rng0;
 #endif
 
-
 		auto comparison = std::make_shared<grale::LensGAFitnessComparison>();
 		m_selector = std::make_shared<SubsequentBestIndividualSelector>(
 								genomeCalculator->getNumberOfObjectives(),
@@ -215,6 +215,9 @@ protected:
 			else if (eaType == "RND")
 				std::tie(r, previousBestIndividuals, reuseCreation, numGen) = runGA_RND(rng, *creation, popSize, 
 								*(allEAParams[i]), multiPopParams);
+			else if (eaType == "TEST")
+				std::tie(r, previousBestIndividuals, reuseCreation, numGen) = runGA_TEST(rng, *creation, comparison, *calc, popSize, genomeCalculator->allowNegativeValues(), genomeCalculator->getNumberOfObjectives(),
+								*(allEAParams[i]), allConvParams[i], multiPopParams, eaType, generationCount, previousBestIndividuals);
 			else
 				r = "Unknown EA type '" + eaType + "', should be either GA, DE or JADE";
 
@@ -319,7 +322,7 @@ protected:
 						 const std::vector<std::vector<std::shared_ptr<eatk::Individual>>> &previousBest)
 	{
 		if (previousBest.size() > 0)
-			WriteLineStdout("GAMESSAGESTR:WARNING: nog using previous best for initialization of DE/JADE");
+			WriteLineStdout("GAMESSAGESTR:WARNING: not using previous best for initialization of DE/JADE");
 
 		errut::bool_t r;
 
@@ -596,6 +599,73 @@ protected:
 				 std::make_unique<ReuseCreation>(ga.getPopulations()),
 				 ga.getNumberOfGenerations() };
 		}
+	}
+
+	std::tuple<errut::bool_t,
+		       std::vector<std::vector<std::shared_ptr<eatk::Individual>>>,
+			   std::unique_ptr<eatk::IndividualCreation>,
+			   size_t> runGA_TEST(const std::shared_ptr<eatk::RandomNumberGenerator> &rng,
+						 eatk::IndividualCreation &creation,
+						 const std::shared_ptr<grale::LensGAFitnessComparison> &comparison,
+						 eatk::PopulationFitnessCalculation &calc,
+			             int popSize,
+						 bool allowNegative, size_t numObjectives,
+						 const grale::EAParameters &eaParams,
+						 const grale::LensGAConvergenceParameters &convParams,
+						 const std::shared_ptr<grale::LensGAMultiPopulationParameters> &multiPopParams,
+						 const std::string &eaType, size_t generationOffsetForReporting,
+						 const std::vector<std::vector<std::shared_ptr<eatk::Individual>>> &previousBest)
+	{
+		if (previousBest.size() > 0)
+			WriteLineStdout("GAMESSAGESTR:WARNING: not using previous best for initialization of TEST");
+		if (multiPopParams.get())
+			return E("TEST only works with a single population");
+
+		errut::bool_t r;
+
+		Stop stop(-1, generationOffsetForReporting);
+		if (!(r = stop.initialize(numObjectives, convParams)))
+			return E("Can't initialize stop criterion: " + r.getErrorString());
+
+		const grale::EATestParameters *pParams = dynamic_cast<const grale::EATestParameters*>(&eaParams);
+		if (!pParams)
+			return E("Invalid EA parameters for TEST");
+
+		const grale::EATestParameters &params = *pParams;
+		// TODO: process some parameters
+
+		WriteLineStdout("GAMESSAGESTR:Running TEST algorithm"); 
+
+		std::shared_ptr<eatk::GenomeCrossover> crossOver;
+		bool extraParent = true;
+		float F = std::numeric_limits<float>::quiet_NaN();
+		float CR = std::numeric_limits<float>::quiet_NaN();
+		if (allowNegative)
+		{
+			crossOver = std::make_shared<grale::LensGAGenomeDELikeCrossover>(rng, extraParent, F, CR);
+		}
+		else
+		{
+			// Set lower bound, we need to know the number of parameters in
+			// a genome
+			auto g = creation.createUnInitializedGenome();
+			std::vector<float> lowerBound(grale::LensGAGenome::getSize(*g), 0.0f);
+
+			crossOver = std::make_shared<grale::LensGAGenomeDELikeCrossover>(rng, extraParent, F, CR, lowerBound);
+		}
+		std::shared_ptr<eatk::GenomeMutation> mutation = nullptr;
+		std::unique_ptr<eatk::PopulationEvolver> evolver = std::make_unique<grale::LensNSGA2Evolver>(rng, crossOver, mutation, comparison, numObjectives);
+
+		MyGA ga;
+		if (!(r = ga.run(creation, *evolver, calc, stop, popSize, popSize, popSize*2)))
+			return E("Error running NSGA2: " + r.getErrorString());
+
+		std::vector<std::vector<std::shared_ptr<eatk::Individual>>> allBest = { { evolver->getBestIndividuals() } };
+		m_best = evolver->getBestIndividuals();
+
+		return { true, allBest,
+				 std::make_unique<ReuseCreation>(ga.getPopulations()),
+				 ga.getNumberOfGenerations() };
 	}
 
 	virtual errut::bool_t getCalculator(const std::string &lensFitnessObjectType,

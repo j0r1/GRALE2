@@ -246,6 +246,9 @@ def getFullEASettings(eaType = "GA", geneticAlgorithmParameters = {}, convergenc
         eaCounts[ea] += 1
         _adjustEAAndConvergenceParameters(ea, eaCounts[ea], eaParams, convParams)
 
+    #print("allEATypes", allEATypes)
+    #print("allGeneticAlgorithmParameters", allGeneticAlgorithmParameters)
+    #print("allConvergenceParameters", allConvergenceParameters)
     return allEATypes, allGeneticAlgorithmParameters, allConvergenceParameters
 
 def _invertCommon(inverter, feedbackObject, moduleName, calcType, fitnessObjectParameters,

@@ -99,6 +99,8 @@ def _getEAParameterClass(eaType):
         paramClass = inversionparams.JADEParameters
     elif eaType == "RND":
         paramClass = inversionparams.RNDParameters
+    elif eaType == "TEST":
+        paramClass = inversionparams.EATestParameters
     else:
         raise Exception("Unknown EA type '{}'".format(eaType))
 
@@ -136,7 +138,7 @@ class Inverter(object):
 
     def _getEAParameterBytes(self, gaParams, eaType):
         # Different parameters for different EA type (GA vs DE)
-        if not gaParams:
+        if gaParams is None:
             # This should not happen anymore
             raise InverterException("Unexpected: gaParams should be set")
         

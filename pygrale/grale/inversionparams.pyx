@@ -594,6 +594,21 @@ cdef class RNDParameters(EAParameters):
 
         r["scale"] = deref(pParams).getScale()
 
+cdef class EATestParameters(EAParameters):
+    """General parameters for the TEST algorithm."""
+
+    def __init__(self):
+        """__init__()
+
+        TODO
+        """
+        self.m_pParams = unique_ptr[eaparameters.EAParameters](new eaparameters.EATestParameters())
+
+    def _fillInSettings(self, r):
+        cdef eaparameters.EATestParametersPtrConst pParams = dynamic_cast[eaparameters.EATestParametersPtrConst](self.m_pParams.get())
+        if not pParams:
+            raise Exception("Internal error: can't dynamic_cast parameters to correct type")
+
 cdef class DEParameters(EAParameters):
     """General parameters for the DE algorithm."""
     

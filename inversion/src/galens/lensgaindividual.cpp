@@ -72,6 +72,12 @@ void LensGAFitness::checkNaN(size_t populationIndex) const
 			cerr << "DEBUG: fitness[" << populationIndex << "].m_fitnesses[" << i << "] = NaN" << endl;
 }
 
+double LensGAFitness::getRealValue(size_t objectiveNumber) const
+{
+	assert(objectiveNumber < m_fitnesses.size());
+	return (double)m_fitnesses[objectiveNumber];
+}
+
 #ifdef EATKCONFIG_MPISUPPORT
 bool_t LensGAFitness::MPI_BroadcastLayout(int root, MPI_Comm communicator)
 {

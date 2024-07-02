@@ -11,6 +11,12 @@ cdef extern from "grale/eaparameters.h" namespace "grale":
         errut.bool_t read(serut.SerializationInterface &si, unique_ptr[EAParameters] &params)
         errut.bool_t write(serut.SerializationInterface &si)
 
+cdef extern from "grale/eaparameters.h" namespace "grale":
+    cdef cppclass EATestParameters(EAParameters):
+        EATestParameters()
+
+ctypedef const EATestParameters* EATestParametersPtrConst
+
 cdef extern from "grale/gaparameters.h" namespace "grale":
     cdef cppclass GAParameters(EAParameters):
         GAParameters(double selectionPressure, cbool useElitism, cbool alwaysIncludeBest, double crossoverRate, double smallMutationSize)

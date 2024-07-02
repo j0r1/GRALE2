@@ -27,6 +27,9 @@ bool_t EAParameters::read(SerializationInterface &si, unique_ptr<EAParameters> &
 	unique_ptr<EAParameters> params;
 	switch((ParameterType)typeInt)
 	{
+	case TEST:
+		params = make_unique<EATestParameters>();
+		break;
 	case GA:
 		params = make_unique<GAParameters>();
 		break;

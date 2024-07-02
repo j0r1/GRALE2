@@ -1,8 +1,10 @@
 #pragma once
 
 #include "graleconfig.h"
+#include "lensgaindividual.h"
 #include <eatk/crossovermutation.h>
 #include <eatk/randomnumbergenerator.h>
+#include <eatk/vectorgenomedelikecrossover.h>
 
 namespace grale
 {
@@ -19,5 +21,7 @@ private:
 	std::shared_ptr<eatk::RandomNumberGenerator> m_rng;
 	bool m_allowNegative;
 };
+
+typedef eatk::DELikeCrossOverTemplate<float, LensGAGenome> LensGAGenomeDELikeCrossover;
 
 }
