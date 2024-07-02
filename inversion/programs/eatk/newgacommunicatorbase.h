@@ -636,6 +636,7 @@ protected:
 
 		WriteLineStdout("GAMESSAGESTR:Running TEST algorithm"); 
 
+#if 0
 		std::shared_ptr<eatk::GenomeCrossover> crossOver;
 		bool extraParent = true;
 		float F = std::numeric_limits<float>::quiet_NaN();
@@ -654,6 +655,14 @@ protected:
 			crossOver = std::make_shared<grale::LensGAGenomeDELikeCrossover>(rng, extraParent, F, CR, lowerBound);
 		}
 		std::shared_ptr<eatk::GenomeMutation> mutation = nullptr;
+#else
+		std::shared_ptr<eatk::GenomeCrossover> crossOver = std::make_shared<grale::LensGAGenomeCrossover>(rng, allowNegative);
+
+		float mutAmp = 0;
+		bool absMut = true;
+		std::shared_ptr<eatk::GenomeMutation> mutation = std::make_shared<grale::LensGAGenomeMutation>(rng, 1.0f, allowNegative, mutAmp, absMut);
+#endif
+
 		std::unique_ptr<eatk::PopulationEvolver> evolver = std::make_unique<grale::LensNSGA2Evolver>(rng, crossOver, mutation, comparison, numObjectives);
 
 		MyGA ga;
