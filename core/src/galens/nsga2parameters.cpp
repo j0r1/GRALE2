@@ -29,4 +29,31 @@ bool_t NSGA2Parameters::writeInternal(serut::SerializationInterface &si) const
 	return true;
 }
 
+NSGA2DELikeCrossoverParameters::NSGA2DELikeCrossoverParameters(bool extraParent,
+	float F, float CR)
+	: EAParameters(NSGA2DELikeCrossover), m_extraParent(extraParent), m_F(F), m_CR(CR)
+{
+}
+
+NSGA2DELikeCrossoverParameters::~NSGA2DELikeCrossoverParameters()
+{
+}
+
+bool_t NSGA2DELikeCrossoverParameters::readInternal(serut::SerializationInterface &si)
+{
+	int32_t flag;
+	if (!si.readInt32(&flag) || !si.readFloat(&m_F) || !si.readFloat(&m_CR))
+		return si.getErrorString();
+	m_extraParent = (flag == 0)?false:true;
+	return true;
+}
+
+bool_t NSGA2DELikeCrossoverParameters::writeInternal(serut::SerializationInterface &si) const
+{
+	int32_t flag = (m_extraParent)?1:0;
+	if (!si.writeInt32(flag) || !si.writeFloat(m_F) || !si.writeFloat(m_CR))
+		return si.getErrorString();
+	return true;
+}
+
 }

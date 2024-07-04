@@ -103,6 +103,8 @@ def _getEAParameterClass(eaType):
         paramClass = inversionparams.EATestParameters
     elif eaType == "NSGA2":
         paramClass = inversionparams.NSGA2Parameters
+    elif eaType == "NSGA2-X":
+        paramClass = inversionparams.NSGA2DELikeCrossoverParameters
     else:
         raise Exception("Unknown EA type '{}'".format(eaType))
 

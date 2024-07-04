@@ -7,6 +7,8 @@ from libcpp.vector cimport vector
 from libcpp.memory cimport shared_ptr, make_shared, unique_ptr, make_unique
 from libcpp cimport bool as cbool
 from libcpp.cast cimport dynamic_cast
+from libcpp.limits cimport numeric_limits
+from libcpp.cmath cimport isnan
 from cpython.array cimport array,clone
 import cython
 from cython.operator cimport dereference as deref
@@ -692,6 +694,33 @@ cdef class NSGA2Parameters(EAParameters):
             raise Exception("Internal error: can't dynamic_cast parameters to correct type")
 
         r["smallmutationsize"] = deref(pParams).getSmallMutationSize()
+
+cdef class NSGA2DELikeCrossoverParameters(EAParameters):
+    """TODO"""
+
+    def __init__(self, useextraparent = True, F = "random", CR = "random"):
+        """__init__()
+
+        TODO
+        """
+        cdef float cF, cCR;
+
+        cF = numeric_limits[float].quiet_NaN() if F == "random" else F
+        cCR = numeric_limits[float].quiet_NaN() if CR == "random" else CR
+        self.m_pParams = unique_ptr[eaparameters.EAParameters](new eaparameters.NSGA2DELikeCrossoverParameters(useextraparent, cF, cCR))
+
+    def _fillInSettings(self, r):
+        cdef eaparameters.NSGA2DELikeCrossoverParametersPtrConst pParams = dynamic_cast[eaparameters.NSGA2DELikeCrossoverParametersPtrConst](self.m_pParams.get())
+        cdef float F, CR
+        if not pParams:
+            raise Exception("Internal error: can't dynamic_cast parameters to correct type")
+
+        F = deref(pParams).getF()
+        CR = deref(pParams).getCR()
+
+        r["useextraparent"] = deref(pParams).useExtraParent()
+        r["F"] = "random" if isnan(F) else F
+        r["CR"] = "random" if isnan(CR) else CR
 
 cdef class LensInversionParametersMultiPlaneGPU(object):
     """An internal representation of the parameters for the lens multi-plane inversion

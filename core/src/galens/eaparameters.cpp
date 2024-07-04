@@ -46,6 +46,9 @@ bool_t EAParameters::read(SerializationInterface &si, unique_ptr<EAParameters> &
 	case NSGA2:
 		params = make_unique<NSGA2Parameters>();
 		break;
+	case NSGA2DELikeCrossover:
+		params = make_unique<NSGA2DELikeCrossoverParameters>();
+		break;
 	default:
 		return "Can't interpret EAParameters type id " + to_string(typeInt);
 	}

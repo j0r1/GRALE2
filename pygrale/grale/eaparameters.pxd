@@ -36,6 +36,15 @@ cdef extern from "grale/nsga2parameters.h" namespace "grale":
 
 ctypedef const NSGA2Parameters* NSGA2ParametersPtrConst
 
+cdef extern from "grale/nsga2parameters.h" namespace "grale":
+    cdef cppclass NSGA2DELikeCrossoverParameters(EAParameters):
+        NSGA2DELikeCrossoverParameters(cbool extraParent, float F, float CR)
+        cbool useExtraParent()
+        float getF()
+        float getCR()
+
+ctypedef const NSGA2DELikeCrossoverParameters* NSGA2DELikeCrossoverParametersPtrConst
+
 cdef extern from "grale/deparameters.h" namespace "grale":
     cdef cppclass DEParameters(EAParameters):
         DEParameters(double F, double CR, cbool needStrictlyBetter)

@@ -216,7 +216,7 @@ protected:
 			else if (eaType == "RND")
 				std::tie(r, previousBestIndividuals, reuseCreation, numGen) = runGA_RND(rng, *creation, popSize, 
 								*(allEAParams[i]), multiPopParams);
-			else if (eaType == "NSGA2")
+			else if (eaType == "NSGA2" || eaType == "NSGA2-X")
 				std::tie(r, previousBestIndividuals, reuseCreation, numGen) = runGA_NSGA2(rng, *creation, comparison, *calc, popSize, genomeCalculator->allowNegativeValues(), genomeCalculator->getNumberOfObjectives(),
 								*(allEAParams[i]), allConvParams[i], multiPopParams, eaType, generationCount, previousBestIndividuals);
 			else
@@ -642,29 +642,36 @@ protected:
 
 			WriteLineStdout("GAMESSAGESTR:Running NSGA2 algorithm, small mutation size = " + std::to_string(params.getSmallMutationSize()));
 		}
+		else if (dynamic_cast<const grale::NSGA2DELikeCrossoverParameters*>(&eaParams))
+		{
+			const grale::NSGA2DELikeCrossoverParameters &params = static_cast<const grale::NSGA2DELikeCrossoverParameters&>(eaParams);
+			bool extraParent = params.useExtraParent();
+			float F = params.getF();
+			float CR = params.getCR();
+			if (allowNegative)
+			{
+				crossOver = std::make_shared<grale::LensGAGenomeDELikeCrossover>(rng, extraParent, F, CR);
+			}
+			else
+			{
+				// Set lower bound, we need to know the number of parameters in
+				// a genome
+				auto g = creation.createUnInitializedGenome();
+				std::vector<float> lowerBound(grale::LensGAGenome::getSize(*g), 0.0f);
+
+				crossOver = std::make_shared<grale::LensGAGenomeDELikeCrossover>(rng, extraParent, F, CR, lowerBound);
+			}
+
+			// No separate mutation, crossover operator does all DE-like operations
+			mutation = nullptr;
+
+			std::string Fstr = (std::isnan(F))?std::string("random"):std::to_string(F);
+			std::string CRstr = (std::isnan(CR))?std::string("random"):std::to_string(CR);
+			WriteLineStdout("GAMESSAGESTR:Running NSGA2 algorithm with experimental DE-like crossover, useextraparent = "
+			                + std::to_string(extraParent) + ", F = " + Fstr + ", CR = " + CRstr);
+		}
 		else
 			return E("Invalid EA parameters for NSGA2");
-
-#if 0
-		std::shared_ptr<eatk::GenomeCrossover> crossOver;
-		bool extraParent = true;
-		float F = std::numeric_limits<float>::quiet_NaN();
-		float CR = std::numeric_limits<float>::quiet_NaN();
-		if (allowNegative)
-		{
-			crossOver = std::make_shared<grale::LensGAGenomeDELikeCrossover>(rng, extraParent, F, CR);
-		}
-		else
-		{
-			// Set lower bound, we need to know the number of parameters in
-			// a genome
-			auto g = creation.createUnInitializedGenome();
-			std::vector<float> lowerBound(grale::LensGAGenome::getSize(*g), 0.0f);
-
-			crossOver = std::make_shared<grale::LensGAGenomeDELikeCrossover>(rng, extraParent, F, CR, lowerBound);
-		}
-		std::shared_ptr<eatk::GenomeMutation> mutation = nullptr;
-#endif
 
 		std::unique_ptr<eatk::PopulationEvolver> evolver = std::make_unique<grale::LensNSGA2Evolver>(rng, crossOver, mutation, comparison, numObjectives);
 
