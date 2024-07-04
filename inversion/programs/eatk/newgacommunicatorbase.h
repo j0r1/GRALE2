@@ -5,6 +5,7 @@
 #include "gaparameters.h"
 #include "deparameters.h"
 #include "rndparameters.h"
+#include "nsga2parameters.h"
 #include "lensinversiongafactorycommon.h"
 #include "inversioncommunicatornewga.h"
 #include "constants.h"
@@ -215,8 +216,8 @@ protected:
 			else if (eaType == "RND")
 				std::tie(r, previousBestIndividuals, reuseCreation, numGen) = runGA_RND(rng, *creation, popSize, 
 								*(allEAParams[i]), multiPopParams);
-			else if (eaType == "TEST")
-				std::tie(r, previousBestIndividuals, reuseCreation, numGen) = runGA_TEST(rng, *creation, comparison, *calc, popSize, genomeCalculator->allowNegativeValues(), genomeCalculator->getNumberOfObjectives(),
+			else if (eaType == "NSGA2")
+				std::tie(r, previousBestIndividuals, reuseCreation, numGen) = runGA_NSGA2(rng, *creation, comparison, *calc, popSize, genomeCalculator->allowNegativeValues(), genomeCalculator->getNumberOfObjectives(),
 								*(allEAParams[i]), allConvParams[i], multiPopParams, eaType, generationCount, previousBestIndividuals);
 			else
 				r = "Unknown EA type '" + eaType + "', should be either GA, DE or JADE";
@@ -604,7 +605,7 @@ protected:
 	std::tuple<errut::bool_t,
 		       std::vector<std::vector<std::shared_ptr<eatk::Individual>>>,
 			   std::unique_ptr<eatk::IndividualCreation>,
-			   size_t> runGA_TEST(const std::shared_ptr<eatk::RandomNumberGenerator> &rng,
+			   size_t> runGA_NSGA2(const std::shared_ptr<eatk::RandomNumberGenerator> &rng,
 						 eatk::IndividualCreation &creation,
 						 const std::shared_ptr<grale::LensGAFitnessComparison> &comparison,
 						 eatk::PopulationFitnessCalculation &calc,
@@ -617,9 +618,9 @@ protected:
 						 const std::vector<std::vector<std::shared_ptr<eatk::Individual>>> &previousBest)
 	{
 		if (previousBest.size() > 0)
-			WriteLineStdout("GAMESSAGESTR:WARNING: not using previous best for initialization of TEST");
+			WriteLineStdout("GAMESSAGESTR:WARNING: not using previous best for initialization of NSGA2");
 		if (multiPopParams.get())
-			return E("TEST only works with a single population");
+			return E("NSGA2 only works with a single population");
 
 		errut::bool_t r;
 
@@ -627,14 +628,22 @@ protected:
 		if (!(r = stop.initialize(numObjectives, convParams)))
 			return E("Can't initialize stop criterion: " + r.getErrorString());
 
-		const grale::EATestParameters *pParams = dynamic_cast<const grale::EATestParameters*>(&eaParams);
-		if (!pParams)
-			return E("Invalid EA parameters for TEST");
+		std::shared_ptr<eatk::GenomeCrossover> crossOver;
+		std::shared_ptr<eatk::GenomeMutation> mutation;
 
-		const grale::EATestParameters &params = *pParams;
-		// TODO: process some parameters
+		if (dynamic_cast<const grale::NSGA2Parameters*>(&eaParams))
+		{
+			const grale::NSGA2Parameters &params = static_cast<const grale::NSGA2Parameters&>(eaParams);
+			float mutAmp = params.getSmallMutationSize();
+			bool absMut = (mutAmp > 0)?false:true;
 
-		WriteLineStdout("GAMESSAGESTR:Running TEST algorithm"); 
+			crossOver = std::make_shared<grale::LensGAGenomeCrossover>(rng, allowNegative);
+			mutation = std::make_shared<grale::LensGAGenomeMutation>(rng, 1.0f, allowNegative, mutAmp, absMut);
+
+			WriteLineStdout("GAMESSAGESTR:Running NSGA2 algorithm, small mutation size = " + std::to_string(params.getSmallMutationSize()));
+		}
+		else
+			return E("Invalid EA parameters for NSGA2");
 
 #if 0
 		std::shared_ptr<eatk::GenomeCrossover> crossOver;
@@ -655,12 +664,6 @@ protected:
 			crossOver = std::make_shared<grale::LensGAGenomeDELikeCrossover>(rng, extraParent, F, CR, lowerBound);
 		}
 		std::shared_ptr<eatk::GenomeMutation> mutation = nullptr;
-#else
-		std::shared_ptr<eatk::GenomeCrossover> crossOver = std::make_shared<grale::LensGAGenomeCrossover>(rng, allowNegative);
-
-		float mutAmp = 0;
-		bool absMut = true;
-		std::shared_ptr<eatk::GenomeMutation> mutation = std::make_shared<grale::LensGAGenomeMutation>(rng, 1.0f, allowNegative, mutAmp, absMut);
 #endif
 
 		std::unique_ptr<eatk::PopulationEvolver> evolver = std::make_unique<grale::LensNSGA2Evolver>(rng, crossOver, mutation, comparison, numObjectives);

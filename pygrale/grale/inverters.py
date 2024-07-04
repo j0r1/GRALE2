@@ -101,6 +101,8 @@ def _getEAParameterClass(eaType):
         paramClass = inversionparams.RNDParameters
     elif eaType == "TEST":
         paramClass = inversionparams.EATestParameters
+    elif eaType == "NSGA2":
+        paramClass = inversionparams.NSGA2Parameters
     else:
         raise Exception("Unknown EA type '{}'".format(eaType))
 

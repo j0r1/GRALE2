@@ -2,6 +2,7 @@
 #include "gaparameters.h"
 #include "deparameters.h"
 #include "rndparameters.h"
+#include "nsga2parameters.h"
 
 using namespace errut;
 using namespace std;
@@ -41,6 +42,9 @@ bool_t EAParameters::read(SerializationInterface &si, unique_ptr<EAParameters> &
 		break;
 	case RND:
 		params = make_unique<RNDParameters>();
+		break;
+	case NSGA2:
+		params = make_unique<NSGA2Parameters>();
 		break;
 	default:
 		return "Can't interpret EAParameters type id " + to_string(typeInt);

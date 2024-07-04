@@ -82,6 +82,7 @@ set(HEADERS
 	galens/eaparameters.h
 	galens/deparameters.h
 	galens/rndparameters.h
+	galens/nsga2parameters.h
 	opencl/openclkernel.h
 	opencl/opencllibrary.h
 	thirdparty/WildMagic5/Wm5Assert.h
@@ -175,6 +176,7 @@ set(SOURCES
 	galens/eaparameters.cpp
 	galens/deparameters.cpp
 	galens/rndparameters.cpp
+	galens/nsga2parameters.cpp
 	opencl/openclkernel.cpp
 	opencl/opencllibrary.cpp
 	thirdparty/WildMagic5/Wm5Assert.cpp

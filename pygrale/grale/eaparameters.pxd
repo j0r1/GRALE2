@@ -29,6 +29,13 @@ cdef extern from "grale/gaparameters.h" namespace "grale":
 
 ctypedef const GAParameters* GAParametersPtrConst
 
+cdef extern from "grale/nsga2parameters.h" namespace "grale":
+    cdef cppclass NSGA2Parameters(EAParameters):
+        NSGA2Parameters(double smallMutationSize)
+        double getSmallMutationSize() const
+
+ctypedef const NSGA2Parameters* NSGA2ParametersPtrConst
+
 cdef extern from "grale/deparameters.h" namespace "grale":
     cdef cppclass DEParameters(EAParameters):
         DEParameters(double F, double CR, cbool needStrictlyBetter)

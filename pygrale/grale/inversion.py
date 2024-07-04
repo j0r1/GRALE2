@@ -150,7 +150,7 @@ def _adjustEAAndConvergenceParameters(eaType, eaCount, eaParams, convParams):
     paramClass = inverters._getEAParameterClass(eaType)
 
     # First do the EA parameters
-    if eaType == "GA":
+    if eaType == "GA" or eaType == "NSGA2":
         if not "smallmutationsize" in eaParams:
             if eaCount == 1:
                 eaParams["smallmutationsize"] = -1 # Large mutation setting
@@ -164,7 +164,7 @@ def _adjustEAAndConvergenceParameters(eaType, eaCount, eaParams, convParams):
         eaParams[k] = params[k]
 
     # Then do the convergence parameters
-    if eaType == "GA":
+    if eaType == "GA" or eaType == "NSGA2":
         if not "convergencefactor" in convParams:
             if eaCount == 1:
                 convParams["convergencefactor"] = 0.1
@@ -220,6 +220,8 @@ def getFullEASettings(eaType = "GA", geneticAlgorithmParameters = {}, convergenc
             allEATypes = [ "GA", "GA" ]
         elif eaType == "GA+JADE":
             allEATypes = [ "GA", "GA", "JADE" ]
+        elif eaType == "NSGA2":
+            allEATypes = [ "NSGA2", "NSGA2" ]
         else:
             allEATypes = [ eaType ]
 

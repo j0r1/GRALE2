@@ -676,6 +676,23 @@ cdef class GAParameters(EAParameters):
         r["crossoverrate"] = deref(pParams).getCrossOverRate()
         r["smallmutationsize"] = deref(pParams).getSmallMutationSize()
 
+cdef class NSGA2Parameters(EAParameters):
+    """TODO"""
+
+    def __init__(self, smallmutationsize = -1):
+        """__init__(smallmutationsize = -1)
+
+        TODO
+        """
+        self.m_pParams = unique_ptr[eaparameters.EAParameters](new eaparameters.NSGA2Parameters(smallmutationsize))
+
+    def _fillInSettings(self, r):
+        cdef eaparameters.NSGA2ParametersPtrConst pParams = dynamic_cast[eaparameters.NSGA2ParametersPtrConst](self.m_pParams.get())
+        if not pParams:
+            raise Exception("Internal error: can't dynamic_cast parameters to correct type")
+
+        r["smallmutationsize"] = deref(pParams).getSmallMutationSize()
+
 cdef class LensInversionParametersMultiPlaneGPU(object):
     """An internal representation of the parameters for the lens multi-plane inversion
     procedure, needed to communicate with the C++ based inversion code."""
