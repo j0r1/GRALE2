@@ -1907,8 +1907,7 @@ cdef class PolygonSource(SourceImage):
         self.m_pSrc = unique_ptr[sourceimage.SourceImage](new sourceimage.PolygonSource(pos, polygon, ang, s))
 
 cdef class DiscreteSource(SourceImage):
-    def __init__(self, np.ndarray[double,ndim=2] data, angularWidth, angularHeight,
-                 position, angle = 0.0, brightnessScale = 1.0):
+    def __init__(self, np.ndarray[double,ndim=2] data, angularWidth, angularHeight, position, angle = 0.0, brightnessScale = 1.0):
         """__init__(data, angularWidth, angularHeight, position, angle = 0.0, brightnessScale = 1.0)
 
         Uses the 2D NumPy array ``data`` as a pixellated source. This image has width
