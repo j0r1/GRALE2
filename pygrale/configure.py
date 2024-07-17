@@ -6,17 +6,11 @@ if sys.version_info.major < 3:
     print("Major python version should be at least 3, version 2 is no longer supported")
     sys.exit(-1)
 
-import sysconfig
-from setuptools import setup
-from setuptools.extension import Extension
-from Cython.Build import cythonize
 import platform
 import glob
 import os
-import pprint
 import subprocess
 import json
-import generate_pyi
 
 def addNumPyDirs(includeDirs, libDirs):
     try:
@@ -152,8 +146,6 @@ def main():
                "grale.inversion", "grale.grid", "grale.multiplane", "grale.privimages", "grale.privlenses",
                "grale.util", "grale.all", "grale.all_nb", "grale.lensinfocache" ]
 
-    generate_pyi.main()
-
     extraSetupArgs = { "scripts": [ os.path.join("scripts", "grale_socket_to_mpi.py")]}
 
     versionStr = getVersionString()
@@ -268,13 +260,23 @@ def main():
         qtInstallCmd = "\tcd grale_editor_cppqt && {} install".format(makeCmd)
 
     open("Makefile", "wt").write("""
-all:
+
+all: grale/lenses.pyi grale/images.pyi grale/gridfunction.pyi
 	python setup.py build
 {}
 
 install:
 	python -m pip -v install .
 {}
+                                 
+grale/lenses.pyi: grale/lenses.pyx grale/privlenses.py
+	python generate_pyi.py grale/lenses.pyx grale/privlenses.py grale/lenses.pyi
+                                 
+grale/images.pyi: grale/images.pyx grale/privimages.py
+	python generate_pyi.py grale/images.pyx grale/privimages.py grale/images.pyi
+                                 
+grale/gridfunction.pyi: grale/gridfunction.pyx
+	python generate_pyi.py grale/gridfunction.pyx grale/gridfunction.pyi
 
 """.format(qtBuildCmd, qtInstallCmd))
     
