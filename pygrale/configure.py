@@ -16,6 +16,7 @@ import os
 import pprint
 import subprocess
 import json
+import generate_pyi
 
 def addNumPyDirs(includeDirs, libDirs):
     try:
@@ -150,6 +151,8 @@ def main():
                "grale.privutil", "grale.debuglog", "grale.feedback", "grale.bytestring", "grale.inverters",
                "grale.inversion", "grale.grid", "grale.multiplane", "grale.privimages", "grale.privlenses",
                "grale.util", "grale.all", "grale.all_nb", "grale.lensinfocache" ]
+
+    generate_pyi.main()
 
     extraSetupArgs = { "scripts": [ os.path.join("scripts", "grale_socket_to_mpi.py")]}
 

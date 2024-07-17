@@ -944,6 +944,8 @@ class LensPlaneException(Exception):
     pass
 
 cdef class LensPlane:
+    """A class representing the deflection angles on a grid in the lens plane."""
+
     cdef unique_ptr[lensplane.LensPlane] m_pLensPlane
     cdef object feedback
 
@@ -1229,6 +1231,8 @@ class ImagePlaneException(Exception):
     pass
 
 cdef class ImagePlane:
+    """A class representing a rescaled version of the lens plane, for a particular source distance."""
+
     cdef unique_ptr[imageplane.ImagePlane] m_pImgPlane
     # Store the original lens plane (or better, a copy) and the distances to
     # be able to pickle
@@ -1772,6 +1776,8 @@ cdef class SourceImage:
         raise SourceImageException("Bad array dimensions")
 
 cdef class CircularSource(SourceImage):
+    """A circular source shape, possibly fading the brightness towards the edge."""
+
     def __init__(self, position, angularRadius, brightnessScale = 1.0, fade = False):
         """__init__(position, angularRadius, brightnessScale = 1.0, fade = False)
 
@@ -1827,6 +1833,8 @@ cdef class CircularSource(SourceImage):
         return self._src().getFade()
 
 cdef class EllipticalSource(SourceImage):
+    """An elliptical source, possibly fading in brightness towards the edge."""
+
     def __init__(self, position, halfAxis, eccentricity, angle = 0.0, brightnessScale = 1.0, fade = False):
         """__init__(position, halfAxis, eccentricity, angle = 0.0, brightnessScale = 1.0, fade = False)
 
@@ -1870,6 +1878,8 @@ cdef class EllipticalSource(SourceImage):
         return self._src().getFade()
 
 cdef class PolygonSource(SourceImage):
+    """A source with a polygon shape, with the same intensity everywhere inside."""
+
     def __init__(self, position, polygonPoints, cbool calcHull, angle = 0, brightnessScale = 1.0):
         """__init__(position, polygonPoints, cbool calcHull, angle = 0, brightnessScale = 1.0)
 
@@ -1907,6 +1917,8 @@ cdef class PolygonSource(SourceImage):
         self.m_pSrc = unique_ptr[sourceimage.SourceImage](new sourceimage.PolygonSource(pos, polygon, ang, s))
 
 cdef class DiscreteSource(SourceImage):
+    """A source based on a grid of pixel values."""
+
     def __init__(self, np.ndarray[double,ndim=2] data, angularWidth, angularHeight, position, angle = 0.0, brightnessScale = 1.0):
         """__init__(data, angularWidth, angularHeight, position, angle = 0.0, brightnessScale = 1.0)
 
@@ -1944,6 +1956,8 @@ cdef class DiscreteSource(SourceImage):
         self.m_pSrc.reset(pSrc.release())
 
 cdef class PointSource(SourceImage):
+    """A point source."""
+
     def __init__(self, position, brightnessScale = 1.0):
         """__init__(position, brightnessScale = 1.0)
 

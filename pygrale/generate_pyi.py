@@ -1,5 +1,10 @@
 def gen_pyi(inFn, outFn):
-    lines = open(inFn).readlines()
+    if type(inFn) == list:
+        lines = []
+        for fn in inFn:
+            lines += open(fn).readlines()
+    else:
+        lines = open(inFn).readlines()
 
     state = {
         "needStart": True,
@@ -118,9 +123,9 @@ def gen_pyi(inFn, outFn):
     open(outFn,"wt").write(''.join(state["modComments"] + [ "\n" ] + state["codeComments"]))
 
 def main():
-    gen_pyi("lenses.pyx", "lenses.pyi")
-    gen_pyi("images.pyx", "images.pyi")
-    gen_pyi("gridfunction.pyx", "gridfunction.pyi")
+    gen_pyi(["grale/lenses.pyx", "grale/privlenses.py"], "grale/lenses.pyi")
+    gen_pyi(["grale/images.pyx", "grale/privimages.py"], "grale/images.pyi")
+    gen_pyi("grale/gridfunction.pyx", "grale/gridfunction.pyi")
 
 if __name__ == "__main__":
     main()

@@ -720,9 +720,7 @@ def _getHolesList(holes, gridScale):
 
     return newHoles
 
-def createGridTriangles(bottomLeft, topRight, numX, numY, holes = None, enlargeHoleOffset = None,
-                        simplifyScale = 0.02, triangleExe = "triangle",
-                        checkOverlap = True):
+def createGridTriangles(bottomLeft, topRight, numX, numY, holes = None, enlargeHoleOffset = None, simplifyScale = 0.02, triangleExe = "triangle", checkOverlap = True):
     """Creates a grid of triangles, out of which some holes may be cut. This grid can
     then be used as a null space grid in lens inversions. When such holes are cut out,
     it is usually a good idea to make them somewhat larger than the images themselves.
