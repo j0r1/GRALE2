@@ -101,5 +101,9 @@ print("Using version string: '{}'".format(versionStr))
 # Run the actual setup command
 setupInf = setup(name = "grale",
         version = versionStr, ext_modules = cythonize(extensions, language_level="3"), 
-        py_modules = pyMods, **extraSetupArgs)
+        py_modules = pyMods,
+        packages = ["grale"],
+        package_dir = {"": "." },
+        package_data = {"grale": ["lenses.pyi", "images.pyi", "gridfunction.pyi"]},
+        **extraSetupArgs)
 
