@@ -10,6 +10,7 @@ def gen_pyi(inFn, outFn):
 
     state = {
         "needStart": True,
+        "secondPrevLine": None,
         "prevLine": None,
         "commentLines": [],
         "codeComments": [],
@@ -94,6 +95,8 @@ def gen_pyi(inFn, outFn):
             assert state["modComments"] is None, "Internal error"
             state["modComments"] = state["commentLines"]
         else:
+            if state["secondPrevLine"].strip().startswith("@"):
+                state["codeComments"].append(state["secondPrevLine"])
             state["codeComments"].append(changeArgs(changeCDef(state["prevLine"])))
             for c in state["commentLines"]:
                 state["codeComments"].append(c)
@@ -111,6 +114,7 @@ def gen_pyi(inFn, outFn):
                 else:
                     state["needStart"] = False
             else:
+                state["secondPrevLine"] = state["prevLine"]
                 state["prevLine"] = l
                 state["lastIndent"] = findNotSpace(l)
         else: # not needStart, in comment

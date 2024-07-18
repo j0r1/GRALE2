@@ -139,7 +139,7 @@ def _getLinesFromInputData(inputData):
     # Check if it's a string that can be split in lines
     return inputData.splitlines()
 
-def readInputImagesFile(inputData, isPointImagesFile, lineAnalyzer = "default", centerOn = [0, 0]):
+def readInputImagesFile(inputData, isPointImagesFile, lineAnalyzer = "default", centerOn = (0, 0)):
     """This function can process a text file (or previously read text data) into
     one or more :class:`ImagesData` instances.
 
