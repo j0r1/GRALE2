@@ -123,6 +123,12 @@ def main():
                 l = glob.glob(os.path.join(prefix,"lib","site-packages","numpy","core","include"))
                 if len(l) > 0:
                     extraIncludes += [ l[0] ]
+                l = glob.glob(os.path.join(prefix,"lib","python*","site-packages","numpy","_core","include"))
+                if len(l) > 0:
+                    extraIncludes += [ l[0] ]
+                l = glob.glob(os.path.join(prefix,"lib","site-packages","numpy","_core","include"))
+                if len(l) > 0:
+                    extraIncludes += [ l[0] ]
 
                 if extraIncludes:
                     break
