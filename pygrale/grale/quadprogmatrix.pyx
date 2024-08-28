@@ -51,9 +51,10 @@ cdef _returnResults(qpmatrix.MatrixResults *results, int returnType, int N, int 
 cdef class MaskedPotentialValues:
     cdef unique_ptr[qpmatrix.MaskedPotentialValuesBase] m_maskedValues
 
-    def __init__(self, np.ndarray[double, ndim=2] potentialValues, np.ndarray[cbool, ndim=2] mask, double phiScale):
+    def __init__(self, np.ndarray[double, ndim=2] potentialValues, np.ndarray[int, ndim=2] mask, double phiScale):
         cdef vector[double] pVal
-        cdef vector[cbool] cMask
+        cdef vector[cbool] cMaskBool
+        cdef vector[int] cMaskInt
         cdef int i, j, rows, cols
         cdef double unit
 
@@ -63,14 +64,31 @@ cdef class MaskedPotentialValues:
         assert rows > 0 and cols > 0, "Some values must be present"
 
         pVal.reserve(rows*cols)
-        cMask.reserve(rows*cols)
 
-        for i in range(rows):
-            for j in range(cols):
-                pVal.push_back(potentialValues[i,j])
-                cMask.push_back(mask[i,j])
+        if np.min(mask) == 0 and np.max(mask) == 1: # Just interpolate/extrapolate
+            cMaskBool.reserve(rows*cols)
 
-        self.m_maskedValues = unique_ptr[qpmatrix.MaskedPotentialValuesBase](new qpmatrix.MaskedPotentialValues(pVal, cMask, cols, phiScale))
+            for i in range(rows):
+                for j in range(cols):
+                    pVal.push_back(potentialValues[i,j])
+                    cMaskBool.push_back(1 if mask[i,j] == True else 0)
+
+            self.m_maskedValues = unique_ptr[qpmatrix.MaskedPotentialValuesBase](new qpmatrix.MaskedPotentialValues(pVal, cMaskBool, cols, phiScale))
+
+
+        elif np.min(mask) == 0 and np.max(mask) == 2: # Interpolation with extra offset and gradient
+            cMaskInt.reserve(rows.cols)
+
+            for i in range(rows):
+                for j in range(cols):
+                    pVal.push_back(potentialValues[i,j])
+                    cMaskInt.push_back(mask[i,j])
+
+            self.m_maskedValues = unique_ptr[qpmatrix.MaskedPotentialValuesBase](new qpmatrix.MaskedPotentialValuesOffsetGradient(pVal, cMaskInt, cols, phiScale))
+
+        else:
+            raise MaskedPotentialValuesException("Unrecognized mask type, min value should be 0 and max either 1 or 2")
+
         if not deref(self.m_maskedValues).isValid():
             raise MaskedPotentialValuesException(S(deref(self.m_maskedValues).getInvalidReason()))
 
@@ -199,14 +217,6 @@ cdef class MaskedPotentialValuesOffsetGradient:
         cdef vector[int] cMask
         cdef int i, j, rows, cols, tmp
         cdef double unit
-
-        assert potentialValues.shape[0] == mask.shape[0] and potentialValues.shape[1] == mask.shape[1], "Shapes of potentialValues and mask must match"
-        rows = potentialValues.shape[0]
-        cols = potentialValues.shape[1]
-        assert rows > 0 and cols > 0, "Some values must be present"
-
-        pVal.reserve(rows*cols)
-        cMask.reserve(rows*cols)
 
         for i in range(rows):
             for j in range(cols):

@@ -25,7 +25,7 @@ cdef extern from "qpmatrix.h":
         MaskedPotentialValues(vector[double] &potentialValues, vector[cbool] &mask, int NX, double scaleUnit)
 
     cdef cppclass MaskedPotentialValuesOffsetGradient(MaskedPotentialValuesBase):
-        MaskedPotentialValues(vector[double] &potentialValues, vector[int] &mask, int NX, double scaleUnit)
+        MaskedPotentialValuesOffsetGradient(vector[double] &potentialValues, vector[int] &mask, int NX, double scaleUnit)
 
     MatrixResults calculateLinearConstraintMatrices(const MaskedPotentialValuesBase &mpv,
         const vector[pair[double, pair[int, int]]] &kernel)
