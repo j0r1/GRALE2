@@ -364,16 +364,56 @@ def createEquivalentPotentialGridLens(lens, bottomLeft, topRight, NX, NY, maskRe
     kHw = laplacianKernel.shape[0]//2
     feedbackObject = privutil.processFeedbackObjectArgument(feedbackObject)
 
+    lens2, maskRegions2 = None, None
+    if type(lens) is tuple or type(lens) is list:
+        if len(lens) != 2:
+            raise LensException("For constraints from different lenses, only two are allowed")
+
+        lens, lens2 = lens
+        # mask regions should also contain masks for the two lenses
+        maskRegions, maskRegions2 = maskRegions
+
+    # The first lens gets us started either way
     thetas, mask = util.createThetaGridAndImagesMask(bottomLeft, topRight, NX, NY, maskRegions, pixelEnlargements,
                                                      enlargeDiagonally, circleToPolygonPoints)
+
+    mask = mask.astype(int)
     
     feedbackObject.onStatus("Calculating lens potential values")
     phi = lens.getProjectedPotential(1,1,thetas)
     phi -= np.min(phi)
     phiScale = np.max(phi)
+    if phiScale == 0:
+        phiScale = ANGLE_ARCSEC*ANGLE_ARCSEC
     
     unitDensityScaleFactor = _getDensityScaleFactor(thetas, lens.getLensDistance(), phiScale, laplacianKernel)
     deflectionAngleScaleFactor = _getDeflectionScaleFactor(thetas, lens.getLensDistance(), phiScale)
+
+    # If there are two lenses, modify the mask based on the second one. This does not
+    # affect the scale factors anymore, we'll just keep those 
+    if lens2:
+        _, mask2 = util.createThetaGridAndImagesMask(bottomLeft, topRight, NX, NY, maskRegions2, pixelEnlargements,
+                                                     enlargeDiagonally, circleToPolygonPoints)
+        
+        # Here, we use 2 for the regions that stay fixed, up to a constant
+        # and a gradient
+        mask2 = mask2.astype(int) * 2
+
+        mask += mask2
+        if np.max(mask) > 2: # Then we've added a 1 to a 2
+            raise LensException("Regions for the two lenses seem to overlap, can't construct a total mask")
+
+        # Setup the correct initial potential values for this lens as well
+        phi2 = lens2.getProjectedPotential(1,1,thetas)
+        phi2 -= np.min(phi2)
+
+        # Assuming that the inner region is really fixed, and this is the
+        # outer region, as a very first rough value we'll let it start
+        # where the inner region stopped
+        phi2 += np.max(phi)
+        mask2reg = mask == 2
+        phi[mask2reg] = phi2[mask2reg]
+
     prob = quadprogmatrix.MaskedPotentialValues(phi, mask, phiScale)
         
     feedbackObject.onStatus("Calculating linear constraints")
