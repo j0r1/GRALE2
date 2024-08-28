@@ -1,6 +1,7 @@
 from libcpp.vector cimport vector
 from libcpp.pair cimport pair
 from libcpp cimport bool as cbool
+from libcpp.string cimport string
 
 cdef extern from "qpmatrix.h":
     cdef struct SparseMatrixInfo:
@@ -14,28 +15,17 @@ cdef extern from "qpmatrix.h":
         int getNX() const
         int getNY() const
         int getNumberOfVariables() const
+        cbool isValid() const
+        string getInvalidReason() const
+
+        double getInitialValue(int varIdx) const
+        void getFullSolution(const vector[double] &sol, vector[double] &newPphiGrid) const
 
     cdef cppclass MaskedPotentialValues(MaskedPotentialValuesBase):
         MaskedPotentialValues(vector[double] &potentialValues, vector[cbool] &mask, int NX, double scaleUnit)
 
-        const vector[double] &getPotentialValues() const
-        const vector[cbool] &getMask() const
-
-        double getInitialValue(int varIdx) const
-        pair[int,int] getRowColumn(int varIdx) const
-
-        double unadjustForUnit(double x) const
-
     cdef cppclass MaskedPotentialValuesOffsetGradient(MaskedPotentialValuesBase):
         MaskedPotentialValues(vector[double] &potentialValues, vector[int] &mask, int NX, double scaleUnit)
-
-        const vector[double] &getPotentialValues() const
-        const vector[int] &getMask() const
-
-        double getInitialValue(int varIdx) const
-        pair[int,int] getRowColumn(int varIdx) const
-
-        double unadjustForUnit(double x) const
 
     MatrixResults calculateLinearConstraintMatrices(const MaskedPotentialValuesBase &mpv,
         const vector[pair[double, pair[int, int]]] &kernel)

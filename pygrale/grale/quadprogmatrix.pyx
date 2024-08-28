@@ -49,7 +49,7 @@ cdef _returnResults(qpmatrix.MatrixResults *results, int returnType, int N, int 
     return ( { "values": values, "rows": rows, "columns": cols }, b )
 
 cdef class MaskedPotentialValues:
-    cdef unique_ptr[qpmatrix.MaskedPotentialValues] m_maskedValues
+    cdef unique_ptr[qpmatrix.MaskedPotentialValuesBase] m_maskedValues
 
     def __init__(self, np.ndarray[double, ndim=2] potentialValues, np.ndarray[cbool, ndim=2] mask, double phiScale):
         cdef vector[double] pVal
@@ -70,7 +70,9 @@ cdef class MaskedPotentialValues:
                 pVal.push_back(potentialValues[i,j])
                 cMask.push_back(mask[i,j])
 
-        self.m_maskedValues = make_unique[qpmatrix.MaskedPotentialValues](pVal, cMask, cols, phiScale)
+        self.m_maskedValues = unique_ptr[qpmatrix.MaskedPotentialValuesBase](new qpmatrix.MaskedPotentialValues(pVal, cMask, cols, phiScale))
+        if not deref(self.m_maskedValues).isValid():
+            raise MaskedPotentialValuesException(S(deref(self.m_maskedValues).getInvalidReason()))
 
     def getNumberOfVariables(self):
         return deref(self.m_maskedValues).getNumberOfVariables()
@@ -158,34 +160,34 @@ cdef class MaskedPotentialValues:
         return values
 
     def getFullSolution(self, np.ndarray[double, ndim=1] solValues):
+        cdef vector[double] cNewPhi,cSolValues
         cdef np.ndarray[double, ndim=2] newPhi
         cdef int N, NX, NY, i, j, idx
-        cdef const vector[double] *oldPhi = &(deref(self.m_maskedValues).getPotentialValues())
-        cdef pair[int,int] rowCol
-        cdef double val
+        cdef double NaN = float("NaN")
 
         N = self.getNumberOfVariables()
         if N != solValues.shape[0]:
             raise MaskedPotentialValuesException("Expecting an input array of length {}".format(N))
 
+        cSolValues.resize(N)
+        for i in range(N):
+            cSolValues[i] = solValues[i]
+
         NX = deref(self.m_maskedValues).getNX()
         NY = deref(self.m_maskedValues).getNY()
 
-        # First create a copy of the old values
+        cNewPhi.resize(NY*NX, NaN) 
+        deref(self.m_maskedValues).getFullSolution(cSolValues, cNewPhi)
+
+        # Copy solution to np array
         newPhi = np.empty([NY,NX], dtype=np.double)
         idx = 0
         for i in range(NY):
             for j in range(NX):
-                newPhi[i,j] = (deref(oldPhi))[idx]
+                newPhi[i,j] = cNewPhi[idx]
                 idx += 1
 
-        # Fill in solution
-        for idx in range(N):
-            rowCol = deref(self.m_maskedValues).getRowColumn(idx)
-
-            val = solValues[idx]
-            val = deref(self.m_maskedValues).unadjustForUnit(val)
-            newPhi[rowCol.first, rowCol.second] = val
+        assert np.sum(np.isnan(newPhi)) == 0, "NaN detected in final grid, something is not filled in"
 
         return newPhi
 
@@ -216,124 +218,5 @@ cdef class MaskedPotentialValuesOffsetGradient:
                 cMask.push_back(tmp)
 
         self.m_maskedValues = make_unique[qpmatrix.MaskedPotentialValuesOffsetGradient](pVal, cMask, cols, phiScale)
-
-    def getNumberOfVariables(self):
-        return deref(self.m_maskedValues).getNumberOfVariables()
-
-    def getLinearConstraintMatrices(self, kernel, returnType = "csc"):
-        cdef vector[pair[double, pair[int, int]]] cKernel
-        cdef pair[int,int] diff
-        cdef qpmatrix.MatrixResults results
-        cdef np.ndarray[double, ndim=1] values, b
-        cdef np.ndarray[long, ndim=1] rows, cols
-        cdef int i, rt, N, M
-        cdef double factor
-
-        rt = _getReturnType(returnType)
-
-        for part in kernel:
-            factor = part["factor"]
-            diff = pair[int, int](part["di"], part["dj"])
-            cKernel.push_back(pair[double, pair[int,int]](factor, diff))
-
-        results = qpmatrix.calculateLinearConstraintMatrices(deref(self.m_maskedValues), cKernel)
-        N = results.second.size()
-        M = self.getNumberOfVariables()
-        return _returnResults(&results, rt, N, M)
-
-    def getQuadraticMinimizationMatrices(self, kernelList, returnType = "csc"):
-        raise Exception("TODO")
-        # qpmatrix.calculateQuadraticMimimizationMatrices now only handles a single
-        # kernel, this function should either call that multiple times, or rewrite
-        # the rest of the code slightly - since all this is experimental, just
-        # postponing that for now
-
-#        cdef vector[pair[double, vector[pair[double,pair[int, int]]]]] cKernelList
-#        cdef vector[pair[double,pair[int, int]]] cKernel
-#        cdef double weight, factor
-#        cdef pair[int,int] diff
-#        cdef qpmatrix.MatrixResults results
-#        cdef int rt, N
-#        
-#        rt = _getReturnType(returnType)
-#
-#        for d in kernelList:
-#            weight = d["weight"]
-#            kernel = d["kernel"]
-#            cKernel.clear()
-#            
-#            for part in kernel:
-#                factor = part["factor"]
-#                diff = pair[int, int](part["di"], part["dj"])
-#                cKernel.push_back(pair[double, pair[int,int]](factor, diff))
-#            
-#            cKernelList.push_back(pair[double, vector[pair[double,pair[int, int]]]](weight, cKernel))
-#
-#        results = qpmatrix.calculateQuadraticMimimizationMatrices(deref(self.m_maskedValues), cKernelList)
-#        N = self.getNumberOfVariables()
-#        return _returnResults(&results, rt, N, N)
-
-    # NOTE: for now the underlying code just returns zero, should we just return a zero ndarray?
-    def getInitialValues(self):
-        cdef int N,i
-        cdef np.ndarray[double, ndim=1] values
-
-        N = self.getNumberOfVariables()
-        values = np.empty([ N ], dtype=np.double)
-        for i in range(N):
-            values[i] = deref(self.m_maskedValues).getInitialValue(i)
-
-        return values
-
-    def getFullSolution(self, np.ndarray[double, ndim=1] solValues):
-        cdef np.ndarray[double, ndim=2] newPhi
-        cdef int N, NX, NY, i, j, idx, m
-        cdef pair[int,int] rowCol
-        cdef double val
-        cdef qpmatrix.MaskedPotentialValuesOffsetGradient *pMV = self.m_maskedValues.get()
-        cdef const vector[double] *oldPhi = &(pMV.getPotentialValues())
-        cdef const vector[int] *mask = &(pMV.getMask())
-
-        N = self.getNumberOfVariables()
-        if N != solValues.shape[0]:
-            raise MaskedPotentialValuesException("Expecting an input array of length {}".format(N))
-
-        NX = pMV.getNX()
-        NY = pMV.getNY()
-
-        # First create a copy of the old values, or with offset and gradient
-        newPhi = np.empty([NY,NX], dtype=np.double)
-        newPhi[:,:] = float("NaN") # Just to check that we're willing in everything
-
-        solOffset = solValues[0]
-        solGradX = solValues[1]
-        solGradY = solValues[2]
-
-        idx = 0
-        for i in range(NY):
-            for j in range(NX):
-                m = deref(mask)[idx]
-                if m == 0:
-                    pass # will fill in later
-                elif m == 1: # Just the initial value
-                    newPhi[i,j] = (deref(oldPhi))[idx]
-                elif m == 2: # The initial value, plus offset and gradient
-                    newPhi[i,j] = (deref(oldPhi))[idx] + pMV.unadjustForUnit(solOffset + j*solGradX + i*solGradY)
-                else:
-                    raise MaskedPotentialValuesException("Internal error: unknown mask value {} detected, should have been detected already".format(m))
-                idx += 1
-
-        # Fill in solution
-        for idx in range(3, N): # the first three are for offset and gradient
-            rowCol = pMV.getRowColumn(idx)
-
-            val = solValues[idx]
-            val = pMV.unadjustForUnit(val)
-            newPhi[rowCol.first, rowCol.second] = val
-
-        assert np.sum(np.isnan(newPhi)) == 0, "NaN detected in final grid, something is not filled in?"
-
-        return newPhi
-
 
 

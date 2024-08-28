@@ -318,8 +318,8 @@ MaskedPotentialValuesOffsetGradient::MaskedPotentialValuesOffsetGradient(vector<
 	{
 		if (m < 0 || m > 2)
 		{
-			cerr << "Internal error: illegal mask value " << m << endl;
-			exit(-1);
+			setInvalid("Illegal mask value " + std::to_string(m));
+			return;
 		}
 		maskCounts[m]++;
 	}
@@ -328,8 +328,8 @@ MaskedPotentialValuesOffsetGradient::MaskedPotentialValuesOffsetGradient(vector<
 	{
 		if (!maskCounts[i])
 		{
-			cerr << "Internal error: not all mask values are present, can't define problem" << endl;
-			exit(-1);
+			setInvalid("Not all mask values are present, can't define problem");
+			return;
 		}
 	}
 
