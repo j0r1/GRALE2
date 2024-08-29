@@ -71,13 +71,13 @@ cdef class MaskedPotentialValues:
             for i in range(rows):
                 for j in range(cols):
                     pVal.push_back(potentialValues[i,j])
-                    cMaskBool.push_back(1 if mask[i,j] == True else 0)
+                    cMaskBool.push_back(True if mask[i,j] != 0 else False)
 
             self.m_maskedValues = unique_ptr[qpmatrix.MaskedPotentialValuesBase](new qpmatrix.MaskedPotentialValues(pVal, cMaskBool, cols, phiScale))
 
 
         elif np.min(mask) == 0 and np.max(mask) == 2: # Interpolation with extra offset and gradient
-            cMaskInt.reserve(rows.cols)
+            cMaskInt.reserve(rows*cols)
 
             for i in range(rows):
                 for j in range(cols):

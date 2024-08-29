@@ -377,7 +377,7 @@ def createEquivalentPotentialGridLens(lens, bottomLeft, topRight, NX, NY, maskRe
     thetas, mask = util.createThetaGridAndImagesMask(bottomLeft, topRight, NX, NY, maskRegions, pixelEnlargements,
                                                      enlargeDiagonally, circleToPolygonPoints)
 
-    mask = mask.astype(int)
+    mask = mask.astype(np.intc)
     
     feedbackObject.onStatus("Calculating lens potential values")
     phi = lens.getProjectedPotential(1,1,thetas)
@@ -397,7 +397,7 @@ def createEquivalentPotentialGridLens(lens, bottomLeft, topRight, NX, NY, maskRe
         
         # Here, we use 2 for the regions that stay fixed, up to a constant
         # and a gradient
-        mask2 = mask2.astype(int) * 2
+        mask2 = mask2.astype(np.intc) * 2
 
         mask += mask2
         if np.max(mask) > 2: # Then we've added a 1 to a 2
