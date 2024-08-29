@@ -381,13 +381,9 @@ def createEquivalentPotentialGridLens(lens, bottomLeft, topRight, NX, NY, maskRe
     
     feedbackObject.onStatus("Calculating lens potential values")
     phi = lens.getProjectedPotential(1,1,thetas)
-    phi -= np.min(phi)
+    phiOffset = np.min(phi)
+    phi -= phiOffset
     phiScale = np.max(phi)
-    if phiScale == 0:
-        phiScale = ANGLE_ARCSEC*ANGLE_ARCSEC
-    
-    unitDensityScaleFactor = _getDensityScaleFactor(thetas, lens.getLensDistance(), phiScale, laplacianKernel)
-    deflectionAngleScaleFactor = _getDeflectionScaleFactor(thetas, lens.getLensDistance(), phiScale)
 
     # If there are two lenses, modify the mask based on the second one. This does not
     # affect the scale factors anymore, we'll just keep those 
@@ -398,21 +394,32 @@ def createEquivalentPotentialGridLens(lens, bottomLeft, topRight, NX, NY, maskRe
         # Here, we use 2 for the regions that stay fixed, up to a constant
         # and a gradient
         mask2 = mask2.astype(np.intc) * 2
-
         mask += mask2
+
         if np.max(mask) > 2: # Then we've added a 1 to a 2
             raise LensException("Regions for the two lenses seem to overlap, can't construct a total mask")
 
         # Setup the correct initial potential values for this lens as well
         phi2 = lens2.getProjectedPotential(1,1,thetas)
-        phi2 -= np.min(phi2)
+        #phi2 -= phiOffset
 
         # Assuming that the inner region is really fixed, and this is the
         # outer region, as a very first rough value we'll let it start
         # where the inner region stopped
-        phi2 += np.max(phi)
+
+        mask1reg = mask == 1
         mask2reg = mask == 2
+        phi2 -= np.min(phi2[mask2reg])
+        phi2 += np.max(phi[mask1reg])
+
         phi[mask2reg] = phi2[mask2reg]
+        phiScale = max(phiScale, np.max(phi))
+
+    if phiScale == 0:
+        phiScale = ANGLE_ARCSEC*ANGLE_ARCSEC
+
+    unitDensityScaleFactor = _getDensityScaleFactor(thetas, lens.getLensDistance(), phiScale, laplacianKernel)
+    deflectionAngleScaleFactor = _getDeflectionScaleFactor(thetas, lens.getLensDistance(), phiScale)
 
     prob = quadprogmatrix.MaskedPotentialValues(phi, mask, phiScale)
         
