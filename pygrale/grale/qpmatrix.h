@@ -196,8 +196,8 @@ inline std::vector<std::tuple<int, double, double>> MaskedPotentialValuesOffsetG
 			{ idxOffset, std::numeric_limits<double>::quiet_NaN(), 1.0 },
 			// Below, by just using j instead of theta_x,j or j instead of theta_y,i, we're
 			// actually absorbing a scale factor into grad_x and grad_y
-			{ idxGradX, std::numeric_limits<double>::quiet_NaN(), j },
-			{ idxGradY, std::numeric_limits<double>::quiet_NaN(), i }
+			{ idxGradX, std::numeric_limits<double>::quiet_NaN(), (double)j/(double)(m_NX-1) },
+			{ idxGradY, std::numeric_limits<double>::quiet_NaN(), (double)i/(double)(m_NY-1) }
 		};
 	}
 
@@ -250,7 +250,7 @@ inline void MaskedPotentialValuesOffsetGradient::getFullSolution(const std::vect
 			size_t i = idx/getNX();
 			size_t j = idx%getNX();
 
-			double correction = solOffset + j*solGradX + i*solGradY;
+			double correction = solOffset + (double)j/(double)(m_NX-1)*solGradX + (double)i/(double)(m_NY-1)*solGradY;
 			newPhi[idx] = m_potentialValues[idx] + unadjustForUnit(correction);
 		}
 		else
