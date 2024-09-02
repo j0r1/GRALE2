@@ -208,25 +208,3 @@ cdef class MaskedPotentialValues:
         assert np.sum(np.isnan(newPhi)) == 0, "NaN detected in final grid, something is not filled in"
 
         return newPhi
-
-cdef class MaskedPotentialValuesOffsetGradient:
-    cdef unique_ptr[qpmatrix.MaskedPotentialValuesOffsetGradient] m_maskedValues
-
-    def __init__(self, np.ndarray[double, ndim=2] potentialValues, np.ndarray[int, ndim=2] mask, double phiScale):
-        cdef vector[double] pVal
-        cdef vector[int] cMask
-        cdef int i, j, rows, cols, tmp
-        cdef double unit
-
-        for i in range(rows):
-            for j in range(cols):
-                pVal.push_back(potentialValues[i,j])
-                tmp = mask[i,j]
-                if tmp < 0 or tmp > 2:
-                    raise MaskedPotentialValuesException("Mask value must be either 0 (optimize potential value), 1 (fixed potential value) or 2 (fixed potential value, but with offset and gradient)")
-
-                cMask.push_back(tmp)
-
-        self.m_maskedValues = make_unique[qpmatrix.MaskedPotentialValuesOffsetGradient](pVal, cMask, cols, phiScale)
-
-
