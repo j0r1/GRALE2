@@ -381,8 +381,7 @@ def createEquivalentPotentialGridLens(lens, bottomLeft, topRight, NX, NY, maskRe
     
     feedbackObject.onStatus("Calculating lens potential values")
     phi = lens.getProjectedPotential(1,1,thetas)
-    phiOffset = np.min(phi)
-    phi -= phiOffset
+    phi -= np.min(phi)
     phiScale = np.max(phi)
 
     # If there are two lenses, modify the mask based on the second one. This does not
@@ -401,18 +400,9 @@ def createEquivalentPotentialGridLens(lens, bottomLeft, topRight, NX, NY, maskRe
 
         # Setup the correct initial potential values for this lens as well
         phi2 = lens2.getProjectedPotential(1,1,thetas)
-        #phi2 -= phiOffset
+        phi2 -= np.min(phi)
 
-        # Assuming that the inner region is really fixed, and this is the
-        # outer region, as a very first rough value we'll let it start
-        # where the inner region stopped
-
-        mask1reg = mask == 1
-        mask2reg = mask == 2
-        phi2 -= np.min(phi2[mask2reg])
-        phi2 += np.max(phi[mask1reg])
-
-        phi[mask2reg] = phi2[mask2reg]
+        phi[mask == 2] = phi2[mask == 2]
         phiScale = max(phiScale, np.max(phi))
 
     if phiScale == 0:
@@ -421,6 +411,8 @@ def createEquivalentPotentialGridLens(lens, bottomLeft, topRight, NX, NY, maskRe
     unitDensityScaleFactor = _getDensityScaleFactor(thetas, lens.getLensDistance(), phiScale, laplacianKernel)
     deflectionAngleScaleFactor = _getDeflectionScaleFactor(thetas, lens.getLensDistance(), phiScale)
 
+    #import pickle
+    #pickle.dump(phi, open("debugphi.dat", "wb"))
     prob = quadprogmatrix.MaskedPotentialValues(phi, mask, phiScale)
         
     feedbackObject.onStatus("Calculating linear constraints")
@@ -451,6 +443,13 @@ def createEquivalentPotentialGridLens(lens, bottomLeft, topRight, NX, NY, maskRe
         maxMasks.append(constrMask)
 
     A, b = None, None
+
+    # TODO: for testing, disable gradient by using constraint
+    #A = np.zeros((3, prob.getNumberOfVariables()), dtype=np.double)
+    #b = np.zeros((3,))
+    #A[0,1] = 1
+    #A[1,2] = 1
+    #A[2,0] = 1
     
     for constr in exactDensityConstraints:
         _, constrMask = util.createThetaGridAndImagesMask(bottomLeft, topRight, NX, NY, constr["maskRegions"], 0)
