@@ -149,20 +149,12 @@ bool PlummerLens::getCLParameters(double deflectionScale, double potentialScale,
 {
 	double scaledWidth = angularwidth/deflectionScale;
 
-	if (getenv("GRALE_EXPERIMENTAL_OPENCLPARAMS"))
-	{
-		// mass factor
-		pFloatParams[0] = (float)((4.0*CONST_G*mass)/(SPEED_C*SPEED_C*getLensDistance()*deflectionScale*deflectionScale));
-		// width factor
-		pFloatParams[1] = (float)(scaledWidth);
-		// prefactor needed for potential, to express in potentialscale units
-		pFloatParams[2] = (float)(deflectionScale*deflectionScale/(potentialScale*2.0));
-		return true;
-	}
-	
+	// mass factor
 	pFloatParams[0] = (float)((4.0*CONST_G*mass)/(SPEED_C*SPEED_C*getLensDistance()*deflectionScale*deflectionScale));
-	pFloatParams[1] = (float)(scaledWidth*scaledWidth);
-	pFloatParams[2] = (float)(((2.0*CONST_G*mass)/(SPEED_C*SPEED_C*getLensDistance()))/potentialScale);
+	// width factor
+	pFloatParams[1] = (float)(scaledWidth);
+	// prefactor needed for potential, to express in potentialscale units
+	pFloatParams[2] = (float)(deflectionScale*deflectionScale/(potentialScale*2.0));
 	return true;
 }
 
@@ -170,10 +162,7 @@ std::string PlummerLens::getCLProgram(std::string &subRoutineName, bool derivati
 {
 	std::string program;
 
-	if (getenv("GRALE_EXPERIMENTAL_OPENCLPARAMS"))
-	{
-		std::cerr << "GRALE_EXPERIMENTAL_OPENCLPARAMS detected" << std::endl;
-		program = R"XYZ(
+	program = R"XYZ(
 LensQuantities clPlummerLensProgram(float2 coord, __global const int *pIntParams, __global const float *pFloatParams)
 {
 	float scaledMass = pFloatParams[0];
@@ -202,33 +191,7 @@ LensQuantities clPlummerLensProgram(float2 coord, __global const int *pIntParams
 	return r;
 }
 )XYZ";
-		subRoutineName = "clPlummerLensProgram";
-		return program;
-	}
-
-	program += "LensQuantities clPlummerLensProgram(float2 coord, __global const int *pIntParams, __global const float *pFloatParams)\n";
-	program += "{\n";
-	program += "	float denom = coord.x*coord.x+coord.y*coord.y+pFloatParams[1];\n";
-	program += "	float denom2 = denom*denom;\n";
-	program += "	float factor = pFloatParams[0]/denom;\n";
-	program += "	float factor2 = pFloatParams[0]/denom2;\n";
-	program += "\n";
-	program += "	LensQuantities r;\n";
-	program += "	r.alphaX = factor*coord.x;\n";
-	program += "	r.alphaY = factor*coord.y;\n";
-	if (potential)
-		program += "	r.potential = pFloatParams[2]*log(denom);\n";
-	if (derivatives)
-	{
-		program += "	r.axx = factor2*(-coord.x*coord.x+coord.y*coord.y+pFloatParams[1]);\n";
-		program += "	r.ayy = factor2*(-coord.y*coord.y+coord.x*coord.x+pFloatParams[1]);\n";
-		program += "	r.axy = factor2*(-2.0*coord.x*coord.y);\n";
-	}
-	program += "	return r;\n";
-	program += "}\n";
-
 	subRoutineName = "clPlummerLensProgram";
-
 	return program;
 }
 
