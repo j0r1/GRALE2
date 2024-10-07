@@ -6,4 +6,8 @@ target_link_libraries(grale_lensplane_opencl ${GRALE_PROGRAMS_LIBRARY_CORE} ${GR
 add_executable(ocltst ocltst.cpp)
 target_link_libraries(ocltst ${GRALE_PROGRAMS_LIBRARY_CORE} ${GRALE_LINK_LIBS} ${GRALE_DLLIBS})
 
+add_executable(grale_potential_opencl grale_potential_opencl.cpp ../inputoutput.cpp ../communicator.cpp)
+target_link_libraries(grale_potential_opencl ${GRALE_PROGRAMS_LIBRARY_CORE} ${GRALE_LINK_LIBS} ${GRALE_DLLIBS})
+
 install(TARGETS grale_lensplane_opencl DESTINATION bin)
+install(TARGETS grale_potential_opencl DESTINATION bin)
