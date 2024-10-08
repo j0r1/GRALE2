@@ -256,49 +256,25 @@ bool MultiplePlummerLens::getSuggestedScales(double *pDeflectionScale, double *p
 
 bool MultiplePlummerLens::getCLParameterCounts(int *pNumIntParams, int *pNumFloatParams) const
 {
-	if (getenv("GRALE_EXPERIMENTAL_OPENCLPARAMS"))
-	{
-		*pNumIntParams = 0;
-		*pNumFloatParams = 1 + 4*numlenses;
-		return true;
-	}
-	*pNumIntParams = 1; // TODO: do we need this? can be baked into opencl code
-	*pNumFloatParams = 5*numlenses;
+	*pNumIntParams = 0;
+	*pNumFloatParams = 1 + 4*numlenses;
 	return true;
 }
 
 bool MultiplePlummerLens::getCLParameters(double deflectionScale, double potentialScale, int *pIntParams, float *pFloatParams) const
 {
-	pIntParams[0] = numlenses;
-
-	if (getenv("GRALE_EXPERIMENTAL_OPENCLPARAMS"))
-	{
-		std::cerr << "GRALE_EXPERIMENTAL_OPENCLPARAMS on" << std::endl;
-		pFloatParams[0] = (float)(deflectionScale*deflectionScale/(2.0*potentialScale)); // TODO: this is same for all lenses
-		for (int i = 0 ; i < numlenses ; i++)
-		{
-			double scaledWidth = lensinfo[i].getAngularWidth()*scalefactor/deflectionScale;
-
-			// mass factor
-			pFloatParams[1+i*4+0] = (float)((4.0*CONST_G*lensinfo[i].getMass()*totalmass)/(SPEED_C*SPEED_C*getLensDistance()*deflectionScale*deflectionScale));
-			// width factor
-			pFloatParams[1+i*4+1] = (float)(scaledWidth);
-			// scaled position
-			pFloatParams[1+i*4+2] = (float)(lensinfo[i].getAngularPosition().getX()/deflectionScale);
-			pFloatParams[1+i*4+3] = (float)(lensinfo[i].getAngularPosition().getY()/deflectionScale);
-		}
-		return true;
-	}
-
+	pFloatParams[0] = (float)(deflectionScale*deflectionScale/(2.0*potentialScale)); // this is same for all lenses
 	for (int i = 0 ; i < numlenses ; i++)
 	{
 		double scaledWidth = lensinfo[i].getAngularWidth()*scalefactor/deflectionScale;
 
-		pFloatParams[i*5+0] = (float)((4.0*CONST_G*lensinfo[i].getMass()*totalmass)/(SPEED_C*SPEED_C*getLensDistance()*deflectionScale*deflectionScale));
-		pFloatParams[i*5+1] = (float)(scaledWidth*scaledWidth);
-		pFloatParams[i*5+2] = (float)(((2.0*CONST_G*lensinfo[i].getMass()*totalmass)/(SPEED_C*SPEED_C*getLensDistance()))/potentialScale);
-		pFloatParams[i*5+3] = (float)(lensinfo[i].getAngularPosition().getX()/deflectionScale);
-		pFloatParams[i*5+4] = (float)(lensinfo[i].getAngularPosition().getY()/deflectionScale);
+		// mass factor
+		pFloatParams[1+i*4+0] = (float)((4.0*CONST_G*lensinfo[i].getMass()*totalmass)/(SPEED_C*SPEED_C*getLensDistance()*deflectionScale*deflectionScale));
+		// width factor
+		pFloatParams[1+i*4+1] = (float)(scaledWidth);
+		// scaled position
+		pFloatParams[1+i*4+2] = (float)(lensinfo[i].getAngularPosition().getX()/deflectionScale);
+		pFloatParams[1+i*4+3] = (float)(lensinfo[i].getAngularPosition().getY()/deflectionScale);
 	}
 	return true;
 }
@@ -307,9 +283,7 @@ std::string MultiplePlummerLens::getCLProgram(std::string &subRoutineName, bool 
 {
 	std::string prog;
 
-	if (getenv("GRALE_EXPERIMENTAL_OPENCLPARAMS"))
-	{
-		prog += R"XYZ(
+	prog += R"XYZ(
 LensQuantities clMultiplePlummerLensProgram(float2 coord, __global const int *pIntParams, __global const float *pFloatParams)
 {
 	LensQuantities r = { 0 } ;
@@ -335,58 +309,21 @@ LensQuantities clMultiplePlummerLensProgram(float2 coord, __global const int *pI
 		r.alphaX += factor*dx;
 		r.alphaY += factor*dy;
 )XYZ";
-		if (potential)
-			prog += "		r.potential += potentialPrefactor*scaledMass*log(denom);\n";
-		if (derivatives)
-		{
-			prog += R"XYZ(
+	if (potential)
+		prog += "		r.potential += potentialPrefactor*scaledMass*log(denom);\n";
+	if (derivatives)
+	{
+		prog += R"XYZ(
 		r.axx += factor2*(-dx2+dy2+w2);
 		r.ayy += factor2*(+dx2-dy2+w2);
 		r.axy += factor2*(-2.0*dx*dy);
 )XYZ";
-		}
-		prog += R"XYZ(
+	}
+	prog += R"XYZ(
 	}
 	return r;
 }
 )XYZ";
-
-		subRoutineName = "clMultiplePlummerLensProgram";
-
-		return prog;
-	}
-
-	prog += "LensQuantities clMultiplePlummerLensProgram(float2 coord, __global const int *pIntParams, __global const float *pFloatParams)\n";
-	prog += "{\n";
-	prog += "	LensQuantities r = { 0 } ;\n";
-	prog += "	int numLenses = pIntParams[0];\n";
-	prog += "\n";
-	prog += "	for (int i = 0 ; i < numLenses ; i++)\n";
-	prog += "	{\n";
-	prog += "		float dx = coord.x-pFloatParams[i*5+3];\n";
-	prog += "		float dy = coord.y-pFloatParams[i*5+4];\n";
-	prog += "		float dx2 = dx*dx;\n";
-	prog += "		float dy2 = dy*dy;\n";
-	prog += "		float w2 = pFloatParams[i*5+1];\n";
-	prog += "		float denom = dx2+dy2+w2;\n";
-	prog += "		float denom2 = denom*denom;\n";
-	prog += "		float factor = pFloatParams[i*5+0]/denom;\n";
-	prog += "		float factor2 = pFloatParams[i*5+0]/denom2;\n";
-	prog += "\n";
-	prog += "		r.alphaX += factor*dx;\n";
-	prog += "		r.alphaY += factor*dy;\n";
-	if (potential)
-		prog += "		r.potential += pFloatParams[i*5+2]*log(denom);\n";
-	if (derivatives)
-	{
-		prog += "		r.axx += factor2*(-dx2+dy2+w2);\n";
-		prog += "		r.ayy += factor2*(+dx2-dy2+w2);\n";
-		prog += "		r.axy += factor2*(-2.0*dx*dy);\n";
-	}
-	prog += "	}\n";
-	prog += "\n";
-	prog += "	return r;\n";
-	prog += "}\n";
 
 	subRoutineName = "clMultiplePlummerLensProgram";
 
