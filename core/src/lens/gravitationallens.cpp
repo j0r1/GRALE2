@@ -710,7 +710,7 @@ std::string GravitationalLens::getCLLensProgram(std::string &subRoutineName, boo
 {
 	std::string prog = getCLLensQuantitiesStructure(derivatives, potential);
 	
-	prog += getCLProgram(subRoutineName);
+	prog += getCLProgram(subRoutineName, derivatives, potential);
 
 	return prog;
 }
