@@ -130,16 +130,8 @@ bool MassSheetLens::getCLParameterCounts(int *pNumIntParams, int *pNumFloatParam
 
 bool MassSheetLens::getCLParameters(double deflectionScale, double potentialScale, int *pIntParams, float *pFloatParams) const
 {
-	if (getenv("GRALE_EXPERIMENTAL_OPENCLPARAMS"))
-	{
-		std::cerr << "GRALE_EXPERIMENTAL_OPENCLPARAMS on" << std::endl;
-		pFloatParams[0] = (float)(m_factor); // dimensionless version of the density of the sheet
-		pFloatParams[1] = (float)(0.5*deflectionScale*deflectionScale/potentialScale); // scale factor for potential
-		return true;
-	}
-
-	pFloatParams[0] = (float)(m_factor);
-	pFloatParams[1] = (float)(0.5*m_factor*deflectionScale*deflectionScale/potentialScale);
+	pFloatParams[0] = (float)(m_factor); // dimensionless version of the density of the sheet
+	pFloatParams[1] = (float)(0.5*deflectionScale*deflectionScale/potentialScale); // scale factor for potential
 	return true;
 }
 
@@ -147,9 +139,7 @@ std::string MassSheetLens::getCLProgram(std::string &subRoutineName, bool deriva
 {
 	std::string program;
 
-	if (getenv("GRALE_EXPERIMENTAL_OPENCLPARAMS"))
-	{
-		program += R"XYZ(
+	program += R"XYZ(
 LensQuantities clMassSheetLensProgram(float2 coord, __global const int *pIntParams, __global const float *pFloatParams)
 {
 	float densityFactor = pFloatParams[0];
@@ -159,46 +149,22 @@ LensQuantities clMassSheetLensProgram(float2 coord, __global const int *pIntPara
 	r.alphaX = densityFactor*coord.x;
 	r.alphaY = densityFactor*coord.y;
 )XYZ";
-		if (potential)
-			program += "	r.potential = potentialScaleFactor*densityFactor*(coord.x*coord.x+coord.y*coord.y);\n";
-		if (derivatives)
-		{
-			program += R"XYZ(
+	if (potential)
+		program += "	r.potential = potentialScaleFactor*densityFactor*(coord.x*coord.x+coord.y*coord.y);\n";
+	if (derivatives)
+	{
+		program += R"XYZ(
 	r.axx = densityFactor;
 	r.ayy = densityFactor;
 	r.axy = 0;
 )XYZ";
-		}
-		program += R"XYZ(
+	}
+	program += R"XYZ(
 	return r;
 }
 )XYZ";
 
-		subRoutineName = "clMassSheetLensProgram";
-		return program;
-	}
-
-	program += "LensQuantities clMassSheetLensProgram(float2 coord, __global const int *pIntParams, __global const float *pFloatParams)\n";
-	program += "{\n";
-	program += "	float factor = pFloatParams[0];\n";
-	program += "	float factor2 = pFloatParams[1];\n";
-	program += "\n";
-	program += "	LensQuantities r;\n";
-	program += "	r.alphaX = factor*coord.x;\n";
-	program += "	r.alphaY = factor*coord.y;\n";
-	if (potential)
-		program += "	r.potential = pFloatParams[1]*(coord.x*coord.x+coord.y*coord.y);\n";
-	if (derivatives)
-	{
-		program += "	r.axx = factor;\n";
-		program += "	r.ayy = factor;\n";
-		program += "	r.axy = 0;\n";
-	}
-	program += "	return r;\n";
-	program += "}\n";
-
 	subRoutineName = "clMassSheetLensProgram";
-
 	return program;
 }
 
