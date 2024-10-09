@@ -56,8 +56,20 @@ bool_t OpenCLRenderer::renderGrid(const vector<uint8_t> &lensData, Gravitational
 	vector<int> intParams(numIntParams+1); // TODO: why did I do a +1 here?
 	vector<float> floatParams(numFloatParams+1);
 
+	intParams[numIntParams] = -12345;
+	floatParams[numFloatParams] = -12345.0f;
+
 	if (!pLens->getCLParameters(deflectionScale, potentialScale, &(intParams[0]), &(floatParams[0])))
 		return "Couldn't get parameters for OpenCL program: " + pLens->getErrorString();
+
+	std::cerr << "Integer parameters (" << numIntParams << ")" << std::endl;
+	for (auto x : intParams)
+		std::cerr << "  " << x << std::endl;
+
+	std::cerr << std::endl;
+	std::cerr << "Float parameters (" << numFloatParams << ")" << std::endl;
+	for (auto x : floatParams)
+		std::cerr << "  " << x << std::endl;
 
 	string program, failLog, subRoutine;
 
