@@ -26,6 +26,7 @@
 #include "graleconfig.h"
 #include "nsielens.h"
 #include "constants.h"
+#include <iostream>
 
 namespace grale
 {
@@ -158,6 +159,13 @@ bool NSIELens::getSuggestedScales(double *pDeflectionScale, double *pPotentialSc
 
 bool NSIELens::getCLParameterCounts(int *pNumIntParams, int *pNumFloatParams) const
 {
+	if (getenv("GRALE_EXPERIMENTAL_OPENCLPARAMS"))
+	{
+		*pNumIntParams = 0;
+		*pNumFloatParams = 5;
+		return true;
+	}
+
 	*pNumIntParams = 0;
 	*pNumFloatParams = 3;
 	return true;
@@ -165,6 +173,20 @@ bool NSIELens::getCLParameterCounts(int *pNumIntParams, int *pNumFloatParams) co
 
 bool NSIELens::getCLParameters(double deflectionScale, double potentialScale, int *pIntParams, float *pFloatParams) const
 {
+	if (getenv("GRALE_EXPERIMENTAL_OPENCLPARAMS"))
+	{
+		std::cerr << "GRALE_EXPERIMENTAL_OPENCLPARAMS on" << std::endl;
+		double velScale = 100000.0; // units of 100km/s
+		double factor = 4.0*CONST_PI*velScale*velScale/(SPEED_C*SPEED_C);
+
+		pFloatParams[0] = (float)F; // ellipticity
+		pFloatParams[1] = (float)(V/velScale); // scaled velocity dispersion
+		pFloatParams[2] = (float)(corerad/deflectionScale); // scaled core radius
+		pFloatParams[3] = (float)(factor/deflectionScale);
+		pFloatParams[4] = (float)(deflectionScale*deflectionScale/potentialScale);
+		return true;
+	}
+
 	double factor = 4.0*CONST_PI*V*V*SQRT(F)/(SPEED_C*SPEED_C*SQRT(1.0-F*F));
 	pFloatParams[0] = (float)F;
 	pFloatParams[1] = (float)(corerad/deflectionScale);
@@ -176,6 +198,56 @@ bool NSIELens::getCLParameters(double deflectionScale, double potentialScale, in
 std::string NSIELens::getCLProgram(std::string &subRoutineName, bool derivatives, bool potential) const
 {
 	subRoutineName = "clNSIELensProgram";
+
+	if (getenv("GRALE_EXPERIMENTAL_OPENCLPARAMS"))
+	{
+		std::string program = R"XYZ(
+
+LensQuantities clNSIELensProgram(float2 coord, __global const int *pIntParams, __global const float *pFloatParams)
+{
+	float F = pFloatParams[0];
+	float scaledV = pFloatParams[1];
+	float scaledCore = pFloatParams[2];
+	float extraFactor = pFloatParams[3];
+	float Q = sqrt(1.0f-F*F);
+
+	float denomPart = sqrt(F*F*coord.y*coord.y + scaledCore*scaledCore + coord.x*coord.x);
+	float X = (coord.x*Q)/(denomPart + F*scaledCore);
+	float Y = (F*coord.y*Q)/(F*denomPart + scaledCore);
+
+	float factor = extraFactor*scaledV*scaledV*sqrt(F)/Q;
+
+	LensQuantities r;
+	r.alphaX = factor*atanh(X);
+	r.alphaY = factor*atan(Y);
+)XYZ";
+		if (potential)
+			program += R"XYZ(
+	float potentialPrefactor = pFloatParams[4];
+	float factor2 = 0.5*extraFactor*scaledV*scaledV*scaledCore/sqrt(F);
+	float part = sqrt(F*F*coord.y*coord.y + scaledCore*scaledCore + coord.x*coord.x) + scaledCore/F;
+	r.potential = (coord.x*r.alphaX + coord.y*r.alphaY
+	                       -factor2*log(part*part + (1.0f-F*F)*coord.y*coord.y)
+							)*potentialPrefactor;
+)XYZ";
+
+		if (derivatives)
+			program += R"XYZ(
+	float g = sqrt(F*F*coord.y*coord.y + scaledCore*scaledCore + coord.x*coord.x);
+	float denom = (F*F*coord.y*coord.y + scaledCore*scaledCore + 2.0f*F*scaledCore*g + F*F*scaledCore*scaledCore + coord.x*coord.x*F*F)*g;
+	r.axx = factor*Q*(F*F*coord.y*coord.y + scaledCore*scaledCore + F*scaledCore*g)/denom;
+	r.ayy = factor*F*Q*(F*scaledCore*scaledCore + F*coord.x*coord.x + scaledCore*g)/denom;
+	r.axy = -factor*coord.x*coord.y*F*F*Q/denom;
+)XYZ";
+
+		program += R"XYZ(
+	return r;
+}
+)XYZ";
+
+		return program;
+	}
+
 	std::string program = R"XYZ(
 
 LensQuantities clNSIELensProgram(float2 coord, __global const int *pIntParams, __global const float *pFloatParams)
