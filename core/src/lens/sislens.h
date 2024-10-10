@@ -84,6 +84,7 @@ protected:
 private:
 	double m_massFactor, m_densFactor;
 	double m_einstRad;
+	double m_velocityDispersion;
 };
 
 } // end namespace

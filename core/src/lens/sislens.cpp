@@ -26,6 +26,7 @@
 #include "graleconfig.h"
 #include "sislens.h"
 #include "constants.h"
+#include "utils.h"
 
 namespace grale
 {
@@ -79,6 +80,7 @@ bool SISLens::processParameters(const GravitationalLensParams *pParams)
 	m_massFactor = CONST_PI*sigma*sigma*getLensDistance()/CONST_G;
 	m_densFactor = sigma*sigma/(2.0*CONST_G*getLensDistance());
 	m_einstRad = (4.0*CONST_PI/(SPEED_C*SPEED_C)) * sigma*sigma;
+	m_velocityDispersion = sigma;
 	
 	return true;
 }
@@ -116,23 +118,70 @@ bool SISLens::getSuggestedScales(double *pDeflectionScale, double *pPotentialSca
 bool SISLens::getCLParameterCounts(int *pNumIntParams, int *pNumFloatParams) const
 {
 	*pNumIntParams = 0;
-	*pNumFloatParams = 2;
+	*pNumFloatParams = 1;
 	return true;
 }
 
+static const double velScale = 100000.0; // units of 100km/s
+
 bool SISLens::getCLParameters(double deflectionScale, double potentialScale, int *pIntParams, float *pFloatParams) const
 {
+	if (std::getenv("GRALE_EXPERIMENTAL_OPENCLPARAMS"))
+	{
+		pFloatParams[0] = (float)(m_velocityDispersion/velScale);
+		return true;
+	}
+
 	double scaledEinsteinRad = m_einstRad/deflectionScale;
-	double potentialFactor = deflectionScale*deflectionScale/potentialScale;
 
 	pFloatParams[0] = (float)scaledEinsteinRad;
-	pFloatParams[1] = (float)potentialFactor;
 	return true;
 }
 
 std::string SISLens::getCLProgram(double deflectionScale, double potentialScale, std::string &subRoutineName, bool derivatives, bool potential) const
 {
 	std::string program;
+	float einstRadFactor = (float)(((4.0*CONST_PI/(SPEED_C*SPEED_C)) * velScale*velScale)/deflectionScale);
+	float potentialFactor = (float)(deflectionScale*deflectionScale/potentialScale);
+
+	if (std::getenv("GRALE_EXPERIMENTAL_OPENCLPARAMS"))
+	{
+		program += R"XYZ(
+LensQuantities clSISLensProgram(float2 coord, __global const int *pIntParams, __global const float *pFloatParams)
+{
+	float l = length(coord);
+	float l2 = coord.x*coord.x+coord.y*coord.y;
+	float scaledVel = pFloatParams[0];
+	float scaledEinsteinRad = ((float))XYZ" + float_to_string(einstRadFactor) + R"XYZ()*scaledVel*scaledVel;
+	float factor = scaledEinsteinRad/l;
+	
+	LensQuantities r;
+	r.alphaX = factor*coord.x;
+	r.alphaY = factor*coord.y;
+)XYZ";
+		if (potential)
+		{
+			program += R"XYZ(
+	float potentialFactor = (float))XYZ" + float_to_string(potentialFactor) + R"XYZ(;
+	r.potential = scaledEinsteinRad*l*potentialFactor;
+)XYZ";
+		}
+		if (derivatives)
+		{
+			program += R"XYZ(
+	r.axx = factor*(1.0f-coord.x*coord.x/l2);
+	r.ayy = factor*(1.0f-coord.y*coord.y/l2);
+	r.axy = -factor*coord.x*coord.y/l2;
+)XYZ";
+		}
+		program += R"XYZ(
+	return r;
+}
+)XYZ";
+
+		subRoutineName = "clSISLensProgram";
+		return program;
+	}
 
 	program += "LensQuantities clSISLensProgram(float2 coord, __global const int *pIntParams, __global const float *pFloatParams)\n";
 	program += "{\n";
@@ -144,7 +193,10 @@ std::string SISLens::getCLProgram(double deflectionScale, double potentialScale,
 	program += "	r.alphaX = factor*coord.x;\n";
 	program += "	r.alphaY = factor*coord.y;\n";
 	if (potential)
-		program += "	r.potential = pFloatParams[0]*l*pFloatParams[1];\n";
+	{
+		program += "	float potentialFactor = (float)" + float_to_string(potentialFactor) + ";\n";
+		program += "	r.potential = pFloatParams[0]*l*potentialFactor;\n";
+	}
 	if (derivatives)
 	{
 		program += "	r.axx = factor*(1.0f-coord.x*coord.x/l2);\n";

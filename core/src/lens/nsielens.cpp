@@ -165,7 +165,7 @@ bool NSIELens::getCLParameterCounts(int *pNumIntParams, int *pNumFloatParams) co
 	return true;
 }
 
-const double velScale = 100000.0; // units of 100km/s
+static const double velScale = 100000.0; // units of 100km/s
 
 bool NSIELens::getCLParameters(double deflectionScale, double potentialScale, int *pIntParams, float *pFloatParams) const
 {
