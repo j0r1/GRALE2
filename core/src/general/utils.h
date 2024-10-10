@@ -4,6 +4,8 @@
 #include <cstdlib>
 #include <stdexcept>
 #include <limits>
+#include <sstream>
+#include <iomanip>
 
 namespace grale 
 {
@@ -53,6 +55,13 @@ inline errut::bool_t getenv(const std::string &key, int &value,
 		return getErrStr("Value larger than maximum value " + std::to_string(maxValue));
 
 	return true;
+}
+
+inline std::string float_to_string(float f)
+{
+	std::stringstream ss;
+	ss << std::setprecision(std::numeric_limits<float>::max_digits10) << f;
+	return ss.str();
 }
 
 } // namespace grale

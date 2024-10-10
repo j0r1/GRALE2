@@ -279,7 +279,7 @@ bool MultiplePlummerLens::getCLParameters(double deflectionScale, double potenti
 	return true;
 }
 
-std::string MultiplePlummerLens::getCLProgram(std::string &subRoutineName, bool derivatives, bool potential) const
+std::string MultiplePlummerLens::getCLProgram(double deflectionScale, double potentialScale, std::string &subRoutineName, bool derivatives, bool potential) const
 {
 	std::string prog;
 

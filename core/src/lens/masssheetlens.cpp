@@ -135,7 +135,7 @@ bool MassSheetLens::getCLParameters(double deflectionScale, double potentialScal
 	return true;
 }
 
-std::string MassSheetLens::getCLProgram(std::string &subRoutineName, bool derivatives, bool potential) const
+std::string MassSheetLens::getCLProgram(double deflectionScale, double potentialScale, std::string &subRoutineName, bool derivatives, bool potential) const
 {
 	std::string program;
 

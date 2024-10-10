@@ -199,7 +199,8 @@ public:
 	virtual bool getCLParameterCounts(int *pNumIntParams, int *pNumFloatParams) const;
 	virtual bool getCLParameters(double deflectionScale, double potentialScale, int *pIntParams, float *pFloatParams) const;
 	
-	std::string getCLLensProgram(std::string &subRoutineName, bool derivatives = true, bool potential = true) const;
+	std::string getCLLensProgram(double deflectionScale, double potentialScale, std::string &subRoutineName,
+			                     bool derivatives = true, bool potential = true) const;
 	std::string getCLLensQuantitiesStructure(bool derivatives = true, bool potential = true) const;
 
 	// like this:
@@ -214,7 +215,8 @@ public:
 	// 	float ayy;
 	// 	float axy;
 	// } LensQuantities;
-	virtual std::string getCLProgram(std::string &subRoutineName, bool derivatives = true, bool potential = true) const;
+	virtual std::string getCLProgram(double deflectionScale, double potentialScale, std::string &subRoutineName,
+			                         bool derivatives = true, bool potential = true) const;
 protected:
 	/** Specific lens implementations implement this function to process the parameters
 	 *  specified in the GravitationalLens::init function.

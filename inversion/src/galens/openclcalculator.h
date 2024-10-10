@@ -232,7 +232,7 @@ private:
     bool m_hasCalculated;
     bool m_uploadedWeights;
 
-	double m_angularScale, m_potentialScale;
+	double m_angularScale = 0, m_potentialScale = 0;
 
 	bool m_shortImagesAreAllImages;
 	size_t m_numWeights, m_numPlanes;

@@ -53,7 +53,7 @@ bool_t OpenCLRenderer::renderGrid(const vector<uint8_t> &lensData, Gravitational
 
 	string program, failLog, subRoutine;
 
-	program = pLens->getCLLensProgram(subRoutine);
+	program = pLens->getCLLensProgram(deflectionScale, potentialScale, subRoutine);
 
 	program += "\n";
 	program += "__kernel void renderLensPlane(float2 startCoord, float2 step, int numX, int numY,\n";
@@ -207,7 +207,7 @@ bool_t OpenCLRenderer::renderPointVector(const std::vector<uint8_t> &lensData, g
 		return "Couldn't get parameters for OpenCL program: " + pLens->getErrorString();
 
 	string failLog, subRoutine;
-	string program = pLens->getCLLensProgram(subRoutine);
+	string program = pLens->getCLLensProgram(deflectionScale, potentialScale, subRoutine);
 
 	program += R"XYZ(
 __kernel void renderLensPlane(int numXY, 

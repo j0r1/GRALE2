@@ -73,7 +73,7 @@ bool_t OpenCLRenderer::renderGrid(const vector<uint8_t> &lensData, Gravitational
 
 	string program, failLog, subRoutine;
 
-	program = pLens->getCLLensProgram(subRoutine);
+	program = pLens->getCLLensProgram(deflectionScale, potentialScale, subRoutine);
 
 	program += "\n";
 	program += "__kernel void renderPotential(float2 startCoord, float2 step, int numX, int numY,\n";

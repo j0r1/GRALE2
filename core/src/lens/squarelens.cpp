@@ -178,7 +178,7 @@ bool SquareLens::getCLParameters(double deflectionScale, double potentialScale, 
 	return true;
 }
 
-std::string SquareLens::getCLProgram(std::string &subRoutineName, bool derivatives, bool potential) const
+std::string SquareLens::getCLProgram(double deflectionScale, double potentialScale, std::string &subRoutineName, bool derivatives, bool potential) const
 {
 	subRoutineName = "clSquareLensProgram";
 	std::string program;

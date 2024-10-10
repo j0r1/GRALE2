@@ -414,7 +414,7 @@ bool DeflectionGridLens::getCLParameters(double deflectionScale, double potentia
 	return true;
 }
 
-string DeflectionGridLens::getCLProgram(string &subRoutineName, bool derivatives, bool potential) const
+string DeflectionGridLens::getCLProgram(double deflectionScale, double potentialScale, string &subRoutineName, bool derivatives, bool potential) const
 {
 	subRoutineName = "clDeflectionGridLensProgram";
 	string program = R"XYZ(

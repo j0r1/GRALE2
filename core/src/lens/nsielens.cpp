@@ -178,7 +178,7 @@ bool NSIELens::getCLParameters(double deflectionScale, double potentialScale, in
 	return true;
 }
 
-std::string NSIELens::getCLProgram(std::string &subRoutineName, bool derivatives, bool potential) const
+std::string NSIELens::getCLProgram(double deflectionScale, double potentialScale, std::string &subRoutineName, bool derivatives, bool potential) const
 {
 	subRoutineName = "clNSIELensProgram";
 

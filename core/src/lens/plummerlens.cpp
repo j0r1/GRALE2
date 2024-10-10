@@ -158,7 +158,7 @@ bool PlummerLens::getCLParameters(double deflectionScale, double potentialScale,
 	return true;
 }
 
-std::string PlummerLens::getCLProgram(std::string &subRoutineName, bool derivatives, bool potential) const
+std::string PlummerLens::getCLProgram(double deflectionScale, double potentialScale, std::string &subRoutineName, bool derivatives, bool potential) const
 {
 	std::string program;
 

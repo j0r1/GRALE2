@@ -678,7 +678,7 @@ bool GravitationalLens::getCLParameters(double deflectionScale, double potential
 	return false;
 }
 
-std::string GravitationalLens::getCLProgram(std::string &subRoutineName, bool derivatives, bool potential) const
+std::string GravitationalLens::getCLProgram(double deflectionScale, double potentialScale, std::string &subRoutineName, bool derivatives, bool potential) const
 {
 	subRoutineName = "NOT_IMPLEMENTED";
 
@@ -706,11 +706,11 @@ std::string GravitationalLens::getCLLensQuantitiesStructure(bool derivatives, bo
 	return str;
 }
 
-std::string GravitationalLens::getCLLensProgram(std::string &subRoutineName, bool derivatives, bool potential) const
+std::string GravitationalLens::getCLLensProgram(double deflectionScale, double potentialScale, std::string &subRoutineName, bool derivatives, bool potential) const
 {
 	std::string prog = getCLLensQuantitiesStructure(derivatives, potential);
 	
-	prog += getCLProgram(subRoutineName, derivatives, potential);
+	prog += getCLProgram(deflectionScale, potentialScale, subRoutineName, derivatives, potential);
 
 	return prog;
 }

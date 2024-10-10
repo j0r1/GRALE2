@@ -95,8 +95,8 @@ cdef extern from "grale/gravitationallens.h" namespace "grale":
         bool getSuggestedScales(double *pDeflectionScale, double *pPotentialScale) const
         bool getCLParameterCounts(int *pNumIntParams, int *pNumFloatParams) const
         bool getCLParameters(double deflectionScale, double potentialScale, int *pIntParams, float *pFloatParams) const
-        string getCLLensProgram(string &subRoutineName, bool derivatives, bool potential) const
-        string getCLProgram(string &subRoutineName, bool derivatives, bool potential) const
+        string getCLLensProgram(double deflectionScale, double potentialScale, string &subRoutineName, bool derivatives, bool potential) const
+        string getCLProgram(double deflectionScale, double potentialScale, string &subRoutineName, bool derivatives, bool potential) const
         string getCLLensQuantitiesStructure(bool derivatives, bool potential) const
 
 cdef extern from "grale/symmetriclens.h" namespace "grale":
@@ -248,9 +248,9 @@ cdef extern from "grale/compositelens.h" namespace "grale":
         CompositeLens *cast(GravitationalLens *pLens)
 
         # Returns maxRecursion
-        int findCLSubroutines(cmap[string,string] &subRoutineCodes, vector[string] &otherRoutineNames, bool derivatives, bool potential) const
+        int findCLSubroutines(double deflectionScale, double potentialScale, cmap[string,string] &subRoutineCodes, vector[string] &otherRoutineNames, bool derivatives, bool potential) const
         @staticmethod
-        string getCLProgram_static(string &subRoutineName, const vector[string] &otherRoutineNames, int maxRecursionCount, bool derivatives, bool potential)
+        string getCLProgram_static(double deflectionScale, double potentialScale, string &subRoutineName, const vector[string] &otherRoutineNames, int maxRecursionCount, bool derivatives, bool potential)
 
     cdef cppclass CompositeLensParams(GravitationalLensParams):
         CompositeLensParams()

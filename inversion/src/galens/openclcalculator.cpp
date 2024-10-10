@@ -754,7 +754,9 @@ bool_t OpenCLCalculator::analyzeCompositeLenses(const vector<vector<shared_ptr<L
 
         map<string,string> subCode;
         vector<string> subNames;
-        int recurs = compLens.findCLSubroutines(subCode, subNames, false, false);
+
+		assert(m_angularScale > 0 && m_potentialScale > 0);
+        int recurs = compLens.findCLSubroutines(m_angularScale, m_potentialScale, subCode, subNames, false, false);
 
         if (recurs > totalMaxRecurs)
             totalMaxRecurs = recurs;
@@ -852,10 +854,11 @@ bool_t OpenCLCalculator::getAlphaCodeForPlane(const string &functionName,
                 << "{\n"
                 << "    float2 alpha = (float2)(0, 0);\n";
 
-    auto saveCode = [&subRoutineCode](const GravitationalLens &l) -> string
+    auto saveCode = [&subRoutineCode,this](const GravitationalLens &l) -> string
     {
         string fnName;
-        string fnCode = l.getCLProgram(fnName, false, false);
+		assert(m_angularScale > 0 && m_potentialScale > 0);
+        string fnCode = l.getCLProgram(m_angularScale, m_potentialScale, fnName, false, false);
         if (l.getLensType() == GravitationalLens::Composite) // Code for compositelens will be added later
             fnCode = "";
         
@@ -883,6 +886,8 @@ bool_t OpenCLCalculator::getAlphaCodeForPlane(const string &functionName,
         size_t io = intParams.size(), fo = floatParams.size();
         intParams.resize(io + (size_t)iCnt);
         floatParams.resize(fo + (size_t)fCnt);
+
+		assert(m_angularScale > 0 && m_potentialScale > 0);
         if (!l.getCLParameters(m_angularScale, m_potentialScale, intParams.data() + io, floatParams.data() + fo))
             return "Can't get OpenCL parameters for lens: " + l.getErrorString();
         return true;
@@ -1120,7 +1125,8 @@ float2 multiPlaneTrace(float2 theta, int numPlanes, __global const float *Dsrc, 
     if (compLensSubNames.size() > 0)
     {
         string fnName;
-        allCode += CompositeLens::getCLProgram(fnName, compLensSubNames, compLensRecursion, false, false);
+		assert(m_angularScale > 0 && m_potentialScale > 0);
+        allCode += CompositeLens::getCLProgram(m_angularScale, m_potentialScale, fnName, compLensSubNames, compLensRecursion, false, false);
     }
 
     allCode += alphaCode;

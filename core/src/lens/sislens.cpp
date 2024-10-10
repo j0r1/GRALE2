@@ -130,7 +130,7 @@ bool SISLens::getCLParameters(double deflectionScale, double potentialScale, int
 	return true;
 }
 
-std::string SISLens::getCLProgram(std::string &subRoutineName, bool derivatives, bool potential) const
+std::string SISLens::getCLProgram(double deflectionScale, double potentialScale, std::string &subRoutineName, bool derivatives, bool potential) const
 {
 	std::string program;
 

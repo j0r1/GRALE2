@@ -111,22 +111,22 @@ public:
 	bool getSuggestedScales(double *pDeflectionScale, double *pPotentialScale) const;
 	bool getCLParameterCounts(int *pNumIntParams, int *pNumFloatParams) const;
 	bool getCLParameters(double deflectionScale, double potentialScale, int *pIntParams, float *pFloatParams) const;
-	std::string getCLProgram(std::string &subRoutineName, bool derivatives = true, bool potential = true) const override;
+	std::string getCLProgram(double deflectionScale, double potentialScale, std::string &subRoutineName, bool derivatives = true, bool potential = true) const override;
 
-	static std::string getCLProgram(std::string &subRoutineName, const std::vector<std::string> &otherRoutineNames, int maxRecursionCount, 
+	static std::string getCLProgram(double deflectionScale, double potentialScale, std::string &subRoutineName, const std::vector<std::string> &otherRoutineNames, int maxRecursionCount, 
 		                     bool derivatives, bool potential);
 
 	// Same function with different name - newer cython seemed to get confused...
-	static std::string getCLProgram_static(std::string &subRoutineName, const std::vector<std::string> &otherRoutineNames, int maxRecursionCount,
-		                     bool derivatives, bool potential) { return getCLProgram(subRoutineName, otherRoutineNames, maxRecursionCount, derivatives, potential); }
+	static std::string getCLProgram_static(double deflectionScale, double potentialScale, std::string &subRoutineName, const std::vector<std::string> &otherRoutineNames, int maxRecursionCount,
+		                     bool derivatives, bool potential) { return getCLProgram(deflectionScale, potentialScale, subRoutineName, otherRoutineNames, maxRecursionCount, derivatives, potential); }
 
 	// Returns maxRecursionCount
-	int findCLSubroutines(std::map<std::string,std::string> &subRoutineCodes, std::vector<std::string> &otherRoutineNames, bool derivatives, bool potential) const;
+	int findCLSubroutines(double deflectionScale, double potentialScale, std::map<std::string,std::string> &subRoutineCodes, std::vector<std::string> &otherRoutineNames, bool derivatives, bool potential) const;
 protected:
 	bool processParameters(const GravitationalLensParams *pLensParams);
 private:
-	static std::string getCLProgram(const std::vector<std::string> &subRoutineNames, int recursionLevel, int maxRecursion, bool derivatives, bool potential);
-	void findCLSubroutines(std::map<std::string,std::string> &subRoutineCodes, std::vector<std::string> &otherRoutineNames, int recursionLevel, int &maxRecursionLevel, bool derivatives, bool potential) const;
+	static std::string getCLProgram(double deflectionScale, double potentialScale, const std::vector<std::string> &subRoutineNames, int recursionLevel, int maxRecursion, bool derivatives, bool potential);
+	void findCLSubroutines(double deflectionScale, double potentialScale, std::map<std::string,std::string> &subRoutineCodes, std::vector<std::string> &otherRoutineNames, int recursionLevel, int &maxRecursionLevel, bool derivatives, bool potential) const;
 
 	std::vector<std::shared_ptr<GravitationalLens>> m_lenses;
 	std::vector<Vector2D<double> > m_positions;

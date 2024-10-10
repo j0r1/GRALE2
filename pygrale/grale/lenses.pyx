@@ -839,26 +839,26 @@ cdef class GravitationalLens:
             raise LensException(S(self._lens().getErrorString()))
         return (intParams, floatParams)
 
-    def getCLLensProgram(self, derivatives=True, potential=True):
-        """getCLLensProgram(derivatives=True, potential=True)
+    def getCLLensProgram(self, deflectionScale, potentialScale, derivatives=True, potential=True):
+        """getCLLensProgram(deflectionScale, potentialScale, derivatives=True, potential=True)
 
         Returns a concatenation of :func:`getCLLensQuantitiesStructure` and
         :func:`getCLProgram`"""
         cdef string subName
         
         self._check()
-        program = self._lens().getCLLensProgram(subName, derivatives, potential)
+        program = self._lens().getCLLensProgram(deflectionScale, potentialScale, subName, derivatives, potential)
         return (S(subName), S(program))
 
-    def getCLProgram(self, derivatives=True, potential=True):
-        """getCLProgram(derivatives=True, potential=True)
+    def getCLProgram(self, deflectionScale, potentialScale, derivatives=True, potential=True):
+        """getCLProgram(deflectionScale, potentialScale, derivatives=True, potential=True)
 
         Returns an OpenCL program to calculate the deflection and optionally
         deflection derivatives and lensing potential, for this lens model."""
         cdef string subName
 
         self._check() 
-        program = self._lens().getCLProgram(subName, derivatives, potential)
+        program = self._lens().getCLProgram(deflectionScale, potentialScale, subName, derivatives, potential)
         return (S(subName), S(program))
 
     def getCLLensQuantitiesStructure(self, derivatives=True, potential=True):
@@ -1645,8 +1645,8 @@ cdef class CompositeLens(GravitationalLens):
 
         return params
 
-    def findCLSubroutines(self, bool derivatives, bool potential):
-        """findCLSubroutines(derivatives, potential)
+    def findCLSubroutines(self, deflectionScale, potentialScale, bool derivatives, bool potential):
+        """findCLSubroutines(deflectionScale, potentialScale, derivatives, potential)
 
         Analyzes the current CompositeLens instance, returns a tuple of:
 
@@ -1671,7 +1671,7 @@ cdef class CompositeLens(GravitationalLens):
         if not pLens:
             raise LensException("Internal error: this lens does not seem to be a CompositeLens")
         
-        maxRecursion = pLens.findCLSubroutines(subRoutineCodes, otherRoutineNames, derivatives, potential)
+        maxRecursion = pLens.findCLSubroutines(deflectionScale, potentialScale, subRoutineCodes, otherRoutineNames, derivatives, potential)
 
         subCodes = { }
         it = subRoutineCodes.begin()
@@ -1686,8 +1686,8 @@ cdef class CompositeLens(GravitationalLens):
         return maxRecursion, subCodes, otherRout
 
     @staticmethod
-    def getCompositeCLProgram(otherRoutineNames, int maxRecursion, bool derivatives, bool potential):
-        """getCompositeCLProgram(otherRoutineNames, maxRecursion, derivatives, potential)
+    def getCompositeCLProgram(deflectionScale, potentialScale, otherRoutineNames, int maxRecursion, bool derivatives, bool potential):
+        """getCompositeCLProgram(deflectionScale, potentialScale, otherRoutineNames, maxRecursion, derivatives, potential)
 
         Returns the name of the OpenCL function as well a the OpenCL program itself for a
         CompositeLens where `maxRecursion` levels are needed, and calls to the subroutine 
@@ -1704,7 +1704,7 @@ cdef class CompositeLens(GravitationalLens):
             else:
                 otherNames.push_back(empty)
 
-        prog = gravitationallens.CompositeLens.getCLProgram_static(subName, otherNames, maxRecursion, derivatives, potential)
+        prog = gravitationallens.CompositeLens.getCLProgram_static(deflectionScale, potentialScale, subName, otherNames, maxRecursion, derivatives, potential)
         return S(subName),S(prog)
         
 
