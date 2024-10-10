@@ -126,15 +126,7 @@ static const double velScale = 100000.0; // units of 100km/s
 
 bool SISLens::getCLParameters(double deflectionScale, double potentialScale, int *pIntParams, float *pFloatParams) const
 {
-	if (std::getenv("GRALE_EXPERIMENTAL_OPENCLPARAMS"))
-	{
-		pFloatParams[0] = (float)(m_velocityDispersion/velScale);
-		return true;
-	}
-
-	double scaledEinsteinRad = m_einstRad/deflectionScale;
-
-	pFloatParams[0] = (float)scaledEinsteinRad;
+	pFloatParams[0] = (float)(m_velocityDispersion/velScale);
 	return true;
 }
 
@@ -144,9 +136,7 @@ std::string SISLens::getCLProgram(double deflectionScale, double potentialScale,
 	float einstRadFactor = (float)(((4.0*CONST_PI/(SPEED_C*SPEED_C)) * velScale*velScale)/deflectionScale);
 	float potentialFactor = (float)(deflectionScale*deflectionScale/potentialScale);
 
-	if (std::getenv("GRALE_EXPERIMENTAL_OPENCLPARAMS"))
-	{
-		program += R"XYZ(
+	program += R"XYZ(
 LensQuantities clSISLensProgram(float2 coord, __global const int *pIntParams, __global const float *pFloatParams)
 {
 	float l = length(coord);
@@ -159,55 +149,27 @@ LensQuantities clSISLensProgram(float2 coord, __global const int *pIntParams, __
 	r.alphaX = factor*coord.x;
 	r.alphaY = factor*coord.y;
 )XYZ";
-		if (potential)
-		{
-			program += R"XYZ(
+	if (potential)
+	{
+		program += R"XYZ(
 	float potentialFactor = (float))XYZ" + float_to_string(potentialFactor) + R"XYZ(;
 	r.potential = scaledEinsteinRad*l*potentialFactor;
 )XYZ";
-		}
-		if (derivatives)
-		{
-			program += R"XYZ(
+	}
+	if (derivatives)
+	{
+		program += R"XYZ(
 	r.axx = factor*(1.0f-coord.x*coord.x/l2);
 	r.ayy = factor*(1.0f-coord.y*coord.y/l2);
 	r.axy = -factor*coord.x*coord.y/l2;
 )XYZ";
-		}
-		program += R"XYZ(
+	}
+	program += R"XYZ(
 	return r;
 }
 )XYZ";
 
-		subRoutineName = "clSISLensProgram";
-		return program;
-	}
-
-	program += "LensQuantities clSISLensProgram(float2 coord, __global const int *pIntParams, __global const float *pFloatParams)\n";
-	program += "{\n";
-	program += "	float l = length(coord);\n";
-	program += "	float l2 = coord.x*coord.x+coord.y*coord.y;\n";
-	program += "	float factor = pFloatParams[0]/l;\n";
-	program += "\n";
-	program += "	LensQuantities r;\n";
-	program += "	r.alphaX = factor*coord.x;\n";
-	program += "	r.alphaY = factor*coord.y;\n";
-	if (potential)
-	{
-		program += "	float potentialFactor = (float)" + float_to_string(potentialFactor) + ";\n";
-		program += "	r.potential = pFloatParams[0]*l*potentialFactor;\n";
-	}
-	if (derivatives)
-	{
-		program += "	r.axx = factor*(1.0f-coord.x*coord.x/l2);\n";
-		program += "	r.ayy = factor*(1.0f-coord.y*coord.y/l2);\n";
-		program += "	r.axy = -factor*coord.x*coord.y/l2;\n";
-	}
-	program += "	return r;\n";
-	program += "}\n";
-
 	subRoutineName = "clSISLensProgram";
-
 	return program;
 }
 
