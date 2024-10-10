@@ -159,38 +159,21 @@ bool NSIELens::getSuggestedScales(double *pDeflectionScale, double *pPotentialSc
 
 bool NSIELens::getCLParameterCounts(int *pNumIntParams, int *pNumFloatParams) const
 {
-	if (getenv("GRALE_EXPERIMENTAL_OPENCLPARAMS"))
-	{
-		*pNumIntParams = 0;
-		*pNumFloatParams = 5;
-		return true;
-	}
-
 	*pNumIntParams = 0;
-	*pNumFloatParams = 3;
+	*pNumFloatParams = 5;
 	return true;
 }
 
 bool NSIELens::getCLParameters(double deflectionScale, double potentialScale, int *pIntParams, float *pFloatParams) const
 {
-	if (getenv("GRALE_EXPERIMENTAL_OPENCLPARAMS"))
-	{
-		std::cerr << "GRALE_EXPERIMENTAL_OPENCLPARAMS on" << std::endl;
-		double velScale = 100000.0; // units of 100km/s
-		double factor = 4.0*CONST_PI*velScale*velScale/(SPEED_C*SPEED_C);
+	double velScale = 100000.0; // units of 100km/s
+	double factor = 4.0*CONST_PI*velScale*velScale/(SPEED_C*SPEED_C);
 
-		pFloatParams[0] = (float)F; // ellipticity
-		pFloatParams[1] = (float)(V/velScale); // scaled velocity dispersion
-		pFloatParams[2] = (float)(corerad/deflectionScale); // scaled core radius
-		pFloatParams[3] = (float)(factor/deflectionScale);
-		pFloatParams[4] = (float)(deflectionScale*deflectionScale/potentialScale);
-		return true;
-	}
-
-	double factor = 4.0*CONST_PI*V*V*SQRT(F)/(SPEED_C*SPEED_C*SQRT(1.0-F*F));
-	pFloatParams[0] = (float)F;
-	pFloatParams[1] = (float)(corerad/deflectionScale);
-	pFloatParams[2] = (float)(factor/deflectionScale);
+	pFloatParams[0] = (float)F; // ellipticity
+	pFloatParams[1] = (float)(V/velScale); // scaled velocity dispersion
+	pFloatParams[2] = (float)(corerad/deflectionScale); // scaled core radius
+	pFloatParams[3] = (float)(factor/deflectionScale);
+	pFloatParams[4] = (float)(deflectionScale*deflectionScale/potentialScale);
 
 	return true;
 }
@@ -199,9 +182,7 @@ std::string NSIELens::getCLProgram(std::string &subRoutineName, bool derivatives
 {
 	subRoutineName = "clNSIELensProgram";
 
-	if (getenv("GRALE_EXPERIMENTAL_OPENCLPARAMS"))
-	{
-		std::string program = R"XYZ(
+	std::string program = R"XYZ(
 
 LensQuantities clNSIELensProgram(float2 coord, __global const int *pIntParams, __global const float *pFloatParams)
 {
@@ -221,8 +202,8 @@ LensQuantities clNSIELensProgram(float2 coord, __global const int *pIntParams, _
 	r.alphaX = factor*atanh(X);
 	r.alphaY = factor*atan(Y);
 )XYZ";
-		if (potential)
-			program += R"XYZ(
+	if (potential)
+		program += R"XYZ(
 	float potentialPrefactor = pFloatParams[4];
 	float factor2 = 0.5*extraFactor*scaledV*scaledV*scaledCore/sqrt(F);
 	float part = sqrt(F*F*coord.y*coord.y + scaledCore*scaledCore + coord.x*coord.x) + scaledCore/F;
@@ -231,8 +212,8 @@ LensQuantities clNSIELensProgram(float2 coord, __global const int *pIntParams, _
 							)*potentialPrefactor;
 )XYZ";
 
-		if (derivatives)
-			program += R"XYZ(
+	if (derivatives)
+		program += R"XYZ(
 	float g = sqrt(F*F*coord.y*coord.y + scaledCore*scaledCore + coord.x*coord.x);
 	float denom = (F*F*coord.y*coord.y + scaledCore*scaledCore + 2.0f*F*scaledCore*g + F*F*scaledCore*scaledCore + coord.x*coord.x*F*F)*g;
 	r.axx = factor*Q*(F*F*coord.y*coord.y + scaledCore*scaledCore + F*scaledCore*g)/denom;
@@ -240,49 +221,10 @@ LensQuantities clNSIELensProgram(float2 coord, __global const int *pIntParams, _
 	r.axy = -factor*coord.x*coord.y*F*F*Q/denom;
 )XYZ";
 
-		program += R"XYZ(
-	return r;
-}
-)XYZ";
-
-		return program;
-	}
-
-	std::string program = R"XYZ(
-
-LensQuantities clNSIELensProgram(float2 coord, __global const int *pIntParams, __global const float *pFloatParams)
-{
-	float F = pFloatParams[0];
-	float w = pFloatParams[1]; // core width
-	float factor = pFloatParams[2]; // factor that contains velocity dispersion
-	float Q = sqrt(1.0f-F*F);
-
-	float denomPart = sqrt(F*F*coord.y*coord.y + w*w + coord.x*coord.x);
-	float X = (coord.x*Q)/(denomPart + F*w);
-	float Y = (F*coord.y*Q)/(F*denomPart + w);
-
-	LensQuantities r;
-	r.alphaX = factor*atanh(X);
-	r.alphaY = factor*atan(Y);
-
-)XYZ";
-
-	if (potential)
-		program += R"XYZ(
-	r.potential = nan((uint)0); // TODO?
-)XYZ";
-
-	if (derivatives)
-		program += R"XYZ(
-	r.axx = nan((uint)0); // TODO?
-	r.ayy = nan((uint)0); // TODO?
-	r.axy = nan((uint)0); // TODO?
-)XYZ";
-
 	program += R"XYZ(
 	return r;
 }
-	)XYZ";
+)XYZ";
 
 	return program;
 }
