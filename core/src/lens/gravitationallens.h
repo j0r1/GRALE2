@@ -57,6 +57,14 @@ public:
 	virtual std::unique_ptr<GravitationalLensParams> createCopy() const = 0;
 };
 
+struct CLFloatParamInfo
+{
+	std::string name;
+	size_t offset;
+	float hardMin = -std::numeric_limits<float>::infinity();
+	float hardMax = std::numeric_limits<float>::infinity();
+};
+
 /** Base class for gravitational lens implementations. */
 class GRALE_IMPORTEXPORT GravitationalLens : public errut::ErrorBase
 {
@@ -217,6 +225,8 @@ public:
 	// } LensQuantities;
 	virtual std::string getCLProgram(double deflectionScale, double potentialScale, std::string &subRoutineName,
 			                         bool derivatives = true, bool potential = true) const;
+
+	virtual std::vector<CLFloatParamInfo> getCLAdjustableFloatingPointParameterInfo() const { return std::vector<CLFloatParamInfo>(); }
 protected:
 	/** Specific lens implementations implement this function to process the parameters
 	 *  specified in the GravitationalLens::init function.

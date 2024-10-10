@@ -32,6 +32,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdexcept>
+#include <iostream>
 
 namespace grale
 {
@@ -611,6 +612,41 @@ bool CompositeLens::getCLParameters(double deflectionScale, double potentialScal
 	}
 
 	return true;
+}
+
+std::vector<CLFloatParamInfo> CompositeLens::getCLAdjustableFloatingPointParameterInfo() const
+{
+	std::vector<CLFloatParamInfo> allParamInfo;
+	size_t floatOffset = 0;
+
+	for (int i = 0 ; i < (int)m_lenses.size() ; i++)
+	{
+		int numSubInt = 0;
+		int numSubFloat = 0;
+
+		if (!m_lenses[i]->getCLParameterCounts(&numSubInt, &numSubFloat))
+		{
+			std::cerr << "Warning: couldn't get CL parameter counts" << m_lenses[i]->getErrorString() << std::endl;
+			return {};
+		}
+
+		std::string name_prefix = "comppart_" + std::to_string(i) + ",";
+		allParamInfo.push_back({.name = name_prefix + "x_scaled", .offset = floatOffset++});
+		allParamInfo.push_back({.name = name_prefix + "y_scaled", .offset = floatOffset++});
+		allParamInfo.push_back({.name = name_prefix + "angle", .offset = floatOffset++});
+		allParamInfo.push_back({.name = name_prefix + "factor", .offset = floatOffset++, .hardMin = 0 }); // Allow negatives?
+
+		auto paramInfo = m_lenses[i]->getCLAdjustableFloatingPointParameterInfo();
+		for (auto s : paramInfo)
+		{
+			s.name = name_prefix + "lens," + s.name;
+			s.offset += floatOffset;
+			allParamInfo.push_back(s);
+		}
+
+		floatOffset += numSubFloat;
+	}
+	return allParamInfo;
 }
 
 std::string CompositeLens::getCLProgram(double deflectionScale, double potentialScale, std::string &subRoutineName, bool derivatives, bool potential) const

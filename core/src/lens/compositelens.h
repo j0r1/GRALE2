@@ -122,6 +122,7 @@ public:
 
 	// Returns maxRecursionCount
 	int findCLSubroutines(double deflectionScale, double potentialScale, std::map<std::string,std::string> &subRoutineCodes, std::vector<std::string> &otherRoutineNames, bool derivatives, bool potential) const;
+	std::vector<CLFloatParamInfo> getCLAdjustableFloatingPointParameterInfo() const override;
 protected:
 	bool processParameters(const GravitationalLensParams *pLensParams);
 private:

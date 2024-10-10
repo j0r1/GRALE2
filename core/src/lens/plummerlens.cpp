@@ -157,6 +157,14 @@ bool PlummerLens::getCLParameters(double deflectionScale, double potentialScale,
 	return true;
 }
 
+std::vector<CLFloatParamInfo> PlummerLens::getCLAdjustableFloatingPointParameterInfo() const
+{
+	return { 
+		{ .name = "mass_scaled", .offset = 0, .hardMin = 0 },
+		{ .name = "width_scaled", .offset = 1, .hardMin = 0 }
+	};
+}
+
 std::string PlummerLens::getCLProgram(double deflectionScale, double potentialScale, std::string &subRoutineName, bool derivatives, bool potential) const
 {
 	std::string program;

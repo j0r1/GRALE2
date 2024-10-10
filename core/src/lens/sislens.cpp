@@ -130,6 +130,11 @@ bool SISLens::getCLParameters(double deflectionScale, double potentialScale, int
 	return true;
 }
 
+std::vector<CLFloatParamInfo> SISLens::getCLAdjustableFloatingPointParameterInfo() const
+{
+	return { { .name = "sigma_scaled", .offset = 0, .hardMin = 0 } };
+}
+
 std::string SISLens::getCLProgram(double deflectionScale, double potentialScale, std::string &subRoutineName, bool derivatives, bool potential) const
 {
 	std::string program;
