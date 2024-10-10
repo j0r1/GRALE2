@@ -26,6 +26,7 @@
 #include "graleconfig.h"
 #include "nsielens.h"
 #include "constants.h"
+#include "utils.h"
 #include <iostream>
 
 namespace grale
@@ -160,20 +161,21 @@ bool NSIELens::getSuggestedScales(double *pDeflectionScale, double *pPotentialSc
 bool NSIELens::getCLParameterCounts(int *pNumIntParams, int *pNumFloatParams) const
 {
 	*pNumIntParams = 0;
-	*pNumFloatParams = 5;
+	*pNumFloatParams = 3;
 	return true;
 }
 
+const double velScale = 100000.0; // units of 100km/s
+
 bool NSIELens::getCLParameters(double deflectionScale, double potentialScale, int *pIntParams, float *pFloatParams) const
 {
-	double velScale = 100000.0; // units of 100km/s
-	double factor = 4.0*CONST_PI*velScale*velScale/(SPEED_C*SPEED_C);
-
 	pFloatParams[0] = (float)F; // ellipticity
 	pFloatParams[1] = (float)(V/velScale); // scaled velocity dispersion
 	pFloatParams[2] = (float)(corerad/deflectionScale); // scaled core radius
-	pFloatParams[3] = (float)(factor/deflectionScale);
-	pFloatParams[4] = (float)(deflectionScale*deflectionScale/potentialScale);
+
+	// These two can be moved to the code, depend only on constants and the scale factors
+	//pFloatParams[3] = (float)(factor/deflectionScale);
+	//pFloatParams[4] = (float)(deflectionScale*deflectionScale/potentialScale);
 
 	return true;
 }
@@ -181,6 +183,8 @@ bool NSIELens::getCLParameters(double deflectionScale, double potentialScale, in
 std::string NSIELens::getCLProgram(double deflectionScale, double potentialScale, std::string &subRoutineName, bool derivatives, bool potential) const
 {
 	subRoutineName = "clNSIELensProgram";
+	float extraFactor = (float)((4.0*CONST_PI*velScale*velScale/(SPEED_C*SPEED_C))/deflectionScale);
+	float potentialPrefactor = (float)(deflectionScale*deflectionScale/potentialScale);
 
 	std::string program = R"XYZ(
 
@@ -189,7 +193,7 @@ LensQuantities clNSIELensProgram(float2 coord, __global const int *pIntParams, _
 	float F = pFloatParams[0];
 	float scaledV = pFloatParams[1];
 	float scaledCore = pFloatParams[2];
-	float extraFactor = pFloatParams[3];
+	float extraFactor = (float))XYZ" + float_to_string(extraFactor) + R"XYZ(;
 	float Q = sqrt(1.0f-F*F);
 
 	float denomPart = sqrt(F*F*coord.y*coord.y + scaledCore*scaledCore + coord.x*coord.x);
@@ -204,7 +208,7 @@ LensQuantities clNSIELensProgram(float2 coord, __global const int *pIntParams, _
 )XYZ";
 	if (potential)
 		program += R"XYZ(
-	float potentialPrefactor = pFloatParams[4];
+	float potentialPrefactor = (float))XYZ" + float_to_string(potentialPrefactor) + R"XYZ(;
 	float factor2 = 0.5*extraFactor*scaledV*scaledV*scaledCore/sqrt(F);
 	float part = sqrt(F*F*coord.y*coord.y + scaledCore*scaledCore + coord.x*coord.x) + scaledCore/F;
 	r.potential = (coord.x*r.alphaX + coord.y*r.alphaY

@@ -26,6 +26,7 @@
 #include "graleconfig.h"
 #include "multipleplummerlens.h"
 #include "constants.h"
+#include "utils.h"
 #include <iostream>
 
 // TODO: FOR DEBUGGING
@@ -257,24 +258,23 @@ bool MultiplePlummerLens::getSuggestedScales(double *pDeflectionScale, double *p
 bool MultiplePlummerLens::getCLParameterCounts(int *pNumIntParams, int *pNumFloatParams) const
 {
 	*pNumIntParams = 0;
-	*pNumFloatParams = 1 + 4*numlenses;
+	*pNumFloatParams = 4*numlenses;
 	return true;
 }
 
 bool MultiplePlummerLens::getCLParameters(double deflectionScale, double potentialScale, int *pIntParams, float *pFloatParams) const
 {
-	pFloatParams[0] = (float)(deflectionScale*deflectionScale/(2.0*potentialScale)); // this is same for all lenses
 	for (int i = 0 ; i < numlenses ; i++)
 	{
 		double scaledWidth = lensinfo[i].getAngularWidth()*scalefactor/deflectionScale;
 
 		// mass factor
-		pFloatParams[1+i*4+0] = (float)((4.0*CONST_G*lensinfo[i].getMass()*totalmass)/(SPEED_C*SPEED_C*getLensDistance()*deflectionScale*deflectionScale));
+		pFloatParams[i*4+0] = (float)((4.0*CONST_G*lensinfo[i].getMass()*totalmass)/(SPEED_C*SPEED_C*getLensDistance()*deflectionScale*deflectionScale));
 		// width factor
-		pFloatParams[1+i*4+1] = (float)(scaledWidth);
+		pFloatParams[i*4+1] = (float)(scaledWidth);
 		// scaled position
-		pFloatParams[1+i*4+2] = (float)(lensinfo[i].getAngularPosition().getX()/deflectionScale);
-		pFloatParams[1+i*4+3] = (float)(lensinfo[i].getAngularPosition().getY()/deflectionScale);
+		pFloatParams[i*4+2] = (float)(lensinfo[i].getAngularPosition().getX()/deflectionScale);
+		pFloatParams[i*4+3] = (float)(lensinfo[i].getAngularPosition().getY()/deflectionScale);
 	}
 	return true;
 }
@@ -282,16 +282,16 @@ bool MultiplePlummerLens::getCLParameters(double deflectionScale, double potenti
 std::string MultiplePlummerLens::getCLProgram(double deflectionScale, double potentialScale, std::string &subRoutineName, bool derivatives, bool potential) const
 {
 	std::string prog;
+	float potentialPrefactor = (float)(deflectionScale*deflectionScale/(2.0*potentialScale));
 
 	prog += R"XYZ(
 LensQuantities clMultiplePlummerLensProgram(float2 coord, __global const int *pIntParams, __global const float *pFloatParams)
 {
 	LensQuantities r = { 0 } ;
 
-	float potentialPrefactor = pFloatParams[0];
 	for (int i = 0 ; i < )XYZ" + std::to_string(numlenses) +  R"XYZ( ; i++)
 	{
-		int i4 = 1 + i*4;
+		int i4 = i*4;
 		float scaledMass = pFloatParams[i4+0];
 		float scaledWidth = pFloatParams[i4+1];
 		float posx = pFloatParams[i4+2];
@@ -310,7 +310,10 @@ LensQuantities clMultiplePlummerLensProgram(float2 coord, __global const int *pI
 		r.alphaY += factor*dy;
 )XYZ";
 	if (potential)
-		prog += "		r.potential += potentialPrefactor*scaledMass*log(denom);\n";
+		prog += R"XYZ(
+		float potentialPrefactor = (float))XYZ" + float_to_string(potentialPrefactor) + R"XYZ(;
+		r.potential += potentialPrefactor*scaledMass*log(denom);
+)XYZ";
 	if (derivatives)
 	{
 		prog += R"XYZ(

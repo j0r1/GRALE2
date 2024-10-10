@@ -26,6 +26,7 @@
 #include "graleconfig.h"
 #include "plummerlens.h"
 #include "constants.h"
+#include "utils.h"
 #include <iostream>
 
 namespace grale
@@ -141,26 +142,25 @@ bool PlummerLens::getSuggestedScales(double *pDeflectionScale, double *pPotentia
 bool PlummerLens::getCLParameterCounts(int *pNumIntParams, int *pNumFloatParams) const
 {
 	*pNumIntParams = 0;
-	*pNumFloatParams = 3;
+	*pNumFloatParams = 2;
 	return true;
 }
 
 bool PlummerLens::getCLParameters(double deflectionScale, double potentialScale, int *pIntParams, float *pFloatParams) const
 {
-	double scaledWidth = angularwidth/deflectionScale;
-
 	// mass factor
 	pFloatParams[0] = (float)((4.0*CONST_G*mass)/(SPEED_C*SPEED_C*getLensDistance()*deflectionScale*deflectionScale));
 	// width factor
-	pFloatParams[1] = (float)(scaledWidth);
-	// prefactor needed for potential, to express in potentialscale units
-	pFloatParams[2] = (float)(deflectionScale*deflectionScale/(potentialScale*2.0));
+	pFloatParams[1] = (float)(angularwidth/deflectionScale);
+	// prefactor needed for potential, to express in potentialscale units;  moved as a constant to the code
+	// pFloatParams[2] = (float)(deflectionScale*deflectionScale/(potentialScale*2.0));
 	return true;
 }
 
 std::string PlummerLens::getCLProgram(double deflectionScale, double potentialScale, std::string &subRoutineName, bool derivatives, bool potential) const
 {
 	std::string program;
+	float potentialPrefactor =(float)(deflectionScale*deflectionScale/(potentialScale*2.0));
 
 	program = R"XYZ(
 LensQuantities clPlummerLensProgram(float2 coord, __global const int *pIntParams, __global const float *pFloatParams)
@@ -168,7 +168,6 @@ LensQuantities clPlummerLensProgram(float2 coord, __global const int *pIntParams
 	float scaledMass = pFloatParams[0];
 	float scaledWidth = pFloatParams[1];
 	float scaledWidth2 = scaledWidth*scaledWidth;
-	float potentialPrefactor = pFloatParams[2];
 	float denom = coord.x*coord.x + coord.y*coord.y + scaledWidth2;
 	float denom2 = denom*denom;
 	float factor = scaledMass/denom;
@@ -179,7 +178,10 @@ LensQuantities clPlummerLensProgram(float2 coord, __global const int *pIntParams
 	r.alphaY = factor*coord.y;
 )XYZ";
 	if (potential)
-		program += "	r.potential = potentialPrefactor*scaledMass*log(denom);\n";
+		program += R"XYZ(
+	float potentialPrefactor = (float))XYZ" + float_to_string(potentialPrefactor) + R"XYZ(;
+	r.potential = potentialPrefactor*scaledMass*log(denom);
+)XYZ";
 	if (derivatives)
 		program += R"XYZ(
 	r.axx = factor2*(-coord.x*coord.x+coord.y*coord.y+scaledWidth2);

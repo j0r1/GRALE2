@@ -25,6 +25,7 @@
 
 #include "graleconfig.h"
 #include "masssheetlens.h"
+#include "utils.h"
 #include <iostream>
 
 namespace grale
@@ -124,33 +125,37 @@ bool MassSheetLens::getSuggestedScales(double *pDeflectionScale, double *pPotent
 bool MassSheetLens::getCLParameterCounts(int *pNumIntParams, int *pNumFloatParams) const
 {
 	*pNumIntParams = 0;
-	*pNumFloatParams = 2;
+	*pNumFloatParams = 1;
 	return true;
 }
 
 bool MassSheetLens::getCLParameters(double deflectionScale, double potentialScale, int *pIntParams, float *pFloatParams) const
 {
 	pFloatParams[0] = (float)(m_factor); // dimensionless version of the density of the sheet
-	pFloatParams[1] = (float)(0.5*deflectionScale*deflectionScale/potentialScale); // scale factor for potential
+	// Moved to the code, as a constant
+	//pFloatParams[1] = (float)(0.5*deflectionScale*deflectionScale/potentialScale); // scale factor for potential
 	return true;
 }
 
 std::string MassSheetLens::getCLProgram(double deflectionScale, double potentialScale, std::string &subRoutineName, bool derivatives, bool potential) const
 {
 	std::string program;
+	float potentialScaleFactor = (float)(0.5*deflectionScale*deflectionScale/potentialScale); // scale factor for potential
 
 	program += R"XYZ(
 LensQuantities clMassSheetLensProgram(float2 coord, __global const int *pIntParams, __global const float *pFloatParams)
 {
 	float densityFactor = pFloatParams[0];
-	float potentialScaleFactor = pFloatParams[1];
 
 	LensQuantities r;
 	r.alphaX = densityFactor*coord.x;
 	r.alphaY = densityFactor*coord.y;
 )XYZ";
 	if (potential)
-		program += "	r.potential = potentialScaleFactor*densityFactor*(coord.x*coord.x+coord.y*coord.y);\n";
+		program += R"XYZ(
+	float potentialScaleFactor = (float))XYZ" + float_to_string(potentialScaleFactor) + R"XYZ(;
+	r.potential = potentialScaleFactor*densityFactor*(coord.x*coord.x+coord.y*coord.y);
+)XYZ";
 	if (derivatives)
 	{
 		program += R"XYZ(
