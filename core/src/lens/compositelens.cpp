@@ -614,6 +614,45 @@ bool CompositeLens::getCLParameters(double deflectionScale, double potentialScal
 	return true;
 }
 
+std::unique_ptr<GravitationalLensParams> CompositeLens::createLensParamFromCLFloatParams(double deflectionScale, double potentialScale, float *pFloatParams) const
+{
+	auto params = std::make_unique<CompositeLensParams>();
+	size_t floatOffset = 0;
+
+	for (int i = 0 ; i < (int)m_lenses.size() ; i++)
+	{
+		int numSubInt = 0;
+		int numSubFloat = 0;
+
+		if (!m_lenses[i]->getCLParameterCounts(&numSubInt, &numSubFloat))
+		{
+			setErrorString(m_lenses[i]->getErrorString());
+			return nullptr;
+		}
+
+		double x = ((double)pFloatParams[floatOffset++])*deflectionScale;
+		double y = ((double)pFloatParams[floatOffset++])*deflectionScale;
+		double angle = ((double)pFloatParams[floatOffset++])*180.0/CONST_PI;
+		double factor = (double)pFloatParams[floatOffset++];
+
+		auto newLens = m_lenses[i]->createLensFromCLFloatParams(deflectionScale, potentialScale, pFloatParams+floatOffset);
+		if (!newLens)
+		{
+			setErrorString("Unable to create a sublens from OpenCL float params: " + m_lenses[i]->getErrorString());
+			return nullptr;
+		}
+
+		floatOffset += numSubFloat;
+
+		if (!params->addLens(factor, {x, y}, angle, *newLens))
+		{
+			setErrorString("Unable to add a lens to the composite lens parameters: " + params->getErrorString());
+			return nullptr;
+		}
+	}
+	return params;
+}
+
 std::vector<CLFloatParamInfo> CompositeLens::getCLAdjustableFloatingPointParameterInfo() const
 {
 	std::vector<CLFloatParamInfo> allParamInfo;
