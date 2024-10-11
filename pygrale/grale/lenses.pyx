@@ -890,6 +890,22 @@ cdef class GravitationalLens:
         self._check()
         return S(self._lens().getCLLensQuantitiesStructure(derivatives, potential))
 
+    def getCLAdjustableFloatingPointParameterInfo(self):
+        cdef vector[gravitationallens.CLFloatParamInfo] info
+
+        self._check()
+        info = self._lens().getCLAdjustableFloatingPointParameterInfo()
+
+        result = []
+        for p in info:
+            result.append({
+                "name": S(p.name),
+                "offset": p.offset,
+                "hard_min": p.hardMin,
+                "hard_max": p.hardMax
+            })
+        return result
+
     def setDerivativeAngularDistanceScale(self, double scale):
         """setDerivativeAngularDistanceScale(scale)
         

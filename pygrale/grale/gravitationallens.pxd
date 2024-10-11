@@ -66,6 +66,14 @@ cdef extern from "grale/gravitationallens.h" namespace "grale::GravitationalLens
 
 cdef extern from "grale/gravitationallens.h" namespace "grale":
 
+    cdef struct CLFloatParamInfo:
+        string name
+        size_t offset
+        float hardMin
+        float hardMax
+
+cdef extern from "grale/gravitationallens.h" namespace "grale":
+
     cdef cppclass GravitationalLensParams(errut.ErrorBase):
         pass
 
@@ -99,6 +107,7 @@ cdef extern from "grale/gravitationallens.h" namespace "grale":
         string getCLProgram(double deflectionScale, double potentialScale, string &subRoutineName, bool derivatives, bool potential) const
         string getCLLensQuantitiesStructure(bool derivatives, bool potential) const
         unique_ptr[GravitationalLens] createLensFromCLFloatParams(double deflectionScale, double potentialScale, float *pFloatParams) const
+        vector[CLFloatParamInfo] getCLAdjustableFloatingPointParameterInfo() const
 
 cdef extern from "grale/symmetriclens.h" namespace "grale":
 
