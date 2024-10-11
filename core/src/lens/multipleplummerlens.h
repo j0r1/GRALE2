@@ -80,6 +80,7 @@ public:
 	bool getCLParameterCounts(int *pNumIntParams, int *pNumFloatParams) const;
 	bool getCLParameters(double deflectionScale, double potentialScale, int *pIntParams, float *pFloatParams) const;
 	std::string getCLProgram(double deflectionScale, double potentialScale, std::string &subRoutineName, bool derivatives = true, bool potential = true) const override;
+	std::unique_ptr<GravitationalLensParams> createLensParamFromCLFloatParams(double deflectionScale, double potentialScale, float *pFloatParams) const override;
 protected:
 	bool processParameters(const GravitationalLensParams *pLensParams);
 private:

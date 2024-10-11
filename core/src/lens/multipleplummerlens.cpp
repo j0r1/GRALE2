@@ -279,6 +279,25 @@ bool MultiplePlummerLens::getCLParameters(double deflectionScale, double potenti
 	return true;
 }
 
+std::unique_ptr<GravitationalLensParams> MultiplePlummerLens::createLensParamFromCLFloatParams(double deflectionScale, double potentialScale, float *pFloatParams) const
+{
+	auto params = std::make_unique<MultiplePlummerLensParams>();
+	for (int i = 0 ; i < numlenses ; i++)
+	{
+		float massparam = pFloatParams[i*4+0];
+		float widthparam = pFloatParams[i*4+1];
+		float x = pFloatParams[i*4+2];
+		float y = pFloatParams[i*4+3];
+
+		double mass = ((double)massparam)*(SPEED_C*SPEED_C*getLensDistance()*deflectionScale*deflectionScale)/(4.0*CONST_G);
+		double width = widthparam*deflectionScale;
+		Vector2Dd pos(deflectionScale*(double)x, deflectionScale*(double)y);
+		params->addLensInfo({mass, width, pos});
+	}
+
+	return params;
+}
+
 std::string MultiplePlummerLens::getCLProgram(double deflectionScale, double potentialScale, std::string &subRoutineName, bool derivatives, bool potential) const
 {
 	std::string prog;
