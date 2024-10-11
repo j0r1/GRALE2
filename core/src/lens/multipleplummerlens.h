@@ -67,6 +67,9 @@ class GRALE_IMPORTEXPORT MultiplePlummerLens : public GravitationalLens
 public: 
 	MultiplePlummerLens();
 	~MultiplePlummerLens();
+
+	std::unique_ptr<GravitationalLens> createUninitializedInstance() const override { return std::make_unique<MultiplePlummerLens>(); }
+
 	bool getAlphaVector(Vector2D<double> theta,Vector2D<double> *pAlpha) const;
 	double getSurfaceMassDensity(Vector2D<double> theta) const;
 	bool getProjectedPotential(double D_s, double D_ds, Vector2D<double> theta, double *pPotentialValue) const;

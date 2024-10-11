@@ -67,6 +67,9 @@ class GRALE_IMPORTEXPORT MultipleGaussLens : public GravitationalLens
 public: 
 	MultipleGaussLens();
 	~MultipleGaussLens();
+
+	std::unique_ptr<GravitationalLens> createUninitializedInstance() const override { return std::make_unique<MultipleGaussLens>(); }
+
 	bool getAlphaVector(Vector2D<double> theta,Vector2D<double> *pAlpha) const;
 	double getSurfaceMassDensity(Vector2D<double> theta) const ;
 	bool getProjectedPotential(double D_s, double D_ds, Vector2D<double> theta, double *pPotentialValue) const;

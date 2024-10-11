@@ -59,6 +59,8 @@ public:
 	PIMDLens();
 	~PIMDLens();
 
+	std::unique_ptr<GravitationalLens> createUninitializedInstance() const override { return std::make_unique<PIMDLens>(); }
+
 	double getMassInside(double thetaLength) const;
 	double getProfileSurfaceMassDensity(double thetaLength) const;
 private:

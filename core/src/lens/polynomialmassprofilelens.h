@@ -129,6 +129,8 @@ public:
 	PolynomialMassProfileLens();
 	~PolynomialMassProfileLens();
 	
+	std::unique_ptr<GravitationalLens> createUninitializedInstance() const override { return std::make_unique<PolynomialMassProfileLens>(); }
+
 	bool getProjectedPotential(double D_s, double D_ds, Vector2D<double> theta, 
 	                           double *pPotentialValue) const;
 protected:

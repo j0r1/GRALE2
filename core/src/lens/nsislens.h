@@ -72,6 +72,9 @@ class GRALE_IMPORTEXPORT NSISLens : public SymmetricLens
 public:
 	NSISLens();
 	~NSISLens();
+
+	std::unique_ptr<GravitationalLens> createUninitializedInstance() const override { return std::make_unique<NSISLens>(); }
+
 protected:
 	bool processParameters(const GravitationalLensParams *pLensParams);
 	double getMassInside(double thetaLength) const;

@@ -180,6 +180,14 @@ bool NSIELens::getCLParameters(double deflectionScale, double potentialScale, in
 	return true;
 }
 
+std::unique_ptr<GravitationalLensParams> NSIELens::createLensParamFromCLFloatParams(double deflectionScale, double potentialScale, float *pFloatParams) const
+{
+	double ellipt = (double)pFloatParams[0];
+	double velDisp = ((double)pFloatParams[1])*velScale;
+	double core = ((double)pFloatParams[2])*deflectionScale;
+	return std::make_unique<NSIELensParams>(velDisp, ellipt, core);
+}
+
 std::vector<CLFloatParamInfo> NSIELens::getCLAdjustableFloatingPointParameterInfo() const
 {
 	return {

@@ -69,6 +69,9 @@ class GRALE_IMPORTEXPORT SquareLens : public GravitationalLens
 public:
 	SquareLens();
 	~SquareLens();
+
+	std::unique_ptr<GravitationalLens> createUninitializedInstance() const override { return std::make_unique<SquareLens>(); }
+
 	bool getAlphaVector(Vector2D<double> theta,Vector2D<double> *pAlpha) const;
 	double getSurfaceMassDensity(Vector2D<double> theta) const;
 	bool getProjectedPotential(double D_s, double D_ds, Vector2D<double> theta, double *pPotentialValue) const;

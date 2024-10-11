@@ -62,6 +62,9 @@ class GRALE_IMPORTEXPORT HarmonicLens : public GravitationalLens
 public:
 	HarmonicLens();
 	~HarmonicLens();
+
+	std::unique_ptr<GravitationalLens> createUninitializedInstance() const override { return std::make_unique<HarmonicLens>(); }
+
 	bool getAlphaVector(Vector2D<double> theta,Vector2D<double> *pAlpha) const;
 	bool getAlphaVectorDerivatives(Vector2D<double> theta, double &axx, double &ayy, double &axy) const;
 	double getSurfaceMassDensity(Vector2D<double> theta) const;

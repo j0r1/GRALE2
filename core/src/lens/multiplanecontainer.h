@@ -48,6 +48,8 @@ public:
 	MultiPlaneContainer();
 	~MultiPlaneContainer();
 
+	std::unique_ptr<GravitationalLens> createUninitializedInstance() const override { return std::make_unique<MultiPlaneContainer>(); }
+
 	bool getAlphaVector(Vector2D<double> theta, Vector2D<double> *pAlpha) const override;
 	double getSurfaceMassDensity(Vector2D<double> theta) const override;
 	bool getAlphaVectorDerivatives(Vector2D<double> theta, double &axx, double &ayy, double &axy) const override;

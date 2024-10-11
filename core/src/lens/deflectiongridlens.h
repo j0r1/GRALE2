@@ -68,6 +68,9 @@ class GRALE_IMPORTEXPORT DeflectionGridLens : public GravitationalLens
 public:
 	DeflectionGridLens();
 	~DeflectionGridLens();
+
+	std::unique_ptr<GravitationalLens> createUninitializedInstance() const override { return std::make_unique<DeflectionGridLens>(); }
+
 	bool getAlphaVector(Vector2D<double> theta, Vector2D<double> *pAlpha) const;
 	double getSurfaceMassDensity(Vector2D<double> theta) const ;
 	bool getAlphaVectorDerivatives(Vector2D<double> theta, double &axx, double &ayy, double &axy) const;

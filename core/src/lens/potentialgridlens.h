@@ -96,6 +96,9 @@ class GRALE_IMPORTEXPORT PotentialGridLens : public GravitationalLens
 public:
 	PotentialGridLens();
 	~PotentialGridLens();
+
+	std::unique_ptr<GravitationalLens> createUninitializedInstance() const override { return std::make_unique<PotentialGridLens>(); }
+
 	bool getAlphaVector(Vector2D<double> theta,Vector2D<double> *pAlpha) const;
 	bool getAlphaVectorDerivatives(Vector2D<double> theta, double &axx, double &ayy, double &axy) const;
 	double getSurfaceMassDensity(Vector2D<double> theta) const;

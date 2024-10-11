@@ -660,6 +660,12 @@ unique_ptr<GravitationalLens> GravitationalLens::createCopy() const
 	return pLens;
 }
 
+std::unique_ptr<GravitationalLens> GravitationalLens::createUninitializedInstance() const
+{
+	setErrorString("Not implemented in base class");
+	return nullptr;
+}
+
 bool GravitationalLens::getSuggestedScales(double *pDeflectionScale, double *pPotentialScale) const
 {
 	setErrorString("Scale suggestion not implemented for this lens");
@@ -713,6 +719,31 @@ std::string GravitationalLens::getCLLensProgram(double deflectionScale, double p
 	prog += getCLProgram(deflectionScale, potentialScale, subRoutineName, derivatives, potential);
 
 	return prog;
+}
+
+std::unique_ptr<GravitationalLens> GravitationalLens::createLensFromCLFloatParams(double deflectionScale, double potentialScale, float *pFloatParams) const
+{
+	auto newInstance = createUninitializedInstance();
+	if (!newInstance)
+	{
+		setErrorString("Unable to create an uninitialized instance of this lens model: " + getErrorString());
+		return nullptr;
+	}
+
+	auto lensParams = createLensParamFromCLFloatParams(deflectionScale, potentialScale, pFloatParams);
+	if (!lensParams)
+	{
+		setErrorString("Unable to create lens parameters from OpenCL floating point parameters: " + getErrorString());
+		return nullptr;
+	}
+
+	if (!newInstance->init(getLensDistance(), lensParams.get()))
+	{
+		setErrorString("Unable to initialize new lens instance: " + newInstance->getErrorString());
+		return nullptr;
+	}
+
+	return newInstance;
 }
 
 } // end namespace

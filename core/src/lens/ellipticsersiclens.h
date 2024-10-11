@@ -60,6 +60,8 @@ class GRALE_IMPORTEXPORT EllipticSersicLens : public EllipticLens
 public:
 	EllipticSersicLens();
 	~EllipticSersicLens();
+
+	std::unique_ptr<GravitationalLens> createUninitializedInstance() const override { return std::make_unique<EllipticSersicLens>(); }
 private:
 	bool processParameters(const GravitationalLensParams *pLensParams);
 

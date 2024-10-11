@@ -98,6 +98,7 @@ cdef extern from "grale/gravitationallens.h" namespace "grale":
         string getCLLensProgram(double deflectionScale, double potentialScale, string &subRoutineName, bool derivatives, bool potential) const
         string getCLProgram(double deflectionScale, double potentialScale, string &subRoutineName, bool derivatives, bool potential) const
         string getCLLensQuantitiesStructure(bool derivatives, bool potential) const
+        unique_ptr[GravitationalLens] createLensFromCLFloatParams(double deflectionScale, double potentialScale, float *pFloatParams) const
 
 cdef extern from "grale/symmetriclens.h" namespace "grale":
 

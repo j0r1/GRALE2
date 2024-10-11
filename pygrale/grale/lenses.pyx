@@ -839,6 +839,26 @@ cdef class GravitationalLens:
             raise LensException(S(self._lens().getErrorString()))
         return (intParams, floatParams)
 
+    def createLensFromCLFloatParams(self, deflectionScale, potentialScale, np.ndarray[np.float32_t,ndim=1] floatParams):
+        cdef unique_ptr[gravitationallens.GravitationalLens] newLens
+        cdef int numIntParams = 0, numFloatParams = 0
+
+        if floatParams is None:
+            raise LensException("No floating point parameters were specified")
+
+        self._check()
+        if not self._lens().getCLParameterCounts(&numIntParams, &numFloatParams):
+            raise LensException(S(self._lens().getErrorString()))
+
+        if floatParams.shape[0] < numFloatParams:
+            raise LensException("Specified a buffer of {} float values, but need at least {}".format(floatParams.shape[0], numFloatParams))
+
+        newLens = self._lens().createLensFromCLFloatParams(deflectionScale, potentialScale, <float*>floatParams.data)
+        if newLens.get() == NULL:
+            raise LensException(S(self._lens().getErrorString()))
+
+        return GravitationalLens._finalizeLoadedLens(newLens)
+
     def getCLLensProgram(self, deflectionScale, potentialScale, derivatives=True, potential=True):
         """getCLLensProgram(deflectionScale, potentialScale, derivatives=True, potential=True)
 

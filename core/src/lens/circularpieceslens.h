@@ -106,6 +106,9 @@ class GRALE_IMPORTEXPORT CircularPiecesLens : public GravitationalLens
 public:
 	CircularPiecesLens();
 	~CircularPiecesLens();
+
+	std::unique_ptr<GravitationalLens> createUninitializedInstance() const override { return std::make_unique<CircularPiecesLens>(); }
+
 	bool getAlphaVector(Vector2D<double> theta,Vector2D<double> *pAlpha) const;
 	bool getAlphaVectorDerivatives(Vector2D<double> theta, double &axx, double &ayy, double &axy) const;
 	double getSurfaceMassDensity(Vector2D<double> theta) const;

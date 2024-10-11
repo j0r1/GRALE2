@@ -58,6 +58,8 @@ class GRALE_IMPORTEXPORT EllipticNFWLens : public EllipticLens
 public:
 	EllipticNFWLens();
 	~EllipticNFWLens();
+
+	std::unique_ptr<GravitationalLens> createUninitializedInstance() const override { return std::make_unique<EllipticNFWLens>(); }
 private:
 	bool processParameters(const GravitationalLensParams *pLensParams);
 

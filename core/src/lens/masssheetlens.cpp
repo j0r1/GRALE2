@@ -137,6 +137,13 @@ bool MassSheetLens::getCLParameters(double deflectionScale, double potentialScal
 	return true;
 }
 
+std::unique_ptr<GravitationalLensParams> MassSheetLens::createLensParamFromCLFloatParams(double deflectionScale, double potentialScale, float *pFloatParams) const
+{
+	double factor = (double)pFloatParams[0];
+	double density = factor*SPEED_C*SPEED_C/(4.0*CONST_PI*CONST_G*getLensDistance());
+	return std::make_unique<MassSheetLensParams>(density);
+}
+
 std::string MassSheetLens::getCLProgram(double deflectionScale, double potentialScale, std::string &subRoutineName, bool derivatives, bool potential) const
 {
 	std::string program;

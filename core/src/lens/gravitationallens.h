@@ -200,6 +200,8 @@ public:
 	/** Creates a copy of the current lens instance. */
 	std::unique_ptr<GravitationalLens> createCopy() const;
 
+	virtual std::unique_ptr<GravitationalLens> createUninitializedInstance() const;
+
 	// TODO: experimental
 	// OpenCL stuff
 	
@@ -227,6 +229,8 @@ public:
 			                         bool derivatives = true, bool potential = true) const;
 
 	virtual std::vector<CLFloatParamInfo> getCLAdjustableFloatingPointParameterInfo() const { return std::vector<CLFloatParamInfo>(); }
+	virtual std::unique_ptr<GravitationalLensParams> createLensParamFromCLFloatParams(double deflectionScale, double potentialScale, float *pFloatParams) const { setErrorString("Not implemented in base class"); return nullptr; }
+	std::unique_ptr<GravitationalLens> createLensFromCLFloatParams(double deflectionScale, double potentialScale, float *pFloatParams) const;
 protected:
 	/** Specific lens implementations implement this function to process the parameters
 	 *  specified in the GravitationalLens::init function.

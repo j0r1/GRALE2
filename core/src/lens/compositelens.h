@@ -91,6 +91,8 @@ public:
 	CompositeLens();
 	~CompositeLens();
 
+	std::unique_ptr<GravitationalLens> createUninitializedInstance() const override { return std::make_unique<CompositeLens>(); }
+
 	static CompositeLens *cast(GravitationalLens *pLens);
 	static const CompositeLens *cast(const GravitationalLens *pLens);
 

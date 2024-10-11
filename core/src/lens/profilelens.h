@@ -55,6 +55,8 @@ public:
 	ProfileLens();
 	~ProfileLens();
 	
+	std::unique_ptr<GravitationalLens> createUninitializedInstance() const override { return std::make_unique<ProfileLens>(); }
+
 	bool getProjectedPotential(double D_s, double D_ds, Vector2D<double> theta, 
 		                   double *pPotentialValue) const;
 protected:

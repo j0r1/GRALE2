@@ -69,6 +69,8 @@ class GRALE_IMPORTEXPORT GaussLens : public SymmetricLens
 public:
 	GaussLens();
 	~GaussLens();
+
+	std::unique_ptr<GravitationalLens> createUninitializedInstance() const override { return std::make_unique<GaussLens>(); }
 protected:
 	bool processParameters(const GravitationalLensParams *pParams);
 	double getMassInside(double thetaLength) const;
