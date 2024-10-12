@@ -669,16 +669,16 @@ std::vector<CLFloatParamInfo> CompositeLens::getCLAdjustableFloatingPointParamet
 			return {};
 		}
 
-		std::string name_prefix = "comppart_" + std::to_string(i) + ",";
-		allParamInfo.push_back({.name = name_prefix + "x_scaled", .offset = floatOffset++});
-		allParamInfo.push_back({.name = name_prefix + "y_scaled", .offset = floatOffset++});
-		allParamInfo.push_back({.name = name_prefix + "angle", .offset = floatOffset++});
-		allParamInfo.push_back({.name = name_prefix + "factor", .offset = floatOffset++, .hardMin = 0 }); // Allow negatives?
+		//std::string name_prefix = "comppart_" + std::to_string(i) + ",";
+		allParamInfo.push_back({.name = "x_" + std::to_string(i) + "_scaled", .offset = floatOffset++});
+		allParamInfo.push_back({.name = "y_" + std::to_string(i) + "_scaled", .offset = floatOffset++});
+		allParamInfo.push_back({.name = "angle_" + std::to_string(i), .offset = floatOffset++});
+		allParamInfo.push_back({.name = "factor_" + std::to_string(i), .offset = floatOffset++, .hardMin = 0 }); // Allow negatives?
 
 		auto paramInfo = m_lenses[i]->getCLAdjustableFloatingPointParameterInfo();
 		for (auto s : paramInfo)
 		{
-			s.name = name_prefix + "lens," + s.name;
+			s.name = "lens_" + std::to_string(i) + "," + s.name;
 			s.offset += floatOffset;
 			allParamInfo.push_back(s);
 		}
