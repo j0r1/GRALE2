@@ -279,6 +279,23 @@ bool MultiplePlummerLens::getCLParameters(double deflectionScale, double potenti
 	return true;
 }
 
+std::vector<CLFloatParamInfo> MultiplePlummerLens::getCLAdjustableFloatingPointParameterInfo() const
+{
+	std::vector<CLFloatParamInfo> info;
+
+	size_t offset = 0;
+	for (int i = 0 ; i < numlenses ; i++)
+	{
+		info.push_back({ .name = "mass_" + std::to_string(i) + "_scaled", .offset = offset++, .hardMin = 0 });
+		info.push_back({ .name = "width_" + std::to_string(i) + "_scaled", .offset = offset++, .hardMin = 0 });
+		info.push_back({ .name = "x_" + std::to_string(i) + "_scaled", .offset = offset++ });
+		info.push_back({ .name = "y_" + std::to_string(i) + "_scaled", .offset = offset++ });
+	}
+
+	return info;
+}
+
+
 std::unique_ptr<GravitationalLensParams> MultiplePlummerLens::createLensParamFromCLFloatParams(double deflectionScale, double potentialScale, float *pFloatParams) const
 {
 	auto params = std::make_unique<MultiplePlummerLensParams>();
