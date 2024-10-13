@@ -145,6 +145,33 @@ def createTemplateLens(parametricLensDescription, Dd):
           }
     return ret
 
+def getShouldBeSameArray(templateLensDescription):
+    numParams = templateLensDescription["floatparams"].shape[0]
+    shouldBeSame = [ True for _ in range(numParams) ]
+    for paramInfo in templateLensDescription["paramoffsets"]:
+        offset = paramInfo["offset"]
+        assert shouldBeSame[offset], "Internal error: changing same floating point value twice"
+
+        shouldBeSame[offset] = False
+
+    return shouldBeSame
+
+def checkShouldBeSame(templateLensDescription, minParams, maxParams):
+    shouldBeSame = getShouldBeSameArray(templateLensDescription)
+
+    for idx, value in enumerate(shouldBeSame):
+        # print(f"Comparing index {idx}: {initMinParams[idx]} vs {initMaxParams[idx]}")
+        if value: # everything should be same
+            assert minParams[idx] == maxParams[idx], "Internal error: min/max should be same at this position"
+            assert minParams[idx] == templateLensDescription["floatparams"][idx], "Internal error: min and template values should match at this position"
+
+        else:
+            if minParams[idx] == maxParams[idx]:
+                raise Exception(f"Values at floating point offset {idx} should be allowed to change, but initial min/max values are the same (so no variation will be introduced)")
+
+            if minParams[idx] > maxParams[idx]:
+                raise Exception(f"Min/max value at floating point offset {idx} should be other way around")
+
 def createInitialMinMaxParameters(templateLensDesciption, defaultFraction):
     
     scales = templateLensDesciption["scales"]
@@ -162,31 +189,7 @@ def createInitialMinMaxParameters(templateLensDesciption, defaultFraction):
     assert templateLensDesciption["floatparams"].shape == initMinParams.shape, "Internal error: mismatch in floating point parameter shapes"
     assert initMaxParams.shape == initMinParams.shape, "Internal error: mismatch in floating point parameter shapes (2)"
 
-    numParams = initMaxParams.shape[0]
-    shouldBeSame = [ True for _ in range(numParams) ]
-    for paramInfo in templateLensDesciption["paramoffsets"]:
-        offset = paramInfo["offset"]
-        assert shouldBeSame[offset], "Internal error: changing same floating point value twice"
-
-        shouldBeSame[offset] = False
-
-    # print("paramInfo:")
-    # print(paramInfo)
-    # print("Min:")
-    # print(initMinParams)
-    # print("Max:")
-    # print(initMaxParams)
-
-    # TODO: move this later? Also check against hard min/max?
-    for idx, value in enumerate(shouldBeSame):
-        # print(f"Comparing index {idx}: {initMinParams[idx]} vs {initMaxParams[idx]}")
-        if value: # everything should be same
-            assert initMinParams[idx] == initMaxParams[idx], "Internal error: min/max should be same at this position"
-            assert initMinParams[idx] == templateLensDesciption["floatparams"][idx], "Internal error: min and template values should match at this position"
-
-        else:
-            if initMinParams[idx] == initMaxParams[idx]:
-                raise Exception(f"Values at floating point offset {idx} should be allowed to change, but initial min/max values are the same (so no variation will be introduced)")
+    checkShouldBeSame(templateLensDesciption, initMinParams, initMaxParams)
 
     return initMinParams, initMaxParams
 
@@ -275,16 +278,65 @@ def createHardMinMaxParameters(templateLensDesciption):
 
     _, hardMaxParams = l.getCLParameters(**scales) # These should all be finite
 
-    print("hardInfMinNames:")
-    print(hardInfMinNames)
-    print("hardInfMaxNames:")
-    print(hardInfMaxNames)
-    print("hardMinParams")
-    print(hardMinParams)
-    print("hardMaxParams")
-    print(hardMaxParams)
-    raise Exception("TODO")
+    def isNumber(num):
+        return not (math.isinf(num) or math.isnan(num))
 
+    for i in range(hardMinParams.shape[0]):
+        assert isNumber(hardMinParams[i]), "Internal error: expecting all hard min parameters to start as a real number"
+
+    for i in range(hardMaxParams.shape[0]):
+        assert isNumber(hardMaxParams[i]), "Internal error: expecting all hard max parameters to start as a real number"
+    
+    for paramName in hardInfMinNames:
+        offset = paramOffsets[paramName]["offset"]
+        hardMinParams[offset] = float("-inf")
+
+    for paramName in hardInfMaxNames:
+        offset = paramOffsets[paramName]["offset"]
+        hardMaxParams[offset] = float("inf")
+
+    assert templateLensDesciption["floatparams"].shape == hardMinParams.shape, "Internal error: mismatch in floating point parameter shapes (3)"
+    assert hardMaxParams.shape == hardMinParams.shape, "Internal error: mismatch in floating point parameter shapes (4)"
+
+    checkShouldBeSame(templateLensDesciption, hardMinParams, hardMaxParams)
+
+    return hardMinParams, hardMaxParams
+
+def analyzeParametricLensDescription(parametricLens, Dd, defaultFraction):
+    inf = createTemplateLens(parametricLens, Dd)
+
+    initMin, initMax = createInitialMinMaxParameters(inf, defaultFraction)
+    hardMin, hardMax = createHardMinMaxParameters(inf)
+
+    numParams = initMin.shape[0]
+    for i in range(numParams):
+        if hardMin[i] > initMin[i]:
+            raise Exception(f"Parameter at offset {i} has initial value that can be smaller than hard lower limit")
+        if hardMax[i] < initMax[i]:
+            raise Exception(f"Parameter at offset {i} has initial value that can be larger than hard upper limit")
+
+    paramRanges = [ ]
+    for offInf in inf["paramoffsets"]:
+        offset = offInf["offset"]
+        hardMinValue = hardMin[offset]
+        hardMaxValue = hardMax[offset]
+        initMinValue = initMin[offset]
+        initMaxValue = initMax[offset]
+        
+        assert not (offset in paramRanges), f"Internal error: offset {offset} already set"
+        paramRanges.append({ "initialrange": [ initMinValue, initMaxValue ],
+                              "hardlimits": [ hardMinValue, hardMaxValue ],
+                              "name": offInf["name"],
+                              "offset": offset })
+    paramRanges = sorted(paramRanges, key = lambda x: x["offset"])
+    
+    ret = {
+        "templatelens": inf["templatelens"],
+        "floatparams": inf["floatparams"],
+        "scales": inf["scales"],
+        "variablefloatparams": paramRanges
+    }
+    return ret
 
 def main():
 
@@ -300,7 +352,7 @@ def main():
     parametricLens = {
        "type": "CompositeLens",
        "params": [
-            { "x": 0, "y": [ 0.1 ], "factor": 1, "angle": 0,
+            { "x": 0, "y": [ 0.1*ANGLE_ARCSEC ], "factor": 1, "angle": 0,
               "lens": {
                 "type": "PlummerLens",
                 "params": {
@@ -309,7 +361,7 @@ def main():
                 }
               }
             },
-            { "x": [0.11], "y": 0, "factor": [ 1 ], "angle": 0,
+            { "x": [0.11*ANGLE_ARCSEC], "y": 0, "factor": [ 1 ], "angle": 0,
               "lens": {
                 "type": "PlummerLens",
                 "params": {
@@ -318,8 +370,8 @@ def main():
                 }
               }
             },
-            { "x": [0.111], "y": 0, "factor": 1, 
-              "angle": { "initmin": 0, "initmax": 3.14 },
+            { "x": [0.111*ANGLE_ARCSEC], "y": 0, "factor": 1, 
+              "angle": { "initmin": -60, "initmax": 30 },
               "lens": {
                   "type": "NSIELens",
                   "params": {
@@ -331,16 +383,11 @@ def main():
             }
         ]
     }
-    
-    inf = createTemplateLens(parametricLens, 1000*DIST_MPC)
-    print("Template lens info")
-    pprint.pprint(inf)
-    minMax = createInitialMinMaxParameters(inf, 0.1)
-    print("initial min/max info")
-    pprint.pprint(minMax)
 
-    createHardMinMaxParameters(inf)
+    inf = analyzeParametricLensDescription(parametricLens, 1000*DIST_MPC, 0.1)
+    pprint.pprint(inf)
     
+
 if __name__ == "__main__":
     main()
     
