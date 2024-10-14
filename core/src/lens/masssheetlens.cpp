@@ -137,6 +137,13 @@ bool MassSheetLens::getCLParameters(double deflectionScale, double potentialScal
 	return true;
 }
 
+std::vector<CLFloatParamInfo> MassSheetLens::getCLAdjustableFloatingPointParameterInfo() const
+{
+	return { 
+		{ .name = "density_scaled", .offset = 0, .hardMin = 0 },
+	};
+}
+
 std::unique_ptr<GravitationalLensParams> MassSheetLens::createLensParamFromCLFloatParams(double deflectionScale, double potentialScale, float *pFloatParams) const
 {
 	double factor = (double)pFloatParams[0];

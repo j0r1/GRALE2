@@ -96,6 +96,27 @@ def processNSIELens(lensParams, Dd, getParamValue):
     
     return lenses.NSIELens(Dd, newParams), positionNames
 
+def processSISLens(lensParams, Dd, getParamValue):
+    positionNames = [ ]
+    lensParams, newParams = _checkParameterValues(lensParams, [ ("velocityDispersion", "sigma_scaled") ],
+                                                  getParamValue, positionNames)    
+    if lensParams:
+        raise Exception("Excess parameters for SISLens")
+    
+    return lenses.SISLens(Dd, newParams), positionNames
+
+def processMassSheetLens(lensParams, Dd, getParamValue):
+    positionNames = []
+    if "Ds" in lensParams or "Dds" in lensParams:
+        raise Exception("For a mass sheet lens, 'Ds' and 'Dds' cannot be used, use 'density' instead")
+
+    lensParams, newParams = _checkParameterValues(lensParams, [ ("density", "density_scaled") ],
+                                                  getParamValue, positionNames)    
+
+    if lensParams:
+        raise Exception("Excess parameters for MassSheetLens")
+    return lenses.MassSheetLens(Dd, newParams), positionNames
+
 def createTemplateLens_helper(parametricLensDescription, Dd, getParamValue):
     lensType = parametricLensDescription["type"]
     lensParams = parametricLensDescription["params"]
@@ -108,9 +129,9 @@ def createTemplateLens_helper(parametricLensDescription, Dd, getParamValue):
     elif lensType == "CompositeLens":
         return processCompositeLens(lensParams, Dd, getParamValue)
     elif lensType == "SISLens":
-        pass
+        return processSISLens(lensParams, Dd, getParamValue)
     elif lensType == "MassSheetLens":
-        pass
+        return processMassSheetLens(lensParams, Dd, getParamValue)
     else:
         raise Exception("Unknown lens type for parametric inversion")
 
@@ -380,6 +401,22 @@ def main():
                       "coreRadius": [ 2*ANGLE_ARCSEC ]
                   }
               }
+            },
+            { "x": 0, "y": 0, "factor": 1, 
+              "angle": 0,
+              "lens": {
+                  "type": "SISLens",
+                  "params": {
+                      "velocityDispersion": [ 400000 ],
+                  }
+              }
+            },
+            {
+              "x": 0, "y": 0, "factor": 1, "angle": 0,
+              "lens": {
+                  "type": "MassSheetLens",
+                  "params": { "density": [ 4.44 ] }
+              }
             }
         ]
     }
@@ -391,8 +428,3 @@ def main():
 if __name__ == "__main__":
     main()
     
-
-
-
-
-
