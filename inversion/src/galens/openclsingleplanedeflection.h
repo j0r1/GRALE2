@@ -36,7 +36,13 @@ public:
 
 	void destroy();
 
-	errut::bool_t calculateDeflection(const std::vector<float> &parameters); // should have numChangebleParams * numParamSets length
+	errut::bool_t calculateDeflection(const std::vector<float> &parameters,
+									  std::vector<Vector2Df> &allAlphas,
+									  std::vector<float> &allAxx,
+									  std::vector<float> &allAyy,
+									  std::vector<float> &allAxy,
+									  std::vector<float> &allPotentials);
+	// should have numChangebleParams * numParamSets length
 	//     Here we can either modify the full parameters on the CPU and upload
 	//     these, or upload only these parameters and let a kernel change them
 	//     in the full parameters
@@ -50,6 +56,7 @@ private:
 	oclutils::CLMem m_clAllResults;
 
 	size_t m_numPoints, m_numFloatParams, m_numParamSets;
+	size_t m_numChangeableParams;
 	std::vector<cl_float> m_allFloatParams;
 	std::vector<cl_float> m_allResultsBuffer;
 	std::vector<size_t> m_changeableParameterIndices;

@@ -51,8 +51,8 @@ int main(void)
 	string subRoutName;
 	string prog = lens.getCLLensProgram(deflScale, potScale, subRoutName);
 	
-	size_t numGenomes = 1;
-	vector<size_t> changeableParamIdx = { 0 };
+	size_t numGenomes = 3;
+	vector<size_t> changeableParamIdx = { 0, 1 };
 
 	OpenCLSinglePlaneDeflection clDef;
 
@@ -60,7 +60,68 @@ int main(void)
 	if (!(r = clDef.init(thetas, intParams, floatParams, changeableParamIdx, numGenomes, prog, subRoutName)))
 		throw runtime_error("Can't init OpenCL calculation code: " + r.getErrorString());
 
-	// TODO: calculate a deflection
+	vector<Vector2Df> allAlphas;
+	vector<float> allAxx, allAyy, allAxy;
+	vector<float> allPotentials;
+
+	vector<float> changedParams = {floatParams[0], floatParams[1],
+	                               floatParams[0]/2, floatParams[1],
+								   floatParams[0], floatParams[1]/2 };
+
+	if (!(r = clDef.calculateDeflection(changedParams,
+	                                    allAlphas, allAxx, allAyy, allAxy, allPotentials)))
+		throw runtime_error("Can't calculate deflections: " + r.getErrorString());
 	
+	for (size_t i = 0 ; i < numGenomes ; i++)
+	{
+		vector<float> floatParamsMod = floatParams;
+		for (size_t j = 0 ; j < changeableParamIdx.size() ; j++)
+			floatParamsMod.at(changeableParamIdx[j]) = changedParams.at(i*changeableParamIdx.size() + j);
+		
+		unique_ptr<GravitationalLens> newLens = lens.createLensFromCLFloatParams(deflScale, potScale, floatParamsMod.data());
+		for (size_t pt = 0 ; pt < thetas.size() ; pt++)
+		{
+			Vector2Dd theta(thetas[pt].getX(), thetas[pt].getY());
+			theta *= deflScale;
+
+			Vector2Dd alpha;
+			newLens->getAlphaVector(theta, &alpha);
+			alpha /= deflScale;
+
+			Vector2Df gpuAlpha = allAlphas[i*thetas.size() + pt];
+
+			auto diff = [](Vector2Dd a, Vector2Df b)
+			{
+				Vector2Dd b2(b.getX(), b.getY());
+				Vector2Dd diff = a;
+				diff -= b2;
+				return diff.getLength();
+			};
+
+			cerr << "Genome " << i << " point " << pt << " CPU: " << alpha.getX() << "," << alpha.getY() 
+			                                          << " GPU: " << gpuAlpha.getX() << "," << gpuAlpha.getY()
+													  << " diff: " << diff(alpha, gpuAlpha) << endl;
+
+			double axx, ayy, axy;
+			newLens->getAlphaVectorDerivatives(theta, axx, ayy, axy);
+			float gpuAxx = allAxx[i*thetas.size() + pt];
+			float gpuAyy = allAyy[i*thetas.size() + pt];
+			float gpuAxy = allAxy[i*thetas.size() + pt];
+
+			auto diff3 = [](double x0, double y0, double z0, float x1, float y1, float z1)
+			{
+				x0 -= x1; y0 -= y1; z0 -= z1;
+				return std::sqrt(x0*x0 + y0*y0 + z0*z0);
+			};
+
+			cerr << "Genome " << i << " point " << pt << " CPU: " << axx << "," << ayy << "," << axy
+			                                          << " GPU: " << gpuAxx << "," << gpuAyy << "," << gpuAxy
+													  << " diff: " << diff3(axx, ayy, axy, gpuAxx, gpuAyy, gpuAxy) << endl;
+
+			cerr << endl;
+		}
+	}
+
 	return 0;
 }
+

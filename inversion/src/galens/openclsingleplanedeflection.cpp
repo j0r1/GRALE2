@@ -181,9 +181,90 @@ void OpenCLSinglePlaneDeflection::destroy()
     m_init = false;
 }
 
-bool_t OpenCLSinglePlaneDeflection::calculateDeflection(const std::vector<float> &parameters) // should have numChangebleParams * numParamSets length
+bool_t OpenCLSinglePlaneDeflection::calculateDeflection(const std::vector<float> &parameters,  // should have numChangebleParams * numParamSets length
+									  std::vector<Vector2Df> &allAlphas,
+									  std::vector<float> &allAxx,
+									  std::vector<float> &allAyy,
+									  std::vector<float> &allAxy,
+									  std::vector<float> &allPotentials)
 {
-    // TODO
+    if (!m_init)
+        return "Not initialized";
+
+    size_t changeableSize = m_changeableParameterIndices.size();
+    if (parameters.size() != m_numParamSets*changeableSize)
+        return "Invalid number of parameters";
+
+    // Fill in the new parameters in the total parameters
+    if (parameters.size() > 0)
+    {
+        for (size_t i = 0 ; i < m_numParamSets ; i++)
+        {
+            float *pFloatParams = m_allFloatParams.data() + m_numFloatParams*i;
+            const float *pParamSet = parameters.data() + i*changeableSize;
+            for (size_t j = 0 ; j < changeableSize ; j++)
+            {
+                size_t destIdx = m_changeableParameterIndices[j];
+                assert(destIdx < m_numFloatParams);
+
+                pFloatParams[destIdx] = pParamSet[j];
+            }
+        }
+    }
+
+    // Upload this to the GPU
+    bool_t r;
+    auto queue = m_cl->getCommandQueue();
+    if (!(r = m_clFloatParams.enqueueWriteBuffer(*m_cl, queue, m_allFloatParams, true)))
+        return "Can't copy floating point parameters to GPU: " + r.getErrorString();
+
+    auto kernel = m_cl->getKernel(0);
+    cl_int clNumPoints = (cl_int)m_numPoints;
+    cl_int clNumParamSets = (cl_int)m_numParamSets;
+    cl_int clNumFloatParams = (cl_int)m_numFloatParams;
+    cl_int err = 0;
+
+    auto setKernArg = [this, &err, &kernel](cl_uint idx, size_t size, const void *ptr)
+    {
+        err |= m_cl->clSetKernelArg(kernel, idx, size, ptr);
+    };
+
+    setKernArg(0, sizeof(cl_int), (void*)&clNumPoints);
+    setKernArg(1, sizeof(cl_int), (void*)&clNumParamSets);
+    setKernArg(2, sizeof(cl_int), (void*)&clNumFloatParams);
+    setKernArg(3, sizeof(cl_mem), (void*)&m_clIntParams.m_pMem);
+    setKernArg(4, sizeof(cl_mem), (void*)&m_clFloatParams.m_pMem);
+    setKernArg(5, sizeof(cl_mem), (void*)&m_clThetas.m_pMem);
+    setKernArg(6, sizeof(cl_mem), (void*)&m_clAllResults.m_pMem);
+    if (err != CL_SUCCESS)
+        return "Error setting kernel arguments";
+
+    size_t workSize[2] = { m_numPoints, m_numParamSets };
+    err = m_cl->clEnqueueNDRangeKernel(queue, kernel, 2, nullptr, workSize, nullptr, 0, nullptr, nullptr);
+    if (err != CL_SUCCESS)
+        return "Error enqueing kernel: " + to_string(err);
+
+    if (!(r = m_clAllResults.enqueueReadBuffer(*m_cl, queue, m_allResultsBuffer, nullptr, nullptr, true)))
+        return "Error reading calculation results: " + r.getErrorString();
+
+    // Copy the results to the arrays in the parameters
+    size_t totalPoints = m_numPoints*m_numParamSets;
+    allAlphas.resize(totalPoints);
+    allAxx.resize(totalPoints);
+    allAyy.resize(totalPoints);
+    allAxy.resize(totalPoints);
+    allPotentials.resize(totalPoints);
+
+    for (size_t i = 0, j = 0 ; i < totalPoints ; i++, j += 6)
+    {
+        assert(j+5 < m_allResultsBuffer.size());
+        allAlphas[i] = Vector2Df(m_allResultsBuffer[j+0], m_allResultsBuffer[j+1]);
+        allAxx[i] = m_allResultsBuffer[j+2];
+        allAyy[i] = m_allResultsBuffer[j+3];
+        allAxy[i] = m_allResultsBuffer[j+4];
+        allPotentials[i] = m_allResultsBuffer[j+5];
+    }
+
     return true;
 }
 
