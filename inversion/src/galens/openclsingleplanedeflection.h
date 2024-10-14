@@ -30,7 +30,7 @@ public:
 					   const std::vector<float> &templateFloatParameters, // only floating point params can change
 					   const std::vector<size_t> changeableParameterIndices,
 					   size_t numParamSets, // number of genomes for example
-					   const std::string &deflectionKernelCode,
+					   const std::string &deflectionKernelCode, const std::string &lensRoutineName,
 					   size_t devIdx = 0
 					   ); // TODO: calculate betas from this as well?
 
@@ -47,9 +47,11 @@ private:
 	oclutils::CLMem m_clThetas;
 	oclutils::CLMem m_clIntParams;
 	oclutils::CLMem m_clFloatParams; // copy of parameters for each genome
+	oclutils::CLMem m_clAllResults;
 
-	size_t m_numFloatParams;
+	size_t m_numPoints, m_numFloatParams, m_numParamSets;
 	std::vector<cl_float> m_allFloatParams;
+	std::vector<cl_float> m_allResultsBuffer;
 	std::vector<size_t> m_changeableParameterIndices;
 };
 

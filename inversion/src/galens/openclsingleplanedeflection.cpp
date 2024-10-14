@@ -21,7 +21,7 @@ bool_t OpenCLSinglePlaneDeflection::init(const std::vector<Vector2Df> &thetas, /
 					   const std::vector<float> &templateFloatParameters, // only floating point params can change
 					   const std::vector<size_t> changeableParameterIndices,
 					   size_t numParamSets, // number of genomes for example
-					   const std::string &deflectionKernelCode,
+					   const std::string &deflectionKernelCode, const std::string &lensRoutineName,
                        size_t devIdx
 					   ) // TODO: calculate betas from this as well?
 {
@@ -42,6 +42,7 @@ bool_t OpenCLSinglePlaneDeflection::init(const std::vector<Vector2Df> &thetas, /
         m_clThetas.dealloc(*cl);
         m_clIntParams.dealloc(*cl);
         m_clFloatParams.dealloc(*cl);
+        m_clAllResults.dealloc(*cl);
         return r;
     };
 
@@ -97,10 +98,68 @@ bool_t OpenCLSinglePlaneDeflection::init(const std::vector<Vector2Df> &thetas, /
         indexCheck[x] = true;
     }
 
-    // TODO: compile kernel(s)
-    
+    // compile kernel(s)
+
+    string deflectionKernel = deflectionKernelCode;
+    deflectionKernel += R"XYZ(
+
+__kernel void calculateDeflectionAngles(int numPoints, int numParamSets, int numFloatParams,
+                                    __global const int *pIntParams,
+                                    __global const float *pFloatParamsBase,
+                                    __global const float *pThetas,
+                                    __global float *pAllResults
+                                    )
+{
+    const int i = get_global_id(0);
+    if (i >= numPoints)
+        return;
+    const int paramSet = get_global_id(1);
+    if (paramSet >= numParamSets)
+        return;
+
+    float2 theta;
+    int thetaOffset = i*2;
+    theta.x = pThetas[thetaOffset+0];
+    theta.y = pThetas[thetaOffset+1];
+
+    __global const float *pFloatParams = pFloatParamsBase + paramSet*numFloatParams;
+    LensQuantities r = )XYZ" + lensRoutineName + R"XYZ((theta, pIntParams, pFloatParams);
+
+    __global float *pResults = pAllResults + 6*numPoints*paramSet; // for each genome, 6 values
+    int resultOffset = 6*i; // 6 resulting values per point
+
+    pResults[resultOffset + 0] = r.alphaX;
+    pResults[resultOffset + 1] = r.alphaY;
+    pResults[resultOffset + 2] = r.axx;
+    pResults[resultOffset + 3] = r.ayy;
+    pResults[resultOffset + 4] = r.axy;
+    pResults[resultOffset + 5] = r.potential;
+}
+)XYZ";
+
+    // cerr << "Compiling OpenCL program:" << endl;
+    // cerr << deflectionKernel << endl;
+
+    string faillog;
+    if (!cl->loadKernel(deflectionKernel, "calculateDeflectionAngles", faillog, 0))
+    {
+        cerr << faillog << endl;
+        return cleanup(cl->getErrorString());
+    }
+
+    // allocate for outputs
+
+    vector<cl_float> allResultsBuffer(numParamSets*thetas.size()*6); // 6 properties per point
+    if (!(r = m_clAllResults.realloc(*cl, ctx, sizeof(cl_float)*allResultsBuffer.size())))
+        return cleanup("Can't allocate results buffer: " + r.getErrorString());
+
+    // Ok
+
     swap(m_allFloatParams, clFloatParams);
+    swap(m_allResultsBuffer, allResultsBuffer);
+    m_numPoints = thetas.size();
     m_numFloatParams = templateFloatParameters.size();
+    m_numParamSets = numParamSets;
     m_changeableParameterIndices = changeableParameterIndices;
     m_cl = move(cl);
     m_init = true;
@@ -114,12 +173,17 @@ void OpenCLSinglePlaneDeflection::destroy()
         return;
 
     m_clThetas.dealloc(*m_cl);
+    m_clIntParams.dealloc(*m_cl);
+    m_clFloatParams.dealloc(*m_cl);
+    m_clAllResults.dealloc(*m_cl);
+
     m_cl = nullptr;
     m_init = false;
 }
 
 bool_t OpenCLSinglePlaneDeflection::calculateDeflection(const std::vector<float> &parameters) // should have numChangebleParams * numParamSets length
 {
+    // TODO
     return true;
 }
 

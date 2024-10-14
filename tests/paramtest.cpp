@@ -57,7 +57,10 @@ int main(void)
 	OpenCLSinglePlaneDeflection clDef;
 
 	bool_t r;
-	if (!(r = clDef.init(thetas, intParams, floatParams, changeableParamIdx, numGenomes, prog )))
+	if (!(r = clDef.init(thetas, intParams, floatParams, changeableParamIdx, numGenomes, prog, subRoutName)))
 		throw runtime_error("Can't init OpenCL calculation code: " + r.getErrorString());
+
+	// TODO: calculate a deflection
+	
 	return 0;
 }
