@@ -84,7 +84,9 @@ set(HEADERS
 	galens/rndparameters.h
 	galens/nsga2parameters.h
 	opencl/openclkernel.h
+	opencl/openclmultikernel.h
 	opencl/opencllibrary.h
+	opencl/oclutils.h
 	thirdparty/WildMagic5/Wm5Assert.h
 	thirdparty/WildMagic5/Wm5Box2.h
 	thirdparty/WildMagic5/Wm5Box2.inl
