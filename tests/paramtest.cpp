@@ -71,7 +71,19 @@ int main(void)
 	if (!(r = clDef.calculateDeflection(changedParams,
 	                                    allAlphas, allAxx, allAyy, allAxy, allPotentials)))
 		throw runtime_error("Can't calculate deflections: " + r.getErrorString());
-	
+
+	double maxDiff = 0;
+	double minDiff = numeric_limits<double>::max();
+	auto recordDiff = [&maxDiff, &minDiff](double d)
+	{
+		if (d < minDiff)
+			minDiff = d;
+		if (d > maxDiff)
+			maxDiff = d;
+
+		return d;
+	};
+
 	for (size_t i = 0 ; i < numGenomes ; i++)
 	{
 		vector<float> floatParamsMod = floatParams;
@@ -90,17 +102,18 @@ int main(void)
 
 			Vector2Df gpuAlpha = allAlphas[i*thetas.size() + pt];
 
-			auto diff = [](Vector2Dd a, Vector2Df b)
+			auto diff = [&recordDiff](Vector2Dd a, Vector2Df b)
 			{
 				Vector2Dd b2(b.getX(), b.getY());
 				Vector2Dd diff = a;
 				diff -= b2;
-				return diff.getLength();
+				return recordDiff(diff.getLength());
 			};
 
-			cerr << "Genome " << i << " point " << pt << " CPU: " << alpha.getX() << "," << alpha.getY() 
-			                                          << " GPU: " << gpuAlpha.getX() << "," << gpuAlpha.getY()
-													  << " diff: " << diff(alpha, gpuAlpha) << endl;
+			cerr << "Genome " << i << " point " << pt << endl;
+			cerr << "Alpha: CPU:  " << alpha.getX() << "," << alpha.getY() << endl;
+			cerr << "       GPU:  " << gpuAlpha.getX() << "," << gpuAlpha.getY() << endl;
+			cerr << "       diff: " << diff(alpha, gpuAlpha) << endl;
 
 			double axx, ayy, axy;
 			newLens->getAlphaVectorDerivatives(theta, axx, ayy, axy);
@@ -108,19 +121,48 @@ int main(void)
 			float gpuAyy = allAyy[i*thetas.size() + pt];
 			float gpuAxy = allAxy[i*thetas.size() + pt];
 
-			auto diff3 = [](double x0, double y0, double z0, float x1, float y1, float z1)
+			auto diff3 = [&recordDiff](double x0, double y0, double z0, float x1, float y1, float z1)
 			{
 				x0 -= x1; y0 -= y1; z0 -= z1;
-				return std::sqrt(x0*x0 + y0*y0 + z0*z0);
+				return recordDiff(std::sqrt(x0*x0 + y0*y0 + z0*z0));
 			};
 
-			cerr << "Genome " << i << " point " << pt << " CPU: " << axx << "," << ayy << "," << axy
-			                                          << " GPU: " << gpuAxx << "," << gpuAyy << "," << gpuAxy
-													  << " diff: " << diff3(axx, ayy, axy, gpuAxx, gpuAyy, gpuAxy) << endl;
+			cerr << "Deriv: CPU:  " << axx << "," << ayy << "," << axy << endl;
+			cerr << "       GPU:  " << gpuAxx << "," << gpuAyy << "," << gpuAxy << endl;
+			cerr << "       diff: " << diff3(axx, ayy, axy, gpuAxx, gpuAyy, gpuAxy) << endl;
+
+			// Fot the potential we need to look at differences
+			Vector2Dd theta0(thetas[0].getX(), thetas[0].getY());
+			theta0 *= deflScale;
+
+			double pot0 = numeric_limits<double>::quiet_NaN();
+			newLens->getProjectedPotential(1.0, 1.0, theta0, &pot0);
+			pot0 /= potScale;
+
+			double pot = numeric_limits<double>::quiet_NaN();
+			newLens->getProjectedPotential(1.0, 1.0, theta, &pot);
+			pot /= potScale;
+
+			// Look at potential differences!
+			pot -= pot0;
+
+			float gpuPot = allPotentials[i*thetas.size() + pt];
+			gpuPot -= allPotentials[i*thetas.size() + 0];
+
+			auto diff1 = [&recordDiff](double p0, float p1)
+			{
+				return recordDiff(std::abs(p0 - (double)p1));
+			};
+
+			cerr << "Poten: CPU: " << pot << endl;
+			cerr << "       GPU: " << gpuPot << endl;
+			cerr << "       diff: " << diff1(pot, gpuPot) << endl;
 
 			cerr << endl;
 		}
 	}
+	cerr << "Min diff: " << minDiff << endl;
+	cerr << "Max diff: " << maxDiff << endl;
 
 	return 0;
 }
