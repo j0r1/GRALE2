@@ -372,10 +372,14 @@ def analyzeParametricLensDescription(parametricLens, Dd, defaultFraction):
     }
     return ret
 
+def _getUnitlessValue(x):
+    return f"{x:.10g}"
+
 def _getUnitValue(x, unitStr):
     unit = eval(unitStr)
     y = x/unit
-    return f"{y:.10g}*{unitStr}"
+    v = _getUnitlessValue(y)
+    return f"{v}*{unitStr}"
 
 def analyzePlummerLens(lens, massUnitString, angularUnitString):
     params = lens.getLensParameters()
@@ -384,36 +388,152 @@ def analyzePlummerLens(lens, massUnitString, angularUnitString):
     return [
         '{',
         f'    "mass": {massStr},',
-        f'    "width": {widthStr}',
+        f'    "width": {widthStr},',
+        '}'
+    ]
+
+def analyzeNSIELens(lens, massUnitString, angularUnitString):
+    params = lens.getLensParameters()
+    sigmaStr = _getUnitlessValue(params["velocityDispersion"])
+    ellStr = _getUnitlessValue(params["ellipticity"])
+    coreStr = _getUnitValue(params["coreRadius"], angularUnitString)
+    return [
+        '{',
+        f'    "velocityDispersion": {sigmaStr},',
+        f'    "ellipticity": {ellStr},',
+        f'    "coreRadius": {coreStr},',
+        '}'
+    ]
+
+def analyzeMultiplePlummerLens(lens, massUnitString, angularUnitString):
+    paramLines = ['[']
+    for params in lens.getLensParameters():
+        massStr = _getUnitValue(params["mass"], massUnitString)
+        widthStr = _getUnitValue(params["width"], angularUnitString)
+        xStr = _getUnitValue(params["x"], angularUnitString)
+        yStr = _getUnitValue(params["y"], angularUnitString)
+        subParams = [
+            '{',
+            f'    "mass": {massStr},',
+            f'    "width": {widthStr},',
+            f'    "x": {xStr},',
+            f'    "y": {yStr},',
+            '},' ]
+        for p in subParams:
+            paramLines.append('    ' + p)
+
+    paramLines.append(']')
+    return paramLines
+
+def analyzeCompositeLens(lens, massUnitString, angularUnitString):
+    paramLines = ['[']
+    for params in lens.getLensParameters():
+        xStr = _getUnitValue(params["x"], angularUnitString)
+        yStr = _getUnitValue(params["y"], angularUnitString)
+        angleStr = _getUnitlessValue(params["angle"])
+        factorStr = _getUnitlessValue(params["factor"])
+        subParams = [
+            '{',
+            f'    "factor": {factorStr},',
+            f'    "x": {xStr},',
+            f'    "y": {yStr},',
+            f'    "angle": {angleStr},' ]
+        
+        subLensLines = createParametricDescription(params["lens"])
+        subParams.append('    "lens": ' + subLensLines[0])
+        for sl in subLensLines[1:]:
+            subParams.append('    ' + sl)
+        subParams.append('},')
+
+        for p in subParams:
+            paramLines.append('    ' + p)
+
+    paramLines.append(']')
+    return paramLines
+
+def analyzeSISLens(lens, massUnitString, angularUnitString):
+    params = lens.getLensParameters()
+    sigmaStr = _getUnitlessValue(params["velocityDispersion"])
+    return [
+        '{',
+        f'    "velocityDispersion": {sigmaStr},',
+        '}'
+    ]
+
+def analyzeMassSheetLens(lens, massUnitString, angularUnitString):
+    params = lens.getLensParameters()
+    densStr = _getUnitlessValue(params["density"])
+    return [
+        '{',
+        f'    "density": {densStr},',
         '}'
     ]
 
 def createParametricDescription(lens, massUnitString = "MASS_SUN", angularUnitString = "ANGLE_ARCSEC"):
     
-    lookup = { supportedLensTypes[name]["lens"]: { "name": name, **supportedLensTypes[name] } for name in supportedLensTypes }
-    if not type(lens) in lookup:
+    if not type(lens) in supportedLensTypesByClass:
         raise Exception(f"Can't create parametric description for lens type {type(lens)}")
     
-    info = lookup[type(lens)]
+    info = supportedLensTypesByClass[type(lens)]
+    name = info["name"]
     if not "analysis" in info:
-        raise Exception(f"No lens analysis function for {info['name']}")
+        raise Exception(f"No lens analysis function for {name}")
     
     analyzer = info["analysis"]
-    return analyzer(lens, massUnitString, angularUnitString)
+    paramLines = analyzer(lens, massUnitString, angularUnitString)
+    descLines = [ 
+        '{',
+        f'    "type": "{name}",',
+        f'    "params": ' + paramLines[0] ]
+    for p in paramLines[1:]:
+        descLines.append('    ' + p)
+    descLines.append('}')
+    return descLines
 
 supportedLensTypes = {
     "PlummerLens": { "handler": processPlummerLens, "lens": lenses.PlummerLens, "analysis": analyzePlummerLens },
-    "MultiplePlummerLens": { "handler": processMultiplePlummerLens, "lens": lenses.MultiplePlummerLens },
-    "NSIELens": { "handler": processNSIELens, "lens": lenses.NSIELens },
-    "CompositeLens": { "handler": processCompositeLens, "lens": lenses.CompositeLens },
-    "SISLens": { "handler": processSISLens, "lens": lenses.SISLens },
-    "MassSheetLens": { "handler": processMassSheetLens, "lens": lenses.MassSheetLens },
+    "MultiplePlummerLens": { "handler": processMultiplePlummerLens, "lens": lenses.MultiplePlummerLens, "analysis": analyzeMultiplePlummerLens },
+    "NSIELens": { "handler": processNSIELens, "lens": lenses.NSIELens, "analysis": analyzeNSIELens },
+    "CompositeLens": { "handler": processCompositeLens, "lens": lenses.CompositeLens, "analysis": analyzeCompositeLens },
+    "SISLens": { "handler": processSISLens, "lens": lenses.SISLens, "analysis": analyzeSISLens },
+    "MassSheetLens": { "handler": processMassSheetLens, "lens": lenses.MassSheetLens, "analysis": analyzeMassSheetLens },
 }
 
+supportedLensTypesByClass = { supportedLensTypes[name]["lens"]: { "name": name, **supportedLensTypes[name] } for name in supportedLensTypes }
+
+
 def main():
-    l = lenses.PlummerLens(1000*DIST_MPC, { "mass": 1e13*MASS_SUN, "width": 1*ANGLE_ARCSEC})
+    Dd = 1000*DIST_MPC
+    #l = lenses.PlummerLens(Dd, { "mass": 1e13*MASS_SUN, "width": 1*ANGLE_ARCSEC})
+    #l = lenses.NSIELens(Dd, { "velocityDispersion": 100000, "ellipticity": 0.8, "coreRadius": 0.5*ANGLE_ARCSEC})
+    # l = lenses.MultiplePlummerLens(Dd, [
+    #         { "mass": 0.7e15*MASS_SUN, "width":3*ANGLE_ARCSEC, "x": -2*ANGLE_ARCSEC, "y": 1*ANGLE_ARCSEC },
+    #         { "mass": 0.4e15*MASS_SUN, "width":4*ANGLE_ARCSEC, "x": 3*ANGLE_ARCSEC, "y": -1*ANGLE_ARCSEC },
+    #     ])
+    # l = lenses.CompositeLens(Dd, [
+    #     {"lens": lenses.PlummerLens(Dd, { "mass": 0.7e15*MASS_SUN, "width":3*ANGLE_ARCSEC}),
+    #     "x": -2*ANGLE_ARCSEC, "y": 1*ANGLE_ARCSEC, "angle": 10, "factor": 1.1},
+    #     {"lens": lenses.PlummerLens(Dd, { "mass": 0.4e15*MASS_SUN, "width":4*ANGLE_ARCSEC}),
+    #     "x": 3*ANGLE_ARCSEC, "y": -1*ANGLE_ARCSEC, "angle":30, "factor": 0.9}
+    # ])
+    #l = lenses.SISLens(Dd, { "velocityDispersion": 400000 })
+    
+    #Ds = 1
+    #Dds = 0.8
+    #l = lenses.MassSheetLens(Dd, { "Ds": Ds, "Dds": Dds })
+
+    l = lenses.GravitationalLens.load("/home/jori/projects/grale2-git/inversion_examples/example2/inv1.lensdata")
+
     lines = createParametricDescription(l)
-    print("\n".join(lines))
+    objStr = "\n".join(lines)
+    print(objStr)
+    parametricLens = eval(objStr)
+    pprint.pprint(parametricLens)
+
+    inf = analyzeParametricLensDescription(parametricLens, Dd, 0.1)
+    pprint.pprint(inf)
+
+    pprint.pprint(inf["templatelens"].getLensParameters())
 
 def main0():
 
