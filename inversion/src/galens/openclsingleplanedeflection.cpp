@@ -22,6 +22,7 @@ bool_t OpenCLSinglePlaneDeflection::init(const std::vector<Vector2Df> &thetas, /
 					   const std::vector<size_t> changeableParameterIndices,
 					   size_t numParamSets, // number of genomes for example
 					   const std::string &deflectionKernelCode, const std::string &lensRoutineName,
+                       bool uploadFullParameters,
                        size_t devIdx
 					   ) // TODO: calculate betas from this as well?
 {
@@ -43,6 +44,8 @@ bool_t OpenCLSinglePlaneDeflection::init(const std::vector<Vector2Df> &thetas, /
         m_clIntParams.dealloc(*cl);
         m_clFloatParams.dealloc(*cl);
         m_clAllResults.dealloc(*cl);
+        m_clChangedParamsBuffer.dealloc(*cl);
+        m_clChangeableParamIndices.dealloc(*cl);
         return r;
     };
 
@@ -74,7 +77,6 @@ bool_t OpenCLSinglePlaneDeflection::init(const std::vector<Vector2Df> &thetas, /
         for (auto x : templateFloatParameters)
             clFloatParams.push_back(x);
     clFloatParams.push_back(-45678); // sentinel, and make sure that something is present
-
 
     if (!(r = m_clIntParams.realloc(*cl, ctx, sizeof(cl_int)*clIntParams.size())) ||
         !(r = m_clIntParams.enqueueWriteBuffer(*cl, queue, clIntParams, true)))
@@ -149,12 +151,64 @@ __kernel void calculateDeflectionAngles(int numPoints, int numParamSets, int num
 
     // allocate for outputs
 
+    // 6 properties per point
     vector<cl_float> allResultsBuffer(numParamSets*thetas.size()*6); // 6 properties per point
     if (!(r = m_clAllResults.realloc(*cl, ctx, sizeof(cl_float)*allResultsBuffer.size())))
         return cleanup("Can't allocate results buffer: " + r.getErrorString());
 
+    // Upload full parameters, or only the changed ones (we'll need an extra kernel)
+    if (!uploadFullParameters)
+    {
+        size_t changeableSize = changeableParameterIndices.size();
+        
+        if (!(r = m_clChangedParamsBuffer.realloc(*cl, ctx, sizeof(cl_float)*(numParamSets*changeableSize + 1))))
+            return cleanup("Can't allocate changed parameters buffer: " + r.getErrorString());
+
+        vector<cl_int> clChangeableParams;
+        for (auto x : changeableParameterIndices)
+            clChangeableParams.push_back((cl_int)x);
+        clChangeableParams.push_back(-67890); // sentinel and avoid empty vector
+
+        if (!(r = m_clChangeableParamIndices.realloc(*cl, ctx, sizeof(cl_int)*clChangeableParams.size())) ||
+            !(r = m_clChangeableParamIndices.enqueueWriteBuffer(*cl, queue, clChangeableParams, true)))
+            return "Can't copy changeable parameter indices to GPU: " + cleanup(r.getErrorString());
+
+        // And create kernel to incorporate changed parameters into full parameters
+
+        string src = R"XYZ(
+
+__kernel void fillInChangedParameters(__global const float *pChangedParamsBase,
+                                      __global float *pFloatParamsBase,
+                                      __global const int *pIndices,
+                                      int numFloatParams,
+                                      int numChangedParams,
+                                      int numParamSets)
+{
+    const int i = get_global_id(0);
+    if (i >= numChangedParams)
+        return;
+    const int paramSet = get_global_id(1);
+    if (paramSet >= numParamSets)
+        return;
+
+    __global const float *pChangedParams = pChangedParamsBase + paramSet*numChangedParams;
+    __global float *pFloatParams = pFloatParamsBase + paramSet*numFloatParams;
+    int destIdx = pIndices[i];
+    pFloatParams[destIdx] = pChangedParams[i];
+}
+
+)XYZ";
+
+        if (!cl->loadKernel(src, "fillInChangedParameters", faillog, 1))
+        {
+            cerr << faillog << endl;
+            return cleanup(cl->getErrorString());
+        }
+    }
+
     // Ok
 
+    m_uploadFullParameters = uploadFullParameters;
     swap(m_allFloatParams, clFloatParams);
     swap(m_allResultsBuffer, allResultsBuffer);
     m_numPoints = thetas.size();
@@ -176,6 +230,8 @@ void OpenCLSinglePlaneDeflection::destroy()
     m_clIntParams.dealloc(*m_cl);
     m_clFloatParams.dealloc(*m_cl);
     m_clAllResults.dealloc(*m_cl);
+    m_clChangedParamsBuffer.dealloc(*m_cl);
+    m_clChangeableParamIndices.dealloc(*m_cl);
 
     m_cl = nullptr;
     m_init = false;
@@ -195,33 +251,65 @@ bool_t OpenCLSinglePlaneDeflection::calculateDeflection(const std::vector<float>
     if (parameters.size() != m_numParamSets*changeableSize)
         return "Invalid number of parameters";
 
-    // Fill in the new parameters in the total parameters
-    if (parameters.size() > 0)
-    {
-        for (size_t i = 0 ; i < m_numParamSets ; i++)
-        {
-            float *pFloatParams = m_allFloatParams.data() + m_numFloatParams*i;
-            const float *pParamSet = parameters.data() + i*changeableSize;
-            for (size_t j = 0 ; j < changeableSize ; j++)
-            {
-                size_t destIdx = m_changeableParameterIndices[j];
-                assert(destIdx < m_numFloatParams);
-
-                pFloatParams[destIdx] = pParamSet[j];
-            }
-        }
-    }
-
-    // Upload this to the GPU
     bool_t r;
     auto queue = m_cl->getCommandQueue();
-    if (!(r = m_clFloatParams.enqueueWriteBuffer(*m_cl, queue, m_allFloatParams, true)))
-        return "Can't copy floating point parameters to GPU: " + r.getErrorString();
+    cl_int clNumParamSets = (cl_int)m_numParamSets;
+    cl_int clNumFloatParams = (cl_int)m_numFloatParams;
+
+    if (m_uploadFullParameters)
+    {
+    // Fill in the new parameters in the total parameters on the CPU, and upload this
+        if (parameters.size() > 0)
+        {
+            for (size_t i = 0 ; i < m_numParamSets ; i++)
+            {
+                float *pFloatParams = m_allFloatParams.data() + m_numFloatParams*i;
+                const float *pParamSet = parameters.data() + i*changeableSize;
+                for (size_t j = 0 ; j < changeableSize ; j++)
+                {
+                    size_t destIdx = m_changeableParameterIndices[j];
+                    assert(destIdx < m_numFloatParams);
+
+                    pFloatParams[destIdx] = pParamSet[j];
+                }
+            }
+        }
+        // Upload this to the GPU
+        if (!(r = m_clFloatParams.enqueueWriteBuffer(*m_cl, queue, m_allFloatParams, true)))
+            return "Can't copy floating point parameters to GPU: " + r.getErrorString();
+    }    
+    else // Upload the changed parameters to the GPU and fill in using a kernel
+    {
+        if (!(r = m_clChangedParamsBuffer.enqueueWriteBuffer(*m_cl, queue, parameters, true)))
+            return "Can't copy changed parameters to GPU: " + r.getErrorString();
+
+        // trigger a kernel to fill in the changed parameters into the full ones
+        auto kernel = m_cl->getKernel(1);
+        cl_int clNumChangeable = (cl_int)changeableSize;
+        cl_int err = 0;
+
+        auto setKernArg = [this, &err, &kernel](cl_uint idx, size_t size, const void *ptr)
+        {
+            err |= m_cl->clSetKernelArg(kernel, idx, size, ptr);
+        };
+
+        setKernArg(0, sizeof(cl_mem), (void*)&m_clChangedParamsBuffer.m_pMem);
+        setKernArg(1, sizeof(cl_mem), (void*)&m_clFloatParams.m_pMem);
+        setKernArg(2, sizeof(cl_mem), (void*)&m_clChangeableParamIndices.m_pMem);
+        setKernArg(3, sizeof(cl_int), (void*)&clNumFloatParams);
+        setKernArg(4, sizeof(cl_int), (void*)&clNumChangeable);
+        setKernArg(5, sizeof(cl_int), (void*)&clNumParamSets);
+        if (err != CL_SUCCESS)
+            return "Error setting kernel arguments";
+
+        size_t workSize[2] = { changeableSize, m_numParamSets };
+        err = m_cl->clEnqueueNDRangeKernel(queue, kernel, 2, nullptr, workSize, nullptr, 0, nullptr, nullptr);
+        if (err != CL_SUCCESS)
+            return "Error enqueing parameter fill in kernel: " + to_string(err);
+    }
 
     auto kernel = m_cl->getKernel(0);
     cl_int clNumPoints = (cl_int)m_numPoints;
-    cl_int clNumParamSets = (cl_int)m_numParamSets;
-    cl_int clNumFloatParams = (cl_int)m_numFloatParams;
     cl_int err = 0;
 
     auto setKernArg = [this, &err, &kernel](cl_uint idx, size_t size, const void *ptr)
@@ -229,6 +317,8 @@ bool_t OpenCLSinglePlaneDeflection::calculateDeflection(const std::vector<float>
         err |= m_cl->clSetKernelArg(kernel, idx, size, ptr);
     };
 
+    // TODO: I guess we don't need to do this every time? Perhaps for the integer stuff
+    //       we do, so that the pointer is valid
     setKernArg(0, sizeof(cl_int), (void*)&clNumPoints);
     setKernArg(1, sizeof(cl_int), (void*)&clNumParamSets);
     setKernArg(2, sizeof(cl_int), (void*)&clNumFloatParams);
@@ -242,7 +332,7 @@ bool_t OpenCLSinglePlaneDeflection::calculateDeflection(const std::vector<float>
     size_t workSize[2] = { m_numPoints, m_numParamSets };
     err = m_cl->clEnqueueNDRangeKernel(queue, kernel, 2, nullptr, workSize, nullptr, 0, nullptr, nullptr);
     if (err != CL_SUCCESS)
-        return "Error enqueing kernel: " + to_string(err);
+        return "Error enqueing calculation kernel: " + to_string(err);
 
     if (!(r = m_clAllResults.enqueueReadBuffer(*m_cl, queue, m_allResultsBuffer, nullptr, nullptr, true)))
         return "Error reading calculation results: " + r.getErrorString();
