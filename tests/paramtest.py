@@ -134,15 +134,6 @@ def processMultiplePlummerLens(lensParams, Dd, getParamValue):
 
     return newMultiParams, positionNames
 
-supportedLensTypes = {
-    "PlummerLens": { "handler": processPlummerLens, "lens": lenses.PlummerLens },
-    "MultiplePlummerLens": { "handler": processMultiplePlummerLens, "lens": lenses.MultiplePlummerLens },
-    "NSIELens": { "handler": processNSIELens, "lens": lenses.NSIELens },
-    "CompositeLens": { "handler": processCompositeLens, "lens": lenses.CompositeLens },
-    "SISLens": { "handler": processSISLens, "lens": lenses.SISLens },
-    "MassSheetLens": { "handler": processMassSheetLens, "lens": lenses.MassSheetLens },
-}
-
 def createTemplateLens_helper(parametricLensDescription, Dd, getParamValue):
     lensType = parametricLensDescription["type"]
     lensParams = parametricLensDescription["params"]
@@ -381,7 +372,50 @@ def analyzeParametricLensDescription(parametricLens, Dd, defaultFraction):
     }
     return ret
 
+def _getUnitValue(x, unitStr):
+    unit = eval(unitStr)
+    y = x/unit
+    return f"{y:.10g}*{unitStr}"
+
+def analyzePlummerLens(lens, massUnitString, angularUnitString):
+    params = lens.getLensParameters()
+    massStr = _getUnitValue(params["mass"], massUnitString)
+    widthStr = _getUnitValue(params["width"], angularUnitString)
+    return [
+        '{',
+        f'    "mass": {massStr},',
+        f'    "width": {widthStr}',
+        '}'
+    ]
+
+def createParametricDescription(lens, massUnitString = "MASS_SUN", angularUnitString = "ANGLE_ARCSEC"):
+    
+    lookup = { supportedLensTypes[name]["lens"]: { "name": name, **supportedLensTypes[name] } for name in supportedLensTypes }
+    if not type(lens) in lookup:
+        raise Exception(f"Can't create parametric description for lens type {type(lens)}")
+    
+    info = lookup[type(lens)]
+    if not "analysis" in info:
+        raise Exception(f"No lens analysis function for {info['name']}")
+    
+    analyzer = info["analysis"]
+    return analyzer(lens, massUnitString, angularUnitString)
+
+supportedLensTypes = {
+    "PlummerLens": { "handler": processPlummerLens, "lens": lenses.PlummerLens, "analysis": analyzePlummerLens },
+    "MultiplePlummerLens": { "handler": processMultiplePlummerLens, "lens": lenses.MultiplePlummerLens },
+    "NSIELens": { "handler": processNSIELens, "lens": lenses.NSIELens },
+    "CompositeLens": { "handler": processCompositeLens, "lens": lenses.CompositeLens },
+    "SISLens": { "handler": processSISLens, "lens": lenses.SISLens },
+    "MassSheetLens": { "handler": processMassSheetLens, "lens": lenses.MassSheetLens },
+}
+
 def main():
+    l = lenses.PlummerLens(1000*DIST_MPC, { "mass": 1e13*MASS_SUN, "width": 1*ANGLE_ARCSEC})
+    lines = createParametricDescription(l)
+    print("\n".join(lines))
+
+def main0():
 
     #parametricLens = {
     #    "type": "PlummerLens",
