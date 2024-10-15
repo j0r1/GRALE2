@@ -117,13 +117,30 @@ def processMassSheetLens(lensParams, Dd, getParamValue):
         raise Exception("Excess parameters for MassSheetLens")
     return lenses.MassSheetLens(Dd, newParams), positionNames
 
+def processMultiplePlummerLens(lensParams, Dd, getParamValue):
+    positionNames = []
+    newMultiParams = []
+    for i,subParams in enumerate(lensParams):
+        subParams, newParams = _checkParameterValues(subParams, [ ("x", f"x_{i}_scaled"),
+                                                                  ("y", f"y_{i}_scaled"),
+                                                                  ("mass", f"mass_{i}_scaled"),
+                                                                  ("width", f"width_{i}_scaled"),
+                                                                  ],
+                                                     getParamValue, positionNames)
+        if subParams:
+            raise Exception("Excess parameters for MultiplePlummerLens")
+        
+        newMultiParams.append(newParams)
+
+    return lenses.MultiplePlummerLens(Dd, newMultiParams), positionNames
+        
 def createTemplateLens_helper(parametricLensDescription, Dd, getParamValue):
     lensType = parametricLensDescription["type"]
     lensParams = parametricLensDescription["params"]
     if lensType == "PlummerLens":
         return processPlummerLens(lensParams, Dd, getParamValue)
     elif lensType == "MultiplePlummerLens":
-        pass
+        return processMultiplePlummerLens(lensParams, Dd, getParamValue)
     elif lensType == "NSIELens":
         return processNSIELens(lensParams, Dd, getParamValue)
     elif lensType == "CompositeLens":
@@ -371,55 +388,63 @@ def main():
     #}
 
     parametricLens = {
-       "type": "CompositeLens",
-       "params": [
-            { "x": 0, "y": [ 0.1*ANGLE_ARCSEC ], "factor": 1, "angle": 0,
-              "lens": {
-                "type": "PlummerLens",
-                "params": {
-                    "mass": [ 1e14*MASS_SUN ],
-                    "width": { "initmin": 2*ANGLE_ARCSEC, "initmax": 5*ANGLE_ARCSEC }
-                }
-              }
-            },
-            { "x": [0.11*ANGLE_ARCSEC], "y": 0, "factor": [ 1 ], "angle": 0,
-              "lens": {
-                "type": "PlummerLens",
-                "params": {
-                    "mass": 1e14*MASS_SUN,
-                    "width": { "initmin": 2*ANGLE_ARCSEC, "initmax": 5*ANGLE_ARCSEC }
-                }
-              }
-            },
-            { "x": [0.111*ANGLE_ARCSEC], "y": 0, "factor": 1, 
-              "angle": { "initmin": -60, "initmax": 30 },
-              "lens": {
-                  "type": "NSIELens",
-                  "params": {
-                      "velocityDispersion": [ 400000 ],
-                      "ellipticity": [ 0.8 ],
-                      "coreRadius": [ 2*ANGLE_ARCSEC ]
-                  }
-              }
-            },
-            { "x": 0, "y": 0, "factor": 1, 
-              "angle": 0,
-              "lens": {
-                  "type": "SISLens",
-                  "params": {
-                      "velocityDispersion": [ 400000 ],
-                  }
-              }
-            },
-            {
-              "x": 0, "y": 0, "factor": 1, "angle": 0,
-              "lens": {
-                  "type": "MassSheetLens",
-                  "params": { "density": [ 4.44 ] }
-              }
-            }
+        "type": "MultiplePlummerLens",
+        "params": [
+            { "x": [ 0.1*ANGLE_ARCSEC ], "y": 0, "mass": [1e13*MASS_SUN], "width": 3*ANGLE_ARCSEC },
+            { "x": 0, "y": 0, "mass": 1e13*MASS_SUN, "width": [ 2*ANGLE_ARCSEC ] }
         ]
     }
+
+    # parametricLens = {
+    #    "type": "CompositeLens",
+    #    "params": [
+    #         { "x": 0, "y": [ 0.1*ANGLE_ARCSEC ], "factor": 1, "angle": 0,
+    #           "lens": {
+    #             "type": "PlummerLens",
+    #             "params": {
+    #                 "mass": [ 1e14*MASS_SUN ],
+    #                 "width": { "initmin": 2*ANGLE_ARCSEC, "initmax": 5*ANGLE_ARCSEC }
+    #             }
+    #           }
+    #         },
+    #         { "x": [0.11*ANGLE_ARCSEC], "y": 0, "factor": [ 1 ], "angle": 0,
+    #           "lens": {
+    #             "type": "PlummerLens",
+    #             "params": {
+    #                 "mass": 1e14*MASS_SUN,
+    #                 "width": { "initmin": 2*ANGLE_ARCSEC, "initmax": 5*ANGLE_ARCSEC }
+    #             }
+    #           }
+    #         },
+    #         { "x": [0.111*ANGLE_ARCSEC], "y": 0, "factor": 1, 
+    #           "angle": { "initmin": -60, "initmax": 30 },
+    #           "lens": {
+    #               "type": "NSIELens",
+    #               "params": {
+    #                   "velocityDispersion": [ 400000 ],
+    #                   "ellipticity": [ 0.8 ],
+    #                   "coreRadius": [ 2*ANGLE_ARCSEC ]
+    #               }
+    #           }
+    #         },
+    #         { "x": 0, "y": 0, "factor": 1, 
+    #           "angle": 0,
+    #           "lens": {
+    #               "type": "SISLens",
+    #               "params": {
+    #                   "velocityDispersion": [ 400000 ],
+    #               }
+    #           }
+    #         },
+    #         {
+    #           "x": 0, "y": 0, "factor": 1, "angle": 0,
+    #           "lens": {
+    #               "type": "MassSheetLens",
+    #               "params": { "density": [ 4.44 ] }
+    #           }
+    #         }
+    #     ]
+    # }
 
     inf = analyzeParametricLensDescription(parametricLens, 1000*DIST_MPC, 0.1)
     pprint.pprint(inf)
