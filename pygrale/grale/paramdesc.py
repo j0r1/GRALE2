@@ -2,7 +2,8 @@
 a description of a lens model that can be optimized parametrically, and
 a routine to start such a description based on an existing lens model."""
 
-from grale.all import *
+from .constants import *
+from . import lenses
 import pprint
 import copy
 import math
