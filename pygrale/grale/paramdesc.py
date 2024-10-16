@@ -2,6 +2,8 @@
 a description of a lens model that can be optimized parametrically, and
 a routine to start such a description based on an existing lens model."""
 
+# TODO: separate class for Exception
+
 from .constants import *
 from . import lenses
 import pprint
@@ -434,10 +436,29 @@ def _getUnitValue(x, unitStr):
     v = _getUnitlessValue(y)
     return f"{v}*{unitStr}"
 
-def _analyzePlummerLens(lens, massUnitString, angularUnitString):
+def _convertedValueToString(value, stringConverter):
+    if type(value) == list or type(value) == tuple:
+        if len(value) == 1:
+            return "[" + stringConverter(value[0]) + "]"
+        if len(value) == 2:
+            return "[" + stringConverter(value[0]) + ", " + _getUnitlessValue(value[1]) + "]"
+        raise Exception(f"List or tuple should have length 1 or 2, but is {len(value)}")
+    
+    if type(value) == dict:
+        d = "{ "
+        for k in value:
+            if not k in [ "initmin", "initmax", "hardmin", "hardmax" ]:
+                raise Exception(f'Unexpected key {k}, expecting "initmin", "initmax", "hardmin", "hardmax"')
+            d += f'"{k}": ' + stringConverter(value[k]) + ", "
+        d += "}"
+        return d
+
+    return stringConverter(value)
+            
+def _analyzePlummerLens(lens, massUnitString, angularUnitString, convertValueFunction):
     params = lens.getLensParameters()
-    massStr = _getUnitValue(params["mass"], massUnitString)
-    widthStr = _getUnitValue(params["width"], angularUnitString)
+    massStr = _convertedValueToString(convertValueFunction(params["mass"], "PlummerLens", "mass", params), lambda x: _getUnitValue(x, massUnitString))
+    widthStr = _convertedValueToString(convertValueFunction(params["width"], "PlummerLens", "width", params), lambda x: _getUnitValue(x, angularUnitString))
     return [
         '{',
         f'    "mass": {massStr},',
@@ -445,7 +466,7 @@ def _analyzePlummerLens(lens, massUnitString, angularUnitString):
         '}'
     ]
 
-def _analyzeNSIELens(lens, massUnitString, angularUnitString):
+def _analyzeNSIELens(lens, massUnitString, angularUnitString, convertValueFunction):
     params = lens.getLensParameters()
     sigmaStr = _getUnitlessValue(params["velocityDispersion"])
     ellStr = _getUnitlessValue(params["ellipticity"])
@@ -458,7 +479,7 @@ def _analyzeNSIELens(lens, massUnitString, angularUnitString):
         '}'
     ]
 
-def _analyzeMultiplePlummerLens(lens, massUnitString, angularUnitString):
+def _analyzeMultiplePlummerLens(lens, massUnitString, angularUnitString, convertValueFunction):
     paramLines = ['[']
     for params in lens.getLensParameters():
         massStr = _getUnitValue(params["mass"], massUnitString)
@@ -478,7 +499,7 @@ def _analyzeMultiplePlummerLens(lens, massUnitString, angularUnitString):
     paramLines.append(']')
     return paramLines
 
-def _analyzeCompositeLens(lens, massUnitString, angularUnitString):
+def _analyzeCompositeLens(lens, massUnitString, angularUnitString, convertValueFunction):
     paramLines = ['[']
     for params in lens.getLensParameters():
         xStr = _getUnitValue(params["x"], angularUnitString)
@@ -504,7 +525,7 @@ def _analyzeCompositeLens(lens, massUnitString, angularUnitString):
     paramLines.append(']')
     return paramLines
 
-def _analyzeSISLens(lens, massUnitString, angularUnitString):
+def _analyzeSISLens(lens, massUnitString, angularUnitString, convertValueFunction):
     params = lens.getLensParameters()
     sigmaStr = _getUnitlessValue(params["velocityDispersion"])
     return [
@@ -513,7 +534,7 @@ def _analyzeSISLens(lens, massUnitString, angularUnitString):
         '}'
     ]
 
-def _analyzeMassSheetLens(lens, massUnitString, angularUnitString):
+def _analyzeMassSheetLens(lens, massUnitString, angularUnitString, convertValueFunction):
     params = lens.getLensParameters()
     densStr = _getUnitlessValue(params["density"])
     return [
@@ -522,7 +543,8 @@ def _analyzeMassSheetLens(lens, massUnitString, angularUnitString):
         '}'
     ]
 
-def createParametricDescription(lens, massUnitString = "MASS_SUN", angularUnitString = "ANGLE_ARCSEC", asString = True):
+def createParametricDescription(lens, massUnitString = "MASS_SUN", angularUnitString = "ANGLE_ARCSEC",
+                                asString = True, convertValueFunction = None):
     """Create a basic representation of a parametric lens model, based on the
     :class:`lens model<grale.lenses.GravitationalLens>` in `lens`. The result is
     a string which represents python code and can be saved to a file for further
@@ -537,6 +559,9 @@ def createParametricDescription(lens, massUnitString = "MASS_SUN", angularUnitSt
     By default a single large string is returned, if a list of separate lines is
     more covenient, the `asString` parameter can be set to ``False``.
     """
+
+    if convertValueFunction is None:
+        convertValueFunction = lambda value, lensName, paramName, allParams : value
     
     if not type(lens) in _supportedLensTypesByClass:
         raise Exception(f"Can't create parametric description for lens type {type(lens)}")
@@ -547,7 +572,7 @@ def createParametricDescription(lens, massUnitString = "MASS_SUN", angularUnitSt
         raise Exception(f"No lens analysis function for {name}")
     
     analyzer = info["analysis"]
-    paramLines = analyzer(lens, massUnitString, angularUnitString)
+    paramLines = analyzer(lens, massUnitString, angularUnitString, convertValueFunction)
     descLines = [ 
         '{',
         f'    "type": "{name}",',
