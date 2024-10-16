@@ -1,10 +1,9 @@
 from grale.all import *
-import sys
 import pprint
 import copy
 import math
 
-def getInitialParameterValue(params, paramKey):
+def _getInitialParameterValue(params, paramKey):
     value = params[paramKey]
     if type(value) == dict:
         return (value["initmin"] + value["initmax"])*0.5, False
@@ -50,7 +49,7 @@ def _checkParameterValues(lensParams, paramMapping, getParamValue, positionNames
 
     return remainingLensParams, newParams
 
-def processPlummerLens(lensParams, Dd, getParamValue):
+def _processPlummerLens(lensParams, Dd, getParamValue):
     positionNames = [ ]
     lensParams, newParams = _checkParameterValues(lensParams, [ ("mass", "mass_scaled"),
                                                                 ("width", "width_scaled")],
@@ -60,7 +59,7 @@ def processPlummerLens(lensParams, Dd, getParamValue):
     
     return newParams, positionNames
 
-def processCompositeLens(lensParams, Dd, getParamValue):
+def _processCompositeLens(lensParams, Dd, getParamValue):
     compParams = []
     positionNames = []
 
@@ -72,7 +71,7 @@ def processCompositeLens(lensParams, Dd, getParamValue):
                                                        ("angle", f"angle_{idx}") ],
                                                      getParamValue, positionNames)
 
-        l, posNames = createTemplateLens_helper(subParams["lens"], Dd, getParamValue)
+        l, posNames = _createTemplateLens_helper(subParams["lens"], Dd, getParamValue)
         newParams["lens"] = l
         del subParams["lens"]
         for p in posNames:
@@ -85,7 +84,7 @@ def processCompositeLens(lensParams, Dd, getParamValue):
         
     return compParams, positionNames
 
-def processNSIELens(lensParams, Dd, getParamValue):
+def _processNSIELens(lensParams, Dd, getParamValue):
     positionNames = [ ]
     lensParams, newParams = _checkParameterValues(lensParams, [ ("ellipticity", "ellipticity"),
                                                                 ("coreRadius", "core_scaled"),
@@ -96,7 +95,7 @@ def processNSIELens(lensParams, Dd, getParamValue):
     
     return newParams, positionNames
 
-def processSISLens(lensParams, Dd, getParamValue):
+def _processSISLens(lensParams, Dd, getParamValue):
     positionNames = [ ]
     lensParams, newParams = _checkParameterValues(lensParams, [ ("velocityDispersion", "sigma_scaled") ],
                                                   getParamValue, positionNames)    
@@ -105,7 +104,7 @@ def processSISLens(lensParams, Dd, getParamValue):
     
     return newParams, positionNames
 
-def processMassSheetLens(lensParams, Dd, getParamValue):
+def _processMassSheetLens(lensParams, Dd, getParamValue):
     positionNames = []
     if "Ds" in lensParams or "Dds" in lensParams:
         raise Exception("For a mass sheet lens, 'Ds' and 'Dds' cannot be used, use 'density' instead")
@@ -117,7 +116,7 @@ def processMassSheetLens(lensParams, Dd, getParamValue):
         raise Exception("Excess parameters for MassSheetLens")
     return newParams, positionNames
 
-def processMultiplePlummerLens(lensParams, Dd, getParamValue):
+def _processMultiplePlummerLens(lensParams, Dd, getParamValue):
     positionNames = []
     newMultiParams = []
     for i,subParams in enumerate(lensParams):
@@ -134,13 +133,13 @@ def processMultiplePlummerLens(lensParams, Dd, getParamValue):
 
     return newMultiParams, positionNames
 
-def createTemplateLens_helper(parametricLensDescription, Dd, getParamValue):
+def _createTemplateLens_helper(parametricLensDescription, Dd, getParamValue):
     lensType = parametricLensDescription["type"]
     lensParams = parametricLensDescription["params"]
-    if not lensType in supportedLensTypes:
+    if not lensType in _supportedLensTypes:
         raise Exception("Unknown lens type for parametric inversion")
     
-    t = supportedLensTypes[lensType]
+    t = _supportedLensTypes[lensType]
     handler, lensClass = t["handler"], t["lens"]
 
     newParams, positionNames = handler(lensParams, Dd, getParamValue) # Need Dd as a parameter because of possible recursion
@@ -165,9 +164,9 @@ def _createParamOffsetInfo(l, paramNames):
 
     return sorted(paramOffsetInfo, key=lambda x: x["offset"])
 
-def createTemplateLens(parametricLensDescription, Dd):
+def _createTemplateLens(parametricLensDescription, Dd):
 
-    l, paramNames = createTemplateLens_helper(parametricLensDescription, Dd, getInitialParameterValue)
+    l, paramNames = _createTemplateLens_helper(parametricLensDescription, Dd, _getInitialParameterValue)
     scales = l.getSuggestedScales()
     intParam, floatParams = l.getCLParameters(**scales)
     ret = { "templatelens": l,
@@ -179,7 +178,7 @@ def createTemplateLens(parametricLensDescription, Dd):
           }
     return ret
 
-def getShouldBeSameArray(templateLensDescription):
+def _getShouldBeSameArray(templateLensDescription):
     numParams = templateLensDescription["floatparams"].shape[0]
     shouldBeSame = [ True for _ in range(numParams) ]
     for paramInfo in templateLensDescription["paramoffsets"]:
@@ -190,8 +189,8 @@ def getShouldBeSameArray(templateLensDescription):
 
     return shouldBeSame
 
-def checkShouldBeSame(templateLensDescription, minParams, maxParams):
-    shouldBeSame = getShouldBeSameArray(templateLensDescription)
+def _checkShouldBeSame(templateLensDescription, minParams, maxParams):
+    shouldBeSame = _getShouldBeSameArray(templateLensDescription)
 
     for idx, value in enumerate(shouldBeSame):
         # print(f"Comparing index {idx}: {initMinParams[idx]} vs {initMaxParams[idx]}")
@@ -206,28 +205,28 @@ def checkShouldBeSame(templateLensDescription, minParams, maxParams):
             if minParams[idx] > maxParams[idx]:
                 raise Exception(f"Min/max value at floating point offset {idx} should be other way around")
 
-def createInitialMinMaxParameters(templateLensDesciption, defaultFraction):
+def _createInitialMinMaxParameters(templateLensDesciption, defaultFraction):
     
     scales = templateLensDesciption["scales"]
     Dd = templateLensDesciption["templatelens"].getLensDistance()
     parametricLensDescription = templateLensDesciption["description"]
     
-    l, paramNames = createTemplateLens_helper(parametricLensDescription, Dd,
+    l, paramNames = _createTemplateLens_helper(parametricLensDescription, Dd,
                                               lambda params, key: getInitialMinOrMaxParameterValue(params, key, defaultFraction, True))
     _, initMinParams = l.getCLParameters(**scales)
 
-    l, paramNames = createTemplateLens_helper(parametricLensDescription, Dd,
+    l, paramNames = _createTemplateLens_helper(parametricLensDescription, Dd,
                                               lambda params, key: getInitialMinOrMaxParameterValue(params, key, defaultFraction, False))
     _, initMaxParams = l.getCLParameters(**scales)
 
     assert templateLensDesciption["floatparams"].shape == initMinParams.shape, "Internal error: mismatch in floating point parameter shapes"
     assert initMaxParams.shape == initMinParams.shape, "Internal error: mismatch in floating point parameter shapes (2)"
 
-    checkShouldBeSame(templateLensDesciption, initMinParams, initMaxParams)
+    _checkShouldBeSame(templateLensDesciption, initMinParams, initMaxParams)
 
     return initMinParams, initMaxParams
 
-def getHardMinOrMaxParameterValue(params, paramKey, isMin, knownParamNames, hardInfinite):
+def _getHardMinOrMaxParameterValue(params, paramKey, isMin, knownParamNames, hardInfinite):
 
     # We're expecting either a fixed value, or a dict { "start", "hardmin", "hardmax"}
     value = params[paramKey]
@@ -248,13 +247,13 @@ def getHardMinOrMaxParameterValue(params, paramKey, isMin, knownParamNames, hard
 
     return paramValue, False
     
-def mergeHardMinOrMaxParameterValue(params, key, knownParamNames, paramOffsets):
+def _mergeHardMinOrMaxParameterValue(params, key, knownParamNames, paramOffsets):
 
     # print("knownParamNames")
     # pprint.pprint(knownParamNames)
     # print("paramOffsets")
     # pprint.pprint(paramOffsets)
-    startValue, isFixed = getInitialParameterValue(params, key)
+    startValue, isFixed = _getInitialParameterValue(params, key)
     if isFixed:
         return startValue, True
 
@@ -280,7 +279,7 @@ def mergeHardMinOrMaxParameterValue(params, key, knownParamNames, paramOffsets):
     params[key] = newDict
     return startValue, False
 
-def createHardMinMaxParameters(templateLensDesciption):
+def _createHardMinMaxParameters(templateLensDesciption):
 
     # We're going to merge this with hard min/max values
     parametricLensDescription = copy.deepcopy(templateLensDesciption["description"])
@@ -290,8 +289,8 @@ def createHardMinMaxParameters(templateLensDesciption):
     paramOffsets = { x["name"]:x for x in paramOffsets }
     scales = templateLensDesciption["scales"]
 
-    l, paramNames = createTemplateLens_helper(parametricLensDescription, Dd,
-                                              lambda params, key: mergeHardMinOrMaxParameterValue(params, key, knownParamNames, paramOffsets))
+    l, paramNames = _createTemplateLens_helper(parametricLensDescription, Dd,
+                                              lambda params, key: _mergeHardMinOrMaxParameterValue(params, key, knownParamNames, paramOffsets))
 
     # Now parametricLensDescription is modified, to contain
     # "start", "hardmin" and "hardmax" values for all variable
@@ -299,16 +298,16 @@ def createHardMinMaxParameters(templateLensDesciption):
 
     knownParamNames = copy.deepcopy(templateLensDesciption["paramnames"])
     hardInfMinNames = []
-    l, _ = createTemplateLens_helper(parametricLensDescription, Dd,
-                                     lambda params, key: getHardMinOrMaxParameterValue(params, key, True, knownParamNames, hardInfMinNames))
+    l, _ = _createTemplateLens_helper(parametricLensDescription, Dd,
+                                     lambda params, key: _getHardMinOrMaxParameterValue(params, key, True, knownParamNames, hardInfMinNames))
 
     _, hardMinParams = l.getCLParameters(**scales) # These should all be finite
 
 
     knownParamNames = copy.deepcopy(templateLensDesciption["paramnames"])
     hardInfMaxNames = []
-    l, _ = createTemplateLens_helper(parametricLensDescription, Dd,
-                                     lambda params, key: getHardMinOrMaxParameterValue(params, key, False, knownParamNames, hardInfMaxNames))
+    l, _ = _createTemplateLens_helper(parametricLensDescription, Dd,
+                                     lambda params, key: _getHardMinOrMaxParameterValue(params, key, False, knownParamNames, hardInfMaxNames))
 
     _, hardMaxParams = l.getCLParameters(**scales) # These should all be finite
 
@@ -332,15 +331,63 @@ def createHardMinMaxParameters(templateLensDesciption):
     assert templateLensDesciption["floatparams"].shape == hardMinParams.shape, "Internal error: mismatch in floating point parameter shapes (3)"
     assert hardMaxParams.shape == hardMinParams.shape, "Internal error: mismatch in floating point parameter shapes (4)"
 
-    checkShouldBeSame(templateLensDesciption, hardMinParams, hardMaxParams)
+    _checkShouldBeSame(templateLensDesciption, hardMinParams, hardMaxParams)
 
     return hardMinParams, hardMaxParams
 
 def analyzeParametricLensDescription(parametricLens, Dd, defaultFraction):
-    inf = createTemplateLens(parametricLens, Dd)
+    """Analyze the parametric lens description in `parametricLens`, which
+    should be a dictionary, for a lens at angular diameter distance `Dd`.
+    In case a parameter is set to change with some fraction about a value,
+    `defaultFraction` is used if no specific fraction is specified.
+    
+    Returns a dictionary with the following entries:
+     - ``templatelens``: a lens model constructed from the description
+     - ``floatparams``: the floating point parameters for the model, some of
+       which can be changed.
+     - ``scales``: itself a dictionary with entries for the angular and potential
+       scales that are used.
+     - ``variablefloatparams``: describes which of the floating point parameters
+       can be changed, and within which boundaries.
 
-    initMin, initMax = createInitialMinMaxParameters(inf, defaultFraction)
-    hardMin, hardMax = createHardMinMaxParameters(inf)
+    An example `parametricLens` object:
+    
+    .. code:: python
+
+       parametricLens = {
+         "type": "MultiplePlummerLens",
+         "params": [
+            { 
+               # This represents a fixed value 
+               "x": 2*ANGLE_ARCSEC, 
+               # This specifies an initial value that can change within 20% of the specified one.
+               # During optimization these bounds can be exceeded
+               "y": [ 1*ANGLE_ARCSEC, 0.20 ] 
+               # Also a variable that can change, the amount determined by `defaultFraction`
+               "mass": [ 1e13*MASS_SUN ],
+               # Again a fixed value
+               "width": 3*ANGLE_ARCSEC
+            },
+            {
+                # Here the initial values will be chosen in the specified interval
+                "x": { "initmin": -2*ANGLE_ARCSEC, "initmax": 2*ANGLE_ARCSEC },
+                # Similar, but hard bounds for the parameter are specified as well
+                # In case none are specified, default values are used for these,
+                # depending on the parameter type. Specifying them overrides the
+                # defaults.
+                "y": { "initmin": -2*ANGLE_ARCSEC, "initmax": 2*ANGLE_ARCSEC,
+                       "hardmin": -3*ANGLE_ARCSEC, "hardmax": 3*ANGLE_ARCSEC },
+                # And some fixed values
+                "mass": 1e13*MASS_SUN,
+                "width": 2*ANGLE_ARCSEC
+            }
+         ]
+       }
+    """
+    inf = _createTemplateLens(parametricLens, Dd)
+
+    initMin, initMax = _createInitialMinMaxParameters(inf, defaultFraction)
+    hardMin, hardMax = _createHardMinMaxParameters(inf)
 
     numParams = initMin.shape[0]
     for i in range(numParams):
@@ -381,7 +428,7 @@ def _getUnitValue(x, unitStr):
     v = _getUnitlessValue(y)
     return f"{v}*{unitStr}"
 
-def analyzePlummerLens(lens, massUnitString, angularUnitString):
+def _analyzePlummerLens(lens, massUnitString, angularUnitString):
     params = lens.getLensParameters()
     massStr = _getUnitValue(params["mass"], massUnitString)
     widthStr = _getUnitValue(params["width"], angularUnitString)
@@ -392,7 +439,7 @@ def analyzePlummerLens(lens, massUnitString, angularUnitString):
         '}'
     ]
 
-def analyzeNSIELens(lens, massUnitString, angularUnitString):
+def _analyzeNSIELens(lens, massUnitString, angularUnitString):
     params = lens.getLensParameters()
     sigmaStr = _getUnitlessValue(params["velocityDispersion"])
     ellStr = _getUnitlessValue(params["ellipticity"])
@@ -405,7 +452,7 @@ def analyzeNSIELens(lens, massUnitString, angularUnitString):
         '}'
     ]
 
-def analyzeMultiplePlummerLens(lens, massUnitString, angularUnitString):
+def _analyzeMultiplePlummerLens(lens, massUnitString, angularUnitString):
     paramLines = ['[']
     for params in lens.getLensParameters():
         massStr = _getUnitValue(params["mass"], massUnitString)
@@ -425,7 +472,7 @@ def analyzeMultiplePlummerLens(lens, massUnitString, angularUnitString):
     paramLines.append(']')
     return paramLines
 
-def analyzeCompositeLens(lens, massUnitString, angularUnitString):
+def _analyzeCompositeLens(lens, massUnitString, angularUnitString):
     paramLines = ['[']
     for params in lens.getLensParameters():
         xStr = _getUnitValue(params["x"], angularUnitString)
@@ -439,7 +486,7 @@ def analyzeCompositeLens(lens, massUnitString, angularUnitString):
             f'    "y": {yStr},',
             f'    "angle": {angleStr},' ]
         
-        subLensLines = createParametricDescription(params["lens"])
+        subLensLines = createParametricDescription(params["lens"], massUnitString, angularUnitString, False)
         subParams.append('    "lens": ' + subLensLines[0])
         for sl in subLensLines[1:]:
             subParams.append('    ' + sl)
@@ -451,7 +498,7 @@ def analyzeCompositeLens(lens, massUnitString, angularUnitString):
     paramLines.append(']')
     return paramLines
 
-def analyzeSISLens(lens, massUnitString, angularUnitString):
+def _analyzeSISLens(lens, massUnitString, angularUnitString):
     params = lens.getLensParameters()
     sigmaStr = _getUnitlessValue(params["velocityDispersion"])
     return [
@@ -460,7 +507,7 @@ def analyzeSISLens(lens, massUnitString, angularUnitString):
         '}'
     ]
 
-def analyzeMassSheetLens(lens, massUnitString, angularUnitString):
+def _analyzeMassSheetLens(lens, massUnitString, angularUnitString):
     params = lens.getLensParameters()
     densStr = _getUnitlessValue(params["density"])
     return [
@@ -469,12 +516,12 @@ def analyzeMassSheetLens(lens, massUnitString, angularUnitString):
         '}'
     ]
 
-def createParametricDescription(lens, massUnitString = "MASS_SUN", angularUnitString = "ANGLE_ARCSEC"):
+def createParametricDescription(lens, massUnitString = "MASS_SUN", angularUnitString = "ANGLE_ARCSEC", asString = True):
     
-    if not type(lens) in supportedLensTypesByClass:
+    if not type(lens) in _supportedLensTypesByClass:
         raise Exception(f"Can't create parametric description for lens type {type(lens)}")
     
-    info = supportedLensTypesByClass[type(lens)]
+    info = _supportedLensTypesByClass[type(lens)]
     name = info["name"]
     if not "analysis" in info:
         raise Exception(f"No lens analysis function for {name}")
@@ -488,21 +535,29 @@ def createParametricDescription(lens, massUnitString = "MASS_SUN", angularUnitSt
     for p in paramLines[1:]:
         descLines.append('    ' + p)
     descLines.append('}')
-    return descLines
+    
+    if not asString:
+        return descLines
+    return "\n".join(descLines)
 
-supportedLensTypes = {
-    "PlummerLens": { "handler": processPlummerLens, "lens": lenses.PlummerLens, "analysis": analyzePlummerLens },
-    "MultiplePlummerLens": { "handler": processMultiplePlummerLens, "lens": lenses.MultiplePlummerLens, "analysis": analyzeMultiplePlummerLens },
-    "NSIELens": { "handler": processNSIELens, "lens": lenses.NSIELens, "analysis": analyzeNSIELens },
-    "CompositeLens": { "handler": processCompositeLens, "lens": lenses.CompositeLens, "analysis": analyzeCompositeLens },
-    "SISLens": { "handler": processSISLens, "lens": lenses.SISLens, "analysis": analyzeSISLens },
-    "MassSheetLens": { "handler": processMassSheetLens, "lens": lenses.MassSheetLens, "analysis": analyzeMassSheetLens },
+_supportedLensTypes = {
+    "PlummerLens": { "handler": _processPlummerLens, "lens": lenses.PlummerLens, "analysis": _analyzePlummerLens },
+    "MultiplePlummerLens": { "handler": _processMultiplePlummerLens, "lens": lenses.MultiplePlummerLens, "analysis": _analyzeMultiplePlummerLens },
+    "NSIELens": { "handler": _processNSIELens, "lens": lenses.NSIELens, "analysis": _analyzeNSIELens },
+    "CompositeLens": { "handler": _processCompositeLens, "lens": lenses.CompositeLens, "analysis": _analyzeCompositeLens },
+    "SISLens": { "handler": _processSISLens, "lens": lenses.SISLens, "analysis": _analyzeSISLens },
+    "MassSheetLens": { "handler": _processMassSheetLens, "lens": lenses.MassSheetLens, "analysis": _analyzeMassSheetLens },
 }
 
-supportedLensTypesByClass = { supportedLensTypes[name]["lens"]: { "name": name, **supportedLensTypes[name] } for name in supportedLensTypes }
+_supportedLensTypesByClass = { _supportedLensTypes[name]["lens"]: { "name": name, **_supportedLensTypes[name] } for name in _supportedLensTypes }
 
+def getSupportedLensTypes():
+    return [ (x, _supportedLensTypes[x]["lens"]) for x in _supportedLensTypes ]
 
 def main():
+    pprint.pprint(getSupportedLensTypes())
+
+def main1():
     Dd = 1000*DIST_MPC
     #l = lenses.PlummerLens(Dd, { "mass": 1e13*MASS_SUN, "width": 1*ANGLE_ARCSEC})
     #l = lenses.NSIELens(Dd, { "velocityDispersion": 100000, "ellipticity": 0.8, "coreRadius": 0.5*ANGLE_ARCSEC})
@@ -510,22 +565,21 @@ def main():
     #         { "mass": 0.7e15*MASS_SUN, "width":3*ANGLE_ARCSEC, "x": -2*ANGLE_ARCSEC, "y": 1*ANGLE_ARCSEC },
     #         { "mass": 0.4e15*MASS_SUN, "width":4*ANGLE_ARCSEC, "x": 3*ANGLE_ARCSEC, "y": -1*ANGLE_ARCSEC },
     #     ])
-    # l = lenses.CompositeLens(Dd, [
-    #     {"lens": lenses.PlummerLens(Dd, { "mass": 0.7e15*MASS_SUN, "width":3*ANGLE_ARCSEC}),
-    #     "x": -2*ANGLE_ARCSEC, "y": 1*ANGLE_ARCSEC, "angle": 10, "factor": 1.1},
-    #     {"lens": lenses.PlummerLens(Dd, { "mass": 0.4e15*MASS_SUN, "width":4*ANGLE_ARCSEC}),
-    #     "x": 3*ANGLE_ARCSEC, "y": -1*ANGLE_ARCSEC, "angle":30, "factor": 0.9}
-    # ])
+    l = lenses.CompositeLens(Dd, [
+        {"lens": lenses.PlummerLens(Dd, { "mass": 0.7e15*MASS_SUN, "width":3*ANGLE_ARCSEC}),
+        "x": -2*ANGLE_ARCSEC, "y": 1*ANGLE_ARCSEC, "angle": 10, "factor": 1.1},
+        {"lens": lenses.PlummerLens(Dd, { "mass": 0.4e15*MASS_SUN, "width":4*ANGLE_ARCSEC}),
+        "x": 3*ANGLE_ARCSEC, "y": -1*ANGLE_ARCSEC, "angle":30, "factor": 0.9}
+    ])
     #l = lenses.SISLens(Dd, { "velocityDispersion": 400000 })
     
     #Ds = 1
     #Dds = 0.8
     #l = lenses.MassSheetLens(Dd, { "Ds": Ds, "Dds": Dds })
 
-    l = lenses.GravitationalLens.load("/home/jori/projects/grale2-git/inversion_examples/example2/inv1.lensdata")
+    # l = lenses.GravitationalLens.load("/home/jori/projects/grale2-git/inversion_examples/example2/inv1.lensdata")
 
-    lines = createParametricDescription(l)
-    objStr = "\n".join(lines)
+    objStr = createParametricDescription(l)
     print(objStr)
     parametricLens = eval(objStr)
     pprint.pprint(parametricLens)
