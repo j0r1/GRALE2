@@ -15,7 +15,7 @@ def _getInitialParameterValue(params, paramKey):
     
     return value, True
 
-def getInitialMinOrMaxParameterValue(params, paramKey, fraction, isMin):
+def _getInitialMinOrMaxParameterValue(params, paramKey, fraction, isMin):
     value = params[paramKey]
 
     key = "initmin" if isMin else "initmax"
@@ -212,11 +212,11 @@ def _createInitialMinMaxParameters(templateLensDesciption, defaultFraction):
     parametricLensDescription = templateLensDesciption["description"]
     
     l, paramNames = _createTemplateLens_helper(parametricLensDescription, Dd,
-                                              lambda params, key: getInitialMinOrMaxParameterValue(params, key, defaultFraction, True))
+                                              lambda params, key: _getInitialMinOrMaxParameterValue(params, key, defaultFraction, True))
     _, initMinParams = l.getCLParameters(**scales)
 
     l, paramNames = _createTemplateLens_helper(parametricLensDescription, Dd,
-                                              lambda params, key: getInitialMinOrMaxParameterValue(params, key, defaultFraction, False))
+                                              lambda params, key: _getInitialMinOrMaxParameterValue(params, key, defaultFraction, False))
     _, initMaxParams = l.getCLParameters(**scales)
 
     assert templateLensDesciption["floatparams"].shape == initMinParams.shape, "Internal error: mismatch in floating point parameter shapes"
@@ -517,6 +517,20 @@ def _analyzeMassSheetLens(lens, massUnitString, angularUnitString):
     ]
 
 def createParametricDescription(lens, massUnitString = "MASS_SUN", angularUnitString = "ANGLE_ARCSEC", asString = True):
+    """Create a basic representation of a parametric lens model, based on the
+    :class:`lens model<grale.lenses.GravitationalLens> in `lens`. The result is
+    a string which represents python code and can be saved to a file for further
+    editing. This result has no parameters that can change, so it will need to be
+    adjusted.
+    
+    To make the description more readable, values for masses will be represented
+    as a value times the mass unit, which needs to be represented as string in
+    `massUnitString`. Similarly, angular values will be represented using 
+    `angularUnitString.
+
+    By default a single large string is returned, if a list of separate lines is
+    more covenient, the `asString` parameter can be set to ``False``.
+    """
     
     if not type(lens) in _supportedLensTypesByClass:
         raise Exception(f"Can't create parametric description for lens type {type(lens)}")
@@ -554,10 +568,10 @@ _supportedLensTypesByClass = { _supportedLensTypes[name]["lens"]: { "name": name
 def getSupportedLensTypes():
     return [ (x, _supportedLensTypes[x]["lens"]) for x in _supportedLensTypes ]
 
-def main():
+def main2():
     pprint.pprint(getSupportedLensTypes())
 
-def main1():
+def main():
     Dd = 1000*DIST_MPC
     #l = lenses.PlummerLens(Dd, { "mass": 1e13*MASS_SUN, "width": 1*ANGLE_ARCSEC})
     #l = lenses.NSIELens(Dd, { "velocityDispersion": 100000, "ellipticity": 0.8, "coreRadius": 0.5*ANGLE_ARCSEC})
