@@ -1,3 +1,7 @@
+"""This module contains tools for parametric inversion: something to analyze
+a description of a lens model that can be optimized parametrically, and
+a routine to start such a description based on an existing lens model."""
+
 from grale.all import *
 import pprint
 import copy
@@ -342,6 +346,7 @@ def analyzeParametricLensDescription(parametricLens, Dd, defaultFraction):
     `defaultFraction` is used if no specific fraction is specified.
     
     Returns a dictionary with the following entries:
+
      - ``templatelens``: a lens model constructed from the description
      - ``floatparams``: the floating point parameters for the model, some of
        which can be changed.
@@ -518,7 +523,7 @@ def _analyzeMassSheetLens(lens, massUnitString, angularUnitString):
 
 def createParametricDescription(lens, massUnitString = "MASS_SUN", angularUnitString = "ANGLE_ARCSEC", asString = True):
     """Create a basic representation of a parametric lens model, based on the
-    :class:`lens model<grale.lenses.GravitationalLens> in `lens`. The result is
+    :class:`lens model<grale.lenses.GravitationalLens>` in `lens`. The result is
     a string which represents python code and can be saved to a file for further
     editing. This result has no parameters that can change, so it will need to be
     adjusted.
@@ -526,7 +531,7 @@ def createParametricDescription(lens, massUnitString = "MASS_SUN", angularUnitSt
     To make the description more readable, values for masses will be represented
     as a value times the mass unit, which needs to be represented as string in
     `massUnitString`. Similarly, angular values will be represented using 
-    `angularUnitString.
+    `angularUnitString`.
 
     By default a single large string is returned, if a list of separate lines is
     more covenient, the `asString` parameter can be set to ``False``.
@@ -566,6 +571,7 @@ _supportedLensTypes = {
 _supportedLensTypesByClass = { _supportedLensTypes[name]["lens"]: { "name": name, **_supportedLensTypes[name] } for name in _supportedLensTypes }
 
 def getSupportedLensTypes():
+    """List which gravitational lens types are recognized in the parametric description."""
     return [ (x, _supportedLensTypes[x]["lens"]) for x in _supportedLensTypes ]
 
 def main2():
