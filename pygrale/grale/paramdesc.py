@@ -2,13 +2,16 @@
 a description of a lens model that can be optimized parametrically, and
 a routine to start such a description based on an existing lens model."""
 
-# TODO: separate class for Exception
-
 from .constants import *
 from . import lenses
 import pprint
 import copy
 import math
+
+class ParametricDescriptionException(Exception):
+    """An exception that will be thrown in case something goes wrong when
+    analyzing or creating a lens description for parametric inversion."""
+    pass
 
 def _getInitialParameterValue(params, paramKey):
     value = params[paramKey]
@@ -18,7 +21,7 @@ def _getInitialParameterValue(params, paramKey):
     if type(value) == list or type(value) == tuple:
         if len(value) == 1 or len(value) == 2:
             return value[0], False
-        raise Exception("Too many entries for parameter")
+        raise ParametricDescriptionException("Too many entries for parameter")
     
     return value, True
 
@@ -34,7 +37,7 @@ def _getInitialMinOrMaxParameterValue(params, paramKey, fraction, isMin):
     if type(value) == list or type(value) == tuple:
 
         if len(value) < 1 or len(value) > 2:
-            raise Exception("Incorrect number of entries for parameter")
+            raise ParametricDescriptionException("Incorrect number of entries for parameter")
 
         if value[0] < 0:
             fracSign = -fracSign
@@ -67,7 +70,7 @@ def _processPlummerLens(lensParams, Dd, getParamValue):
                                                                 ("width", "width_scaled")],
                                                   getParamValue, positionNames)    
     if lensParams:
-        raise Exception("Excess parameters for PlummerLens")
+        raise ParametricDescriptionException("Excess parameters for PlummerLens")
     
     return newParams, positionNames
 
@@ -90,7 +93,7 @@ def _processCompositeLens(lensParams, Dd, getParamValue):
             positionNames.append(f"lens_{idx}," + p)
         
         if subParams:
-            raise Exception("Excess parameters for CompositeLens")
+            raise ParametricDescriptionException("Excess parameters for CompositeLens")
         
         compParams.append(newParams)
         
@@ -103,7 +106,7 @@ def _processNSIELens(lensParams, Dd, getParamValue):
                                                                 ("velocityDispersion", "sigma_scaled") ],
                                                   getParamValue, positionNames)    
     if lensParams:
-        raise Exception("Excess parameters for NSIELens")
+        raise ParametricDescriptionException("Excess parameters for NSIELens")
     
     return newParams, positionNames
 
@@ -112,20 +115,20 @@ def _processSISLens(lensParams, Dd, getParamValue):
     lensParams, newParams = _checkParameterValues(lensParams, [ ("velocityDispersion", "sigma_scaled") ],
                                                   getParamValue, positionNames)    
     if lensParams:
-        raise Exception("Excess parameters for SISLens")
+        raise ParametricDescriptionException("Excess parameters for SISLens")
     
     return newParams, positionNames
 
 def _processMassSheetLens(lensParams, Dd, getParamValue):
     positionNames = []
     if "Ds" in lensParams or "Dds" in lensParams:
-        raise Exception("For a mass sheet lens, 'Ds' and 'Dds' cannot be used, use 'density' instead")
+        raise ParametricDescriptionException("For a mass sheet lens, 'Ds' and 'Dds' cannot be used, use 'density' instead")
 
     lensParams, newParams = _checkParameterValues(lensParams, [ ("density", "density_scaled") ],
                                                   getParamValue, positionNames)    
 
     if lensParams:
-        raise Exception("Excess parameters for MassSheetLens")
+        raise ParametricDescriptionException("Excess parameters for MassSheetLens")
     return newParams, positionNames
 
 def _processMultiplePlummerLens(lensParams, Dd, getParamValue):
@@ -139,7 +142,7 @@ def _processMultiplePlummerLens(lensParams, Dd, getParamValue):
                                                                   ],
                                                      getParamValue, positionNames)
         if subParams:
-            raise Exception("Excess parameters for MultiplePlummerLens")
+            raise ParametricDescriptionException("Excess parameters for MultiplePlummerLens")
         
         newMultiParams.append(newParams)
 
@@ -149,7 +152,7 @@ def _createTemplateLens_helper(parametricLensDescription, Dd, getParamValue):
     lensType = parametricLensDescription["type"]
     lensParams = parametricLensDescription["params"]
     if not lensType in _supportedLensTypes:
-        raise Exception("Unknown lens type for parametric inversion")
+        raise ParametricDescriptionException("Unknown lens type for parametric inversion")
     
     t = _supportedLensTypes[lensType]
     handler, lensClass = t["handler"], t["lens"]
@@ -165,13 +168,13 @@ def _createParamOffsetInfo(l, paramNames):
     for p in adjustableParams:
         name = p["name"]
         if name in adjustableParamsDict:
-            raise Exception(f"Internal error: name {name} already exists in adjustable params dict")
+            raise ParametricDescriptionException(f"Internal error: name {name} already exists in adjustable params dict")
         adjustableParamsDict[name] = p
 
     paramOffsetInfo = []    
     for n in paramNames:
         if not n in adjustableParamsDict:
-            raise Exception(f"Internal error: specified adjustable param {n} does not seem to be valid")
+            raise ParametricDescriptionException(f"Internal error: specified adjustable param {n} does not seem to be valid")
         paramOffsetInfo.append(adjustableParamsDict[n])
 
     return sorted(paramOffsetInfo, key=lambda x: x["offset"])
@@ -212,10 +215,10 @@ def _checkShouldBeSame(templateLensDescription, minParams, maxParams):
 
         else:
             if minParams[idx] == maxParams[idx]:
-                raise Exception(f"Values at floating point offset {idx} should be allowed to change, but initial min/max values are the same (so no variation will be introduced)")
+                raise ParametricDescriptionException(f"Values at floating point offset {idx} should be allowed to change, but initial min/max values are the same (so no variation will be introduced)")
 
             if minParams[idx] > maxParams[idx]:
-                raise Exception(f"Min/max value at floating point offset {idx} should be other way around")
+                raise ParametricDescriptionException(f"Min/max value at floating point offset {idx} should be other way around")
 
 def _createInitialMinMaxParameters(templateLensDesciption, defaultFraction):
     
@@ -252,7 +255,7 @@ def _getHardMinOrMaxParameterValue(params, paramKey, isMin, knownParamNames, har
     if math.isinf(extValue):
         paramValue = value["start"] # Don't use inf as a lens parameter
         if extValue != infValue:
-            raise Exception(f"Got {extValue} but expecting {infValue} for {paramName}")
+            raise ParametricDescriptionException(f"Got {extValue} but expecting {infValue} for {paramName}")
         hardInfinite.append(paramName) # Remember this parameter name
     else:
         paramValue = extValue
@@ -423,13 +426,13 @@ def analyzeParametricLensDescription(parametricLens, Dd, defaultFraction, clampT
                 initMin[i] = hardMin[i]
             else:
                 n = getNameForOffset(i)
-                raise Exception(f"Parameter '{n}' (at offset {i}) has initial value that can be smaller than hard lower limit")
+                raise ParametricDescriptionException(f"Parameter '{n}' (at offset {i}) has initial value that can be smaller than hard lower limit")
         if hardMax[i] < initMax[i]:
             if clampToHardLimits:
                 initMax[i] = hardMax[i]
             else:
                 n = getNameForOffset(i)
-                raise Exception(f"Parameter '{n}' (at offset {i}) has initial value that can be larger than hard upper limit")
+                raise ParametricDescriptionException(f"Parameter '{n}' (at offset {i}) has initial value that can be larger than hard upper limit")
 
     paramRanges = [ ]
     for offInf in inf["paramoffsets"]:
@@ -469,13 +472,13 @@ def _convertedValueToString(value, stringConverter):
             return "[" + stringConverter(value[0]) + "]"
         if len(value) == 2:
             return "[" + stringConverter(value[0]) + ", " + _getUnitlessValue(value[1]) + "]"
-        raise Exception(f"List or tuple should have length 1 or 2, but is {len(value)}")
+        raise ParametricDescriptionException(f"List or tuple should have length 1 or 2, but is {len(value)}")
     
     if type(value) == dict:
         d = "{ "
         for k in value:
             if not k in [ "initmin", "initmax", "hardmin", "hardmax" ]:
-                raise Exception(f'Unexpected key {k}, expecting "initmin", "initmax", "hardmin", "hardmax"')
+                raise ParametricDescriptionException(f'Unexpected key {k}, expecting "initmin", "initmax", "hardmin", "hardmax"')
             d += f'"{k}": ' + stringConverter(value[k]) + ", "
         d += "}"
         return d
@@ -616,12 +619,12 @@ def createParametricDescription(lens, massUnitString = "MASS_SUN", angularUnitSt
         convertValueFunction = lambda value, lensName, paramName, allParams : value
     
     if not type(lens) in _supportedLensTypesByClass:
-        raise Exception(f"Can't create parametric description for lens type {type(lens)}")
+        raise ParametricDescriptionException(f"Can't create parametric description for lens type {type(lens)}")
     
     info = _supportedLensTypesByClass[type(lens)]
     name = info["name"]
     if not "analysis" in info:
-        raise Exception(f"No lens analysis function for {name}")
+        raise ParametricDescriptionException(f"No lens analysis function for {name}")
     
     analyzer = info["analysis"]
     paramLines = analyzer(lens, massUnitString, angularUnitString, convertValueFunction)
