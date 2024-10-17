@@ -127,10 +127,11 @@ static float LogTrans(float x) { return LN(x); }
 static float ExpTrans(float x) { return EXP(x); }
 static float IdentityTrans(float x) { return x; }
 
-bool_t LensInversionGAFactoryCommon::createLens(const LensGAGenome &genome, unique_ptr<GravitationalLens> &lens) const
+bool_t LensInversionGAFactoryCommon::createLens(const eatk::Genome &genome0, unique_ptr<GravitationalLens> &lens) const
 {
 	string errStr = "unknown error";
 
+	const LensGAGenome &genome = static_cast<const LensGAGenome &>(genome0);
 	lens = move(createLens(genome.m_weights, genome.m_sheets, genome.m_scaleFactor, errStr));
 	if (!lens.get())
 		return errStr;

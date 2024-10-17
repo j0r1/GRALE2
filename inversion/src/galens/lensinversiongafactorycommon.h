@@ -26,18 +26,18 @@ public:
 	LensInversionGAFactoryCommon(std::unique_ptr<LensFitnessObject> fitObj);
 	~LensInversionGAFactoryCommon();
 
-	bool allowNegativeValues() const override								{ return m_allowNegativeValues; }
+	bool allowNegativeValues() const /* override */								{ return m_allowNegativeValues; }
 	bool useLogarithmicScaleSearch() const { return true; }
 
-	errut::bool_t createLens(const LensGAGenome &genome, std::unique_ptr<GravitationalLens> &lens) const;
+	errut::bool_t createLens(const eatk::Genome &genome, std::unique_ptr<GravitationalLens> &lens) const;
 	errut::bool_t calculate(const eatk::Genome &genome, eatk::Fitness &fitness);
 
 	virtual errut::bool_t initializeNewCalculation(const std::vector<float> &basisFunctionWeights, const std::vector<float> &sheetValues);
 	virtual errut::bool_t calculateMassScaleFitness(float scaleFactor, float &fitness);
 	virtual errut::bool_t calculateTotalFitness(float scaleFactor, float *pFitnessValues);
 
-	size_t getNumberOfBasisFunctions() const override { return (size_t)m_numBasisFunctions; }
-	size_t getNumberOfSheets() const override { return (size_t)m_numSheetValues; }
+	size_t getNumberOfBasisFunctions() const /* override */ { return (size_t)m_numBasisFunctions; }
+	size_t getNumberOfSheets() const /* override */ { return (size_t)m_numSheetValues; }
 
 	size_t getNumberOfObjectives() const override { return m_fitnessObject->getNumberOfFitnessComponents(); }
 protected:

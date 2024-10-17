@@ -136,7 +136,7 @@ protected:
 	errut::bool_t runGA(int popSize, const std::string &lensFitnessObjectType,
 						 const std::string &calculatorType,
 	                     grale::LensGACalculatorFactory &calcFactory, 
-						 const std::shared_ptr<grale::LensGAGenomeCalculator> &genomeCalculator,
+						 const std::shared_ptr<grale::LensGAGenomeCalculator> &genomeCalculator0,
 						 const std::vector<uint8_t> &factoryParamBytes,
 						 const std::vector<std::unique_ptr<grale::EAParameters>> &allEAParams,
 						 const std::vector<grale::LensGAConvergenceParameters> &allConvParams,
@@ -154,6 +154,9 @@ protected:
 			// TODO
 		}
 
+		std::shared_ptr<grale::LensInversionGAFactoryCommon> genomeCalculator = std::dynamic_pointer_cast<grale::LensInversionGAFactoryCommon>(genomeCalculator0);
+		if (!genomeCalculator.get())
+			return "Calculator does not seem to be of a type derived from LensInversionGAFactoryCommon";
 
 		std::shared_ptr<grale::RandomNumberGenerator> rng0 = std::make_shared<grale::RandomNumberGenerator>();
 		WriteLineStdout("GAMESSAGESTR:RNG SEED: " + std::to_string(rng0->getSeed()));
