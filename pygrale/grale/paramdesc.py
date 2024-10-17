@@ -32,12 +32,17 @@ def _getInitialMinOrMaxParameterValue(params, paramKey, fraction, isMin):
         return value[key], False
     
     if type(value) == list or type(value) == tuple:
+
+        if len(value) < 1 or len(value) > 2:
+            raise Exception("Incorrect number of entries for parameter")
+
+        if value[0] < 0:
+            fracSign = -fracSign
+
         if len(value) == 1:
             fullFrac = 1 + fracSign*abs(fraction)
-        elif len(value) == 2:
+        else: # 2 params
             fullFrac = 1 + fracSign*abs(value[1])
-        else:
-            raise Exception("Too many entries for parameter")
         
         return value[0]*fullFrac, False
         
@@ -321,11 +326,17 @@ def _createHardMinMaxParameters(templateLensDesciption):
     def isNumber(num):
         return not (math.isinf(num) or math.isnan(num))
 
+    # TODO: rewrite MultiplePlummerLens params so that total mass 0 doesn't cause a nan    
+    # print(templateLensDesciption["paramnames"])
+    # pprint.pprint(templateLensDesciption["floatparams"])
+    # pprint.pprint(hardMinParams)
+    # pprint.pprint(hardMaxParams)
+
     for i in range(hardMinParams.shape[0]):
-        assert isNumber(hardMinParams[i]), "Internal error: expecting all hard min parameters to start as a real number"
+        assert isNumber(hardMinParams[i]), f"Internal error: expecting all hard min parameters to start as a real number ({hardMinParams[i]})"
 
     for i in range(hardMaxParams.shape[0]):
-        assert isNumber(hardMaxParams[i]), "Internal error: expecting all hard max parameters to start as a real number"
+        assert isNumber(hardMaxParams[i]), f"Internal error: expecting all hard max parameters to start as a real number ({hardMaxParams[i]})"
     
     for paramName in hardInfMinNames:
         offset = paramOffsets[paramName]["offset"]
@@ -342,11 +353,14 @@ def _createHardMinMaxParameters(templateLensDesciption):
 
     return hardMinParams, hardMaxParams
 
-def analyzeParametricLensDescription(parametricLens, Dd, defaultFraction):
+def analyzeParametricLensDescription(parametricLens, Dd, defaultFraction, clampToHardLimits = False):
     """Analyze the parametric lens description in `parametricLens`, which
     should be a dictionary, for a lens at angular diameter distance `Dd`.
     In case a parameter is set to change with some fraction about a value,
-    `defaultFraction` is used if no specific fraction is specified.
+    `defaultFraction` is used if no specific fraction is specified. By
+    default, an error will be generated if some initial value bounds exceed the
+    hard bounds, but if `clampToHardLimits` is set to ``True``, the hard
+    limit will be used as bound for the initial value.
     
     Returns a dictionary with the following entries:
 
@@ -394,15 +408,29 @@ def analyzeParametricLensDescription(parametricLens, Dd, defaultFraction):
     """
     inf = _createTemplateLens(parametricLens, Dd)
 
+    def getNameForOffset(off):
+        for x in inf["paramoffsets"]:
+            if x["offset"] == off:
+                return x["name"]
+        return "unknown"
+
     initMin, initMax = _createInitialMinMaxParameters(inf, defaultFraction)
     hardMin, hardMax = _createHardMinMaxParameters(inf)
 
     numParams = initMin.shape[0]
     for i in range(numParams):
         if hardMin[i] > initMin[i]:
-            raise Exception(f"Parameter at offset {i} has initial value that can be smaller than hard lower limit")
+            if clampToHardLimits:
+                initMin[i] = hardMin[i]
+            else:
+                n = getNameForOffset(i)
+                raise Exception(f"Parameter '{n}' (at offset {i}) has initial value that can be smaller than hard lower limit")
         if hardMax[i] < initMax[i]:
-            raise Exception(f"Parameter at offset {i} has initial value that can be larger than hard upper limit")
+            if clampToHardLimits:
+                initMax[i] = hardMax[i]
+            else:
+                n = getNameForOffset(i)
+                raise Exception(f"Parameter '{n}' (at offset {i}) has initial value that can be larger than hard upper limit")
 
     paramRanges = [ ]
     for offInf in inf["paramoffsets"]:
@@ -457,8 +485,8 @@ def _convertedValueToString(value, stringConverter):
             
 def _analyzePlummerLens(lens, massUnitString, angularUnitString, convertValueFunction):
     params = lens.getLensParameters()
-    massStr = _convertedValueToString(convertValueFunction(params["mass"], "PlummerLens", "mass", params), lambda x: _getUnitValue(x, massUnitString))
-    widthStr = _convertedValueToString(convertValueFunction(params["width"], "PlummerLens", "width", params), lambda x: _getUnitValue(x, angularUnitString))
+    massStr = _convertedValueToString(convertValueFunction(params["mass"], ["PlummerLens"], "mass", params), lambda x: _getUnitValue(x, massUnitString))
+    widthStr = _convertedValueToString(convertValueFunction(params["width"], ["PlummerLens"], "width", params), lambda x: _getUnitValue(x, angularUnitString))
     return [
         '{',
         f'    "mass": {massStr},',
@@ -467,10 +495,10 @@ def _analyzePlummerLens(lens, massUnitString, angularUnitString, convertValueFun
     ]
 
 def _analyzeNSIELens(lens, massUnitString, angularUnitString, convertValueFunction):
-    params = lens.getLensParameters()
-    sigmaStr = _getUnitlessValue(params["velocityDispersion"])
-    ellStr = _getUnitlessValue(params["ellipticity"])
-    coreStr = _getUnitValue(params["coreRadius"], angularUnitString)
+    params = lens.getLensParameters()    
+    sigmaStr = _convertedValueToString(convertValueFunction(params["velocityDispersion"], ["NSIELens"], "velocityDispersion", params), _getUnitlessValue)
+    ellStr = _convertedValueToString(convertValueFunction(params["ellipticity"], ["NSIELens"], "ellipticity", params), _getUnitlessValue)
+    coreStr = _convertedValueToString(convertValueFunction(params["coreRadius"], ["NSIELens"], "coreRadius", params), lambda x: _getUnitValue(x, angularUnitString))
     return [
         '{',
         f'    "velocityDispersion": {sigmaStr},',
@@ -481,11 +509,11 @@ def _analyzeNSIELens(lens, massUnitString, angularUnitString, convertValueFuncti
 
 def _analyzeMultiplePlummerLens(lens, massUnitString, angularUnitString, convertValueFunction):
     paramLines = ['[']
-    for params in lens.getLensParameters():
-        massStr = _getUnitValue(params["mass"], massUnitString)
-        widthStr = _getUnitValue(params["width"], angularUnitString)
-        xStr = _getUnitValue(params["x"], angularUnitString)
-        yStr = _getUnitValue(params["y"], angularUnitString)
+    for i,params in enumerate(lens.getLensParameters()):
+        massStr = _convertedValueToString(convertValueFunction(params["mass"], ["MultiplePlummerLens"], f"mass_{i}", params), lambda x: _getUnitValue(x, massUnitString))
+        widthStr = _convertedValueToString(convertValueFunction(params["width"], ["MultiplePlummerLens"], f"width_{i}", params), lambda x: _getUnitValue(x, angularUnitString))
+        xStr = _convertedValueToString(convertValueFunction(params["x"], ["MultiplePlummerLens"], f"x_{i}", params), lambda x: _getUnitValue(x, angularUnitString))
+        yStr = _convertedValueToString(convertValueFunction(params["y"], ["MultiplePlummerLens"], f"y_{i}", params), lambda x: _getUnitValue(x, angularUnitString))
         subParams = [
             '{',
             f'    "mass": {massStr},',
@@ -501,19 +529,22 @@ def _analyzeMultiplePlummerLens(lens, massUnitString, angularUnitString, convert
 
 def _analyzeCompositeLens(lens, massUnitString, angularUnitString, convertValueFunction):
     paramLines = ['[']
-    for params in lens.getLensParameters():
-        xStr = _getUnitValue(params["x"], angularUnitString)
-        yStr = _getUnitValue(params["y"], angularUnitString)
-        angleStr = _getUnitlessValue(params["angle"])
-        factorStr = _getUnitlessValue(params["factor"])
+    for i,params in enumerate(lens.getLensParameters()):
+        xStr = _convertedValueToString(convertValueFunction(params["x"], ["CompositeLens"], f"x_{i}", params), lambda x: _getUnitValue(x, angularUnitString))
+        yStr = _convertedValueToString(convertValueFunction(params["y"], ["CompositeLens"], f"y_{i}", params), lambda x: _getUnitValue(x, angularUnitString))
+        angleStr = _convertedValueToString(convertValueFunction(params["angle"], ["CompositeLens"], f"angle_{i}", params), _getUnitlessValue)
+        factorStr = _convertedValueToString(convertValueFunction(params["factor"], ["CompositeLens"], f"factor_{i}", params), _getUnitlessValue)
         subParams = [
             '{',
             f'    "factor": {factorStr},',
             f'    "x": {xStr},',
             f'    "y": {yStr},',
             f'    "angle": {angleStr},' ]
-        
-        subLensLines = createParametricDescription(params["lens"], massUnitString, angularUnitString, False)
+
+        def cvfWrapper(x, lensName, paramName, fullParams):
+            return convertValueFunction(x, [ "CompositeLens", f"lens_{i}" ] + lensName, paramName, fullParams)
+
+        subLensLines = createParametricDescription(params["lens"], massUnitString, angularUnitString, False, cvfWrapper)
         subParams.append('    "lens": ' + subLensLines[0])
         for sl in subLensLines[1:]:
             subParams.append('    ' + sl)
@@ -527,7 +558,7 @@ def _analyzeCompositeLens(lens, massUnitString, angularUnitString, convertValueF
 
 def _analyzeSISLens(lens, massUnitString, angularUnitString, convertValueFunction):
     params = lens.getLensParameters()
-    sigmaStr = _getUnitlessValue(params["velocityDispersion"])
+    sigmaStr = _convertedValueToString(convertValueFunction(params["velocityDispersion"], ["SISLens"], "velocityDispersion", params), _getUnitlessValue)
     return [
         '{',
         f'    "velocityDispersion": {sigmaStr},',
@@ -536,7 +567,7 @@ def _analyzeSISLens(lens, massUnitString, angularUnitString, convertValueFunctio
 
 def _analyzeMassSheetLens(lens, massUnitString, angularUnitString, convertValueFunction):
     params = lens.getLensParameters()
-    densStr = _getUnitlessValue(params["density"])
+    densStr = _convertedValueToString(convertValueFunction(params["density"], ["MassSheetLens"], "density", params), _getUnitlessValue)
     return [
         '{',
         f'    "density": {densStr},',
@@ -558,6 +589,28 @@ def createParametricDescription(lens, massUnitString = "MASS_SUN", angularUnitSt
 
     By default a single large string is returned, if a list of separate lines is
     more covenient, the `asString` parameter can be set to ``False``.
+
+    The `convertValueFunction` is a callback that can be used to convert a fixed
+    value to a variable one. The parameters are:
+     
+        - `value`: the value itself
+        - `lensName`: this is a list, of which the last entry specifies the name
+          of the current (sub) model. This list could simply be ``[ "NSIELens" ]`` for
+          a simple lens, or e.g. ``[ "CompositeLens", "lens_0", "NSIELens" ]`` for a
+          more complex model.
+        - `paramName`: the name of the parameter, for example ``"mass"``
+        - `fullParams`: the full lens model parameters of the current (sub) model. This
+          could be helpful if you need more information about which submodel is being
+          considered.
+    
+    The return value can be:
+     
+        - a value: in that case this is a fixed parameter
+        - a list ``[ value, fraction ]`` to initialize the parameter to vary between
+          bounds specified by the fraction, or just ``[ value ]`` if the default
+          fraction is to be used when calling :func:`analyzeParametricLensDescription`
+        - a dictionary containing entries for ``"initmin"`` and ``"initmax"``, and
+          optionally ``"hardmin"`` and ``"hardmax"``.
     """
 
     if convertValueFunction is None:
