@@ -326,7 +326,6 @@ def _createHardMinMaxParameters(templateLensDesciption):
     def isNumber(num):
         return not (math.isinf(num) or math.isnan(num))
 
-    # TODO: rewrite MultiplePlummerLens params so that total mass 0 doesn't cause a nan    
     # print(templateLensDesciption["paramnames"])
     # pprint.pprint(templateLensDesciption["floatparams"])
     # pprint.pprint(hardMinParams)

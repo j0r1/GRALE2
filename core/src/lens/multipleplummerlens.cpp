@@ -125,6 +125,9 @@ bool MultiplePlummerLens::processParameters(const GravitationalLensParams *param
 		totalmass += (*it).getMass();
 
 	totalmass = ABS(totalmass);
+	if (totalmass == 0)
+		totalmass = 1; // avoid division by zero, and avoid scalefactor becoming 0
+
 	scalefactor = SQRT((4.0*CONST_G*totalmass)/(SPEED_C*SPEED_C*getLensDistance()));
 		
 	for (i = 0, it = p->getLensInfo().begin() ; i < numlenses ; i++,it++)
