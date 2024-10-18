@@ -66,7 +66,10 @@ bool_t OpenCLSinglePlaneDeflection::init(const std::vector<Vector2Df> &thetas, /
         thetasFlat.push_back(t.getX());
         thetasFlat.push_back(t.getY());
     }
-    
+
+    if (thetasFlat.size() == 0)
+        return cleanup("No theta positions");
+
     bool_t r;
     if (!(r = m_clThetas.realloc(*cl, ctx, sizeof(cl_float)*thetasFlat.size())) ||
         !(r = m_clThetas.enqueueWriteBuffer(*cl, queue, thetasFlat, true)))

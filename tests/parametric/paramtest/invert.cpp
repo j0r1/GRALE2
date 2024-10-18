@@ -204,10 +204,15 @@ InversionParameters readInversionParameters(const string &templateLens, const st
 		{
 			images.push_back(ImagesDataExtended(1.0, frac));
 			pCurImg = &images.back();
+			pCurImg->create(0, {});
 		}
 
 		int idx = pCurImg->addImage();
-		pCurImg->addPoint(idx, Vector2Dd(x*ANGLE_ARCSEC, y*ANGLE_ARCSEC));
+		if (idx < 0)
+			throw runtime_error(pCurImg->getErrorString());
+		int pt = pCurImg->addPoint(idx, Vector2Dd(x*ANGLE_ARCSEC, y*ANGLE_ARCSEC));
+		if (pt < 0)
+			throw runtime_error(pCurImg->getErrorString());
 	}
 
 	cerr << "Loaded info about " << images.size() << " sources" << endl;
@@ -361,7 +366,7 @@ public:
 int main(void)
 {
 	InversionParameters params = readInversionParameters("templatelens.lensdata", "inversionparams.txt", "images.txt");
-	
+
 	std::shared_ptr<grale::RandomNumberGenerator> rng = std::make_shared<grale::RandomNumberGenerator>();
 
 	MyGA ea;

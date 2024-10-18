@@ -28,6 +28,9 @@ public:
 
 	errut::bool_t realloc(OpenCLLibrary &cl, cl_context ctx, size_t s) // Only reallocates if more memory is requested
 	{
+		if (s == 0)
+			return "Trying to allocate 0 bytes of GPU memory";
+
 		if (s <= m_size)
 			return true;
 
