@@ -29,7 +29,7 @@ public:
 					   const std::vector<int> &templateIntParameters, // these cannot change
 					   const std::vector<float> &templateFloatParameters, // only floating point params can change
 					   const std::vector<size_t> changeableParameterIndices,
-					   size_t numParamSets, // number of genomes for example
+					   //size_t numParamSets, // number of genomes for example
 					   const std::string &deflectionKernelCode, const std::string &lensRoutineName,
 					   bool uploadFullParameters,
 					   int devIdx = 0 // negative means rotate
@@ -60,8 +60,9 @@ private:
 	oclutils::CLMem m_clChangedParamsBuffer;
 	oclutils::CLMem m_clChangeableParamIndices;
 
-	size_t m_numPoints, m_numFloatParams, m_numParamSets;
-	std::vector<cl_float> m_allFloatParams;
+	size_t m_numPoints, m_numFloatParams, m_currentNumParamSets, m_maxNumParamSets;
+	std::vector<cl_float> m_floatParamsCopy; // Single float params
+	std::vector<cl_float> m_allFloatParams; // repeats of float params
 	std::vector<cl_float> m_allResultsBuffer;
 	std::vector<size_t> m_changeableParameterIndices;
 };

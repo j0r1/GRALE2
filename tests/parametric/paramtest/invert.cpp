@@ -330,7 +330,7 @@ public:
 			auto clDef = make_unique<OpenCLSinglePlaneDeflection>();
 			bool_t r;
 			if (!(r = clDef->init(m_thetas, m_intParams, m_floatParams, m_changeableParamIdx,
-			                 genomesForPopulationCalculator, m_kernelCode,
+			                 m_kernelCode,
 							 m_kernelName, true, 0)))
 				return "Can't init OpenCL deflection calculator: " + r.getErrorString();
 
