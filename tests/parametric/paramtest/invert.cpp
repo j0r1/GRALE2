@@ -4,6 +4,7 @@
 #include "lensgastopcriterion.h"
 #include "imagesdataextended.h"
 #include "constants.h"
+#include "openclsingleplanedeflection.h"
 #include <eatk/evolutionaryalgorithm.h>
 #include <eatk/vectordifferentialevolution.h>
 #include <eatk/singlethreadedpopulationfitnesscalculation.h>
@@ -241,16 +242,106 @@ protected:
 
 class MyFitnessCalc : public eatk::GenomeFitnessCalculation
 {
-private:
+public:
+	MyFitnessCalc() { }
+
+	bool_t init(double angularScale, double potentialScale, const vector<ImagesDataExtended> &images,
+	            GravitationalLens &templateLens, const vector<size_t> &changeableParamIdx,
+				int devIdx)
+	{
+		if (m_init)
+			return "Already initialized";
+
+		m_thetas.clear();
+		// TODO: we'll need Dds/Ds as well later
+		for (auto &img : images)
+		{
+			int numImages = img.getNumberOfImages();
+			for (int i = 0 ; i < numImages ; i++)
+			{
+				int numPoints = img.getNumberOfImagePoints(i);
+				for (int p = 0 ; p < numPoints ; p++)
+				{
+					Vector2Dd pos = img.getImagePointPosition(i, p);
+					pos /= angularScale;
+					m_thetas.push_back({(float)pos.getX(), (float)pos.getY()});
+				}
+			}
+		}
+
+		int numIntParams = 0, numFloatParams = 0;
+		if (!templateLens.getCLParameterCounts(&numIntParams, &numFloatParams))
+			return "Can't get floating point parameters: " + templateLens.getErrorString();
+		
+		m_intParams.resize(numIntParams);
+		m_floatParams.resize(numFloatParams);
+		m_intParams.push_back(-12345);
+		m_floatParams.push_back(-12345);
+		if (!templateLens.getCLParameters(angularScale, potentialScale, m_intParams.data(), m_floatParams.data()))
+			return "Can't get float or in parameters: " + templateLens.getErrorString();
+
+		m_kernelCode = templateLens.getCLLensProgram(angularScale, potentialScale, m_kernelName);
+		if (m_kernelCode.length() == 0)
+			return "Couldn't get OpenCL kernel code: " + templateLens.getErrorString();
+
+		m_angularScale = angularScale;
+		m_potScale = potentialScale;
+		m_changeableParamIdx = changeableParamIdx;
+		m_devIdx = devIdx;
+		m_templateLens = templateLens.createCopy();
+		m_init = true;
+
+		// Actual init of OpenCL code will happen in first iteration of onNewCalculationStart
+
+		return true;
+	}
+
+	bool m_init = false;
+	std::unique_ptr<OpenCLSinglePlaneDeflection> m_clDef;
+	double m_angularScale = 0;
+	double m_potScale = 0;
+	int m_devIdx = 0;
+	vector<Vector2Df> m_thetas;
+	string m_kernelCode;
+	string m_kernelName;
+	size_t m_numGenomesToCalculate = 0;
+	vector<size_t> m_changeableParamIdx;
+	vector<int> m_intParams;
+	vector<float> m_floatParams;
+	std::unique_ptr<GravitationalLens> m_templateLens;
+
+	// This will be called for every generation
+	// On the first one we can initialize the OpenCLSinglePlaneDeflection instance
+	// (since we then know the number of genomes for this population calculator)
+	// In subsequent generations we should check that this hasn't changed
 	errut::bool_t onNewCalculationStart(size_t genomesForThisCalculator, size_t genomesForPopulationCalculator) override
 	{
+		cerr << "onNewCalculationStart: " << genomesForThisCalculator << "," << genomesForPopulationCalculator << endl;
+		if (!m_init)
+			return "Not initialized";
+
+		if (!m_clDef) // Need to initialize this
+		{
+			auto clDef = make_unique<OpenCLSinglePlaneDeflection>();
+			bool_t r;
+			if (!(r = clDef->init(m_thetas, m_intParams, m_floatParams, m_changeableParamIdx,
+			                 genomesForPopulationCalculator, m_kernelCode,
+							 m_kernelName, true, 0)))
+				return "Can't init OpenCL deflection calculator: " + r.getErrorString();
+
+			m_clDef = move(clDef);
+		}
+		// TODO: check numGenomes hasn't changed
+		
+		// TODO: further init
+
 		return true;
 	}
 
 	errut::bool_t startNewCalculation(const eatk::Genome &genome0) override
 	{
 		const eatk::FloatVectorGenome &genome = static_cast<const eatk::FloatVectorGenome &>(genome0);
-		cerr << "Need to calculate: " << genome.toString() << endl;
+		// cerr << "Need to calculate: " << genome.toString() << endl;
 
 		// TODO
 
@@ -277,6 +368,11 @@ int main(void)
 
 	eatk::VectorDifferentialEvolutionIndividualCreation<float,float> creation(params.m_initMin, params.m_initMax, rng);
 	auto fitCalc = make_shared<MyFitnessCalc>();
+	bool_t r;
+	if (!(r = fitCalc->init(params.m_angularScale, params.m_potentialScale,
+	                   params.m_images, *params.m_lens, params.m_offsets, 0)))
+		throw runtime_error("Can't init fitness calculator: " + r.getErrorString());
+
 	eatk::SingleThreadedPopulationFitnessCalculation popFitFalc(fitCalc);
 	Stop stop;
 	size_t popSize = 512;
@@ -286,7 +382,7 @@ int main(void)
 	auto fitComp = make_shared<eatk::VectorFitnessComparison<float>>(); // TODO: replace with multi-objective?
 	eatk::JADEEvolver evolver(rng, mut, cross, fitComp); // TODO: single objective for now
 
-	bool_t r = ea.run(creation, evolver, popFitFalc, stop, popSize, popSize, popSize*2);
+	r = ea.run(creation, evolver, popFitFalc, stop, popSize, popSize, popSize*2);
 	if (!r)
 		throw runtime_error("Can't run EA: " + r.getErrorString());
 	return 0;
