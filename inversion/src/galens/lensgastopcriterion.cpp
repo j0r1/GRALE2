@@ -56,10 +56,9 @@ bool_t LensGAStopCriterion::analyze(const eatk::PopulationEvolver &evolver, size
 	{
 		for (int j = 0 ; j < currentBest.size() ; j++)
 		{
-			const LensGAFitness &f = static_cast<const LensGAFitness&>(currentBest[j]->fitnessRef());
+			const eatk::Fitness &f = static_cast<const eatk::Fitness&>(currentBest[j]->fitnessRef());
 
-			assert(i < (int)f.m_fitnesses.size());
-			m_pFitnessHistory->processValue(i, f.m_fitnesses[i]);
+			m_pFitnessHistory->processValue(i, f.getRealValue(i));
 		}
 	}
 
