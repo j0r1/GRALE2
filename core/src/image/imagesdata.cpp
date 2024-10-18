@@ -116,7 +116,7 @@ int ImagesData::addImage()
 	if (m_properties.size() != MaxProperty)
 	{
 		setErrorString("Must create the instance first");
-		return false;
+		return -1;
 	}
 	
 	int newNumImages = m_images.size()+1;
