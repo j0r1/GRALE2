@@ -500,11 +500,11 @@ bool_t OpenCLSinglePlaneDeflectionInstance::scheduleCalculation(const eatk::Floa
 
     if (offset+1 == m_totalGenomesToCalculate)
     {
-        cerr << "Got " << m_totalGenomesToCalculate << " genomes, need to calculate!" << endl;
+        //cerr << "Got " << m_totalGenomesToCalculate << " genomes, need to calculate!" << endl;
         bool_t r = calculateDeflection(m_floatBuffer, m_allAlphas, m_allAxx, m_allAyy, m_allAxy, m_allPotentials);
         if (!r)
             return r;
-        cerr << "Delections calculated successfully" << endl;
+        //cerr << "Delections calculated successfully" << endl;
         m_calculationDone = true;
     }
     return true;
@@ -535,8 +535,10 @@ bool OpenCLSinglePlaneDeflectionInstance::getResultsForGenome(const eatk::FloatV
     m_genomeOffsets.erase(it);
     if (m_genomeOffsets.empty())
     {
-        cerr << "All results retrieved, ready to start again" << endl;
+        //cerr << "All results retrieved, ready to start again" << endl;
         m_calculationDone = false;
+        m_totalGenomesToCalculate = 0;
+        m_floatBuffer.resize(0);
     }
     return true;
 }

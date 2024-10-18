@@ -337,7 +337,7 @@ public:
 	// In subsequent generations we should check that this hasn't changed
 	errut::bool_t onNewCalculationStart(size_t genomesForThisCalculator, size_t genomesForPopulationCalculator) override
 	{
-		cerr << "onNewCalculationStart: " << genomesForThisCalculator << "," << genomesForPopulationCalculator << endl;
+		//cerr << "onNewCalculationStart: " << genomesForThisCalculator << "," << genomesForPopulationCalculator << endl;
 		if (!m_init)
 			return "Not initialized";
 		
@@ -372,10 +372,11 @@ public:
 		if (!cl.getResultsForGenome(genome, alphas, axx, ayy, axy, potential)) // Not ready yet
 			return true; // No error, but not ready yet
 
-		cerr << "Got results for genome " << (void*)&genome << endl;
+		//cerr << "Got results for genome " << (void*)&genome << endl;
 		
+		this_thread::sleep_for(10ms);
 		// TODO: set actual value!
-		fitness0.setCalculated();
+		fitness.setCalculated();
 
 		return true;
 	}
@@ -392,7 +393,7 @@ int main0(void)
 	eatk::VectorDifferentialEvolutionIndividualCreation<float,float> creation(params.m_initMin, params.m_initMax, rng);
 	
 	vector<shared_ptr<eatk::GenomeFitnessCalculation>> calculators;
-	size_t numCalculators = 2;
+	size_t numCalculators = 4;
 	bool_t r;
 
 	for (size_t i = 0 ; i < numCalculators ; i++)
@@ -416,11 +417,14 @@ int main0(void)
 	}
 
 	Stop stop;
-	size_t popSize = 512;
+	size_t popSize = 64;
+
+	LensGAConvergenceParameters convParams;
+	stop.initialize(1, convParams); // TODO: single objective for now
 
 	auto mut = make_shared<eatk::VectorDifferentialEvolutionMutation<float>>();
 	auto cross = make_shared<eatk::VectorDifferentialEvolutionCrossover<float>>(rng, params.m_hardMin, params.m_hardMax);
-	auto fitComp = make_shared<eatk::VectorFitnessComparison<float>>(); // TODO: replace with multi-objective?
+	auto fitComp = make_shared<eatk::ValueFitnessComparison<float>>(); // TODO: replace with multi-objective?
 	eatk::JADEEvolver evolver(rng, mut, cross, fitComp); // TODO: single objective for now
 
 	r = ea.run(creation, evolver, *popCalc, stop, popSize, popSize, popSize*2);
