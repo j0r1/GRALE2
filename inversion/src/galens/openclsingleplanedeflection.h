@@ -4,10 +4,14 @@
 #include "vector2d.h"
 #include "openclmultikernel.h"
 #include "oclutils.h"
+#include <eatk/vectorgenomefitness.h>
 #include <errut/booltype.h>
 #include <vector>
 #include <string>
 #include <memory>
+#include <mutex>
+#include <set>
+#include <unordered_map>
 
 namespace grale
 {
@@ -29,13 +33,13 @@ public:
 					   const std::vector<int> &templateIntParameters, // these cannot change
 					   const std::vector<float> &templateFloatParameters, // only floating point params can change
 					   const std::vector<size_t> changeableParameterIndices,
-					   //size_t numParamSets, // number of genomes for example
 					   const std::string &deflectionKernelCode, const std::string &lensRoutineName,
 					   bool uploadFullParameters,
 					   int devIdx = 0 // negative means rotate
 					   ); // TODO: calculate betas from this as well?
 
 	void destroy();
+	int getDeviceIndex() const { return m_devIdx; }
 
 	errut::bool_t calculateDeflection(const std::vector<float> &parameters,
 									  std::vector<Vector2Df> &allAlphas,
@@ -48,9 +52,10 @@ public:
 	//     Here we can either modify the full parameters on the CPU and upload
 	//     these, or upload only these parameters and let a kernel change them
 	//     in the full parameters
-private:
+protected:
 	bool m_init = false;
 	bool m_uploadFullParameters;
+	int m_devIdx = -1;
 	std::unique_ptr<OpenCLMultiKernel<3>> m_cl; // TODO how many kernels will we need?
 
 	oclutils::CLMem m_clThetas;
@@ -67,4 +72,45 @@ private:
 	std::vector<size_t> m_changeableParameterIndices;
 };
 
+// Using same single instance code as in OpenCLCalculator (for multiplane)
+// TODO: make this common code somehow
+class OpenCLSinglePlaneDeflectionInstance : private OpenCLSinglePlaneDeflection
+{
+public:
+	OpenCLSinglePlaneDeflectionInstance();
+	~OpenCLSinglePlaneDeflectionInstance();
+
+	static errut::bool_t initInstance(uint64_t userId,const std::vector<Vector2Df> &thetas, // already transformed into the correct units
+					   const std::vector<int> &templateIntParameters, // these cannot change
+					   const std::vector<float> &templateFloatParameters, // only floating point params can change
+					   const std::vector<size_t> changeableParameterIndices,
+					   const std::string &deflectionKernelCode, const std::string &lensRoutineName,
+					   bool uploadFullParameters,
+					   int devIdx = 0);
+	static void releaseInstance(uint64_t userId);
+	static OpenCLSinglePlaneDeflectionInstance &instance();
+
+	void setTotalGenomesToCalculate(size_t num);
+	errut::bool_t scheduleCalculation(const eatk::FloatVectorGenome &genome);
+	bool getResultsForGenome(const eatk::FloatVectorGenome &genome,
+	                         std::vector<Vector2Df> &alphas, std::vector<float> &axx,
+							 std::vector<float> &ayy, std::vector<float> &axy,
+							 std::vector<float> &potential);
+private:
+	static std::unique_ptr<OpenCLSinglePlaneDeflectionInstance> s_instance;
+	static std::mutex s_instanceMutex;
+	static std::set<uint64_t> s_users;
+	static bool s_initTried;
+
+	bool m_calculationDone = false;
+	size_t m_totalGenomesToCalculate = 0;
+	// Map a genome pointer to an offset
+	std::unordered_map<const eatk::FloatVectorGenome *, size_t> m_genomeOffsets;
+	std::mutex m_mutex;
+	std::vector<float> m_floatBuffer;
+
+	std::vector<Vector2Df> m_allAlphas;
+	std::vector<float> m_allAxx, m_allAyy, m_allAxy;
+	std::vector<float> m_allPotentials;
+};	
 }

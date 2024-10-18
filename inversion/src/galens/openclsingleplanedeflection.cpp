@@ -206,6 +206,7 @@ __kernel void fillInChangedParameters(__global const float *pChangedParamsBase,
     m_changeableParameterIndices = changeableParameterIndices;
     m_cl = move(cl);
     m_init = true;
+    m_devIdx = devIdx;
 
     return true;
 }
@@ -385,4 +386,159 @@ bool_t OpenCLSinglePlaneDeflection::calculateDeflection(const std::vector<float>
     return true;
 }
 
+std::unique_ptr<OpenCLSinglePlaneDeflectionInstance> OpenCLSinglePlaneDeflectionInstance::s_instance;
+std::mutex OpenCLSinglePlaneDeflectionInstance::s_instanceMutex;
+std::set<uint64_t> OpenCLSinglePlaneDeflectionInstance::s_users;
+bool OpenCLSinglePlaneDeflectionInstance::s_initTried = false;
+
+errut::bool_t OpenCLSinglePlaneDeflectionInstance::initInstance(uint64_t userId,const std::vector<Vector2Df> &thetas, // already transformed into the correct units
+					   const std::vector<int> &templateIntParameters, // these cannot change
+					   const std::vector<float> &templateFloatParameters, // only floating point params can change
+					   const std::vector<size_t> changeableParameterIndices,
+					   const std::string &deflectionKernelCode, const std::string &lensRoutineName,
+					   bool uploadFullParameters,
+					   int devIdx)
+{
+    lock_guard<mutex> guard(s_instanceMutex);
+
+    if (s_users.find(userId) != s_users.end())
+        return "An OpenCLSinglePlaneDeflectionInstance is already registered for this user";
+
+    if (devIdx < 0)
+        devIdx = -1;
+
+    if (s_instance.get()) // Already initialized
+    {
+        if (devIdx != s_instance->getDeviceIndex())
+            return "An OpenCLSinglePlaneDeflectionInstance already exists, but for a different device index (" + to_string(s_instance->getDeviceIndex()) + ") than requested (" + to_string(devIdx) + ")";
+
+        cerr << "INFO: registered user in OpenCLSinglePlaneDeflectionInstance (2): " << userId << endl;
+        s_users.insert(userId);
+        return true;
+    }
+
+    if (s_initTried)
+        return "GPU initialization failed before";
+    s_initTried = true;
+
+    unique_ptr<OpenCLSinglePlaneDeflectionInstance> oclCalc = make_unique<OpenCLSinglePlaneDeflectionInstance>();
+    bool_t r = oclCalc->init(thetas, templateIntParameters, templateFloatParameters, changeableParameterIndices,
+                             deflectionKernelCode, lensRoutineName, uploadFullParameters, devIdx);
+    if (!r)
+        return "Can't init GPU: " + r.getErrorString();
+
+    s_users.insert(userId);
+    cerr << "INFO: registered user in OpenCLSinglePlaneDeflectionInstance: " << userId << endl;
+
+    s_instance = move(oclCalc);
+    return true;
 }
+
+void OpenCLSinglePlaneDeflectionInstance::releaseInstance(uint64_t userId)
+{
+    lock_guard<mutex> guard(s_instanceMutex);
+
+    auto it = s_users.find(userId);
+    if (it == s_users.end())
+    {
+        cerr << "WARNING: OpenCLSinglePlaneDeflectionInstance::releaseInstance: can't find user " << userId << endl;
+        return;
+    }
+    s_users.erase(it);
+
+    if (s_users.empty())
+    {
+        cerr << "INFO: no more users of OpenCLSinglePlaneDeflectionInstance, removing static instance" << endl;
+        s_initTried = false;
+        s_instance = nullptr;
+    }
+}
+
+OpenCLSinglePlaneDeflectionInstance &OpenCLSinglePlaneDeflectionInstance::instance()
+{
+    auto pInst = s_instance.get();
+    assert(pInst);
+    return *pInst;
+}
+
+OpenCLSinglePlaneDeflectionInstance::OpenCLSinglePlaneDeflectionInstance()
+{
+
+}
+
+OpenCLSinglePlaneDeflectionInstance::~OpenCLSinglePlaneDeflectionInstance()
+{
+
+}
+
+// This is called on a new iteration, so that we know how much genomes are
+// coming in before we're going to start the GPU calculation
+void OpenCLSinglePlaneDeflectionInstance::setTotalGenomesToCalculate(size_t num)
+{
+    lock_guard<mutex> guard(m_mutex);
+    assert(num > 0);
+    assert(m_totalGenomesToCalculate == 0 || m_totalGenomesToCalculate == num);
+
+    m_totalGenomesToCalculate = num;
+}
+
+bool_t OpenCLSinglePlaneDeflectionInstance::scheduleCalculation(const eatk::FloatVectorGenome &genome)
+{
+    lock_guard<mutex> guard(m_mutex);
+
+    assert(!m_calculationDone);
+
+    const auto *pGenome = &genome;
+    assert(m_genomeOffsets.find(pGenome) == m_genomeOffsets.end()); // Make sure we don't have an entry yet
+
+    assert(genome.getValues().size() == m_changeableParameterIndices.size());
+    size_t offset = m_floatBuffer.size()/m_changeableParameterIndices.size();
+    for (auto x : genome.getValues())
+        m_floatBuffer.push_back(x);
+
+    m_genomeOffsets[pGenome] = offset; // Keep track where the results for this genome will be stored
+
+    if (offset+1 == m_totalGenomesToCalculate)
+    {
+        cerr << "Got " << m_totalGenomesToCalculate << " genomes, need to calculate!" << endl;
+        bool_t r = calculateDeflection(m_floatBuffer, m_allAlphas, m_allAxx, m_allAyy, m_allAxy, m_allPotentials);
+        if (!r)
+            return r;
+        cerr << "Delections calculated successfully" << endl;
+        m_calculationDone = true;
+    }
+    return true;
+}
+
+bool OpenCLSinglePlaneDeflectionInstance::getResultsForGenome(const eatk::FloatVectorGenome &genome,
+	                         vector<Vector2Df> &alphas, vector<float> &axx,
+							 vector<float> &ayy, vector<float> &axy,
+							 vector<float> &potential)
+{
+    lock_guard<mutex> guard(m_mutex);
+    if (!m_calculationDone)
+        return false;
+
+    const auto *pGenome = &genome;
+    auto it = m_genomeOffsets.find(pGenome);
+    assert(it != m_genomeOffsets.end());
+
+    int offset = it->second;
+    int pointOffsetStart = offset*m_numPoints;
+    int pointOffsetEnd = pointOffsetStart + m_numPoints;
+
+    assert(pointOffsetStart < m_allAlphas.size());
+    assert(pointOffsetEnd <= m_allAlphas.size());
+
+    // TODO: copy!
+
+    m_genomeOffsets.erase(it);
+    if (m_genomeOffsets.empty())
+    {
+        cerr << "All results retrieved, ready to start again" << endl;
+        m_calculationDone = false;
+    }
+    return true;
+}
+
+} // end namespace
