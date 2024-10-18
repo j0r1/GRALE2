@@ -52,7 +52,8 @@ with open("images.txt", "wt") as f:
         imgDat = i["imgdata"]
         for imgNum in range(imgDat.getNumberOfImages()):
             pt = imgDat.getImagePointPosition(imgNum, 0)/ANGLE_ARCSEC
-            f.write(f"{pt[0]:g} {pt[1]:g} {z:g}\n")
+            dfrac = D(zd, z)/D(z)
+            f.write(f"{pt[0]:g} {pt[1]:g} {dfrac:g}\n")
         f.write("\n")
 
 
