@@ -32,7 +32,7 @@ public:
 					   size_t numParamSets, // number of genomes for example
 					   const std::string &deflectionKernelCode, const std::string &lensRoutineName,
 					   bool uploadFullParameters,
-					   size_t devIdx = 0
+					   int devIdx = 0 // negative means rotate
 					   ); // TODO: calculate betas from this as well?
 
 	void destroy();

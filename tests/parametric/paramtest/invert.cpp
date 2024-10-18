@@ -6,6 +6,7 @@
 #include "constants.h"
 #include <eatk/evolutionaryalgorithm.h>
 #include <eatk/vectordifferentialevolution.h>
+#include <eatk/singlethreadedpopulationfitnesscalculation.h>
 #include <eatk/jadeevolver.h>
 #include <iostream>
 #include <fstream>
@@ -238,9 +239,32 @@ protected:
 	}
 };
 
-class ParametricFitnessCalculation : public eatk::PopulationFitnessCalculation
+class MyFitnessCalc : public eatk::GenomeFitnessCalculation
 {
-	// TODO:
+private:
+	errut::bool_t onNewCalculationStart(size_t genomesForThisCalculator, size_t genomesForPopulationCalculator) override
+	{
+		return true;
+	}
+
+	errut::bool_t startNewCalculation(const eatk::Genome &genome0) override
+	{
+		const eatk::FloatVectorGenome &genome = static_cast<const eatk::FloatVectorGenome &>(genome0);
+		cerr << "Need to calculate: " << genome.toString() << endl;
+
+		// TODO
+
+		return true;
+	}
+	
+	errut::bool_t pollCalculate(const eatk::Genome &genome0, eatk::Fitness &fitness0) override
+	{
+		const eatk::FloatVectorGenome &genome = static_cast<const eatk::FloatVectorGenome &>(genome0);
+		assert(dynamic_cast<eatk::ValueFitness<float> *>(&fitness0));
+		eatk::ValueFitness<float> &fitness = static_cast<eatk::ValueFitness<float> &>(fitness0);
+
+		return "TODO";
+	}
 };
 
 int main(void)
@@ -252,7 +276,8 @@ int main(void)
 	MyGA ea;
 
 	eatk::VectorDifferentialEvolutionIndividualCreation<float,float> creation(params.m_initMin, params.m_initMax, rng);
-	ParametricFitnessCalculation fitFalc;
+	auto fitCalc = make_shared<MyFitnessCalc>();
+	eatk::SingleThreadedPopulationFitnessCalculation popFitFalc(fitCalc);
 	Stop stop;
 	size_t popSize = 512;
 
@@ -261,8 +286,9 @@ int main(void)
 	auto fitComp = make_shared<eatk::VectorFitnessComparison<float>>(); // TODO: replace with multi-objective?
 	eatk::JADEEvolver evolver(rng, mut, cross, fitComp); // TODO: single objective for now
 
-	bool_t r = ea.run(creation, evolver, fitFalc, stop, popSize, popSize, popSize*2);
+	bool_t r = ea.run(creation, evolver, popFitFalc, stop, popSize, popSize, popSize*2);
 	if (!r)
 		throw runtime_error("Can't run EA: " + r.getErrorString());
 	return 0;
+
 }

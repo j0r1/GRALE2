@@ -23,7 +23,7 @@ bool_t OpenCLSinglePlaneDeflection::init(const std::vector<Vector2Df> &thetas, /
 					   size_t numParamSets, // number of genomes for example
 					   const std::string &deflectionKernelCode, const std::string &lensRoutineName,
                        bool uploadFullParameters,
-                       size_t devIdx
+                       int devIdx
 					   ) // TODO: calculate betas from this as well?
 {
     if (m_init)
@@ -34,6 +34,13 @@ bool_t OpenCLSinglePlaneDeflection::init(const std::vector<Vector2Df> &thetas, /
     string libName = cl->getLibraryName();
     if (!cl->loadLibrary(libName))
         return "Can't load library '" + libName + "': " + cl->getErrorString();
+
+    if (devIdx < 0)
+    {
+        devIdx = cl->getRotatedDeviceIndex();
+        if (devIdx < 0) // something went wrong
+            return "Can't get rotated device index: " + cl->getErrorString();
+    }
     
     if (!cl->init(devIdx))
         return "Can't init device " + to_string(devIdx) + ": " + cl->getErrorString();

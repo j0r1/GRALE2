@@ -1,6 +1,8 @@
 #pragma once
 
 #include "opencllibrary.h"
+#include "pernodecounter.h"
+#include "utils.h"
 #include <vector>
 #include <array>
 #include <cassert>
@@ -12,6 +14,8 @@ class OpenCLMultiKernel : public OpenCLLibrary
 public:
 	OpenCLMultiKernel();
 	~OpenCLMultiKernel();
+
+	int getRotatedDeviceIndex();
 
 	bool init(int devIdx = 0);
 	bool loadKernel(const std::string &program, const std::string &kernelName, std::string &failLog, size_t kernelIdx = 0);
@@ -31,6 +35,8 @@ private:
 	std::array<cl_program, NumKernels> m_programs;
 	std::array<cl_kernel, NumKernels> m_kernels;
 	cl_device_id m_device;
+
+	std::unique_ptr<grale::PerNodeCounter> m_perNodeCounter;
 };
 
 template<int NumKernels>
@@ -244,3 +250,32 @@ void OpenCLMultiKernel<NumKernels>::releaseAll()
 	m_device = 0;
 }
 
+template<int numKernels> 
+int OpenCLMultiKernel<numKernels>::getRotatedDeviceIndex()
+{
+	std::string fileName = "/dev/shm/grale_mpopencl_nextdevice.dat";
+	grale::getenv("GRALE_OPENCL_AUTODEVICEFILE", fileName); // Doesn't change file name if envvar not set
+
+	m_perNodeCounter = std::make_unique<grale::PerNodeCounter>(fileName);
+
+	int idx = m_perNodeCounter->getCount();
+	if (idx < 0)
+	{
+		m_perNodeCounter.reset();
+		setErrorString("Couldn't read per-node device index from file '" + fileName + "': " + m_perNodeCounter->getErrorString());
+		return -1;
+	}
+
+	int numDevices = getDeviceCount();
+	if (numDevices < 0)
+	{
+		setErrorString("Error getting device count: " + getErrorString());
+		return -1;
+	}
+	if (numDevices == 0)
+	{
+		setErrorString("Unexpectedly got zero GPU devices");
+		return -1;
+	}
+	return idx%numDevices;
+}
