@@ -5,6 +5,8 @@
 #include "imagesdataextended.h"
 #include "constants.h"
 #include "openclsingleplanedeflection.h"
+#include "oclcalculatedbackprojector.h"
+#include "lensfitnessgeneral.h"
 #include <eatk/evolutionaryalgorithm.h>
 #include <eatk/vectordifferentialevolution.h>
 #include <eatk/singlethreadedpopulationfitnesscalculation.h>
@@ -206,6 +208,7 @@ InversionParameters readInversionParameters(const string &templateLens, const st
 			images.push_back(ImagesDataExtended(1.0, frac));
 			pCurImg = &images.back();
 			pCurImg->create(0, {});
+			pCurImg->setExtraParameter("type", string("pointimages"));
 		}
 
 		int idx = pCurImg->addImage();
@@ -249,14 +252,18 @@ protected:
 class MyFitnessCalc : public eatk::GenomeFitnessCalculation
 {
 public:
-	MyFitnessCalc() { }
+	MyFitnessCalc() = delete;
+	MyFitnessCalc(unique_ptr<LensFitnessObject> initializedFitObj)
+	{
+		m_fitObj = move(initializedFitObj);
+	}
 
 	~MyFitnessCalc()
 	{
 		OpenCLSinglePlaneDeflectionInstance::releaseInstance((uint64_t)this);
 	}
 
-	bool_t init(double angularScale, double potentialScale, const vector<ImagesDataExtended> &images,
+	bool_t init(double angularScale, double potentialScale, vector<ImagesDataExtended> &images,
 	            GravitationalLens &templateLens, const vector<size_t> &changeableParamIdx,
 				int devIdx)
 	{
@@ -266,11 +273,23 @@ public:
 		if (changeableParamIdx.size() == 0)
 			return "No changeable parameters";
 
+		bool_t r;
+		vector<ImagesDataExtended *> imagesPtrs;
+		for (auto &img : images)
+			imagesPtrs.push_back(&img);
+		
+		if (!(r = m_oclBp.init(imagesPtrs, angularScale)))
+			return "Can't init backprojector: " + r.getErrorString();
+
 		m_thetas.clear();
+		m_distFrac.clear();
 		// TODO: we'll need Dds/Ds as well later
 		for (auto &img : images)
 		{
 			int numImages = img.getNumberOfImages();
+			double frac = img.getDds()/img.getDs();
+			assert(!isnan(frac));
+
 			for (int i = 0 ; i < numImages ; i++)
 			{
 				int numPoints = img.getNumberOfImagePoints(i);
@@ -279,6 +298,8 @@ public:
 					Vector2Dd pos = img.getImagePointPosition(i, p);
 					pos /= angularScale;
 					m_thetas.push_back({(float)pos.getX(), (float)pos.getY()});
+		
+					m_distFrac.push_back(frac); // for now, we'll use one fraction per point
 				}
 			}
 		}
@@ -298,7 +319,6 @@ public:
 		if (m_kernelCode.length() == 0)
 			return "Couldn't get OpenCL kernel code: " + templateLens.getErrorString();
 
-		bool_t r;
 		bool uploadFullParameters = false; // TODO: make this configurable
 		if (!(r = OpenCLSinglePlaneDeflectionInstance::initInstance((uint64_t)this, 
 																	 m_thetas, m_intParams,
@@ -317,6 +337,7 @@ public:
 		return true;
 	}
 
+	OclCalculatedBackProjector m_oclBp;
 	bool m_init = false;
 	std::unique_ptr<OpenCLSinglePlaneDeflection> m_clDef;
 	double m_angularScale = 0;
@@ -364,22 +385,41 @@ public:
 		assert(dynamic_cast<eatk::ValueFitness<float> *>(&fitness0));
 		eatk::ValueFitness<float> &fitness = static_cast<eatk::ValueFitness<float> &>(fitness0);
 
-		// TODO: make these member variable, better for memory!
-		vector<Vector2Df> alphas;
-		vector<float> axx, ayy, axy, potential;
-
 		auto &cl = OpenCLSinglePlaneDeflectionInstance::instance();
-		if (!cl.getResultsForGenome(genome, alphas, axx, ayy, axy, potential)) // Not ready yet
+		if (!cl.getResultsForGenome(genome, m_alphas, m_axx, m_ayy, m_axy, m_potential)) // Not ready yet
 			return true; // No error, but not ready yet
 
-		//cerr << "Got results for genome " << (void*)&genome << endl;
+		m_betas.resize(m_alphas.size()*2);
+		for (size_t i = 0, j = 0 ; i < m_alphas.size() ; i++)
+		{
+			m_betas[j++] = m_alphas[i].getX();
+			m_betas[j++] = m_alphas[i].getY();
+		}
+
+		m_oclBp.setBetaBuffer(m_betas.data(), m_betas.size());
+
+		array<float,16> fitnessValues;
+		float sentinel = -98765.0f;
+		for (auto &x : fitnessValues)
+			x = sentinel; // For now, set a sentinel
+		if (!m_fitObj->calculateOverallFitness(m_oclBp, fitnessValues.data()))
+			return "Can't calculate fitness: " + m_fitObj->getErrorString();
+		fitness.setValue(fitnessValues[0]);
+
+		assert(fitnessValues[1] == sentinel);
 		
-		this_thread::sleep_for(10ms);
+		//this_thread::sleep_for(10ms);
 		// TODO: set actual value!
 		fitness.setCalculated();
 
 		return true;
 	}
+
+	vector<Vector2Df> m_alphas;
+	vector<float> m_axx, m_ayy, m_axy, m_potential;
+	vector<float> m_betas;
+	vector<double> m_distFrac;
+	unique_ptr<LensFitnessObject> m_fitObj;
 };
 
 int main0(void)
@@ -393,12 +433,24 @@ int main0(void)
 	eatk::VectorDifferentialEvolutionIndividualCreation<float,float> creation(params.m_initMin, params.m_initMax, rng);
 	
 	vector<shared_ptr<eatk::GenomeFitnessCalculation>> calculators;
-	size_t numCalculators = 4;
+	size_t numCalculators = 1;
 	bool_t r;
+
+	double zd = 0.4; // TODO: read from config file!
+
+	list<ImagesDataExtended*> imagesPtrs, emptyList;
+	for (auto &x : params.m_images)
+		imagesPtrs.push_back(&x);
 
 	for (size_t i = 0 ; i < numCalculators ; i++)
 	{
-		auto fitCalc = make_shared<MyFitnessCalc>();
+		unique_ptr<LensFitnessObject> fitObj = make_unique<LensFitnessGeneral>();
+		auto fitParams = fitObj->getDefaultParametersInstance();
+
+		if (!fitObj->init(zd, imagesPtrs, emptyList, fitParams.get()))
+			throw runtime_error("Can't init fitness object: " + fitObj->getErrorString());
+
+		auto fitCalc = make_shared<MyFitnessCalc>(move(fitObj));
 		if (!(r = fitCalc->init(params.m_angularScale, params.m_potentialScale,
 	    	               params.m_images, *params.m_lens, params.m_offsets, 0)))
 			throw runtime_error("Can't init fitness calculator: " + r.getErrorString());
@@ -417,7 +469,7 @@ int main0(void)
 	}
 
 	Stop stop;
-	size_t popSize = 64;
+	size_t popSize = 256;
 
 	LensGAConvergenceParameters convParams;
 	stop.initialize(1, convParams); // TODO: single objective for now

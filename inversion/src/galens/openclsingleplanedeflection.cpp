@@ -530,7 +530,18 @@ bool OpenCLSinglePlaneDeflectionInstance::getResultsForGenome(const eatk::FloatV
     assert(pointOffsetStart < m_allAlphas.size());
     assert(pointOffsetEnd <= m_allAlphas.size());
 
-    // TODO: copy!
+    alphas.resize(m_numPoints);
+    axx.reserve(m_numPoints);
+    ayy.resize(m_numPoints);
+    axy.resize(m_numPoints);
+    potential.resize(m_numPoints);
+
+    assert(sizeof(Vector2Df) == sizeof(float)*2);
+    memcpy(alphas.data(), m_allAlphas.data()+pointOffsetStart, m_numPoints);
+    memcpy(axx.data(), m_allAxx.data()+pointOffsetStart, m_numPoints);
+    memcpy(ayy.data(), m_allAyy.data()+pointOffsetStart, m_numPoints);
+    memcpy(axy.data(), m_allAxy.data()+pointOffsetStart, m_numPoints);
+    memcpy(potential.data(), m_allPotentials.data()+pointOffsetStart, m_numPoints);
 
     m_genomeOffsets.erase(it);
     if (m_genomeOffsets.empty())
