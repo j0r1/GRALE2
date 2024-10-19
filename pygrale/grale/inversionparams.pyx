@@ -9,6 +9,7 @@ from libcpp cimport bool as cbool
 from libcpp.cast cimport dynamic_cast
 from libcpp.limits cimport numeric_limits
 from libcpp.cmath cimport isnan
+from libcpp.utility cimport move
 from cpython.array cimport array,clone
 import cython
 from cython.operator cimport dereference as deref
@@ -270,6 +271,66 @@ cdef scalesearchparameters.ScaleSearchParameters* _getMassScaleSearchParameters(
         massScaleSearchType["firstIterationSteps"],
         massScaleSearchType["nextIterationSteps"])
 
+cdef vector[shared_ptr[imagesdataextended.ImagesDataExtended]] _createImageVectorFromSinglePlaneImageList(imageList):
+    cdef vector[shared_ptr[imagesdataextended.ImagesDataExtended]] imgVector
+    cdef unique_ptr[serut.MemorySerializer] mSer
+    cdef array[char] buf
+    cdef shared_ptr[imagesdataextended.ImagesDataExtended] pImgDat
+    cdef string errorString
+
+    # Build the list of extended images
+    for imgInfo in imageList:
+        imgData = images.ImagesDataExtended(imgInfo["images"])
+        imgData.setDs(imgInfo["Ds"])
+        imgData.setDds(imgInfo["Dds"])
+        
+        if "params" in imgInfo:
+            params = imgInfo["params"]
+            paramsSet = False
+            # try a list first, for backward compatibility
+            try:
+                for i in range(len(params)):
+                    imgData.setExtraParameter(str(i), params[i])
+                paramsSet = True
+            except:
+                pass
+
+            if not paramsSet:
+                # Try it as a dictionary
+                for key in params:
+                    imgData.setExtraParameter(key, params[key])
+
+        # Now that we have the Python ImagesDataExtended object, use
+        # toBytes and MemorySerializer to recreate the C++ object
+        imgBytes = imgData.toBytes()
+        buf = chararrayfrombytes(imgBytes)
+        mSer = make_unique[serut.MemorySerializer](buf.data.as_voidptr, len(imgBytes), <void*>NULL, 0)
+
+        pImgDat.reset(new imagesdataextended.ImagesDataExtended())
+        if not pImgDat.get().read(deref(mSer)):
+            errorString = pImgDat.get().getErrorString()
+            raise InversionParametersException(S(errorString))
+
+        imgVector.push_back(pImgDat)    
+
+    return imgVector
+
+cdef unique_ptr[gravitationallens.GravitationalLens] _createCxxLensFromPyLens(lensModel):
+    cdef unique_ptr[gravitationallens.GravitationalLens] cLens
+    cdef unique_ptr[serut.MemorySerializer] mSer
+    cdef array[char] buf
+    cdef string errorString
+
+    if lensModel:
+        lensBytes = lensModel.toBytes()
+        buf = chararrayfrombytes(lensBytes)
+        mSer = make_unique[serut.MemorySerializer](buf.data.as_voidptr, len(lensBytes), <void*>NULL, 0)
+
+        if not gravitationallens.GravitationalLens.read(deref(mSer), cLens, errorString):
+                raise InversionParametersException(S(errorString))
+
+    return move(cLens)
+
 cdef class LensInversionParametersSinglePlaneCPU(object):
     """An internal representation of the parameters for the lens inversion
     procedure, needed to communicate with the C++ based inversion code."""
@@ -358,7 +419,7 @@ cdef class LensInversionParametersSinglePlaneCPU(object):
               - `nextIterationSteps`
         """
 
-        cdef vector[shared_ptr[imagesdataextended.ImagesDataExtended]] imgVector
+        cdef vector[shared_ptr[imagesdataextended.ImagesDataExtended]] imgVector = _createImageVectorFromSinglePlaneImageList(imageList)
         cdef vector[grid.GridSquare] gridSquares
         cdef unique_ptr[serut.MemorySerializer] mSer
         cdef array[char] buf
@@ -375,40 +436,7 @@ cdef class LensInversionParametersSinglePlaneCPU(object):
         cdef vector[lensinversionbasislensinfo.LensInversionBasisLensInfo] basisLensInfo
         cdef shared_ptr[scalesearchparameters.ScaleSearchParameters] scaleSearchParams
 
-        # Build the list of extended images
-        for imgInfo in imageList:
-            imgData = images.ImagesDataExtended(imgInfo["images"])
-            imgData.setDs(imgInfo["Ds"])
-            imgData.setDds(imgInfo["Dds"])
-            
-            if "params" in imgInfo:
-                params = imgInfo["params"]
-                paramsSet = False
-                # try a list first, for backward compatibility
-                try:
-                    for i in range(len(params)):
-                        imgData.setExtraParameter(str(i), params[i])
-                    paramsSet = True
-                except:
-                    pass
-
-                if not paramsSet:
-                    # Try it as a dictionary
-                    for key in params:
-                        imgData.setExtraParameter(key, params[key])
-    
-            # Now that we have the Python ImagesDataExtended object, use
-            # toBytes and MemorySerializer to recreate the C++ object
-            imgBytes = imgData.toBytes()
-            buf = chararrayfrombytes(imgBytes)
-            mSer = make_unique[serut.MemorySerializer](buf.data.as_voidptr, len(imgBytes), <void*>NULL, 0)
-
-            pImgDat.reset(new imagesdataextended.ImagesDataExtended())
-            if not pImgDat.get().read(deref(mSer)):
-                errorString = pImgDat.get().getErrorString()
-                raise InversionParametersException(S(errorString))
-
-            imgVector.push_back(pImgDat)    
+        # TODO: use _createCxxLensFromPyLens
 
         # Load a base lens if specified
         if baseLens:
@@ -936,6 +964,43 @@ cdef class LensInversionParametersMultiPlaneGPU(object):
             raise InversionParametersException(S(deref(self.m_pParams).getErrorString()))
 
         return <bytes>vSer.getBufferPointer()[0:vSer.getBufferSize()]
+
+cdef vector[int] _createIntVectorFromList(l):
+    cdef vector[int] result
+    cdef int cValue
+    for x in l:
+        cValue = x
+        result.push_back(cValue)
+    return result
+
+cdef vector[float] _createFloatVectorFromList(l):
+    cdef vector[float] result
+    cdef float cValue
+    for x in l:
+        cValue = x
+        result.push_back(cValue)
+    return result
+
+cdef class LensInversionParametersParametricSinglePlane(object):
+    def __init__(self, inputImages, Dd, zd,
+                  templateLens, deflScale, potScale, offsets, initMin, initMax, hardMin, hardMax,
+                  fitnessObjectParameters):
+
+        cdef vector[shared_ptr[imagesdataextended.ImagesDataExtended]] imgVector = _createImageVectorFromSinglePlaneImageList(inputImages)
+        cdef double cDd = Dd
+        cdef double cZd = zd
+        cdef unique_ptr[gravitationallens.GravitationalLens] cTemplateLens = _createCxxLensFromPyLens(templateLens)
+        cdef vector[int] cOffsets = _createIntVectorFromList(offsets)
+        cdef vector[float] cInitMin = _createFloatVectorFromList(initMin)
+        cdef vector[float] cInitMax = _createFloatVectorFromList(initMax)
+        cdef vector[float] cHardMin = _createFloatVectorFromList(hardMin)
+        cdef vector[float] cHardMax = _createFloatVectorFromList(hardMax)
+        cdef configurationparameters.ConfigurationParameters *pFitnessObjectParameters = NULL
+
+        fitnessObjectParametersObj = ConfigurationParameters(fitnessObjectParameters)
+        pFitnessObjectParameters = ConfigurationParameters._getConfigurationParameters(fitnessObjectParametersObj)
+
+        raise InversionParametersException("TODO: actually create instance")
 
 class ConvergenceParametersException(Exception):
     """This exception is raised in case somethings goes wrong in the

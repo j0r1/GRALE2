@@ -12,6 +12,7 @@ from . import grid as gridModule
 from . import plotutil
 from . import lenses
 from . import multiplane
+from . import paramdesc
 import platform
 import os
 import copy
@@ -298,7 +299,10 @@ def _invertCommon(inverter, feedbackObject, moduleName, calcType, fitnessObjectP
         # Assume the mass scale is a value that needs to be used
         pass
 
-    feedbackObject.onStatus("Mass scale is: {:g} solar masses".format(massScale/CT.MASS_SUN))
+    if massScale is None:
+        feedbackObject.onStatus("Not using a mass scale")    
+    else:
+        feedbackObject.onStatus("Mass scale is: {:g} solar masses".format(massScale/CT.MASS_SUN))
 
     params = getParamsFunction(fullFitnessObjParams, massScale)
 
@@ -583,6 +587,33 @@ def invert(inputImages, basisFunctions, zd, Dd, popSize, moduleName = "general",
                   massScale, [Dd, zd], inputImages, getParamsFunction, popSize,
                   geneticAlgorithmParameters, returnNds, cosmology, convergenceParameters,
                   maximumGenerations, multiPopulationParameters, eaType)
+
+def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, moduleName = "general",
+           defaultInitialParameterFraction = 0.1, fitnessObjectParameters = None, convergenceParameters = { },
+           geneticAlgorithmParameters = { }, returnNds = False, inverter = "default", feedbackObject = "default",
+           cosmology = None, maximumGenerations = None, eaType = "JADE"):
+    """TODO"""
+
+    desc = paramdesc.analyzeParametricLensDescription(parametricLensDescription, Dd, defaultInitialParameterFraction)
+    
+    templateLens = desc["templatelens"]
+    deflScale, potScale = desc["scales"]["deflectionscale"], desc["scales"]["potentialscale"]
+    varParams = desc["variablefloatparams"]
+    offsets = [ x["offset"] for x in varParams ]
+    initMin = [ x["initialrange"][0] for x in varParams ]
+    initMax = [ x["initialrange"][1] for x in varParams ]
+    hardMin = [ x["hardlimits"][0] for x in varParams ]
+    hardMax = [ x["hardlimits"][1] for x in varParams ]
+
+    def getParamsFunction(fullFitnessObjParams, massScale):
+        return inversionparams.LensInversionParametersParametricSinglePlane(inputImages, Dd, zd,
+                  templateLens, deflScale, potScale, offsets, initMin, initMax, hardMin, hardMax,
+                  fullFitnessObjParams)
+
+    return _invertCommon(inverter, feedbackObject, moduleName, "parametricsingleplane", fitnessObjectParameters,
+                  None, [Dd, zd], inputImages, getParamsFunction, popSize,
+                  geneticAlgorithmParameters, returnNds, cosmology, convergenceParameters,
+                  maximumGenerations, None, eaType)
 
 def defaultLensModelFunction(operation, operationInfo, parameters):
     """This is the default `lensModelFunction` that's used in 
