@@ -19,7 +19,7 @@ def _getInitialParameterValue(params, paramKey):
         return (value["initmin"] + value["initmax"])*0.5, False
     
     if type(value) == list or type(value) == tuple:
-        if len(value) == 1 or len(value) == 2:
+        if len(value) == 1 or len(value) == 2 or len(value) == 3:
             return value[0], False
         raise ParametricDescriptionException("Too many entries for parameter")
     
@@ -36,7 +36,7 @@ def _getInitialMinOrMaxParameterValue(params, paramKey, fraction, isMin):
     
     if type(value) == list or type(value) == tuple:
 
-        if len(value) < 1 or len(value) > 2:
+        if len(value) < 1 or len(value) > 3:
             raise ParametricDescriptionException("Incorrect number of entries for parameter")
 
         if value[0] < 0:
@@ -286,6 +286,13 @@ def _mergeHardMinOrMaxParameterValue(params, key, knownParamNames, paramOffsets)
             else:
                 newDict[pyKey] = paramInfo[cKey]
 
+    elif (type(value) == list or type(value) == tuple) and len(value) == 3:
+        # Third is a percentage describing the hard bounds
+        minVal, maxVal = startValue*(1-value[2]), startValue*(1+value[2])
+        if startValue < 0:
+            minVal, maxVal = maxVal, minVal
+        newDict["hardmin"] = minVal
+        newDict["hardmax"] = maxVal
     else:
         for pyKey, cKey in [ ("hardmin", "hard_min"), ("hardmax", "hard_max")]:
             newDict[pyKey] = paramInfo[cKey]
@@ -389,8 +396,9 @@ def analyzeParametricLensDescription(parametricLens, Dd, defaultFraction, clampT
                "y": [ 1*ANGLE_ARCSEC, 0.20 ] 
                # Also a variable that can change, the amount determined by `defaultFraction`
                "mass": [ 1e13*MASS_SUN ],
-               # Again a fixed value
-               "width": 3*ANGLE_ARCSEC
+               # When three entries are specified, the second is again to determine the
+               # range of initial values, the last one is a fraction to fix hard limits.
+               "width": [ 3*ANGLE_ARCSEC, 0.1, 0.5 ]
             },
             {
                 # Here the initial values will be chosen in the specified interval
