@@ -1,6 +1,7 @@
 from grale.all import *
 import matplotlib.pyplot as plt
 import numpy as np
+import pickle
 
 feedback.setDefaultFeedback("none")
 
@@ -24,6 +25,8 @@ trueLens = lenses.CompositeLens(Dd, [
     }
 ])
 
+trueLens.save("truelens.lensdata");
+
 li = plotutil.LensInfo(trueLens, size=80*ANGLE_ARCSEC, zd=zd, zs=2)
 
 if 1:
@@ -46,7 +49,10 @@ if 1:
             srcPos.append(V(x,y))
             print(f"{len(srcPos)}/{numSources}")
 
+pickle.dump(imgList, open("imglist.pickle", "wb"))
+
 with open("images.txt", "wt") as f:
+    f.write(f"{zd:g}\n")
     for i in imgList:
         z = i["z"]
         imgDat = i["imgdata"]
@@ -55,7 +61,6 @@ with open("images.txt", "wt") as f:
             dfrac = D(zd, z)/D(z)
             f.write(f"{pt[0]:g} {pt[1]:g} {dfrac:g}\n")
         f.write("\n")
-
 
 plt.figure(figsize=(10,10))
 plt.subplot(2,2,1)

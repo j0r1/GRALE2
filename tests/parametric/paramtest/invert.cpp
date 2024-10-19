@@ -105,6 +105,7 @@ public:
 
 struct InversionParameters
 {
+	double m_zd = 0;
 	unique_ptr<GravitationalLens> m_lens;
 	double m_angularScale = 0, m_potentialScale = 0;
 	size_t m_numVarParams = 0;
@@ -189,6 +190,11 @@ InversionParameters readInversionParameters(const string &templateLens, const st
 	string line;
 	vector<ImagesDataExtended> images;
 	ImagesDataExtended *pCurImg = nullptr;
+
+	getline(imageFile, line); // first line is redshift
+	double zd = stod(line);
+	cerr << "zd = " << zd << endl;
+
 	while (getline(imageFile, line))
 	{
 		if (line.length() == 0)
@@ -222,6 +228,7 @@ InversionParameters readInversionParameters(const string &templateLens, const st
 	cerr << "Loaded info about " << images.size() << " sources" << endl;
 
 	InversionParameters p;
+	p.m_zd = zd;
 	p.m_lens = move(lens);
 	p.m_angularScale = angularScale;
 	p.m_potentialScale = potentialScale;
@@ -337,6 +344,34 @@ public:
 		return true;
 	}
 
+	unique_ptr<GravitationalLens> createLensFromGenome(const eatk::Genome &genome0)
+	{
+		unique_ptr<GravitationalLens> lens;
+
+		assert(dynamic_cast<const eatk::FloatVectorGenome *>(&genome0));
+		auto genome = static_cast<const eatk::FloatVectorGenome&>(genome0);
+		vector<float> &values = genome.getValues();
+
+		assert(values.size() == m_changeableParamIdx.size());
+
+		// Fill in the solution
+		vector<float> fullFloatParams = m_floatParams;
+		for (size_t i = 0 ; i < m_changeableParamIdx.size() ; i++)
+		{
+			size_t dst = m_changeableParamIdx[i];
+			assert(dst < fullFloatParams.size());
+
+			fullFloatParams[dst] = values[i];
+		}
+
+		// And create a new lens from these values
+		lens = m_templateLens->createLensFromCLFloatParams(m_angularScale, m_potScale, fullFloatParams.data());
+		if (!lens)
+			throw runtime_error("Unexpected: can't create lens from CL float params: " + m_templateLens->getErrorString());
+
+		return lens;
+	}
+
 	OclCalculatedBackProjector m_oclBp;
 	bool m_init = false;
 	std::unique_ptr<OpenCLSinglePlaneDeflection> m_clDef;
@@ -389,11 +424,15 @@ public:
 		if (!cl.getResultsForGenome(genome, m_alphas, m_axx, m_ayy, m_axy, m_potential)) // Not ready yet
 			return true; // No error, but not ready yet
 
+		cerr << "Calculated betas: " << endl;
 		m_betas.resize(m_alphas.size()*2);
 		for (size_t i = 0, j = 0 ; i < m_alphas.size() ; i++)
 		{
-			m_betas[j++] = m_alphas[i].getX();
-			m_betas[j++] = m_alphas[i].getY();
+			m_betas[j++] = m_distFrac[i]*m_alphas[i].getX();
+			m_betas[j++] = m_distFrac[i]*m_alphas[i].getY();
+
+			cerr << m_alphas[i].getX() << "," << m_alphas[i].getY() << " -> "
+			     << m_betas[j-2] << "," << m_betas[j-1] << endl;
 		}
 
 		m_oclBp.setBetaBuffer(m_betas.data(), m_betas.size());
@@ -436,8 +475,6 @@ int main0(void)
 	size_t numCalculators = 1;
 	bool_t r;
 
-	double zd = 0.4; // TODO: read from config file!
-
 	list<ImagesDataExtended*> imagesPtrs, emptyList;
 	for (auto &x : params.m_images)
 		imagesPtrs.push_back(&x);
@@ -447,7 +484,9 @@ int main0(void)
 		unique_ptr<LensFitnessObject> fitObj = make_unique<LensFitnessGeneral>();
 		auto fitParams = fitObj->getDefaultParametersInstance();
 
-		if (!fitObj->init(zd, imagesPtrs, emptyList, fitParams.get()))
+		fitParams->setParameter("fitness_pointimageoverlap_scaletype", string("MAD"));
+
+		if (!fitObj->init(params.m_zd, imagesPtrs, emptyList, fitParams.get()))
 			throw runtime_error("Can't init fitness object: " + fitObj->getErrorString());
 
 		auto fitCalc = make_shared<MyFitnessCalc>(move(fitObj));
@@ -482,8 +521,14 @@ int main0(void)
 	r = ea.run(creation, evolver, *popCalc, stop, popSize, popSize, popSize*2);
 	if (!r)
 		throw runtime_error("Can't run EA: " + r.getErrorString());
-	return 0;
 
+	auto best = evolver.getBestIndividuals();
+	auto calc = static_cast<MyFitnessCalc*>(calculators[0].get());
+	auto solution = calc->createLensFromGenome(best[0]->genomeRef());
+
+	cerr << "Writing solution" << endl;
+	solution->save("solution.lensdata");
+	return 0;
 }
 
 int main(void)
