@@ -12,24 +12,24 @@ lensDescription = {
     "type": "CompositeLens",
     "params": [
         { 
-            "x": [-9.5*ANGLE_ARCSEC ], "y": [1*ANGLE_ARCSEC], "factor": 1, "angle": [20],
+            "x": [-10*ANGLE_ARCSEC,0.2,0.2 ], "y": [1*ANGLE_ARCSEC, 0.5, 3], "factor": 1, "angle": [30, 0.5],
             "lens": {
                 "type": "NSIELens",
                 "params": {
-                    "velocityDispersion": [ 700000 ],
-                    "ellipticity": [0.85],
-                    "coreRadius": [1*ANGLE_ARCSEC]
+                    "velocityDispersion": [700000, 0.2, 0.5],
+                    "ellipticity": [0.8, 0.1],
+                    "coreRadius": [0.5*ANGLE_ARCSEC, 0.5, 0.9]
                 }
             }
         },
         {
-            "x": [5.5*ANGLE_ARCSEC ], "y": [11*ANGLE_ARCSEC], "factor": 1, "angle": [-50],
+            "x": [5*ANGLE_ARCSEC,0.2,0.2], "y": [10*ANGLE_ARCSEC, 0.2, 0.2], "factor": 1, "angle": [-60, 0.5],
             "lens": {
                 "type": "NSIELens",
                 "params": {
-                    "velocityDispersion": [ 1000000 ],
-                    "ellipticity": [0.9],
-                    "coreRadius": [1*ANGLE_ARCSEC]
+                    "velocityDispersion": [900000, 0.2, 0.5],
+                    "ellipticity": [0.75, 0.1],
+                    "coreRadius": [1.5*ANGLE_ARCSEC, 0.5, 0.9]
                 }
             }
         }
