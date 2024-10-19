@@ -207,24 +207,22 @@ void getScaleFactors_PointImages(const ProjectedImagesInterface &interface,
 
 				// Actually the square of the scale is used in the other routine
 				float scaleSquared = 1.0f/(xMed*xMed + yMed*yMed);
-				if (xMed == 0 && yMed == 0)
-				{
-					cerr << "HERE" << endl;
+				// if (xMed == 0 && yMed == 0)
+				// {
+				// 	for (int sIdx = 0 ; sIdx < sourceIndices.size() ; sIdx++)
+				// 	{
+				// 		const int s = sourceIndices[sIdx];
+				// 		const int numImages = interface.getNumberOfImages(s);
+				// 		for (int i = 0 ; i < numImages ; i++)
+				// 		{
+				// 			Vector2D<float> beta = interface.getBetas(s, i)[0];
+				// 			float x = beta.getX();
+				// 			float y = beta.getY();		
 
-					for (int sIdx = 0 ; sIdx < sourceIndices.size() ; sIdx++)
-					{
-						const int s = sourceIndices[sIdx];
-						const int numImages = interface.getNumberOfImages(s);
-						for (int i = 0 ; i < numImages ; i++)
-						{
-							Vector2D<float> beta = interface.getBetas(s, i)[0];
-							float x = beta.getX();
-							float y = beta.getY();		
-
-							cerr << x << "," << y << endl;
-						}
-					}
-				}
+				// 			cerr << x << "," << y << endl;
+				// 		}
+				// 	}
+				// }
 				assert(!isnan(scaleSquared) && !isinf(scaleSquared));
 
 				scaleFactors[group] = scaleSquared;
@@ -287,8 +285,8 @@ float calculateOverlapFitness_PointImages(const ProjectedImagesInterface &interf
 			sourceFitness /= (float)numSprings;
 			assert(!isnan(sourceFitness));
 
-			cerr << "sourceFitness = " << sourceFitness << " scale = " << scale
-			     << " fitness = " << fitness << endl;
+			// cerr << "sourceFitness = " << sourceFitness << " scale = " << scale
+			//      << " fitness = " << fitness << endl;
 			fitness += sourceFitness * scale;
 			sourceCount++; // Only count the sources that are actually used
 		}

@@ -506,6 +506,10 @@ bool_t OpenCLSinglePlaneDeflectionInstance::scheduleCalculation(const eatk::Floa
             return r;
         //cerr << "Delections calculated successfully" << endl;
         m_calculationDone = true;
+
+        // cerr << "GPU all alphas: " << endl;
+        // for (auto a : m_allAlphas)
+        //     cerr << a.getX() << " " << a.getY() << endl;
     }
     return true;
 }
@@ -526,6 +530,8 @@ bool OpenCLSinglePlaneDeflectionInstance::getResultsForGenome(const eatk::FloatV
     int offset = it->second;
     int pointOffsetStart = offset*m_numPoints;
     int pointOffsetEnd = pointOffsetStart + m_numPoints;
+    // cerr << "offset for genome " << (void*)pGenome << " is " << offset 
+    //      << ", numPoints = " << m_numPoints << endl;
 
     assert(pointOffsetStart < m_allAlphas.size());
     assert(pointOffsetEnd <= m_allAlphas.size());
@@ -537,11 +543,11 @@ bool OpenCLSinglePlaneDeflectionInstance::getResultsForGenome(const eatk::FloatV
     potential.resize(m_numPoints);
 
     assert(sizeof(Vector2Df) == sizeof(float)*2);
-    memcpy(alphas.data(), m_allAlphas.data()+pointOffsetStart, m_numPoints);
-    memcpy(axx.data(), m_allAxx.data()+pointOffsetStart, m_numPoints);
-    memcpy(ayy.data(), m_allAyy.data()+pointOffsetStart, m_numPoints);
-    memcpy(axy.data(), m_allAxy.data()+pointOffsetStart, m_numPoints);
-    memcpy(potential.data(), m_allPotentials.data()+pointOffsetStart, m_numPoints);
+    memcpy(alphas.data(), m_allAlphas.data()+pointOffsetStart, m_numPoints*2*sizeof(float));
+    memcpy(axx.data(), m_allAxx.data()+pointOffsetStart, m_numPoints*sizeof(float));
+    memcpy(ayy.data(), m_allAyy.data()+pointOffsetStart, m_numPoints*sizeof(float));
+    memcpy(axy.data(), m_allAxy.data()+pointOffsetStart, m_numPoints*sizeof(float));
+    memcpy(potential.data(), m_allPotentials.data()+pointOffsetStart, m_numPoints*sizeof(float));
 
     m_genomeOffsets.erase(it);
     if (m_genomeOffsets.empty())

@@ -424,15 +424,48 @@ public:
 		if (!cl.getResultsForGenome(genome, m_alphas, m_axx, m_ayy, m_axy, m_potential)) // Not ready yet
 			return true; // No error, but not ready yet
 
-		cerr << "Calculated betas: " << endl;
+		auto lens = createLensFromGenome(genome);
+		vector<Vector2Df> alphasCPU;
+		for (auto t : m_thetas)
+		{
+			Vector2Dd thetaDouble(t.getX()*m_angularScale, t.getY()*m_angularScale);
+			Vector2Dd alphaCPU;
+			if (!lens->getAlphaVector(thetaDouble, &alphaCPU))
+				throw runtime_error("Can't get alpha on CPU: " + lens->getErrorString());
+			
+			alphaCPU /= m_angularScale;
+			alphasCPU.push_back({(float)alphaCPU.getX(), (float)alphaCPU.getY()});
+		}
+
+		// cerr << "Alpha comparison:" << endl;
+		assert(alphasCPU.size() == m_alphas.size());
+
+		// for (size_t i = 0, j = 0 ; i < m_alphas.size() ; i++)
+		//  	cerr << m_alphas[i].getX() << "," << m_alphas[i].getY() << " vs CPU "
+		//  	     << alphasCPU[i].getX() << "," << alphasCPU[i].getY() << endl;
+		float maxDiff = 0;
+		for (size_t i = 0, j = 0 ; i < m_alphas.size() ; i++)
+		{
+			float dx = std::abs(m_alphas[i].getX()-alphasCPU[i].getX());
+			float dy = std::abs(m_alphas[i].getY()-alphasCPU[i].getY());
+			if (dx > maxDiff)
+				maxDiff = dx;
+			if (dy > maxDiff)
+				maxDiff =  dy;
+		}
+		cerr << "Max diff: " << maxDiff << endl;
+
+		// cerr << "Calculated betas: " << endl;
 		m_betas.resize(m_alphas.size()*2);
 		for (size_t i = 0, j = 0 ; i < m_alphas.size() ; i++)
 		{
 			m_betas[j++] = m_distFrac[i]*m_alphas[i].getX();
 			m_betas[j++] = m_distFrac[i]*m_alphas[i].getY();
+			// m_betas[j++] = m_distFrac[i]*alphasCPU[i].getX();
+			// m_betas[j++] = m_distFrac[i]*alphasCPU[i].getY();
 
-			cerr << m_alphas[i].getX() << "," << m_alphas[i].getY() << " -> "
-			     << m_betas[j-2] << "," << m_betas[j-1] << endl;
+			// cerr << m_alphas[i].getX() << "," << m_alphas[i].getY() << " -> "
+			//      << m_betas[j-2] << "," << m_betas[j-1] << endl;
 		}
 
 		m_oclBp.setBetaBuffer(m_betas.data(), m_betas.size());
@@ -447,10 +480,8 @@ public:
 
 		assert(fitnessValues[1] == sentinel);
 		
-		//this_thread::sleep_for(10ms);
-		// TODO: set actual value!
 		fitness.setCalculated();
-
+		
 		return true;
 	}
 
@@ -508,9 +539,11 @@ int main0(void)
 	}
 
 	Stop stop;
-	size_t popSize = 256;
+	size_t popSize = 64;
 
 	LensGAConvergenceParameters convParams;
+	convParams.setConvergenceFactor(0.01);
+	convParams.setHistorySize(500);
 	stop.initialize(1, convParams); // TODO: single objective for now
 
 	auto mut = make_shared<eatk::VectorDifferentialEvolutionMutation<float>>();
