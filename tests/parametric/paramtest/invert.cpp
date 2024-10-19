@@ -424,6 +424,7 @@ public:
 		if (!cl.getResultsForGenome(genome, m_alphas, m_axx, m_ayy, m_axy, m_potential)) // Not ready yet
 			return true; // No error, but not ready yet
 
+		/*
 		auto lens = createLensFromGenome(genome);
 		vector<Vector2Df> alphasCPU;
 		for (auto t : m_thetas)
@@ -454,13 +455,14 @@ public:
 				maxDiff =  dy;
 		}
 		cerr << "Max diff: " << maxDiff << endl;
+		*/
 
 		// cerr << "Calculated betas: " << endl;
 		m_betas.resize(m_alphas.size()*2);
 		for (size_t i = 0, j = 0 ; i < m_alphas.size() ; i++)
 		{
-			m_betas[j++] = m_distFrac[i]*m_alphas[i].getX();
-			m_betas[j++] = m_distFrac[i]*m_alphas[i].getY();
+			m_betas[j++] = m_thetas[i].getX()-m_distFrac[i]*m_alphas[i].getX();
+			m_betas[j++] = m_thetas[i].getY()-m_distFrac[i]*m_alphas[i].getY();
 			// m_betas[j++] = m_distFrac[i]*alphasCPU[i].getX();
 			// m_betas[j++] = m_distFrac[i]*alphasCPU[i].getY();
 
@@ -539,7 +541,7 @@ int main0(void)
 	}
 
 	Stop stop;
-	size_t popSize = 64;
+	size_t popSize = 32;
 
 	LensGAConvergenceParameters convParams;
 	convParams.setConvergenceFactor(0.01);
