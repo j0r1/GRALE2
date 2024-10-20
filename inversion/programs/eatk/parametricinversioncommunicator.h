@@ -25,8 +25,6 @@ protected:
 						 const std::shared_ptr<grale::LensGAMultiPopulationParameters> &multiPopParams,
 						 const std::vector<std::string> &allEATypes) override
 	{
-		return "TODO: parametric inversion is under construction";
-
 		// TODO: Check type name and parameters
 		for (size_t i = 0 ; i < allEATypes.size() ; i++)
 		{
@@ -42,6 +40,17 @@ protected:
 		errut::bool_t r;
 
 		std::unique_ptr<eatk::IndividualCreation> creation = std::make_unique<eatk::VectorDifferentialEvolutionIndividualCreation<float,float>>(genomeCalculator->getInitMin(), genomeCalculator->getInitMax(), rng);
+
+		if (allEATypes.size() != 1)
+			return "Currently only a single EA type can be used for parametric inversion";
+
+		std::string eaType = allEATypes[0];
+		if (!(eaType == "JADE")) // TODO: add DE
+			return "Currently only JADE is supported";
+
+		if (multiPopParams.get())
+			return "DE/JADE only works with a single population";
+
 
 		// TODO: Call DE or JADE code
 
