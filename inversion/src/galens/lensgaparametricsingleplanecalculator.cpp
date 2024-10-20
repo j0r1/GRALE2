@@ -170,6 +170,8 @@ errut::bool_t LensGAParametricSinglePlaneCalculator::startNewCalculation(const e
 	return true;
 }
 
+// TODO: use FloatVectorFitness, for multi-objective option!
+
 errut::bool_t LensGAParametricSinglePlaneCalculator::pollCalculate(const eatk::Genome &genome0, eatk::Fitness &fitness0)
 {
 	const eatk::FloatVectorGenome &genome = static_cast<const eatk::FloatVectorGenome &>(genome0);

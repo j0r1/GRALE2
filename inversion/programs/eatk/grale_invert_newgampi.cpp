@@ -1,5 +1,5 @@
 #include <mpi.h>
-#include "newgacommunicatorbase.h"
+#include "freeforminversioncommunicator.h"
 #include <eatk/mpieventdistributor.h>
 #include <eatk/mpipopulationfitnesscalculation.h>
 #include <eatk/singlethreadedpopulationfitnesscalculation.h>
@@ -16,7 +16,7 @@ using namespace std;
 using namespace serut;
 using namespace errut;
 
-class NewGACommunicatorMPI : public NewGACommunicatorBase
+class NewGACommunicatorMPI : public FreeFormInversionCommunicator
 {
 public:
 	NewGACommunicatorMPI(size_t s, size_t numThreads) : m_size(s), m_numThreads(numThreads) { }
@@ -34,7 +34,7 @@ protected:
 									grale::LensGACalculatorFactory &calcFactory, 
 									const std::shared_ptr<grale::LensGAGenomeCalculator> &genomeCalculator,
 									const std::vector<uint8_t> &factoryParamBytes,
-									grale::LensGAIndividualCreation &creation,
+									eatk::IndividualCreation &creation,
 									std::shared_ptr<eatk::PopulationFitnessCalculation> &calc) override
 	{
 		bool_t r;
@@ -113,7 +113,7 @@ bool_t runHelper(size_t numThreads)
 		return "Unable to initialize calculator: " + r.getErrorString();
 
 	std::shared_ptr<eatk::PopulationFitnessCalculation> localCalc;
-	if (!(r = NewGACommunicatorBase::getMultiThreadedPopulationCalculator(numThreads, lensFitnessObjectType, calculatorType,
+	if (!(r = FreeFormInversionCommunicator::getMultiThreadedPopulationCalculator(numThreads, lensFitnessObjectType, calculatorType,
 					                                                      *pCalculatorFactory, calculatorInstance, calcParamsBuffer.getBuffer(),
 																		  localCalc)))
 		return "Error creating calculator for MPI helper process: " + r.getErrorString();

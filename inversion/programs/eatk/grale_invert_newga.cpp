@@ -1,4 +1,5 @@
-#include "newgacommunicatorbase.h"
+#include "freeforminversioncommunicator.h"
+#include "threadcommunicatortemplate.h"
 
 #ifndef WIN32
 #include <fcntl.h>
@@ -9,32 +10,6 @@
 using namespace std;
 using namespace serut;
 using namespace errut;
-
-class NewGACommunicatorThreads : public NewGACommunicatorBase
-{
-public:
-	NewGACommunicatorThreads(size_t numThreads) : m_numThreads(numThreads)
-	{
-		cerr << "Using " << numThreads << " threads " << endl;
-	}
-
-	~NewGACommunicatorThreads() { }
-protected:
-	string getVersionInfo() const override { return "EATk Thread based algorithm, " + to_string(m_numThreads) + " threads"; }
-
-	bool_t getCalculator(const std::string &lensFitnessObjectType, const std::string &calculatorType,
-									grale::LensGACalculatorFactory &calcFactory, 
-									const std::shared_ptr<grale::LensGAGenomeCalculator> &genomeCalculator,
-									const std::vector<uint8_t> &factoryParamBytes,
-									grale::LensGAIndividualCreation &creation,
-									std::shared_ptr<eatk::PopulationFitnessCalculation> &calc) override
-	{
-		return getMultiThreadedPopulationCalculator(m_numThreads, lensFitnessObjectType, calculatorType,
-				                                    calcFactory, genomeCalculator, factoryParamBytes, calc);
-	}
-private:
-	size_t m_numThreads;
-};
 
 int main(int argc, char *argv[])
 {
@@ -60,7 +35,7 @@ int main(int argc, char *argv[])
 	if (getenv("GRALE_NUMTHREADS"))
 		numThreads = stoi(getenv("GRALE_NUMTHREADS"));
 
-	NewGACommunicatorThreads comm(numThreads);
+	ThreadCommunicator<FreeFormInversionCommunicator> comm(numThreads);
 
 	bool_t r = comm.run();
 	if (!r)
@@ -71,3 +46,4 @@ int main(int argc, char *argv[])
 
 	return 0;
 }
+
