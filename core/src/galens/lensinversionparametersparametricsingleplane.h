@@ -6,6 +6,7 @@
 #include "imagesdataextended.h"
 #include "configurationparameters.h"
 #include <vector>
+#include <cassert>
 
 namespace grale
 {
@@ -25,6 +26,21 @@ public:
 		const ConfigurationParameters &fitnessObjectParams,
 		bool uploadFullParameters, int devIdx);
 	~LensInversionParametersParametricSinglePlane();
+
+	const std::vector<std::shared_ptr<ImagesDataExtended>> &getImages() const { return m_images; }
+	double getDd() const { return m_Dd; }
+	double getZd() const { return m_zd; }
+	double getDeflectionScale() const { return m_deflScale; }
+	double getPotentialScale() const { return m_potScale; }
+	const GravitationalLens &getTemplateLens() const { assert(m_templateLens.get()); return *m_templateLens; }
+	const std::vector<int> &getOffsets() const { return m_offsets; }
+	const std::vector<float> &getInitMin() const { return m_initMin; }
+	const std::vector<float> &getInitMax() const { return m_initMax; }
+	const std::vector<float> &getHardMin() const { return m_hardMin; }
+	const std::vector<float> &getHardMax() const { return m_hardMax; }
+	const ConfigurationParameters &getFitnessObjectParameters() const { assert(m_fitObjParams.get()); return *m_fitObjParams; }
+	bool alwaysUploadFullParameters() const { return m_uploadFillParams; }
+	int getDeviceIndex() const { return m_devIdx; }
 
 	bool write(serut::SerializationInterface &si) const override;
 	bool read(serut::SerializationInterface &si) override;

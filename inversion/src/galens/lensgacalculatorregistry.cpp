@@ -1,6 +1,7 @@
 #include "lensgacalculatorregistry.h"
 #include "lensinversiongafactorysingleplanecpu.h"
 #include "lensinversiongafactorymultiplanegpu.h"
+#include "lensgaparametricsingleplanecalculator.h"
 #include <cstdlib>
 #include <iostream>
 
@@ -33,6 +34,9 @@ void registerWrapperCalculators()
 
 	LensGACalculatorRegistry::instance().registerCalculatorFactory("multiplanegpu",
 		make_unique<GeneralFactory<LensInversionGAFactoryMultiPlaneGPU,LensInversionParametersMultiPlaneGPU>>());
+
+	LensGACalculatorRegistry::instance().registerCalculatorFactory("parametricsingleplane",
+		make_unique<GeneralFactory<LensGAParametricSinglePlaneCalculator,LensInversionParametersParametricSinglePlane>>());
 }
 
 std::unique_ptr<LensGACalculatorRegistry> LensGACalculatorRegistry::s_instance;

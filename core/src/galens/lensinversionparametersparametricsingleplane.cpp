@@ -1,4 +1,5 @@
 #include "lensinversionparametersparametricsingleplane.h"
+#include <iostream>
 
 using namespace std;
 
@@ -139,9 +140,10 @@ bool LensInversionParametersParametricSinglePlane::read(serut::SerializationInte
 			setErrorString("Can't read image: " + img->getErrorString());
 			return false;
 		}
+		m_images.push_back(img);
 	}
 	double dParams[4];
-	if (si.readDoubles(dParams, 4))
+	if (!si.readDoubles(dParams, 4))
 	{
 		setErrorString(si.getErrorString());
 		return false;

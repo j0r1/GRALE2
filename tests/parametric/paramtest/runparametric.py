@@ -2,6 +2,9 @@ from grale.all import *
 import pickle
 import pprint
 
+inverters.debugOutput = True
+inverters.debugDirectStderr = True
+
 cosm = cosmology.Cosmology(0.7, 0.3, 0, 0.7)
 cosmology.setDefaultCosmology(cosm)
 D = cosm.getAngularDiameterDistance
