@@ -2,6 +2,8 @@
 
 #include "inversioncommunicatorbase.h"
 #include "lensgaparametricsingleplanecalculator.h"
+#include <eatk/vectorgenomefitness.h>
+#include <eatk/vectordifferentialevolution.h>
 
 class ParametricInversionCommunicator : public InversionCommunicatorBase
 {
@@ -11,7 +13,9 @@ public:
 
 protected:	
 
-	errut::bool_t runGA(int popSize, const std::string &lensFitnessObjectType,
+	errut::bool_t runGA_next(const std::shared_ptr<eatk::RandomNumberGenerator> &rng,
+						 const std::shared_ptr<eatk::FitnessComparison> &comparison,
+						 int popSize, const std::string &lensFitnessObjectType,
 						 const std::string &calculatorType,
 	                     grale::LensGACalculatorFactory &calcFactory, 
 						 const std::shared_ptr<grale::LensGAGenomeCalculator> &genomeCalculator0,
@@ -19,14 +23,9 @@ protected:
 						 const std::vector<std::unique_ptr<grale::EAParameters>> &allEAParams,
 						 const std::vector<grale::LensGAConvergenceParameters> &allConvParams,
 						 const std::shared_ptr<grale::LensGAMultiPopulationParameters> &multiPopParams,
-						 const std::vector<std::string> &allEATypes)
+						 const std::vector<std::string> &allEATypes) override
 	{
 		return "TODO: parametric inversion is under construction";
-
-		if (allEATypes.size() != allEAParams.size() || allEATypes.size() != allConvParams.size())
-			return "Unexpected mismatch between number of EA types (" + std::to_string(allEATypes.size()) +
-				   "), EA parameters (" + std::to_string(allEAParams.size()) + ") and convergence parameters (" + 
-				   std::to_string(allConvParams.size()) + ")";
 
 		// TODO: Check type name and parameters
 		for (size_t i = 0 ; i < allEATypes.size() ; i++)
@@ -35,28 +34,14 @@ protected:
 		}
 
 		std::shared_ptr<grale::LensGAParametricSinglePlaneCalculator> genomeCalculator = std::dynamic_pointer_cast<grale::LensGAParametricSinglePlaneCalculator>(genomeCalculator0);
-		if (!genomeCalculator.get())
+		if (!genomeCalculator)
 			return "Calculator does not seem to be a LensGAParametricSinglePlaneCalculator one";
 
-		std::shared_ptr<grale::RandomNumberGenerator> rng0 = std::make_shared<grale::RandomNumberGenerator>();
-		WriteLineStdout("GAMESSAGESTR:RNG SEED: " + std::to_string(rng0->getSeed()));
-
-#if 0
-		std::shared_ptr<eatk::RandomNumberGenerator> rng = std::make_shared<RngWrapper>(rng0);
-#else
-		std::shared_ptr<eatk::RandomNumberGenerator> rng = rng0;
-#endif
-
-		/*
-		auto comparison = std::make_shared<grale::LensGAFitnessComparison>();
-		m_selector = std::make_shared<SubsequentBestIndividualSelector>(
-								genomeCalculator->getNumberOfObjectives(),
-								comparison);
-		*/
 		// After this is created, calculatorCleanup() should be called as well (for MPI at the moment)
 		std::shared_ptr<eatk::PopulationFitnessCalculation> calc;
 		errut::bool_t r;
 
+		std::unique_ptr<eatk::IndividualCreation> creation = std::make_unique<eatk::VectorDifferentialEvolutionIndividualCreation<float,float>>(genomeCalculator->getInitMin(), genomeCalculator->getInitMax(), rng);
 		/*
 		std::unique_ptr<eatk::IndividualCreation> creation;
 		{
@@ -79,7 +64,6 @@ protected:
 		// Note: m_best must be set inside the subroutines; previousBest can be the one from multiple
 		//       populations, don't want to recalculate the non-dominated set here
 
-		calculatorCleanup();
 		return r;
 	}
 

@@ -24,6 +24,13 @@ public:
 	errut::bool_t init(const LensInversionParametersBase &params) override;
 	errut::bool_t createLens(const eatk::Genome &genome, std::unique_ptr<GravitationalLens> &lens) const override;
 	size_t getNumberOfObjectives() const override { assert(m_fitObj.get()); return m_fitObj->getNumberOfFitnessComponents(); }
+
+	std::shared_ptr<eatk::FitnessComparison> getFitnessComparison() const override;
+	
+	const std::vector<float> getInitMin() const { return m_initMin; }
+	const std::vector<float> getInitMax() const { return m_initMax; }
+	const std::vector<float> getHardMin() const { return m_hardMin; }
+	const std::vector<float> getHardMax() const { return m_hardMax; }
 private:
 	errut::bool_t onNewCalculationStart(size_t genomesForThisCalculator, size_t genomesForPopulationCalculator) override;
 	errut::bool_t startNewCalculation(const eatk::Genome &genome0) override;
@@ -49,6 +56,9 @@ private:
 	std::vector<float> m_axx, m_ayy, m_axy, m_potential;
 	std::vector<float> m_betas;
 	std::vector<double> m_distFrac;
+
+	std::vector<float> m_initMin, m_initMax;
+	std::vector<float> m_hardMin, m_hardMax;
 };
 
 } // end namespace

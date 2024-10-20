@@ -29,6 +29,7 @@ public:
 	bool allowNegativeValues() const /* override */								{ return m_allowNegativeValues; }
 	bool useLogarithmicScaleSearch() const { return true; }
 
+	std::shared_ptr<eatk::FitnessComparison> getFitnessComparison() const override;
 	errut::bool_t createLens(const eatk::Genome &genome, std::unique_ptr<GravitationalLens> &lens) const;
 	errut::bool_t calculate(const eatk::Genome &genome, eatk::Fitness &fitness);
 

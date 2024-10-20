@@ -37,7 +37,6 @@
 #include <string>
 #include <limits>
 
-// TODO: rename this, is from copy-paste
 class InversionCommunicatorBase : public InversionCommunicator
 {
 public:
@@ -132,6 +131,59 @@ protected:
 
 		return selected;
 	}
+
+	errut::bool_t runGA(int popSize, const std::string &lensFitnessObjectType,
+						 const std::string &calculatorType,
+	                     grale::LensGACalculatorFactory &calcFactory, 
+						 const std::shared_ptr<grale::LensGAGenomeCalculator> &genomeCalculator0,
+						 const std::vector<uint8_t> &factoryParamBytes,
+						 const std::vector<std::unique_ptr<grale::EAParameters>> &allEAParams,
+						 const std::vector<grale::LensGAConvergenceParameters> &allConvParams,
+						 const std::shared_ptr<grale::LensGAMultiPopulationParameters> &multiPopParams,
+						 const std::vector<std::string> &allEATypes)
+	{
+		if (allEATypes.size() != allEAParams.size() || allEATypes.size() != allConvParams.size())
+			return "Unexpected mismatch between number of EA types (" + std::to_string(allEATypes.size()) +
+				   "), EA parameters (" + std::to_string(allEAParams.size()) + ") and convergence parameters (" + 
+				   std::to_string(allConvParams.size()) + ")";
+
+		std::shared_ptr<grale::RandomNumberGenerator> rng0 = std::make_shared<grale::RandomNumberGenerator>();
+		WriteLineStdout("GAMESSAGESTR:RNG SEED: " + std::to_string(rng0->getSeed()));
+
+#if 0
+		std::shared_ptr<eatk::RandomNumberGenerator> rng = std::make_shared<RngWrapper>(rng0);
+#else
+		std::shared_ptr<eatk::RandomNumberGenerator> rng = rng0;
+#endif
+
+		std::shared_ptr<grale::LensGAGenomeCalculator> genomeCalculator = std::dynamic_pointer_cast<grale::LensGAGenomeCalculator>(genomeCalculator0);
+		if (!genomeCalculator.get())
+			return "Calculator does not seem to be of a type derived from LensGAGenomeCalculator";
+
+		auto comparison = genomeCalculator->getFitnessComparison();
+		m_selector = std::make_shared<SubsequentBestIndividualSelector>(
+								genomeCalculator->getNumberOfObjectives(),
+								comparison);
+
+		bool_t r = runGA_next(rng, comparison, popSize, lensFitnessObjectType, calculatorType, calcFactory,
+						genomeCalculator0, factoryParamBytes, allEAParams, allConvParams,
+						multiPopParams, allEATypes);
+
+		calculatorCleanup();
+		return r;
+	}
+
+	virtual errut::bool_t runGA_next(const std::shared_ptr<eatk::RandomNumberGenerator> &rng,
+						 const std::shared_ptr<eatk::FitnessComparison> &comparison,
+						 int popSize, const std::string &lensFitnessObjectType,
+						 const std::string &calculatorType,
+	                     grale::LensGACalculatorFactory &calcFactory, 
+						 const std::shared_ptr<grale::LensGAGenomeCalculator> &genomeCalculator0,
+						 const std::vector<uint8_t> &factoryParamBytes,
+						 const std::vector<std::unique_ptr<grale::EAParameters>> &allEAParams,
+						 const std::vector<grale::LensGAConvergenceParameters> &allConvParams,
+						 const std::shared_ptr<grale::LensGAMultiPopulationParameters> &multiPopParams,
+						 const std::vector<std::string> &allEATypes) = 0;
 
 	virtual errut::bool_t getCalculator(const std::string &lensFitnessObjectType,
 									const std::string &calculatorType,

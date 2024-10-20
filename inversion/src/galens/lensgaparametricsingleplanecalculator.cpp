@@ -3,6 +3,7 @@
 #include <eatk/vectorgenomefitness.h>
 #include <eatk/valuefitness.h>
 #include <iostream>
+#include <list>
 #include <cassert>
 
 using namespace errut;
@@ -59,8 +60,11 @@ bool_t LensGAParametricSinglePlaneCalculator::init(const LensInversionParameters
 
 	bool_t r;
 	vector<ImagesDataExtended *> imagesPtrs;
+	list<ImagesDataExtended *> imagesPtrsList;
 	for (auto &img : params.getImages())
+	{
 		imagesPtrs.push_back(img.get());
+	}
 	
 	m_oclBp = make_unique<OclCalculatedBackProjector>();
 	if (!(r = m_oclBp->init(imagesPtrs, m_angularScale)))
@@ -112,9 +116,23 @@ bool_t LensGAParametricSinglePlaneCalculator::init(const LensInversionParameters
 																	true, m_devIdx)))
 		return "Couldn't init OpenCLSinglePlaneDeflectionInstance: " + r.getErrorString();
 
+	list<ImagesDataExtended *> empty;
+	if (!(r = m_fitObj->init(params.getZd(), imagesPtrsList, empty, &params.getFitnessObjectParameters())))
+		return "Unable to initialize fitness object: " + r.getErrorString();
+
+	m_initMin = params.getInitMin();
+	m_initMax = params.getInitMax();
+	m_hardMin = params.getHardMin();
+	m_hardMax = params.getHardMax();
+
 	m_init = true;
 
 	return true;
+}
+
+std::shared_ptr<eatk::FitnessComparison> LensGAParametricSinglePlaneCalculator::getFitnessComparison() const
+{
+	return make_shared<eatk::ValueFitnessComparison<float>>(); // TODO: replace with multi-objective?
 }
 
 bool_t LensGAParametricSinglePlaneCalculator::createLens(const eatk::Genome &genome0, std::unique_ptr<GravitationalLens> &resultLens) const

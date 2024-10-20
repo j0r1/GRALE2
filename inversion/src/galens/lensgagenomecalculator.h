@@ -28,6 +28,7 @@ public:
 	virtual errut::bool_t init(const LensInversionParametersBase &params) = 0;
 	virtual errut::bool_t createLens(const eatk::Genome &genome, std::unique_ptr<GravitationalLens> &lens) const = 0;
 
+	virtual std::shared_ptr<eatk::FitnessComparison> getFitnessComparison() const = 0;
 	virtual size_t getNumberOfObjectives() const = 0;
 	// virtual bool allowNegativeValues() const = 0;
 	// virtual size_t getNumberOfBasisFunctions() const = 0;

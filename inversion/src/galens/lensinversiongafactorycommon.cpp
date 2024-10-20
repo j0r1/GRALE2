@@ -1,5 +1,6 @@
 #include "lensinversiongafactorycommon.h"
 #include "configurationparameters.h"
+#include "lensgafitnesscomparison.h"
 #include "utils.h"
 #include <limits>
 #include <iostream>
@@ -122,6 +123,11 @@ void LensInversionGAFactoryCommon::onGeneticAlgorithmStart()
 	}
 }
 #endif
+
+std::shared_ptr<eatk::FitnessComparison> LensInversionGAFactoryCommon::getFitnessComparison() const
+{
+	return std::make_shared<grale::LensGAFitnessComparison>();
+}
 
 static float LogTrans(float x) { return LN(x); }
 static float ExpTrans(float x) { return EXP(x); }
