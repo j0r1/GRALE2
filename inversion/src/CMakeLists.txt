@@ -30,6 +30,7 @@ set(HEADERS
 	galens/lensnsga2evolver.h
 	galens/eaevolverfunctions.h
 	galens/openclsingleplanedeflection.h
+	galens/lensgaparametricsingleplanecalculator.h
 	prob/randomnumbergenerator.h
 	fitness/lensfitnessobject.h
 	fitness/numericgradientcalculator.h
@@ -75,6 +76,7 @@ set(SOURCES
 	galens/populationdump.cpp
 	galens/lensnsga2evolver.cpp
 	galens/openclsingleplanedeflection.cpp
+	galens/lensgaparametricsingleplanecalculator.cpp
 	prob/randomnumbergenerator.cpp
 	fitness/numericgradientcalculator.cpp
 	fitness/lensfitnessobject.cpp
