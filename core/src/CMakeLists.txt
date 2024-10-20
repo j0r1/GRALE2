@@ -74,6 +74,7 @@ set(HEADERS
 	galens/lensinversionparametersbase.h
 	galens/lensinversionparameterssingleplanecpu.h
 	galens/lensinversionparametersmultiplanegpu.h
+	galens/lensinversionparametersparametricsingleplane.h
 	galens/lensinversionbasislensinfo.h
 	galens/scalesearchparameters.h
 	galens/gaparameters.h
@@ -170,6 +171,7 @@ set(SOURCES
 	source/discretesource.cpp
 	galens/lensinversionparameterssingleplanecpu.cpp
 	galens/lensinversionparametersmultiplanegpu.cpp
+	galens/lensinversionparametersparametricsingleplane.cpp
 	galens/lensinversionbasislensinfo.cpp
 	galens/scalesearchparameters.cpp
 	galens/gaparameters.cpp

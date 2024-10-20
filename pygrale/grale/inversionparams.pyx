@@ -23,6 +23,7 @@ cimport numpy as np
 cimport grale.configurationparameters as configurationparameters
 cimport grale.lensinversionparameterssingleplanecpu as lensinversionparameterssingleplanecpu
 cimport grale.lensinversionparametersmultiplanegpu as lensinversionparametersmultiplanegpu
+cimport grale.lensinversionparametersparametricsingleplane as lensinversionparametersparametricsingleplane
 cimport grale.serut as serut
 cimport grale.imagesdataextended as imagesdataextended
 cimport grale.cppgrid as grid
@@ -982,25 +983,86 @@ cdef vector[float] _createFloatVectorFromList(l):
     return result
 
 cdef class LensInversionParametersParametricSinglePlane(object):
+
+    cdef unique_ptr[lensinversionparametersparametricsingleplane.LensInversionParametersParametricSinglePlane] m_pParams
+
     def __init__(self, inputImages, Dd, zd,
                   templateLens, deflScale, potScale, offsets, initMin, initMax, hardMin, hardMax,
-                  fitnessObjectParameters):
+                  fitnessObjectParameters, uploadFullParameters, deviceIndex = "rotate"):
 
         cdef vector[shared_ptr[imagesdataextended.ImagesDataExtended]] imgVector = _createImageVectorFromSinglePlaneImageList(inputImages)
         cdef double cDd = Dd
         cdef double cZd = zd
         cdef unique_ptr[gravitationallens.GravitationalLens] cTemplateLens = _createCxxLensFromPyLens(templateLens)
+        cdef double cDeflScale = deflScale
+        cdef double cPotScale = potScale        
         cdef vector[int] cOffsets = _createIntVectorFromList(offsets)
         cdef vector[float] cInitMin = _createFloatVectorFromList(initMin)
         cdef vector[float] cInitMax = _createFloatVectorFromList(initMax)
         cdef vector[float] cHardMin = _createFloatVectorFromList(hardMin)
         cdef vector[float] cHardMax = _createFloatVectorFromList(hardMax)
         cdef configurationparameters.ConfigurationParameters *pFitnessObjectParameters = NULL
+        cdef int devIdx
+        cdef cbool cUploadFullParams = uploadFullParameters
+
+        if inputImages is None:
+            return
 
         fitnessObjectParametersObj = ConfigurationParameters(fitnessObjectParameters)
         pFitnessObjectParameters = ConfigurationParameters._getConfigurationParameters(fitnessObjectParametersObj)
 
-        raise InversionParametersException("TODO: actually create instance")
+        if deviceIndex == "rotate":
+            devIdx = -1
+        else:
+            if deviceIndex < 0:
+                raise InversionParametersException("Device index can't be negative")
+            devIdx = deviceIndex
+
+        self.m_pParams = unique_ptr[lensinversionparametersparametricsingleplane.LensInversionParametersParametricSinglePlane](
+            new lensinversionparametersparametricsingleplane.LensInversionParametersParametricSinglePlane(
+                imgVector, cDd, cZd, deref(cTemplateLens), cDeflScale, cPotScale,
+                cOffsets, cInitMin, cInitMax, cHardMin, cHardMax, deref(pFitnessObjectParameters),
+                cUploadFullParams, devIdx
+            )
+        )
+
+    cdef _check(self):
+        if self.m_pParams.get() == NULL:
+            raise InversionParametersException("Internal error: LensInversionParametersParametricSinglePlane instance has not been set")
+
+    @staticmethod
+    def fromBytes(bytes b):
+        """fromBytes(bytes b)
+        
+        Creates an instance of this class based on a binary representation. This is
+        the inverse function of :func:`toBytes`.
+        """
+        cdef array[char] buf = chararrayfrombytes(b)
+        cdef unique_ptr[serut.MemorySerializer] m = make_unique[serut.MemorySerializer](buf.data.as_voidptr, len(b), <void*>NULL, 0)
+        cdef unique_ptr[lensinversionparametersparametricsingleplane.LensInversionParametersParametricSinglePlane] pParams = make_unique[lensinversionparametersparametricsingleplane.LensInversionParametersParametricSinglePlane]()
+        
+        if not deref(pParams).read(deref(m)):
+            raise InversionParametersException(S(deref(pParams).getErrorString()))
+
+        r = LensInversionParametersParametricSinglePlane(None, None, None, None, None, None, None,
+                                                         None, None, None, None, None, None, None)
+        r.m_pParams.swap(pParams)
+
+        return r
+
+    def toBytes(self):
+        """toBytes()
+        
+        Returns a byte array that stores the settings contained in this instance. This
+        could be processed again by :func:`fromBytes`.
+        """
+        cdef serut.VectorSerializer vSer
+
+        self._check()
+        if not deref(self.m_pParams).write(vSer):
+            raise InversionParametersException(S(deref(self.m_pParams).getErrorString()))
+
+        return <bytes>vSer.getBufferPointer()[0:vSer.getBufferSize()]
 
 class ConvergenceParametersException(Exception):
     """This exception is raised in case somethings goes wrong in the

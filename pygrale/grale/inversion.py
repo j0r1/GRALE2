@@ -591,7 +591,7 @@ def invert(inputImages, basisFunctions, zd, Dd, popSize, moduleName = "general",
 def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, moduleName = "general",
            defaultInitialParameterFraction = 0.1, fitnessObjectParameters = None, convergenceParameters = { },
            geneticAlgorithmParameters = { }, returnNds = False, inverter = "default", feedbackObject = "default",
-           cosmology = None, maximumGenerations = None, eaType = "JADE"):
+           cosmology = None, maximumGenerations = None, eaType = "JADE", uploadFullParameters = True, deviceIndex = "rotate"):
     """TODO"""
 
     desc = paramdesc.analyzeParametricLensDescription(parametricLensDescription, Dd, defaultInitialParameterFraction)
@@ -606,9 +606,10 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
     hardMax = [ x["hardlimits"][1] for x in varParams ]
 
     def getParamsFunction(fullFitnessObjParams, massScale):
+        assert massScale is None, f"Internal error: expecting massScale to be None, but is {massScale}"
         return inversionparams.LensInversionParametersParametricSinglePlane(inputImages, Dd, zd,
                   templateLens, deflScale, potScale, offsets, initMin, initMax, hardMin, hardMax,
-                  fullFitnessObjParams)
+                  fullFitnessObjParams, uploadFullParameters, deviceIndex)
 
     return _invertCommon(inverter, feedbackObject, moduleName, "parametricsingleplane", fitnessObjectParameters,
                   None, [Dd, zd], inputImages, getParamsFunction, popSize,
