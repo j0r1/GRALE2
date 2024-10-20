@@ -36,8 +36,9 @@ bool FitnessComponent_PointImagesOverlap::inspectImagesData(int idx, const Image
 	imgDat.getExtraParameter("type", typeName);
 	if (typeName != "pointimages") // ignore
 		return true;
-	
+
 	int numImg = imgDat.getNumberOfImages();
+
 	if (numImg < 1)
 	{
 		setErrorString("Images data set doesn't contain any images");

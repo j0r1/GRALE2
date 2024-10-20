@@ -64,6 +64,7 @@ bool_t LensGAParametricSinglePlaneCalculator::init(const LensInversionParameters
 	for (auto &img : params.getImages())
 	{
 		imagesPtrs.push_back(img.get());
+		imagesPtrsList.push_back(img.get());
 	}
 	
 	m_oclBp = make_unique<OclCalculatedBackProjector>();
@@ -108,7 +109,7 @@ bool_t LensGAParametricSinglePlaneCalculator::init(const LensInversionParameters
 	if (m_kernelCode.length() == 0)
 		return "Couldn't get OpenCL kernel code: " + m_templateLens->getErrorString();
 
-	bool uploadFullParameters = false; // TODO: make this configurable
+	bool uploadFullParameters = params.alwaysUploadFullParameters();
 	if (!(r = OpenCLSinglePlaneDeflectionInstance::initInstance((uint64_t)this, 
 																	m_thetas, m_intParams,
 																	m_floatParams, m_changeableParamIdx,
@@ -117,8 +118,9 @@ bool_t LensGAParametricSinglePlaneCalculator::init(const LensInversionParameters
 		return "Couldn't init OpenCLSinglePlaneDeflectionInstance: " + r.getErrorString();
 
 	list<ImagesDataExtended *> empty;
-	if (!(r = m_fitObj->init(params.getZd(), imagesPtrsList, empty, &params.getFitnessObjectParameters())))
-		return "Unable to initialize fitness object: " + r.getErrorString();
+
+	if (!m_fitObj->init(params.getZd(), imagesPtrsList, empty, &params.getFitnessObjectParameters()))
+		return "Unable to initialize fitness object: " + m_fitObj->getErrorString();
 
 	m_initMin = params.getInitMin();
 	m_initMax = params.getInitMax();

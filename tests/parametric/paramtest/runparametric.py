@@ -58,7 +58,8 @@ class ParametricInverter(inverters.Inverter):
                                                      feedbackObject=feedbackObject)
 
 
-inv = ParametricInverter()
+inv = ParametricInverter(1)
 
+#inverters.debugCaptureProcessCommandsFile = "dumpcommunication.dat"
 result = inversion.invertParametric(imgList, lensDescription, zd, Dd, 128, inverter=inv)
 pprint.pprint(result)

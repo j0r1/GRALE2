@@ -42,28 +42,13 @@ protected:
 		errut::bool_t r;
 
 		std::unique_ptr<eatk::IndividualCreation> creation = std::make_unique<eatk::VectorDifferentialEvolutionIndividualCreation<float,float>>(genomeCalculator->getInitMin(), genomeCalculator->getInitMax(), rng);
-		/*
-		std::unique_ptr<eatk::IndividualCreation> creation;
-		{
-			std::unique_ptr<grale::LensGAIndividualCreation> lensGACreation = std::make_unique<grale::LensGAIndividualCreation>(rng, 
-							  genomeCalculator->getNumberOfBasisFunctions(),
-							  genomeCalculator->getNumberOfSheets(),
-							  genomeCalculator->allowNegativeValues(),
-							  genomeCalculator->getNumberOfObjectives());
-
-			if (!(r = getCalculator(lensFitnessObjectType, calculatorType, calcFactory, genomeCalculator,
-									factoryParamBytes, *creation, calc)))
-				return "Can't get calculator: " + r.getErrorString();
-
-			creation = std::move(lensGACreation);
-		}
-		*/
 
 		// TODO: Call DE or JADE code
 
 		// Note: m_best must be set inside the subroutines; previousBest can be the one from multiple
 		//       populations, don't want to recalculate the non-dominated set here
 
+		return "TODO";
 		return r;
 	}
 
