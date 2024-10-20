@@ -47,5 +47,18 @@ lensDescription = {
     ]
 }
 
-result = inversion.invertParametric(imgList, lensDescription, zd, Dd, 128)
+class ParametricInverter(inverters.Inverter):
+
+    def __init__(self, numThreads = 0, feedbackObject = None):
+
+        numThreads = inverters._getNumHelpers(numThreads)
+        super(ParametricInverter, self).__init__([ "grale_invert_parametric" ],
+                                                     "Thread based inverter",
+                                                     extraEnv = { "GRALE_NUMTHREADS": str(numThreads) },
+                                                     feedbackObject=feedbackObject)
+
+
+inv = ParametricInverter()
+
+result = inversion.invertParametric(imgList, lensDescription, zd, Dd, 128, inverter=inv)
 pprint.pprint(result)
