@@ -292,12 +292,10 @@ bool_t InversionCommunicator::onGAFinished(const grale::LensGAGenomeCalculator &
 	WriteLineStdout(strprintf("NUMSOLS:%d", (int)bestGenomes.size()));
 	for (size_t i = 0 ; i < bestGenomes.size() ; i++)
 	{
-		grale::LensGAIndividual *pInd = dynamic_cast<grale::LensGAIndividual*>(bestGenomes[i].get());
-		grale::LensGAGenome *pGenome = dynamic_cast<grale::LensGAGenome*>(pInd->genomePtr());
-		if (!pInd || !pGenome)
-			return "A genome in the best genomes set is not of expected type";
+		const eatk::Individual &ind = *bestGenomes[i];
+		const eatk::Genome &genome = ind.genomeRef();
 
-		string fitnessValues = pInd->fitness()->toString();
+		string fitnessValues = ind.fitness()->toString();
 		LOG(Log::DBG, "Selected genome has fitness: " + fitnessValues);
 
 		string errStr;
@@ -306,7 +304,7 @@ bool_t InversionCommunicator::onGAFinished(const grale::LensGAGenomeCalculator &
 		
 		bool_t r;
 		unique_ptr<grale::GravitationalLens> lens;
-		if (!(r = calculator.createLens(*pGenome, lens)))
+		if (!(r = calculator.createLens(genome, lens)))
 			return "Unable to create lens from genome: " + r.getErrorString();
 
 		LOG(Log::DBG, "Writing lens to buffer");

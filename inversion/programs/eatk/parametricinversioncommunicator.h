@@ -41,65 +41,40 @@ protected:
 
 		std::unique_ptr<eatk::IndividualCreation> creation = std::make_unique<eatk::VectorDifferentialEvolutionIndividualCreation<float,float>>(genomeCalculator->getInitMin(), genomeCalculator->getInitMax(), rng);
 
+		if (!(r = getCalculator(lensFitnessObjectType, calculatorType, calcFactory, genomeCalculator,
+									factoryParamBytes, *creation, calc)))
+			return "Can't get calculator: " + r.getErrorString();
+
 		if (allEATypes.size() != 1)
 			return "Currently only a single EA type can be used for parametric inversion";
 
 		std::string eaType = allEATypes[0];
-		if (!(eaType == "JADE")) // TODO: add DE
-			return "Currently only JADE is supported";
+		if (!(eaType == "JADE" || eaType == "DE"))
+			return "Currently only DE or JADE is supported";
 
 		if (multiPopParams.get())
 			return "DE/JADE only works with a single population";
 
+		Stop stop(-1, 0);
+		const grale::LensGAConvergenceParameters &convParams = allConvParams[0];
+		size_t numObjectives = genomeCalculator->getNumberOfObjectives();
+		if (numObjectives != 1)
+			return "Currently only a single objective is supported"; // Mainly need to use other fitness representation
 
-		// TODO: Call DE or JADE code
-
-		// Note: m_best must be set inside the subroutines; previousBest can be the one from multiple
-		//       populations, don't want to recalculate the non-dominated set here
-
-		return "TODO";
-		return r;
-	}
-
-	/*
-
-	std::tuple<errut::bool_t,
-		       std::vector<std::vector<std::shared_ptr<eatk::Individual>>>,
-			   std::unique_ptr<eatk::IndividualCreation>,
-			   size_t> runGA_DE(const std::shared_ptr<eatk::RandomNumberGenerator> &rng,
-						 eatk::IndividualCreation &creation,
-						 const std::shared_ptr<grale::LensGAFitnessComparison> &comparison,
-						 eatk::PopulationFitnessCalculation &calc,
-			             int popSize,
-						 bool allowNegative, size_t numObjectives,
-						 const grale::EAParameters &eaParams,
-						 const grale::LensGAConvergenceParameters &convParams,
-						 const std::shared_ptr<grale::LensGAMultiPopulationParameters> &multiPopParams,
-						 const std::string &eaType, size_t generationOffsetForReporting,
-						 const std::vector<std::vector<std::shared_ptr<eatk::Individual>>> &previousBest)
-	{
-		if (previousBest.size() > 0)
-			WriteLineStdout("GAMESSAGESTR:WARNING: not using previous best for initialization of DE/JADE");
-
-		errut::bool_t r;
-
-		if (multiPopParams.get())
-			return E("DE/JADE only works with a single population");
-
-		Stop stop(-1, generationOffsetForReporting);
 		if (!(r = stop.initialize(numObjectives, convParams)))
-			return E("Can't initialize stop criterion: " + r.getErrorString());
-
-		auto mut = std::make_shared<grale::LensDEMutation>();
-		auto cross = std::make_shared<grale::LensDECrossover>(rng, allowNegative);
+			return "Can't initialize stop criterion: " + r.getErrorString();
+		
+		auto mut = std::make_shared<eatk::VectorDifferentialEvolutionMutation<float>>();
+		auto cross = std::make_shared<eatk::VectorDifferentialEvolutionCrossover<float>>(rng, genomeCalculator->getHardMin(), genomeCalculator->getHardMax());
 
 		std::unique_ptr<eatk::PopulationEvolver> evolver;
+		const grale::EAParameters &eaParams = *allEAParams[0];
 
 		if (eaType == "JADE")
 		{
 			const grale::JADEParameters *pParams = dynamic_cast<const grale::JADEParameters*>(&eaParams);
 			if (!pParams)
-				return E("Invalid EA parameters for JADE");
+				return "Invalid EA parameters for JADE";
 
 			const grale::JADEParameters &params = *pParams;
 			double p = params.getBestFraction_p();
@@ -116,14 +91,16 @@ protected:
 
 			if (numObjectives == 1)
 			{
-				evolver = std::make_unique<grale::LensJADEEvolver>(rng, mut, cross, comparison, 0,
+				evolver = std::make_unique<eatk::JADEEvolver>(rng, mut, cross, comparison, 0,
 						                                           p, c, useArch, initMuF, initMuCR,
 																   1, nullptr, needStrictlyBetter);
 			}
 			else // multi-objective
 			{
+				// TODO: not used currently
+
 				auto ndCreator = std::make_shared<eatk::FasterNonDominatedSetCreator>(comparison, numObjectives);
-				evolver = std::make_unique<grale::LensJADEEvolver>(rng, mut, cross, comparison,
+				evolver = std::make_unique<eatk::JADEEvolver>(rng, mut, cross, comparison,
 						  -1, // signals multi-objective
 						  p, c, useArch, initMuF, initMuCR,
 						  numObjectives, ndCreator,
@@ -134,7 +111,7 @@ protected:
 		{
 			const grale::DEParameters *pParams = dynamic_cast<const grale::DEParameters*>(&eaParams);
 			if (!pParams)
-				return E("Invalid EA parameters for DE");
+				return "Invalid EA parameters for DE";
 
 			const grale::DEParameters &params = *pParams;
 			double F = params.getF();
@@ -146,31 +123,26 @@ protected:
 
 			if (numObjectives == 1) // Single objective
 			{
-				evolver = std::make_unique<grale::LensDEEvolver>(rng, mut, F, cross, CR, comparison,
+				evolver = std::make_unique<eatk::DifferentialEvolutionEvolver>(rng, mut, F, cross, CR, comparison,
 						                                         0, 1, nullptr, needStrictlyBetter);
 			}
 			else // multi-objective
 			{
 				auto ndCreator = std::make_shared<eatk::FasterNonDominatedSetCreator>(comparison, numObjectives);
-				evolver = std::make_unique<grale::LensDEEvolver>(rng, mut, params.getF(), cross, params.getCR(), comparison,
+				evolver = std::make_unique<eatk::DifferentialEvolutionEvolver>(rng, mut, params.getF(), cross, params.getCR(), comparison,
 						                                         -1, numObjectives, ndCreator,
 																 needStrictlyBetter); // -1 signals multi-objective
 			}
 		}
 		else
-			return E("Unexpected eaType '" + eaType + "'");
+			return "Unexpected eaType '" + eaType + "'";
 
 		MyGA ga;
-		if (!(r = ga.run(creation, *evolver, calc, stop, popSize, popSize, popSize*2)))
-			return E("Error running GA: " + r.getErrorString());
+		if (!(r = ga.run(*creation, *evolver, *calc, stop, popSize, popSize, popSize*2)))
+			return "Error running GA: " + r.getErrorString();
 
-		std::vector<std::vector<std::shared_ptr<eatk::Individual>>> allBest = { { evolver->getBestIndividuals() } };
 		m_best = evolver->getBestIndividuals();
 
-		return { true, allBest,
-				 std::make_unique<ReuseCreation>(ga.getPopulations()),
-				 ga.getNumberOfGenerations() };
-
+		return true;
 	}
-*/
 };
