@@ -268,6 +268,20 @@ bool_t InversionCommunicator::runGA(int popSize, const std::string &lensFitnessO
 	return "Not implemented in base class";
 }
 
+inline string filterFitnessValues(const string &line)
+{
+	if (!(line[0] == '['))
+		return line;
+
+	size_t startIdx = 1;
+	size_t endIdx = line.length();
+	if (line[line.length()-1] == ']')
+		endIdx--;
+
+	assert(endIdx > startIdx);
+	return line.substr(startIdx, endIdx-startIdx);
+}
+
 bool_t InversionCommunicator::onGAFinished(const grale::LensGAGenomeCalculator &calculator)
 {
 	vector<shared_ptr<eatk::Individual>> bestGenomes;
@@ -295,7 +309,7 @@ bool_t InversionCommunicator::onGAFinished(const grale::LensGAGenomeCalculator &
 		const eatk::Individual &ind = *bestGenomes[i];
 		const eatk::Genome &genome = ind.genomeRef();
 
-		string fitnessValues = ind.fitness()->toString();
+		string fitnessValues = filterFitnessValues(ind.fitness()->toString());
 		LOG(Log::DBG, "Selected genome has fitness: " + fitnessValues);
 
 		string errStr;

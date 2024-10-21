@@ -122,6 +122,8 @@ bool_t LensGAParametricSinglePlaneCalculator::init(const LensInversionParameters
 	if (!m_fitObj->init(params.getZd(), imagesPtrsList, empty, &params.getFitnessObjectParameters()))
 		return "Unable to initialize fitness object: " + m_fitObj->getErrorString();
 
+	m_numObjectives = m_fitObj->getNumberOfFitnessComponents();
+
 	m_initMin = params.getInitMin();
 	m_initMax = params.getInitMax();
 	m_hardMin = params.getHardMin();
@@ -134,7 +136,7 @@ bool_t LensGAParametricSinglePlaneCalculator::init(const LensInversionParameters
 
 std::shared_ptr<eatk::FitnessComparison> LensGAParametricSinglePlaneCalculator::getFitnessComparison() const
 {
-	return make_shared<eatk::ValueFitnessComparison<float>>(); // TODO: replace with multi-objective?
+	return make_shared<eatk::VectorFitnessComparison<float>>(); // TODO: replace with multi-objective?
 }
 
 bool_t LensGAParametricSinglePlaneCalculator::createLens(const eatk::Genome &genome0, std::unique_ptr<GravitationalLens> &resultLens) const
@@ -195,8 +197,10 @@ errut::bool_t LensGAParametricSinglePlaneCalculator::startNewCalculation(const e
 errut::bool_t LensGAParametricSinglePlaneCalculator::pollCalculate(const eatk::Genome &genome0, eatk::Fitness &fitness0)
 {
 	const eatk::FloatVectorGenome &genome = static_cast<const eatk::FloatVectorGenome &>(genome0);
-	assert(dynamic_cast<eatk::ValueFitness<float> *>(&fitness0));
-	eatk::ValueFitness<float> &fitness = static_cast<eatk::ValueFitness<float> &>(fitness0);
+	assert(dynamic_cast<eatk::FloatVectorFitness *>(&fitness0));
+	eatk::FloatVectorFitness &fitness = static_cast<eatk::FloatVectorFitness &>(fitness0);
+
+	assert(m_numObjectives == fitness.getValues().size());
 
 	auto &cl = OpenCLSinglePlaneDeflectionInstance::instance();
 	if (!cl.getResultsForGenome(genome, m_alphas, m_axx, m_ayy, m_axy, m_potential)) // Not ready yet
@@ -250,15 +254,9 @@ errut::bool_t LensGAParametricSinglePlaneCalculator::pollCalculate(const eatk::G
 
 	m_oclBp->setBetaBuffer(m_betas.data(), m_betas.size());
 
-	array<float,16> fitnessValues;
-	float sentinel = -98765.0f;
-	for (auto &x : fitnessValues)
-		x = sentinel; // For now, set a sentinel
+	vector<float> &fitnessValues = fitness.getValues();
 	if (!m_fitObj->calculateOverallFitness(*m_oclBp, fitnessValues.data()))
 		return "Can't calculate fitness: " + m_fitObj->getErrorString();
-	fitness.setValue(fitnessValues[0]);
-
-	assert(fitnessValues[1] == sentinel);
 	
 	fitness.setCalculated();
 	

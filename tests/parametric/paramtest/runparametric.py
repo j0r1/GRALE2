@@ -41,11 +41,14 @@ lensDescription = {
 
 #inverters.debugCaptureProcessCommandsFile = "dumpcommunication.dat"
 
-inversion.setDefaultInverter("threads:1")
+inversion.setDefaultInverter("threads:4")
+
+null = images.createGridTriangles(V(-100,-100)*ANGLE_ARCSEC, V(100,100)*ANGLE_ARCSEC, 48,48)
 
 iws = inversion.InversionWorkSpace(zd, 10*ANGLE_ARCSEC)
 for i in imgList:
     iws.addImageDataToList(i["imgdata"], i["z"], "pointimages")
+    iws.addImageDataToList(null, i["z"], "pointnullgrid")
 
-result = iws.invertParametric(lensDescription, 64)
+result = iws.invertParametric(lensDescription, 64, maximumGenerations=8)
 pprint.pprint(result)

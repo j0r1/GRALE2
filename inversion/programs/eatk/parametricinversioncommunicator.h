@@ -5,6 +5,25 @@
 #include <eatk/vectorgenomefitness.h>
 #include <eatk/vectordifferentialevolution.h>
 
+class ParametricCreation : public eatk::VectorDifferentialEvolutionIndividualCreation<float,float>
+{
+public:
+	ParametricCreation(size_t numObjectives,
+					   const std::vector<float> &lower, const std::vector<float> &upper,
+	                   const std::shared_ptr<eatk::RandomNumberGenerator> &rng)
+		: eatk::VectorDifferentialEvolutionIndividualCreation<float,float>(lower, upper, rng),
+		  m_numObj(numObjectives)
+	{
+	}
+	
+	std::shared_ptr<eatk::Fitness> createEmptyFitness() override
+	{
+		return std::make_shared<eatk::FloatVectorFitness>(m_numObj);
+	}
+
+	size_t m_numObj;
+};
+
 class ParametricInversionCommunicator : public InversionCommunicatorBase
 {
 public:
@@ -18,7 +37,7 @@ public:
 
 	static std::shared_ptr<eatk::Fitness> getReferenceFitnessForMPI()
 	{
-		return std::make_shared<eatk::ValueFitness<float>>(); // TODO: change this when going multi-objective
+		return std::make_shared<eatk::FloatVectorFitness>();
 	}
 
 
@@ -46,11 +65,13 @@ protected:
 		if (!genomeCalculator)
 			return "Calculator does not seem to be a LensGAParametricSinglePlaneCalculator one";
 
+		size_t numObjectives = genomeCalculator->getNumberOfObjectives();
+
 		// After this is created, calculatorCleanup() should be called as well (for MPI at the moment)
 		std::shared_ptr<eatk::PopulationFitnessCalculation> calc;
 		errut::bool_t r;
 
-		std::unique_ptr<eatk::IndividualCreation> creation = std::make_unique<eatk::VectorDifferentialEvolutionIndividualCreation<float,float>>(genomeCalculator->getInitMin(), genomeCalculator->getInitMax(), rng);
+		std::unique_ptr<eatk::IndividualCreation> creation = std::make_unique<ParametricCreation>(numObjectives, genomeCalculator->getInitMin(), genomeCalculator->getInitMax(), rng);
 
 		if (!(r = getCalculator(lensFitnessObjectType, calculatorType, calcFactory, genomeCalculator,
 									factoryParamBytes, *creation, calc)))
@@ -68,10 +89,7 @@ protected:
 
 		Stop stop(-1, 0);
 		const grale::LensGAConvergenceParameters &convParams = allConvParams[0];
-		size_t numObjectives = genomeCalculator->getNumberOfObjectives();
-		if (numObjectives != 1)
-			return "Currently only a single objective is supported"; // Mainly need to use other fitness representation
-
+		
 		if (!(r = stop.initialize(numObjectives, convParams)))
 			return "Can't initialize stop criterion: " + r.getErrorString();
 		

@@ -37,6 +37,7 @@ private:
 	errut::bool_t pollCalculate(const eatk::Genome &genome0, eatk::Fitness &fitness0) override;
 
 	std::unique_ptr<LensFitnessObject> m_fitObj;
+	size_t m_numObjectives = 0;
 
 	std::unique_ptr<OclCalculatedBackProjector> m_oclBp;
 	bool m_init = false;
