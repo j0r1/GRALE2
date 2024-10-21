@@ -590,12 +590,12 @@ def invert(inputImages, basisFunctions, zd, Dd, popSize, moduleName = "general",
                   maximumGenerations, multiPopulationParameters, eaType)
 
 def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, moduleName = "general",
-           defaultInitialParameterFraction = 0.1, fitnessObjectParameters = None, convergenceParameters = { },
+           defaultInitialParameterFraction = 0.1, clampToHardLimits = False, fitnessObjectParameters = None, convergenceParameters = { },
            geneticAlgorithmParameters = { }, returnNds = False, inverter = "default", feedbackObject = "default",
            cosmology = None, maximumGenerations = None, eaType = "JADE", uploadFullParameters = True, deviceIndex = "rotate"):
     """TODO"""
 
-    desc = paramdesc.analyzeParametricLensDescription(parametricLensDescription, Dd, defaultInitialParameterFraction)
+    desc = paramdesc.analyzeParametricLensDescription(parametricLensDescription, Dd, defaultInitialParameterFraction, clampToHardLimits)
     
     templateLens = desc["templatelens"]
     deflScale, potScale = desc["scales"]["deflectionscale"], desc["scales"]["potentialscale"]
