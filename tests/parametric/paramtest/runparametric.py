@@ -7,17 +7,9 @@ inverters.debugDirectStderr = True
 
 cosm = cosmology.Cosmology(0.7, 0.3, 0, 0.7)
 cosmology.setDefaultCosmology(cosm)
-D = cosm.getAngularDiameterDistance
 
 zd = 0.4
-Dd = D(zd)
-
 imgList = pickle.load(open("imglist.pickle", "rb"))
-for i in imgList:
-    i["images"] = i["imgdata"] # Internally another key is used
-    i["Ds"] = D(i["z"])
-    i["Dds"] = D(zd, i["z"])
-    i["params"] =  {"type":"pointimages"}
 
 lensDescription = {
     "type": "CompositeLens",
@@ -48,5 +40,12 @@ lensDescription = {
 }
 
 #inverters.debugCaptureProcessCommandsFile = "dumpcommunication.dat"
-result = inversion.invertParametric(imgList, lensDescription, zd, Dd, 128, inverter="mpi:2")
+
+inversion.setDefaultInverter("threads:1")
+
+iws = inversion.InversionWorkSpace(zd, 10*ANGLE_ARCSEC)
+for i in imgList:
+    iws.addImageDataToList(i["imgdata"], i["z"], "pointimages")
+
+result = iws.invertParametric(lensDescription, 64)
 pprint.pprint(result)

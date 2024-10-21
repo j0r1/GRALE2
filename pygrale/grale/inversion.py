@@ -1651,6 +1651,14 @@ class InversionWorkSpace(object):
             raise InversionException("Neither a grid for the strong lensing regions(s) nor for the weak lensing one was specified")
 
         return strongGrid, weakGrid
+    
+    def invertParametric(self, parametricLensDescription, populationSize, **kwargs):
+
+        zd = self.zd[0]
+        Dd = self.Dd[0]
+        imgList = self.imgDataList
+
+        return invertParametric(imgList, parametricLensDescription, zd, Dd, populationSize, **kwargs)
 
 def getDefaultInverter():
     """Convenience function in this module, just calls 
