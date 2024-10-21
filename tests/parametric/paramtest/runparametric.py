@@ -48,5 +48,5 @@ lensDescription = {
 }
 
 #inverters.debugCaptureProcessCommandsFile = "dumpcommunication.dat"
-result = inversion.invertParametric(imgList, lensDescription, zd, Dd, 128, deviceIndex=0, inverter="mpi:2")
+result = inversion.invertParametric(imgList, lensDescription, zd, Dd, 128, inverter="mpi:2")
 pprint.pprint(result)

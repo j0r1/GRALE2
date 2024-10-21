@@ -96,6 +96,8 @@ public:
 	                         std::vector<Vector2Df> &alphas, std::vector<float> &axx,
 							 std::vector<float> &ayy, std::vector<float> &axy,
 							 std::vector<float> &potential);
+
+	int getRequestedDeviceIndex() const { return m_requestedDevIdx; }
 private:
 	static std::unique_ptr<OpenCLSinglePlaneDeflectionInstance> s_instance;
 	static std::mutex s_instanceMutex;
@@ -112,5 +114,6 @@ private:
 	std::vector<Vector2Df> m_allAlphas;
 	std::vector<float> m_allAxx, m_allAyy, m_allAxy;
 	std::vector<float> m_allPotentials;
+	int m_requestedDevIdx = -1;
 };	
 }

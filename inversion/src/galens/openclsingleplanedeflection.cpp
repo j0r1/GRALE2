@@ -409,7 +409,7 @@ errut::bool_t OpenCLSinglePlaneDeflectionInstance::initInstance(uint64_t userId,
 
     if (s_instance.get()) // Already initialized
     {
-        if (devIdx != s_instance->getDeviceIndex())
+        if (devIdx != s_instance->getRequestedDeviceIndex())
             return "An OpenCLSinglePlaneDeflectionInstance already exists, but for a different device index (" + to_string(s_instance->getDeviceIndex()) + ") than requested (" + to_string(devIdx) + ")";
 
         cerr << "INFO: registered user in OpenCLSinglePlaneDeflectionInstance (2): " << userId << endl;
@@ -424,11 +424,14 @@ errut::bool_t OpenCLSinglePlaneDeflectionInstance::initInstance(uint64_t userId,
     unique_ptr<OpenCLSinglePlaneDeflectionInstance> oclCalc = make_unique<OpenCLSinglePlaneDeflectionInstance>();
     bool_t r = oclCalc->init(thetas, templateIntParameters, templateFloatParameters, changeableParameterIndices,
                              deflectionKernelCode, lensRoutineName, uploadFullParameters, devIdx);
+    oclCalc->m_requestedDevIdx = devIdx; // TODO: store this in a better way?
+
     if (!r)
         return "Can't init GPU: " + r.getErrorString();
 
     s_users.insert(userId);
     cerr << "INFO: registered user in OpenCLSinglePlaneDeflectionInstance: " << userId << endl;
+    cerr << "INFO: requested GPU " << oclCalc->getRequestedDeviceIndex() << ", got " << oclCalc->getDeviceIndex() << endl;
 
     s_instance = move(oclCalc);
     return true;
