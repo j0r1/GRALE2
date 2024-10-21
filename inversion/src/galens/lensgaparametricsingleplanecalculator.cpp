@@ -122,6 +122,23 @@ bool_t LensGAParametricSinglePlaneCalculator::init(const LensInversionParameters
 	if (!m_fitObj->init(params.getZd(), imagesPtrsList, empty, &params.getFitnessObjectParameters()))
 		return "Unable to initialize fitness object: " + m_fitObj->getErrorString();
 
+	vector<bool> needDefl, needDeriv, needPot, needSecondDeriv;
+	m_fitObj->getTotalCalcFlags(needDefl, needDeriv, needPot, needSecondDeriv);
+
+	auto any = [](auto &v) {
+		for (auto x : v)
+			if (x)
+				return true;
+		return false;
+	};
+
+	if (any(needDeriv))
+		return "Fitness object needs deflection derivatives; currently not supported";
+	if (any(needPot))
+		return "Fitness object needs potential calculations; currently not supported";
+	if (any(needSecondDeriv))
+		return "Fitness object needs second derivatives of deflection; not suppored";
+
 	m_numObjectives = m_fitObj->getNumberOfFitnessComponents();
 
 	m_initMin = params.getInitMin();

@@ -48,7 +48,8 @@ null = images.createGridTriangles(V(-100,-100)*ANGLE_ARCSEC, V(100,100)*ANGLE_AR
 iws = inversion.InversionWorkSpace(zd, 10*ANGLE_ARCSEC)
 for i in imgList:
     iws.addImageDataToList(i["imgdata"], i["z"], "pointimages")
-    iws.addImageDataToList(null, i["z"], "pointnullgrid")
+    #iws.addImageDataToList(null, i["z"], "pointnullgrid")
+    iws.addImageDataToList(i["imgdata"], i["z"], "pointgroupimages")
 
 result = iws.invertParametric(lensDescription, 64, maximumGenerations=8)
 pprint.pprint(result)
