@@ -28,7 +28,8 @@ protected:
 
 	void calculatorCleanup() override
 	{
-		m_evtDist->signal(eatk::MPIEventHandler::Done);
+		if (m_evtDist)
+			m_evtDist->signal(eatk::MPIEventHandler::Done);
 		m_evtDist = nullptr;
 	}
 
@@ -49,7 +50,7 @@ protected:
 		int paramSize = ser.getBufferSize();
 		MPI_Bcast(&paramSize, 1, MPI_INT, 0, MPI_COMM_WORLD);
 		MPI_Bcast((void*)ser.getBufferPointer(), ser.getBufferSize(), MPI_BYTE, 0, MPI_COMM_WORLD);
-		
+
 		std::shared_ptr<eatk::PopulationFitnessCalculation> localCalc;
 		if (!(r = ParentClass::getMultiThreadedPopulationCalculator(m_numThreads, lensFitnessObjectType, calculatorType,
 						                               calcFactory, genomeCalculator, factoryParamBytes, localCalc)))

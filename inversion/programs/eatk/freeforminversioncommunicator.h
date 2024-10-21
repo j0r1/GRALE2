@@ -43,11 +43,11 @@ protected:
 							  genomeCalculator->allowNegativeValues(),
 							  genomeCalculator->getNumberOfObjectives());
 
+			creation = std::move(lensGACreation);
+
 			if (!(r = getCalculator(lensFitnessObjectType, calculatorType, calcFactory, genomeCalculator,
 									factoryParamBytes, *creation, calc)))
 				return "Can't get calculator: " + r.getErrorString();
-
-			creation = std::move(lensGACreation);
 		}
 
 		// For compatibility with previous approach, in multi-objective GA we need to copy this as
