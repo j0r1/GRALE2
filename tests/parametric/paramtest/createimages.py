@@ -64,9 +64,9 @@ with open("images.txt", "wt") as f:
 
 plt.figure(figsize=(10,10))
 plt.subplot(2,2,1)
-    plotutil.plotImagePlane(li)
-    plt.subplot(2,2,2)
-    plotutil.plotDensityContours(li, levels=np.arange(0.5, 15, 0.5))
+plotutil.plotImagePlane(li)
+plt.subplot(2,2,2)
+plotutil.plotDensityContours(li, levels=np.arange(0.5, 15, 0.5))
 plt.subplot(2,2,3)
 plotutil.plotImagesData(imgList)
 plt.show()

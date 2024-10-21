@@ -49,7 +49,7 @@ hardMax = [ x["hardlimits"][1] for x in varParams ]
 
 desc["templatelens"].save("templatelens.lensdata")
 with open("inversionparams.txt", "wt") as f:
-    f.write(f"{desc["scales"]["deflectionscale"]:.15g} {desc["scales"]["potentialscale"]:.15g}\n")
+    f.write(f'{desc["scales"]["deflectionscale"]:.15g} {desc["scales"]["potentialscale"]:.15g}\n')
     f.write(f"{len(offsets)}\n")
     f.write(" ".join(list(map(str, offsets))) + "\n")
     f.write(" ".join(list(map(lambda x:f"{x:.8g}", initMin))) + "\n")
