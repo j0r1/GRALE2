@@ -78,6 +78,7 @@ private:
 	std::shared_ptr<eatk::MPIEventDistributor> m_evtDist;
 };
 
+template<class ParentClass>
 inline errut::bool_t runHelper(size_t numThreads)
 {
 	int paramsSize = 0;
@@ -116,7 +117,7 @@ inline errut::bool_t runHelper(size_t numThreads)
 		return "Unable to initialize calculator: " + r.getErrorString();
 
 	std::shared_ptr<eatk::PopulationFitnessCalculation> localCalc;
-	if (!(r = FreeFormInversionCommunicator::getMultiThreadedPopulationCalculator(numThreads, lensFitnessObjectType, calculatorType,
+	if (!(r = ParentClass::getMultiThreadedPopulationCalculator(numThreads, lensFitnessObjectType, calculatorType,
 					                                                      *pCalculatorFactory, calculatorInstance, calcParamsBuffer.getBuffer(),
 																		  localCalc)))
 		return "Error creating calculator for MPI helper process: " + r.getErrorString();
@@ -126,11 +127,12 @@ inline errut::bool_t runHelper(size_t numThreads)
 
 	dist->setHandler(eatk::MPIEventHandler::Calculation, calc);
 
-	grale::LensGAGenome refGenome(0, 0); // will receive layout in 'init'
-	grale::LensGAFitness refFitness(0); // will receive the number of components in 'init'
+	shared_ptr<eatk::Genome> refGenome = ParentClass::getReferenceGenomeForMPI(); // will receive layout in 'init'
+	shared_ptr<eatk::Fitness> refFitness = ParentClass::getReferenceFitnessForMPI(); // will receive the number of components in 'init'
 
-	if (!(r = calc->init(refGenome, refFitness, localCalc)))
+	if (!(r = calc->init(*refGenome, *refFitness, localCalc)))
 		return "Error initializing MPI calculation: " + r.getErrorString();
+
 	return dist->eventLoop();
 }
 
@@ -206,7 +208,7 @@ int main_template(int argc, char *argv[])
 	}
 	else
 	{
-		errut::bool_t r = runHelper(numThreads);
+		errut::bool_t r = runHelper<ParentClass>(numThreads);
 		if (!r)
 			MPIABORT("ERROR: " + r.getErrorString());
 	}

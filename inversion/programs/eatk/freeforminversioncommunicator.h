@@ -8,6 +8,16 @@ public:
 	FreeFormInversionCommunicator() { }
 	~FreeFormInversionCommunicator() { }
 
+	static std::shared_ptr<eatk::Genome> getReferenceGenomeForMPI()
+	{
+		return std::make_shared<grale::LensGAGenome>(0,0);
+	}
+
+	static std::shared_ptr<eatk::Fitness> getReferenceFitnessForMPI()
+	{
+		return std::make_shared<grale::LensGAFitness>(0);
+	}
+
 protected:	
 	errut::bool_t runGA_next(const std::shared_ptr<eatk::RandomNumberGenerator> &rng,
 						 const std::shared_ptr<eatk::FitnessComparison> &comparison,

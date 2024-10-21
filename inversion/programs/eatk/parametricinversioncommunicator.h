@@ -11,6 +11,17 @@ public:
 	ParametricInversionCommunicator() { }
 	~ParametricInversionCommunicator() { }
 
+	static std::shared_ptr<eatk::Genome> getReferenceGenomeForMPI()
+	{
+		return std::make_shared<eatk::FloatVectorGenome>();
+	}
+
+	static std::shared_ptr<eatk::Fitness> getReferenceFitnessForMPI()
+	{
+		return std::make_shared<eatk::ValueFitness<float>>(); // TODO: change this when going multi-objective
+	}
+
+
 protected:	
 
 	errut::bool_t runGA_next(const std::shared_ptr<eatk::RandomNumberGenerator> &rng,
