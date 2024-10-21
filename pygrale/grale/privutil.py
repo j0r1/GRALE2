@@ -115,7 +115,7 @@ def generateRandomIdentifier():
     chars = "abcdefghijklmnopqrstuvwxyz"
     return ''.join([ chars[int(random.random()*len(chars))] for i in range(20) ])
 
-def initInverterAndFeedback(inverter, feedbackObject):
+def initInverterAndFeedback(inverter, feedbackObject, isParametric):
     from . import inverters
     from . import feedback
 
@@ -123,7 +123,7 @@ def initInverterAndFeedback(inverter, feedbackObject):
         inverter = inverters.getDefaultInverter()
     
     if type(inverter) == str:
-        inverter = inverters.createInverterFromString(inverter)
+        inverter = inverters.createInverterFromString(inverter, isParametric)
 
     obj = None
     if feedbackObject is None:

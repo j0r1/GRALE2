@@ -381,10 +381,10 @@ def calculateFitness(moduleName, inputImages, zd, fitnessObjectParameters, lens 
 
 class ThreadsInverter(Inverter):
 
-    def __init__(self, numThreads = 0, feedbackObject = None):
+    def __init__(self, numThreads = 0, feedbackObject = None, parametric = False):
 
         numThreads = _getNumHelpers(numThreads)
-        super(ThreadsInverter, self).__init__([ "grale_invert_newga" ],
+        super(ThreadsInverter, self).__init__([ "grale_invert_newga" if not parametric else "grale_invert_parametric" ],
                                                      "Thread based inverter",
                                                      extraEnv = { "GRALE_NUMTHREADS": str(numThreads) },
                                                      feedbackObject=feedbackObject)
@@ -407,7 +407,8 @@ def _createBoundUnixSocket(socketPath):
 
 class MPIProcessInverter(Inverter):
 
-    def __init__(self, numProcesses = None, numThreadsPerProcess = 1, extraArgs = [], incomingConnectionTimeout = 10, feedbackObject = None):
+    def __init__(self, numProcesses = None, numThreadsPerProcess = 1, extraArgs = [], incomingConnectionTimeout = 10, feedbackObject = None,
+                 parametric = False):
 
         # Using stdin/stdout does not seem to work well for MPI (at least not openmpi),
         # so we'll use a UNIX socket        
@@ -439,7 +440,7 @@ WARNING: requesting more than one thread per MPI process. Depending on the
 
         npArgs += extraArgs
 
-        super(MPIProcessInverter, self).__init__( [ "mpirun" ] + npArgs + [ "grale_invert_newgampi", self.socketPath, str(numThreadsPerProcess) ], 
+        super(MPIProcessInverter, self).__init__( [ "mpirun" ] + npArgs + [ "grale_invert_newgampi" if not parametric else "grale_invert_parametricmpi" , self.socketPath, str(numThreadsPerProcess) ], 
                                                   "MPI inverter", feedbackObject=feedbackObject)
 
     def onStartedProcess(self, proc):
@@ -477,13 +478,14 @@ class SingleProcessGdbInverter(Inverter):
     To be able to interact with GDB, it is started in an `xterm <https://en.wikipedia.org/wiki/Xterm>`_
     process. This is meant to make debugging this multi-process architecure 
     somewhat easier."""
-    def __init__(self, feedbackObject = None, gdbExe = "gdb"):
+    def __init__(self, feedbackObject = None, gdbExe = "gdb", parametric = False):
         """Initializes an instance of this class; a specific :mod:`feedback <grale.feedback>`
         object can be specified for status updates."""
         self.pipePair = privutil.PipePair() # Keep it for the lifetime of this object
         pp = self.pipePair
+        graleExe = "grale_invert_newga" if not parametric else "grale_invert_parametric"
         super(SingleProcessGdbInverter, self).__init__([ "xterm", "-e", 
-                                                         gdbExe + " grale_invert_newga -ex 'set args {} {}' ; echo sleeping 10 seconds; sleep 10".format(pp.wrFileName, pp.rdFileName),
+                                                         gdbExe + " " + graleExe + " 'set args {} {}' ; echo sleeping 10 seconds; sleep 10".format(pp.wrFileName, pp.rdFileName),
                                                          ], 
                                                          "Single process GDB", feedbackObject=feedbackObject,
                                                          extraEnv = { "GRALE_NUMTHREADS": "1" },
@@ -525,7 +527,7 @@ def setDefaultInverter(x):
     """Sets the default inverter to use when running the genetic algorithm."""
     _defaultInverter[0] = x
 
-def createInverterFromString(inverter):
+def createInverterFromString(inverter, isParametric):
     """Creates on of the inverters based on the specified inverter name.
 
     Can be one of (case insensitive)
@@ -538,16 +540,16 @@ def createInverterFromString(inverter):
     mpiPrefix = "mpi:"
 
     if inverter.lower() == "threads":
-        return ThreadsInverter()
+        return ThreadsInverter(parametric = isParametric)
 
     if inverter.lower() == "mpi":
-        return MPIProcessInverter()
+        return MPIProcessInverter(parametric = isParametric)
 
     if inverter.lower() == "gdb":
-        return SingleProcessGdbInverter()
+        return SingleProcessGdbInverter(parametric = isParametric)
 
     if inverter.lower() == "cgdb":
-        return SingleProcessGdbInverter(gdbExe = "cgdb")
+        return SingleProcessGdbInverter(gdbExe = "cgdb", parametric = isParametric)
 
     if inverter.lower().startswith(mpiPrefix):
         rest = inverter[len(mpiPrefix):]
@@ -565,10 +567,10 @@ def createInverterFromString(inverter):
                 extraArgs = parts[2].split(" ")
             else:
                 raise InverterException("Unknown syntax for mpi inverter")
-        return MPIProcessInverter(numNodes, numThreadsPerProcess, extraArgs)
+        return MPIProcessInverter(numNodes, numThreadsPerProcess, extraArgs, parametric = isParametric)
 
     if inverter.lower().startswith(threadsPrefix):
         numThreads = int(inverter[len(threadsPrefix):])
-        return ThreadsInverter(numThreads)
+        return ThreadsInverter(numThreads, parametric = isParametric)
 
     raise InverterException("The specified string '{}' cannot be interpreted as an inverter".format(inverter))

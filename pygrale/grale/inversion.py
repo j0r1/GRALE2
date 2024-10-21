@@ -276,7 +276,8 @@ def _invertCommon(inverter, feedbackObject, moduleName, calcType, fitnessObjectP
     # Set to some bad values as they don't make sense for a multi-plane inversion
     Dd, zd = DdAndZd if DdAndZd else (None, float("NaN"))
 
-    inverter, feedbackObject = privutil.initInverterAndFeedback(inverter, feedbackObject)
+    parametricInversion = True if calcType.startswith("parametric") else False
+    inverter, feedbackObject = privutil.initInverterAndFeedback(inverter, feedbackObject, parametricInversion)
 
     # Merge fitnessObjectParameters with defaults
     fullFitnessObjParams = _mergeModuleParameters(fitnessObjectParameters, moduleName, cosmology)
