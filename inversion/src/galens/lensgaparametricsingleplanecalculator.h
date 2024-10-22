@@ -56,8 +56,10 @@ private:
 
 	std::vector<Vector2Df> m_alphas;
 	std::vector<float> m_axx, m_ayy, m_axy, m_potential;
-	std::vector<float> m_betas;
+	std::vector<float> m_betas, m_scaledAlphas;
+	std::vector<float> m_scaledAxx, m_scaledAyy, m_scaledAxy;
 	std::vector<double> m_distFrac;
+	bool m_needDerivs;
 
 	std::vector<float> m_initMin, m_initMax;
 	std::vector<float> m_hardMin, m_hardMax;

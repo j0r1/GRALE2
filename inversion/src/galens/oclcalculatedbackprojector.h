@@ -22,6 +22,8 @@ public:
 
 	errut::bool_t init(const std::vector<ImagesDataExtended *> &images, double angularScale); 
 	void setBetaBuffer(const float *pBetas, size_t s)									{ m_pBetas = pBetas; m_betasSize = s; }
+	void setAlphaBuffer(const float *pAlphas, size_t s)									{ m_pAlphas = pAlphas; m_alphasSize = s; }
+	void setDerivBuffers(const float *pAxx, const float *pAyy, const float *pAxy, size_t s) { m_pAxx = pAxx; m_pAyy = pAyy; m_pAxy = pAxy;  m_derivSize = s; }
 	
 	double getLensDistance() const														{ return std::numeric_limits<double>::quiet_NaN(); }
 	double getLensRedshift() const														{ return std::numeric_limits<double>::quiet_NaN(); }
@@ -30,14 +32,14 @@ public:
 	const Vector2D<float> *getBetas(int sourceNumber, int imageNumber) const;
 	const Vector2D<float> *getThetas(int sourceNumber) const;
 	const Vector2D<float> *getThetas(int sourceNumber, int imageNumber) const;
-	const Vector2D<float> *getAlphas(int sourceNumber) const							{ return nullptr; }
-	const Vector2D<float> *getAlphas(int sourceNumber, int imageNumber) const			{ return nullptr; }
-	const float *getDerivativesXX(int sourceNumber) const								{ return nullptr; }
-	const float *getDerivativesXX(int sourceNumber, int imageNumber) const				{ return nullptr; }
-	const float *getDerivativesYY(int sourceNumber) const								{ return nullptr; }
-	const float *getDerivativesYY(int sourceNumber, int imageNumber) const				{ return nullptr; }
-	const float *getDerivativesXY(int sourceNumber) const								{ return nullptr; }
-	const float *getDerivativesXY(int sourceNumber, int imageNumber) const				{ return nullptr; }
+	const Vector2D<float> *getAlphas(int sourceNumber) const;
+	const Vector2D<float> *getAlphas(int sourceNumber, int imageNumber) const;
+	const float *getDerivativesXX(int sourceNumber) const;
+	const float *getDerivativesXX(int sourceNumber, int imageNumber) const;
+	const float *getDerivativesYY(int sourceNumber) const;
+	const float *getDerivativesYY(int sourceNumber, int imageNumber) const;
+	const float *getDerivativesXY(int sourceNumber) const;
+	const float *getDerivativesXY(int sourceNumber, int imageNumber) const;
 	const float *getSecondDerivativesXXX(int sourceNumber) const						{ return nullptr; }
 	const float *getSecondDerivativesXXX(int sourceNumber, int imageNumber) const		{ return nullptr; }
 	const float *getSecondDerivativesYYY(int sourceNumber) const						{ return nullptr; }
@@ -61,28 +63,41 @@ public:
 private:
 	std::vector<std::vector<Vector2D<float> > > m_thetas;
 	std::vector<int> m_sourceOffsets;
-	const float *m_pBetas;
-	size_t m_betasSize;
-	double m_angularScale;
+	const float *m_pBetas = nullptr, *m_pAlphas = nullptr;
+	const float *m_pAxx = nullptr, *m_pAyy = nullptr, *m_pAxy = nullptr;
+	size_t m_betasSize = 0, m_alphasSize = 0, m_derivSize = 0;
+	double m_angularScale = 0;
+
+	template <int ptMultiplier>
+	const float *getOffsetInArray(const float *pBasePtr, size_t bufSize, int sourceNumber) const
+	{
+		assert(sourceNumber >= 0 && sourceNumber < m_sourceOffsets.size());
+		assert(pBasePtr);
+		int offset = m_sourceOffsets[sourceNumber]*ptMultiplier;
+		assert(offset < bufSize);
+		return pBasePtr + offset;
+	}
+
+	template <int ptMultiplier>
+	const float *getOffsetInArray(const float *pBasePtr, size_t bufSize, int sourceNumber, int imageNumber) const
+	{
+		assert(sourceNumber >= 0 && sourceNumber < m_sourceOffsets.size() && sourceNumber < m_offsets.size());
+		assert(imageNumber < m_offsets[sourceNumber].size());
+		assert(pBasePtr);
+		int offset = (m_sourceOffsets[sourceNumber] + m_offsets[sourceNumber][imageNumber]) * ptMultiplier;
+		assert(offset < bufSize);
+		return pBasePtr + offset;
+	}
 };
 
 inline const Vector2D<float> *OclCalculatedBackProjector::getBetas(int sourceNumber) const
 {
-	assert(sourceNumber >= 0 && sourceNumber < m_sourceOffsets.size());
-	assert(m_pBetas);
-	int offset = m_sourceOffsets[sourceNumber];
-	assert(offset < m_betasSize);
-	return reinterpret_cast<const Vector2Df*>(m_pBetas + offset);
+	return reinterpret_cast<const Vector2Df*>(getOffsetInArray<2>(m_pBetas, m_betasSize, sourceNumber));
 }
 
 inline const Vector2D<float> *OclCalculatedBackProjector::getBetas(int sourceNumber, int imageNumber) const
 {
-	assert(sourceNumber >= 0 && sourceNumber < m_sourceOffsets.size() && sourceNumber < m_offsets.size());
-	assert(imageNumber < m_offsets[sourceNumber].size());
-	assert(m_pBetas);
-	int offset = m_sourceOffsets[sourceNumber] + m_offsets[sourceNumber][imageNumber] * 2;
-	assert(offset < m_betasSize);
-	return reinterpret_cast<const Vector2Df*>(m_pBetas + offset);
+	return reinterpret_cast<const Vector2Df*>(getOffsetInArray<2>(m_pBetas, m_betasSize, sourceNumber, imageNumber));
 }
 
 inline const Vector2D<float> *OclCalculatedBackProjector::getThetas(int sourceNumber) const
@@ -99,6 +114,46 @@ inline const Vector2D<float> *OclCalculatedBackProjector::getThetas(int sourceNu
 	int offset = m_offsets[sourceNumber][imageNumber];
 	assert(offset < m_thetas[sourceNumber].size());
 	return &(m_thetas[sourceNumber][offset]);
+}
+
+inline const Vector2D<float> *OclCalculatedBackProjector::getAlphas(int sourceNumber) const
+{
+	return reinterpret_cast<const Vector2Df*>(getOffsetInArray<2>(m_pAlphas, m_alphasSize, sourceNumber));
+}
+
+inline const Vector2D<float> *OclCalculatedBackProjector::getAlphas(int sourceNumber, int imageNumber) const
+{
+	return reinterpret_cast<const Vector2Df*>(getOffsetInArray<2>(m_pAlphas, m_alphasSize, sourceNumber, imageNumber));
+}
+
+inline const float *OclCalculatedBackProjector::getDerivativesXX(int sourceNumber) const
+{
+	return getOffsetInArray<1>(m_pAxx, m_derivSize, sourceNumber);
+}
+
+inline const float *OclCalculatedBackProjector::getDerivativesXX(int sourceNumber, int imageNumber) const
+{
+	return getOffsetInArray<1>(m_pAxx, m_derivSize, sourceNumber, imageNumber);
+}
+
+inline const float *OclCalculatedBackProjector::getDerivativesYY(int sourceNumber) const
+{
+	return getOffsetInArray<1>(m_pAyy, m_derivSize, sourceNumber);
+}
+
+inline const float *OclCalculatedBackProjector::getDerivativesYY(int sourceNumber, int imageNumber) const
+{
+	return getOffsetInArray<1>(m_pAyy, m_derivSize, sourceNumber, imageNumber);
+}
+
+inline const float *OclCalculatedBackProjector::getDerivativesXY(int sourceNumber) const
+{
+	return getOffsetInArray<1>(m_pAxy, m_derivSize, sourceNumber);
+}
+
+inline const float *OclCalculatedBackProjector::getDerivativesXY(int sourceNumber, int imageNumber) const
+{
+	return getOffsetInArray<1>(m_pAxy, m_derivSize, sourceNumber, imageNumber);
 }
 
 } // end namespace

@@ -9,7 +9,7 @@ namespace grale
 using namespace std;
 using namespace errut;
 
-OclCalculatedBackProjector::OclCalculatedBackProjector() : m_pBetas(nullptr)
+OclCalculatedBackProjector::OclCalculatedBackProjector()
 {
 }
 
@@ -46,7 +46,7 @@ bool_t OclCalculatedBackProjector::init(const std::vector<ImagesDataExtended *> 
 		for (int j = 0 ; j < numImages ; j++)
 		{
 			int numPoints = pImgDat->getNumberOfImagePoints(j);
-			curOffset += numPoints*2; // *2 for two coordinates
+			curOffset += numPoints;
 		}
 	}
 		

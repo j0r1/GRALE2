@@ -142,8 +142,8 @@ bool_t LensGAParametricSinglePlaneCalculator::init(const LensInversionParameters
 		return false;
 	};
 
-	if (any(needDeriv))
-		return "Fitness object needs deflection derivatives; currently not supported";
+	m_needDerivs = any(needDeriv);
+
 	if (any(needPot))
 		return "Fitness object needs potential calculations; currently not supported";
 	if (any(needSecondDeriv))
@@ -269,6 +269,7 @@ errut::bool_t LensGAParametricSinglePlaneCalculator::pollCalculate(const eatk::G
 	const vector<size_t> &pointMap = m_pointMap.getPointMapping();
 	
 	m_betas.resize(pointMap.size()*2);
+	m_scaledAlphas.resize(m_betas.size());
 	assert(pointMap.size() == m_distFrac.size());
 	for (size_t i = 0, j = 0 ; j < m_betas.size() ; i++, j += 2)
 	{
@@ -277,11 +278,40 @@ errut::bool_t LensGAParametricSinglePlaneCalculator::pollCalculate(const eatk::G
 		float f = m_distFrac[i];
 
 		assert(idxForPoint < m_thetas.size() && idxForPoint < m_alphas.size());
-		m_betas[j] = m_thetas[idxForPoint].getX() - f*m_alphas[idxForPoint].getX();
-		m_betas[j+1] = m_thetas[idxForPoint].getY() - f*m_alphas[idxForPoint].getY();
+		Vector2Df scaledAlpha = m_alphas[idxForPoint];
+		scaledAlpha *= f;
+
+		m_betas[j] = m_thetas[idxForPoint].getX() - scaledAlpha.getX();
+		m_betas[j+1] = m_thetas[idxForPoint].getY() - scaledAlpha.getY();
+		m_scaledAlphas[j] = scaledAlpha.getX();
+		m_scaledAlphas[j+1] = scaledAlpha.getY();
 	}
 
 	m_oclBp->setBetaBuffer(m_betas.data(), m_betas.size());
+	m_oclBp->setAlphaBuffer(m_scaledAlphas.data(), m_alphas.size());
+
+	if (m_needDerivs)
+	{
+		m_scaledAxx.resize(pointMap.size());
+		m_scaledAyy.resize(m_scaledAxx.size());
+		m_scaledAxy.resize(m_scaledAxx.size());
+
+		for (size_t i = 0 ; i < m_scaledAxx.size() ; i++)
+		{
+			assert(i < pointMap.size());
+			size_t idxForPoint = pointMap[i];
+			float f = m_distFrac[i];
+
+			if (idxForPoint >= m_axx.size() || idxForPoint >= m_ayy.size() || idxForPoint >= m_axy.size())
+				cerr << "idx = " << idxForPoint << " " << m_axx.size() << " " << m_ayy.size() << " " << m_axy.size() << endl;
+			assert(idxForPoint < m_thetas.size() && idxForPoint < m_axx.size() && idxForPoint < m_ayy.size() && idxForPoint < m_axy.size());
+			m_scaledAxx[i] = f * m_axx[idxForPoint];
+			m_scaledAyy[i] = f * m_ayy[idxForPoint];
+			m_scaledAxy[i] = f * m_axy[idxForPoint];
+		}
+
+		m_oclBp->setDerivBuffers(m_scaledAxx.data(), m_scaledAyy.data(), m_scaledAxy.data(), m_scaledAxx.size());
+	}
 
 	vector<float> &fitnessValues = fitness.getValues();
 	if (!m_fitObj->calculateOverallFitness(*m_oclBp, fitnessValues.data()))
