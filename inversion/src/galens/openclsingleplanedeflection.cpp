@@ -540,7 +540,7 @@ bool OpenCLSinglePlaneDeflectionInstance::getResultsForGenome(const eatk::FloatV
     assert(pointOffsetEnd <= m_allAlphas.size());
 
     alphas.resize(m_numPoints);
-    axx.reserve(m_numPoints);
+    axx.resize(m_numPoints);
     ayy.resize(m_numPoints);
     axy.resize(m_numPoints);
     potential.resize(m_numPoints);
