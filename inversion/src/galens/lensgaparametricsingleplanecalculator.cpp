@@ -73,6 +73,7 @@ bool_t LensGAParametricSinglePlaneCalculator::init(const LensInversionParameters
 
 	m_thetas.clear();
 	m_distFrac.clear();
+	m_pointMap.clear();
 	// TODO: we'll need Dds/Ds as well later
 	for (auto &img : params.getImages())
 	{
@@ -87,12 +88,21 @@ bool_t LensGAParametricSinglePlaneCalculator::init(const LensInversionParameters
 			{
 				Vector2Dd pos = img->getImagePointPosition(i, p);
 				pos /= m_angularScale;
-				m_thetas.push_back({(float)pos.getX(), (float)pos.getY()});
+
+				Vector2Df floatPos((float)pos.getX(), (float)pos.getY());
+
+				if (m_pointMap.addPoint(floatPos)) // returns true for a new point, false if already present
+					m_thetas.push_back(floatPos);
 	
 				m_distFrac.push_back(frac); // for now, we'll use one fraction per point
 			}
 		}
 	}
+
+	cerr << "INFO: total points " << m_pointMap.getPointMapping().size() << " =? " << m_distFrac.size() << ", unique points = " << m_thetas.size() << endl;
+	// cerr << "Point map is:" << endl;
+	// for (size_t i = 0 ; i < m_pointMap.getPointMapping().size() ; i++)
+	// 	cerr << "    " << i << "\t -> " << m_pointMap.getPointMapping()[i] << endl;
 
 	int numIntParams = 0, numFloatParams = 0;
 	if (!m_templateLens->getCLParameterCounts(&numIntParams, &numFloatParams))
@@ -220,7 +230,7 @@ errut::bool_t LensGAParametricSinglePlaneCalculator::pollCalculate(const eatk::G
 	assert(m_numObjectives == fitness.getValues().size());
 
 	auto &cl = OpenCLSinglePlaneDeflectionInstance::instance();
-	if (!cl.getResultsForGenome(genome, m_alphas, m_axx, m_ayy, m_axy, m_potential)) // Not ready yet
+	if (!cl.getResultsForGenome(genome, m_alphas, m_axx, m_ayy, m_axy, m_potential))
 		return true; // No error, but not ready yet
 
 	/*
@@ -256,17 +266,19 @@ errut::bool_t LensGAParametricSinglePlaneCalculator::pollCalculate(const eatk::G
 	cerr << "Max diff: " << maxDiff << endl;
 	*/
 
-	// cerr << "Calculated betas: " << endl;
-	m_betas.resize(m_alphas.size()*2);
-	for (size_t i = 0, j = 0 ; i < m_alphas.size() ; i++)
+	const vector<size_t> &pointMap = m_pointMap.getPointMapping();
+	
+	m_betas.resize(pointMap.size()*2);
+	assert(pointMap.size() == m_distFrac.size());
+	for (size_t i = 0, j = 0 ; j < m_betas.size() ; i++, j += 2)
 	{
-		m_betas[j++] = m_thetas[i].getX()-m_distFrac[i]*m_alphas[i].getX();
-		m_betas[j++] = m_thetas[i].getY()-m_distFrac[i]*m_alphas[i].getY();
-		// m_betas[j++] = m_distFrac[i]*alphasCPU[i].getX();
-		// m_betas[j++] = m_distFrac[i]*alphasCPU[i].getY();
+		assert(i < pointMap.size());
+		size_t idxForPoint = pointMap[i];
+		float f = m_distFrac[i];
 
-		// cerr << m_alphas[i].getX() << "," << m_alphas[i].getY() << " -> "
-		//      << m_betas[j-2] << "," << m_betas[j-1] << endl;
+		assert(idxForPoint < m_thetas.size() && idxForPoint < m_alphas.size());
+		m_betas[j] = m_thetas[idxForPoint].getX() - f*m_alphas[idxForPoint].getX();
+		m_betas[j+1] = m_thetas[idxForPoint].getY() - f*m_alphas[idxForPoint].getY();
 	}
 
 	m_oclBp->setBetaBuffer(m_betas.data(), m_betas.size());

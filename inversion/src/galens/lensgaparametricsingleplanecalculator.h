@@ -6,6 +6,7 @@
 #include "lensinversionparametersparametricsingleplane.h"
 #include "oclcalculatedbackprojector.h"
 #include <cassert>
+#include <map>
 
 namespace grale
 {
@@ -60,6 +61,51 @@ private:
 
 	std::vector<float> m_initMin, m_initMax;
 	std::vector<float> m_hardMin, m_hardMax;
+
+	class ThetaPointMap
+	{
+	public:
+		void clear()
+		{
+			m_thetaMap.clear();
+			m_pointIndex.clear();
+		}
+
+		bool addPoint(Vector2Df pt)
+		{
+			auto it = m_thetaMap.find(pt);
+			if (it == m_thetaMap.end()) // new point
+			{
+				size_t ptIdx = m_thetaMap.size();
+				m_pointIndex.push_back(ptIdx);
+
+				m_thetaMap[pt] = ptIdx;
+				return true;
+			}
+			else
+			{
+				size_t ptIdx = it->second;
+				m_pointIndex.push_back(ptIdx);
+				return false;
+			}
+		}
+
+		const std::vector<size_t> &getPointMapping() const { return m_pointIndex; }
+	private:
+		struct Vec2DfComparator
+		{
+		    bool operator()(const Vector2Df a, const Vector2Df b) const
+			{
+				if (a.getX() == b.getX())
+					return a.getY() < b.getY();
+				return a.getX() < b.getX();
+		    }
+		};
+		std::vector<size_t> m_pointIndex;
+		std::map<Vector2Df, size_t, Vec2DfComparator> m_thetaMap;
+	};
+
+	ThetaPointMap m_pointMap;
 };
 
 } // end namespace
