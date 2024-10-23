@@ -593,7 +593,76 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
            defaultInitialParameterFraction = 0.1, clampToHardLimits = False, fitnessObjectParameters = None, convergenceParameters = { },
            geneticAlgorithmParameters = { }, returnNds = False, inverter = "default", feedbackObject = "default",
            cosmology = None, maximumGenerations = None, eaType = "JADE", uploadFullParameters = True, deviceIndex = "rotate"):
-    """TODO"""
+    """This is a low-level function, used by the similarly named function
+    in :class:`InversionWorkSpace`.
+
+    Arguments:
+     - `inputImages`: describes the observed images and their properties,
+       see :func:`invert` for a full description.
+
+     - `parametricLensDescription`: a dictionary that describes the lens model
+       and which parameters of the model can vary within which bounds. See
+       the :mod:`paramdesc <grale.paramdesc>` module for more information.
+
+     - `zd`: the redshift to the lens, used when calculating time delays
+       (for other purposes the angular diameter distance will be used).
+
+     - `Dd`: the angular diameter distance to the lens.
+
+     - `popSize`: the size of the population in the genetic algorithm, e.g. 512.
+
+     - `moduleName`: name of the inversion module for the evolutionary algorithm.
+
+     - `defaultInitialParameterFraction`: this is passed onto the 
+       :func:`analyzeParametricLensDescription <grale.paramdesc.analyzeParametricLensDescription>`
+       function.
+
+     - `clampToHardLimits`: also passed to the same function.
+
+     - `fitnessObjectParameters`: parameters for the lens inversion module for the
+       evolutionary algorithm. For the ``"general"`` module, more information can be
+       found in the :ref:`usage <usage-module-general>` documentation.
+
+     - `convergenceParameters`: see :func:`getFullEASettings`.
+
+     - `geneticAlgorithmParameters`: see :func:`getFullEASettings`
+
+     - `returnNds`: by default, this function will return a single gravitational lens
+       model. If there are several fitness measures however, the end result is actually
+       a non-dominated set of models. The inversion module for the genetic algorithm has
+       some default strategy for choosing one solution from this set. In case you'd like
+       to get the complete non-dominated set instead, you can set this flag to ``True``.
+
+     - `inverter`: specifies the inverter to be used. See the :mod:`inverters<grale.inverters>`
+       module for more information.
+
+     - `feedbackObject`: can be used to specify a particular :ref:`feedback mechanism <feedback>`.
+
+     - `cosmology`: depending on the inversion algorithm, it may be necessary to specify a
+       cosmological model.
+
+     - `maximumGenerations`: if the genetic algorithm didn't stop by itself after
+       this many generations, stop it anyway. To test an inversion script completely,
+       it can be useful to temporarily stop the genetic algorithm after only a small
+       number of generations so that the code doesn't take long to run (this is now
+       actually merged into the `convergenceParameters`)
+
+     - `eaType`: see :func:`getFullEASettings`.
+
+     - `uploadFullParameters`: describes the way changes in the parameters are passed
+       on to the GPU. If the model is large, but few parameters are changed, setting
+       this to ``False`` will onto upload the changed parameters and let GPU code put
+       them in the right locations. When ``True``, the entire parameter set (with
+       changes incorporated) is uploaded instead.
+     
+     - `deviceIndex`: this parametric inversion uses a GPU to back-project the image
+       data, and by setting a specific number, a specific device can be specified. To
+       allow multiple GPUs to be used automatically, you can leave this to ``"rotate"``
+       and use an :mod:`inverter <grale.inverters>` with as many processes as you have
+       GPUs.
+
+
+    """
 
     desc = paramdesc.analyzeParametricLensDescription(parametricLensDescription, Dd, defaultInitialParameterFraction, clampToHardLimits)
     
@@ -1653,6 +1722,11 @@ class InversionWorkSpace(object):
         return strongGrid, weakGrid
     
     def invertParametric(self, parametricLensDescription, populationSize, **kwargs):
+        """This function uses the images that were added to the workspace to
+        perform a parametric inversion using the :func:`invertParametric` function.
+        A lens description and population size must be passed, other options to
+        that function can be specified as keyword arguments.
+        """
 
         zd = self.zd[0]
         Dd = self.Dd[0]

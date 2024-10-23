@@ -618,7 +618,9 @@ def createParametricDescription(lens, massUnitString = "MASS_SUN", angularUnitSt
         - a value: in that case this is a fixed parameter
         - a list ``[ value, fraction ]`` to initialize the parameter to vary between
           bounds specified by the fraction, or just ``[ value ]`` if the default
-          fraction is to be used when calling :func:`analyzeParametricLensDescription`
+          fraction is to be used when calling :func:`analyzeParametricLensDescription`.
+          If a third fraction is specified, e.g. ``[ value, fraction, hardfraction ]``,
+          then that will be used for the hard bounds.
         - a dictionary containing entries for ``"initmin"`` and ``"initmax"``, and
           optionally ``"hardmin"`` and ``"hardmax"``.
     """
