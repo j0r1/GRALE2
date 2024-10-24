@@ -1732,7 +1732,18 @@ class InversionWorkSpace(object):
         Dd = self.Dd[0]
         imgList = self.imgDataList
 
-        return invertParametric(imgList, parametricLensDescription, zd, Dd, populationSize, **kwargs)
+        newKwargs = { }
+        newKwargs["inverter"] = self.inverter
+        newKwargs["feedbackObject"] = self.feedbackObject
+        newKwargs["cosmology"] = self.cosm
+
+        for a in self.inversionArgs:
+            newKwargs[a] = self.inversionArgs[a]
+
+        for a in kwargs:
+            newKwargs[a] = kwargs[a]
+
+        return invertParametric(imgList, parametricLensDescription, zd, Dd, populationSize, **newKwargs)
 
 def getDefaultInverter():
     """Convenience function in this module, just calls 
