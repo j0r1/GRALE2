@@ -480,7 +480,9 @@ def _convertedValueToString(value, stringConverter):
             return "[" + stringConverter(value[0]) + "]"
         if len(value) == 2:
             return "[" + stringConverter(value[0]) + ", " + _getUnitlessValue(value[1]) + "]"
-        raise ParametricDescriptionException(f"List or tuple should have length 1 or 2, but is {len(value)}")
+        if len(value) == 3:
+            return "[" + stringConverter(value[0]) + ", " + _getUnitlessValue(value[1]) + ", " + _getUnitlessValue(value[2]) + "]"
+        raise ParametricDescriptionException(f"List or tuple should have length 1, 2 or 3, but is {len(value)}")
     
     if type(value) == dict:
         d = "{ "
