@@ -24,6 +24,7 @@ public:
 	void setBetaBuffer(const float *pBetas, size_t s)									{ m_pBetas = pBetas; m_betasSize = s; }
 	void setAlphaBuffer(const float *pAlphas, size_t s)									{ m_pAlphas = pAlphas; m_alphasSize = s; }
 	void setDerivBuffers(const float *pAxx, const float *pAyy, const float *pAxy, size_t s) { m_pAxx = pAxx; m_pAyy = pAyy; m_pAxy = pAxy;  m_derivSize = s; }
+	void setPotentialBuffers(const float *pPot, size_t s) { m_pPotentials = pPot; m_potSize = s; }
 	
 	double getLensDistance() const														{ return std::numeric_limits<double>::quiet_NaN(); }
 	double getLensRedshift() const														{ return std::numeric_limits<double>::quiet_NaN(); }
@@ -57,15 +58,16 @@ public:
 	const float *getConvergence(int sourceNumber) const									{ return nullptr; }
 	const float *getConvergence(int sourceNumber, int imageNumber) const				{ return nullptr; }
 
-	const float *getLensPotential(int sourceNumber) const								{ return nullptr; }
-	const float *getLensPotential(int sourceNumber, int imageNumber) const				{ return nullptr; }
+	const float *getLensPotential(int sourceNumber) const;
+	const float *getLensPotential(int sourceNumber, int imageNumber) const;
 	float getTimeDelay(int sourceNumber, int imageNumber, int pointNumber, Vector2D<float> beta) const { return std::numeric_limits<float>::quiet_NaN(); }
 private:
 	std::vector<std::vector<Vector2D<float> > > m_thetas;
 	std::vector<int> m_sourceOffsets;
 	const float *m_pBetas = nullptr, *m_pAlphas = nullptr;
 	const float *m_pAxx = nullptr, *m_pAyy = nullptr, *m_pAxy = nullptr;
-	size_t m_betasSize = 0, m_alphasSize = 0, m_derivSize = 0;
+	const float *m_pPotentials = nullptr;
+	size_t m_betasSize = 0, m_alphasSize = 0, m_derivSize = 0, m_potSize = 0;
 	double m_angularScale = 0;
 
 	template <int ptMultiplier>
@@ -154,6 +156,16 @@ inline const float *OclCalculatedBackProjector::getDerivativesXY(int sourceNumbe
 inline const float *OclCalculatedBackProjector::getDerivativesXY(int sourceNumber, int imageNumber) const
 {
 	return getOffsetInArray<1>(m_pAxy, m_derivSize, sourceNumber, imageNumber);
+}
+
+inline const float *OclCalculatedBackProjector::getLensPotential(int sourceNumber) const
+{
+	return getOffsetInArray<1>(m_pPotentials, m_potSize, sourceNumber);
+}
+
+inline const float *OclCalculatedBackProjector::getLensPotential(int sourceNumber, int imageNumber) const
+{
+	return getOffsetInArray<1>(m_pPotentials, m_potSize, sourceNumber, imageNumber);
 }
 
 } // end namespace

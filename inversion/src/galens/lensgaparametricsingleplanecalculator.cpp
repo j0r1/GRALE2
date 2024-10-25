@@ -74,7 +74,7 @@ bool_t LensGAParametricSinglePlaneCalculator::init(const LensInversionParameters
 	m_thetas.clear();
 	m_distFrac.clear();
 	m_pointMap.clear();
-	// TODO: we'll need Dds/Ds as well later
+
 	for (auto &img : params.getImages())
 	{
 		int numImages = img->getNumberOfImages();
@@ -143,9 +143,15 @@ bool_t LensGAParametricSinglePlaneCalculator::init(const LensInversionParameters
 	};
 
 	m_needDerivs = any(needDeriv);
+	m_needPotentials = any(needPot);
+	if (m_needPotentials)
+	{
+		// The projected images interface expects the potential scale to be the
+		// angular scale squared, so we'll need a conversion factor here
+		// TODO: use a different m_distFrac version that has this scale incorporated?
+		m_potScaleConversion = (float)(m_potScale/(m_angularScale*m_angularScale));
+	}
 
-	if (any(needPot))
-		return "Fitness object needs potential calculations; currently not supported";
 	if (any(needSecondDeriv))
 		return "Fitness object needs second derivatives of deflection; not suppored";
 
@@ -302,15 +308,30 @@ errut::bool_t LensGAParametricSinglePlaneCalculator::pollCalculate(const eatk::G
 			size_t idxForPoint = pointMap[i];
 			float f = m_distFrac[i];
 
-			if (idxForPoint >= m_axx.size() || idxForPoint >= m_ayy.size() || idxForPoint >= m_axy.size())
-				cerr << "idx = " << idxForPoint << " " << m_axx.size() << " " << m_ayy.size() << " " << m_axy.size() << endl;
-			assert(idxForPoint < m_thetas.size() && idxForPoint < m_axx.size() && idxForPoint < m_ayy.size() && idxForPoint < m_axy.size());
+			assert(idxForPoint < m_axx.size() && idxForPoint < m_ayy.size() && idxForPoint < m_axy.size());
 			m_scaledAxx[i] = f * m_axx[idxForPoint];
 			m_scaledAyy[i] = f * m_ayy[idxForPoint];
 			m_scaledAxy[i] = f * m_axy[idxForPoint];
 		}
 
 		m_oclBp->setDerivBuffers(m_scaledAxx.data(), m_scaledAyy.data(), m_scaledAxy.data(), m_scaledAxx.size());
+	}
+
+	if (m_needPotentials)
+	{
+		m_scaledPotentials.resize(pointMap.size());
+
+		for (size_t i = 0 ; i < m_scaledPotentials.size() ; i++)
+		{
+			assert(i < pointMap.size());
+			size_t idxForPoint = pointMap[i];
+			float f = m_distFrac[i] * m_potScaleConversion; // TODO: use a new array in which the rescaling is included?
+
+			assert(idxForPoint < m_potential.size());
+			m_scaledPotentials[i] = f * m_potential[idxForPoint];
+		}
+
+		m_oclBp->setPotentialBuffers(m_scaledPotentials.data(), m_scaledPotentials.size());
 	}
 
 	vector<float> &fitnessValues = fitness.getValues();
