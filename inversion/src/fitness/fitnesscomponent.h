@@ -65,6 +65,10 @@ public:
 	~FitnessComponent();
 	virtual std::unique_ptr<FitnessComponent> createShortCopy() const = 0;
 
+	// Some fitness values may actualy be a (log) probability, which means that
+	// that it can be used in MCMC
+	virtual bool isNegativeLogProb() const { return false; }
+
 	void setPriority(int p)																{ m_priority = p; }
 	int getPriority() const																{ return m_priority; }
 

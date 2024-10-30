@@ -33,6 +33,8 @@ public:
 	~FitnessComponent_WeakLensing_Bayes();
 	std::unique_ptr<FitnessComponent> createShortCopy() const override { return std::make_unique<FitnessComponent_WeakLensing_Bayes>(nullptr); }
 
+	bool isNegativeLogProb() const override { return true; }
+
 	bool inspectImagesData(int idx, const ImagesDataExtended &imgDat,
 			                       bool &needCalcDeflections, bool &needCalcDeflDeriv, bool &needCalcPotential,
 			                       bool &needCalcInverseMag, bool &needCalcShear, bool &needCalcConvergence,

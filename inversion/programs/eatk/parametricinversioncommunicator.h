@@ -126,8 +126,6 @@ protected:
 			}
 			else // multi-objective
 			{
-				// TODO: not used currently
-
 				auto ndCreator = std::make_shared<eatk::FasterNonDominatedSetCreator>(comparison, numObjectives);
 				evolver = std::make_unique<eatk::JADEEvolver>(rng, mut, cross, comparison,
 						  -1, // signals multi-objective

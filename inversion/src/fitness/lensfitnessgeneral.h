@@ -28,6 +28,7 @@
 
 #include "graleconfig.h"
 #include "lensfitnessobject.h"
+#include "fitnesscomponent.h"
 #include "cosmology.h"
 #include <memory>
 #include <set>
@@ -76,6 +77,9 @@ public:
 						   std::vector<bool> &secondDerivFlags) const override { deflectionFlags = m_shortDeflectionFlags; derivativeFlags = m_shortDerivativeFlags; potentialFlags = m_shortPotentialFlags; secondDerivFlags = m_shortSecondDerivFlags; }
 
 	int getNumberOfFitnessComponents() const								{ return m_numFitnessComponents; }
+
+	bool isNegativeLogProb_Short() const { assert(m_pShortComponent); return m_pShortComponent->isNegativeLogProb(); }
+	bool isNegativeLogProb_Overall(int comp) { assert(comp >= 0 && comp < m_totalComponents.size()); assert(m_totalComponents[comp]); return m_totalComponents[comp]->isNegativeLogProb(); }
 
 	bool calculateMassScaleFitness(const ProjectedImagesInterface &inf, float &fitness) const override;
 	bool calculateOverallFitness(const ProjectedImagesInterface &inf, float *fitnessvalues) const override;
