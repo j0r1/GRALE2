@@ -11,9 +11,6 @@
 namespace grale
 {
 
-// TODO: for now multiple image points that are equal are not detected (in principle)
-//       the deflection properties can only be calculated once), they are just
-//       used in the calculation multiple times
 // TODO: for now, all properties (deflection, derivatives, potential) are calculated
 //       for all image points
 class LensGAParametricSinglePlaneCalculator : public LensGAGenomeCalculator
@@ -21,6 +18,8 @@ class LensGAParametricSinglePlaneCalculator : public LensGAGenomeCalculator
 public:
 	LensGAParametricSinglePlaneCalculator(std::unique_ptr<LensFitnessObject> fitObj);
 	~LensGAParametricSinglePlaneCalculator();
+
+	const LensFitnessObject &getFitnessObject() const { return *m_fitObj; }
 
 	errut::bool_t init(const LensInversionParametersBase &params) override;
 	errut::bool_t createLens(const eatk::Genome &genome, std::unique_ptr<GravitationalLens> &lens) const override;

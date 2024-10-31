@@ -4,6 +4,7 @@
 #include "lensgaparametricsingleplanecalculator.h"
 #include <eatk/vectorgenomefitness.h>
 #include <eatk/vectordifferentialevolution.h>
+#include <eatk/goodmanweareevolver.h>
 
 class ParametricCreation : public eatk::VectorDifferentialEvolutionIndividualCreation<float,float>
 {
@@ -24,6 +25,19 @@ public:
 	size_t m_numObj;
 };
 
+class MyGW : public eatk::GoodmanWeareEvolver
+{       
+public: 
+	MyGW(const std::shared_ptr<eatk::RandomNumberGenerator> &rng, ProbType probType, double a)
+		: eatk::GoodmanWeareEvolver(rng, probType, a) { } 
+
+	void onSamples(const std::vector<std::shared_ptr<eatk::Individual>> &samples)
+	{           
+		// TODO: log the samples!
+		std::cerr << "First fitness: " << samples[0]->fitness()->toString() << std::endl;
+	}
+};          
+
 class ParametricInversionCommunicator : public InversionCommunicatorBase
 {
 public:
@@ -43,6 +57,34 @@ public:
 
 protected:	
 
+	errut::bool_t runMCMC(const std::shared_ptr<eatk::RandomNumberGenerator> &rng,
+						int popSize, const std::shared_ptr<grale::LensGAParametricSinglePlaneCalculator> &calculator,
+						const std::shared_ptr<eatk::PopulationFitnessCalculation> &popCalc,
+						const grale::LensGAConvergenceParameters &convParams,
+						eatk::IndividualCreation &creation)
+	{
+		if (calculator->getNumberOfObjectives() != 1)
+			return "Only a single objective can be used for MCMC";
+
+		const grale::LensFitnessObject &fitObj = calculator->getFitnessObject();
+		if (!fitObj.isNegativeLogProb_Overall(0))
+			return "The fitness measure is not the negative of a (log) probability";
+
+		int maxGenerations = convParams.getMaximumNumberOfGenerations(); // TODO: only this is used, make another class for this?
+		eatk::FixedGenerationsStopCriterion stop(maxGenerations); // TODO: make this log the best as well
+
+		double a = 2.0; // TODO: make this configurable
+		MyGW gw(rng, eatk::GoodmanWeareEvolver::NegativeLog, a); // TODO: make a file to log the samples
+
+		MyGA ea;
+		bool_t r = ea.run(creation, gw, *popCalc, stop, popSize, popSize, popSize*3/2);
+		if (!r)
+			return r;
+
+		m_best = gw.getBestIndividuals();
+		return true;
+	}
+
 	errut::bool_t runGA_next(const std::shared_ptr<eatk::RandomNumberGenerator> &rng,
 						 const std::shared_ptr<eatk::FitnessComparison> &comparison,
 						 int popSize, const std::string &lensFitnessObjectType,
@@ -61,13 +103,18 @@ protected:
 			// TODO
 		}
 
+		if (allEATypes.size() != 1)
+			return "Currently only a single EA type can be used for parametric inversion";
+
+		if (multiPopParams.get())
+			return "Parametric inversion only works with a single population";
+
 		std::shared_ptr<grale::LensGAParametricSinglePlaneCalculator> genomeCalculator = std::dynamic_pointer_cast<grale::LensGAParametricSinglePlaneCalculator>(genomeCalculator0);
 		if (!genomeCalculator)
 			return "Calculator does not seem to be a LensGAParametricSinglePlaneCalculator one";
 
 		size_t numObjectives = genomeCalculator->getNumberOfObjectives();
 
-		// After this is created, calculatorCleanup() should be called as well (for MPI at the moment)
 		std::shared_ptr<eatk::PopulationFitnessCalculation> calc;
 		errut::bool_t r;
 
@@ -77,19 +124,18 @@ protected:
 									factoryParamBytes, *creation, calc)))
 			return "Can't get calculator: " + r.getErrorString();
 
-		if (allEATypes.size() != 1)
-			return "Currently only a single EA type can be used for parametric inversion";
-
+		const grale::LensGAConvergenceParameters &convParams = allConvParams[0];
 		std::string eaType = allEATypes[0];
-		if (!(eaType == "JADE" || eaType == "DE"))
-			return "Currently only DE or JADE is supported";
 
-		if (multiPopParams.get())
-			return "DE/JADE only works with a single population";
+		// Do MCMC in another routine
+		if (eaType == "MCMC")
+			return runMCMC(rng, popSize, genomeCalculator, calc, convParams, *creation);
+
+		// Continue with JADE or DE
+		if (!(eaType == "JADE" || eaType == "DE"))
+			return "Currently only MCMC, DE or JADE is supported";
 
 		Stop stop(-1, 0);
-		const grale::LensGAConvergenceParameters &convParams = allConvParams[0];
-		
 		if (!(r = stop.initialize(numObjectives, convParams)))
 			return "Can't initialize stop criterion: " + r.getErrorString();
 		

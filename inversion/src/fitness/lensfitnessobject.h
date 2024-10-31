@@ -205,6 +205,8 @@ public:
 	 *  mass scale fitness calculation (the \c massScaleImages from the LensFitnessObject::init function). */
 	virtual const std::vector<bool> *getShortConvergenceFlags() const = 0;
 	///@}
+	virtual bool isNegativeLogProb_Short() const = 0;
+	virtual bool isNegativeLogProb_Overall(int comp) const = 0;
 };
 
 class LensFitnessObjectFactory

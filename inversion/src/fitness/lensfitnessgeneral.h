@@ -78,8 +78,8 @@ public:
 
 	int getNumberOfFitnessComponents() const								{ return m_numFitnessComponents; }
 
-	bool isNegativeLogProb_Short() const { assert(m_pShortComponent); return m_pShortComponent->isNegativeLogProb(); }
-	bool isNegativeLogProb_Overall(int comp) { assert(comp >= 0 && comp < m_totalComponents.size()); assert(m_totalComponents[comp]); return m_totalComponents[comp]->isNegativeLogProb(); }
+	bool isNegativeLogProb_Short() const override { assert(m_pShortComponent); return m_pShortComponent->isNegativeLogProb(); }
+	bool isNegativeLogProb_Overall(int comp) const override { assert(comp >= 0 && comp < m_totalComponents.size()); assert(m_totalComponents[comp]); return m_totalComponents[comp]->isNegativeLogProb(); }
 
 	bool calculateMassScaleFitness(const ProjectedImagesInterface &inf, float &fitness) const override;
 	bool calculateOverallFitness(const ProjectedImagesInterface &inf, float *fitnessvalues) const override;
