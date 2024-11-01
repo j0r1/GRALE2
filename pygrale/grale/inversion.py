@@ -286,6 +286,12 @@ def _invertCommon(inverter, feedbackObject, moduleName, calcType, fitnessObjectP
     for fullConvParams in allConvergenceParameters:
         if maximumGenerations is not None:
             fullConvParams["maximumgenerations"] = maximumGenerations
+    # Also use this for the MCMC settings
+    for gaParams in allGeneticAlgorithmParameters:
+        print("JORI!")
+        if maximumGenerations is not None and "samplegenerations" in gaParams:
+            gaParams["samplegenerations"] = maximumGenerations
+        print(gaParams)
 
     allConvergenceParameters = [ inversionparams.ConvergenceParameters(d) for d in allConvergenceParameters ]
 

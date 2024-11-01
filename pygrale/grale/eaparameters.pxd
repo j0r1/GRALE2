@@ -73,3 +73,19 @@ cdef extern from "grale/rndparameters.h" namespace "grale":
 
 ctypedef const RNDParameters* RNDParametersPtrConst
 
+cdef extern from "grale/mcmcparameters.h" namespace "grale":
+    cdef cppclass MCMCParameters(EAParameters):
+        MCMCParameters(double a, const string &sampleFileName, size_t sampleGenerations,
+                       size_t burnInGenerations,
+                       size_t annealGenerationsScale, double alpha0, double alphaMax)
+
+        double getGoodmanWeare_a() const
+        const string getSamplesFilename()
+        size_t getSampleGenerations() const
+        size_t getBurnInGenerations() const
+        size_t getAnnealGenerationsTimeScale()
+        double getAnnealAlpha0() const
+        double getAnnealAlphaMax() const
+
+ctypedef const MCMCParameters* MCMCParametersPtrConst
+

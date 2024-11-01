@@ -751,6 +751,37 @@ cdef class NSGA2DELikeCrossoverParameters(EAParameters):
         r["F"] = "random" if isnan(F) else F
         r["CR"] = "random" if isnan(CR) else CR
 
+cdef class MCMCParameters(EAParameters):
+    """TODO"""
+    def __init__(self, a = 2.0, samplesfilename = "", samplegenerations = 0, burningenerations = 0,
+                 annealgenerationsscale = 0, alpha0 = 0.1, alphamax = 1.0):
+        """__init()__"
+
+        TODO
+        """
+        cdef double cA, cAlpha0, cAlphaMax
+        cdef string cFileName
+        cdef size_t cGen, cAnnealGen, cBurnGen
+        
+        cA = a
+        cAlpha0 = alpha0
+        cAlphaMax = alphamax
+        cFileName = B(samplesfilename)
+        cGen = samplegenerations
+        cBurnGen = burningenerations
+        cAnnealGen = annealgenerationsscale
+        self.m_pParams = unique_ptr[eaparameters.EAParameters](new eaparameters.MCMCParameters(cA, cFileName, cGen, cBurnGen, cAnnealGen, cAlpha0, cAlphaMax))
+
+    def _fillInSettings(self, r):
+        cdef eaparameters.MCMCParametersPtrConst pParams = dynamic_cast[eaparameters.MCMCParametersPtrConst](self.m_pParams.get())
+        r["a"] = deref(pParams).getGoodmanWeare_a()
+        r["samplesfilename"] = S(deref(pParams).getSamplesFilename())
+        r["samplegenerations"] = deref(pParams).getSampleGenerations()
+        r["burningenerations"] = deref(pParams).getBurnInGenerations()
+        r["annealgenerationsscale"] = deref(pParams).getAnnealGenerationsTimeScale()
+        r["alpha0"] = deref(pParams).getAnnealAlpha0()
+        r["alphamax"] = deref(pParams).getAnnealAlphaMax()
+
 cdef class LensInversionParametersMultiPlaneGPU(object):
     """An internal representation of the parameters for the lens multi-plane inversion
     procedure, needed to communicate with the C++ based inversion code."""

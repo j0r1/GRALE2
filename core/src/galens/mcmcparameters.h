@@ -13,12 +13,17 @@ public:
 	// Annealing will calculate prob^alpha where alpha = alpha0 * (1/alpha0)^(t/T)
 	MCMCParameters(double a = 2.0, const std::string &samplesFileName = "",
 	               size_t sampleGenerations = 0,
+				   size_t burninGenerations = 0, // this many will not be logged to the sample file
 	               size_t annealGenerationsScale = 0, double alpha0 = 0.1, double alphaMax = 1.0);
 	~MCMCParameters();
 
 	double getGoodmanWeare_a() const { return m_a; }
-	const std::string &getSamplesFilename() const { return m_fileName; }
+	const std::string getSamplesFilename() const { return m_fileName; }
+	// Note: these generations will be multiplied by two when starting the
+	// actual algorithm, since two rounds are needed to advance all goodman-weare
+	// walkers
 	size_t getSampleGenerations() const { return m_sampleGenerations; }
+	size_t getBurnInGenerations() const { return m_burnInGenerations; }
 	size_t getAnnealGenerationsTimeScale() const { return m_annealGenerations; } // 0 means no annealing
 	double getAnnealAlpha0() const { return m_alpha0; }
 	double getAnnealAlphaMax() const { return m_alphaMax; }
@@ -29,6 +34,7 @@ private:
 	double m_a;
 	std::string m_fileName;
 	size_t m_sampleGenerations;
+	size_t m_burnInGenerations;
 	size_t m_annealGenerations;
 	double m_alpha0, m_alphaMax;
 };

@@ -106,7 +106,7 @@ def _getEAParameterClass(eaType):
     elif eaType == "NSGA2-X":
         paramClass = inversionparams.NSGA2DELikeCrossoverParameters
     elif eaType == "MCMC":
-        paramClass = inversionparams.DEParameters # TODO: MCMC parameters!
+        paramClass = inversionparams.MCMCParameters
     else:
         raise Exception("Unknown EA type '{}'".format(eaType))
 

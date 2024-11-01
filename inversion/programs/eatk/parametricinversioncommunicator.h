@@ -2,6 +2,7 @@
 
 #include "inversioncommunicatorbase.h"
 #include "lensgaparametricsingleplanecalculator.h"
+#include "mcmcparameters.h"
 #include <eatk/vectorgenomefitness.h>
 #include <eatk/vectordifferentialevolution.h>
 #include <eatk/goodmanweareevolver.h>
@@ -33,9 +34,20 @@ public:
 
 	void onSamples(const std::vector<std::shared_ptr<eatk::Individual>> &samples)
 	{           
+		std::stringstream ss;
+		ss << "Generation " << generationCount++ << ": best = ";
+
+		const auto &best = getBestIndividuals();
+		if (best.size() == 0)
+			ss << "(no best yet)";
+		else
+			ss << best[0]->fitness()->toString();
+		ss << " first walker = " << samples[0]->fitness()->toString();
+		WriteLineStdout("GAMESSAGESTR:" + ss.str());
 		// TODO: log the samples!
-		std::cerr << "First fitness: " << samples[0]->fitness()->toString() << std::endl;
 	}
+private:
+	size_t generationCount = 0;
 };          
 
 class ParametricInversionCommunicator : public InversionCommunicatorBase
@@ -60,8 +72,9 @@ protected:
 	errut::bool_t runMCMC(const std::shared_ptr<eatk::RandomNumberGenerator> &rng,
 						int popSize, const std::shared_ptr<grale::LensGAParametricSinglePlaneCalculator> &calculator,
 						const std::shared_ptr<eatk::PopulationFitnessCalculation> &popCalc,
-						const grale::LensGAConvergenceParameters &convParams,
-						eatk::IndividualCreation &creation)
+						eatk::IndividualCreation &creation,
+						const grale::EAParameters &eaParams)
+
 	{
 		if (calculator->getNumberOfObjectives() != 1)
 			return "Only a single objective can be used for MCMC";
@@ -70,10 +83,25 @@ protected:
 		if (!fitObj.isNegativeLogProb_Overall(0))
 			return "The fitness measure is not the negative of a (log) probability";
 
-		int maxGenerations = convParams.getMaximumNumberOfGenerations(); // TODO: only this is used, make another class for this?
-		eatk::FixedGenerationsStopCriterion stop(maxGenerations); // TODO: make this log the best as well
+		if (!dynamic_cast<const grale::MCMCParameters*>(&eaParams))
+			return "Parameters are not of type MCMCParameters";
+		const grale::MCMCParameters &mcmcParams = static_cast<const grale::MCMCParameters&>(eaParams);
 
-		double a = 2.0; // TODO: make this configurable
+		// NOTE: we're ignoring the convergence parameters!
+		
+		int maxEAGenerations = mcmcParams.getSampleGenerations() * 2; // Here we use *2 since it takes 2 generations to advance the full set of walkers
+		if (maxEAGenerations == 0)
+			return "No number of generations to sample has been set";
+
+		eatk::FixedGenerationsStopCriterion stop(maxEAGenerations);
+
+		double a = mcmcParams.getGoodmanWeare_a();
+		std::string samplesFileName = mcmcParams.getSamplesFilename();
+		if (samplesFileName.empty())
+		{
+			std::cerr << "\n\n\nWARNING: will not be writing any samples to a file!\n\n\n\n";
+			std::this_thread::sleep_for(std::chrono::seconds(3));
+		}
 		MyGW gw(rng, eatk::GoodmanWeareEvolver::NegativeLog, a); // TODO: make a file to log the samples
 
 		MyGA ea;
@@ -124,12 +152,13 @@ protected:
 									factoryParamBytes, *creation, calc)))
 			return "Can't get calculator: " + r.getErrorString();
 
+		const grale::EAParameters &eaParams = *allEAParams[0];
 		const grale::LensGAConvergenceParameters &convParams = allConvParams[0];
 		std::string eaType = allEATypes[0];
 
 		// Do MCMC in another routine
 		if (eaType == "MCMC")
-			return runMCMC(rng, popSize, genomeCalculator, calc, convParams, *creation);
+			return runMCMC(rng, popSize, genomeCalculator, calc, *creation, eaParams);
 
 		// Continue with JADE or DE
 		if (!(eaType == "JADE" || eaType == "DE"))
@@ -143,7 +172,6 @@ protected:
 		auto cross = std::make_shared<eatk::VectorDifferentialEvolutionCrossover<float>>(rng, genomeCalculator->getHardMin(), genomeCalculator->getHardMax());
 
 		std::unique_ptr<eatk::PopulationEvolver> evolver;
-		const grale::EAParameters &eaParams = *allEAParams[0];
 
 		if (eaType == "JADE")
 		{
