@@ -32,10 +32,53 @@ public:
 	MyGW(const std::shared_ptr<eatk::RandomNumberGenerator> &rng, ProbType probType, double a)
 		: eatk::GoodmanWeareEvolver(rng, probType, a) { } 
 
+	~MyGW()
+	{
+		std::stringstream ss;
+		ss << "GAMESSAGESTR: wrote " << m_generationsWritten << " generations of " << m_numWalkers << " walkers, total of " << m_samplesWritten << " samples, each " << m_floatsPerSample << " float values";
+		WriteLineStdout(ss.str());
+	}
+
+	errut::bool_t init(const std::string &samplesFileName, size_t burninGenerations, size_t annealScale,
+			    double alpha0, double alphaMax)
+	{
+		m_filename = samplesFileName;
+		if (!m_filename.empty())
+		{
+			m_sampleFile.open(m_filename, std::ios::out | std::ios::binary);
+			if (!m_sampleFile.is_open())
+				return "Unable to open file '" + m_filename + "'";
+		}
+
+		m_burnInGenerations = burninGenerations;
+		m_annealScaleGenerations = annealScale;
+		m_alpha0 = alpha0;
+		m_alphaMax = alphaMax;
+		m_currentAlpha = 1.0;
+
+		m_generationCount = 0;
+		updateAnnealFactor();
+		return true;
+	}
+
+	void updateAnnealFactor()
+	{
+		if (m_annealScaleGenerations == 0)
+			return;
+
+		double f = (double)m_generationCount/(double)m_annealScaleGenerations;
+		double alpha = m_alpha0*pow(1.0/m_alpha0, f);
+		if (alpha > m_alphaMax)
+			alpha = m_alphaMax;
+
+		m_currentAlpha = alpha;
+		setAnnealingExponent(alpha);
+	}
+
 	void onSamples(const std::vector<std::shared_ptr<eatk::Individual>> &samples)
 	{           
 		std::stringstream ss;
-		ss << "Generation " << generationCount++ << ": best = ";
+		ss << "Generation " << m_generationCount << ": best = ";
 
 		const auto &best = getBestIndividuals();
 		if (best.size() == 0)
@@ -43,11 +86,46 @@ public:
 		else
 			ss << best[0]->fitness()->toString();
 		ss << " first walker = " << samples[0]->fitness()->toString();
+
+		if (m_generationCount < m_burnInGenerations)
+			ss << " (burn-in)";
+		if (m_currentAlpha != 1.0)
+			ss << " (annealing exponent: " << m_currentAlpha << ")";
+
 		WriteLineStdout("GAMESSAGESTR:" + ss.str());
-		// TODO: log the samples!
+
+		if (m_generationCount >= m_burnInGenerations && m_sampleFile.is_open())
+		{
+			m_numWalkers = samples.size();
+			for (auto &i : samples)
+			{
+				assert(dynamic_cast<const eatk::FloatVectorGenome *>(i->genomePtr()));
+				const eatk::FloatVectorGenome &genome = static_cast<const eatk::FloatVectorGenome&>(i->genomeRef());
+				const std::vector<float> &values = genome.getValues();
+
+				m_sampleFile.write(reinterpret_cast<const char*>(values.data()), values.size() * sizeof(float));
+				m_floatsPerSample = values.size();
+				m_samplesWritten++;
+			}
+			m_generationsWritten++;
+		}
+
+		m_generationCount++;
+		updateAnnealFactor();
 	}
 private:
-	size_t generationCount = 0;
+	size_t m_generationCount = 0;
+	std::string m_filename;
+	std::ofstream m_sampleFile;
+	size_t m_burnInGenerations;
+	size_t m_annealScaleGenerations;
+	double m_alpha0;
+	double m_alphaMax;
+	double m_currentAlpha;
+	size_t m_floatsPerSample = 0;
+	size_t m_samplesWritten = 0;
+	size_t m_generationsWritten = 0;
+	size_t m_numWalkers = 0;
 };          
 
 class ParametricInversionCommunicator : public InversionCommunicatorBase
@@ -90,22 +168,29 @@ protected:
 		// NOTE: we're ignoring the convergence parameters!
 		
 		int maxEAGenerations = mcmcParams.getSampleGenerations() * 2; // Here we use *2 since it takes 2 generations to advance the full set of walkers
+		int annealScale = mcmcParams.getAnnealGenerationsTimeScale(); // These don't need *2, is used when a full sample is received
+		int burninGenerations = mcmcParams.getBurnInGenerations();
+		double a = mcmcParams.getGoodmanWeare_a();
+		double alpha0 = mcmcParams.getAnnealAlpha0();
+		double alphaMax = mcmcParams.getAnnealAlphaMax();
+		std::string samplesFileName = mcmcParams.getSamplesFilename();
+
 		if (maxEAGenerations == 0)
 			return "No number of generations to sample has been set";
-
-		eatk::FixedGenerationsStopCriterion stop(maxEAGenerations);
-
-		double a = mcmcParams.getGoodmanWeare_a();
-		std::string samplesFileName = mcmcParams.getSamplesFilename();
 		if (samplesFileName.empty())
 		{
 			std::cerr << "\n\n\nWARNING: will not be writing any samples to a file!\n\n\n\n";
 			std::this_thread::sleep_for(std::chrono::seconds(3));
 		}
-		MyGW gw(rng, eatk::GoodmanWeareEvolver::NegativeLog, a); // TODO: make a file to log the samples
+
+		eatk::FixedGenerationsStopCriterion stop(maxEAGenerations);
+		MyGW gw(rng, eatk::GoodmanWeareEvolver::NegativeLog, a);
+		errut::bool_t r;
+		if (!(r = gw.init(samplesFileName, burninGenerations, annealScale, alpha0, alphaMax)))
+			return r;
 
 		MyGA ea;
-		bool_t r = ea.run(creation, gw, *popCalc, stop, popSize, popSize, popSize*3/2);
+		r = ea.run(creation, gw, *popCalc, stop, popSize, popSize, popSize*3/2);
 		if (!r)
 			return r;
 
@@ -167,7 +252,7 @@ protected:
 		Stop stop(-1, 0);
 		if (!(r = stop.initialize(numObjectives, convParams)))
 			return "Can't initialize stop criterion: " + r.getErrorString();
-		
+
 		auto mut = std::make_shared<eatk::VectorDifferentialEvolutionMutation<float>>();
 		auto cross = std::make_shared<eatk::VectorDifferentialEvolutionCrossover<float>>(rng, genomeCalculator->getHardMin(), genomeCalculator->getHardMax());
 
