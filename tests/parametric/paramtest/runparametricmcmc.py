@@ -9,7 +9,6 @@ cosm = cosmology.Cosmology(0.7, 0.3, 0, 0.7)
 cosmology.setDefaultCosmology(cosm)
 
 zd = 0.4
-imgList = pickle.load(open("imglist.pickle", "rb"))
 
 lensDescription = {
     "type": "CompositeLens",
@@ -39,31 +38,24 @@ lensDescription = {
     ]
 }
 
-inverters.debugCaptureProcessCommandsFile = "dumpcommunication.dat"
+#inverters.debugCaptureProcessCommandsFile = "dumpcommunication.dat"
+#inversion.setDefaultInverter("threads:8")
+#import os
+#os.environ["GRALE_DEBUG_SEED"] = "12345"
 
-inversion.setDefaultInverter("threads:8")
+for imgListFn, solFn, sampFn, paramFn in [ ("imglist_noise.pickle", "sol_mcmc_noise.lensdata", "samples_noise.dat", "params_noise.dat"),
+                                           ("imglist_nonoise.pickle", "sol_mcmc_nonoise.lensdata", "samples_nonoise.dat", "params_nonoise.dat") ]:
 
-null = images.createGridTriangles(V(-100,-100)*ANGLE_ARCSEC, V(100,100)*ANGLE_ARCSEC, 48,48)
+    imgList = pickle.load(open(imgListFn, "rb"))
 
-iws = inversion.InversionWorkSpace(zd, 10*ANGLE_ARCSEC)
-for i in imgList:
-    iws.addImageDataToList(i["imgdata"], i["z"], "bayesstronglensing")
-    
-    #iws.addImageDataToList(i["imgdata"], i["z"], "pointimages")
-    #iws.addImageDataToList(null, i["z"], "pointnullgrid")
-    #iws.addImageDataToList(i["imgdata"], i["z"], "pointgroupimages")
+    iws = inversion.InversionWorkSpace(zd, 10*ANGLE_ARCSEC)
+    for i in imgList:
+        iws.addImageDataToList(i["imgdata"], i["z"], "bayesstronglensing")
 
-import os
-os.environ["GRALE_DEBUG_SEED"] = "12345"
-
-result = iws.invertParametric(lensDescription, 512, maximumGenerations=2000, eaType = "MCMC",
-                              fitnessObjectParameters = { "fitness_bayesweaklensing_stronglenssigma": 0.5*ANGLE_ARCSEC},
+    lens, _, _, paramInfo = iws.invertParametric(lensDescription, 512, maximumGenerations=2000, eaType = "MCMC",
+                              fitnessObjectParameters = { "fitness_bayesweaklensing_stronglenssigma": 0.05*ANGLE_ARCSEC},
                               geneticAlgorithmParameters = { "annealgenerationsscale": 900, "burningenerations": 1000,
-                                                             "samplesfilename": "mysamples.dat"})
-#pprint.pprint(result)
-lens = result[0]
-lens.save("solution.lensdata")
-
-import pickle
-pickle.dump(result[3], open("paraminfo.dat", "wb"))
+                                                             "samplesfilename": sampFn})
+    lens.save(solFn)
+    pickle.dump(paramInfo, open(paramFn, "wb"))
 

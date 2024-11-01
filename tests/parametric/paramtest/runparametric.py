@@ -9,7 +9,6 @@ cosm = cosmology.Cosmology(0.7, 0.3, 0, 0.7)
 cosmology.setDefaultCosmology(cosm)
 
 zd = 0.4
-imgList = pickle.load(open("imglist.pickle", "rb"))
 
 lensDescription = {
     "type": "CompositeLens",
@@ -40,19 +39,22 @@ lensDescription = {
 }
 
 #inverters.debugCaptureProcessCommandsFile = "dumpcommunication.dat"
+#inversion.setDefaultInverter("threads:8")
+#null = images.createGridTriangles(V(-100,-100)*ANGLE_ARCSEC, V(100,100)*ANGLE_ARCSEC, 48,48)
 
-inversion.setDefaultInverter("threads:8")
+#import os
+#os.environ["GRALE_DEBUG_SEED"] = "12345"
 
-null = images.createGridTriangles(V(-100,-100)*ANGLE_ARCSEC, V(100,100)*ANGLE_ARCSEC, 48,48)
+for imgListFn, solFn in [ ("imglist_noise.pickle", "sol_jade_noise.lensdata"),
+                          ("imglist_nonoise.pickle", "sol_jade_nonoise.lensdata") ]:
 
-iws = inversion.InversionWorkSpace(zd, 10*ANGLE_ARCSEC)
-for i in imgList:
-    iws.addImageDataToList(i["imgdata"], i["z"], "pointimages")
-    iws.addImageDataToList(null, i["z"], "pointnullgrid")
-    #iws.addImageDataToList(i["imgdata"], i["z"], "pointgroupimages")
+    imgList = pickle.load(open(imgListFn, "rb"))
 
-import os
-os.environ["GRALE_DEBUG_SEED"] = "12345"
+    iws = inversion.InversionWorkSpace(zd, 10*ANGLE_ARCSEC)
+    for i in imgList:
+        iws.addImageDataToList(i["imgdata"], i["z"], "pointimages")
+        #iws.addImageDataToList(null, i["z"], "pointnullgrid")
+        #iws.addImageDataToList(i["imgdata"], i["z"], "pointgroupimages")
 
-result = iws.invertParametric(lensDescription, 64, maximumGenerations=1000)
-pprint.pprint(result)
+    lens, _, _, _ = iws.invertParametric(lensDescription, 512)
+    lens.save(solFn)

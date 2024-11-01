@@ -29,38 +29,36 @@ trueLens.save("truelens.lensdata");
 
 li = plotutil.LensInfo(trueLens, size=80*ANGLE_ARCSEC, zd=zd, zs=2)
 
-if 1:
-    numSources = 20
-    srcPos = []
-    imgList = []
-    while len(srcPos) < numSources:
-        x = np.random.uniform(-15, 15)*ANGLE_ARCSEC
-        y = np.random.uniform(-15, 15)*ANGLE_ARCSEC
-        z = np.random.uniform(zd*1.5, 4.5)
-        li.setSourceRedshift(z)
-        ip = li.getImagePlane()
-        imgs = ip.traceBeta(V(x,y))
-        if len(imgs) > 1:
-            imgDat = images.ImagesData(len(imgs))
-            for imgNum, pt in enumerate(imgs):
-                imgDat.addPoint(imgNum, pt)
+sigma = 0.1*ANGLE_ARCSEC
 
-            imgList.append({"imgdata": imgDat, "z": z})
-            srcPos.append(V(x,y))
-            print(f"{len(srcPos)}/{numSources}")
+numSources = 20
+srcPos = []
+imgListNoNoise = []
+imgListNoise = []
+while len(srcPos) < numSources:
+    x = np.random.uniform(-15, 15)*ANGLE_ARCSEC
+    y = np.random.uniform(-15, 15)*ANGLE_ARCSEC
+    z = np.random.uniform(zd*1.5, 4.5)
+    li.setSourceRedshift(z)
+    ip = li.getImagePlane()
+    imgs = ip.traceBeta(V(x,y))
+    if len(imgs) > 1:
+        imgDatNoise = images.ImagesData(len(imgs))
+        imgDatNoNoise = images.ImagesData(len(imgs))
+        for imgNum, pt in enumerate(imgs):
+            imgDatNoNoise.addPoint(imgNum, pt)
 
-pickle.dump(imgList, open("imglist.pickle", "wb"))
+            pt = np.array(pt) + np.random.normal(loc=0, scale=sigma, size=2) # Add some small noise
+            imgDatNoise.addPoint(imgNum, pt)
 
-with open("images.txt", "wt") as f:
-    f.write(f"{zd:g}\n")
-    for i in imgList:
-        z = i["z"]
-        imgDat = i["imgdata"]
-        for imgNum in range(imgDat.getNumberOfImages()):
-            pt = imgDat.getImagePointPosition(imgNum, 0)/ANGLE_ARCSEC
-            dfrac = D(zd, z)/D(z)
-            f.write(f"{pt[0]:g} {pt[1]:g} {dfrac:g}\n")
-        f.write("\n")
+        imgListNoise.append({"imgdata": imgDatNoise, "z": z})
+        imgListNoNoise.append({"imgdata": imgDatNoNoise, "z": z})
+        srcPos.append(V(x,y))
+        print(f"{len(srcPos)}/{numSources}")
+
+pickle.dump(imgListNoise, open("imglist_noise.pickle", "wb"))
+pickle.dump(imgListNoNoise, open("imglist_nonoise.pickle", "wb"))
+pickle.dump(srcPos, open("srcpos.pickle", "wb"))
 
 plt.figure(figsize=(10,10))
 plt.subplot(2,2,1)
@@ -68,5 +66,5 @@ plotutil.plotImagePlane(li)
 plt.subplot(2,2,2)
 plotutil.plotDensityContours(li, levels=np.arange(0.5, 15, 0.5))
 plt.subplot(2,2,3)
-plotutil.plotImagesData(imgList)
+plotutil.plotImagesData(imgListNoNoise)
 plt.show()
