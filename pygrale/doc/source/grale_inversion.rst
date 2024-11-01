@@ -30,6 +30,8 @@ Core functions
 
 .. autofunction:: getDefaultModuleParameters
 
+.. autofunction:: getDefaultConvergenceParameters
+
 .. autofunction:: getFullEASettings
 
 .. autofunction:: getInversionModuleUsage

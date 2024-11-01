@@ -146,6 +146,10 @@ def calculateFitness(inputImages, zd, fitnessObjectParameters, lensOrBackProject
 
     return inverters.calculateFitness(moduleName, inputImages, zd, fullFitnessObjParams, lens=lens, bpImages=bpImages)
 
+def getDefaultConvergenceParameters(eaType):
+    """Helper function to return the default convergence parameters for `eaType`"""
+    return inversionparams.ConvergenceParameters(None, eaType).toDict()
+
 def _adjustEAAndConvergenceParameters(eaType, eaCount, eaParams, convParams):
 
     paramClass = inverters._getEAParameterClass(eaType)
@@ -173,7 +177,7 @@ def _adjustEAAndConvergenceParameters(eaType, eaCount, eaParams, convParams):
                 convParams["convergencefactor"] = 0.05
 
     # Extend again with the defaults
-    defaultParams = inversionparams.ConvergenceParameters(None, eaType).toDict()
+    defaultParams = getDefaultConvergenceParameters(eaType)
     for k in defaultParams:
         if not k in convParams:
             convParams[k] = defaultParams[k]
