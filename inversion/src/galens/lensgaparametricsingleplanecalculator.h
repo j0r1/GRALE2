@@ -41,6 +41,7 @@ private:
 
 	std::unique_ptr<OclCalculatedBackProjector> m_oclBp;
 	bool m_init = false;
+	bool m_infOnBoundsViolation = false;
 	double m_angularScale = 0;
 	double m_potScale = 0;
 	int m_devIdx = 0;

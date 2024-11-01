@@ -24,6 +24,7 @@ cdef extern from "grale/lensinversionparametersparametricsingleplane.h" namespac
                 const vector[int] &offsets,
                 const vector[float] &initMin, const vector[float] &initMax,
                 const vector[float] &hardMin, const vector[float] &hardMax,
+                bool infOnBoundsViolation,
                 const configurationparameters.ConfigurationParameters &fitnessObjectParams,
                 bool uploadFullParameters, int devIdx
                 )

@@ -3,6 +3,7 @@
 #include "deparameters.h"
 #include "rndparameters.h"
 #include "nsga2parameters.h"
+#include "mcmcparameters.h"
 
 using namespace errut;
 using namespace std;
@@ -48,6 +49,9 @@ bool_t EAParameters::read(SerializationInterface &si, unique_ptr<EAParameters> &
 		break;
 	case NSGA2DELikeCrossover:
 		params = make_unique<NSGA2DELikeCrossoverParameters>();
+		break;
+	case MCMC:
+		params = make_unique<MCMCParameters>();
 		break;
 	default:
 		return "Can't interpret EAParameters type id " + to_string(typeInt);

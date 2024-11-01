@@ -162,7 +162,10 @@ bool_t LensGAParametricSinglePlaneCalculator::init(const LensInversionParameters
 	m_hardMin = params.getHardMin();
 	m_hardMax = params.getHardMax();
 
+	m_infOnBoundsViolation = params.infinityOnBoundsViolation();
 	m_init = true;
+
+	std::cerr << "INFO: m_infOnBoundsViolation = " << ((m_infOnBoundsViolation)?1:0) << std::endl;
 
 	return true;
 }
@@ -236,6 +239,37 @@ errut::bool_t LensGAParametricSinglePlaneCalculator::pollCalculate(const eatk::G
 	auto &cl = OpenCLSinglePlaneDeflectionInstance::instance();
 	if (!cl.getResultsForGenome(genome, m_alphas, m_axx, m_ayy, m_axy, m_potential))
 		return true; // No error, but not ready yet
+
+	// Check if the bounds were violated (if requested), is for mcmc
+	if (m_infOnBoundsViolation)
+	{
+		assert(dynamic_cast<const eatk::FloatVectorGenome *>(&genome0));
+		const eatk::FloatVectorGenome &genome = static_cast<const eatk::FloatVectorGenome&>(genome0);
+		const vector<float> &values = genome.getValues();
+
+		assert(values.size() == m_hardMin.size());
+		bool violated = false;
+		for (size_t i = 0 ; i < values.size() ; i++)
+		{
+			float x = values[i];
+			if (x < m_hardMin[i] || x > m_hardMax[i])
+			{
+				violated = true;
+				break;
+			}
+		}
+
+		if (violated) // Set fitness to infinity, and return
+		{
+			vector<float> &fitnessValues = fitness.getValues();
+			assert(fitnessValues.size() == 1);
+			fitnessValues[0] = std::numeric_limits<float>::infinity();
+			fitness.setCalculated();
+			return true;
+		}
+
+		// Ok, not violated, continue the calculation
+	}
 
 	/*
 	auto lens = createLensFromGenome(genome);

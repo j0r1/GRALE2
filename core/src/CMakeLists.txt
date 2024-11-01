@@ -84,6 +84,7 @@ set(HEADERS
 	galens/deparameters.h
 	galens/rndparameters.h
 	galens/nsga2parameters.h
+	galens/mcmcparameters.h
 	opencl/openclkernel.h
 	opencl/openclmultikernel.h
 	opencl/opencllibrary.h
@@ -181,6 +182,7 @@ set(SOURCES
 	galens/deparameters.cpp
 	galens/rndparameters.cpp
 	galens/nsga2parameters.cpp
+	galens/mcmcparameters.cpp
 	opencl/openclkernel.cpp
 	opencl/opencllibrary.cpp
 	thirdparty/WildMagic5/Wm5Assert.cpp

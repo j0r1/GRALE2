@@ -1,5 +1,6 @@
 #include "lensinversionparametersparametricsingleplane.h"
 #include <iostream>
+#include <array>
 
 using namespace std;
 
@@ -18,6 +19,7 @@ LensInversionParametersParametricSinglePlane::LensInversionParametersParametricS
 		const std::vector<int> &offsets,
 		const std::vector<float> &initMin, const std::vector<float> &initMax,
 		const std::vector<float> &hardMin, const std::vector<float> &hardMax,
+		bool infOnBoundsViolation,
 		const ConfigurationParameters &fitnessObjectParams,
 		bool uploadFullParameters, int devIdx)
 {
@@ -32,6 +34,7 @@ LensInversionParametersParametricSinglePlane::LensInversionParametersParametricS
 	m_initMax = initMax;
 	m_hardMin = hardMin;
 	m_hardMax = hardMax;
+	m_infOnBoundsViolation = infOnBoundsViolation;
 	m_fitObjParams = make_unique<ConfigurationParameters>(fitnessObjectParams);
 	m_uploadFillParams = uploadFullParameters;
 	m_devIdx = devIdx;
@@ -107,8 +110,8 @@ bool LensInversionParametersParametricSinglePlane::write(serut::SerializationInt
 		return false;
 	}
 
-	int32_t iParams[] = { (m_uploadFillParams)?1:0, (int32_t)m_devIdx };
-	if (!si.writeInt32s(iParams, 2))
+	array<int32_t,3> iParams = { (m_uploadFillParams)?1:0, (int32_t)m_devIdx, (m_infOnBoundsViolation)?1:0 };
+	if (!si.writeInt32s(iParams.data(), iParams.size()))
 	{
 		setErrorString(si.getErrorString());
 		return false;
@@ -200,8 +203,8 @@ bool LensInversionParametersParametricSinglePlane::read(serut::SerializationInte
 		return false;
 	}
 
-	int32_t iParams[2];
-	if (!si.readInt32s(iParams, 2))
+	array<int32_t,3> iParams;
+	if (!si.readInt32s(iParams.data(), iParams.size()))
 	{
 		setErrorString(si.getErrorString());
 		return false;
@@ -209,6 +212,7 @@ bool LensInversionParametersParametricSinglePlane::read(serut::SerializationInte
 
 	m_uploadFillParams = (iParams[0] == 0)?false:true;
 	m_devIdx = (int)iParams[1];
+	m_infOnBoundsViolation = (iParams[2] == 0)?false:true;
 
 	return true;
 }

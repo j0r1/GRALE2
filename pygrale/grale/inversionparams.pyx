@@ -988,6 +988,7 @@ cdef class LensInversionParametersParametricSinglePlane(object):
 
     def __init__(self, inputImages, Dd, zd,
                   templateLens, deflScale, potScale, offsets, initMin, initMax, hardMin, hardMax,
+                  infOnBoundsViolation,
                   fitnessObjectParameters, uploadFullParameters, deviceIndex = "rotate"):
 
         cdef vector[shared_ptr[imagesdataextended.ImagesDataExtended]] imgVector = _createImageVectorFromSinglePlaneImageList(inputImages)
@@ -1004,6 +1005,7 @@ cdef class LensInversionParametersParametricSinglePlane(object):
         cdef configurationparameters.ConfigurationParameters *pFitnessObjectParameters = NULL
         cdef int devIdx
         cdef cbool cUploadFullParams = uploadFullParameters
+        cdef cbool cInfOnBoundsViolation = infOnBoundsViolation
 
         if inputImages is None:
             return
@@ -1021,7 +1023,7 @@ cdef class LensInversionParametersParametricSinglePlane(object):
         self.m_pParams = unique_ptr[lensinversionparametersparametricsingleplane.LensInversionParametersParametricSinglePlane](
             new lensinversionparametersparametricsingleplane.LensInversionParametersParametricSinglePlane(
                 imgVector, cDd, cZd, deref(cTemplateLens), cDeflScale, cPotScale,
-                cOffsets, cInitMin, cInitMax, cHardMin, cHardMax, deref(pFitnessObjectParameters),
+                cOffsets, cInitMin, cInitMax, cHardMin, cHardMax, cInfOnBoundsViolation, deref(pFitnessObjectParameters),
                 cUploadFullParams, devIdx
             )
         )

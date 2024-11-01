@@ -675,10 +675,20 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
     hardMin = [ x["hardlimits"][0] for x in varParams ]
     hardMax = [ x["hardlimits"][1] for x in varParams ]
 
+    # TODO: should be a cleaner way to do this
+    infOnBoundsViolation = False
+    if eaType == "MCMC":
+        infOnBoundsViolation = True
+    elif type(eaType) == list or type(eaType) == tuple:
+        for t in eaType:
+            if t == "MCMC":
+                infOnBoundsViolation = True
+
     def getParamsFunction(fullFitnessObjParams, massScale):
         assert massScale is None, f"Internal error: expecting massScale to be None, but is {massScale}"
         return inversionparams.LensInversionParametersParametricSinglePlane(inputImages, Dd, zd,
                   templateLens, deflScale, potScale, offsets, initMin, initMax, hardMin, hardMax,
+                  infOnBoundsViolation,
                   fullFitnessObjParams, uploadFullParameters, deviceIndex)
 
     return _invertCommon(inverter, feedbackObject, moduleName, "parametricsingleplane", fitnessObjectParameters,
