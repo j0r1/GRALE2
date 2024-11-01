@@ -167,11 +167,11 @@ std::unique_ptr<GravitationalLensParams> PlummerLens::createLensParamFromCLFloat
 	return std::make_unique<PlummerLensParams>(mass, width);
 }
 
-std::vector<CLFloatParamInfo> PlummerLens::getCLAdjustableFloatingPointParameterInfo() const
+std::vector<CLFloatParamInfo> PlummerLens::getCLAdjustableFloatingPointParameterInfo(double deflectionScale, double potentialScale) const
 {
 	return { 
-		{ .name = "mass_scaled", .offset = 0, .hardMin = 0 },
-		{ .name = "width_scaled", .offset = 1, .hardMin = 0 }
+		{ .name = "mass_scaled", .offset = 0, .hardMin = 0, .scaleFactor = SPEED_C*SPEED_C*getLensDistance()*deflectionScale*deflectionScale/(4.0*CONST_G) },
+		{ .name = "width_scaled", .offset = 1, .hardMin = 0, .scaleFactor = deflectionScale }
 	};
 }
 

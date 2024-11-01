@@ -137,10 +137,10 @@ bool MassSheetLens::getCLParameters(double deflectionScale, double potentialScal
 	return true;
 }
 
-std::vector<CLFloatParamInfo> MassSheetLens::getCLAdjustableFloatingPointParameterInfo() const
+std::vector<CLFloatParamInfo> MassSheetLens::getCLAdjustableFloatingPointParameterInfo(double deflectionScale, double potentialScale) const
 {
 	return { 
-		{ .name = "density_scaled", .offset = 0, .hardMin = 0 },
+		{ .name = "density_scaled", .offset = 0, .hardMin = 0, .scaleFactor = SPEED_C*SPEED_C/(4.0*CONST_PI*CONST_G*getLensDistance()) },
 	};
 }
 

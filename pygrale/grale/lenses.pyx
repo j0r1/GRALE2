@@ -890,11 +890,11 @@ cdef class GravitationalLens:
         self._check()
         return S(self._lens().getCLLensQuantitiesStructure(derivatives, potential))
 
-    def getCLAdjustableFloatingPointParameterInfo(self):
+    def getCLAdjustableFloatingPointParameterInfo(self, deflectionScale, potentialScale):
         cdef vector[gravitationallens.CLFloatParamInfo] info
 
         self._check()
-        info = self._lens().getCLAdjustableFloatingPointParameterInfo()
+        info = self._lens().getCLAdjustableFloatingPointParameterInfo(deflectionScale, potentialScale)
 
         result = []
         for p in info:
@@ -902,7 +902,8 @@ cdef class GravitationalLens:
                 "name": S(p.name),
                 "offset": p.offset,
                 "hard_min": p.hardMin,
-                "hard_max": p.hardMax
+                "hard_max": p.hardMax,
+                "scalefactor": p.scaleFactor
             })
         return result
 

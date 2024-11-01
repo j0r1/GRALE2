@@ -288,10 +288,8 @@ def _invertCommon(inverter, feedbackObject, moduleName, calcType, fitnessObjectP
             fullConvParams["maximumgenerations"] = maximumGenerations
     # Also use this for the MCMC settings
     for gaParams in allGeneticAlgorithmParameters:
-        print("JORI!")
         if maximumGenerations is not None and "samplegenerations" in gaParams:
             gaParams["samplegenerations"] = maximumGenerations
-        print(gaParams)
 
     allConvergenceParameters = [ inversionparams.ConvergenceParameters(d) for d in allConvergenceParameters ]
 
@@ -697,10 +695,13 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
                   infOnBoundsViolation,
                   fullFitnessObjParams, uploadFullParameters, deviceIndex)
 
-    return _invertCommon(inverter, feedbackObject, moduleName, "parametricsingleplane", fitnessObjectParameters,
+    results = _invertCommon(inverter, feedbackObject, moduleName, "parametricsingleplane", fitnessObjectParameters,
                   None, [Dd, zd], inputImages, getParamsFunction, popSize,
                   geneticAlgorithmParameters, returnNds, cosmology, convergenceParameters,
                   maximumGenerations, None, eaType)
+
+    results = results + (varParams,)
+    return results
 
 def defaultLensModelFunction(operation, operationInfo, parameters):
     """This is the default `lensModelFunction` that's used in 

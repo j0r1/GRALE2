@@ -162,8 +162,8 @@ def _createTemplateLens_helper(parametricLensDescription, Dd, getParamValue):
 
     return lens, positionNames        
 
-def _createParamOffsetInfo(l, paramNames):
-    adjustableParams = l.getCLAdjustableFloatingPointParameterInfo()
+def _createParamOffsetInfo(l, paramNames, deflectionscale, potentialscale):
+    adjustableParams = l.getCLAdjustableFloatingPointParameterInfo(deflectionscale, potentialscale)
     adjustableParamsDict = { }
     for p in adjustableParams:
         name = p["name"]
@@ -185,7 +185,7 @@ def _createTemplateLens(parametricLensDescription, Dd):
     scales = l.getSuggestedScales()
     intParam, floatParams = l.getCLParameters(**scales)
     ret = { "templatelens": l,
-            "paramoffsets": _createParamOffsetInfo(l, paramNames),
+            "paramoffsets": _createParamOffsetInfo(l, paramNames, **scales),
             "paramnames": paramNames, # in original order
             "scales": scales,
             "floatparams": floatParams,
@@ -454,6 +454,7 @@ def analyzeParametricLensDescription(parametricLens, Dd, defaultFraction, clampT
         paramRanges.append({ "initialrange": [ initMinValue, initMaxValue ],
                               "hardlimits": [ hardMinValue, hardMaxValue ],
                               "name": offInf["name"],
+                              "scalefactor": offInf["scalefactor"],
                               "offset": offset })
     paramRanges = sorted(paramRanges, key = lambda x: x["offset"])
     

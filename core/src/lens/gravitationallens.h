@@ -63,6 +63,7 @@ struct CLFloatParamInfo
 	size_t offset;
 	float hardMin = -std::numeric_limits<float>::infinity();
 	float hardMax = std::numeric_limits<float>::infinity();
+	double scaleFactor = 1.0; // apply this to get the true value
 };
 
 /** Base class for gravitational lens implementations. */
@@ -228,7 +229,7 @@ public:
 	virtual std::string getCLProgram(double deflectionScale, double potentialScale, std::string &subRoutineName,
 			                         bool derivatives = true, bool potential = true) const;
 
-	virtual std::vector<CLFloatParamInfo> getCLAdjustableFloatingPointParameterInfo() const { return std::vector<CLFloatParamInfo>(); }
+	virtual std::vector<CLFloatParamInfo> getCLAdjustableFloatingPointParameterInfo(double deflectionScale, double potentialScale) const { return std::vector<CLFloatParamInfo>(); }
 	virtual std::unique_ptr<GravitationalLensParams> createLensParamFromCLFloatParams(double deflectionScale, double potentialScale, float *pFloatParams) const { setErrorString("Not implemented in base class"); return nullptr; }
 	std::unique_ptr<GravitationalLens> createLensFromCLFloatParams(double deflectionScale, double potentialScale, float *pFloatParams) const;
 protected:

@@ -653,7 +653,7 @@ std::unique_ptr<GravitationalLensParams> CompositeLens::createLensParamFromCLFlo
 	return params;
 }
 
-std::vector<CLFloatParamInfo> CompositeLens::getCLAdjustableFloatingPointParameterInfo() const
+std::vector<CLFloatParamInfo> CompositeLens::getCLAdjustableFloatingPointParameterInfo(double deflectionScale, double potentialScale) const
 {
 	std::vector<CLFloatParamInfo> allParamInfo;
 	size_t floatOffset = 0;
@@ -670,12 +670,12 @@ std::vector<CLFloatParamInfo> CompositeLens::getCLAdjustableFloatingPointParamet
 		}
 
 		//std::string name_prefix = "comppart_" + std::to_string(i) + ",";
-		allParamInfo.push_back({.name = "x_" + std::to_string(i) + "_scaled", .offset = floatOffset++});
-		allParamInfo.push_back({.name = "y_" + std::to_string(i) + "_scaled", .offset = floatOffset++});
-		allParamInfo.push_back({.name = "angle_" + std::to_string(i), .offset = floatOffset++});
+		allParamInfo.push_back({.name = "x_" + std::to_string(i) + "_scaled", .offset = floatOffset++, .scaleFactor = deflectionScale});
+		allParamInfo.push_back({.name = "y_" + std::to_string(i) + "_scaled", .offset = floatOffset++, .scaleFactor = deflectionScale});
+		allParamInfo.push_back({.name = "angle_" + std::to_string(i), .offset = floatOffset++, .scaleFactor = 180.0/CONST_PI });
 		allParamInfo.push_back({.name = "factor_" + std::to_string(i), .offset = floatOffset++, .hardMin = 0 }); // Allow negatives?
 
-		auto paramInfo = m_lenses[i]->getCLAdjustableFloatingPointParameterInfo();
+		auto paramInfo = m_lenses[i]->getCLAdjustableFloatingPointParameterInfo(deflectionScale, potentialScale);
 		for (auto s : paramInfo)
 		{
 			s.name = "lens_" + std::to_string(i) + "," + s.name;

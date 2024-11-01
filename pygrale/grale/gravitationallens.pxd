@@ -71,6 +71,7 @@ cdef extern from "grale/gravitationallens.h" namespace "grale":
         size_t offset
         float hardMin
         float hardMax
+        double scaleFactor
 
 cdef extern from "grale/gravitationallens.h" namespace "grale":
 
@@ -107,7 +108,7 @@ cdef extern from "grale/gravitationallens.h" namespace "grale":
         string getCLProgram(double deflectionScale, double potentialScale, string &subRoutineName, bool derivatives, bool potential) const
         string getCLLensQuantitiesStructure(bool derivatives, bool potential) const
         unique_ptr[GravitationalLens] createLensFromCLFloatParams(double deflectionScale, double potentialScale, float *pFloatParams) const
-        vector[CLFloatParamInfo] getCLAdjustableFloatingPointParameterInfo() const
+        vector[CLFloatParamInfo] getCLAdjustableFloatingPointParameterInfo(double deflectionScale, double potentialScale) const
 
 cdef extern from "grale/symmetriclens.h" namespace "grale":
 

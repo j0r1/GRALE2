@@ -136,9 +136,9 @@ std::unique_ptr<GravitationalLensParams> SISLens::createLensParamFromCLFloatPara
 	return std::make_unique<SISLensParams>(velDisp);
 }
 
-std::vector<CLFloatParamInfo> SISLens::getCLAdjustableFloatingPointParameterInfo() const
+std::vector<CLFloatParamInfo> SISLens::getCLAdjustableFloatingPointParameterInfo(double deflectionScale, double potentialScale) const
 {
-	return { { .name = "sigma_scaled", .offset = 0, .hardMin = 0 } };
+	return { { .name = "sigma_scaled", .offset = 0, .hardMin = 0, .scaleFactor = velScale } };
 }
 
 std::string SISLens::getCLProgram(double deflectionScale, double potentialScale, std::string &subRoutineName, bool derivatives, bool potential) const
