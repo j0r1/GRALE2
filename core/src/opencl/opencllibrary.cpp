@@ -8,6 +8,7 @@
 #include <errut/booltype.h>
 #include <sstream>
 #include <vector>
+#include <iostream>
 
 using namespace std;
 using namespace errut;
@@ -134,7 +135,7 @@ bool OpenCLLibrary::loadLibrary(const std::string &libraryName)
 	return true;
 }
 
-bool OpenCLLibrary::getPlatformAndDeviceCount(cl_platform_id &platformId, int &deviceCount) const
+bool OpenCLLibrary::getPlatformAndDeviceCount(cl_platform_id &platformId, int &deviceCount, int &clDevType) const
 {
 	if (!isOpen())
 	{
@@ -192,24 +193,84 @@ bool OpenCLLibrary::getPlatformAndDeviceCount(cl_platform_id &platformId, int &d
 		platform = platforms[platformIdx];
 	}
 
-	cl_uint numDevices = 0;
-	err = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 0, nullptr, &numDevices);
-	if (err != CL_SUCCESS || numDevices == 0)
+	cl_uint numGPUDevices = 0, numCPUDevices = 0;
+	clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 0, nullptr, &numGPUDevices);
+	clGetDeviceIDs(platform, CL_DEVICE_TYPE_CPU, 0, nullptr, &numCPUDevices);
+
+	string devTypeKey = "GRALE_OPENCL_DEVICETYPE";
+	string devType;
+	if (grale::getenv(devTypeKey, devType))
 	{
-		setErrorString("Can't find any GPU devices");
+		if (devType == "GPU")
+		{
+			if (numGPUDevices == 0)
+			{
+				setErrorString("Can't find any GPU devices (selected because of GRALE_OPENCL_DEVICETYPE)");
+				return false;
+			}
+
+			platformId = platform;
+			deviceCount = (int)numGPUDevices;
+			clDevType = CL_DEVICE_TYPE_GPU;
+			return true;
+		}
+		else if (devType == "CPU")
+		{
+			if (numCPUDevices == 0)
+			{
+				setErrorString("Can't find any CPU devices (selected because of GRALE_OPENCL_DEVICETYPE)");
+				return false;
+			}
+			platformId = platform;
+			deviceCount = (int)numCPUDevices;
+			clDevType = CL_DEVICE_TYPE_CPU;
+			return true;
+		}
+
+		setErrorString("Invalid value for GRALE_OPENCL_DEVICETYPE, must be 'GPU' or 'CPU' but is '" + devType + "'");
 		return false;
 	}
 
-	platformId = platform;
-	deviceCount = (int)numDevices;
+	// Try to use what's available
+	if (numCPUDevices > 0)
+	{
+		if (numGPUDevices > 0)
+		{
+			setErrorString("Both GPU and CPU devices detected for platform, use GRALE_OPENCL_DEVICETYPE to select 'GPU' or 'CPU'");
+			return false;
+		}
+		else
+		{
+			// Ok use CPU
+			platformId = platform;
+			deviceCount = (int)numCPUDevices;
+			clDevType = CL_DEVICE_TYPE_CPU;
+		}
+	}
+	else // no CPU devices
+	{
+		if (numGPUDevices > 0)
+		{
+			// ok use GPU
+			platformId = platform;
+			deviceCount = (int)numGPUDevices;
+			clDevType = CL_DEVICE_TYPE_GPU;
+		}
+		else
+		{
+			setErrorString("Can't find any GPU or CPU devices for OpenCL");
+			return false;
+		}
+	}
+
 	return true;
 }
 
 int OpenCLLibrary::getDeviceCount() const
 {
 	cl_platform_id platform;
-	int count;
-	if (!getPlatformAndDeviceCount(platform, count))
+	int count, devType;
+	if (!getPlatformAndDeviceCount(platform, count, devType))
 		return -1;
 	return count;
 }

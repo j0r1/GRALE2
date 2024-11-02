@@ -72,9 +72,9 @@ bool OpenCLMultiKernel<NumKernels>::init(int devIdx)
 		c = "";
 
 	cl_platform_id platform;
-	int numDevices;
+	int numDevices, clDevType;
 
-	if (!getPlatformAndDeviceCount(platform, numDevices))
+	if (!getPlatformAndDeviceCount(platform, numDevices, clDevType))
 		return false;
 
 	if (devIdx < 0 || devIdx >= numDevices)
@@ -85,10 +85,10 @@ bool OpenCLMultiKernel<NumKernels>::init(int devIdx)
 
 	cl_int err;
 	std::vector<cl_device_id> devices(numDevices);
-	clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, numDevices, devices.data(), nullptr);
+	clGetDeviceIDs(platform, clDevType, numDevices, devices.data(), nullptr);
 	
-	std::cerr << "INFO: Found " << numDevices << " GPU devices" << std::endl;
-	std::cerr << "INFO: GPU Devices:" << std::endl;
+	std::cerr << "INFO: Found " << numDevices << " OpenCL devices" << std::endl;
+	std::cerr << "INFO: OpenCL Devices:" << std::endl;
 	for (auto x : devices)
 	{
 		char name[1024] = { 0 };

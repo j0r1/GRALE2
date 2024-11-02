@@ -28,6 +28,7 @@ typedef cl_uint cl_platform_info;
 typedef cl_uint cl_device_info;
 
 #define CL_SUCCESS 0
+#define CL_DEVICE_TYPE_CPU (1 << 1)
 #define CL_DEVICE_TYPE_GPU (1 << 2)
 #define CL_PROGRAM_BUILD_LOG 0x1183
 #define CL_MEM_READ_WRITE                           (1 << 0)
@@ -85,7 +86,7 @@ public:
 	cl_int (*clSetEventCallback)(cl_event event, cl_int command_exec_callback_type, void (CL_CALLBACK * pfn_notify)(cl_event event, cl_int event_command_status, void *user_data), void *user_data);
 	cl_int (*clGetEventInfo)(cl_event event, cl_event_info param_name, size_t param_value_size, void *param_value, size_t *param_value_size_ret);
 protected:
-	bool getPlatformAndDeviceCount(cl_platform_id &platformId, int &deviceCount) const;
+	bool getPlatformAndDeviceCount(cl_platform_id &platformId, int &deviceCount, int &clDevType) const;
 	static std::string getCLErrorString(int errNum);
 private:
 	void *m_pModule;
