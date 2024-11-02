@@ -191,9 +191,9 @@ std::unique_ptr<GravitationalLensParams> NSIELens::createLensParamFromCLFloatPar
 std::vector<CLFloatParamInfo> NSIELens::getCLAdjustableFloatingPointParameterInfo(double deflectionScale, double potentialScale) const
 {
 	return {
-		{ .name = "ellipticity", .offset = 0, .hardMin = 0.01, .hardMax = 0.99 }, // TODO 0 and 1 are not allowed, what are good bounds?
-		{ .name = "sigma_scaled", .offset = 1, .hardMin = 0, .scaleFactor = velScale },
-		{ .name = "core_scaled", .offset = 2, .hardMin = 0, .scaleFactor = deflectionScale }
+		{ .name = "ellipticity", .offset = 0, .scaleFactor = 1, .hardMin = 0.01, .hardMax = 0.99 }, // TODO 0 and 1 are not allowed, what are good bounds?
+		{ .name = "sigma_scaled", .offset = 1, .scaleFactor = velScale, .hardMin = 0 },
+		{ .name = "core_scaled", .offset = 2, .scaleFactor = deflectionScale, .hardMin = 0 }
 	};
 }
 

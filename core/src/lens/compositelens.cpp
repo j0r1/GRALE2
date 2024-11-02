@@ -673,7 +673,7 @@ std::vector<CLFloatParamInfo> CompositeLens::getCLAdjustableFloatingPointParamet
 		allParamInfo.push_back({.name = "x_" + std::to_string(i) + "_scaled", .offset = floatOffset++, .scaleFactor = deflectionScale});
 		allParamInfo.push_back({.name = "y_" + std::to_string(i) + "_scaled", .offset = floatOffset++, .scaleFactor = deflectionScale});
 		allParamInfo.push_back({.name = "angle_" + std::to_string(i), .offset = floatOffset++, .scaleFactor = 180.0/CONST_PI });
-		allParamInfo.push_back({.name = "factor_" + std::to_string(i), .offset = floatOffset++, .hardMin = 0 }); // Allow negatives?
+		allParamInfo.push_back({.name = "factor_" + std::to_string(i), .offset = floatOffset++, .scaleFactor = 1, .hardMin = 0 }); // Allow negatives?
 
 		auto paramInfo = m_lenses[i]->getCLAdjustableFloatingPointParameterInfo(deflectionScale, potentialScale);
 		for (auto s : paramInfo)

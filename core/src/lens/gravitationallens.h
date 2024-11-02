@@ -61,9 +61,9 @@ struct CLFloatParamInfo
 {
 	std::string name;
 	size_t offset;
+	double scaleFactor = 1.0; // apply this to get the true value
 	float hardMin = -std::numeric_limits<float>::infinity();
 	float hardMax = std::numeric_limits<float>::infinity();
-	double scaleFactor = 1.0; // apply this to get the true value
 };
 
 /** Base class for gravitational lens implementations. */
