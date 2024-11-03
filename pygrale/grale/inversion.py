@@ -600,7 +600,7 @@ def invert(inputImages, basisFunctions, zd, Dd, popSize, moduleName = "general",
 def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, moduleName = "general",
            defaultInitialParameterFraction = 0.1, clampToHardLimits = False, fitnessObjectParameters = None, convergenceParameters = { },
            geneticAlgorithmParameters = { }, returnNds = False, inverter = "default", feedbackObject = "default",
-           cosmology = None, maximumGenerations = None, eaType = "JADE", uploadFullParameters = True, deviceIndex = "rotate"):
+           cosmology = None, maximumGenerations = None, eaType = "JADE", uploadFullParameters = False, deviceIndex = "rotate"):
     """This is a low-level function, used by the similarly named function
     in :class:`InversionWorkSpace`.
 
