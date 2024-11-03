@@ -57,6 +57,7 @@ bool_t LensGAParametricSinglePlaneCalculator::init(const LensInversionParameters
 	}
 	m_devIdx = params.getDeviceIndex();
 	m_templateLens = params.getTemplateLens().createCopy();
+	bool uploadFullParams = params.alwaysUploadFullParameters();
 
 	bool_t r;
 	vector<ImagesDataExtended *> imagesPtrs;
@@ -124,7 +125,7 @@ bool_t LensGAParametricSinglePlaneCalculator::init(const LensInversionParameters
 																	m_thetas, m_intParams,
 																	m_floatParams, m_changeableParamIdx,
 																	m_kernelCode, m_kernelName,
-																	true, m_devIdx)))
+																	uploadFullParameters, m_devIdx)))
 		return "Couldn't init OpenCLSinglePlaneDeflectionInstance: " + r.getErrorString();
 
 	list<ImagesDataExtended *> empty;
