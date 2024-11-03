@@ -85,7 +85,20 @@ public:
 			ss << "(no best yet)";
 		else
 			ss << best[0]->fitness()->toString();
-		ss << " first walker = " << samples[0]->fitness()->toString();
+
+		ss << " first = " << samples[0]->fitness()->toString();
+		double worst = samples[0]->fitness()->getRealValue(0); // TODO: other objective?
+		size_t worstIdx = 0;
+		for (size_t i = 0 ; i < samples.size() ; i++)
+		{
+			double v = samples[i]->fitness()->getRealValue(0); // TODO: other objective?
+			if (v > worst)
+			{
+				worst = v;
+				worstIdx = i;
+			}
+		}
+		ss << " worst = " << samples[worstIdx]->fitness()->toString();
 
 		if (m_generationCount < m_burnInGenerations)
 			ss << " (burn-in)";
