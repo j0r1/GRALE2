@@ -414,6 +414,34 @@ bool DeflectionGridLens::getCLParameters(double deflectionScale, double potentia
 	return true;
 }
 
+std::unique_ptr<GravitationalLensParams> DeflectionGridLens::createLensParamFromCLFloatParams(double deflectionScale, double potentialScale, float *pFloatParams) const
+{
+	vector<double> alphaX, alphaY;
+	const int w = m_pAxFunction->getWidth();
+	const int h = m_pAxFunction->getHeight();
+
+	double blX = ((double)pFloatParams[0])*deflectionScale;
+	double blY = ((double)pFloatParams[1])*deflectionScale;
+	double trX = ((double)pFloatParams[2])*deflectionScale;
+	double trY = ((double)pFloatParams[3])*deflectionScale;
+
+	pFloatParams += 4;
+
+	for (int y = 0 ; y < h ; y++)
+	{
+		for (int x = 0 ; x < w ; x++)
+		{
+			const int pos = (x+y*w)*2;
+			double ax = (double)pFloatParams[pos+0] * deflectionScale;
+			double ay = (double)pFloatParams[pos+1] * deflectionScale;
+			alphaX.push_back(ax);
+			alphaY.push_back(ay);
+		}
+	}
+
+	return make_unique<DeflectionGridLensParams>(alphaX, alphaY, w, h, Vector2Dd(blX, blY), Vector2Dd(trX, trY));
+}
+
 string DeflectionGridLens::getCLProgram(double deflectionScale, double potentialScale, string &subRoutineName, bool derivatives, bool potential) const
 {
 	subRoutineName = "clDeflectionGridLensProgram";

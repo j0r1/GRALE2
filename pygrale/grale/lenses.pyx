@@ -840,6 +840,9 @@ cdef class GravitationalLens:
         return (intParams, floatParams)
 
     def createLensFromCLFloatParams(self, deflectionScale, potentialScale, np.ndarray[np.float32_t,ndim=1] floatParams):
+        """From possibly modified floating point OpenCL parameters, this routine
+        creates a new version of the lens model."""
+
         cdef unique_ptr[gravitationallens.GravitationalLens] newLens
         cdef int numIntParams = 0, numFloatParams = 0
 
