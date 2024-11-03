@@ -458,25 +458,18 @@ void clDeflectionGridLensProgram_getPosAndFrac(float x, float x0, float x1, int 
 	*pFrac = f - (float)fInt;
 }
 
-LensQuantities clDeflectionGridLensProgram(float2 coord, __global const int *pIntParams, __global const float *pFloatParams)
+float2 clDeflectionGridLensProgram_getAlpha(const float2 coord, int numX, int numY,
+                                            const float left, const float bottom, const float right, const float top,
+											__global const float *pFloatParams)
 {
-	const int numX = pIntParams[0];
-	const int numY = pIntParams[1];
-	const float left = pFloatParams[0];
-	const float bottom = pFloatParams[1];
-	const float right = pFloatParams[2];
-	const float top = pFloatParams[3];
-	
-	pFloatParams += 4;
-
-	LensQuantities r;
+	float2 alpha;
 
 	const float x = coord.x;
 	const float y = coord.y;
 	if (x < left || x > right || y < bottom || y > top)
 	{
-		r.alphaX = nan((uint)0);
-		r.alphaY = nan((uint)0);
+		alpha.x = nan((uint)0);
+		alpha.y = nan((uint)0);
 	}
 	else
 	{
@@ -494,9 +487,29 @@ LensQuantities clDeflectionGridLensProgram(float2 coord, __global const int *pIn
 		float2 corner2 = (float2)(pFloatParams[pos + 0], pFloatParams[pos + 1]);
 		float2 corner3 = (float2)(pFloatParams[pos + 2 + 0], pFloatParams[pos + 2 + 1]);
 
-		r.alphaX = (1.0f-t)*(1.0-u)*corner0.x + t*(1.0f-u)*corner1.x + t*u*corner3.x + (1.0f-t)*u*corner2.x;
-		r.alphaY = (1.0f-t)*(1.0-u)*corner0.y + t*(1.0f-u)*corner1.y + t*u*corner3.y + (1.0f-t)*u*corner2.y;
+		alpha.x = (1.0f-t)*(1.0-u)*corner0.x + t*(1.0f-u)*corner1.x + t*u*corner3.x + (1.0f-t)*u*corner2.x;
+		alpha.y = (1.0f-t)*(1.0-u)*corner0.y + t*(1.0f-u)*corner1.y + t*u*corner3.y + (1.0f-t)*u*corner2.y;
 	}
+
+	return alpha;
+}
+
+LensQuantities clDeflectionGridLensProgram(float2 coord, __global const int *pIntParams, __global const float *pFloatParams)
+{
+	const int numX = pIntParams[0];
+	const int numY = pIntParams[1];
+	const float left = pFloatParams[0];
+	const float bottom = pFloatParams[1];
+	const float right = pFloatParams[2];
+	const float top = pFloatParams[3];
+	
+	pFloatParams += 4;
+
+	LensQuantities r;
+
+	float2 alpha = clDeflectionGridLensProgram_getAlpha(coord, numX, numY, left, bottom, right, top, pFloatParams);
+	r.alphaX = alpha.x;
+	r.alphaY = alpha.y;
 )XYZ";
 
 	if (potential)
@@ -506,9 +519,21 @@ LensQuantities clDeflectionGridLensProgram(float2 coord, __global const int *pIn
 
 	if (derivatives)
 		program += R"XYZ(
-	r.axx = nan((uint)0); // TODO?
-	r.ayy = nan((uint)0); // TODO?
-	r.axy = nan((uint)0); // TODO?
+	float dx = (right-left)/(float)(numX-1);
+	float dy = (top-bottom)/(float)(numY-1);
+	float dx2 = 0.5f*dx;
+	float dy2 = 0.5f*dy;
+
+	float2 coord0 = coord + (float2)(-dx2, -dy2);
+	float2 coordX = coord + (float2)(+dx2, -dy2);
+	float2 coordY = coord + (float2)(-dx2, +dy2);
+	float2 alpha0 = clDeflectionGridLensProgram_getAlpha(coord0, numX, numY, left, bottom, right, top, pFloatParams);
+	float2 dAlphaDX = clDeflectionGridLensProgram_getAlpha(coordX, numX, numY, left, bottom, right, top, pFloatParams) - alpha0;
+	float2 dAlphaDY = clDeflectionGridLensProgram_getAlpha(coordY, numX, numY, left, bottom, right, top, pFloatParams) - alpha0;
+
+	r.axx = dAlphaDX.x/dx;
+	r.ayy = dAlphaDY.y/dy;
+	r.axy = 0.5f*(dAlphaDY.x/dy + dAlphaDX.y/dx);
 )XYZ";
 
 	program += R"XYZ(
