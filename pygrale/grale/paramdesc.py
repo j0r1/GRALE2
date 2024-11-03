@@ -7,6 +7,7 @@ from . import lenses
 import pprint
 import copy
 import math
+import uuid
 
 class ParametricDescriptionException(Exception):
     """An exception that will be thrown in case something goes wrong when
@@ -526,7 +527,7 @@ def _convertedValueToString(value, stringConverter):
 
     return stringConverter(value)
             
-def _analyzePlummerLens(lens, massUnitString, angularUnitString, convertValueFunction):
+def _analyzePlummerLens(lens, massUnitString, angularUnitString, convertValueFunction, objectStore, objectStoreName):
     params = lens.getLensParameters()
     massStr = _convertedValueToString(convertValueFunction(params["mass"], ["PlummerLens"], "mass", params), lambda x: _getUnitValue(x, massUnitString))
     widthStr = _convertedValueToString(convertValueFunction(params["width"], ["PlummerLens"], "width", params), lambda x: _getUnitValue(x, angularUnitString))
@@ -537,7 +538,7 @@ def _analyzePlummerLens(lens, massUnitString, angularUnitString, convertValueFun
         '}'
     ]
 
-def _analyzeNSIELens(lens, massUnitString, angularUnitString, convertValueFunction):
+def _analyzeNSIELens(lens, massUnitString, angularUnitString, convertValueFunction, objectStore, objectStoreName):
     params = lens.getLensParameters()    
     sigmaStr = _convertedValueToString(convertValueFunction(params["velocityDispersion"], ["NSIELens"], "velocityDispersion", params), _getUnitlessValue)
     ellStr = _convertedValueToString(convertValueFunction(params["ellipticity"], ["NSIELens"], "ellipticity", params), _getUnitlessValue)
@@ -550,7 +551,7 @@ def _analyzeNSIELens(lens, massUnitString, angularUnitString, convertValueFuncti
         '}'
     ]
 
-def _analyzeMultiplePlummerLens(lens, massUnitString, angularUnitString, convertValueFunction):
+def _analyzeMultiplePlummerLens(lens, massUnitString, angularUnitString, convertValueFunction, objectStore, objectStoreName):
     paramLines = ['[']
     for i,params in enumerate(lens.getLensParameters()):
         massStr = _convertedValueToString(convertValueFunction(params["mass"], ["MultiplePlummerLens"], f"mass_{i}", params), lambda x: _getUnitValue(x, massUnitString))
@@ -570,7 +571,7 @@ def _analyzeMultiplePlummerLens(lens, massUnitString, angularUnitString, convert
     paramLines.append(']')
     return paramLines
 
-def _analyzeCompositeLens(lens, massUnitString, angularUnitString, convertValueFunction):
+def _analyzeCompositeLens(lens, massUnitString, angularUnitString, convertValueFunction, objectStore, objectStoreName):
     paramLines = ['[']
     for i,params in enumerate(lens.getLensParameters()):
         xStr = _convertedValueToString(convertValueFunction(params["x"], ["CompositeLens"], f"x_{i}", params), lambda x: _getUnitValue(x, angularUnitString))
@@ -587,7 +588,7 @@ def _analyzeCompositeLens(lens, massUnitString, angularUnitString, convertValueF
         def cvfWrapper(x, lensName, paramName, fullParams):
             return convertValueFunction(x, [ "CompositeLens", f"lens_{i}" ] + lensName, paramName, fullParams)
 
-        subLensLines = createParametricDescription(params["lens"], massUnitString, angularUnitString, False, cvfWrapper)
+        subLensLines = createParametricDescription(params["lens"], massUnitString, angularUnitString, False, cvfWrapper, objectStore, objectStoreName)
         subParams.append('    "lens": ' + subLensLines[0])
         for sl in subLensLines[1:]:
             subParams.append('    ' + sl)
@@ -599,7 +600,7 @@ def _analyzeCompositeLens(lens, massUnitString, angularUnitString, convertValueF
     paramLines.append(']')
     return paramLines
 
-def _analyzeSISLens(lens, massUnitString, angularUnitString, convertValueFunction):
+def _analyzeSISLens(lens, massUnitString, angularUnitString, convertValueFunction, objectStore, objectStoreName):
     params = lens.getLensParameters()
     sigmaStr = _convertedValueToString(convertValueFunction(params["velocityDispersion"], ["SISLens"], "velocityDispersion", params), _getUnitlessValue)
     return [
@@ -608,7 +609,7 @@ def _analyzeSISLens(lens, massUnitString, angularUnitString, convertValueFunctio
         '}'
     ]
 
-def _analyzeMassSheetLens(lens, massUnitString, angularUnitString, convertValueFunction):
+def _analyzeMassSheetLens(lens, massUnitString, angularUnitString, convertValueFunction, objectStore, objectStoreName):
     params = lens.getLensParameters()
     densStr = _convertedValueToString(convertValueFunction(params["density"], ["MassSheetLens"], "density", params), _getUnitlessValue)
     return [
@@ -617,11 +618,33 @@ def _analyzeMassSheetLens(lens, massUnitString, angularUnitString, convertValueF
         '}'
     ]
 
-def _analyzeDeflectionGridLens(lens, massUnitString, angularUnitString, convertValueFunction):
-    raise ParametricDescriptionException("TODO")
+def _analyzeDeflectionGridLens(lens, massUnitString, angularUnitString, convertValueFunction, objectStore, objectStoreName):
+
+    if objectStore is None or objectStoreName is None:
+        raise ParametricDescriptionException("To be able to store the deflection angles for a DeflectionGridLens, the objectStore and objectStoreName must be set")
+
+    params = lens.getLensParameters()
+    bl = params["bottomleft"]
+    tr = params["topright"]
+    bl_x = _getUnitValue(bl[0], angularUnitString)
+    bl_y = _getUnitValue(bl[1], angularUnitString)
+    tr_x = _getUnitValue(tr[0], angularUnitString)
+    tr_y = _getUnitValue(tr[1], angularUnitString)
+
+    objectUuid = str(uuid.uuid4())
+    objectStore[objectUuid] = params["angles"].copy()
+
+    return [
+        '{',
+        f'    "bottomleft": [ {bl_x}, {bl_y} ],',
+        f'    "topright": [ {tr_x}, {tr_y} ],',
+        f'    "angles": {objectStoreName}["{objectUuid}"],',
+        '}'
+    ]
 
 def createParametricDescription(lens, massUnitString = "MASS_SUN", angularUnitString = "ANGLE_ARCSEC",
-                                asString = True, convertValueFunction = None):
+                                asString = True, convertValueFunction = None,
+                                objectStore = None, objectStoreName = None):
     """Create a basic representation of a parametric lens model, based on the
     :class:`lens model<grale.lenses.GravitationalLens>` in `lens`. The result is
     a string which represents python code and can be saved to a file for further
@@ -659,6 +682,12 @@ def createParametricDescription(lens, massUnitString = "MASS_SUN", angularUnitSt
           then that will be used for the hard bounds.
         - a dictionary containing entries for ``"initmin"`` and ``"initmax"``, and
           optionally ``"hardmin"`` and ``"hardmax"``.
+
+    For some lenses (for now only a :class:`DeflectionGridLens <grale.lenses.DeflectionGridLens>`)
+    it may be nessary to store a large amount of data somewhere (e.g. the deflection 
+    angles on a grid). In this case you can specify a dictionary for `objectStore` where
+    this data will be stored with a unique key. In the final output of this function (which
+    is a string), the name `objectStoreName` will be used as the name of this dictionary.
     """
 
     if convertValueFunction is None:
@@ -673,7 +702,7 @@ def createParametricDescription(lens, massUnitString = "MASS_SUN", angularUnitSt
         raise ParametricDescriptionException(f"No lens analysis function for {name}")
     
     analyzer = info["analysis"]
-    paramLines = analyzer(lens, massUnitString, angularUnitString, convertValueFunction)
+    paramLines = analyzer(lens, massUnitString, angularUnitString, convertValueFunction, objectStore, objectStoreName)
     descLines = [ 
         '{',
         f'    "type": "{name}",',
