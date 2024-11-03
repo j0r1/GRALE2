@@ -148,6 +148,36 @@ def _processMultiplePlummerLens(lensParams, Dd, getParamValue):
 
     return newMultiParams, positionNames
 
+def _processDeflectionGridLens(lensParams, Dd, getParamValue):
+    # No parameters can be changed
+    lpCopy = lensParams.copy()
+    for k in [ "bottomleft", "topright" ]:
+        if not k in lpCopy:
+            raise ParametricDescriptionException(f"Expecting key '{key}' in DeflectionGridLens parameters")
+
+        try:
+            x, y = lpCopy[k][0], lpCopy[k][1]
+            x, y = float(x), float(y)
+        except Exception as e:
+            raise ParametricDescriptionException(f"Value for '{key}' should be a fixed 2D coordinate") from e
+
+        del lpCopy[k]
+
+    if not "angles" in lpCopy:
+        raise ParametricDescriptionException("Expecting key 'angles' in DeflectionGridLens parameters")
+
+    angles = lpCopy["angles"]
+    try:
+        shp = angles.shape
+    except Exception as e:
+        raise ParametricDescriptionException("Expeting the 'angles' in DeflectionGridLens parameters to be a fixed numpy 2D array")
+
+    del lpCopy["angles"]
+    if lpCopy:
+        raise ParametricDescriptionException("Excess parameters for DeflectionGridLens")
+
+    return lensParams.copy(), [] # No variable parameters
+
 def _createTemplateLens_helper(parametricLensDescription, Dd, getParamValue):
     lensType = parametricLensDescription["type"]
     lensParams = parametricLensDescription["params"]
@@ -587,6 +617,9 @@ def _analyzeMassSheetLens(lens, massUnitString, angularUnitString, convertValueF
         '}'
     ]
 
+def _analyzeDeflectionGridLens(lens, massUnitString, angularUnitString, convertValueFunction):
+    raise ParametricDescriptionException("TODO")
+
 def createParametricDescription(lens, massUnitString = "MASS_SUN", angularUnitString = "ANGLE_ARCSEC",
                                 asString = True, convertValueFunction = None):
     """Create a basic representation of a parametric lens model, based on the
@@ -660,6 +693,7 @@ _supportedLensTypes = {
     "CompositeLens": { "handler": _processCompositeLens, "lens": lenses.CompositeLens, "analysis": _analyzeCompositeLens },
     "SISLens": { "handler": _processSISLens, "lens": lenses.SISLens, "analysis": _analyzeSISLens },
     "MassSheetLens": { "handler": _processMassSheetLens, "lens": lenses.MassSheetLens, "analysis": _analyzeMassSheetLens },
+    "DeflectionGridLens": { "handler": _processDeflectionGridLens, "lens": lenses.DeflectionGridLens, "analysis": _analyzeDeflectionGridLens },
 }
 
 _supportedLensTypesByClass = { _supportedLensTypes[name]["lens"]: { "name": name, **_supportedLensTypes[name] } for name in _supportedLensTypes }
