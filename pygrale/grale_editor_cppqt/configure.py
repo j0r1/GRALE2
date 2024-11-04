@@ -42,7 +42,7 @@ $(MODFILE): build{sep}grale_editor_cppqt{sep}$(MODFILE)
 	$(COPY) "build{sep}grale_editor_cppqt{sep}$(MODFILE)" "$(MODFILE)"
 
 build{sep}grale_editor_cppqt{sep}$(MODFILE): pyproject.toml
-	sip-build
+	sip-build --verbose
 
 """.format(**makeOpts))
 
