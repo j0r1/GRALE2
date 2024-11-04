@@ -251,6 +251,13 @@ and re-run this script.
 """.format(os.environ["CONDA_DEFAULT_ENV"]))
                 sys.exit(-1)
 
+    # We may need to install libgl-devel as well, this is platform dependent.
+    # We'll check if libgl (libGL.so.1) is installed, and if so install
+    # libgl-devel (libGL.so link) if needed (needed to compile PyQt mods)
+    installedPacks = getInstalledCondaPackages()
+    if "libgl" in installedPacks and not "libgl-devel" in installedPacks:
+        cmd = [ condaTool, "install", "-y", "-c", "conda-forge", "libgl-devel" ]
+        subprocess.check_call(" ".join(cmd), shell=True)
 
     extraOpts = [] if not "CMAKE_EXTRA_OPTS" in os.environ else os.environ["CMAKE_EXTRA_OPTS"].split()
 
