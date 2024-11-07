@@ -33,23 +33,17 @@
 
 #include "graleconfig.h"
 #include "gravitationallens.h"
+#include "cubicinterpolationgrid.h"
 #include <errut/booltype.h>
 #include <gsl/gsl_interp2d.h>
 
 namespace grale
 {
 
-class GRALE_IMPORTEXPORT PotentialGridLensBase
+class GRALE_IMPORTEXPORT PotentialGridLensBase : public CubicInterpolationGrid
 {
 public:
 	PotentialGridLensBase(double Dd, Vector2Dd bottomLeft, Vector2Dd topRight, int numX, int numY);
-	~PotentialGridLensBase() { cleanup(); }
-
-	const std::vector<double> &values() const { return m_values; }
-	std::vector<double> &values() { return m_values; }
-
-	// Must be called when values changed!
-	errut::bool_t init();
 
 	errut::bool_t getAlphaVector(Vector2D<double> theta,Vector2D<double> *pAlpha) const;
 	errut::bool_t getAlphaVectorDerivatives(Vector2D<double> theta, double &axx, double &ayy, double &axy) const;
@@ -59,13 +53,6 @@ private:
 	void cleanup();
 	
 	const double m_Dd;
-	const Vector2Dd m_bottomLeft, m_topRight;
-	const int m_numX, m_numY;
-
-	gsl_interp2d *m_pInterp;
-	gsl_interp_accel *m_pXAccel, *m_pYAccel;
-	std::vector<double> m_x, m_y;
-	std::vector<double> m_values;
 };
 
 class GRALE_IMPORTEXPORT PotentialGridLensParams : public GravitationalLensParams

@@ -8,6 +8,7 @@ set(HEADERS
 	general/pernodecounter.h
 	general/utils.h
 	cosmology/cosmology.h
+	lens/cubicinterpolationgrid.h
 	lens/gravitationallens.h 
 	lens/multipleplummerlens.h 
 	lens/gausslens.h 
@@ -127,6 +128,7 @@ set(SOURCES
 	math/real1dfunctionintegrator.cpp
 	math/gridfunction.cpp
 	math/contourfinder.cpp
+	lens/cubicinterpolationgrid.cpp
 	lens/gravitationallens.cpp 
 	lens/gausslens.cpp 
 	lens/multipleplummerlens.cpp 
