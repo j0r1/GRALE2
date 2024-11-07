@@ -102,6 +102,7 @@ public:
 		PotentialGrid, /** Based on discrete set of projected potential values */
 		CircularPieces, /** Exact lens potentials within circular regions, interpolated ones in between */
 		MPContainer, /** Container for multiple lenses at different redshifts. */
+		CubicDeflectionGrid, /** Similar to DeflectionGrid, but using cubic interpolation instead of linear. */
 		MaxLensType
 	};
 protected:

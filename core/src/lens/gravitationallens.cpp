@@ -54,6 +54,7 @@
 #include "potentialgridlens.h"
 #include "circularpieceslens.h"
 #include "multiplanecontainer.h"
+#include "cubicdeflectiongridlens.h"
 #include "constants.h"
 #include <serut/fileserializer.h>
 #include <serut/memoryserializer.h>
@@ -246,6 +247,7 @@ double GravitationalLens::getInverseMagnification(double D_s, double D_ds, Vecto
 #define LENSNUMBER_POTENTIALGRID						26
 #define LENSNUMBER_CIRCULARPIECES						27
 #define LENSNUMBER_MULTIPLANECONTAINER					28
+#define LENSNUMBER_CUBICDEFLECTIONGRIDLENS				29
 //#define LENSNUMBER_TESTLENS						234	
 
 bool GravitationalLens::write(serut::SerializationInterface &si) const
@@ -347,6 +349,9 @@ bool GravitationalLens::write(serut::SerializationInterface &si) const
 		break;
 	case MPContainer:
 		lensNumber = LENSNUMBER_MULTIPLANECONTAINER;
+		break;
+	case CubicDeflectionGrid:
+		lensNumber = LENSNUMBER_CUBICDEFLECTIONGRIDLENS;
 		break;
 	default:
 		setErrorString("Lens type not recognized");
@@ -552,6 +557,10 @@ bool GravitationalLens::read(serut::SerializationInterface &si, std::unique_ptr<
 	case LENSNUMBER_MULTIPLANECONTAINER:
 		pTmpLens = make_unique<MultiPlaneContainer>();
 		pParams = make_unique<MultiPlaneContainerParams>();
+		break;
+	case LENSNUMBER_CUBICDEFLECTIONGRIDLENS:
+		pTmpLens = make_unique<CubicDeflectionGridLens>();
+		pParams = make_unique<DeflectionGridLensParams>(); // We reuse the parameters of the DeflectionGridLens
 		break;
 	default:
 		errorString = std::string("Can't recognize lens type");

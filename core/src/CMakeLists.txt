@@ -8,7 +8,6 @@ set(HEADERS
 	general/pernodecounter.h
 	general/utils.h
 	cosmology/cosmology.h
-	lens/cubicinterpolationgrid.h
 	lens/gravitationallens.h 
 	lens/multipleplummerlens.h 
 	lens/gausslens.h 
@@ -46,6 +45,7 @@ set(HEADERS
 	lens/potentialgridlens.h
 	lens/circularpieceslens.h
 	lens/multiplanecontainer.h
+	lens/cubicdeflectiongridlens.h
 	math/mathfunctions.h
 	math/real1dfunction.h
 	math/real1dfunctionintegrator.h
@@ -60,6 +60,7 @@ set(HEADERS
 	math/rectangle2d.h
 	math/contourfinder.h
 	math/discretefunction.h
+	math/cubicinterpolationgrid.h
 	image/imagesdata.h
 	image/imagesdataextended.h
 	image/lensplane.h
@@ -128,7 +129,7 @@ set(SOURCES
 	math/real1dfunctionintegrator.cpp
 	math/gridfunction.cpp
 	math/contourfinder.cpp
-	lens/cubicinterpolationgrid.cpp
+	math/cubicinterpolationgrid.cpp
 	lens/gravitationallens.cpp 
 	lens/gausslens.cpp 
 	lens/multipleplummerlens.cpp 
@@ -161,6 +162,7 @@ set(SOURCES
 	lens/potentialgridlens.cpp
 	lens/circularpieceslens.cpp
 	lens/multiplanecontainer.cpp
+	lens/cubicdeflectiongridlens.cpp
 	image/imagesdata.cpp
 	image/imagesdataextended.cpp
 	image/lensplane.cpp
