@@ -216,3 +216,9 @@ MultiPlaneContainer
 
    .. automethod:: __init__
 
+CubicDeflectionGridLens
+-----------------------
+.. autoclass:: grale.lenses.CubicDeflectionGridLens
+
+   .. automethod:: __init__
+

@@ -1004,6 +1004,8 @@ cdef class GravitationalLens:
             l = CircularPiecesLens(None, None)
         elif t == gravitationallens.MPContainer:
             l = MultiPlaneContainer(None, None)
+        elif t == gravitationallens.CubicDeflectionGrid:
+            l = CubicDeflectionGridLens(None, None)
         else: # Unknown, can still use the interface
             l = GravitationalLens(_gravLensRndId)
 
@@ -2229,7 +2231,8 @@ cdef class DeflectionGridLens(GravitationalLens):
     cdef gravitationallens.GravitationalLens* _allocLens(self) except NULL:
         return new gravitationallens.DeflectionGridLens()
 
-    cdef gravitationallens.GravitationalLensParams* _allocParams(self, params) except NULL:
+    @staticmethod
+    cdef gravitationallens.GravitationalLensParams* static_allocParams(params) except NULL:
 
         cdef Vector2Dd bl, tr;
         cdef np.ndarray[double,ndim=3] deflectionAngles
@@ -2250,6 +2253,9 @@ cdef class DeflectionGridLens(GravitationalLens):
 
         return new gravitationallens.DeflectionGridLensParams(alphaX, alphaY, w, h, bl, tr)
 
+    cdef gravitationallens.GravitationalLensParams* _allocParams(self, params) except NULL:
+        return DeflectionGridLens.static_allocParams(params)
+
     def __init__(self, Dd, params):
         """__init__(Dd, params)
 
@@ -2266,7 +2272,8 @@ cdef class DeflectionGridLens(GravitationalLens):
         super(DeflectionGridLens, self).__init__(_gravLensRndId)
         self._lensInit(Dd, params)
 
-    def getLensParameters(self):
+    @staticmethod
+    def static_getLensParameters(self):
         cdef gravitationallens.DeflectionGridLensParamsPtrConst pParams
         cdef vector[double] alphaX
         cdef vector[double] alphaY
@@ -2297,6 +2304,10 @@ cdef class DeflectionGridLens(GravitationalLens):
             "bottomleft": [ pParams.getBottomLeft().getX(), pParams.getBottomLeft().getY() ],
             "topright": [ pParams.getTopRight().getX(), pParams.getTopRight().getY() ]
         }
+
+    def getLensParameters(self):
+        return DeflectionGridLens.static_getLensParameters(self)
+
 
 cdef class NFWLens(GravitationalLens):
     r"""A lens model for a 2D symmetric lens profile, based on a 3D symmetric 
@@ -3341,5 +3352,36 @@ cdef class MultiPlaneContainer(GravitationalLens):
             })
         
         return params
+
+cdef class CubicDeflectionGridLens(GravitationalLens):
+    """Same as :class:`DeflectionGridLens`, but using cubic interpolation
+    of the deflection grid instead of linear."""
+
+    cdef gravitationallens.GravitationalLens* _allocLens(self) except NULL:
+        return new gravitationallens.CubicDeflectionGridLens()
+
+    cdef gravitationallens.GravitationalLensParams* _allocParams(self, params) except NULL:
+        return DeflectionGridLens.static_allocParams(params)
+
+    # Same as DeflectionGridLens
+    def __init__(self, Dd, params):
+        """__init__(Dd, params)
+
+        Parameters:
+         - Dd is the angular diameter distance to the lens.
+         - params: a dictionary containing the following entries:
+
+             - 'angles': a NumY*NumX*2 numpy array containing the deflection angles.
+             - 'bottomleft': the bottom-left coordinate, which will have the deflection
+               angle stored at position (0, 0) in the 'angles' grid.
+             - 'topright': the top-right coordinat, which will have the deflection angle
+               stored at position (NumY-1, NumX-1) in the 'angles' grid.
+        """
+        super(CubicDeflectionGridLens, self).__init__(_gravLensRndId)
+        self._lensInit(Dd, params)
+
+    # Reuse the parameters of a regular DeflectionGridLens
+    def getLensParameters(self):
+        return DeflectionGridLens.static_getLensParameters(self)
 
 from .privlenses import createLensFromLenstoolFile, createEquivalentPotentialGridLens

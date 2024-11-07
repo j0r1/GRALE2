@@ -62,6 +62,7 @@ cdef extern from "grale/gravitationallens.h" namespace "grale::GravitationalLens
         PotentialGrid,
         CircularPieces,
         MPContainer,
+        CubicDeflectionGrid,
         MaxLensType
 
 cdef extern from "grale/gravitationallens.h" namespace "grale":
@@ -531,4 +532,11 @@ cdef extern from "grale/multiplanecontainer.h" namespace "grale":
         pass
 
 ctypedef const MultiPlaneContainerParams* MultiPlaneContainerParamsPtrConst
+
+cdef extern from "grale/cubicdeflectiongridlens.h" namespace "grale":
+
+    # parameters are those of DeflectionGridLens
+
+    cdef cppclass CubicDeflectionGridLens(GravitationalLens):
+        pass
 
