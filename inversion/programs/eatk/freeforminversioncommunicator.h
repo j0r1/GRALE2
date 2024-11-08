@@ -1,6 +1,7 @@
 #pragma once
 
 #include "inversioncommunicatorbase.h"
+#include <eatk/populationreusecreation.h>
 
 class FreeFormInversionCommunicator : public InversionCommunicatorBase
 {
@@ -127,7 +128,7 @@ protected:
 						 const grale::EAParameters &eaParams,
 						 const std::shared_ptr<grale::LensGAMultiPopulationParameters> &multiPopParams)
 	{
-		if (dynamic_cast<ReuseCreation*>(&creation) == nullptr)
+		if (dynamic_cast<eatk::PopulationReuseCreation*>(&creation) == nullptr)
 			return E("Seems that RND step is first in line, but it should use the result from another algorithm");
 
 		const grale::RNDParameters *pParams = dynamic_cast<const grale::RNDParameters*>(&eaParams);
@@ -174,7 +175,7 @@ protected:
 		std::vector<std::shared_ptr<eatk::Population>> populations { tmpPop };
 		std::vector<std::vector<std::shared_ptr<eatk::Individual>>> emptyBest;
 
-		return { true, emptyBest, std::make_unique<ReuseCreation>(populations), 0 };
+		return { true, emptyBest, std::make_unique<eatk::PopulationReuseCreation>(populations), 0 };
 
 	}
 
@@ -283,7 +284,7 @@ protected:
 		m_best = evolver->getBestIndividuals();
 
 		return { true, allBest,
-				 std::make_unique<ReuseCreation>(ga.getPopulations()),
+				 std::make_unique<eatk::PopulationReuseCreation>(ga.getPopulations()),
 				 ga.getNumberOfGenerations() };
 
 	}
@@ -389,7 +390,7 @@ protected:
 			std::vector<std::vector<std::shared_ptr<eatk::Individual>>> allBest = { { cross->getBestIndividuals() } };
 
 			return { true, allBest,
-				 std::make_unique<ReuseCreation>(ga.getPopulations()),
+				 std::make_unique<eatk::PopulationReuseCreation>(ga.getPopulations()),
 				 ga.getNumberOfGenerations() };
 
 		}
@@ -468,7 +469,7 @@ protected:
 				allBest.push_back(evolver->getBestIndividuals());
 
 			return { true, allBest,
-				 std::make_unique<ReuseCreation>(ga.getPopulations()),
+				 std::make_unique<eatk::PopulationReuseCreation>(ga.getPopulations()),
 				 ga.getNumberOfGenerations() };
 		}
 	}
@@ -554,7 +555,7 @@ protected:
 		m_best = evolver->getBestIndividuals();
 
 		return { true, allBest,
-				 std::make_unique<ReuseCreation>(ga.getPopulations()),
+				 std::make_unique<eatk::PopulationReuseCreation>(ga.getPopulations()),
 				 ga.getNumberOfGenerations() };
 	}
 };
