@@ -9,6 +9,7 @@
 #include <eatk/vectorgenomeuniformmutation.h>
 #include <eatk/vectorgenomefractionalmutation.h>
 #include <eatk/vectorgenomeuniformcrossover.h>
+#include <eatk/vectorgenomedelikecrossover.h>
 #include <eatk/populationreusecreation.h>
 
 class ParametricCreation : public eatk::VectorDifferentialEvolutionIndividualCreation<float,float>
@@ -272,7 +273,7 @@ protected:
 					if (!(r = runDE(eaType, numObjectives, rng, comparison, popSize, genomeCalculator, calc, creation, eaParams, stop)))
 						return r;
 				}
-				else if (eaType == "NSGA2")
+				else if (eaType == "NSGA2" || eaType == "NSGA2-X")
 				{
 					if (!(r = runNSGA2(eaType, numObjectives, rng, comparison, popSize, genomeCalculator, calc, creation, eaParams, stop)))
 						return r;
@@ -293,6 +294,13 @@ protected:
 						const grale::EAParameters &eaParams, eatk::StopCriterion &stop)
 	{
 		std::unique_ptr<eatk::PopulationEvolver> evolver;
+		std::shared_ptr<eatk::GenomeMutation> mut;
+		std::shared_ptr<eatk::GenomeCrossover> cross;
+
+		const std::vector<float> &initMin = genomeCalculator->getInitMin();
+		const std::vector<float> &initMax = genomeCalculator->getInitMax();
+		const std::vector<float> &hardMin = genomeCalculator->getHardMin();
+		const std::vector<float> &hardMax = genomeCalculator->getHardMax();
 
 		if (eaType == "NSGA2")
 		{
@@ -303,17 +311,11 @@ protected:
 			float mutAmp = params.getSmallMutationSize();
 			bool absMut = (mutAmp > 0)?false:true;
 
-			std::shared_ptr<eatk::GenomeMutation> mut;
-			std::shared_ptr<eatk::GenomeCrossover> cross;
-
 			auto genome = creation->createUnInitializedGenome();
 			assert(dynamic_cast<const eatk::FloatVectorGenome*>(genome.get()));
 			const eatk::FloatVectorGenome &vg = static_cast<const eatk::FloatVectorGenome&>(*genome);
 			size_t numParameters = vg.getValues().size();
 			double mutFrac = 1.0/numParameters;
-
-			const std::vector<float> &initMin = genomeCalculator->getInitMin();
-			const std::vector<float> &initMax = genomeCalculator->getInitMax();
 
 			if (absMut)
 			{
@@ -321,8 +323,6 @@ protected:
 			}
 			else
 			{
-				const std::vector<float> &hardMin = genomeCalculator->getHardMin();
-				const std::vector<float> &hardMax = genomeCalculator->getHardMax();
 				std::vector<float> refScales(initMin.size());
 
 				// Calculate scale vector
@@ -349,11 +349,29 @@ protected:
 
 			cross = std::make_shared<eatk::VectorGenomeUniformCrossover<float>>(rng, false);
 
-			evolver = std::make_unique<eatk::NSGA2Evolver>(rng, cross, mut, comparison, numObjectives);
 			WriteLineStdout("GAMESSAGESTR:Running NSGA2 algorithm, small mutation size = " + std::to_string(params.getSmallMutationSize()));
+		}
+		else if (eaType == "NSGA2-X")
+		{
+			if (!dynamic_cast<const grale::NSGA2DELikeCrossoverParameters*>(&eaParams))
+				return "Parameters are not suitable for NSGA2-X";
+
+			const grale::NSGA2DELikeCrossoverParameters &params = static_cast<const grale::NSGA2DELikeCrossoverParameters&>(eaParams);
+			bool extraParent = params.useExtraParent();
+			float F = params.getF();
+			float CR = params.getCR();
+
+			cross = std::make_shared<eatk::VectorGenomeDELikeCrossOver<float>>(rng, extraParent, F, CR, hardMin, hardMax);
+
+			std::string Fstr = (std::isnan(F))?std::string("random"):std::to_string(F);
+			std::string CRstr = (std::isnan(CR))?std::string("random"):std::to_string(CR);
+			WriteLineStdout("GAMESSAGESTR:Running NSGA2 algorithm with experimental DE-like crossover, useextraparent = "
+			                + std::to_string(extraParent) + ", F = " + Fstr + ", CR = " + CRstr);
 		}
 		else
 			return "Unexpected EA type '" + eaType + "'";
+
+		evolver = std::make_unique<eatk::NSGA2Evolver>(rng, cross, mut, comparison, numObjectives);
 
 		MyGA ga;
 		errut::bool_t r;
