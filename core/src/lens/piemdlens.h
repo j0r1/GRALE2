@@ -67,6 +67,13 @@ public:
 	double getSurfaceMassDensity(Vector2D<double> theta) const;
 	bool getAlphaVectorDerivatives(Vector2D<double> theta, double &axx, double &ayy, double &axy) const;
 	//bool getProjectedPotential(double D_s, double D_ds, Vector2D<double> theta, double *pPotentialValue) const;
+
+	bool getSuggestedScales(double *pDeflectionScale, double *pPotentialScale) const;
+	bool getCLParameterCounts(int *pNumIntParams, int *pNumFloatParams) const;
+	bool getCLParameters(double deflectionScale, double potentialScale, int *pIntParams, float *pFloatParams) const;
+	std::string getCLProgram(double deflectionScale, double potentialScale, std::string &subRoutineName, bool derivatives = true, bool potential = true) const override;
+	std::unique_ptr<GravitationalLensParams> createLensParamFromCLFloatParams(double deflectionScale, double potentialScale, float *pFloatParams) const override;
+	std::vector<CLFloatParamInfo> getCLAdjustableFloatingPointParameterInfo(double deflectionScale, double potentialScale) const override;
 protected:
 	bool processParameters(const GravitationalLensParams *pLensParams);
 private:

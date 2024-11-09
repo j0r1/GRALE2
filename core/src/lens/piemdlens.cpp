@@ -235,5 +235,78 @@ double PIEMDLens::getSurfaceMassDensity(Vector2Dd theta) const
 	return m_densFactor*(1.0/SQRT(m_a2 + t2) - 1.0/SQRT(m_s2 + t2));
 }
 
+bool PIEMDLens::getSuggestedScales(double *pDeflectionScale, double *pPotentialScale) const
+{
+	*pDeflectionScale = m_angularScale;
+	*pPotentialScale = m_angularScale*m_angularScale;
+	return true;
+}
+
+bool PIEMDLens::getCLParameterCounts(int *pNumIntParams, int *pNumFloatParams) const
+{
+	*pNumIntParams = 0;
+	*pNumFloatParams = 4;
+	return true;
+}
+
+bool PIEMDLens::getCLParameters(double deflectionScale, double potentialScale, int *pIntParams, float *pFloatParams) const
+{
+	double densScale = SPEED_C*SPEED_C/(4.0*CONST_PI*CONST_G*getLensDistance());
+
+	pFloatParams[0] = (float)(m_sigma0/densScale);
+	pFloatParams[1] = (float)(m_coreRadius/deflectionScale);
+	pFloatParams[2] = (float)(m_scaleRadius/deflectionScale);
+	pFloatParams[3] = (float)m_epsilon;
+	return true;
+}
+
+string PIEMDLens::getCLProgram(double deflectionScale, double potentialScale, std::string &subRoutineName, bool derivatives, bool potential) const
+{
+	subRoutineName = "clPIEMDLensProgram";
+
+	string prog = R"XYZ(
+LensQuantities clPIEMDLensProgram(float2 coord, __global const int *pIntParams, __global const float *pFloatParams)
+{
+	float sigma0 = pFloatParams[0];
+	float coreRadius = pFloatParams[1];
+	float scaleRadius = pFloatParams[2];
+	float epsilon = pFloatParams[3];
+	LensQuantities r;
+
+	// TODO
+
+	return r;
+}
+	)XYZ";
+
+	return prog;
+}
+
+unique_ptr<GravitationalLensParams> PIEMDLens::createLensParamFromCLFloatParams(double deflectionScale, double potentialScale, float *pFloatParams) const
+{
+	double densScale = SPEED_C*SPEED_C/(4.0*CONST_PI*CONST_G*getLensDistance());
+
+	double sigma0 = (double)pFloatParams[0] * densScale;
+	double coreRad = (double)pFloatParams[1] * deflectionScale;
+	double scaleRad = (double)pFloatParams[2] * deflectionScale;
+	double eps = (double)pFloatParams[3];
+
+	return make_unique<PIEMDLensParams>(sigma0, coreRad, scaleRad, eps);
+}
+
+vector<CLFloatParamInfo> PIEMDLens::getCLAdjustableFloatingPointParameterInfo(double deflectionScale, double potentialScale) const
+{
+	double densScale = SPEED_C*SPEED_C/(4.0*CONST_PI*CONST_G*getLensDistance());
+
+	return {
+		{ .name = "centraldensity_scaled", .offset = 0, .scaleFactor = densScale, .hardMin = 0 },
+		{ .name = "coreradius_scaled", .offset = 1, .scaleFactor = deflectionScale, .hardMin = 0 },
+		// TODO: how can we enforce complex constraints in the optimization? That scaleRadius must
+		//       be larger than coreradius for example?
+		{ .name = "scaleradius_scaled", .offset = 2, .scaleFactor = deflectionScale, .hardMin = 0 },
+		{ .name = "epsilon", .offset = 3, .scaleFactor = 1.0, .hardMin = 0.01, .hardMax = 0.99 }, // TODO 0 and 1 are not allowed, what are good bounds?
+	};
+}
+
 } // end namespace
 
