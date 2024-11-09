@@ -6,6 +6,10 @@
 #include <eatk/vectorgenomefitness.h>
 #include <eatk/vectordifferentialevolution.h>
 #include <eatk/goodmanweareevolver.h>
+#include <eatk/vectorgenomeuniformmutation.h>
+#include <eatk/vectorgenomefractionalmutation.h>
+#include <eatk/vectorgenomeuniformcrossover.h>
+#include <eatk/populationreusecreation.h>
 
 class ParametricCreation : public eatk::VectorDifferentialEvolutionIndividualCreation<float,float>
 {
@@ -163,7 +167,7 @@ protected:
 	errut::bool_t runMCMC(const std::shared_ptr<eatk::RandomNumberGenerator> &rng,
 						int popSize, const std::shared_ptr<grale::LensGAParametricSinglePlaneCalculator> &calculator,
 						const std::shared_ptr<eatk::PopulationFitnessCalculation> &popCalc,
-						eatk::IndividualCreation &creation,
+						std::shared_ptr<eatk::IndividualCreation> &creation,
 						const grale::EAParameters &eaParams)
 
 	{
@@ -203,11 +207,12 @@ protected:
 			return r;
 
 		MyGA ea;
-		r = ea.run(creation, gw, *popCalc, stop, popSize, popSize, popSize*3/2);
+		r = ea.run(*creation, gw, *popCalc, stop, popSize, popSize, popSize*3/2);
 		if (!r)
 			return r;
 
 		m_best = gw.getBestIndividuals();
+		creation = std::make_shared<eatk::PopulationReuseCreation>(ea.getPopulations());
 		return true;
 	}
 
@@ -223,15 +228,6 @@ protected:
 						 const std::shared_ptr<grale::LensGAMultiPopulationParameters> &multiPopParams,
 						 const std::vector<std::string> &allEATypes) override
 	{
-		// TODO: Check type name and parameters
-		for (size_t i = 0 ; i < allEATypes.size() ; i++)
-		{
-			// TODO
-		}
-
-		if (allEATypes.size() != 1)
-			return "Currently only a single EA type can be used for parametric inversion";
-
 		if (multiPopParams.get())
 			return "Parametric inversion only works with a single population";
 
@@ -244,28 +240,140 @@ protected:
 		std::shared_ptr<eatk::PopulationFitnessCalculation> calc;
 		errut::bool_t r;
 
-		std::unique_ptr<eatk::IndividualCreation> creation = std::make_unique<ParametricCreation>(numObjectives, genomeCalculator->getInitMin(), genomeCalculator->getInitMax(), rng);
+		std::shared_ptr<eatk::IndividualCreation> creation = std::make_unique<ParametricCreation>(numObjectives, genomeCalculator->getInitMin(), genomeCalculator->getInitMax(), rng);
 
 		if (!(r = getCalculator(lensFitnessObjectType, calculatorType, calcFactory, genomeCalculator,
 									factoryParamBytes, *creation, calc)))
 			return "Can't get calculator: " + r.getErrorString();
 
-		const grale::EAParameters &eaParams = *allEAParams[0];
-		const grale::LensGAConvergenceParameters &convParams = allConvParams[0];
-		std::string eaType = allEATypes[0];
+		// TODO: Check type name and parameters beforehand?
 
-		// Do MCMC in another routine
-		if (eaType == "MCMC")
-			return runMCMC(rng, popSize, genomeCalculator, calc, *creation, eaParams);
+		for (size_t i = 0 ; i < allEATypes.size() ; i++)
+		{
+			const grale::EAParameters &eaParams = *allEAParams[i];
+			const grale::LensGAConvergenceParameters &convParams = allConvParams[i];
+			std::string eaType = allEATypes[i];
+			bool_t r;
 
-		// Continue with JADE or DE
-		if (!(eaType == "JADE" || eaType == "DE"))
-			return "Currently only MCMC, DE or JADE is supported";
+			// Do MCMC in another routine
+			if (eaType == "MCMC")
+			{
+				if (!(r = runMCMC(rng, popSize, genomeCalculator, calc, creation, eaParams)))
+					return r;
+			}
+			else
+			{
+				Stop stop(-1, 0);
+				if (!(r = stop.initialize(numObjectives, convParams)))
+					return "Can't initialize stop criterion: " + r.getErrorString();
 
-		Stop stop(-1, 0);
-		if (!(r = stop.initialize(numObjectives, convParams)))
-			return "Can't initialize stop criterion: " + r.getErrorString();
+				if (eaType == "JADE" || eaType == "DE")
+				{
+					if (!(r = runDE(eaType, numObjectives, rng, comparison, popSize, genomeCalculator, calc, creation, eaParams, stop)))
+						return r;
+				}
+				else if (eaType == "NSGA2")
+				{
+					if (!(r = runNSGA2(eaType, numObjectives, rng, comparison, popSize, genomeCalculator, calc, creation, eaParams, stop)))
+						return r;
+				}
+				else
+					return "Unexpected EA type '" + eaType + "'";
+			}
+		}
 
+		return true;
+	}
+
+	errut::bool_t runNSGA2(const std::string &eaType, size_t numObjectives, const std::shared_ptr<eatk::RandomNumberGenerator> &rng,
+						const std::shared_ptr<eatk::FitnessComparison> &comparison,
+						int popSize, const std::shared_ptr<grale::LensGAParametricSinglePlaneCalculator> &genomeCalculator,
+						const std::shared_ptr<eatk::PopulationFitnessCalculation> &calc,
+						std::shared_ptr<eatk::IndividualCreation> &creation,
+						const grale::EAParameters &eaParams, eatk::StopCriterion &stop)
+	{
+		std::unique_ptr<eatk::PopulationEvolver> evolver;
+
+		if (eaType == "NSGA2")
+		{
+			if (!dynamic_cast<const grale::NSGA2Parameters*>(&eaParams))
+				return "Parameters are not suitable for NSGA2";
+		
+			const grale::NSGA2Parameters &params = static_cast<const grale::NSGA2Parameters&>(eaParams);
+			float mutAmp = params.getSmallMutationSize();
+			bool absMut = (mutAmp > 0)?false:true;
+
+			std::shared_ptr<eatk::GenomeMutation> mut;
+			std::shared_ptr<eatk::GenomeCrossover> cross;
+
+			auto genome = creation->createUnInitializedGenome();
+			assert(dynamic_cast<const eatk::FloatVectorGenome*>(genome.get()));
+			const eatk::FloatVectorGenome &vg = static_cast<const eatk::FloatVectorGenome&>(*genome);
+			size_t numParameters = vg.getValues().size();
+			double mutFrac = 1.0/numParameters;
+
+			const std::vector<float> &initMin = genomeCalculator->getInitMin();
+			const std::vector<float> &initMax = genomeCalculator->getInitMax();
+
+			if (absMut)
+			{
+				mut = std::make_shared<eatk::VectorGenomeUniformMutation<float>>(mutFrac, initMin, initMax, rng);
+			}
+			else
+			{
+				const std::vector<float> &hardMin = genomeCalculator->getHardMin();
+				const std::vector<float> &hardMax = genomeCalculator->getHardMax();
+				std::vector<float> refScales(initMin.size());
+
+				// Calculate scale vector
+				assert(initMin.size() == initMax.size());
+				for (size_t i = 0 ; i < initMin.size() ; i++)
+				{
+					float diff = std::abs(initMax[i] - initMin[i]);
+					refScales[i] = diff*mutAmp;
+				}
+
+				struct AdjRoutine
+				{
+					static float adjustValue(float oldVal, float scale, float hardMin, float hardMax, eatk::RandomNumberGenerator &rng)
+					{
+						// Same routine as in LensGAGenomeMutation
+						float p = rng.getRandomFloat()*2.0f-1.0f;
+						float x = std::tan(p*(float)(grale::CONST_PI/4.0))*scale;
+						return x + oldVal;
+					}
+				};
+
+				mut = std::make_shared<eatk::VectorGenomeFractionalMutation<float, AdjRoutine, true>>(mutFrac, refScales, hardMin, hardMax, rng);
+			}
+
+			cross = std::make_shared<eatk::VectorGenomeUniformCrossover<float>>(rng, false);
+
+			evolver = std::make_unique<eatk::NSGA2Evolver>(rng, cross, mut, comparison, numObjectives);
+			WriteLineStdout("GAMESSAGESTR:Running NSGA2 algorithm, small mutation size = " + std::to_string(params.getSmallMutationSize()));
+		}
+		else
+			return "Unexpected EA type '" + eaType + "'";
+
+		MyGA ga;
+		errut::bool_t r;
+		if (!(r = ga.run(*creation, *evolver, *calc, stop, popSize, popSize, popSize*2)))
+			return "Error running GA: " + r.getErrorString();
+
+		m_best = evolver->getBestIndividuals();
+		creation = std::make_shared<eatk::PopulationReuseCreation>(ga.getPopulations());
+
+		return true;
+	}
+
+	errut::bool_t runDE(const std::string &eaType, size_t numObjectives, const std::shared_ptr<eatk::RandomNumberGenerator> &rng,
+						const std::shared_ptr<eatk::FitnessComparison> &comparison,
+						int popSize, const std::shared_ptr<grale::LensGAParametricSinglePlaneCalculator> &genomeCalculator,
+						const std::shared_ptr<eatk::PopulationFitnessCalculation> &calc,
+						std::shared_ptr<eatk::IndividualCreation> &creation,
+						const grale::EAParameters &eaParams, eatk::StopCriterion &stop)
+
+	{
 		auto mut = std::make_shared<eatk::VectorDifferentialEvolutionMutation<float>>();
 		auto cross = std::make_shared<eatk::VectorDifferentialEvolutionCrossover<float>>(rng, genomeCalculator->getHardMin(), genomeCalculator->getHardMax());
 
@@ -337,10 +445,12 @@ protected:
 			return "Unexpected eaType '" + eaType + "'";
 
 		MyGA ga;
+		errut::bool_t r;
 		if (!(r = ga.run(*creation, *evolver, *calc, stop, popSize, popSize, popSize*2)))
 			return "Error running GA: " + r.getErrorString();
 
 		m_best = evolver->getBestIndividuals();
+		creation = std::make_shared<eatk::PopulationReuseCreation>(ga.getPopulations());
 
 		return true;
 	}
