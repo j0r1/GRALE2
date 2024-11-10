@@ -11,6 +11,11 @@
 #include <eatk/vectorgenomeuniformcrossover.h>
 #include <eatk/vectorgenomedelikecrossover.h>
 #include <eatk/populationreusecreation.h>
+#include <eatk/singlepopulationcrossover.h>
+#include <eatk/rankparentselection.h>
+#include <eatk/simplesortedpopulation.h>
+#include <eatk/singlebestelitism.h>
+#include <eatk/remainingtargetpopulationsizeiteration.h>
 
 class ParametricCreation : public eatk::VectorDifferentialEvolutionIndividualCreation<float,float>
 {
@@ -278,10 +283,128 @@ protected:
 					if (!(r = runNSGA2(eaType, numObjectives, rng, comparison, popSize, genomeCalculator, calc, creation, eaParams, stop)))
 						return r;
 				}
+				else if (eaType == "GA")
+				{
+					if (!(r = runGA(eaType, numObjectives, rng, comparison, popSize, genomeCalculator, calc, creation, eaParams, stop)))
+						return r;
+				}
 				else
 					return "Unexpected EA type '" + eaType + "'";
 			}
 		}
+
+		return true;
+	}
+
+	errut::bool_t runGA(const std::string &eaType, size_t numObjectives, const std::shared_ptr<eatk::RandomNumberGenerator> &rng,
+						const std::shared_ptr<eatk::FitnessComparison> &comparison,
+						int popSize, const std::shared_ptr<grale::LensGAParametricSinglePlaneCalculator> &genomeCalculator,
+						const std::shared_ptr<eatk::PopulationFitnessCalculation> &calc,
+						std::shared_ptr<eatk::IndividualCreation> &creation,
+						const grale::EAParameters &eaParams, eatk::StopCriterion &stop)
+	{
+		const std::vector<float> &initMin = genomeCalculator->getInitMin();
+		const std::vector<float> &initMax = genomeCalculator->getInitMax();
+		const std::vector<float> &hardMin = genomeCalculator->getHardMin();
+		const std::vector<float> &hardMax = genomeCalculator->getHardMax();
+
+		if (eaType != "GA")
+			return "Unexpected EA type '" + eaType + "'";
+
+		if (numObjectives != 1)
+			return "Regular GA for parametric inversion only supports a single objective; you can use NSGA2";
+
+		if (!dynamic_cast<const grale::GAParameters*>(&eaParams))
+			return "Parameters are not suitable for GA";
+
+		const grale::GAParameters &params = static_cast<const grale::GAParameters&>(eaParams);
+		double selPressure = params.getSelectionPressure();
+		bool useElitism = params.getUseElitism();
+		bool alwaysIncludeBest = params.getAlwaysIncludeBest();
+		double crossRate = params.getCrossOverRate();
+		float mutAmp = params.getSmallMutationSize();
+		bool absMut = (mutAmp > 0)?false:true;
+
+		assert(crossRate >= 0 && crossRate <= 1.0);
+
+		std::shared_ptr<eatk::GenomeMutation> mut;
+		// Get the right mutation operator
+		{
+			auto genome = creation->createUnInitializedGenome();
+			assert(dynamic_cast<const eatk::FloatVectorGenome*>(genome.get()));
+			const eatk::FloatVectorGenome &vg = static_cast<const eatk::FloatVectorGenome&>(*genome);
+			size_t numParameters = vg.getValues().size();
+			double mutFrac = 1.0/numParameters;
+
+			if (absMut)
+			{
+				mut = std::make_shared<eatk::VectorGenomeUniformMutation<float>>(mutFrac, initMin, initMax, rng);
+			}
+			else
+			{
+				std::vector<float> refScales(initMin.size());
+
+				// Calculate scale vector
+				assert(initMin.size() == initMax.size());
+				for (size_t i = 0 ; i < initMin.size() ; i++)
+				{
+					float diff = std::abs(initMax[i] - initMin[i]);
+					refScales[i] = diff*mutAmp;
+				}
+
+				struct AdjRoutine
+				{
+					static float adjustValue(float oldVal, float scale, float hardMin, float hardMax, eatk::RandomNumberGenerator &rng)
+					{
+						// Same routine as in LensGAGenomeMutation
+						float p = rng.getRandomFloat()*2.0f-1.0f;
+						float x = std::tan(p*(float)(grale::CONST_PI/4.0))*scale;
+						return x + oldVal;
+					}
+				};
+
+				mut = std::make_shared<eatk::VectorGenomeFractionalMutation<float, AdjRoutine, true>>(mutFrac, refScales, hardMin, hardMax, rng);
+			}
+		}
+
+		std::shared_ptr<eatk::GenomeCrossover> cross = std::make_shared<eatk::VectorGenomeUniformCrossover<float>>(rng, false);
+
+		std::shared_ptr<eatk::Elitism> elitism;
+		if (useElitism)
+		{
+			if (alwaysIncludeBest)
+				elitism = std::make_shared<eatk::SingleBestElitism>(true, mut);
+			else
+				elitism = std::make_shared<eatk::SingleBestElitism>(false, mut);
+		}
+		else
+		{
+			if (alwaysIncludeBest)
+				elitism = std::make_shared<eatk::SingleBestElitism>(false, nullptr);
+		}
+
+		std::unique_ptr<eatk::PopulationEvolver> evolver = std::make_unique<eatk::SinglePopulationCrossover>(1.0-crossRate, false,
+																											 std::make_shared<eatk::SimpleSortedPopulation>(std::make_shared<eatk::VectorFitnessComparison<float>>()),
+																											 std::make_shared<eatk::RankParentSelection>(selPressure, rng),
+																											 cross,
+																											 mut,
+																											 elitism,
+																											 std::make_shared<eatk::RemainingTargetPopulationSizeIteration>(),
+																											 rng);
+
+		WriteLineStdout("GAMESSAGESTR:Running GA algorithm, selection pressure = " + std::to_string(params.getSelectionPressure()) +
+				        ", elitism = " + std::to_string((int)params.getUseElitism()) +
+						", always include best = " + std::to_string((int)params.getAlwaysIncludeBest()) + 
+						", crossover rate = " + std::to_string(params.getCrossOverRate()) +
+						", small mutation size = " + std::to_string(params.getSmallMutationSize()));
+
+		MyGA ga;
+		errut::bool_t r;
+		if (!(r = ga.run(*creation, *evolver, *calc, stop, popSize, popSize, popSize+2))) // +2 for the elites
+			return "Error running GA: " + r.getErrorString();
+
+		m_best = evolver->getBestIndividuals();
+		creation = std::make_shared<eatk::PopulationReuseCreation>(ga.getPopulations());
 
 		return true;
 	}
