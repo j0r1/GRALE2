@@ -16,22 +16,36 @@ lensDescription = {
         { 
             "x": [-10*ANGLE_ARCSEC,0.2,0.2 ], "y": [1*ANGLE_ARCSEC, 0.5, 3], "factor": 1, "angle": [30, 0.5],
             "lens": {
-                "type": "NSIELens",
+               # "type": "NSIELens",
+               # "params": {
+               #     "velocityDispersion": [700000, 0.2, 0.5],
+               #     "ellipticity": [0.8, 0.1],
+               #     "coreRadius": [0.5*ANGLE_ARCSEC, 0.5, 0.9]
+               # }
+                "type": "PIEMDLens",
                 "params": {
-                    "velocityDispersion": [700000, 0.2, 0.5],
-                    "ellipticity": [0.8, 0.1],
-                    "coreRadius": [0.5*ANGLE_ARCSEC, 0.5, 0.9]
+                    "epsilon": { "initmin": 0.1, "initmax": 0.9 },
+                    "coreradius": [ 1*ANGLE_ARCSEC ],
+                    "scaleradius": [ 20*ANGLE_ARCSEC ],
+                    "centraldensity": { "initmin": 1, "initmax": 50 },
                 }
             }
         },
         {
             "x": [5*ANGLE_ARCSEC,0.2,0.2], "y": [10*ANGLE_ARCSEC, 0.2, 0.2], "factor": 1, "angle": [-60, 0.5],
             "lens": {
-                "type": "NSIELens",
+                #"type": "NSIELens",
+                #"params": {
+                #    "velocityDispersion": [900000, 0.2, 0.5],
+                #    "ellipticity": [0.75, 0.1],
+                #    "coreRadius": [1.5*ANGLE_ARCSEC, 0.5, 0.9]
+                #}
+                "type": "PIEMDLens",
                 "params": {
-                    "velocityDispersion": [900000, 0.2, 0.5],
-                    "ellipticity": [0.75, 0.1],
-                    "coreRadius": [1.5*ANGLE_ARCSEC, 0.5, 0.9]
+                    "epsilon": { "initmin": 0.1, "initmax": 0.9 },
+                    "coreradius": [ 1*ANGLE_ARCSEC ],
+                    "scaleradius": [ 20*ANGLE_ARCSEC ],
+                    "centraldensity": { "initmin": 1, "initmax": 50 },
                 }
             }
         }

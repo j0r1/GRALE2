@@ -14,13 +14,24 @@ D = cosm.getAngularDiameterDistance
 zd = 0.4
 Dd = D(zd)
 
+#trueLens = lenses.CompositeLens(Dd, [
+#    {
+#        "lens": lenses.NSIELens(Dd, { "velocityDispersion": 700000, "ellipticity": 0.8, "coreRadius": 0.5*ANGLE_ARCSEC }),
+#        "x": -10*ANGLE_ARCSEC, "y": 0, "angle": 30, "factor": 1,
+#    },
+#    {
+#        "lens": lenses.NSIELens(Dd, { "velocityDispersion": 900000, "ellipticity": 0.75, "coreRadius": 1.5*ANGLE_ARCSEC }),
+#        "x": 5*ANGLE_ARCSEC, "y": 10*ANGLE_ARCSEC, "angle": -60, "factor": 1,
+#    }
+#])
+
 trueLens = lenses.CompositeLens(Dd, [
     {
-        "lens": lenses.NSIELens(Dd, { "velocityDispersion": 700000, "ellipticity": 0.8, "coreRadius": 0.5*ANGLE_ARCSEC }),
+        "lens": lenses.PIEMDLens(Dd, { "centraldensity": 30, "epsilon": 0.1, "coreradius": 1.5*ANGLE_ARCSEC, "scaleradius": 20*ANGLE_ARCSEC }),
         "x": -10*ANGLE_ARCSEC, "y": 0, "angle": 30, "factor": 1,
     },
     {
-        "lens": lenses.NSIELens(Dd, { "velocityDispersion": 900000, "ellipticity": 0.75, "coreRadius": 1.5*ANGLE_ARCSEC }),
+        "lens": lenses.PIEMDLens(Dd, { "centraldensity": 40, "epsilon": 0.2, "coreradius": 0.5*ANGLE_ARCSEC, "scaleradius": 40*ANGLE_ARCSEC }),
         "x": 5*ANGLE_ARCSEC, "y": 10*ANGLE_ARCSEC, "angle": -60, "factor": 1,
     }
 ])
@@ -68,3 +79,4 @@ plotutil.plotDensityContours(li, levels=np.arange(0.5, 15, 0.5))
 plt.subplot(2,2,3)
 plotutil.plotImagesData(imgListNoNoise)
 plt.show()
+
