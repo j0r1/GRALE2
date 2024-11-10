@@ -265,6 +265,31 @@ string PIEMDLens::getCLProgram(double deflectionScale, double potentialScale, st
 	subRoutineName = "clPIEMDLensProgram";
 
 	string prog = R"XYZ(
+
+float2 clPIEMDLensProgram_calcI(float omega_scaled, float2 theta, float epsilon)
+{
+	float X = theta.x;
+	float Y = theta.y;
+	float W = omega_scaled;
+	float epsFrac = (1.0f-epsilon)/(1.0f+epsilon);
+
+	float A = X*epsFrac;
+	float tmpX = X/(1.0f+epsilon);
+	float tmpY = Y/(1.0f-epsilon);
+	float sqrtEpsilon = sqrt(epsilon);
+	float B = -Y/epsFrac + 2.0f*sqrtEpsilon*sqrt(W*W + tmpX*tmpX + tmpY*tmpY);
+	float C = X;
+	float D = -Y+2.0f*W*sqrtEpsilon;
+	float C2D2 = C*C+D*D;
+
+	float H = (B*C-D*A)/C2D2;
+	float G = (C*A+D*B)/C2D2;
+
+	float re = atan2(H, G) * omega_scaled;
+	float im = -log(sqrt(G*G+H*H)) * omega_scaled;
+	return (float2)(re, im);
+}
+
 LensQuantities clPIEMDLensProgram(float2 coord, __global const int *pIntParams, __global const float *pFloatParams)
 {
 	float sigma0 = pFloatParams[0];
@@ -273,7 +298,19 @@ LensQuantities clPIEMDLensProgram(float2 coord, __global const int *pIntParams, 
 	float epsilon = pFloatParams[3];
 	LensQuantities r;
 
-	// TODO
+	float2 corePart = clPIEMDLensProgram_calcI(coreRadius, coord, epsilon);
+	float2 scalePart = clPIEMDLensProgram_calcI(scaleRadius, coord, epsilon);
+	float diffRadii = scaleRadius-coreRadius;
+
+	float deflectionFactor = sigma0 * (1.0f-epsilon*epsilon)/sqrt(epsilon);
+	float2 alpha = (corePart*(scaleRadius/diffRadii) - scalePart*(coreRadius/diffRadii)) * deflectionFactor;
+
+	r.alphaX = alpha.x;
+	r.alphaY = alpha.y;
+	r.potential = nan((uint)0); // Currently not supported
+	r.axx = 0; // TODO
+	r.ayy = 0; // TODO
+	r.axy = 0; // TODO
 
 	return r;
 }
