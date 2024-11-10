@@ -485,6 +485,9 @@ def analyzeParametricLensDescription(parametricLens, Dd, defaultFraction, clampT
             else:
                 n = getNameForOffset(i)
                 raise ParametricDescriptionException(f"Parameter '{n}' (at offset {i}) has initial value that can be larger than hard upper limit")
+        if initMax[i] < initMin[i]:
+            n = getNameForOffset(i)
+            raise ParametricDescriptionException(f"Parameter '{n}' (at offset {i}) has invalid initial range (possibly after clamping): initMin = {initMin[i]}, initMax = {initMax[i]}")
 
     paramRanges = [ ]
     for offInf in inf["paramoffsets"]:
@@ -501,6 +504,19 @@ def analyzeParametricLensDescription(parametricLens, Dd, defaultFraction, clampT
                               "scalefactor": offInf["scalefactor"],
                               "offset": offset })
     paramRanges = sorted(paramRanges, key = lambda x: x["offset"])
+
+    # Do a final consistency check
+    for p in paramRanges:
+        n = p["name"]
+        hardMin, hardMax = p["hardlimits"]
+        initMin, initMax = p["initialrange"]
+        if initMin == initMax:
+            raise ParametricDescriptionException(f"Consistency error: Paraameter '{n}' has emty initial range ({initMin})")
+        if not (hardMin <= initMin < initMax <= hardMax):
+            raise ParametricDescriptionException(f"Consistency error: Parameter '{n}' fails range check: hardMin = {hardMin}, initMin = {initMin}, initMax = {initMax}, hardMax = {hardMax}")
+
+    #print("variablefloatparams")
+    #pprint.pprint(paramRanges)
     
     ret = {
         "templatelens": inf["templatelens"],
