@@ -179,6 +179,19 @@ def _processDeflectionGridLens(lensParams, Dd, getParamValue):
 
     return lensParams.copy(), [] # No variable parameters
 
+def _processPIEMDLens(lensParams, Dd, getParamValue):
+
+    positionNames = [ ]
+    lensParams, newParams = _checkParameterValues(lensParams, [ ("epsilon", "epsilon"),
+                                                                ("coreradius", "coreradius_scaled"),
+                                                                ("scaleradius", "scaleradius_scaled"),
+                                                                ("centraldensity", "centraldensity_scaled")],
+                                                  getParamValue, positionNames)
+    if lensParams:
+        raise ParametricDescriptionException("Excess parameters for PIEMDLens")
+
+    return newParams, positionNames
+
 def _createTemplateLens_helper(parametricLensDescription, Dd, getParamValue):
     lensType = parametricLensDescription["type"]
     lensParams = parametricLensDescription["params"]
@@ -642,6 +655,22 @@ def _analyzeDeflectionGridLens(lens, massUnitString, angularUnitString, convertV
         '}'
     ]
 
+def _analyzePIEMDLens(lens, massUnitString, angularUnitString, convertValueFunction, objectStore, objectStoreName):
+
+    params = lens.getLensParameters()
+    sigma0Str = _convertedValueToString(convertValueFunction(params["centraldensity"], ["PIEMDLens"], "centraldensity", "centraldensity_scaled", params), _getUnitlessValue)
+    epsStr = _convertedValueToString(convertValueFunction(params["epsilon"], ["PIEMDLens"], "epsilon", "epsilon", params), _getUnitlessValue)
+    coreRadStr = _convertedValueToString(convertValueFunction(params["coreradius"], ["PIEMDLens"], "coreradius", "coreradius_scaled", params), lambda x: _getUnitValue(x, angularUnitString))
+    scaleRadStr = _convertedValueToString(convertValueFunction(params["scaleradius"], ["PIEMDLens"], "scaleradius", "scaleradius_scaled", params), lambda x: _getUnitValue(x, angularUnitString))
+    return [
+        '{',
+        f'    "centraldensity": {sigma0Str},',
+        f'    "epsilon": {epsStr},',
+        f'    "coreradius": {coreRadStr},',
+        f'    "scaleradius": {scaleRadStr},',
+        '}'
+    ]
+
 def createParametricDescription(lens, massUnitString = "MASS_SUN", angularUnitString = "ANGLE_ARCSEC",
                                 asString = True, convertValueFunction = None,
                                 objectStore = None, objectStoreName = None):
@@ -726,6 +755,7 @@ _supportedLensTypes = {
     "SISLens": { "handler": _processSISLens, "lens": lenses.SISLens, "analysis": _analyzeSISLens },
     "MassSheetLens": { "handler": _processMassSheetLens, "lens": lenses.MassSheetLens, "analysis": _analyzeMassSheetLens },
     "DeflectionGridLens": { "handler": _processDeflectionGridLens, "lens": lenses.DeflectionGridLens, "analysis": _analyzeDeflectionGridLens },
+    "PIEMDLens" : { "handler": _processPIEMDLens, "lens": lenses.PIEMDLens, "analysis": _analyzePIEMDLens },
 }
 
 _supportedLensTypesByClass = { _supportedLensTypes[name]["lens"]: { "name": name, **_supportedLensTypes[name] } for name in _supportedLensTypes }
