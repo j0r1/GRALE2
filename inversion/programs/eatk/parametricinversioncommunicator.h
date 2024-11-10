@@ -241,6 +241,24 @@ protected:
 		if (!genomeCalculator)
 			return "Calculator does not seem to be a LensGAParametricSinglePlaneCalculator one";
 
+		// Do sanity check on limits
+		{
+			const std::vector<float> &initMin = genomeCalculator->getInitMin();
+			const std::vector<float> &initMax = genomeCalculator->getInitMax();
+			const std::vector<float> &hardMin = genomeCalculator->getHardMin();
+			const std::vector<float> &hardMax = genomeCalculator->getHardMax();
+
+			if (initMin.size() != initMax.size() || initMax.size() != hardMax.size() || hardMin.size() != hardMax.size())
+				return "Initial value ranges and hard boundaries do not all have compatible sizes";
+			for (size_t i = 0 ; i < initMin.size() ; i++)
+			{
+				if (!(hardMin[i] <= initMin[i] && initMin[i] < initMax[i] && initMax[i] <= hardMax[i]))
+					return "Error in boundary check for parameter " + std::to_string(i) + ": hardMin = " + std::to_string(hardMin[i])
+						+ " initMin = " + std::to_string(initMin[i]) + " initMax = " + std::to_string(initMax[i])
+						+ " hardMin = " + std::to_string(hardMax[i]);
+			}
+		}
+
 		size_t numObjectives = genomeCalculator->getNumberOfObjectives();
 
 		std::shared_ptr<eatk::PopulationFitnessCalculation> calc;
