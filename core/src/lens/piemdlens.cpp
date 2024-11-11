@@ -347,7 +347,15 @@ LensQuantities clPIEMDLensProgram(float2 coord, __global const int *pIntParams, 
 	float deflectionFactor = sigma0 * (1.0f-epsilon*epsilon)/sqrt(epsilon);
 	float fa = scaleRadius/diffRadii;
 	float fs = coreRadius/diffRadii;
-	float2 alpha = (corePart*fa - scalePart*fs) * deflectionFactor;
+
+	float2 alpha;
+	if (diffRadii == 0) // this means coreRadius == scaleRadius, and corePart == scalePart
+		alpha = (float2)(0,0);
+	else
+		alpha = (corePart*fa - scalePart*fs) * deflectionFactor;
+
+	//if (isnan(alpha.x) || isnan(alpha.y))
+	//	printf("NaN in alpha for point %d, genome %d\n", get_global_id(0), get_global_id(1));
 
 	r.alphaX = alpha.x;
 	r.alphaY = alpha.y;
@@ -365,9 +373,22 @@ LensQuantities clPIEMDLensProgram(float2 coord, __global const int *pIntParams, 
 	clPIEMDLensProgram_calcIDerivs(coreRadius, coord, &axx_a, &ayy_a, &axy_a, epsilon, deflectionFactor);
 	clPIEMDLensProgram_calcIDerivs(scaleRadius, coord, &axx_s, &ayy_s, &axy_s, epsilon, deflectionFactor);
 
-	r.axx = axx_a*fa - axx_s*fs;
-	r.ayy = ayy_a*fa - ayy_s*fs;
-	r.axy = axy_a*fa - axy_s*fs;
+	if (diffRadii == 0) // this means coreRadius == scaleRadius, and a.._a == a.._s
+	{
+		r.axx = 0;
+		r.ayy = 0;
+		r.axy = 0;
+	}
+	else
+	{
+		r.axx = axx_a*fa - axx_s*fs;
+		r.ayy = ayy_a*fa - ayy_s*fs;
+		r.axy = axy_a*fa - axy_s*fs;
+	}
+
+	//if (isnan(r.axx) || isnan(r.ayy) || isnan(r.axy))
+	//	printf("NaN in alpha derivs for point %d, genome %d\n", get_global_id(0), get_global_id(1));
+
 )XYZ";
 	program += R"XYZ(
 	return r;
