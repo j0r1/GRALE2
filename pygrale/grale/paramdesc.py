@@ -184,7 +184,7 @@ def _processPIEMDLens(lensParams, Dd, getParamValue):
     positionNames = [ ]
     lensParams, newParams = _checkParameterValues(lensParams, [ ("epsilon", "epsilon"),
                                                                 ("coreradius", "coreradius_scaled"),
-                                                                ("scaleradius", "scaleradius_scaled"),
+                                                                ("scaleradius", "scaleradius_difference_scaled"),
                                                                 ("centraldensity", "centraldensity_scaled")],
                                                   getParamValue, positionNames)
     if lensParams:
@@ -677,7 +677,7 @@ def _analyzePIEMDLens(lens, massUnitString, angularUnitString, convertValueFunct
     sigma0Str = _convertedValueToString(convertValueFunction(params["centraldensity"], ["PIEMDLens"], "centraldensity", "centraldensity_scaled", params), _getUnitlessValue)
     epsStr = _convertedValueToString(convertValueFunction(params["epsilon"], ["PIEMDLens"], "epsilon", "epsilon", params), _getUnitlessValue)
     coreRadStr = _convertedValueToString(convertValueFunction(params["coreradius"], ["PIEMDLens"], "coreradius", "coreradius_scaled", params), lambda x: _getUnitValue(x, angularUnitString))
-    scaleRadStr = _convertedValueToString(convertValueFunction(params["scaleradius"], ["PIEMDLens"], "scaleradius", "scaleradius_scaled", params), lambda x: _getUnitValue(x, angularUnitString))
+    scaleRadStr = _convertedValueToString(convertValueFunction(params["scaleradius"], ["PIEMDLens"], "scaleradius", "scaleradius_difference_scaled", params), lambda x: _getUnitValue(x, angularUnitString))
     return [
         '{',
         f'    "centraldensity": {sigma0Str},',

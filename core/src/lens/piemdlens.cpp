@@ -255,7 +255,8 @@ bool PIEMDLens::getCLParameters(double deflectionScale, double potentialScale, i
 
 	pFloatParams[0] = (float)(m_sigma0/densScale);
 	pFloatParams[1] = (float)(m_coreRadius/deflectionScale);
-	pFloatParams[2] = (float)(m_scaleRadius/deflectionScale);
+	// The scale radius is used relative to core radius
+	pFloatParams[2] = (float)((m_scaleRadius - m_coreRadius)/deflectionScale);
 	pFloatParams[3] = (float)m_epsilon;
 	return true;
 }
@@ -335,7 +336,7 @@ LensQuantities clPIEMDLensProgram(float2 coord, __global const int *pIntParams, 
 {
 	float sigma0 = pFloatParams[0];
 	float coreRadius = pFloatParams[1];
-	float scaleRadius = pFloatParams[2];
+	float scaleRadius = pFloatParams[2] + coreRadius; // Use a relative quantity to more easily constrain it
 	float epsilon = pFloatParams[3];
 	LensQuantities r;
 
@@ -382,7 +383,8 @@ unique_ptr<GravitationalLensParams> PIEMDLens::createLensParamFromCLFloatParams(
 
 	double sigma0 = (double)pFloatParams[0] * densScale;
 	double coreRad = (double)pFloatParams[1] * deflectionScale;
-	double scaleRad = (double)pFloatParams[2] * deflectionScale;
+	// The scale radius is used relative to core radius
+	double scaleRad = (double)(pFloatParams[2] + pFloatParams[1]) * deflectionScale;
 	double eps = (double)pFloatParams[3];
 
 	return make_unique<PIEMDLensParams>(sigma0, coreRad, scaleRad, eps);
@@ -395,9 +397,9 @@ vector<CLFloatParamInfo> PIEMDLens::getCLAdjustableFloatingPointParameterInfo(do
 	return {
 		{ .name = "centraldensity_scaled", .offset = 0, .scaleFactor = densScale, .hardMin = 0 },
 		{ .name = "coreradius_scaled", .offset = 1, .scaleFactor = deflectionScale, .hardMin = 0 },
-		// TODO: how can we enforce complex constraints in the optimization? That scaleRadius must
-		//       be larger than coreradius for example?
-		{ .name = "scaleradius_scaled", .offset = 2, .scaleFactor = deflectionScale, .hardMin = 0 },
+		// We'll use the scale radius as a difference with coreradius, so that it's easy to
+		// constrain to be larger than the core radius
+		{ .name = "scaleradius_difference_scaled", .offset = 2, .scaleFactor = deflectionScale, .hardMin = 0 },
 		{ .name = "epsilon", .offset = 3, .scaleFactor = 1.0, .hardMin = 0.01, .hardMax = 0.99 }, // TODO 0 and 1 are not allowed, what are good bounds?
 	};
 }
