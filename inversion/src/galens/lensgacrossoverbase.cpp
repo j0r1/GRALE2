@@ -26,7 +26,7 @@ bool_t LensGACrossoverBase::check(const shared_ptr<eatk::Population> &population
 {
 	bool_t r;
 
-	if (!(r = evolverCheck(*population)))
+	if (!(r = evolverCheck(*population, true)))
 		return r;
 
 	vector<shared_ptr<eatk::Genome>> testParents = { population->individual(0)->genome(), population->individual(0)->genome() };

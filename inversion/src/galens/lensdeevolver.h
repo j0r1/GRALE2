@@ -11,7 +11,7 @@ namespace grale
 class LensDEEvolver : public eatk::DifferentialEvolutionEvolver
 {
 public:
-	LensDEEvolver(
+	LensDEEvolver(bool freeform,
 		const std::shared_ptr<eatk::RandomNumberGenerator> &rng,
 		const std::shared_ptr<eatk::DifferentialEvolutionMutation> &mut,
 		double F,
@@ -27,12 +27,13 @@ public:
 	errut::bool_t createNewPopulation(size_t generation, std::shared_ptr<eatk::Population> &population, size_t targetPopulationSize) override;
 private:
 	PopulationDump m_popDump;
+	bool m_freeform;
 };
 
 class LensJADEEvolver : public eatk::JADEEvolver
 {
 public:
-	LensJADEEvolver(
+	LensJADEEvolver(bool freeform,
 		const std::shared_ptr<eatk::RandomNumberGenerator> &rng,
 		const std::shared_ptr<eatk::DifferentialEvolutionMutation> &mut,
 		const std::shared_ptr<eatk::DifferentialEvolutionCrossover> &cross,
@@ -54,6 +55,7 @@ protected:
 	void onMutationCrossoverSettings(double muF, double muCR) const override;
 private:
 	PopulationDump m_popDump;
+	bool m_freeform;
 };
 
 } // end namespace

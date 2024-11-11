@@ -8,7 +8,7 @@ using namespace std;
 namespace grale
 {
 
-LensDEEvolver::LensDEEvolver(
+LensDEEvolver::LensDEEvolver(bool freeform,
 		const shared_ptr<eatk::RandomNumberGenerator> &rng,
 		const shared_ptr<eatk::DifferentialEvolutionMutation> &mut,
 		double F,
@@ -17,13 +17,15 @@ LensDEEvolver::LensDEEvolver(
 		const shared_ptr<eatk::FitnessComparison> &fitComp, int objectiveNumber, size_t numObjectives,
 		const shared_ptr<eatk::NonDominatedSetCreator> &ndCreator,
 		bool needStrictlyBetter)
-	: eatk::DifferentialEvolutionEvolver(rng, mut, F, cross, CR, fitComp, objectiveNumber, numObjectives, ndCreator, needStrictlyBetter)
+	: eatk::DifferentialEvolutionEvolver(rng, mut, F, cross, CR, fitComp, objectiveNumber, numObjectives, ndCreator, needStrictlyBetter),
+	  m_popDump(PopulationDump(freeform)),
+	  m_freeform(freeform)
 {
 }
 
 bool_t LensDEEvolver::check(const std::shared_ptr<eatk::Population> &population)
 {
-	bool_t r = evolverCheck(*population);
+	bool_t r = evolverCheck(*population, m_freeform);
 	if (!r)
 		return r;
 	return eatk::DifferentialEvolutionEvolver::check(population);
@@ -32,14 +34,15 @@ bool_t LensDEEvolver::check(const std::shared_ptr<eatk::Population> &population)
 // We need to override this function to copy the calculated scale factors to the genomes
 bool_t LensDEEvolver::createNewPopulation(size_t generation, shared_ptr<eatk::Population> &population, size_t targetPopulationSize)
 {
-	copyScaleFactorFromFitnessToGenome(*population);
+	if (m_freeform)
+		copyScaleFactorFromFitnessToGenome(*population);
 
 	m_popDump.checkDumpLoad(generation, *population);
 
 	return eatk::DifferentialEvolutionEvolver::createNewPopulation(generation, population, targetPopulationSize);
 }
 
-LensJADEEvolver::LensJADEEvolver(
+LensJADEEvolver::LensJADEEvolver(bool freeform,
 		const shared_ptr<eatk::RandomNumberGenerator> &rng,
 		const shared_ptr<eatk::DifferentialEvolutionMutation> &mut,
 		const shared_ptr<eatk::DifferentialEvolutionCrossover> &cross,
@@ -53,13 +56,15 @@ LensJADEEvolver::LensJADEEvolver(
 		const shared_ptr<eatk::NonDominatedSetCreator> &ndCreator,
 		bool needStrictlyBetter
 	) 
-	: eatk::JADEEvolver(rng, mut, cross, fitComp, objectiveNumber, p, c, useArchive, initMuF, initMuCR, numObjectives, ndCreator, needStrictlyBetter)
+	: eatk::JADEEvolver(rng, mut, cross, fitComp, objectiveNumber, p, c, useArchive, initMuF, initMuCR, numObjectives, ndCreator, needStrictlyBetter),
+	  m_popDump(PopulationDump(freeform)),
+	  m_freeform(freeform)
 {
 }
 
 bool_t LensJADEEvolver::check(const std::shared_ptr<eatk::Population> &population)
 {
-	bool_t r = evolverCheck(*population);
+	bool_t r = evolverCheck(*population, m_freeform);
 	if (!r)
 		return r;
 	return eatk::JADEEvolver::check(population);
@@ -68,7 +73,8 @@ bool_t LensJADEEvolver::check(const std::shared_ptr<eatk::Population> &populatio
 // We need to override this function to copy the calculated scale factors to the genomes
 bool_t LensJADEEvolver::createNewPopulation(size_t generation, shared_ptr<eatk::Population> &population, size_t targetPopulationSize)
 {
-	copyScaleFactorFromFitnessToGenome(*population);
+	if (m_freeform)
+		copyScaleFactorFromFitnessToGenome(*population);
 
 	m_popDump.checkDumpLoad(generation, *population);
 

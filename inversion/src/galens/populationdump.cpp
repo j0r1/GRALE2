@@ -2,8 +2,10 @@
 #include "lensgaindividual.h"
 #include "utils.h"
 #include <serut/fileserializer.h>
+#include <eatk/vectorgenomefitness.h>
 #include <memory>
 #include <iostream>
+#include <cmath>
 
 using namespace errut;
 using namespace std;
@@ -11,7 +13,7 @@ using namespace std;
 namespace grale
 {
 
-PopulationDump::PopulationDump()
+PopulationDump::PopulationDump(bool freeform) : m_freeform(freeform)
 {
 	auto getDumpInfo = [](const string &keyGen, const string &keyFn, size_t &genNr, string &filename)
 	{
@@ -66,24 +68,63 @@ void PopulationDump::dumpPopulation(const eatk::Population &population, const st
 
 	fSer.writeInt32(population.size());
 
-	for (size_t idx = 0 ; idx < population.size() ; idx++)
+	if (m_freeform)
 	{
-		auto pInd = dynamic_cast<const LensGAIndividual *>(population.individual(idx).get());
-		if (!pInd)
+		for (size_t idx = 0 ; idx < population.size() ; idx++)
 		{
-			cerr << "WARNING: individual is of incorrect type, can't dump to file" << endl;
-			return;
-		}
-		pInd->write(fSer);
+			auto pInd = dynamic_cast<const LensGAIndividual *>(population.individual(idx).get());
+			if (!pInd)
+			{
+				cerr << "WARNING: individual is of incorrect type, can't dump to file" << endl;
+				return;
+			}
+			pInd->write(fSer);
 
-		auto pGenome = dynamic_cast<const LensGAGenome *>(pInd->genomePtr());
-		auto pFitness = dynamic_cast<const LensGAFitness *>(pInd->fitnessPtr());
-		if (!pGenome || !pFitness)
-			cerr << "WARNING: Genome or fitness is not of the correct type for a LensGAIndividual" << endl;
-		else
+			auto pGenome = dynamic_cast<const LensGAGenome *>(pInd->genomePtr());
+			auto pFitness = dynamic_cast<const LensGAFitness *>(pInd->fitnessPtr());
+			if (!pGenome || !pFitness)
+				cerr << "WARNING: Genome or fitness is not of the correct type for a LensGAIndividual" << endl;
+			else
+			{
+				pGenome->checkNaN(idx);
+				pFitness->checkNaN(idx);
+			}
+		}
+	}
+	else
+	{
+		for (size_t idx = 0 ; idx < population.size() ; idx++)
 		{
-			pGenome->checkNaN(idx);
-			pFitness->checkNaN(idx);
+			auto pInd = population.individual(idx).get();
+			auto pGenome = dynamic_cast<const eatk::FloatVectorGenome *>(pInd->genomePtr());
+			auto pFitness = dynamic_cast<const eatk::FloatVectorFitness *>(pInd->fitnessPtr());
+
+			if (!pGenome || !pFitness)
+				cerr << "WARNING: Genome or fitness is not of the correct type (float vector)" << endl;
+			else
+			{
+				const vector<float> &gv = pGenome->getValues();
+				const vector<float> &fv = pFitness->getValues();
+				array<int32_t,2> sizes = { (int32_t)gv.size(), (int32_t)fv.size() };
+
+				fSer.writeInt32s(sizes.data(), sizes.size());
+				fSer.writeFloats(gv);
+				fSer.writeFloats(fv);
+
+				bool genomeNaN = false;
+				bool fitnessNaN = false;
+				for (auto x : gv)
+					if (std::isnan(x))
+						genomeNaN = true;
+				for (auto x : fv)
+					if (std::isnan(x))
+						fitnessNaN = true;
+
+				if (genomeNaN)
+					cerr << "WARNING: detected NaN in genome of individual " << idx << endl;
+				if (fitnessNaN)
+					cerr << "WARNING: detected NaN in fitness of individual " << idx << endl;
+			}
 		}
 	}
 }
@@ -109,16 +150,53 @@ void PopulationDump::loadPopulation(eatk::Population &population, const std::str
 
 	bool_t r;
 
-	for (int32_t i = 0 ; i < num ; i++)
+	if (m_freeform)
 	{
-		auto newInd = refInd->createCopy();
-		auto pInd = dynamic_cast<LensGAIndividual *>(newInd.get());
-		if (!(r = pInd->read(fSer)))
+		for (int32_t i = 0 ; i < num ; i++)
 		{
-			cerr << "WARNING: can't read an individual: " << r.getErrorString() << endl;
-			return;
+			auto newInd = refInd->createCopy();
+			auto pInd = dynamic_cast<LensGAIndividual *>(newInd.get());
+			if (!(r = pInd->read(fSer)))
+			{
+				cerr << "WARNING: can't read an individual: " << r.getErrorString() << endl;
+				return;
+			}
+			newPop.push_back(newInd);
 		}
-		newPop.push_back(newInd);
+	}
+	else
+	{
+		for (int32_t i = 0 ; i < num ; i++)
+		{
+			auto newInd = refInd->createCopy();
+			auto pGenome = dynamic_cast<eatk::FloatVectorGenome *>(newInd->genomePtr());
+			auto pFitness = dynamic_cast<eatk::FloatVectorFitness *>(newInd->fitnessPtr());
+
+			if (!pGenome || !pFitness)
+				cerr << "WARNING: Genome or fitness is not of the correct type to load into (float vector)" << endl;
+			else
+			{
+				array<int32_t,2> sizes;
+				if (!fSer.readInt32s(sizes.data(), sizes.size()))
+					cerr << "WARNING: couldn't read float vector genome/fitness sizes" << endl;
+				else
+				{
+					vector<float> &gv = pGenome->getValues();
+					vector<float> &fv = pFitness->getValues();
+
+					if ((size_t)sizes[0] != gv.size() ||
+						(size_t)sizes[1] != fv.size())
+						cerr << "WARNING: stored genome/fitness sizes don't match in memory ones" << endl;
+					else
+					{
+						if (!fSer.readFloats(gv) || !fSer.readFloats(fv))
+							cerr << "WARNING: can't read stored float values for genome or fitness" << endl;
+						else
+							newPop.push_back(newInd);
+					}
+				}
+			}
+		}
 	}
 
 	// swap pops

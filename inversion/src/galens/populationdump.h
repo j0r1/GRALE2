@@ -9,7 +9,7 @@ namespace grale
 class PopulationDump
 {
 public:
-	PopulationDump();
+	PopulationDump(bool m_freeform = true);
 	~PopulationDump();
 
 	void checkDumpLoad(size_t generation, eatk::Population &population);
@@ -19,6 +19,7 @@ private:
 
 	size_t m_dumpPopulationGeneration, m_loadPopulationGeneration;
 	std::string m_dumpPopulationFilename, m_loadPopulationFilename;
+	bool m_freeform;
 };
 
 }

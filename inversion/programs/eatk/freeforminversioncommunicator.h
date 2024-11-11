@@ -232,14 +232,14 @@ protected:
 
 			if (numObjectives == 1)
 			{
-				evolver = std::make_unique<grale::LensJADEEvolver>(rng, mut, cross, comparison, 0,
+				evolver = std::make_unique<grale::LensJADEEvolver>(true, rng, mut, cross, comparison, 0,
 						                                           p, c, useArch, initMuF, initMuCR,
 																   1, nullptr, needStrictlyBetter);
 			}
 			else // multi-objective
 			{
 				auto ndCreator = std::make_shared<eatk::FasterNonDominatedSetCreator>(comparison, numObjectives);
-				evolver = std::make_unique<grale::LensJADEEvolver>(rng, mut, cross, comparison,
+				evolver = std::make_unique<grale::LensJADEEvolver>(true, rng, mut, cross, comparison,
 						  -1, // signals multi-objective
 						  p, c, useArch, initMuF, initMuCR,
 						  numObjectives, ndCreator,
@@ -262,13 +262,13 @@ protected:
 
 			if (numObjectives == 1) // Single objective
 			{
-				evolver = std::make_unique<grale::LensDEEvolver>(rng, mut, F, cross, CR, comparison,
+				evolver = std::make_unique<grale::LensDEEvolver>(true, rng, mut, F, cross, CR, comparison,
 						                                         0, 1, nullptr, needStrictlyBetter);
 			}
 			else // multi-objective
 			{
 				auto ndCreator = std::make_shared<eatk::FasterNonDominatedSetCreator>(comparison, numObjectives);
-				evolver = std::make_unique<grale::LensDEEvolver>(rng, mut, params.getF(), cross, params.getCR(), comparison,
+				evolver = std::make_unique<grale::LensDEEvolver>(true, rng, mut, params.getF(), cross, params.getCR(), comparison,
 						                                         -1, numObjectives, ndCreator,
 																 needStrictlyBetter); // -1 signals multi-objective
 			}
@@ -545,7 +545,7 @@ protected:
 		else
 			return E("Invalid EA parameters for NSGA2");
 
-		std::unique_ptr<eatk::PopulationEvolver> evolver = std::make_unique<grale::LensNSGA2Evolver>(rng, crossOver, mutation, comparison, numObjectives);
+		std::unique_ptr<eatk::PopulationEvolver> evolver = std::make_unique<grale::LensNSGA2Evolver>(true, rng, crossOver, mutation, comparison, numObjectives);
 
 		MyGA ga;
 		if (!(r = ga.run(creation, *evolver, calc, stop, popSize, popSize, popSize*2)))

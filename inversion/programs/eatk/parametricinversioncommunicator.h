@@ -401,6 +401,7 @@ protected:
 				elitism = std::make_shared<eatk::SingleBestElitism>(false, nullptr);
 		}
 
+		// TODO: use a wrapper to perform a population check and do the dump population stuff
 		std::unique_ptr<eatk::PopulationEvolver> evolver = std::make_unique<eatk::SinglePopulationCrossover>(1.0-crossRate, false,
 																											 std::make_shared<eatk::SimpleSortedPopulation>(std::make_shared<eatk::VectorFitnessComparison<float>>()),
 																											 std::make_shared<eatk::RankParentSelection>(selPressure, rng),
@@ -512,7 +513,7 @@ protected:
 		else
 			return "Unexpected EA type '" + eaType + "'";
 
-		evolver = std::make_unique<eatk::NSGA2Evolver>(rng, cross, mut, comparison, numObjectives);
+		evolver = std::make_unique<grale::LensNSGA2Evolver>(false, rng, cross, mut, comparison, numObjectives);
 
 		MyGA ga;
 		errut::bool_t r;
@@ -559,14 +560,14 @@ protected:
 
 			if (numObjectives == 1)
 			{
-				evolver = std::make_unique<eatk::JADEEvolver>(rng, mut, cross, comparison, 0,
+				evolver = std::make_unique<grale::LensJADEEvolver>(false, rng, mut, cross, comparison, 0,
 						                                           p, c, useArch, initMuF, initMuCR,
 																   1, nullptr, needStrictlyBetter);
 			}
 			else // multi-objective
 			{
 				auto ndCreator = std::make_shared<eatk::FasterNonDominatedSetCreator>(comparison, numObjectives);
-				evolver = std::make_unique<eatk::JADEEvolver>(rng, mut, cross, comparison,
+				evolver = std::make_unique<grale::LensJADEEvolver>(false, rng, mut, cross, comparison,
 						  -1, // signals multi-objective
 						  p, c, useArch, initMuF, initMuCR,
 						  numObjectives, ndCreator,
@@ -589,13 +590,13 @@ protected:
 
 			if (numObjectives == 1) // Single objective
 			{
-				evolver = std::make_unique<eatk::DifferentialEvolutionEvolver>(rng, mut, F, cross, CR, comparison,
+				evolver = std::make_unique<grale::LensDEEvolver>(false, rng, mut, F, cross, CR, comparison,
 						                                         0, 1, nullptr, needStrictlyBetter);
 			}
 			else // multi-objective
 			{
 				auto ndCreator = std::make_shared<eatk::FasterNonDominatedSetCreator>(comparison, numObjectives);
-				evolver = std::make_unique<eatk::DifferentialEvolutionEvolver>(rng, mut, params.getF(), cross, params.getCR(), comparison,
+				evolver = std::make_unique<grale::LensDEEvolver>(false, rng, mut, params.getF(), cross, params.getCR(), comparison,
 						                                         -1, numObjectives, ndCreator,
 																 needStrictlyBetter); // -1 signals multi-objective
 			}
