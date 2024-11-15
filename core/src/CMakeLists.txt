@@ -91,6 +91,7 @@ set(HEADERS
 	opencl/openclmultikernel.h
 	opencl/opencllibrary.h
 	opencl/oclutils.h
+	opencl/opencl_xoshiro128plus.h
 	thirdparty/WildMagic5/Wm5Assert.h
 	thirdparty/WildMagic5/Wm5Box2.h
 	thirdparty/WildMagic5/Wm5Box2.inl
@@ -189,6 +190,7 @@ set(SOURCES
 	galens/mcmcparameters.cpp
 	opencl/openclkernel.cpp
 	opencl/opencllibrary.cpp
+	opencl/opencl_xoshiro128plus.cpp
 	thirdparty/WildMagic5/Wm5Assert.cpp
 	thirdparty/WildMagic5/Wm5ConvexHull.cpp
 	thirdparty/WildMagic5/Wm5ConvexHull2.cpp
