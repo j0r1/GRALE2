@@ -110,6 +110,7 @@ cdef class ImagesData:
         "flexionsigma2": [ imagesdata.FlexionUncertaintyComponent2 ],
         "flexionsigma3": [ imagesdata.FlexionUncertaintyComponent3 ],
         "flexionsigma4": [ imagesdata.FlexionUncertaintyComponent4 ],
+        "positionuncertainty": [ imagesdata.PositionUncertainty ],
     }
     propertyReductions = {
         "shear": [ "shear1", "shear2" ],

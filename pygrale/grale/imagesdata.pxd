@@ -42,6 +42,7 @@ cdef extern from "grale/imagesdata.h" namespace "grale::ImagesData":
         FlexionUncertaintyComponent2,
         FlexionUncertaintyComponent3,
         FlexionUncertaintyComponent4,
+        PositionUncertainty,
         MaxProperty
 
 cdef extern from "grale/imagesdata.h" namespace "grale":

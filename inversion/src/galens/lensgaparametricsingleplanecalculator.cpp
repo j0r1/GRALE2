@@ -122,10 +122,12 @@ bool_t LensGAParametricSinglePlaneCalculator::init(const LensInversionParameters
 
 	bool uploadFullParameters = params.alwaysUploadFullParameters();
 	if (!(r = OpenCLSinglePlaneDeflectionInstance::initInstance((uint64_t)this, 
-																	m_thetas, m_intParams,
+																	m_thetas, {}, m_intParams, // TODO: add uncertainties
 																	m_floatParams, m_changeableParamIdx,
 																	m_kernelCode, m_kernelName,
-																	uploadFullParameters, m_devIdx)))
+																	uploadFullParameters, m_devIdx,
+																	0 // TODO: set seed to randomize thetas
+																	)))
 		return "Couldn't init OpenCLSinglePlaneDeflectionInstance: " + r.getErrorString();
 
 	list<ImagesDataExtended *> empty;

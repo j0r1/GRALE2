@@ -1,4 +1,6 @@
 #include "openclsingleplanedeflection.h"
+#include "xoshiro128plus.h"
+#include "opencl_xoshiro128plus.h"
 
 using namespace std;
 using namespace errut;
@@ -7,6 +9,10 @@ namespace grale
 {
 
 using namespace oclutils;
+
+#define KERNELNUMBER_CALCULATE_DEFLECTION			0
+#define KERNELNUMBER_FILLIN_CHANGED_PARAMS			1
+#define KERNELNUMBER_CALCULATE_RANDOM_POINTOFFSETS	2
 
 OpenCLSinglePlaneDeflection::OpenCLSinglePlaneDeflection()
 {
@@ -17,13 +23,15 @@ OpenCLSinglePlaneDeflection::~OpenCLSinglePlaneDeflection()
 }
 
 bool_t OpenCLSinglePlaneDeflection::init(const std::vector<Vector2Df> &thetas, // already transformed into the correct units
+					   const std::vector<float> &thetaUncert, // may be empty, otherwise in correct units and same length as thetas 
 					   const std::vector<int> &templateIntParameters, // these cannot change
 					   const std::vector<float> &templateFloatParameters, // only floating point params can change
 					   const std::vector<size_t> changeableParameterIndices,
 					   const std::string &deflectionKernelCode, const std::string &lensRoutineName,
                        bool uploadFullParameters,
-                       int devIdx
-					   ) // TODO: calculate betas from this as well?
+                       int devIdx,
+					   uint64_t initialUncertSeed
+					   )
 {
     if (m_init)
         return "Already initialized";
@@ -52,6 +60,9 @@ bool_t OpenCLSinglePlaneDeflection::init(const std::vector<Vector2Df> &thetas, /
         m_clAllResults.dealloc(*cl);
         m_clChangedParamsBuffer.dealloc(*cl);
         m_clChangeableParamIndices.dealloc(*cl);
+		m_clThetaUncerts.dealloc(*cl);
+		m_clThetaWithAdditions.dealloc(*cl);
+		m_clRngStates.dealloc(*cl);
         return r;
     };
 
@@ -73,6 +84,46 @@ bool_t OpenCLSinglePlaneDeflection::init(const std::vector<Vector2Df> &thetas, /
     if (!(r = m_clThetas.realloc(*cl, ctx, sizeof(cl_float)*thetasFlat.size())) ||
         !(r = m_clThetas.enqueueWriteBuffer(*cl, queue, thetasFlat, true)))
         return "Can't copy thetas to GPU: " + cleanup(r.getErrorString());
+
+	if (thetaUncert.size() > 0)
+	{
+		if (thetaUncert.size() != thetas.size())
+			return cleanup("Must be same amount of uncertainties as positions");
+		if (initialUncertSeed == 0)
+			return cleanup("Initial seed for random position offsets must not be zero");
+	
+		vector<cl_float> clUncert;
+		for (auto x : thetaUncert)
+			clUncert.push_back(x);
+
+		if (!(r = m_clThetaUncerts.realloc(*cl, ctx, sizeof(cl_float)*clUncert.size())) ||
+			!(r = m_clThetaUncerts.enqueueWriteBuffer(*cl, queue, clUncert, true)))
+			return "Can't copy theta uncertainties to GPU: " + cleanup(r.getErrorString());
+
+		if (sizeof(uint32_t) != sizeof(cl_uint))
+			return cleanup("Internal error: cl_uint doesn't appeat to be 32 bits?");
+
+		vector<uint32_t> rngStates(clUncert.size()*4); // 4 uints for each point
+		// Start first state from seed
+		rngStates[0] = (uint32_t)((initialUncertSeed >> 0) & 0xffff);
+		rngStates[1] = (uint32_t)((initialUncertSeed >> 16) & 0xffff);
+		rngStates[2] = (uint32_t)((initialUncertSeed >> 32) & 0xffff);
+		rngStates[3] = (uint32_t)((initialUncertSeed >> 48) & 0xffff);
+		xoshiro128plus::jump(rngStates.data());
+
+		// Set states for next points
+		for (size_t i = 1 ; i < clUncert.size() ; i++)
+			xoshiro128plus::jump(&rngStates[(i-1)*4], &rngStates[i*4]);
+
+		if (!(r = m_clRngStates.realloc(*cl, ctx, sizeof(uint32_t)*rngStates.size())) ||
+			!(r = m_clRngStates.enqueueWriteBuffer(*cl, ctx, rngStates, true)))
+			return "Error uploading rng states: " + cleanup(r.getErrorString());
+
+		vector<cl_float> thetaAdditions(clUncert.size()*2, 0); // initialize to zero, *2 for two components
+		if (!(r = m_clThetaWithAdditions.realloc(*cl, ctx, sizeof(cl_float)*thetaAdditions.size())) ||
+			!(r = m_clThetaWithAdditions.enqueueWriteBuffer(*cl, ctx, thetaAdditions, true)))
+			return "Can't initialize theta additions to zero: " + cleanup(r.getErrorString());
+	}
 
     vector<cl_int> clIntParams;
     for (auto x : templateIntParameters)
@@ -144,7 +195,7 @@ __kernel void calculateDeflectionAngles(int numPoints, int numParamSets, int num
     // cerr << deflectionKernel << endl;
 
     string faillog;
-    if (!cl->loadKernel(deflectionKernel, "calculateDeflectionAngles", faillog, 0))
+    if (!cl->loadKernel(deflectionKernel, "calculateDeflectionAngles", faillog, KERNELNUMBER_CALCULATE_DEFLECTION))
     {
         cerr << faillog << endl;
         return cleanup(cl->getErrorString());
@@ -188,12 +239,46 @@ __kernel void fillInChangedParameters(__global const float *pChangedParamsBase,
 
 )XYZ";
 
-        if (!cl->loadKernel(src, "fillInChangedParameters", faillog, 1))
+        if (!cl->loadKernel(src, "fillInChangedParameters", faillog, KERNELNUMBER_FILLIN_CHANGED_PARAMS))
         {
             cerr << faillog << endl;
             return cleanup(cl->getErrorString());
         }
     }
+
+	if (thetaUncert.size() > 0)
+	{
+		// kernel for randomization: based on thetas, states, sigmas, calculate thetas with additions
+		// TODO add code for xoshiro128plus functions
+		string src = getOpenCLXoshiro128plusCode();
+		src += R"XYZ(
+__kernel void randomizeImagePlanePositions(int numPoints, 
+                                      __global const float *pThetas,
+									  __global const float *pThetaUncerts,
+									  __global float *pThetasWithAdditions,
+									  __global uint *pRngStates)
+{
+	const int i = get_global_id(0);
+	if (i >= numPoints)
+		return;
+
+	float2 theta = (float2)(pThetas[i*2], pThetas[i*2+1]);
+	float sigma = pThetaUncerts[i];
+
+	float2 randomGaussians = xoshiro128plus_next_gaussians(pRngStates + i*4);
+	randomGaussians *= sigma;
+
+	pThetasWithAdditions[i*2] = theta.x + randomGaussians.x;
+	pThetasWithAdditions[i*2+1] = theta.y + randomGaussians.y;
+}
+)XYZ";
+		//cerr << "Compiling:\n" << src << endl;
+        if (!cl->loadKernel(src, "randomizeImagePlanePositions", faillog, KERNELNUMBER_CALCULATE_RANDOM_POINTOFFSETS))
+        {
+            cerr << faillog << endl;
+            return cleanup(cl->getErrorString());
+        }
+	}
 
     // Ok
 
@@ -222,6 +307,9 @@ void OpenCLSinglePlaneDeflection::destroy()
     m_clAllResults.dealloc(*m_cl);
     m_clChangedParamsBuffer.dealloc(*m_cl);
     m_clChangeableParamIndices.dealloc(*m_cl);
+	m_clThetaUncerts.dealloc(*m_cl);
+	m_clThetaWithAdditions.dealloc(*m_cl);
+	m_clRngStates.dealloc(*m_cl);
 
     m_cl = nullptr;
     m_init = false;
@@ -312,7 +400,7 @@ bool_t OpenCLSinglePlaneDeflection::calculateDeflection(const std::vector<float>
             return "Can't copy changed parameters to GPU: " + r.getErrorString();
 
         // trigger a kernel to fill in the changed parameters into the full ones
-        auto kernel = m_cl->getKernel(1);
+        auto kernel = m_cl->getKernel(KERNELNUMBER_FILLIN_CHANGED_PARAMS);
         cl_int clNumChangeable = (cl_int)changeableSize;
         cl_int err = 0;
 
@@ -328,7 +416,7 @@ bool_t OpenCLSinglePlaneDeflection::calculateDeflection(const std::vector<float>
         setKernArg(4, sizeof(cl_int), (void*)&clNumChangeable);
         setKernArg(5, sizeof(cl_int), (void*)&clNumParamSets);
         if (err != CL_SUCCESS)
-            return "Error setting kernel arguments";
+            return "Error setting kernel arguments for parameter update kernel";
 
         size_t workSize[2] = { changeableSize, numParamSets };
         err = m_cl->clEnqueueNDRangeKernel(queue, kernel, 2, nullptr, workSize, nullptr, 0, nullptr, nullptr);
@@ -336,7 +424,32 @@ bool_t OpenCLSinglePlaneDeflection::calculateDeflection(const std::vector<float>
             return "Error enqueing parameter fill in kernel: " + to_string(err);
     }
 
-    auto kernel = m_cl->getKernel(0);
+	if (m_clThetaWithAdditions.m_pMem) // Random additions are requested
+	{
+		auto kernel = m_cl->getKernel(KERNELNUMBER_CALCULATE_RANDOM_POINTOFFSETS);
+		cl_int clNumPoints = (cl_int)m_numPoints;
+		cl_int err = 0;
+
+		auto setKernArg = [this, &err, &kernel](cl_uint idx, size_t size, const void *ptr)
+		{
+			err |= m_cl->clSetKernelArg(kernel, idx, size, ptr);
+		};
+
+		setKernArg(0, sizeof(cl_int), (void*)&clNumPoints);
+		setKernArg(1, sizeof(cl_mem), (void*)&m_clThetas.m_pMem);
+		setKernArg(2, sizeof(cl_mem), (void*)&m_clThetaUncerts.m_pMem);
+		setKernArg(3, sizeof(cl_mem), (void*)&m_clThetaWithAdditions.m_pMem);
+		setKernArg(4, sizeof(cl_mem), (void*)&m_clRngStates);
+		if (err != CL_SUCCESS)
+			return "Error setting kernel arguments for randomization kernel";
+
+		size_t workSize[1] = { m_numPoints };
+		err = m_cl->clEnqueueNDRangeKernel(queue, kernel, 1, nullptr, workSize, nullptr, 0, nullptr, nullptr);
+		if (err != CL_SUCCESS)
+			return "Error enqueing randomization kernel: " + to_string(err);
+	}
+
+    auto kernel = m_cl->getKernel(KERNELNUMBER_CALCULATE_DEFLECTION);
     cl_int clNumPoints = (cl_int)m_numPoints;
     cl_int err = 0;
 
@@ -345,17 +458,18 @@ bool_t OpenCLSinglePlaneDeflection::calculateDeflection(const std::vector<float>
         err |= m_cl->clSetKernelArg(kernel, idx, size, ptr);
     };
 
-    // TODO: I guess we don't need to do this every time? Perhaps for the integer stuff
-    //       we do, so that the pointer is valid
+	// Depending on the case, either use the real thetas or the ones to which random numbers have been added
+	void *pThetas = (m_clThetaWithAdditions.m_pMem)?m_clThetaWithAdditions.m_pMem:m_clThetas.m_pMem;
+
     setKernArg(0, sizeof(cl_int), (void*)&clNumPoints);
     setKernArg(1, sizeof(cl_int), (void*)&clNumParamSets);
     setKernArg(2, sizeof(cl_int), (void*)&clNumFloatParams);
     setKernArg(3, sizeof(cl_mem), (void*)&m_clIntParams.m_pMem);
     setKernArg(4, sizeof(cl_mem), (void*)&m_clFloatParams.m_pMem);
-    setKernArg(5, sizeof(cl_mem), (void*)&m_clThetas.m_pMem);
+    setKernArg(5, sizeof(cl_mem), (void*)&pThetas);
     setKernArg(6, sizeof(cl_mem), (void*)&m_clAllResults.m_pMem);
     if (err != CL_SUCCESS)
-        return "Error setting kernel arguments";
+        return "Error setting kernel arguments for deflection calculation kernel";
 
     size_t workSize[2] = { m_numPoints, numParamSets };
     err = m_cl->clEnqueueNDRangeKernel(queue, kernel, 2, nullptr, workSize, nullptr, 0, nullptr, nullptr);
@@ -392,12 +506,15 @@ std::set<uint64_t> OpenCLSinglePlaneDeflectionInstance::s_users;
 bool OpenCLSinglePlaneDeflectionInstance::s_initTried = false;
 
 errut::bool_t OpenCLSinglePlaneDeflectionInstance::initInstance(uint64_t userId,const std::vector<Vector2Df> &thetas, // already transformed into the correct units
+					   const std::vector<float> &thetaUncert, // may be empty, otherwise in correct units and same length as thetas 
 					   const std::vector<int> &templateIntParameters, // these cannot change
 					   const std::vector<float> &templateFloatParameters, // only floating point params can change
 					   const std::vector<size_t> changeableParameterIndices,
 					   const std::string &deflectionKernelCode, const std::string &lensRoutineName,
 					   bool uploadFullParameters,
-					   int devIdx)
+					   int devIdx,
+					   uint64_t initialUncertSeed)
+
 {
     lock_guard<mutex> guard(s_instanceMutex);
 
@@ -422,8 +539,8 @@ errut::bool_t OpenCLSinglePlaneDeflectionInstance::initInstance(uint64_t userId,
     s_initTried = true;
 
     unique_ptr<OpenCLSinglePlaneDeflectionInstance> oclCalc = make_unique<OpenCLSinglePlaneDeflectionInstance>();
-    bool_t r = oclCalc->init(thetas, templateIntParameters, templateFloatParameters, changeableParameterIndices,
-                             deflectionKernelCode, lensRoutineName, uploadFullParameters, devIdx);
+    bool_t r = oclCalc->init(thetas, thetaUncert, templateIntParameters, templateFloatParameters, changeableParameterIndices,
+                             deflectionKernelCode, lensRoutineName, uploadFullParameters, devIdx, initialUncertSeed);
     oclCalc->m_requestedDevIdx = devIdx; // TODO: store this in a better way?
 
     if (!r)

@@ -30,13 +30,15 @@ public:
 	~OpenCLSinglePlaneDeflection();
 
 	errut::bool_t init(const std::vector<Vector2Df> &thetas, // already transformed into the correct units
+					   const std::vector<float> &thetaUncert, // may be empty, otherwise in correct units and same length as thetas 
 					   const std::vector<int> &templateIntParameters, // these cannot change
 					   const std::vector<float> &templateFloatParameters, // only floating point params can change
 					   const std::vector<size_t> changeableParameterIndices,
 					   const std::string &deflectionKernelCode, const std::string &lensRoutineName,
 					   bool uploadFullParameters,
-					   int devIdx = 0 // negative means rotate
-					   ); // TODO: calculate betas from this as well?
+					   int devIdx, // negative means rotate
+					   uint64_t initialUncertSeed
+					   );
 
 	void destroy();
 	int getDeviceIndex() const { return m_devIdx; }
@@ -56,7 +58,7 @@ protected:
 	bool m_init = false;
 	bool m_uploadFullParameters;
 	int m_devIdx = -1;
-	std::unique_ptr<OpenCLMultiKernel<3>> m_cl; // TODO how many kernels will we need?
+	std::unique_ptr<OpenCLMultiKernel<3>> m_cl;
 
 	oclutils::CLMem m_clThetas;
 	oclutils::CLMem m_clIntParams;
@@ -64,6 +66,10 @@ protected:
 	oclutils::CLMem m_clAllResults;
 	oclutils::CLMem m_clChangedParamsBuffer;
 	oclutils::CLMem m_clChangeableParamIndices;
+
+	oclutils::CLMem m_clThetaUncerts; // Will be fixed, input parameters
+	oclutils::CLMem m_clThetaWithAdditions; // on calculateDeflection, bases on uncert differences for thetas are calculated and stored
+	oclutils::CLMem m_clRngStates; // The RNG states that will be used for this
 
 	size_t m_numPoints, m_numFloatParams, m_currentNumParamSets, m_maxNumParamSets;
 	std::vector<cl_float> m_floatParamsCopy; // Single float params
@@ -81,12 +87,15 @@ public:
 	~OpenCLSinglePlaneDeflectionInstance();
 
 	static errut::bool_t initInstance(uint64_t userId,const std::vector<Vector2Df> &thetas, // already transformed into the correct units
+					   const std::vector<float> &thetaUncert, // may be empty, otherwise in correct units and same length as thetas 
 					   const std::vector<int> &templateIntParameters, // these cannot change
 					   const std::vector<float> &templateFloatParameters, // only floating point params can change
 					   const std::vector<size_t> changeableParameterIndices,
 					   const std::string &deflectionKernelCode, const std::string &lensRoutineName,
 					   bool uploadFullParameters,
-					   int devIdx = 0);
+					   int devIdx,
+					   uint64_t initialUncertSeed
+					   );
 	static void releaseInstance(uint64_t userId);
 	static OpenCLSinglePlaneDeflectionInstance &instance();
 

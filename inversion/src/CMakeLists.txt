@@ -32,6 +32,7 @@ set(HEADERS
 	galens/openclsingleplanedeflection.h
 	galens/lensgaparametricsingleplanecalculator.h
 	prob/randomnumbergenerator.h
+	prob/xoshiro128plus.h
 	fitness/lensfitnessobject.h
 	fitness/numericgradientcalculator.h
 	fitness/pointgroupstorage.h

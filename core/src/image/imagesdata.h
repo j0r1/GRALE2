@@ -68,6 +68,7 @@ public:
 		FlexionUncertaintyComponent2,
 		FlexionUncertaintyComponent3,
 		FlexionUncertaintyComponent4,
+		PositionUncertainty,
 		MaxProperty
 	};
 

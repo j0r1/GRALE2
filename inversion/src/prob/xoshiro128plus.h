@@ -1,12 +1,8 @@
-#include "opencl_xoshiro128plus.h"
-#include <string>
+#pragma once
 
-namespace grale
-{
+#include "graleconfig.h"
+#include <stdint.h>
 
-std::string getOpenCLXoshiro128plusCode()
-{
-	static const char code[] = R"XYZ(
 // Code based on https://prng.di.unimi.it/xoshiro128plus.c , with the following copyright
 // notice and usage instructions:
 
@@ -40,15 +36,21 @@ IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE. */
 
    The state must be seeded so that it is not everywhere zero. */
 
-uint xoshiro128plus_rotl(const uint x, int k)
+namespace grale
+{
+
+namespace xoshiro128plus
+{
+
+inline uint32_t rotl(const uint32_t x, int k)
 {
 	return (x << k) | (x >> (32 - k));
 }
 
-uint xoshiro128plus_next_uint(__global uint *s)
+inline uint32_t next_uint(uint32_t s[4])
 {
-	const uint result = s[0] + s[3];
-	const uint t = s[1] << 9;
+	const uint32_t result = s[0] + s[3];
+	const uint32_t t = s[1] << 9;
 
 	s[2] ^= s[0];
 	s[3] ^= s[1];
@@ -57,30 +59,47 @@ uint xoshiro128plus_next_uint(__global uint *s)
 
 	s[2] ^= t;
 
-	s[3] = xoshiro128plus_rotl(s[3], 11);
+	s[3] = rotl(s[3], 11);
 
 	return result;
 }
 
-float xoshiro128plus_next_float(__global uint *s)
+constexpr uint32_t JUMP[4] = { 0x8764000b, 0xf542d2d3, 0x6fa035c3, 0x77f2db5b };
+
+inline void jump(const uint32_t s_in[4], uint32_t s_out[4])
 {
-	uint x = xoshiro128plus_next_uint(s);
-	return (float)x * (1.0f / 4294967296.0f);
+	uint32_t s0 = 0;
+	uint32_t s1 = 0;
+	uint32_t s2 = 0;
+	uint32_t s3 = 0;
+	s_out[0] = s_in[0];
+	s_out[1] = s_in[1];
+	s_out[2] = s_in[2];
+	s_out[3] = s_in[3];
+
+	for(int i = 0; i < 4 ; i++)
+		for(int b = 0; b < 32; b++) {
+			constexpr uint32_t one = 1;
+			if (JUMP[i] & (one << b)) {
+				s0 ^= s_out[0];
+				s1 ^= s_out[1];
+				s2 ^= s_out[2];
+				s3 ^= s_out[3];
+			}
+			next_uint(s_out);
+		}
+		
+	s_out[0] = s0;
+	s_out[1] = s1;
+	s_out[2] = s2;
+	s_out[3] = s3;
 }
 
-float2 xoshiro128plus_next_gaussians(__global uint *s)
+inline void jump(uint32_t s_in_out[4])
 {
-	float u1 = xoshiro128plus_next_float(s);
-	float u2 = xoshiro128plus_next_float(s);
-	float R = sqrt(-2.0f*log(u1));
-	float theta = 2.0f*M_PI_F*u2;
-	float z1 = R*cos(theta);
-	float z2 = R*sin(theta);
-	return (float2)(z1, z2);
+	jump(s_in_out, s_in_out);
 }
 
-)XYZ";
-	return std::string(code);
-}
+} // end namespace xoshiro128plus
 
-}
+} // end namespace grale
