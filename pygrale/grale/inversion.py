@@ -684,13 +684,15 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
     hardMax = [ x["hardlimits"][1] for x in varParams ]
 
     # TODO: should be a cleaner way to do this
-    infOnBoundsViolation = False
+    usingMcmc = False
     if eaType == "MCMC":
-        infOnBoundsViolation = True
+        usingMcmc = True
     elif type(eaType) == list or type(eaType) == tuple:
         for t in eaType:
             if t == "MCMC":
-                infOnBoundsViolation = True
+                usingMcmc = True
+
+    infOnBoundsViolation = False if not usingMcmc else True
 
     # Check positional uncertainties
     hasPositionUncert = False
@@ -700,6 +702,9 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
             hasPositionUncert = True
             break
     
+    if usingMcmc and hasPositionUncert:
+        raise InversionException("Cannot use positional uncertainties and MCMC together")
+
     initialUncertSeed = 0 if not hasPositionUncert else random.getrandbits(64)
 
     def getParamsFunction(fullFitnessObjParams, massScale):
