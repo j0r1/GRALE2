@@ -126,6 +126,11 @@ bool_t OpenCLSinglePlaneDeflection::init(const std::vector<Vector2Df> &thetas, /
 			!(r = m_clThetaWithAdditions.enqueueWriteBuffer(*cl, queue, thetaAdditions, true)))
 			return "Can't initialize theta additions to zero: " + cleanup(r.getErrorString());
 	}
+	else
+	{
+		if (initialUncertSeed != 0)
+			return cleanup("Initial seed for random position offsets must be zero, since no randomization is requested");
+	}
 
     vector<cl_int> clIntParams;
     for (auto x : templateIntParameters)

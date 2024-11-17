@@ -25,7 +25,9 @@ public:
 		const std::vector<float> &hardMin, const std::vector<float> &hardMax,
 		bool infOnBoundsViolation,
 		const ConfigurationParameters &fitnessObjectParams,
-		bool uploadFullParameters, int devIdx);
+		bool uploadFullParameters, int devIdx,
+		uint64_t initialUncertSeed
+		);
 	~LensInversionParametersParametricSinglePlane();
 
 	const std::vector<std::shared_ptr<ImagesDataExtended>> &getImages() const { return m_images; }
@@ -43,6 +45,7 @@ public:
 	const ConfigurationParameters &getFitnessObjectParameters() const { assert(m_fitObjParams.get()); return *m_fitObjParams; }
 	bool alwaysUploadFullParameters() const { return m_uploadFillParams; }
 	int getDeviceIndex() const { return m_devIdx; }
+	uint64_t getInitialPositionUncertaintySeed() const { return m_initialUncertSeed; }
 
 	bool write(serut::SerializationInterface &si) const override;
 	bool read(serut::SerializationInterface &si) override;
@@ -57,6 +60,7 @@ private:
 	bool m_infOnBoundsViolation = false;
 	bool m_uploadFillParams = true;
 	int m_devIdx = -1;
+	uint64_t m_initialUncertSeed = 0;
 };
 
 } // end namespace

@@ -146,12 +146,11 @@ bool_t LensGAParametricSinglePlaneCalculator::init(const LensInversionParameters
 	if (m_kernelCode.length() == 0)
 		return "Couldn't get OpenCL kernel code: " + m_templateLens->getErrorString();
 
-	uint64_t posUncertSeed = 0;
+	uint64_t posUncertSeed = params.getInitialPositionUncertaintySeed();
 	if (posUncertainties.size() > 0)
-	{
-		cerr << "INFO: enabling EXPERIMENTAL positional uncertainty with seed 12345" << endl;
-		posUncertSeed = 12345; // TODO!!
-	}
+		cerr << "INFO: enabling EXPERIMENTAL positional uncertainty with seed " << posUncertSeed << endl;
+	else
+		cerr << "INFO: NOT enabling EXPERIMENTAL positional uncertainties" << endl;
 
 	bool uploadFullParameters = params.alwaysUploadFullParameters();
 	if (!(r = OpenCLSinglePlaneDeflectionInstance::initInstance((uint64_t)this, 

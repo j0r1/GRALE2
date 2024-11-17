@@ -2,6 +2,7 @@ from libcpp.string cimport string
 from libcpp.vector cimport vector
 from libcpp.memory cimport shared_ptr
 from libcpp cimport bool
+from libc.stdint cimport uint64_t
 
 cimport grale.serut as serut
 cimport grale.errut as errut
@@ -26,7 +27,8 @@ cdef extern from "grale/lensinversionparametersparametricsingleplane.h" namespac
                 const vector[float] &hardMin, const vector[float] &hardMax,
                 bool infOnBoundsViolation,
                 const configurationparameters.ConfigurationParameters &fitnessObjectParams,
-                bool uploadFullParameters, int devIdx
+                bool uploadFullParameters, int devIdx,
+                uint64_t initialUncertSeed
                 )
 
         bool read(serut.SerializationInterface &si)

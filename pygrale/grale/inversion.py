@@ -692,12 +692,22 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
             if t == "MCMC":
                 infOnBoundsViolation = True
 
+    # Check positional uncertainties
+    hasPositionUncert = False
+    for i in inputImages:
+        img = i["images"]
+        if "positionuncertainty" in img.getKnownPropertyNames():
+            hasPositionUncert = True
+            break
+    
+    initialUncertSeed = 0 if not hasPositionUncert else random.getrandbits(64)
+
     def getParamsFunction(fullFitnessObjParams, massScale):
         assert massScale is None, f"Internal error: expecting massScale to be None, but is {massScale}"
         return inversionparams.LensInversionParametersParametricSinglePlane(inputImages, Dd, zd,
                   templateLens, deflScale, potScale, offsets, initMin, initMax, hardMin, hardMax,
                   infOnBoundsViolation,
-                  fullFitnessObjParams, uploadFullParameters, deviceIndex)
+                  fullFitnessObjParams, uploadFullParameters, deviceIndex, initialUncertSeed)
 
     results = _invertCommon(inverter, feedbackObject, moduleName, "parametricsingleplane", fitnessObjectParameters,
                   None, [Dd, zd], inputImages, getParamsFunction, popSize,
