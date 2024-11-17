@@ -77,6 +77,13 @@ bool_t LensGAParametricSinglePlaneCalculator::init(const LensInversionParameters
 	m_distFrac.clear();
 	m_pointMap.clear();
 
+	bool havePosUncerts = false;
+	for (auto &img : params.getImages())
+		if (img->hasProperty(ImagesData::PositionUncertainty))
+			havePosUncerts = true;
+
+	vector<float> posUncertainties;
+
 	for (auto &img : params.getImages())
 	{
 		int numImages = img->getNumberOfImages();
@@ -93,10 +100,28 @@ bool_t LensGAParametricSinglePlaneCalculator::init(const LensInversionParameters
 
 				Vector2Df floatPos((float)pos.getX(), (float)pos.getY());
 
-				if (m_pointMap.addPoint(floatPos)) // returns true for a new point, false if already present
+				float uncert = 0;
+				if (img->hasProperty(ImagesData::PositionUncertainty))
+					uncert = (float)(img->getImagePointProperty(ImagesData::PositionUncertainty, i, p) / m_angularScale);
+
+				int ptIdx = m_pointMap.addPoint(floatPos);
+				if (ptIdx < 0) // returns -1 for a new point, point index for an existing one
+				{
 					m_thetas.push_back(floatPos);
+					if (havePosUncerts)
+						posUncertainties.push_back(uncert);
+				}
+				else
+				{
+					if (havePosUncerts)
+					{
+						assert(ptIdx < posUncertainties.size());
+						if (posUncertainties[ptIdx] != uncert)
+							return "Points with same positions have different uncertainties";
+					}
+				}
 	
-				m_distFrac.push_back(frac); // for now, we'll use one fraction per point
+				m_distFrac.push_back(frac);
 			}
 		}
 	}
@@ -121,17 +146,10 @@ bool_t LensGAParametricSinglePlaneCalculator::init(const LensInversionParameters
 	if (m_kernelCode.length() == 0)
 		return "Couldn't get OpenCL kernel code: " + m_templateLens->getErrorString();
 
-	vector<float> posUncertainties;
 	uint64_t posUncertSeed = 0;
-
-	string posUncertSize;
-	if (getenv("GRALE_POSUNCERT", posUncertSize))
+	if (posUncertainties.size() > 0)
 	{
-		float posUncert = (float)(stod(posUncertSize)*ANGLE_ARCSEC/m_angularScale);
-		cerr << "INFO: setting EXPERIMENTAL positional uncertainty to " << posUncertSize << " = " << posUncert << endl;
-
-		posUncertainties.resize(m_thetas.size(), posUncert);
-
+		cerr << "INFO: enabling EXPERIMENTAL positional uncertainty with seed 12345" << endl;
 		posUncertSeed = 12345; // TODO!!
 	}
 

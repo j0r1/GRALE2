@@ -75,7 +75,7 @@ private:
 			m_pointIndex.clear();
 		}
 
-		bool addPoint(Vector2Df pt)
+		int addPoint(Vector2Df pt) // Returns -1 for a new point, the existing index for an existing one
 		{
 			auto it = m_thetaMap.find(pt);
 			if (it == m_thetaMap.end()) // new point
@@ -84,13 +84,13 @@ private:
 				m_pointIndex.push_back(ptIdx);
 
 				m_thetaMap[pt] = ptIdx;
-				return true;
+				return -1;
 			}
 			else
 			{
 				size_t ptIdx = it->second;
 				m_pointIndex.push_back(ptIdx);
-				return false;
+				return (int)ptIdx;
 			}
 		}
 
