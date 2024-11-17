@@ -188,7 +188,6 @@ set(SOURCES
 	galens/rndparameters.cpp
 	galens/nsga2parameters.cpp
 	galens/mcmcparameters.cpp
-	opencl/openclkernel.cpp
 	opencl/opencllibrary.cpp
 	opencl/opencl_xoshiro128plus.cpp
 	thirdparty/WildMagic5/Wm5Assert.cpp

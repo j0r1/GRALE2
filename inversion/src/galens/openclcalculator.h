@@ -7,6 +7,7 @@
 #include "lensinversionbasislensinfo.h"
 #include "lensgaindividual.h"
 #include "pernodecounter.h"
+#include "oclutils.h"
 #include <errut/booltype.h>
 #include <vector>
 #include <memory>
@@ -95,25 +96,7 @@ private:
     // static void staticEventNotify(cl_event event, cl_int event_command_status, void *user_data);
     // void eventNotify(cl_event event, cl_int event_command_status);
 
-	class CLMem
-	{
-	public:
-		CLMem() : m_pMem(nullptr), m_size(0) { }
-		void dealloc(OpenCLKernel &cl);
-		errut::bool_t realloc(OpenCLKernel &cl, size_t s); // Only reallocates if more memory is requested
-		template<class T> errut::bool_t realloc(OpenCLKernel &cl, const std::vector<T> &buffer)	{ return realloc(cl, buffer.size()*sizeof(T)); }
-
-		errut::bool_t enqueueWriteBuffer(OpenCLKernel &cl, const void *pData, size_t s, bool sync = false);
-		template<class T> errut::bool_t enqueueWriteBuffer(OpenCLKernel &cl, const std::vector<T> &data, bool sync = false) { return enqueueWriteBuffer(cl, data.data(), data.size()*sizeof(T), sync); }
-
-        errut::bool_t enqueueReadBuffer(OpenCLKernel &cl, void *pData, size_t s, cl_event *pDepEvt, cl_event *pEvt, bool sync = false);
-        template<class T> errut::bool_t enqueueReadBuffer(OpenCLKernel &cl, std::vector<T> &data, cl_event *pDepEvt, cl_event *pEvt, bool sync = false) { return enqueueReadBuffer(cl, data.data(), data.size()*sizeof(T), pDepEvt, pEvt, sync); }
-
-		cl_mem m_pMem;
-		size_t m_size;
-	};
-
-	CLMem m_debug;
+	oclutils::CLMem m_debug;
 
     class State
     {
@@ -145,7 +128,7 @@ private:
         cl_mem m_pDevDmatrix;
         cl_mem m_pDevPlaneWeightOffsets, m_pDevPlaneIntParamOffsets, m_pDevPlaneFloatParamOffsets;
         cl_mem m_pDevCenters, m_pDevAllIntParams, m_pDevAllFloatParams;
-        CLMem m_devAllWeights;
+		oclutils::CLMem m_devAllWeights;
     };
 
     struct FullOrShortClMem
@@ -181,7 +164,7 @@ private:
         }
         std::vector<cl_int> m_genomeIndexForBetaIndex;
         std::vector<float> m_allFactors, m_allBetas;
-        CLMem m_devFactors, m_devBetas, m_devGenomeIndexForBetaIndex;
+		oclutils::CLMem m_devFactors, m_devBetas, m_devGenomeIndexForBetaIndex;
     };
 
     std::vector<std::unique_ptr<ContextMemory>> m_recycledContextMemory;

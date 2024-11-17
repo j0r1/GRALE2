@@ -247,8 +247,8 @@ bool_t OpenCLCalculator::checkCalculateScheduledContext()
 
         bool_t r;
         assert(m_allBasisFunctionWeights.size() > 0);
-        if (!(r = m_common.m_devAllWeights.realloc(*this, m_allBasisFunctionWeights)) ||
-            !(r = m_common.m_devAllWeights.enqueueWriteBuffer(*this, m_allBasisFunctionWeights)) )
+        if (!(r = m_common.m_devAllWeights.realloc(*this, getContext(), m_allBasisFunctionWeights)) ||
+            !(r = m_common.m_devAllWeights.enqueueWriteBuffer(*this, getCommandQueue(), m_allBasisFunctionWeights)) )
         {
             m_errorState = true;
             return "Error reallocating/uploading GPU buffer for basis function weights" + r.getErrorString();
@@ -281,15 +281,18 @@ bool_t OpenCLCalculator::checkCalculateScheduledContext()
 bool_t OpenCLCalculator::CalculationContext::calculate(OpenCLKernel &cl, cl_event *pEvt)
 {
     bool_t r;
-    if (!(r = m_mem->m_devFactors.realloc(cl, m_mem->m_allFactors)) ||
-        !(r = m_mem->m_devFactors.enqueueWriteBuffer(cl, m_mem->m_allFactors)))
+	auto ctx = cl.getContext();
+	auto queue = cl.getCommandQueue();
+
+    if (!(r = m_mem->m_devFactors.realloc(cl, ctx, m_mem->m_allFactors)) ||
+        !(r = m_mem->m_devFactors.enqueueWriteBuffer(cl, queue, m_mem->m_allFactors)))
         return "Can't send scale factors to GPU: " + r.getErrorString();
 
-    if (!(r = m_mem->m_devBetas.realloc(cl, m_mem->m_allBetas)))
+    if (!(r = m_mem->m_devBetas.realloc(cl, ctx, m_mem->m_allBetas)))
         return "Error reserving GPU memory for backprojected points: " + r.getErrorString();
 
-    if (!(r = m_mem->m_devGenomeIndexForBetaIndex.realloc(cl, m_mem->m_genomeIndexForBetaIndex)) ||
-        !(r = m_mem->m_devGenomeIndexForBetaIndex.enqueueWriteBuffer(cl, m_mem->m_genomeIndexForBetaIndex)))
+    if (!(r = m_mem->m_devGenomeIndexForBetaIndex.realloc(cl, ctx, m_mem->m_genomeIndexForBetaIndex)) ||
+        !(r = m_mem->m_devGenomeIndexForBetaIndex.enqueueWriteBuffer(cl, queue, m_mem->m_genomeIndexForBetaIndex)))
         return "Error uploading mapping from genomes in beta buffer to weight indices: " + r.getErrorString();
 
     cl_kernel kernel = cl.getKernel();
@@ -326,7 +329,7 @@ bool_t OpenCLCalculator::CalculationContext::calculate(OpenCLKernel &cl, cl_even
         return "Error enqueuing kernel: " + to_string(err);
     
     // Also queue reading the results to CPU memory
-    if (!(r = m_mem->m_devBetas.enqueueReadBuffer(cl, m_mem->m_allBetas, nullptr, pEvt)))
+    if (!(r = m_mem->m_devBetas.enqueueReadBuffer(cl, queue, m_mem->m_allBetas, nullptr, pEvt)))
         return "Error enqueuing read buffer";
     
     //cerr << " Enqueued kernel for calculation " << m_identifier << " " << (size_t)clNumPoints << " " << (size_t)clNumGenomes << " " << (size_t)clNumScaleFactors << endl;
@@ -1406,54 +1409,6 @@ bool_t OpenCLCalculator::setupImages(const vector<ImagesDataExtended *> &allImag
     return true;
 }
 
-void OpenCLCalculator::CLMem::dealloc(OpenCLKernel &cl)
-{
-    if (!m_pMem)
-        return;
-    cl.clReleaseMemObject(m_pMem);
-    m_pMem = nullptr;
-    m_size = 0;
-}
-
-bool_t OpenCLCalculator::CLMem::realloc(OpenCLKernel &cl, size_t s) // Only reallocates if more memory is requested
-{
-    if (s <= m_size)
-        return true;
-
-    cl_int err;
-
-    cl_mem pBuf = cl.clCreateBuffer(cl.getContext(), CL_MEM_READ_WRITE, s, nullptr, &err);
-    if (pBuf == nullptr || err != CL_SUCCESS)
-        return "Can't create buffer of size " + to_string(s) + " on GPU: code " + to_string(err);
-
-    dealloc(cl);
-    m_pMem = pBuf;
-    m_size = s;
-    return true;
-}
-
-bool_t OpenCLCalculator::CLMem::enqueueWriteBuffer(OpenCLKernel &cl, const void *pData, size_t s, bool sync)
-{
-    if (s > m_size)
-        return "Size exceeds GPU buffer size";
-    cl_int err = cl.clEnqueueWriteBuffer(cl.getCommandQueue(), m_pMem, sync, 0, s, pData, 0, nullptr, nullptr);
-    if (err != CL_SUCCESS)
-        return "Error enqueuing write buffer: code " + to_string(err);
-    return true;
-}
-
-bool_t OpenCLCalculator::CLMem::enqueueReadBuffer(OpenCLKernel &cl, void *pData, size_t s, cl_event *pDepEvt, cl_event *pEvt, bool sync)
-{
-    if (s > m_size)
-        return "Reading beyond CPU buffer size";
-	size_t num = (pDepEvt)?1:0;
-
-    cl_int err = cl.clEnqueueReadBuffer(cl.getCommandQueue(), m_pMem, sync, 0, s, pData, num, pDepEvt, pEvt);
-    if (err != CL_SUCCESS)
-        return "Error enqueuing read buffer: code " + to_string(err);
-    return true;
-}
-
 void OpenCLCalculator::CommonClMem::dealloc(OpenCLKernel &cl)
 {
     auto release = [&cl](cl_mem x)
@@ -1470,6 +1425,7 @@ void OpenCLCalculator::CommonClMem::dealloc(OpenCLKernel &cl)
     release(m_pDevAllFloatParams);
     zeroAll();
 }
+
 
 void OpenCLCalculator::FullOrShortClMem::dealloc(OpenCLKernel &cl)
 {
