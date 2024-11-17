@@ -78,9 +78,21 @@ bool_t LensGAParametricSinglePlaneCalculator::init(const LensInversionParameters
 	m_pointMap.clear();
 
 	bool havePosUncerts = false;
-	for (auto &img : params.getImages())
-		if (img->hasProperty(ImagesData::PositionUncertainty))
-			havePosUncerts = true;
+	// Use this flag to see if we should randomize the inputs, the
+	// position uncertainty alone will not suffice: that (in the
+	// future) should be able to indicate uncertainty for a bayesian
+	// approach, where the input locations are fixed and the uncertainty
+	// is used in a log prob
+	if (params.getRandomizeInputPositions())
+	{
+		// Check
+		for (auto &img : params.getImages())
+			if (img->hasProperty(ImagesData::PositionUncertainty))
+				havePosUncerts = true;
+
+		if (!havePosUncerts)
+			return "Randomization of input positions requested, but no position uncertainties were specified";
+	}
 
 	vector<float> posUncertainties;
 

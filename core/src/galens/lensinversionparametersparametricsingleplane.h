@@ -26,6 +26,7 @@ public:
 		bool infOnBoundsViolation,
 		const ConfigurationParameters &fitnessObjectParams,
 		bool uploadFullParameters, int devIdx,
+		bool randomizeImagePositions,
 		uint64_t initialUncertSeed
 		);
 	~LensInversionParametersParametricSinglePlane();
@@ -45,6 +46,7 @@ public:
 	const ConfigurationParameters &getFitnessObjectParameters() const { assert(m_fitObjParams.get()); return *m_fitObjParams; }
 	bool alwaysUploadFullParameters() const { return m_uploadFillParams; }
 	int getDeviceIndex() const { return m_devIdx; }
+	bool getRandomizeInputPositions() const { return m_randomizeInputPosition; }
 	uint64_t getInitialPositionUncertaintySeed() const { return m_initialUncertSeed; }
 
 	bool write(serut::SerializationInterface &si) const override;
@@ -60,6 +62,7 @@ private:
 	bool m_infOnBoundsViolation = false;
 	bool m_uploadFillParams = true;
 	int m_devIdx = -1;
+	bool m_randomizeInputPosition = false;
 	uint64_t m_initialUncertSeed = 0;
 };
 

@@ -600,7 +600,8 @@ def invert(inputImages, basisFunctions, zd, Dd, popSize, moduleName = "general",
 def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, moduleName = "general",
            defaultInitialParameterFraction = 0.1, clampToHardLimits = False, fitnessObjectParameters = None, convergenceParameters = { },
            geneticAlgorithmParameters = { }, returnNds = False, inverter = "default", feedbackObject = "default",
-           cosmology = None, maximumGenerations = None, eaType = "JADE", uploadFullParameters = False, deviceIndex = "rotate"):
+           cosmology = None, maximumGenerations = None, eaType = "JADE", uploadFullParameters = False, deviceIndex = "rotate",
+           useImagePositionRandomization = False):
     """This is a low-level function, used by the similarly named function
     in :class:`InversionWorkSpace`.
 
@@ -669,7 +670,9 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
        and use an :mod:`inverter <grale.inverters>` with as many processes as you have
        GPUs.
 
-
+     - `useImagePositionRandomization`: if set to ``True``, images that contain
+       the ``"positionuncertainty"`` property will be randomized slightly according
+       to this property's value. This can be used to avoid overfitting.
     """
 
     desc = paramdesc.analyzeParametricLensDescription(parametricLensDescription, Dd, defaultInitialParameterFraction, clampToHardLimits)
@@ -694,17 +697,20 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
 
     infOnBoundsViolation = False if not usingMcmc else True
 
+    if usingMcmc and useImagePositionRandomization:
+        raise InversionException("Cannot use input position randomization together with MCMC, there the uncertainties need to be used in the logprob")
+
     # Check positional uncertainties
     hasPositionUncert = False
-    for i in inputImages:
-        img = i["images"]
-        if "positionuncertainty" in img.getKnownPropertyNames():
-            hasPositionUncert = True
-            break
+    if useImagePositionRandomization: # Check that we have something to randomize
+        for i in inputImages:
+            img = i["images"]
+            if "positionuncertainty" in img.getKnownPropertyNames():
+                hasPositionUncert = True
+                break
+        else:
+            raise InversionException("Input image position randomization requested, but no 'positionuncertainty' property information found")
     
-    if usingMcmc and hasPositionUncert:
-        raise InversionException("Cannot use positional uncertainties and MCMC together")
-
     initialUncertSeed = 0 if not hasPositionUncert else random.getrandbits(64)
 
     def getParamsFunction(fullFitnessObjParams, massScale):
@@ -712,7 +718,8 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
         return inversionparams.LensInversionParametersParametricSinglePlane(inputImages, Dd, zd,
                   templateLens, deflScale, potScale, offsets, initMin, initMax, hardMin, hardMax,
                   infOnBoundsViolation,
-                  fullFitnessObjParams, uploadFullParameters, deviceIndex, initialUncertSeed)
+                  fullFitnessObjParams, uploadFullParameters, deviceIndex,
+                  useImagePositionRandomization, initialUncertSeed)
 
     results = _invertCommon(inverter, feedbackObject, moduleName, "parametricsingleplane", fitnessObjectParameters,
                   None, [Dd, zd], inputImages, getParamsFunction, popSize,
