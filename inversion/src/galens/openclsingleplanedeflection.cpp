@@ -99,7 +99,6 @@ bool_t OpenCLSinglePlaneDeflection::init(const std::vector<Vector2Df> &thetas, /
 		if (!(r = m_clThetaUncerts.realloc(*cl, ctx, sizeof(cl_float)*clUncert.size())) ||
 			!(r = m_clThetaUncerts.enqueueWriteBuffer(*cl, queue, clUncert, true)))
 			return "Can't copy theta uncertainties to GPU: " + cleanup(r.getErrorString());
-
 		if (sizeof(uint32_t) != sizeof(cl_uint))
 			return cleanup("Internal error: cl_uint doesn't appeat to be 32 bits?");
 
@@ -115,13 +114,16 @@ bool_t OpenCLSinglePlaneDeflection::init(const std::vector<Vector2Df> &thetas, /
 		for (size_t i = 1 ; i < clUncert.size() ; i++)
 			xoshiro128plus::jump(&rngStates[(i-1)*4], &rngStates[i*4]);
 
+		//for (size_t i = 0 ; i < rngStates.size() ; i += 4)
+		//	cerr << "rng state[" << (i/4) << "] = " << rngStates[i] << "," << rngStates[i+1] << "," << rngStates[i+2] << "," << rngStates[i+3] << endl;
+
 		if (!(r = m_clRngStates.realloc(*cl, ctx, sizeof(uint32_t)*rngStates.size())) ||
-			!(r = m_clRngStates.enqueueWriteBuffer(*cl, ctx, rngStates, true)))
+			!(r = m_clRngStates.enqueueWriteBuffer(*cl, queue, rngStates, true)))
 			return "Error uploading rng states: " + cleanup(r.getErrorString());
 
 		vector<cl_float> thetaAdditions(clUncert.size()*2, 0); // initialize to zero, *2 for two components
 		if (!(r = m_clThetaWithAdditions.realloc(*cl, ctx, sizeof(cl_float)*thetaAdditions.size())) ||
-			!(r = m_clThetaWithAdditions.enqueueWriteBuffer(*cl, ctx, thetaAdditions, true)))
+			!(r = m_clThetaWithAdditions.enqueueWriteBuffer(*cl, queue, thetaAdditions, true)))
 			return "Can't initialize theta additions to zero: " + cleanup(r.getErrorString());
 	}
 
@@ -265,11 +267,19 @@ __kernel void randomizeImagePlanePositions(int numPoints,
 	float2 theta = (float2)(pThetas[i*2], pThetas[i*2+1]);
 	float sigma = pThetaUncerts[i];
 
-	float2 randomGaussians = xoshiro128plus_next_gaussians(pRngStates + i*4);
-	randomGaussians *= sigma;
+	if (sigma == 0) // TODO: if it's zero, it stays zero, perhaps we shouldn't keep setting this?
+	{
+		pThetasWithAdditions[i*2] = theta.x;
+		pThetasWithAdditions[i*2+1] = theta.y;
+	}
+	else
+	{
+		float2 randomGaussians = xoshiro128plus_next_gaussians(pRngStates + i*4);
+		randomGaussians *= sigma;
 
-	pThetasWithAdditions[i*2] = theta.x + randomGaussians.x;
-	pThetasWithAdditions[i*2+1] = theta.y + randomGaussians.y;
+		pThetasWithAdditions[i*2] = theta.x + randomGaussians.x;
+		pThetasWithAdditions[i*2+1] = theta.y + randomGaussians.y;
+	}
 }
 )XYZ";
 		//cerr << "Compiling:\n" << src << endl;
@@ -448,6 +458,8 @@ bool_t OpenCLSinglePlaneDeflection::calculateDeflection(const std::vector<float>
 		if (err != CL_SUCCESS)
 			return "Error enqueing randomization kernel: " + to_string(err);
 	}
+
+	// Finally perform the actual calculation of deflection angles
 
     auto kernel = m_cl->getKernel(KERNELNUMBER_CALCULATE_DEFLECTION);
     cl_int clNumPoints = (cl_int)m_numPoints;

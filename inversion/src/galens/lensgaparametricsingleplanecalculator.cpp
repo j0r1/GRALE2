@@ -1,5 +1,6 @@
 #include "lensgaparametricsingleplanecalculator.h"
 #include "openclsingleplanedeflection.h"
+#include "utils.h"
 #include <eatk/vectorgenomefitness.h>
 #include <eatk/valuefitness.h>
 #include <iostream>
@@ -120,13 +121,27 @@ bool_t LensGAParametricSinglePlaneCalculator::init(const LensInversionParameters
 	if (m_kernelCode.length() == 0)
 		return "Couldn't get OpenCL kernel code: " + m_templateLens->getErrorString();
 
+	vector<float> posUncertainties;
+	uint64_t posUncertSeed = 0;
+
+	string posUncertSize;
+	if (getenv("GRALE_POSUNCERT", posUncertSize))
+	{
+		float posUncert = (float)(stod(posUncertSize)*ANGLE_ARCSEC/m_angularScale);
+		cerr << "INFO: setting EXPERIMENTAL positional uncertainty to " << posUncertSize << " = " << posUncert << endl;
+
+		posUncertainties.resize(m_thetas.size(), posUncert);
+
+		posUncertSeed = 12345; // TODO!!
+	}
+
 	bool uploadFullParameters = params.alwaysUploadFullParameters();
 	if (!(r = OpenCLSinglePlaneDeflectionInstance::initInstance((uint64_t)this, 
-																	m_thetas, {}, m_intParams, // TODO: add uncertainties
+																	m_thetas, posUncertainties, m_intParams,
 																	m_floatParams, m_changeableParamIdx,
 																	m_kernelCode, m_kernelName,
 																	uploadFullParameters, m_devIdx,
-																	0 // TODO: set seed to randomize thetas
+																	posUncertSeed
 																	)))
 		return "Couldn't init OpenCLSinglePlaneDeflectionInstance: " + r.getErrorString();
 
