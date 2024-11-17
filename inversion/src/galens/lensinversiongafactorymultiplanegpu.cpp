@@ -3,7 +3,7 @@
 #include "compositelens.h"
 #include "masssheetlens.h"
 #include "plummerlens.h"
-#include "openclcalculator.h"
+#include "openclmultiplanecalculator.h"
 #include "utils.h"
 #include <thread>
 #include <fstream>
@@ -25,7 +25,7 @@ LensInversionGAFactoryMultiPlaneGPU::LensInversionGAFactoryMultiPlaneGPU(unique_
 LensInversionGAFactoryMultiPlaneGPU::~LensInversionGAFactoryMultiPlaneGPU()
 {
 	if (m_currentParams.get()) // Initialization worked, we can release GPU part now
-		OpenCLCalculator::releaseInstance((uint64_t)this);
+		OpenCLMultiPlaneCalculator::releaseInstance((uint64_t)this);
 }
 
 bool_t LensInversionGAFactoryMultiPlaneGPU::init(const LensInversionParametersBase &p)
@@ -84,7 +84,7 @@ bool_t LensInversionGAFactoryMultiPlaneGPU::init(const LensInversionParametersBa
 	// We'll init the GPU part here, so we can use it immediately later. This is
 	// a single instance for this process, to be used by the available threads.
 	// TODO: what if deviceIndex is different in different threads?
-	if (!(r = OpenCLCalculator::initInstance(pParams->getDeviceIndex(),
+	if (!(r = OpenCLMultiPlaneCalculator::initInstance(pParams->getDeviceIndex(),
 	                                         m_reducedImages, m_shortImages,
 											 m_lensRedshifts,
 											 pParams->getCosmology(),
@@ -95,7 +95,7 @@ bool_t LensInversionGAFactoryMultiPlaneGPU::init(const LensInversionParametersBa
 											 )))
 		return r;
 
-	const double angScale = OpenCLCalculator::instance().getAngularScale();
+	const double angScale = OpenCLMultiPlaneCalculator::instance().getAngularScale();
 	m_bpAll = make_shared<OclCalculatedBackProjector>();
 	if (!(r = m_bpAll->init(m_reducedImages, angScale)))
 		return "Error initializing backprojection framework: " + r.getErrorString();
@@ -258,7 +258,7 @@ unique_ptr<GravitationalLens> LensInversionGAFactoryMultiPlaneGPU::createLens(co
 
 bool_t LensInversionGAFactoryMultiPlaneGPU::onNewCalculationStart(size_t genomesInThisThread, size_t genomesInAllThreads)
 {
-	OpenCLCalculator &oclCalc = OpenCLCalculator::instance();
+	OpenCLMultiPlaneCalculator &oclCalc = OpenCLMultiPlaneCalculator::instance();
 	oclCalc.setGenomesToCalculate(genomesInAllThreads);
 	m_calcStates.clear();
 	return true;
@@ -267,7 +267,7 @@ bool_t LensInversionGAFactoryMultiPlaneGPU::onNewCalculationStart(size_t genomes
 bool_t LensInversionGAFactoryMultiPlaneGPU::startNewCalculation(const eatk::Genome &genome)
 {
 	const LensGAGenome &g = static_cast<const LensGAGenome&>(genome);
-	OpenCLCalculator &oclCalc = OpenCLCalculator::instance();
+	OpenCLMultiPlaneCalculator &oclCalc = OpenCLMultiPlaneCalculator::instance();
 	bool_t r;
 	
 	if (!(r = oclCalc.startNewBackprojection(g)))
@@ -287,7 +287,7 @@ bool_t LensInversionGAFactoryMultiPlaneGPU::pollCalculate(const eatk::Genome &ge
 
 	const LensGAGenome &g = static_cast<const LensGAGenome&>(genome);
 	LensGAFitness &f = static_cast<LensGAFitness&>(fitness);
-	OpenCLCalculator &oclCalc = OpenCLCalculator::instance();
+	OpenCLMultiPlaneCalculator &oclCalc = OpenCLMultiPlaneCalculator::instance();
 	bool_t r;
 
 	State &state = m_calcStates[&g];

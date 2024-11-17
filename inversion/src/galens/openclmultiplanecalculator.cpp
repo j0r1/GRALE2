@@ -1,4 +1,4 @@
-#include "openclcalculator.h"
+#include "openclmultiplanecalculator.h"
 #include "constants.h"
 #include "compositelens.h"
 #include "utils.h"
@@ -15,16 +15,16 @@ using namespace std;
 namespace grale
 {
 
-unique_ptr<OpenCLCalculator> OpenCLCalculator::s_pInstance;
-mutex OpenCLCalculator::s_instanceMutex;
-bool OpenCLCalculator::s_initTried = false;
-set<uint64_t> OpenCLCalculator::s_users;
+unique_ptr<OpenCLMultiPlaneCalculator> OpenCLMultiPlaneCalculator::s_pInstance;
+mutex OpenCLMultiPlaneCalculator::s_instanceMutex;
+bool OpenCLMultiPlaneCalculator::s_initTried = false;
+set<uint64_t> OpenCLMultiPlaneCalculator::s_users;
 
 const uint64_t c_timeoutCheckMod = 100000;
 const double c_timeoutMsec = 60000;
 const double c_destructorTimeout = 5000;
 
-bool_t OpenCLCalculator::initInstance(int devIdx, const vector<ImagesDataExtended *> &allImages,
+bool_t OpenCLMultiPlaneCalculator::initInstance(int devIdx, const vector<ImagesDataExtended *> &allImages,
                                         const vector<ImagesDataExtended *> &shortImages,
                                         const vector<float> &zds,
                                         const Cosmology &cosm,
@@ -37,7 +37,7 @@ bool_t OpenCLCalculator::initInstance(int devIdx, const vector<ImagesDataExtende
     lock_guard<mutex> guard(s_instanceMutex);
 
     if (s_users.find(userId) != s_users.end())
-        return "An OpenCLCalculator instance is already registered for this user";
+        return "An OpenCLMultiPlaneCalculator instance is already registered for this user";
 
     if (devIdx < 0)
         devIdx = -1;
@@ -45,9 +45,9 @@ bool_t OpenCLCalculator::initInstance(int devIdx, const vector<ImagesDataExtende
     if (s_pInstance.get()) // Already initialized
     {
         if (devIdx != s_pInstance->getDeviceIndex())
-            return "An OpenCLCalculator instance already exists, but for a different device index (" + to_string(s_pInstance->getDeviceIndex()) + ") than requested (" + to_string(devIdx) + ")";
+            return "An OpenCLMultiPlaneCalculator instance already exists, but for a different device index (" + to_string(s_pInstance->getDeviceIndex()) + ") than requested (" + to_string(devIdx) + ")";
 
-        cerr << "INFO: registered user in OpenCLCalculator (2): " << userId << endl;
+        cerr << "INFO: registered user in OpenCLMultiPlaneCalculator (2): " << userId << endl;
         s_users.insert(userId);
         return true;
     }
@@ -56,46 +56,46 @@ bool_t OpenCLCalculator::initInstance(int devIdx, const vector<ImagesDataExtende
         return "GPU initialization failed before";
     s_initTried = true;
 
-    unique_ptr<OpenCLCalculator> oclCalc = make_unique<OpenCLCalculator>();
+    unique_ptr<OpenCLMultiPlaneCalculator> oclCalc = make_unique<OpenCLMultiPlaneCalculator>();
     bool_t r = oclCalc->initAll(devIdx, allImages, shortImages, zds, cosm, planeBasisLenses, unscaledLensesPerPlane, baseLensesPerPlane);
     if (!r)
         return "Can't init GPU: " + r.getErrorString();
 
     s_users.insert(userId);
-    cerr << "INFO: registered user in OpenCLCalculator: " << userId << endl;
+    cerr << "INFO: registered user in OpenCLMultiPlaneCalculator: " << userId << endl;
 
     s_pInstance = move(oclCalc);
     return true;
 }
 
-void OpenCLCalculator::releaseInstance(uint64_t userId)
+void OpenCLMultiPlaneCalculator::releaseInstance(uint64_t userId)
 {
     lock_guard<mutex> guard(s_instanceMutex);
 
     auto it = s_users.find(userId);
     if (it == s_users.end())
     {
-        cerr << "WARNING: OpenCLCalculator::releaseInstance: can't find user " << userId << endl;
+        cerr << "WARNING: OpenCLMultiPlaneCalculator::releaseInstance: can't find user " << userId << endl;
         return;
     }
     s_users.erase(it);
 
     if (s_users.empty())
     {
-        cerr << "INFO: no more users of OpenCLCalculator, removing static instance" << endl;
+        cerr << "INFO: no more users of OpenCLMultiPlaneCalculator, removing static instance" << endl;
         s_initTried = false;
         s_pInstance = nullptr;
     }
 }
 
-OpenCLCalculator &OpenCLCalculator::instance()
+OpenCLMultiPlaneCalculator &OpenCLMultiPlaneCalculator::instance()
 {
-    OpenCLCalculator *pInst = s_pInstance.get();
+    OpenCLMultiPlaneCalculator *pInst = s_pInstance.get();
     assert(pInst);
     return *pInst;
 }
 
-void OpenCLCalculator::setGenomesToCalculate(size_t s)
+void OpenCLMultiPlaneCalculator::setGenomesToCalculate(size_t s)
 {
     lock_guard<mutex> guard(m_mutex);
     m_numGenomesToCalculate = s;
@@ -103,7 +103,7 @@ void OpenCLCalculator::setGenomesToCalculate(size_t s)
 
 #define CHECKERRORSTATE do { if (m_errorState) return "Previous error was encountered"; } while(0)
 
-bool_t OpenCLCalculator::startNewBackprojection(const LensGAGenome &g)
+bool_t OpenCLMultiPlaneCalculator::startNewBackprojection(const LensGAGenome &g)
 {
     lock_guard<mutex> guard(m_mutex);
 
@@ -160,7 +160,7 @@ bool_t OpenCLCalculator::startNewBackprojection(const LensGAGenome &g)
     return true;
 }
 
-bool_t OpenCLCalculator::scheduleUploadAndCalculation(const LensGAGenome &g, int &calculationIdentifier,
+bool_t OpenCLMultiPlaneCalculator::scheduleUploadAndCalculation(const LensGAGenome &g, int &calculationIdentifier,
                                                       const std::vector<std::pair<float,float>> &scaleFactors, bool useShort)
 {
     bool_t r;
@@ -225,7 +225,7 @@ bool_t OpenCLCalculator::scheduleUploadAndCalculation(const LensGAGenome &g, int
     return true;
 }
 
-bool_t OpenCLCalculator::checkCalculateScheduledContext()
+bool_t OpenCLMultiPlaneCalculator::checkCalculateScheduledContext()
 {
     lock_guard<mutex> guard(m_mutex);
 
@@ -278,7 +278,7 @@ bool_t OpenCLCalculator::checkCalculateScheduledContext()
     return true;
 }
 
-bool_t OpenCLCalculator::CalculationContext::calculate(OpenCLKernel &cl, cl_event *pEvt)
+bool_t OpenCLMultiPlaneCalculator::CalculationContext::calculate(OpenCLKernel &cl, cl_event *pEvt)
 {
     bool_t r;
 	auto ctx = cl.getContext();
@@ -338,7 +338,7 @@ bool_t OpenCLCalculator::CalculationContext::calculate(OpenCLKernel &cl, cl_even
     return true;
 }
 
-bool_t OpenCLCalculator::CalculationContext::schedule(OpenCLKernel &cl, const LensGAGenome &g, size_t genomeWeightsIndex,
+bool_t OpenCLMultiPlaneCalculator::CalculationContext::schedule(OpenCLKernel &cl, const LensGAGenome &g, size_t genomeWeightsIndex,
                                                       const vector<pair<float,float>> &scaleFactors)
 {
     bool_t r;
@@ -370,7 +370,7 @@ bool_t OpenCLCalculator::CalculationContext::schedule(OpenCLKernel &cl, const Le
     return true;
 }
 
-bool_t OpenCLCalculator::isCalculationDone(const LensGAGenome &g, int calculationIdentifier, size_t *pGenomeIndex,
+bool_t OpenCLMultiPlaneCalculator::isCalculationDone(const LensGAGenome &g, int calculationIdentifier, size_t *pGenomeIndex,
                                            const float **ppAllBetas, size_t *pNumGenomes, size_t *pNumSteps,
                                            size_t *pNumPoints, bool *pDone)
 {
@@ -435,7 +435,7 @@ bool_t OpenCLCalculator::isCalculationDone(const LensGAGenome &g, int calculatio
     return true;
 }
 
-bool_t OpenCLCalculator::setCalculationProcessed(const LensGAGenome &g, int calculationIdentifier)
+bool_t OpenCLMultiPlaneCalculator::setCalculationProcessed(const LensGAGenome &g, int calculationIdentifier)
 {
     lock_guard<mutex> lock(m_mutex);
     
@@ -465,7 +465,7 @@ bool_t OpenCLCalculator::setCalculationProcessed(const LensGAGenome &g, int calc
     return true;
 }
 
-void OpenCLCalculator::cleanupContextMemory(ContextMemory &mem)
+void OpenCLMultiPlaneCalculator::cleanupContextMemory(ContextMemory &mem)
 {
     mem.m_devFactors.dealloc(*this);
     mem.m_devBetas.dealloc(*this);
@@ -532,17 +532,17 @@ void OpenCLCalculator::cleanupContextMemory(ContextMemory &mem)
 // #endif // DUMPLASTBETAS
 // }
 
-OpenCLCalculator::OpenCLCalculator()
+OpenCLMultiPlaneCalculator::OpenCLMultiPlaneCalculator()
     : m_devIdx(-1), m_errorState(false), m_timeoutCheckCounter(0)
 {
 }
 
-OpenCLCalculator::~OpenCLCalculator()
+OpenCLMultiPlaneCalculator::~OpenCLMultiPlaneCalculator()
 {
     // TODO: wait a maximum amount of time
     
     // Wait till GPU is finished calculating and release
-    cerr << "INFO: OpenCLCalculator destructor start" << endl;
+    cerr << "INFO: OpenCLMultiPlaneCalculator destructor start" << endl;
 
     auto cleanup = [this](unique_ptr<CalculationContext> &ctx)
     {
@@ -600,10 +600,10 @@ OpenCLCalculator::~OpenCLCalculator()
 
 	m_perNodeCounter.reset();
 
-    cerr << "INFO: OpenCLCalculator destructor end" << endl;
+    cerr << "INFO: OpenCLMultiPlaneCalculator destructor end" << endl;
 }
 
-bool_t OpenCLCalculator::checkAddFakeSource(vector<ImagesDataExtended *> &allImages,
+bool_t OpenCLMultiPlaneCalculator::checkAddFakeSource(vector<ImagesDataExtended *> &allImages,
                                             vector<ImagesDataExtended *> &shortImages)
 {
     auto countImages = [](const auto &images)
@@ -659,7 +659,7 @@ bool_t OpenCLCalculator::checkAddFakeSource(vector<ImagesDataExtended *> &allIma
     return true;
 }
 
-bool_t OpenCLCalculator::initAll(int devIdx, const vector<ImagesDataExtended *> &allImagesOrig,
+bool_t OpenCLMultiPlaneCalculator::initAll(int devIdx, const vector<ImagesDataExtended *> &allImagesOrig,
                         const vector<ImagesDataExtended *> &shortImagesOrig,
                         const vector<float> &zds,
                         const Cosmology &cosm,
@@ -716,7 +716,7 @@ bool_t OpenCLCalculator::initAll(int devIdx, const vector<ImagesDataExtended *> 
     return true;
 }
 
-bool_t OpenCLCalculator::analyzeCompositeLenses(const vector<vector<shared_ptr<LensInversionBasisLensInfo>>> &planeBasisLenses,
+bool_t OpenCLMultiPlaneCalculator::analyzeCompositeLenses(const vector<vector<shared_ptr<LensInversionBasisLensInfo>>> &planeBasisLenses,
                                 const vector<shared_ptr<GravitationalLens>> &unscaledLensesPerPlane,
                                 const vector<shared_ptr<GravitationalLens>> &baseLensesPerPlane,
                                 map<string,string> &subRoutineCode,
@@ -787,7 +787,7 @@ bool_t OpenCLCalculator::analyzeCompositeLenses(const vector<vector<shared_ptr<L
     return true;
 }
 
-bool_t OpenCLCalculator::getAlphaCodeForPlane(const string &functionName,
+bool_t OpenCLMultiPlaneCalculator::getAlphaCodeForPlane(const string &functionName,
                             const vector<shared_ptr<LensInversionBasisLensInfo>> &basisLenses,
                             const GravitationalLens *pUnscaledLens,
                             const GravitationalLens *pBaseLens,
@@ -960,7 +960,7 @@ bool_t OpenCLCalculator::getAlphaCodeForPlane(const string &functionName,
     return true;
 }
 
-bool_t OpenCLCalculator::getMultiPlaneTraceCode(const vector<vector<shared_ptr<LensInversionBasisLensInfo>>> &planeBasisLenses,
+bool_t OpenCLMultiPlaneCalculator::getMultiPlaneTraceCode(const vector<vector<shared_ptr<LensInversionBasisLensInfo>>> &planeBasisLenses,
                                 const vector<shared_ptr<GravitationalLens>> &unscaledLensesPerPlane,
                                 const vector<shared_ptr<GravitationalLens>> &baseLensesPerPlane,
                                 string &resultingCode)
@@ -1139,7 +1139,7 @@ float2 multiPlaneTrace(float2 theta, int numPlanes, __global const float *Dsrc, 
     return true;
 }
 
-bool_t OpenCLCalculator::setupBasisFunctions(const vector<vector<shared_ptr<LensInversionBasisLensInfo>>> &planeBasisLenses,
+bool_t OpenCLMultiPlaneCalculator::setupBasisFunctions(const vector<vector<shared_ptr<LensInversionBasisLensInfo>>> &planeBasisLenses,
                             const vector<shared_ptr<GravitationalLens>> &unscaledLensesPerPlane,
                             const vector<shared_ptr<GravitationalLens>> &baseLensesPerPlane)
 {
@@ -1212,7 +1212,7 @@ __kernel void calculateBetas(const int numPoints, const int numScaleFactors, con
     return true;
 }
 
-bool_t OpenCLCalculator::initGPU(int devIdx)
+bool_t OpenCLMultiPlaneCalculator::initGPU(int devIdx)
 {
     string library = getLibraryName();
     if (!loadLibrary(library))
@@ -1257,7 +1257,7 @@ bool_t OpenCLCalculator::initGPU(int devIdx)
     return true;
 }
 
-bool_t OpenCLCalculator::setupMultiPlaneDistanceMatrix(const Cosmology &cosm, const vector<float> &zds)
+bool_t OpenCLMultiPlaneCalculator::setupMultiPlaneDistanceMatrix(const Cosmology &cosm, const vector<float> &zds)
 {
     size_t numPlanes = zds.size();
     size_t cols = numPlanes;
@@ -1290,7 +1290,7 @@ bool_t OpenCLCalculator::setupMultiPlaneDistanceMatrix(const Cosmology &cosm, co
     return true;
 }
 
-bool_t OpenCLCalculator::setupAngularDiameterDistances(const Cosmology &cosm, const vector<float> &zds,
+bool_t OpenCLMultiPlaneCalculator::setupAngularDiameterDistances(const Cosmology &cosm, const vector<float> &zds,
                                         const vector<ImagesDataExtended*> &images,
                                         cl_mem &pDevDpoints, cl_mem &pDevUsedPlanes)
 {
@@ -1358,7 +1358,7 @@ bool_t OpenCLCalculator::setupAngularDiameterDistances(const Cosmology &cosm, co
     return true;
 }
 
-bool_t OpenCLCalculator::allocateAndUploadImages(const vector<ImagesDataExtended *> &images, cl_mem &pDevImages, size_t &numPoints)
+bool_t OpenCLMultiPlaneCalculator::allocateAndUploadImages(const vector<ImagesDataExtended *> &images, cl_mem &pDevImages, size_t &numPoints)
 {
     vector<float> allCoordinates;
     for (auto img : images)
@@ -1388,7 +1388,7 @@ bool_t OpenCLCalculator::allocateAndUploadImages(const vector<ImagesDataExtended
     return true;
 }
 
-bool_t OpenCLCalculator::setupImages(const vector<ImagesDataExtended *> &allImages,
+bool_t OpenCLMultiPlaneCalculator::setupImages(const vector<ImagesDataExtended *> &allImages,
                     const vector<ImagesDataExtended *> &shortImages)
 {
     bool_t r;
@@ -1409,7 +1409,7 @@ bool_t OpenCLCalculator::setupImages(const vector<ImagesDataExtended *> &allImag
     return true;
 }
 
-void OpenCLCalculator::CommonClMem::dealloc(OpenCLKernel &cl)
+void OpenCLMultiPlaneCalculator::CommonClMem::dealloc(OpenCLKernel &cl)
 {
     auto release = [&cl](cl_mem x)
     {
@@ -1427,7 +1427,7 @@ void OpenCLCalculator::CommonClMem::dealloc(OpenCLKernel &cl)
 }
 
 
-void OpenCLCalculator::FullOrShortClMem::dealloc(OpenCLKernel &cl)
+void OpenCLMultiPlaneCalculator::FullOrShortClMem::dealloc(OpenCLKernel &cl)
 {
     auto release = [&cl](cl_mem x)
     {

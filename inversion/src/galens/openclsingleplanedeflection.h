@@ -78,7 +78,7 @@ protected:
 	std::vector<size_t> m_changeableParameterIndices;
 };
 
-// Using same single instance code as in OpenCLCalculator (for multiplane)
+// Using same single instance code as in OpenCLMultiPlaneCalculator (for multiplane)
 // TODO: make this common code somehow
 class OpenCLSinglePlaneDeflectionInstance : private OpenCLSinglePlaneDeflection
 {

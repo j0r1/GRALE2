@@ -22,7 +22,7 @@ set(HEADERS
 	galens/lensgamultiobjectivecrossover.h
 	galens/lensgacalculatorregistry.h
 	galens/lensgagenomecalculator.h
-	galens/openclcalculator.h
+	galens/openclmultiplanecalculator.h
 	galens/oclcalculatedbackprojector.h
 	galens/lensdemutationcrossover.h
 	galens/lensdeevolver.h
@@ -70,7 +70,7 @@ set(SOURCES
 	galens/lensgacrossoverbase.cpp
 	galens/lensgamultiobjectivecrossover.cpp
 	galens/lensgacalculatorregistry.cpp
-	galens/openclcalculator.cpp
+	galens/openclmultiplanecalculator.cpp
 	galens/oclcalculatedbackprojector.cpp
 	galens/lensdemutationcrossover.cpp
 	galens/lensdeevolver.cpp

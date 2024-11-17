@@ -19,7 +19,7 @@
 namespace grale
 {
 
-class OpenCLCalculator : public OpenCLKernel
+class OpenCLMultiPlaneCalculator : public OpenCLKernel
 {
 public:
     static errut::bool_t initInstance(int devIdx, const std::vector<ImagesDataExtended *> &allImages,
@@ -32,7 +32,7 @@ public:
                                            const std::vector<std::shared_ptr<GravitationalLens>> &baseLensesPerPlane
 										   );
 	static void releaseInstance(uint64_t userId);
-    static OpenCLCalculator &instance();
+    static OpenCLMultiPlaneCalculator &instance();
 
     void setGenomesToCalculate(size_t s);
 	errut::bool_t startNewBackprojection(const LensGAGenome &g);
@@ -45,8 +45,8 @@ public:
 
     double getAngularScale() const { return m_angularScale; }
 
-	OpenCLCalculator();
-	~OpenCLCalculator();
+	OpenCLMultiPlaneCalculator();
+	~OpenCLMultiPlaneCalculator();
 private:
     int getDeviceIndex() const { return m_devIdx; }
 	errut::bool_t initAll(int devIdx, const std::vector<ImagesDataExtended *> &allImages,
@@ -228,7 +228,7 @@ private:
 
     uint64_t m_timeoutCheckCounter;
 
-	static std::unique_ptr<OpenCLCalculator> s_pInstance;
+	static std::unique_ptr<OpenCLMultiPlaneCalculator> s_pInstance;
 	static std::mutex s_instanceMutex;
     static std::set<uint64_t> s_users;
 	static bool s_initTried;
