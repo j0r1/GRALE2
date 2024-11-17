@@ -963,3 +963,36 @@ def createPointImagesData(thetas):
     for tIdx in range(len(thetas)):
         imgDat.addPoint(tIdx, thetas[tIdx])
     return imgDat
+
+def addPositionUncertainty(imgDatOrList, amount):
+    from .images import ImagesData, ImagesDataException
+
+    if type(imgDatOrList) == ImagesData:
+        pass # We'll do this case below
+    elif type(imgDatOrList) == tuple or type(imgDatOrList) == list:
+        newList = [ addPositionUncertainty(x, amount) for x in imgDatOrList ]
+        return tuple(newList) if type(imgDatOrList) == tuple else newList
+    elif type(imgDatOrList) == dict:
+        d = imgDatOrList
+        if not "imgdata" in d:
+            return ImagesDataException("Key 'imgdata' expected to be present in dictionary")
+        newDict = d.copy()
+        newDict["imgdata"] = addPositionUncertainty(d["imgdata"], amount)
+        return newDict
+
+    imgDat = imgDatOrList
+    oldPropNames = imgDat.getKnownPropertyNames()
+    if "positionuncertainty" in oldPropNames:
+        raise ImagesDataException("Position uncertainty already present")
+    
+    numImgs = imgDat.getNumberOfImages()
+    newProps = { x: True for x in oldPropNames }
+    newProps["positionuncertainty"] = True
+    newImgDat = ImagesData(numImgs, **newProps)
+    for i in range(numImgs):
+        pointProps = imgDat.getImagePoints(i)
+        for p in pointProps:
+            p["positionuncertainty"] = amount
+            newImgDat.addPoint(i, **p)
+
+    return newImgDat

@@ -1971,5 +1971,5 @@ cdef class PointSource(SourceImage):
 
 # import some things from a pure python module, to avoid recompilation if something
 # changes there.
-from .privimages import getDefaultLineAnalyzer, setDefaultLineAnalyzer, readInputImagesFile, hoursMinutesSecondsToDegrees, degreesMinutesSecondsToDegrees, createGridTriangles, enlargePolygon, createSourceFromImagesData, createPointImagesData
+from .privimages import getDefaultLineAnalyzer, setDefaultLineAnalyzer, readInputImagesFile, hoursMinutesSecondsToDegrees, degreesMinutesSecondsToDegrees, createGridTriangles, enlargePolygon, createSourceFromImagesData, createPointImagesData, addPositionUncertainty
 
