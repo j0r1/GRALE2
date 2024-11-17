@@ -184,6 +184,9 @@ protected:
 		if (!fitObj.isNegativeLogProb_Overall(0))
 			return "The fitness measure is not the negative of a (log) probability";
 
+		if (calculator->isRandomizingInputPositions())
+			return "MCMC sampling cannot be used together with input image randomization";
+
 		if (!dynamic_cast<const grale::MCMCParameters*>(&eaParams))
 			return "Parameters are not of type MCMCParameters";
 		const grale::MCMCParameters &mcmcParams = static_cast<const grale::MCMCParameters&>(eaParams);

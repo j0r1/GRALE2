@@ -24,6 +24,7 @@ public:
 	errut::bool_t init(const LensInversionParametersBase &params) override;
 	errut::bool_t createLens(const eatk::Genome &genome, std::unique_ptr<GravitationalLens> &lens) const override;
 	size_t getNumberOfObjectives() const override { assert(m_fitObj.get()); return m_fitObj->getNumberOfFitnessComponents(); }
+	bool isRandomizingInputPositions() const { return m_randomizingInputPositions; }
 
 	std::shared_ptr<eatk::FitnessComparison> getFitnessComparison() const override;
 	
@@ -45,6 +46,7 @@ private:
 	double m_angularScale = 0;
 	double m_potScale = 0;
 	int m_devIdx = 0;
+	bool m_randomizingInputPositions = false;
 	std::vector<Vector2Df> m_thetas;
 	std::string m_kernelCode;
 	std::string m_kernelName;

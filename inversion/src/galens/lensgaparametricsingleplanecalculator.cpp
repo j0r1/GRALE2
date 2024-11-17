@@ -160,9 +160,15 @@ bool_t LensGAParametricSinglePlaneCalculator::init(const LensInversionParameters
 
 	uint64_t posUncertSeed = params.getInitialPositionUncertaintySeed();
 	if (posUncertainties.size() > 0)
+	{
+		m_randomizingInputPositions = true;
 		cerr << "INFO: enabling EXPERIMENTAL positional uncertainty with seed " << posUncertSeed << endl;
+	}
 	else
+	{
+		m_randomizingInputPositions = false;
 		cerr << "INFO: NOT enabling EXPERIMENTAL positional uncertainties" << endl;
+	}
 
 	bool uploadFullParameters = params.alwaysUploadFullParameters();
 	if (!(r = OpenCLSinglePlaneDeflectionInstance::initInstance((uint64_t)this, 
