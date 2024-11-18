@@ -266,7 +266,7 @@ errut::bool_t LensGAParametricSinglePlaneCalculator::onNewCalculationStart(size_
 		return "Not initialized";
 	
 	auto &cl = OpenCLSinglePlaneDeflectionInstance::instance();
-	cl.setTotalGenomesToCalculate(genomesForPopulationCalculator);
+	cl.setTotalGenomesToCalculate(iteration, genomesForPopulationCalculator);
 	
 	return true;
 }

@@ -12,6 +12,7 @@
 #include <mutex>
 #include <set>
 #include <unordered_map>
+#include <limits>
 
 namespace grale
 {
@@ -55,6 +56,8 @@ public:
 	//     these, or upload only these parameters and let a kernel change them
 	//     in the full parameters
 protected:
+	errut::bool_t randomizeInputPositions();
+
 	bool m_init = false;
 	bool m_uploadFullParameters;
 	int m_devIdx = -1;
@@ -99,7 +102,7 @@ public:
 	static void releaseInstance(uint64_t userId);
 	static OpenCLSinglePlaneDeflectionInstance &instance();
 
-	void setTotalGenomesToCalculate(size_t num);
+	void setTotalGenomesToCalculate(size_t iteration, size_t num);
 	errut::bool_t scheduleCalculation(const eatk::FloatVectorGenome &genome);
 	bool getResultsForGenome(const eatk::FloatVectorGenome &genome,
 	                         std::vector<Vector2Df> &alphas, std::vector<float> &axx,
@@ -115,6 +118,7 @@ private:
 
 	bool m_calculationDone = false;
 	size_t m_totalGenomesToCalculate = 0;
+	size_t m_prevIteration = std::numeric_limits<size_t>::max();
 	// Map a genome pointer to an offset
 	std::unordered_map<const eatk::FloatVectorGenome *, size_t> m_genomeOffsets;
 	std::mutex m_mutex;

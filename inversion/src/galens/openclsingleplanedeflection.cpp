@@ -121,9 +121,9 @@ bool_t OpenCLSinglePlaneDeflection::init(const std::vector<Vector2Df> &thetas, /
 			!(r = m_clRngStates.enqueueWriteBuffer(*cl, queue, rngStates, true)))
 			return "Error uploading rng states: " + cleanup(r.getErrorString());
 
-		vector<cl_float> thetaAdditions(clUncert.size()*2, 0); // initialize to zero, *2 for two components
-		if (!(r = m_clThetaWithAdditions.realloc(*cl, ctx, sizeof(cl_float)*thetaAdditions.size())) ||
-			!(r = m_clThetaWithAdditions.enqueueWriteBuffer(*cl, queue, thetaAdditions, true)))
+		vector<cl_float> thetaWithAdditions(clUncert.size()*2, numeric_limits<float>::quiet_NaN()); // initialize to NaN, *2 for two components
+		if (!(r = m_clThetaWithAdditions.realloc(*cl, ctx, sizeof(cl_float)*thetaWithAdditions.size())) ||
+			!(r = m_clThetaWithAdditions.enqueueWriteBuffer(*cl, queue, thetaWithAdditions, true)))
 			return "Can't initialize theta additions to zero: " + cleanup(r.getErrorString());
 	}
 	else
@@ -439,30 +439,7 @@ bool_t OpenCLSinglePlaneDeflection::calculateDeflection(const std::vector<float>
             return "Error enqueing parameter fill in kernel: " + to_string(err);
     }
 
-	if (m_clThetaWithAdditions.m_pMem) // Random additions are requested
-	{
-		auto kernel = m_cl->getKernel(KERNELNUMBER_CALCULATE_RANDOM_POINTOFFSETS);
-		cl_int clNumPoints = (cl_int)m_numPoints;
-		cl_int err = 0;
-
-		auto setKernArg = [this, &err, &kernel](cl_uint idx, size_t size, const void *ptr)
-		{
-			err |= m_cl->clSetKernelArg(kernel, idx, size, ptr);
-		};
-
-		setKernArg(0, sizeof(cl_int), (void*)&clNumPoints);
-		setKernArg(1, sizeof(cl_mem), (void*)&m_clThetas.m_pMem);
-		setKernArg(2, sizeof(cl_mem), (void*)&m_clThetaUncerts.m_pMem);
-		setKernArg(3, sizeof(cl_mem), (void*)&m_clThetaWithAdditions.m_pMem);
-		setKernArg(4, sizeof(cl_mem), (void*)&m_clRngStates);
-		if (err != CL_SUCCESS)
-			return "Error setting kernel arguments for randomization kernel";
-
-		size_t workSize[1] = { m_numPoints };
-		err = m_cl->clEnqueueNDRangeKernel(queue, kernel, 1, nullptr, workSize, nullptr, 0, nullptr, nullptr);
-		if (err != CL_SUCCESS)
-			return "Error enqueing randomization kernel: " + to_string(err);
-	}
+	// Input position randomization is moved to other function
 
 	// Finally perform the actual calculation of deflection angles
 
@@ -516,6 +493,41 @@ bool_t OpenCLSinglePlaneDeflection::calculateDeflection(const std::vector<float>
 
     return true;
 }
+
+errut::bool_t OpenCLSinglePlaneDeflection::randomizeInputPositions()
+{
+	if (!m_init)
+		return "Not initialized";
+
+	if (m_clThetaWithAdditions.m_pMem) // Random additions are requested
+	{
+		auto ctx = m_cl->getContext();
+		auto queue = m_cl->getCommandQueue();
+		auto kernel = m_cl->getKernel(KERNELNUMBER_CALCULATE_RANDOM_POINTOFFSETS);
+		cl_int clNumPoints = (cl_int)m_numPoints;
+		cl_int err = 0;
+
+		auto setKernArg = [this, &err, &kernel](cl_uint idx, size_t size, const void *ptr)
+		{
+			err |= m_cl->clSetKernelArg(kernel, idx, size, ptr);
+		};
+
+		setKernArg(0, sizeof(cl_int), (void*)&clNumPoints);
+		setKernArg(1, sizeof(cl_mem), (void*)&m_clThetas.m_pMem);
+		setKernArg(2, sizeof(cl_mem), (void*)&m_clThetaUncerts.m_pMem);
+		setKernArg(3, sizeof(cl_mem), (void*)&m_clThetaWithAdditions.m_pMem);
+		setKernArg(4, sizeof(cl_mem), (void*)&m_clRngStates);
+		if (err != CL_SUCCESS)
+			return "Error setting kernel arguments for randomization kernel";
+
+		size_t workSize[1] = { m_numPoints };
+		err = m_cl->clEnqueueNDRangeKernel(queue, kernel, 1, nullptr, workSize, nullptr, 0, nullptr, nullptr);
+		if (err != CL_SUCCESS)
+			return "Error enqueing randomization kernel: " + to_string(err);
+	}
+	return true;
+}
+
 
 std::unique_ptr<OpenCLSinglePlaneDeflectionInstance> OpenCLSinglePlaneDeflectionInstance::s_instance;
 std::mutex OpenCLSinglePlaneDeflectionInstance::s_instanceMutex;
@@ -610,13 +622,23 @@ OpenCLSinglePlaneDeflectionInstance::~OpenCLSinglePlaneDeflectionInstance()
 
 // This is called on a new iteration, so that we know how much genomes are
 // coming in before we're going to start the GPU calculation
-void OpenCLSinglePlaneDeflectionInstance::setTotalGenomesToCalculate(size_t num)
+void OpenCLSinglePlaneDeflectionInstance::setTotalGenomesToCalculate(size_t iteration, size_t num)
 {
     lock_guard<mutex> guard(m_mutex);
     assert(num > 0);
     assert(m_totalGenomesToCalculate == 0 || m_totalGenomesToCalculate == num);
 
     m_totalGenomesToCalculate = num;
+
+	// This function may be called by multiple threads, check when it's the first time
+	if (iteration != m_prevIteration)
+	{
+		m_prevIteration = iteration;
+
+		bool_t r = randomizeInputPositions();
+		if (!r)
+			cerr << "WARNING: Unexpected! Can't randomize input positions: " << r.getErrorString() << endl;
+	}
 }
 
 bool_t OpenCLSinglePlaneDeflectionInstance::scheduleCalculation(const eatk::FloatVectorGenome &genome)
