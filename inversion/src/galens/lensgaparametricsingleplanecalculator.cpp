@@ -260,7 +260,7 @@ bool_t LensGAParametricSinglePlaneCalculator::createLens(const eatk::Genome &gen
 	return true;
 }
 
-errut::bool_t LensGAParametricSinglePlaneCalculator::onNewCalculationStart(size_t genomesForThisCalculator, size_t genomesForPopulationCalculator)
+errut::bool_t LensGAParametricSinglePlaneCalculator::onNewCalculationStart(size_t iteration, size_t genomesForThisCalculator, size_t genomesForPopulationCalculator)
 {
 	if (!m_init)
 		return "Not initialized";

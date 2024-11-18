@@ -256,7 +256,7 @@ unique_ptr<GravitationalLens> LensInversionGAFactoryMultiPlaneGPU::createLens(co
 	return containerLens;
 }
 
-bool_t LensInversionGAFactoryMultiPlaneGPU::onNewCalculationStart(size_t genomesInThisThread, size_t genomesInAllThreads)
+bool_t LensInversionGAFactoryMultiPlaneGPU::onNewCalculationStart(size_t iteration, size_t genomesInThisThread, size_t genomesInAllThreads)
 {
 	OpenCLMultiPlaneCalculator &oclCalc = OpenCLMultiPlaneCalculator::instance();
 	oclCalc.setGenomesToCalculate(genomesInAllThreads);

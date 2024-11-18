@@ -33,7 +33,7 @@ public:
 	const std::vector<float> getHardMin() const { return m_hardMin; }
 	const std::vector<float> getHardMax() const { return m_hardMax; }
 private:
-	errut::bool_t onNewCalculationStart(size_t genomesForThisCalculator, size_t genomesForPopulationCalculator) override;
+	errut::bool_t onNewCalculationStart(size_t iteration, size_t genomesForThisCalculator, size_t genomesForPopulationCalculator) override;
 	errut::bool_t startNewCalculation(const eatk::Genome &genome0) override;
 	errut::bool_t pollCalculate(const eatk::Genome &genome0, eatk::Fitness &fitness0) override;
 

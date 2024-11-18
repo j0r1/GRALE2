@@ -37,7 +37,7 @@ public:
 										  std::string &errStr) const override;
 
 private:
-	errut::bool_t onNewCalculationStart(size_t genomesInThisThread, size_t genomesInAllThreads) override;
+	errut::bool_t onNewCalculationStart(size_t iteration, size_t genomesInThisThread, size_t genomesInAllThreads) override;
 	// These a the EATK functions that we'll override to allow an async calculation
 	errut::bool_t startNewCalculation(const eatk::Genome &genome) override;
 	errut::bool_t pollCalculate(const eatk::Genome &genome, eatk::Fitness &fitness) override;
