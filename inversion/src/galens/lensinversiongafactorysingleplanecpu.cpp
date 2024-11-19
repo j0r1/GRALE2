@@ -1,5 +1,4 @@
 /*
-#if 0
 
   This file is a part of GRALE, a library to facilitate the simulation
   and inversion of gravitational lenses.
@@ -30,6 +29,7 @@
 #include "masssheetlens.h"
 #include "lensfitnessobject.h"
 #include "imagesdata.h"
+#include "imagesdataextended.h"
 #include "configurationparameters.h"
 #include <assert.h>
 #include <iostream>
@@ -262,6 +262,46 @@ bool_t LensInversionGAFactorySinglePlaneCPU::localSubInit(double z_d, const vect
 
 	LensFitnessObject &fitnessObject = getFitnessObject();
 	fitnessObject.getTotalCalcFlags(totalDeflectionFlags, totalDerivativeFlags, totalPotentialFlags, totalSecondDerivFlags);
+
+	// For randomization tests
+	{
+		vector<bool> srcHaveUncert;
+		vector<vector<double>> srcImgUncerts;
+
+		assert(totalDerivativeFlags.size() == reducedImagesVector.size());
+		for (size_t s = 0 ; s < reducedImagesVector.size() ; s++)
+		{
+			const ImagesDataExtended &img = *reducedImagesVector[s];
+			vector<double> uncerts;
+
+			if (!img.hasProperty(ImagesData::PositionUncertainty))
+			{
+				srcHaveUncert.push_back(false);
+				srcImgUncerts.push_back(uncerts);
+				continue;
+			}
+			
+			int numImg = img.getNumberOfImages();
+			for (int i = 0 ; i < numImg ; i++)
+			{
+				int numPoints = img.getNumberOfImagePoints(i);
+				for (int p = 0 ; p < numPoints ; p++)
+					uncerts.push_back(img.getImagePointProperty(ImagesData::PositionUncertainty, i, p));
+			}
+
+			srcHaveUncert.push_back(true);
+			srcImgUncerts.push_back(uncerts);
+		}
+
+		for (size_t i = 0 ; i < srcHaveUncert.size() ; i++)
+		{
+			if (srcHaveUncert[i])
+			{
+				assert(i < totalDerivativeFlags.size());
+				totalDerivativeFlags[i] = true; // We need this to calculate small shifts in position, to map them to source plane
+			}
+		}
+	}
 	
 	m_pTotalBPMatrix = make_shared<BackProjectMatrix>();
 	if (!(r = m_pTotalBPMatrix->startInit(z_d, basisLenses[0].first->getLensDistance(), m_pDeflectionMatrix.get(),
@@ -298,6 +338,12 @@ bool_t LensInversionGAFactorySinglePlaneCPU::localSubInit(double z_d, const vect
 			return "Can't end short backprojection matrix initialization: " + m_pShortBPMatrix->getErrorString();
 	}
 
+	return true;
+}
+
+bool_t LensInversionGAFactorySinglePlaneCPU::onNewCalculationStart(size_t iteration, size_t genomesForThisCalculator, size_t genomesForPopulationCalculator)
+{
+	cerr << "onNewCalculationStart " << iteration << endl;
 	return true;
 }
 

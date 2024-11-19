@@ -89,7 +89,10 @@ void LensInversionParametersSinglePlaneCPU::commonConstructor(
 			const GravitationalLens *pBaseLens,
 			const GravitationalLens *pSheetLens,
 			const ConfigurationParameters *pFitnessObjectParams,
-			const ScaleSearchParameters &massScaleSearchParams)
+			const ScaleSearchParameters &massScaleSearchParams,
+			bool randomizeImagePositions,
+			uint64_t initialUncertSeed
+			)
 {
 	zero();
 
@@ -113,6 +116,8 @@ void LensInversionParametersSinglePlaneCPU::commonConstructor(
 		m_pParams = make_shared<ConfigurationParameters>(*pFitnessObjectParams);
 
 	m_scaleSearchParams = massScaleSearchParams;
+	m_randomizeImagePositions = randomizeImagePositions;
+	m_initialUncertSeed = initialUncertSeed;
 }
 
 LensInversionParametersSinglePlaneCPU::LensInversionParametersSinglePlaneCPU(
@@ -125,10 +130,14 @@ LensInversionParametersSinglePlaneCPU::LensInversionParametersSinglePlaneCPU(
 			const GravitationalLens *pBaseLens,
 			const GravitationalLens *pSheetLens,
 			const ConfigurationParameters *pFitnessObjectParams,
-			const ScaleSearchParameters &massScaleSearchParams)
+			const ScaleSearchParameters &massScaleSearchParams,
+			bool randomizeImagePositions,
+			uint64_t initialUncertSeed
+			)
 {
 	commonConstructor(images, D_d, z_d, massScale, allowNegativeValues, pBaseLens,
-			          pSheetLens, pFitnessObjectParams, massScaleSearchParams);
+			          pSheetLens, pFitnessObjectParams, massScaleSearchParams,
+					  randomizeImagePositions, initialUncertSeed);
 
 	m_basisLenses = basisLenses;
 	printBasisLenses();
@@ -143,10 +152,14 @@ LensInversionParametersSinglePlaneCPU::LensInversionParametersSinglePlaneCPU(
 		const GravitationalLens *pBaseLens,
 		const GravitationalLens *pSheetLens,
 		const ConfigurationParameters *pFitnessObjectParams,
-		const ScaleSearchParameters &massScaleSearchParams)
+		const ScaleSearchParameters &massScaleSearchParams,
+		bool randomizeImagePositions,
+		uint64_t initialUncertSeed
+		)
 {
 	commonConstructor(images, D_d, z_d, massScale, allowNegativeValues, pBaseLens,
-			          pSheetLens, pFitnessObjectParams, massScaleSearchParams);
+			          pSheetLens, pFitnessObjectParams, massScaleSearchParams,
+					  randomizeImagePositions, initialUncertSeed);
 
 	buildBasisLenses(gridsquares, b, useweights);
 	printBasisLenses();
@@ -270,6 +283,18 @@ bool LensInversionParametersSinglePlaneCPU::write(serut::SerializationInterface 
 		return false;
 	}
 
+	vector<int32_t> vals = { (m_randomizeImagePositions)?1:0,
+		                     (int32_t)((uint32_t)((m_initialUncertSeed >> 0) & 0xffffffff)),
+							 (int32_t)((uint32_t)((m_initialUncertSeed >> 32) & 0xffffffff)) };
+
+	if (!si.writeInt32s(vals))
+	{
+		setErrorString(si.getErrorString());
+		return false;
+	}
+
+	cerr << "JORI: wrote m_initialUncertSeed = " << m_initialUncertSeed << endl;
+
 	return true;
 }
 
@@ -294,6 +319,9 @@ void LensInversionParametersSinglePlaneCPU::zero()
 	m_pBaseLens.reset();
 	m_pSheetLens.reset();
 	m_pParams.reset();
+
+	m_randomizeImagePositions = false;
+	m_initialUncertSeed = 0;
 }
 
 bool LensInversionParametersSinglePlaneCPU::read(serut::SerializationInterface &si)
@@ -422,6 +450,17 @@ bool LensInversionParametersSinglePlaneCPU::read(serut::SerializationInterface &
 		setErrorString(m_scaleSearchParams.getErrorString());
 		return false;
 	}
+
+	vector<int32_t> vals(3);
+	if (!si.readInt32s(vals))
+	{
+		setErrorString(si.getErrorString());
+		return false;
+	}
+
+	m_randomizeImagePositions = (vals[0] == 0)?false:true;
+	m_initialUncertSeed = (((uint64_t)((uint32_t)vals[2])) << 32 ) | (((uint64_t)((uint32_t)vals[1])) << 0 );
+	cerr << "JORI: read m_initialUncertSeed = " << m_initialUncertSeed << endl;
 	return true;
 }
 
@@ -459,7 +498,8 @@ unique_ptr<LensInversionParametersSinglePlaneCPU> LensInversionParametersSingleP
 	return make_unique<LensInversionParametersSinglePlaneCPU>(imagesCopy, copiedBasisLenses,
 			                               m_Dd, m_zd, m_massScale, m_allowNegative,
 										   m_pBaseLens.get(), m_pSheetLens.get(), m_pParams.get(),
-										   m_scaleSearchParams);
+										   m_scaleSearchParams, m_randomizeImagePositions,
+										   m_initialUncertSeed);
 }
 
 void LensInversionParametersSinglePlaneCPU::buildBasisLenses(const vector<GridSquare> &squares,
@@ -581,6 +621,8 @@ void LensInversionParametersSinglePlaneCPU::copyFrom(const LensInversionParamete
 	m_pParams = src.m_pParams;
 	m_scaleSearchParams = src.m_scaleSearchParams;
 	m_basisLenses = src.m_basisLenses;
+	m_initialUncertSeed = src.m_initialUncertSeed;
+	m_randomizeImagePositions = src.m_randomizeImagePositions;
 }
 
 } // end namespace

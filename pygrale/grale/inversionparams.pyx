@@ -349,7 +349,9 @@ cdef class LensInversionParametersSinglePlaneCPU(object):
     #   or a list of basisfunction info [ { "lens": lens model, "mass": relevant lensing mass, "center": center }, ... ]
     def __init__(self, imageList, gridInfoOrBasisFunctions, Dd, zd, massScale,
                  allowNegativeValues = False, baseLens = None, sheetSearch = "nosheet",
-                 fitnessObjectParameters = None, massScaleSearchType = "regular"):
+                 fitnessObjectParameters = None, massScaleSearchType = "regular",
+                 randomizeImagePositions = False, initialUncertSeed = 0 
+                 ):
         """__init__(maxGen, imageList, gridInfoOrBasisFunctions, Dd, zd, massScale, allowNegativeValues = False, baseLens = None, sheetSearch = "nosheet", fitnessObjectParameters = None,  massScaleSearchType = "regular")
         
         Creates an instance containing the input for the lens inversion method.
@@ -437,6 +439,8 @@ cdef class LensInversionParametersSinglePlaneCPU(object):
         cdef configurationparameters.ConfigurationParameters *pFitnessObjectParameters = NULL
         cdef vector[lensinversionbasislensinfo.LensInversionBasisLensInfo] basisLensInfo
         cdef shared_ptr[scalesearchparameters.ScaleSearchParameters] scaleSearchParams
+        cdef cbool cRandImgPos = randomizeImagePositions
+        cdef uint64_t cInitUncertSeed = initialUncertSeed
 
         # TODO: use _createCxxLensFromPyLens
 
@@ -499,7 +503,8 @@ cdef class LensInversionParametersSinglePlaneCPU(object):
             self.m_pParams = unique_ptr[lensinversionparameterssingleplanecpu.LensInversionParametersSinglePlaneCPU](
                     new lensinversionparameterssingleplanecpu.LensInversionParametersSinglePlaneCPU(imgVector, gridSquares,
                                             Dd, zd, massScale, useWeights, basisFunctionType, allowNegativeValues,
-                                            pBaseLens.get(), sheetLensModel.get(), pFitnessObjectParameters, deref(scaleSearchParams.get())) )
+                                            pBaseLens.get(), sheetLensModel.get(), pFitnessObjectParameters, deref(scaleSearchParams.get()),
+                                            cRandImgPos, cInitUncertSeed))
 
         elif type(gridInfoOrBasisFunctions) == list:
 
@@ -519,7 +524,8 @@ cdef class LensInversionParametersSinglePlaneCPU(object):
             self.m_pParams = unique_ptr[lensinversionparameterssingleplanecpu.LensInversionParametersSinglePlaneCPU](
                     new lensinversionparameterssingleplanecpu.LensInversionParametersSinglePlaneCPU(imgVector, basisLensInfo,
                                             Dd, zd, massScale, allowNegativeValues, pBaseLens.get(), sheetLensModel.get(), 
-                                            pFitnessObjectParameters, deref(scaleSearchParams.get())) )
+                                            pFitnessObjectParameters, deref(scaleSearchParams.get()),
+                                            cRandImgPos, cInitUncertSeed))
         else:
             raise InversionParametersException("Unsupported type for gridInfoOrBasisFunctions parameter, should be dict or list")
 

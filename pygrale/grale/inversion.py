@@ -472,7 +472,9 @@ def invert(inputImages, basisFunctions, zd, Dd, popSize, moduleName = "general",
            allowNegativeValues = False, baseLens = None, 
            sheetSearch = "nosheet", fitnessObjectParameters = None, massScaleSearchType = "regular", convergenceParameters = { },
            geneticAlgorithmParameters = { }, returnNds = False, inverter = "default", feedbackObject = "default",
-           cosmology = None, maximumGenerations = None, multiPopulationParameters = None, eaType = "GA"):
+           cosmology = None, maximumGenerations = None, multiPopulationParameters = None, eaType = "GA",
+           useImagePositionRandomization = False,
+           ):
     """Start the genetic algorithm to look for a gravitational lens model that's
     compatible with the specified input images. This is a rather low-level function,
     it may be easier to use an instance of :class:`InversionWorkSpace` instead.
@@ -585,12 +587,29 @@ def invert(inputImages, basisFunctions, zd, Dd, popSize, moduleName = "general",
      - `multiPopulationParameters`: TODO
 
      - `eaType`: see :func:`getFullEASettings`.
+     
+     - `useImagePositionRandomization`: TODO
+
     """
+
+    # Check positional uncertainties
+    hasPositionUncert = False
+    if useImagePositionRandomization: # Check that we have something to randomize
+        for i in inputImages:
+            img = i["images"]
+            if "positionuncertainty" in img.getKnownPropertyNames():
+                hasPositionUncert = True
+                break
+        else:
+            raise InversionException("Input image position randomization requested, but no 'positionuncertainty' property information found")
+    
+    initialUncertSeed = 0 if not hasPositionUncert else random.getrandbits(64)
 
     def getParamsFunction(fullFitnessObjParams, massScale):
         return inversionparams.LensInversionParametersSinglePlaneCPU(inputImages, basisFunctions,
                                                          Dd, zd, massScale, allowNegativeValues, baseLens, 
-                                                         sheetSearch, fullFitnessObjParams, massScaleSearchType)
+                                                         sheetSearch, fullFitnessObjParams, massScaleSearchType,
+                                                         useImagePositionRandomization, initialUncertSeed)
 
     return _invertCommon(inverter, feedbackObject, moduleName, "singleplanecpu", fitnessObjectParameters,
                   massScale, [Dd, zd], inputImages, getParamsFunction, popSize,

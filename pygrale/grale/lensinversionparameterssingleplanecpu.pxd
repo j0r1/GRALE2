@@ -2,6 +2,7 @@ from libcpp.string cimport string
 from libcpp.vector cimport vector
 from libcpp.memory cimport shared_ptr
 from libcpp cimport bool
+from libc.stdint cimport uint64_t
 
 cimport grale.serut as serut
 cimport grale.errut as errut
@@ -36,7 +37,10 @@ cdef extern from "grale/lensinversionparameterssingleplanecpu.h" namespace "gral
                      const gravitationallens.GravitationalLens *pBaseLens,
                      const gravitationallens.GravitationalLens *pSheetLens,
                      const configurationparameters.ConfigurationParameters *pFitnessObjectParams,
-                     scalesearchparameters.ScaleSearchParameters &scaleSearchParams)
+                     scalesearchparameters.ScaleSearchParameters &scaleSearchParams,
+                     bool randomizeImagePosition,
+                     uint64_t initialUncertSeed
+                     )
 
         LensInversionParametersSinglePlaneCPU(
                      const vector[shared_ptr[imagesdataextended.ImagesDataExtended]] &images, 
@@ -50,7 +54,10 @@ cdef extern from "grale/lensinversionparameterssingleplanecpu.h" namespace "gral
                      const gravitationallens.GravitationalLens *pBaseLens,
                      const gravitationallens.GravitationalLens *pSheetLens,
                      const configurationparameters.ConfigurationParameters *pFitnessObjectParams,
-                     scalesearchparameters.ScaleSearchParameters &scaleSearchParams)
+                     scalesearchparameters.ScaleSearchParameters &scaleSearchParams,
+                     bool randomizeImagePosition,
+                     uint64_t initialUncertSeed
+                     )
 
         bool read(serut.SerializationInterface &si)
         bool write(serut.SerializationInterface &si)

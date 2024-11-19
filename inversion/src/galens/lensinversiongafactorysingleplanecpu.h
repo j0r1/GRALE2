@@ -59,6 +59,8 @@ public:
 	errut::bool_t calculateMassScaleFitness(float scaleFactor, float &fitness) override;
 	errut::bool_t calculateTotalFitness(float scaleFactor, float *pFitnessValues) override;
 private:
+	errut::bool_t onNewCalculationStart(size_t iteration, size_t genomesForThisCalculator, size_t genomesForPopulationCalculator) override;
+
 	void clear();
 	errut::bool_t localSubInit(double z_d, const std::vector<std::shared_ptr<ImagesDataExtended>> &images, 
 	                  const std::vector<std::pair<std::shared_ptr<GravitationalLens>, Vector2D<double> > > &basisLenses,

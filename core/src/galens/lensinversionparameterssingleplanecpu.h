@@ -57,6 +57,8 @@ public:
 	// be rescaled so that the total mass corresponds to the mass scale, and
 	// then a search is done for another scale factor that provides the best
 	// fitness value
+
+
 	LensInversionParametersSinglePlaneCPU(
 			const std::vector<std::shared_ptr<ImagesDataExtended>> &images,
 			const std::vector<LensInversionBasisLensInfo> &basisLenses,
@@ -67,7 +69,10 @@ public:
 			const GravitationalLens *pBaseLens = nullptr,
 			const GravitationalLens *pSheetLens = nullptr,
 			const ConfigurationParameters *pFitnessObjectParams = nullptr,
-			const ScaleSearchParameters &massScaleSearchParams = ScaleSearchParameters(false));
+			const ScaleSearchParameters &massScaleSearchParams = ScaleSearchParameters(false),
+			bool randomizeImagePositions = false,
+			uint64_t initialUncertSeed = 0
+			);
 
 	LensInversionParametersSinglePlaneCPU(
 					 const std::vector<std::shared_ptr<ImagesDataExtended>> &images, 
@@ -81,7 +86,9 @@ public:
 					 const GravitationalLens *pBaseLens = nullptr,
 					 const GravitationalLens *pSheetLens = nullptr,
 					 const ConfigurationParameters *pFitnessObjectParams = nullptr,
-					 const ScaleSearchParameters &massScaleSearchParams = ScaleSearchParameters(false)
+					 const ScaleSearchParameters &massScaleSearchParams = ScaleSearchParameters(false),
+					 bool randomizeImagePositions = false,
+					 uint64_t initialUncertSeed = 0
 					 );
 
 	LensInversionParametersSinglePlaneCPU(const LensInversionParametersSinglePlaneCPU &src)				{ copyFrom(src); }
@@ -118,7 +125,10 @@ private:
 			const GravitationalLens *pBaseLens,
 			const GravitationalLens *pSheetLens,
 			const ConfigurationParameters *pFitnessObjectParams,
-			const ScaleSearchParameters &massScaleSearchParams);
+			const ScaleSearchParameters &massScaleSearchParams,
+			bool randomizeImagePositions,
+			uint64_t initialUncertSeed
+			);
 
 	void buildBasisLenses(const std::vector<GridSquare> &squares, BasisFunctionType basisFunctionType, bool useMassWeights);
 	void zero();
@@ -132,8 +142,11 @@ private:
 	std::shared_ptr<GravitationalLens> m_pSheetLens;
 	std::shared_ptr<ConfigurationParameters> m_pParams;
 	ScaleSearchParameters m_scaleSearchParams;
+	bool m_randomizeImagePositions;
+	uint64_t m_initialUncertSeed;
 
 	std::vector<LensInversionBasisLensInfo> m_basisLenses;
+
 };
 	
 } // end namespace
