@@ -31,6 +31,7 @@
 #include "imagesdata.h"
 #include "imagesdataextended.h"
 #include "configurationparameters.h"
+#include "positionrandomizationbpwrapper.h"
 #include <assert.h>
 #include <iostream>
 #include <sstream>

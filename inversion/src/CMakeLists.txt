@@ -31,6 +31,7 @@ set(HEADERS
 	galens/eaevolverfunctions.h
 	galens/openclsingleplanedeflection.h
 	galens/lensgaparametricsingleplanecalculator.h
+	galens/positionrandomizationbpwrapper.h
 	prob/randomnumbergenerator.h
 	prob/xoshiro128plus.h
 	fitness/lensfitnessobject.h
