@@ -33,7 +33,7 @@ int main(void)
 	vector<Vector2Dd> offsetsDouble;
 
 	const double LargeSize = 40;
-	const double SmallSize = 0.05;
+	const double SmallSize = 0.1;
 
 	for (size_t s = 0 ; s < numSrcs ; s++)
 	{
@@ -78,7 +78,7 @@ int main(void)
 	cout << "Number of small offsets: " << offsetsDouble.size() << endl;
 	
 	shared_ptr<GravitationalLens> lens = make_shared<NSIELens>();
-	NSIELensParams params(800000, 0.75, 1*ANGLE_ARCSEC);
+	NSIELensParams params(1000000, 0.75, 1*ANGLE_ARCSEC);
 	if (!lens->init(1000*DIST_MPC, &params))
 		throw runtime_error("Can't init lens: " + lens->getErrorString());
 	double zd = 0.4;
@@ -135,7 +135,20 @@ int main(void)
 		return x;
 	};
 	
+	double maxAlpha = 0, maxBeta = 0, maxTheta = 0, maxPsi = 0;
 
+	auto checkMaxValue = [](auto &maxVar, auto value1, auto value2)
+	{
+		auto diff = std::abs(value1-value2);
+		if (diff > maxVar)
+			maxVar = diff;
+	};
+
+	auto checkMaxVector = [&checkMaxValue](auto &maxVar, auto value1, auto value2)
+	{
+		checkMaxValue(maxVar, value1.getX(), value2.getX());
+		checkMaxValue(maxVar, value1.getY(), value2.getY());
+	};
 
 	for (size_t s = 0 ; s < rndBp->getNumberOfSources() ; s++)
 	{
@@ -157,13 +170,26 @@ int main(void)
 				auto phi1 = getRescaledPhi(rndBp->getLensPotential(s, i)[p], rndBp);
 				auto phi2 = getRescaledPhi(bpWithOffsets->getLensPotential(s, i)[p], bpWithOffsets);
 
-				// cout << "alphaX " << alpha1.getX() << " " << alpha2.getX() << " " << std::abs(alpha1.getX() - alpha2.getX()) << endl;
-				// cout << "alphaY " << alpha1.getY() << " " << alpha2.getY() << " " << std::abs(alpha1.getY() - alpha2.getY()) << endl;
-				// cout << "betaX " << beta1.getX() << " " << beta2.getX() << " " << std::abs(beta1.getX() - beta2.getX()) << endl;
-				// cout << "betaY " << beta1.getY() << " " << beta2.getY() << " " << std::abs(beta1.getY() - beta2.getY()) << endl;
+				cout << "thetaX " << theta1.getX() << " " << theta2.getX() << " " << std::abs(theta1.getX() - theta2.getX()) << endl;
+				cout << "thetaY " << theta1.getY() << " " << theta2.getY() << " " << std::abs(theta1.getY() - theta2.getY()) << endl;
+				cout << "alphaX " << alpha1.getX() << " " << alpha2.getX() << " " << std::abs(alpha1.getX() - alpha2.getX()) << endl;
+				cout << "alphaY " << alpha1.getY() << " " << alpha2.getY() << " " << std::abs(alpha1.getY() - alpha2.getY()) << endl;
+				cout << "betaX " << beta1.getX() << " " << beta2.getX() << " " << std::abs(beta1.getX() - beta2.getX()) << endl;
+				cout << "betaY " << beta1.getY() << " " << beta2.getY() << " " << std::abs(beta1.getY() - beta2.getY()) << endl;
 				cout << "phi " << phi1 << " " << phi2 << " " << std::abs(phi1 - phi2) << endl;
+
+				checkMaxVector(maxTheta, theta1, theta2);
+				checkMaxVector(maxAlpha, alpha1, alpha2);
+				checkMaxVector(maxBeta, beta1, beta2);
+				checkMaxValue(maxPsi, phi1, phi2);
 			}
 		}
 	}
+
+	cout << endl;
+	cout << "maxTheta: " << maxTheta << endl;
+	cout << "maxAlpha: " << maxAlpha << endl;
+	cout << "maxBeta: " << maxBeta << endl;
+	cout << "maxPsi: " << maxPsi << endl;
 	return 0;
 }
