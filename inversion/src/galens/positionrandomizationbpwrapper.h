@@ -14,7 +14,8 @@ public:
 	PositionRandomizationBackprojectWrapper(const std::shared_ptr<ProjectedImagesInterface> &baseBackProjector) : m_baseBp(baseBackProjector) { }
 	~PositionRandomizationBackprojectWrapper() { }
 
-	// TODO: set differences for sets of images
+	errut::bool_t initRandomization(const std::vector<bool> srcHasRandomization, size_t &numRandomizablePoints);
+	errut::bool_t setRandomOffsets(const std::vector<Vector2Df> &offsets);
 
 	double getLensDistance() const override { return m_baseBp->getLensDistance(); }
 	double getLensRedshift() const override { return m_baseBp->getLensRedshift(); }
@@ -195,6 +196,104 @@ private:
 	mutable std::vector<std::vector<Vector2Df>> m_srcAdjustedBetas;
 	mutable std::vector<std::vector<float>> m_srcAdjustedPotentials;
 };
+
+inline errut::bool_t PositionRandomizationBackprojectWrapper::initRandomization(const std::vector<bool> srcHasRandomization, size_t &numRandomizablePoints)
+{
+	if (srcHasRandomization.size() != m_baseBp->getNumberOfSources())
+		return "Vector length (" + std::to_string(srcHasRandomization.size()) + ") is incompatible with number of sources (" + std::to_string(m_baseBp->getNumberOfSources()) + ")";
+
+	m_srcHaveUncerts = srcHasRandomization;
+	size_t numSources = srcHasRandomization.size();
+
+	auto clearEntries = [numSources](auto &vec)
+	{
+		vec.resize(numSources);
+		for (auto &x: vec)
+			x.clear();
+	};
+
+	clearEntries(m_srcImagePositionDifferences);
+	clearEntries(m_srcImageOffsets);
+	clearEntries(m_srcAdjustedThetas);
+	clearEntries(m_srcAdjustedAlphas);
+	clearEntries(m_srcAdjustedBetas);
+	clearEntries(m_srcAdjustedPotentials);
+
+	numRandomizablePoints = 0;
+	for (size_t s = 0 ; s < numSources ; s++)
+	{
+		if (!m_srcHaveUncerts[s])
+			continue;
+
+		size_t numPoints = m_baseBp->getNumberOfImagePoints(s);
+		m_srcImagePositionDifferences[s].resize(numPoints, {0.0f, 0.0f});
+		
+		float nan = std::numeric_limits<float>::quiet_NaN();
+		m_srcAdjustedThetas[s].resize(numPoints, {nan, nan});
+		m_srcAdjustedAlphas[s].resize(numPoints, {nan, nan});
+		m_srcAdjustedBetas[s].resize(numPoints, {nan, nan});
+		m_srcAdjustedPotentials[s].resize(numPoints, nan);
+
+		size_t numImgs = m_baseBp->getNumberOfImages(s);
+		size_t offset = 0;
+		assert(numImgs > 0);
+		const Vector2Df *pStart = m_baseBp->getThetas(s, 0);
+		for (size_t i = 0 ; i < numImgs ; i++)
+		{
+			const Vector2Df *pVec = m_baseBp->getThetas(s, i);
+			size_t points = pVec - pStart;
+			
+			m_srcImageOffsets[s].push_back(offset);
+			offset += points;
+		}
+
+		assert(offset == numPoints);
+		assert(m_srcImageOffsets[s].size() == numImgs);
+
+		numRandomizablePoints += numPoints;
+	}
+
+	return true;
+}
+
+inline errut::bool_t PositionRandomizationBackprojectWrapper::setRandomOffsets(const std::vector<Vector2Df> &offsets)
+{
+	// Fill in the data
+	size_t off = 0;
+	for (size_t s = 0 ; s < m_srcImagePositionDifferences.size() ; s++)
+	{
+		if (!m_srcHaveUncerts[s])
+		{
+			assert(m_srcImagePositionDifferences[s].size() == 0);
+			continue;
+		}
+
+		size_t numEntries = m_srcImagePositionDifferences[s].size();
+		if (off + numEntries > offsets.size())
+			return "Not enough random positions to fill in required data";
+
+		for (size_t i = 0 ; i < numEntries ; i++)
+			m_srcImagePositionDifferences[s][i] = offsets[off++];
+	}
+	if (off != offsets.size())
+		return "Not all provided offsets were used";
+
+	// Clear other data structures, so they'll be recalculated
+	auto clearEntries = [this](auto &vec)
+	{
+		assert(vec.size() == m_srcHaveUncerts.size());
+		for (auto &x: vec)
+			x.clear();
+	};
+
+	clearEntries(m_srcImagePositionDifferences);
+	clearEntries(m_srcImageOffsets);
+	clearEntries(m_srcAdjustedThetas);
+	clearEntries(m_srcAdjustedAlphas);
+	clearEntries(m_srcAdjustedBetas);
+	clearEntries(m_srcAdjustedPotentials);
+	return true;
+}
 
 inline const Vector2D<float> *PositionRandomizationBackprojectWrapper::getThetas(int sourcenum) const
 {
