@@ -184,6 +184,9 @@ private:
 		const float *pOrigPotentials = m_baseBp->getLensPotential(sourceNum);
 		const Vector2Df *pOrigAlphas = m_baseBp->getAlphas(sourceNum);
 		const Vector2Df *pDiffThetas = m_srcImagePositionDifferences[sourceNum].data();
+		const float *pAxx = m_baseBp->getDerivativesXX(sourceNum);
+		const float *pAyy = m_baseBp->getDerivativesYY(sourceNum);
+		const float *pAxy = m_baseBp->getDerivativesXY(sourceNum);
 
 		for (size_t i = 0 ; i < numPts ; i++)
 		{
@@ -191,8 +194,12 @@ private:
 			Vector2Df alpha = pOrigAlphas[i];
 			float dx = pDiffThetas[i].getX();
 			float dy = pDiffThetas[i].getY();
+			float axx = pAxx[i];
+			float ayy = pAyy[i];
+			float axy = pAxy[i];
 
-			float newPhi = phi + alpha.getX()*dx + alpha.getY()*dy;
+			float newPhi = phi + alpha.getX()*dx + alpha.getY()*dy
+			               + 0.5f*(axx*dx*dx + ayy*dy*dy + 2.0f*axy*dx*dy);
 			m_srcAdjustedPotentials[sourceNum].push_back(newPhi);
 		}
 	}

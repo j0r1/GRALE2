@@ -69,6 +69,7 @@ int main(void)
 
 					imgDatWithOff->addPoint(i, { xPos+xOff, yPos+yOff });
 					offsetsDouble.push_back({ xOff, yOff });
+					//offsetsDouble.push_back({ 0, 0 });
 				}
 			}
 		}
@@ -124,6 +125,18 @@ int main(void)
 		return x;
 	};
 
+	auto getRescaledPhi = [](auto v, auto &bp)
+	{
+		double scale = bp->getAngularScale();
+		scale *= scale;
+		double x = v;
+		x *= scale;
+		x /= ANGLE_ARCSEC*ANGLE_ARCSEC;
+		return x;
+	};
+	
+
+
 	for (size_t s = 0 ; s < rndBp->getNumberOfSources() ; s++)
 	{
 		if (haveRndOffsets[s])
@@ -139,9 +152,16 @@ int main(void)
 				auto theta2 = getRescaledVector(bpWithOffsets->getThetas(s, i)[p], bpWithOffsets);
 				auto alpha1 = getRescaledVector(rndBp->getAlphas(s, i)[p], rndBp);
 				auto alpha2 = getRescaledVector(bpWithOffsets->getAlphas(s, i)[p], bpWithOffsets);
+				auto beta1 = getRescaledVector(rndBp->getBetas(s, i)[p], rndBp);
+				auto beta2 = getRescaledVector(bpWithOffsets->getBetas(s, i)[p], bpWithOffsets);
+				auto phi1 = getRescaledPhi(rndBp->getLensPotential(s, i)[p], rndBp);
+				auto phi2 = getRescaledPhi(bpWithOffsets->getLensPotential(s, i)[p], bpWithOffsets);
 
-				cout << "alphaX " << alpha1.getX() << " " << alpha2.getX() << " " << std::abs(alpha1.getX() - alpha2.getX()) << endl;
-				cout << "alphaY " << alpha1.getY() << " " << alpha2.getY() << " " << std::abs(alpha1.getY() - alpha2.getY()) << endl;
+				// cout << "alphaX " << alpha1.getX() << " " << alpha2.getX() << " " << std::abs(alpha1.getX() - alpha2.getX()) << endl;
+				// cout << "alphaY " << alpha1.getY() << " " << alpha2.getY() << " " << std::abs(alpha1.getY() - alpha2.getY()) << endl;
+				// cout << "betaX " << beta1.getX() << " " << beta2.getX() << " " << std::abs(beta1.getX() - beta2.getX()) << endl;
+				// cout << "betaY " << beta1.getY() << " " << beta2.getY() << " " << std::abs(beta1.getY() - beta2.getY()) << endl;
+				cout << "phi " << phi1 << " " << phi2 << " " << std::abs(phi1 - phi2) << endl;
 			}
 		}
 	}
