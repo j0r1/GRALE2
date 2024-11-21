@@ -2,6 +2,7 @@
 
 #include "graleconfig.h"
 #include "projectedimagesinterface.h"
+#include <errut/booltype.h>
 #include <memory>
 #include <stdexcept>
 
@@ -16,6 +17,17 @@ public:
 
 	errut::bool_t initRandomization(const std::vector<bool> srcHasRandomization, size_t &numRandomizablePoints);
 	errut::bool_t setRandomOffsets(const std::vector<Vector2Df> &offsets);
+
+	int getNumberOfSources() const override { return m_baseBp->getNumberOfSources(); }
+	int getNumberOfImages(int sourceNumber) const override { return m_baseBp->getNumberOfImages(sourceNumber); }
+	int getNumberOfImagePoints(int sourceNumber) const override { return m_baseBp->getNumberOfImagePoints(sourceNumber); }
+	int getNumberOfImagePoints(int sourceNumber, int imageNumber) const override { return m_baseBp->getNumberOfImagePoints(sourceNumber, imageNumber); }
+	bool hasOriginalProperty(ImagesData::PropertyName n, int sourceNumber) const override { return m_baseBp->hasOriginalProperty(n, sourceNumber); }
+	const float *getOriginalProperties(ImagesData::PropertyName n, int sourceNumber) const override { return m_baseBp->getOriginalProperties(n, sourceNumber); }
+	const float *getOriginalProperties(ImagesData::PropertyName n, int sourceNumber, int imageNumber) const override { return m_baseBp->getOriginalProperties(n, sourceNumber, imageNumber); }
+	int getOriginalNumberOfTimeDelays(int sourceNumber) const override { return m_baseBp->getOriginalNumberOfTimeDelays(sourceNumber); }
+	void getOriginalTimeDelay(int sourceNumber, int index, int *pImg, int *pPoint, float *pDelay) const override { return m_baseBp->getOriginalTimeDelay(sourceNumber, index, pImg, pPoint, pDelay); }
+	float getDistanceFraction(int sourcenum) const override { return m_baseBp->getDistanceFraction(sourcenum); }
 
 	double getLensDistance() const override { return m_baseBp->getLensDistance(); }
 	double getLensRedshift() const override { return m_baseBp->getLensRedshift(); }
@@ -235,19 +247,19 @@ inline errut::bool_t PositionRandomizationBackprojectWrapper::initRandomization(
 		m_srcAdjustedPotentials[s].resize(numPoints, nan);
 
 		size_t numImgs = m_baseBp->getNumberOfImages(s);
-		size_t offset = 0;
 		assert(numImgs > 0);
 		const Vector2Df *pStart = m_baseBp->getThetas(s, 0);
 		for (size_t i = 0 ; i < numImgs ; i++)
 		{
 			const Vector2Df *pVec = m_baseBp->getThetas(s, i);
-			size_t points = pVec - pStart;
-			
+			size_t offset = pVec - pStart;
+
 			m_srcImageOffsets[s].push_back(offset);
-			offset += points;
+
+			if (i == numImgs-1)
+				assert(offset + m_baseBp->getNumberOfImagePoints(s, i) == numPoints);
 		}
 
-		assert(offset == numPoints);
 		assert(m_srcImageOffsets[s].size() == numImgs);
 
 		numRandomizablePoints += numPoints;
@@ -286,8 +298,6 @@ inline errut::bool_t PositionRandomizationBackprojectWrapper::setRandomOffsets(c
 			x.clear();
 	};
 
-	clearEntries(m_srcImagePositionDifferences);
-	clearEntries(m_srcImageOffsets);
 	clearEntries(m_srcAdjustedThetas);
 	clearEntries(m_srcAdjustedAlphas);
 	clearEntries(m_srcAdjustedBetas);

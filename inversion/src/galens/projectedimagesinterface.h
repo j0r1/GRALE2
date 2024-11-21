@@ -77,30 +77,34 @@ public:
 	/** Returns the number of sources for which data is stored ('source' is
 	 *  here just an entry in the images data list, so it could also indicate
 	 *  the null space data for a particular object) */
-	int getNumberOfSources() const;
+	virtual int getNumberOfSources() const;
 
 	/** Returns the number of images stored for a specific source. */
-	int getNumberOfImages(int sourceNumber) const;
+	virtual int getNumberOfImages(int sourceNumber) const;
 	
 	/** Returns the total number of points of all images corresponding to a source index. */
-	int getNumberOfImagePoints(int sourceNumber) const;
+	virtual int getNumberOfImagePoints(int sourceNumber) const;
 
 	/** Returns the number of points stored for a particular image of a particular source. */
-	int getNumberOfImagePoints(int sourceNumber, int imageNumber) const;
+	virtual int getNumberOfImagePoints(int sourceNumber, int imageNumber) const;
 
-	bool hasOriginalProperty(ImagesData::PropertyName n, int sourceNumber) const;
-	const float *getOriginalProperties(ImagesData::PropertyName n, int sourceNumber) const;
-	const float *getOriginalProperties(ImagesData::PropertyName n, int sourceNumber, int imageNumber) const;
+	virtual bool hasOriginalProperty(ImagesData::PropertyName n, int sourceNumber) const;
+	virtual const float *getOriginalProperties(ImagesData::PropertyName n, int sourceNumber) const;
+	virtual const float *getOriginalProperties(ImagesData::PropertyName n, int sourceNumber, int imageNumber) const;
 
 	/** Returns the number of time delays that were stored for a specific source index. */
-	int getOriginalNumberOfTimeDelays(int sourceNumber) const;
+	virtual int getOriginalNumberOfTimeDelays(int sourceNumber) const;
 
 	/** For a specific source and specific index (from 0 to getOriginalNumberOfTimeDelays - 1),
 	 *  the image index for a time delay value will be stored in \c pImg, the point index in \c pPoint
 	 *  and the actual measured time delay in \c pDelay. */
-	void getOriginalTimeDelay(int sourceNumber, int index, int *pImg, int *pPoint, float *pDelay) const;
+	virtual void getOriginalTimeDelay(int sourceNumber, int index, int *pImg, int *pPoint, float *pDelay) const;
 
-	float getDistanceFraction(int sourcenum) const { return m_distanceFractions[sourcenum]; }
+	virtual float getDistanceFraction(int sourcenum) const { return m_distanceFractions[sourcenum]; }
+
+
+
+
 
 	/** Returns the distance to the lens. */
 	virtual double getLensDistance() const = 0;

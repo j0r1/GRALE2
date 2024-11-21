@@ -76,3 +76,6 @@ target_link_libraries(mppopcalc graleinv-static gralecore-static ${GRALE_LINK_LI
 add_executable(rngasserttest rngasserttest.cpp)
 target_link_libraries(rngasserttest graleinv-static gralecore-static ${GRALE_LINK_LIBS})
 
+add_executable(pointoffsettest pointoffsettest.cpp)
+target_link_libraries(pointoffsettest graleinv-static gralecore-static ${GRALE_LINK_LIBS})
+
