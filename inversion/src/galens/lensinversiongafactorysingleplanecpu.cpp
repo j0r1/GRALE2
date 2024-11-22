@@ -32,6 +32,7 @@
 #include "imagesdataextended.h"
 #include "configurationparameters.h"
 #include "positionrandomizationbpwrapper.h"
+#include "xoshiro128plus.h"
 #include <assert.h>
 #include <iostream>
 #include <sstream>
@@ -157,6 +158,8 @@ bool_t LensInversionGAFactorySinglePlaneCPU::init(const LensInversionParametersB
 		return r;
 	}
 
+	m_prevIteration = numeric_limits<size_t>::max();
+
 	return true;
 }
 
@@ -243,6 +246,33 @@ void GridLensInversionGAFactoryBase::onSortedPopulation(const std::vector<mogal:
 
 #endif // SHOWEVOLUTION
 
+void getUncertaintyInfo(const vector<ImagesDataExtended*> reducedImagesVector,
+					    vector<bool> &srcHaveUncert, vector<double> &allUncerts)
+// For randomization tests
+{
+	for (size_t s = 0 ; s < reducedImagesVector.size() ; s++)
+	{
+		const ImagesDataExtended &img = *reducedImagesVector[s];
+
+		if (!img.hasProperty(ImagesData::PositionUncertainty))
+		{
+			srcHaveUncert.push_back(false);
+			continue;
+		}
+
+		int numImg = img.getNumberOfImages();
+		for (int i = 0 ; i < numImg ; i++)
+		{
+			int numPoints = img.getNumberOfImagePoints(i);
+			for (int p = 0 ; p < numPoints ; p++)
+				allUncerts.push_back(img.getImagePointProperty(ImagesData::PositionUncertainty, i, p));
+		}
+
+		srcHaveUncert.push_back(true);
+	}
+}
+
+
 bool_t LensInversionGAFactorySinglePlaneCPU::localSubInit(double z_d, const vector<shared_ptr<ImagesDataExtended>> &images, 
 	                  const vector<pair<shared_ptr<GravitationalLens>, Vector2D<double> > > &basisLenses,
                       const GravitationalLens *pBaseLens, const GravitationalLens *pSheetLens, 
@@ -264,44 +294,38 @@ bool_t LensInversionGAFactorySinglePlaneCPU::localSubInit(double z_d, const vect
 	LensFitnessObject &fitnessObject = getFitnessObject();
 	fitnessObject.getTotalCalcFlags(totalDeflectionFlags, totalDerivativeFlags, totalPotentialFlags, totalSecondDerivFlags);
 
-	// For randomization tests
+	vector<bool> srcHaveUncert;
+	vector<double> allUncerts;
+
+	if (m_pCurrentParams->getRandomizeInputPositions())
 	{
-		vector<bool> srcHaveUncert;
-		vector<vector<double>> srcImgUncerts;
+		getUncertaintyInfo(reducedImagesVector, srcHaveUncert, allUncerts);
 
+		// Make sure we have the information for the necessary calculations
 		assert(totalDerivativeFlags.size() == reducedImagesVector.size());
-		for (size_t s = 0 ; s < reducedImagesVector.size() ; s++)
-		{
-			const ImagesDataExtended &img = *reducedImagesVector[s];
-			vector<double> uncerts;
-
-			if (!img.hasProperty(ImagesData::PositionUncertainty))
-			{
-				srcHaveUncert.push_back(false);
-				srcImgUncerts.push_back(uncerts);
-				continue;
-			}
-			
-			int numImg = img.getNumberOfImages();
-			for (int i = 0 ; i < numImg ; i++)
-			{
-				int numPoints = img.getNumberOfImagePoints(i);
-				for (int p = 0 ; p < numPoints ; p++)
-					uncerts.push_back(img.getImagePointProperty(ImagesData::PositionUncertainty, i, p));
-			}
-
-			srcHaveUncert.push_back(true);
-			srcImgUncerts.push_back(uncerts);
-		}
-
+		assert(totalDeflectionFlags.size() == reducedImagesVector.size());
 		for (size_t i = 0 ; i < srcHaveUncert.size() ; i++)
 		{
 			if (srcHaveUncert[i])
 			{
-				assert(i < totalDerivativeFlags.size());
+				assert(i < totalDerivativeFlags.size() && i < totalDeflectionFlags.size());
+				totalDeflectionFlags[i] = true; // We may need this for adjustments to the lens potential
 				totalDerivativeFlags[i] = true; // We need this to calculate small shifts in position, to map them to source plane
 			}
 		}
+
+		if (m_pCurrentParams->getInitialPositionUncertaintySeed() == 0)
+			return "If random offsets of input positions is requested, the initial seed may not be 0";
+
+		// Init the rng for the offsets
+		for (size_t i = 0 ; i < 4 ; i++)
+			m_rndRngState[i] = (uint32_t)(m_pCurrentParams->getInitialPositionUncertaintySeed() >> (i*16));
+		xoshiro128plus::next_uint(m_rndRngState);
+	}
+	else
+	{
+		if (m_pCurrentParams->getInitialPositionUncertaintySeed() != 0)
+			return "If random offsets of input positions is disabled, the initial seed must be 0";
 	}
 	
 	m_pTotalBPMatrix = make_shared<BackProjectMatrix>();
@@ -339,12 +363,46 @@ bool_t LensInversionGAFactorySinglePlaneCPU::localSubInit(double z_d, const vect
 			return "Can't end short backprojection matrix initialization: " + m_pShortBPMatrix->getErrorString();
 	}
 
+	// TODO: should we ignore the small randomizations for the shortbpmatrix?
+	//       since that's just use to get a scale, this might make sense
+
+	if (m_pCurrentParams->getRandomizeInputPositions())
+	{
+		m_rndBpWrapper = make_shared<PositionRandomizationBackprojectWrapper>(m_pTotalBPMatrix);
+		size_t numRndPoints = 0;
+		if (!(r = m_rndBpWrapper->initRandomization(srcHaveUncert, numRndPoints)))
+			return "Can't init randomization wrapper: " + r.getErrorString();
+
+		m_rndSigmas.clear();
+		for (auto x : allUncerts) // convert to floats
+			m_rndSigmas.push_back((float)(x/m_pTotalBPMatrix->getAngularScale()));
+	}
+
 	return true;
 }
 
 bool_t LensInversionGAFactorySinglePlaneCPU::onNewCalculationStart(size_t iteration, size_t genomesForThisCalculator, size_t genomesForPopulationCalculator)
 {
-	cerr << "onNewCalculationStart " << iteration << endl;
+	if (iteration == m_prevIteration) // Don't think this actually happens
+		return true;
+
+	m_prevIteration = iteration;
+	if (m_rndBpWrapper.get()) // We have a wrapper for randomized input positions, adjust this
+	{
+		m_rndOffsets.clear(); // calculate these based on the sigmas
+		for (auto s : m_rndSigmas)
+		{
+			Vector2Df dTheta = xoshiro128plus::next_gaussians(m_rndRngState);
+			dTheta *= s;
+			m_rndOffsets.push_back(dTheta);
+		}
+
+		bool_t r;
+		if (!(r = m_rndBpWrapper->setRandomOffsets(m_rndOffsets)))
+			return "Can't set input position offsets: " + r.getErrorString();
+
+		//cerr << "Set " << m_rndOffsets.size() << " new offsets" << endl;
+	}
 	return true;
 }
 
@@ -356,7 +414,7 @@ bool_t LensInversionGAFactorySinglePlaneCPU::initializeNewCalculation(const vect
 		m_sheetScale = sheetValues[0];
 	else
 		return "Unexpected: got more (" + to_string(sheetValues.size()) + ") mass sheet contributions than expected";
-	
+
 	m_pDeflectionMatrix->calculateBasisMatrixProducts(basisFunctionWeights, true, true, true, true);
 	m_pTotalBPMatrix->storeDeflectionMatrixResults();
 	m_pShortBPMatrix->storeDeflectionMatrixResults();
@@ -411,7 +469,17 @@ bool_t LensInversionGAFactorySinglePlaneCPU::calculateTotalFitness(float scaleFa
 	dumpBp(*m_pTotalBPMatrix);
 	*/
 
-	if (!fitnessFunction.calculateOverallFitness(*m_pTotalBPMatrix, pFitnessValues))
+	ProjectedImagesInterface *pIface = nullptr;
+	if (m_rndBpWrapper.get())
+	{
+		pIface = m_rndBpWrapper.get();
+		m_rndBpWrapper->clearCachedValues();
+		// cerr << "Cleared cached values for new calculation" << endl;
+	}
+	else
+		pIface = m_pTotalBPMatrix.get();
+
+	if (!fitnessFunction.calculateOverallFitness(*pIface, pFitnessValues))
 		return "Unable to calculate full fitness: " + fitnessFunction.getErrorString();
 
 	return true;

@@ -105,7 +105,9 @@ public:
 	const GravitationalLens *getSheetLens() const									{ return m_pSheetLens.get(); }
 	const ConfigurationParameters *getFitnessObjectParameters() const				{ return m_pParams.get(); }
 	const ScaleSearchParameters &getMassScaleSearchParameters() const				{ return m_scaleSearchParams; }
-	
+	bool getRandomizeInputPositions() const											{ return m_randomizeImagePositions; }
+	uint64_t getInitialPositionUncertaintySeed() const								{ return m_initialUncertSeed; }
+
 	bool write(serut::SerializationInterface &si) const override;
 	bool read(serut::SerializationInterface &si) override;
 

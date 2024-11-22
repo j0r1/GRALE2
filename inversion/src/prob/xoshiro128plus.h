@@ -1,6 +1,7 @@
 #pragma once
 
 #include "graleconfig.h"
+#include "constants.h"
 #include <stdint.h>
 
 // Code based on https://prng.di.unimi.it/xoshiro128plus.c , with the following copyright
@@ -62,6 +63,23 @@ inline uint32_t next_uint(uint32_t s[4])
 	s[3] = rotl(s[3], 11);
 
 	return result;
+}
+
+inline float next_float(uint32_t s[4])
+{
+	uint32_t x = next_uint(s);
+	return (float)x * (1.0f / 4294967296.0f);
+}
+
+inline Vector2Df next_gaussians(uint32_t s[4])
+{
+	float u1 = next_float(s);
+	float u2 = next_float(s);
+	float R = std::sqrt(-2.0f*std::log(u1));
+	float theta = 2.0f*((float)CONST_PI)*u2;
+	float z1 = R*std::cos(theta);
+	float z2 = R*std::sin(theta);
+	return Vector2Df(z1, z2);
 }
 
 constexpr uint32_t JUMP[4] = { 0x8764000b, 0xf542d2d3, 0x6fa035c3, 0x77f2db5b };

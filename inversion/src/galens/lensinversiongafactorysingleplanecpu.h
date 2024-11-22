@@ -31,6 +31,7 @@
 #include "backprojectmatrix.h"
 #include "vector2d.h"
 #include "lensinversionparameterssingleplanecpu.h"
+#include "positionrandomizationbpwrapper.h"
 #include <vector>
 #include <memory>
 
@@ -74,6 +75,11 @@ private:
 
 	std::unique_ptr<DeflectionMatrix> m_pDeflectionMatrix;
 	std::shared_ptr<BackProjectMatrix> m_pShortBPMatrix, m_pTotalBPMatrix;
+	std::shared_ptr<PositionRandomizationBackprojectWrapper> m_rndBpWrapper;
+	std::vector<float> m_rndSigmas;
+	std::vector<Vector2Df> m_rndOffsets;
+	uint32_t m_rndRngState[4];
+	size_t m_prevIteration;
 
 	float m_sheetScale; // Stored when initializeNewCalculation is called
 };

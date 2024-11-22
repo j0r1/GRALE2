@@ -17,6 +17,7 @@ public:
 
 	errut::bool_t initRandomization(const std::vector<bool> srcHasRandomization, size_t &numRandomizablePoints);
 	errut::bool_t setRandomOffsets(const std::vector<Vector2Df> &offsets);
+	void clearCachedValues();
 
 	int getNumberOfSources() const override { return m_baseBp->getNumberOfSources(); }
 	int getNumberOfImages(int sourceNumber) const override { return m_baseBp->getNumberOfImages(sourceNumber); }
@@ -297,18 +298,7 @@ inline errut::bool_t PositionRandomizationBackprojectWrapper::setRandomOffsets(c
 	if (off != offsets.size())
 		return "Not all provided offsets were used";
 
-	// Clear other data structures, so they'll be recalculated
-	auto clearEntries = [this](auto &vec)
-	{
-		assert(vec.size() == m_srcHaveUncerts.size());
-		for (auto &x: vec)
-			x.clear();
-	};
-
-	clearEntries(m_srcAdjustedThetas);
-	clearEntries(m_srcAdjustedAlphas);
-	clearEntries(m_srcAdjustedBetas);
-	clearEntries(m_srcAdjustedPotentials);
+	clearCachedValues();
 	return true;
 }
 
@@ -414,6 +404,21 @@ inline const float *PositionRandomizationBackprojectWrapper::getLensPotential(in
 	}
 	else
 		return m_baseBp->getLensPotential(sourcenum, imagenum);
+}
+
+inline void PositionRandomizationBackprojectWrapper::clearCachedValues()
+{
+	auto clearEntries = [this](auto &vec)
+	{
+		assert(vec.size() == m_srcHaveUncerts.size());
+		for (auto &x: vec)
+			x.clear();
+	};
+
+	clearEntries(m_srcAdjustedThetas);
+	clearEntries(m_srcAdjustedAlphas);
+	clearEntries(m_srcAdjustedBetas);
+	clearEntries(m_srcAdjustedPotentials);
 }
 
 } // end namespace
