@@ -293,8 +293,6 @@ bool LensInversionParametersSinglePlaneCPU::write(serut::SerializationInterface 
 		return false;
 	}
 
-	cerr << "JORI: wrote m_initialUncertSeed = " << m_initialUncertSeed << endl;
-
 	return true;
 }
 
@@ -460,7 +458,6 @@ bool LensInversionParametersSinglePlaneCPU::read(serut::SerializationInterface &
 
 	m_randomizeImagePositions = (vals[0] == 0)?false:true;
 	m_initialUncertSeed = (((uint64_t)((uint32_t)vals[2])) << 32 ) | (((uint64_t)((uint32_t)vals[1])) << 0 );
-	cerr << "JORI: read m_initialUncertSeed = " << m_initialUncertSeed << endl;
 	return true;
 }
 

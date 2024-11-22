@@ -272,7 +272,6 @@ void getUncertaintyInfo(const vector<ImagesDataExtended*> reducedImagesVector,
 	}
 }
 
-
 bool_t LensInversionGAFactorySinglePlaneCPU::localSubInit(double z_d, const vector<shared_ptr<ImagesDataExtended>> &images, 
 	                  const vector<pair<shared_ptr<GravitationalLens>, Vector2D<double> > > &basisLenses,
                       const GravitationalLens *pBaseLens, const GravitationalLens *pSheetLens, 
@@ -300,6 +299,12 @@ bool_t LensInversionGAFactorySinglePlaneCPU::localSubInit(double z_d, const vect
 	if (m_pCurrentParams->getRandomizeInputPositions())
 	{
 		getUncertaintyInfo(reducedImagesVector, srcHaveUncert, allUncerts);
+		bool anyHaveUncert = false;
+		for (auto x : srcHaveUncert)
+			anyHaveUncert |= x;
+		
+		if (!anyHaveUncert)
+			return "Randomization of input positions requested, but no position uncertainties were specified";
 
 		// Make sure we have the information for the necessary calculations
 		assert(totalDerivativeFlags.size() == reducedImagesVector.size());
@@ -314,18 +319,23 @@ bool_t LensInversionGAFactorySinglePlaneCPU::localSubInit(double z_d, const vect
 			}
 		}
 
-		if (m_pCurrentParams->getInitialPositionUncertaintySeed() == 0)
+		uint64_t posUncertSeed = m_pCurrentParams->getInitialPositionUncertaintySeed();
+		if (posUncertSeed == 0)
 			return "If random offsets of input positions is requested, the initial seed may not be 0";
+
+		cerr << "INFO: enabling EXPERIMENTAL positional uncertainty with seed " << posUncertSeed << endl;
 
 		// Init the rng for the offsets
 		for (size_t i = 0 ; i < 4 ; i++)
-			m_rndRngState[i] = (uint32_t)(m_pCurrentParams->getInitialPositionUncertaintySeed() >> (i*16));
-		xoshiro128plus::next_uint(m_rndRngState);
+			m_rndRngState[i] = (uint32_t)(posUncertSeed >> (i*16));
+		xoshiro128plus::jump(m_rndRngState);
 	}
 	else
 	{
 		if (m_pCurrentParams->getInitialPositionUncertaintySeed() != 0)
 			return "If random offsets of input positions is disabled, the initial seed must be 0";
+
+		cerr << "INFO: NOT enabling EXPERIMENTAL positional uncertainties" << endl;
 	}
 	
 	m_pTotalBPMatrix = make_shared<BackProjectMatrix>();
