@@ -1027,7 +1027,7 @@ cdef class LensInversionParametersParametricSinglePlane(object):
     def __init__(self, inputImages, Dd, zd,
                   templateLens, deflScale, potScale, offsets, initMin, initMax, hardMin, hardMax,
                   infOnBoundsViolation,
-                  fitnessObjectParameters, uploadFullParameters, deviceIndex = "rotate",
+                  fitnessObjectParameters, deviceIndex = "rotate",
                   randomizeImagePositions = False, initialUncertSeed = 0):
 
         cdef vector[shared_ptr[imagesdataextended.ImagesDataExtended]] imgVector = _createImageVectorFromSinglePlaneImageList(inputImages)
@@ -1043,7 +1043,6 @@ cdef class LensInversionParametersParametricSinglePlane(object):
         cdef vector[float] cHardMax = _createFloatVectorFromList(hardMax)
         cdef configurationparameters.ConfigurationParameters *pFitnessObjectParameters = NULL
         cdef int devIdx
-        cdef cbool cUploadFullParams = uploadFullParameters
         cdef cbool cInfOnBoundsViolation = infOnBoundsViolation
         cdef cbool cRandomizeInputPos = randomizeImagePositions
         cdef uint64_t cInitialUncertSeed = initialUncertSeed
@@ -1065,7 +1064,7 @@ cdef class LensInversionParametersParametricSinglePlane(object):
             new lensinversionparametersparametricsingleplane.LensInversionParametersParametricSinglePlane(
                 imgVector, cDd, cZd, deref(cTemplateLens), cDeflScale, cPotScale,
                 cOffsets, cInitMin, cInitMax, cHardMin, cHardMax, cInfOnBoundsViolation, deref(pFitnessObjectParameters),
-                cUploadFullParams, devIdx, cRandomizeInputPos, cInitialUncertSeed
+                devIdx, cRandomizeInputPos, cInitialUncertSeed
             )
         )
 

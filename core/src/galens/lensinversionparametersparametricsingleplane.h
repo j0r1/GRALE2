@@ -25,7 +25,7 @@ public:
 		const std::vector<float> &hardMin, const std::vector<float> &hardMax,
 		bool infOnBoundsViolation,
 		const ConfigurationParameters &fitnessObjectParams,
-		bool uploadFullParameters, int devIdx,
+		int devIdx,
 		bool randomizeImagePositions,
 		uint64_t initialUncertSeed
 		);
@@ -44,7 +44,6 @@ public:
 	const std::vector<float> &getHardMax() const { return m_hardMax; }
 	bool infinityOnBoundsViolation() const { return m_infOnBoundsViolation; }
 	const ConfigurationParameters &getFitnessObjectParameters() const { assert(m_fitObjParams.get()); return *m_fitObjParams; }
-	bool alwaysUploadFullParameters() const { return m_uploadFillParams; }
 	int getDeviceIndex() const { return m_devIdx; }
 	bool getRandomizeInputPositions() const { return m_randomizeInputPosition; }
 	uint64_t getInitialPositionUncertaintySeed() const { return m_initialUncertSeed; }
@@ -60,7 +59,6 @@ private:
 	std::vector<float> m_hardMin, m_hardMax, m_initMin, m_initMax;
 	std::unique_ptr<ConfigurationParameters> m_fitObjParams;
 	bool m_infOnBoundsViolation = false;
-	bool m_uploadFillParams = true;
 	int m_devIdx = -1;
 	bool m_randomizeInputPosition = false;
 	uint64_t m_initialUncertSeed = 0;

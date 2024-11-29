@@ -28,7 +28,6 @@ bool_t OpenCLSinglePlaneDeflection::init(const std::vector<Vector2Df> &thetas, /
 					   const std::vector<float> &templateFloatParameters, // only floating point params can change
 					   const std::vector<size_t> changeableParameterIndices,
 					   const std::string &deflectionKernelCode, const std::string &lensRoutineName,
-                       bool uploadFullParameters,
                        int devIdx,
 					   uint64_t initialUncertSeed
 					   )
@@ -208,8 +207,7 @@ __kernel void calculateDeflectionAngles(int numPoints, int numParamSets, int num
         return cleanup(cl->getErrorString());
     }
 
-    // Upload full parameters, or only the changed ones (we'll need an extra kernel)
-    if (!uploadFullParameters)
+    // Upload only the changed parameters (we'll need an extra kernel)
     {
         vector<cl_int> clChangeableParams;
         for (auto x : changeableParameterIndices)
@@ -297,7 +295,6 @@ __kernel void randomizeImagePlanePositions(int numPoints,
 
     // Ok
 
-    m_uploadFullParameters = uploadFullParameters;
     m_floatParamsCopy = clFloatParams;
     m_numPoints = thetas.size();
     m_numFloatParams = templateFloatParameters.size();
@@ -376,40 +373,15 @@ bool_t OpenCLSinglePlaneDeflection::calculateDeflection(const std::vector<float>
         if (!(r = m_clAllResults.realloc(*m_cl, ctx, sizeof(cl_float)*m_allResultsBuffer.size())))
             return "Can't allocate results buffer: " + r.getErrorString();
 
-        if (!m_uploadFullParameters)
-        {
-            if (!(r = m_clChangedParamsBuffer.realloc(*m_cl, ctx, sizeof(cl_float)*(numParamSets*changeableSize + 1))))
-                return "Can't allocate changed parameters buffer: " + r.getErrorString();
-        }
+        if (!(r = m_clChangedParamsBuffer.realloc(*m_cl, ctx, sizeof(cl_float)*(numParamSets*changeableSize + 1))))
+            return "Can't allocate changed parameters buffer: " + r.getErrorString();
     }
     m_currentNumParamSets = numParamSets;
     
     cl_int clNumParamSets = (cl_int)numParamSets;
     cl_int clNumFloatParams = (cl_int)m_numFloatParams;
 
-    if (m_uploadFullParameters)
-    {
-        // Fill in the new parameters in the total parameters on the CPU, and upload this
-        if (parameters.size() > 0)
-        {
-            for (size_t i = 0 ; i < numParamSets ; i++)
-            {
-                float *pFloatParams = m_allFloatParams.data() + m_numFloatParams*i;
-                const float *pParamSet = parameters.data() + i*changeableSize;
-                for (size_t j = 0 ; j < changeableSize ; j++)
-                {
-                    size_t destIdx = m_changeableParameterIndices[j];
-                    assert(destIdx < m_numFloatParams);
-
-                    pFloatParams[destIdx] = pParamSet[j];
-                }
-            }
-        }
-        // Upload this to the GPU
-        if (!(r = m_clFloatParams.enqueueWriteBuffer(*m_cl, queue, m_allFloatParams, true)))
-            return "Can't copy floating point parameters to GPU: " + r.getErrorString();
-    }    
-    else // Upload the changed parameters to the GPU and fill in using a kernel
+    // Upload the changed parameters to the GPU and fill in using a kernel
     {
         if (!(r = m_clChangedParamsBuffer.enqueueWriteBuffer(*m_cl, queue, parameters, true)))
             return "Can't copy changed parameters to GPU: " + r.getErrorString();
@@ -540,7 +512,6 @@ errut::bool_t OpenCLSinglePlaneDeflectionInstance::initInstance(uint64_t userId,
 					   const std::vector<float> &templateFloatParameters, // only floating point params can change
 					   const std::vector<size_t> changeableParameterIndices,
 					   const std::string &deflectionKernelCode, const std::string &lensRoutineName,
-					   bool uploadFullParameters,
 					   int devIdx,
 					   uint64_t initialUncertSeed)
 
@@ -569,7 +540,7 @@ errut::bool_t OpenCLSinglePlaneDeflectionInstance::initInstance(uint64_t userId,
 
     unique_ptr<OpenCLSinglePlaneDeflectionInstance> oclCalc = make_unique<OpenCLSinglePlaneDeflectionInstance>();
     bool_t r = oclCalc->init(thetas, thetaUncert, templateIntParameters, templateFloatParameters, changeableParameterIndices,
-                             deflectionKernelCode, lensRoutineName, uploadFullParameters, devIdx, initialUncertSeed);
+                             deflectionKernelCode, lensRoutineName, devIdx, initialUncertSeed);
     oclCalc->m_requestedDevIdx = devIdx; // TODO: store this in a better way?
 
     if (!r)

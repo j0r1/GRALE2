@@ -21,7 +21,7 @@ LensInversionParametersParametricSinglePlane::LensInversionParametersParametricS
 		const std::vector<float> &hardMin, const std::vector<float> &hardMax,
 		bool infOnBoundsViolation,
 		const ConfigurationParameters &fitnessObjectParams,
-		bool uploadFullParameters, int devIdx,
+		int devIdx,
 		bool randomizeImagePositions,
 		uint64_t initialUncertSeed)
 {
@@ -38,7 +38,6 @@ LensInversionParametersParametricSinglePlane::LensInversionParametersParametricS
 	m_hardMax = hardMax;
 	m_infOnBoundsViolation = infOnBoundsViolation;
 	m_fitObjParams = make_unique<ConfigurationParameters>(fitnessObjectParams);
-	m_uploadFillParams = uploadFullParameters;
 	m_devIdx = devIdx;
 	m_randomizeInputPosition = randomizeImagePositions;
 	m_initialUncertSeed = initialUncertSeed;
@@ -114,7 +113,7 @@ bool LensInversionParametersParametricSinglePlane::write(serut::SerializationInt
 		return false;
 	}
 
-	array<int32_t,4> iParams = { (m_uploadFillParams)?1:0, (int32_t)m_devIdx, (m_infOnBoundsViolation)?1:0,
+	array<int32_t,3> iParams = { (int32_t)m_devIdx, (m_infOnBoundsViolation)?1:0,
 								 (m_randomizeInputPosition)?1:0 };
 
 	if (!si.writeInt32s(iParams.data(), iParams.size()))
@@ -217,17 +216,16 @@ bool LensInversionParametersParametricSinglePlane::read(serut::SerializationInte
 		return false;
 	}
 
-	array<int32_t,4> iParams;
+	array<int32_t,3> iParams;
 	if (!si.readInt32s(iParams.data(), iParams.size()))
 	{
 		setErrorString(si.getErrorString());
 		return false;
 	}
 
-	m_uploadFillParams = (iParams[0] == 0)?false:true;
-	m_devIdx = (int)iParams[1];
-	m_infOnBoundsViolation = (iParams[2] == 0)?false:true;
-	m_randomizeInputPosition = (iParams[3] == 0)?false:true;
+	m_devIdx = (int)iParams[0];
+	m_infOnBoundsViolation = (iParams[1] == 0)?false:true;
+	m_randomizeInputPosition = (iParams[2] == 0)?false:true;
 
 	vector<int32_t> seedParams(2);
 	if (!si.readInt32s(seedParams))

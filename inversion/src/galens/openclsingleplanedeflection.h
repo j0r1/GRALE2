@@ -36,7 +36,6 @@ public:
 					   const std::vector<float> &templateFloatParameters, // only floating point params can change
 					   const std::vector<size_t> changeableParameterIndices,
 					   const std::string &deflectionKernelCode, const std::string &lensRoutineName,
-					   bool uploadFullParameters,
 					   int devIdx, // negative means rotate
 					   uint64_t initialUncertSeed
 					   );
@@ -59,7 +58,6 @@ protected:
 	errut::bool_t randomizeInputPositions();
 
 	bool m_init = false;
-	bool m_uploadFullParameters;
 	int m_devIdx = -1;
 	std::unique_ptr<OpenCLMultiKernel<3>> m_cl;
 
@@ -95,7 +93,6 @@ public:
 					   const std::vector<float> &templateFloatParameters, // only floating point params can change
 					   const std::vector<size_t> changeableParameterIndices,
 					   const std::string &deflectionKernelCode, const std::string &lensRoutineName,
-					   bool uploadFullParameters,
 					   int devIdx,
 					   uint64_t initialUncertSeed
 					   );

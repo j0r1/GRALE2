@@ -619,7 +619,7 @@ def invert(inputImages, basisFunctions, zd, Dd, popSize, moduleName = "general",
 def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, moduleName = "general",
            defaultInitialParameterFraction = 0.1, clampToHardLimits = False, fitnessObjectParameters = None, convergenceParameters = { },
            geneticAlgorithmParameters = { }, returnNds = False, inverter = "default", feedbackObject = "default",
-           cosmology = None, maximumGenerations = None, eaType = "JADE", uploadFullParameters = False, deviceIndex = "rotate",
+           cosmology = None, maximumGenerations = None, eaType = "JADE", deviceIndex = "rotate",
            useImagePositionRandomization = False):
     """This is a low-level function, used by the similarly named function
     in :class:`InversionWorkSpace`.
@@ -677,12 +677,6 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
 
      - `eaType`: see :func:`getFullEASettings`.
 
-     - `uploadFullParameters`: describes the way changes in the parameters are passed
-       on to the GPU. If the model is large, but few parameters are changed, setting
-       this to ``False`` will onto upload the changed parameters and let GPU code put
-       them in the right locations. When ``True``, the entire parameter set (with
-       changes incorporated) is uploaded instead.
-     
      - `deviceIndex`: this parametric inversion uses a GPU to back-project the image
        data, and by setting a specific number, a specific device can be specified. To
        allow multiple GPUs to be used automatically, you can leave this to ``"rotate"``
@@ -737,7 +731,7 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
         return inversionparams.LensInversionParametersParametricSinglePlane(inputImages, Dd, zd,
                   templateLens, deflScale, potScale, offsets, initMin, initMax, hardMin, hardMax,
                   infOnBoundsViolation,
-                  fullFitnessObjParams, uploadFullParameters, deviceIndex,
+                  fullFitnessObjParams, deviceIndex,
                   useImagePositionRandomization, initialUncertSeed)
 
     results = _invertCommon(inverter, feedbackObject, moduleName, "parametricsingleplane", fitnessObjectParameters,

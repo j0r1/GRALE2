@@ -58,7 +58,6 @@ bool_t LensGAParametricSinglePlaneCalculator::init(const LensInversionParameters
 	}
 	m_devIdx = params.getDeviceIndex();
 	m_templateLens = params.getTemplateLens().createCopy();
-	bool uploadFullParams = params.alwaysUploadFullParameters();
 
 	bool_t r;
 	vector<ImagesDataExtended *> imagesPtrs;
@@ -170,12 +169,11 @@ bool_t LensGAParametricSinglePlaneCalculator::init(const LensInversionParameters
 		cerr << "INFO: NOT enabling EXPERIMENTAL positional uncertainties" << endl;
 	}
 
-	bool uploadFullParameters = params.alwaysUploadFullParameters();
 	if (!(r = OpenCLSinglePlaneDeflectionInstance::initInstance((uint64_t)this, 
 																	m_thetas, posUncertainties, m_intParams,
 																	m_floatParams, m_changeableParamIdx,
 																	m_kernelCode, m_kernelName,
-																	uploadFullParameters, m_devIdx,
+																	m_devIdx,
 																	posUncertSeed
 																	)))
 		return "Couldn't init OpenCLSinglePlaneDeflectionInstance: " + r.getErrorString();
