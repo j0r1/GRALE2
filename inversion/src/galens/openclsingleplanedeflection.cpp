@@ -13,6 +13,7 @@ using namespace oclutils;
 #define KERNELNUMBER_CALCULATE_DEFLECTION			0
 #define KERNELNUMBER_FILLIN_CHANGED_PARAMS			1
 #define KERNELNUMBER_CALCULATE_RANDOM_POINTOFFSETS	2
+#define KERNELNUMBER_FETCH_ORIGIN_PARAMETERS        3
 
 OpenCLSinglePlaneDeflection::OpenCLSinglePlaneDeflection()
 {
@@ -29,13 +30,14 @@ bool_t OpenCLSinglePlaneDeflection::init(const std::vector<Vector2Df> &thetas, /
 					   const std::vector<size_t> changeableParameterIndices,
 					   const std::string &deflectionKernelCode, const std::string &lensRoutineName,
                        int devIdx,
-					   uint64_t initialUncertSeed
-					   )
+					   uint64_t initialUncertSeed,
+					   const std::vector<std::pair<size_t, std::string>> &originParameters,
+					   size_t numOriginParameters)
 {
     if (m_init)
         return "Already initialized";
     
-    auto cl = make_unique<OpenCLMultiKernel<3>>();
+    auto cl = make_unique<OpenCLMultiKernel<4>>();
 
     string libName = cl->getLibraryName();
     if (!cl->loadLibrary(libName))
@@ -62,6 +64,8 @@ bool_t OpenCLSinglePlaneDeflection::init(const std::vector<Vector2Df> &thetas, /
 		m_clThetaUncerts.dealloc(*cl);
 		m_clThetaWithAdditions.dealloc(*cl);
 		m_clRngStates.dealloc(*cl);
+		m_clOriginParamIndices.dealloc(*cl);
+		m_clOriginParams.dealloc(*cl);
         return r;
     };
 
@@ -293,8 +297,105 @@ __kernel void randomizeImagePlanePositions(int numPoints,
         }
 	}
 
+    // See if we need to use 'origin parameters', so some floating point
+    // parameters can be the same, or have some other relationship
+    if (originParameters.size() > 0)
+    {
+        if (numOriginParameters == 0)
+            return "Origin parameters specified, but size was set to 0";
+
+        if (originParameters.size() != changeableParameterIndices.size())
+            return "Origin parameters array length must be same as changeable parameters";
+
+        vector<bool> originParameterUsed(numOriginParameters, false);
+        vector<cl_int> originParameterIndices;
+        string transformationCode;
+        string caseCode;
+
+        for (size_t destIdx = 0 ; destIdx < originParameters.size() ; destIdx++)
+        {
+            const auto & [srcIdx, code ] = originParameters[destIdx];
+            originParameterIndices.push_back(srcIdx);
+            if (srcIdx >= originParameterUsed.size()) 
+                return "Invalid source index " + to_string(srcIdx) + " for origin parameter (length is " + to_string(numOriginParameters) + ")";
+            originParameterUsed[srcIdx] = true;
+
+            if (code.length() > 0) // code should be in curly braces, with return statement
+            {
+                string functionName = "originparameter_" + to_string(destIdx) + "_transformation";
+                transformationCode += "\nfloat " + functionName + "(float x)\n";
+                transformationCode += code;
+
+                caseCode += R"XYZ(
+    case )XYZ" + to_string(destIdx) + R"XYZ(:
+        transformedValue = )XYZ" + functionName + R"XYZ((originValue);
+        break;
+)XYZ";
+            }
+        }
+
+        for (size_t srcIdx = 0 ; srcIdx < originParameterUsed.size() ; srcIdx++)
+        {
+            if (!originParameterUsed[srcIdx])
+                return "Index " + to_string(srcIdx) + " of the " + to_string(numOriginParameters) + " origin parameters is not used";
+        }
+
+        if (!(r = m_clOriginParamIndices.realloc(*cl, ctx, sizeof(cl_int)*originParameterIndices.size())) ||
+            !(r = m_clOriginParamIndices.enqueueWriteBuffer(*cl, queue, originParameterIndices, true)))
+            return "Can't copy origin parameter indices to GPU: " + cleanup(r.getErrorString());
+
+        // TODO: we need to realloc this later, when we know the number of parameter sets
+        //if (!(r = m_clOriginParams.realloc(*cl, ctx, sizeof(cl_float)*numOriginParameters)))
+        //    return "Can't allocate buffer for the origin parameters: " + cleanup(r.getErrorString());
+
+        // make kernel that transforms the origin parameters to the changeable parameters
+        string kernelCode = transformationCode + R"XYZ(
+__kernel fetchOriginParameters(int numChangeableParams, int numOriginParams, int numParamSets,
+                               __global const float *pAllOriginParams,
+                               __global const int *pIndexMapping,
+                               __global float *pAllChangeableParams)
+{
+    const int dstIdx = get_global_id(0);
+    if (dstIdx >= numChangeableParams)
+        return;
+    const int paramSet = get_global_id(1);
+    if (paramSet >= numParamSets)
+        return;
+
+    __global const float *pOriginParams = pAllOriginParams + paramSet*numOriginParams;
+    __global float *pChangeableParams = pAllChangeableParams + paramSet*numChangeableParams;
+
+    int srcIdx = pIndexMapping[dstIdx];
+    float originValue = pOriginParams[srcIdx];
+    float transformedValue = 0;
+
+    switch(dstIdx)
+    {
+)XYZ";
+        kernelCode += caseCode + R"XYZ(
+    default:
+         transformedValue = originValue;
+    }
+    pChangeableParams[dstIdx] = transformedValue;
+}
+)XYZ";
+        cerr << "Compiling:\n" << kernelCode << endl;
+        string faillog;
+        if (!cl->loadKernel(kernelCode, "fetchOriginParameters", faillog, KERNELNUMBER_FETCH_ORIGIN_PARAMETERS))
+        {
+            cerr << faillog << endl;
+            return cleanup(cl->getErrorString());
+        }
+    }
+    else
+    {
+        if (numOriginParameters != 0)
+            return "No origin parameters specified, but expected size is not zero";
+    }
+
     // Ok
 
+    m_numOriginParams = numOriginParameters;
     m_floatParamsCopy = clFloatParams;
     m_numPoints = thetas.size();
     m_numFloatParams = templateFloatParameters.size();
@@ -322,6 +423,8 @@ void OpenCLSinglePlaneDeflection::destroy()
 	m_clThetaUncerts.dealloc(*m_cl);
 	m_clThetaWithAdditions.dealloc(*m_cl);
 	m_clRngStates.dealloc(*m_cl);
+	m_clOriginParamIndices.dealloc(*m_cl);
+	m_clOriginParams.dealloc(*m_cl);
 
     m_cl = nullptr;
     m_init = false;
@@ -339,10 +442,22 @@ bool_t OpenCLSinglePlaneDeflection::calculateDeflection(const std::vector<float>
 
     size_t changeableSize = m_changeableParameterIndices.size();
     
-    if (parameters.size()%changeableSize != 0)
-        return "Invalid number of parameters";
+    size_t numParamSets = 0;
+    if (m_numOriginParams == 0) // Use changed parameters directly
+    {
+        if (parameters.size()%changeableSize != 0)
+           return "Invalid number of changeable parameters";
     
-    size_t numParamSets = parameters.size()/changeableSize;
+        numParamSets = parameters.size()/changeableSize;
+    }
+    else // The actual parameters are derived from some 'origin' parameters, possibly with a transformation
+    {
+        if (parameters.size()%m_numOriginParams != 0)
+            return "Invalid number of origin parameters";
+
+        numParamSets = parameters.size()/m_numOriginParams;
+    }
+
     if (numParamSets == 0)
         return "No parameters specified";
 
@@ -375,20 +490,63 @@ bool_t OpenCLSinglePlaneDeflection::calculateDeflection(const std::vector<float>
 
         if (!(r = m_clChangedParamsBuffer.realloc(*m_cl, ctx, sizeof(cl_float)*(numParamSets*changeableSize + 1))))
             return "Can't allocate changed parameters buffer: " + r.getErrorString();
+
+        if (m_numOriginParams > 0)
+        {
+            if (!(r = m_clOriginParams.realloc(*m_cl, ctx, sizeof(cl_float)*m_numOriginParams*numParamSets)))
+                return "Can't allocate buffer for the origin parameters: " + r.getErrorString();
+        }
     }
+
     m_currentNumParamSets = numParamSets;
     
     cl_int clNumParamSets = (cl_int)numParamSets;
     cl_int clNumFloatParams = (cl_int)m_numFloatParams;
+    cl_int clNumChangeable = (cl_int)changeableSize;
 
-    // Upload the changed parameters to the GPU and fill in using a kernel
+    if (m_numOriginParams == 0)
     {
+        // Upload the changed parameters to the GPU
         if (!(r = m_clChangedParamsBuffer.enqueueWriteBuffer(*m_cl, queue, parameters, true)))
             return "Can't copy changed parameters to GPU: " + r.getErrorString();
+    }
+    else // Get the real changed parameters from the specified 'origin' parameters
+    {
+        // Upload the origin parameters to the GPU an call a kernel to
+        // transform these into the changed parameters
 
+        if (!(r = m_clOriginParams.enqueueWriteBuffer(*m_cl, queue, parameters, true)))
+            return "Can't copy origin parameters to the GPU: " + r.getErrorString();
+
+        auto kernel = m_cl->getKernel(KERNELNUMBER_FETCH_ORIGIN_PARAMETERS);
+        cl_int clNumOrigin = (cl_int)m_numOriginParams;
+        cl_int err = 0;
+
+        auto setKernArg = [this, &err, &kernel](cl_uint idx, size_t size, const void *ptr)
+        {
+            err |= m_cl->clSetKernelArg(kernel, idx, size, ptr);
+        };
+
+        setKernArg(0, sizeof(cl_int), (void*)&clNumChangeable);
+        setKernArg(1, sizeof(cl_int), (void*)&clNumOrigin);
+        setKernArg(2, sizeof(cl_int), (void*)&clNumParamSets);
+        setKernArg(3, sizeof(cl_mem), (void*)&m_clOriginParams.m_pMem);
+        setKernArg(4, sizeof(cl_mem), (void*)&m_clOriginParamIndices.m_pMem);
+        setKernArg(5, sizeof(cl_mem), (void*)&m_clChangedParamsBuffer.m_pMem);
+
+        if (err != CL_SUCCESS)
+            return "Error setting kernel arguments for fetch origin parameters kernel";
+
+        size_t workSize[2] = { changeableSize, numParamSets };
+        err = m_cl->clEnqueueNDRangeKernel(queue, kernel, 2, nullptr, workSize, nullptr, 0, nullptr, nullptr);
+        if (err != CL_SUCCESS)
+            return "Error enqueing fetch origin parameter kernel: " + to_string(err);
+    }
+
+    // ... and fill in these changed parameters into the total parameters using a kernel
+    {
         // trigger a kernel to fill in the changed parameters into the full ones
         auto kernel = m_cl->getKernel(KERNELNUMBER_FILLIN_CHANGED_PARAMS);
-        cl_int clNumChangeable = (cl_int)changeableSize;
         cl_int err = 0;
 
         auto setKernArg = [this, &err, &kernel](cl_uint idx, size_t size, const void *ptr)

@@ -37,7 +37,13 @@ public:
 					   const std::vector<size_t> changeableParameterIndices,
 					   const std::string &deflectionKernelCode, const std::string &lensRoutineName,
 					   int devIdx, // negative means rotate
-					   uint64_t initialUncertSeed
+					   uint64_t initialUncertSeed,
+					   // Should have same length as changeableParameterIndices,
+					   // origin indices determine where the parameter comes from.
+					   // This then determines the length of the origin parameters,
+					   // which can be checked against the argument below
+					   const std::vector<std::pair<size_t, std::string>> &originParameters = {},
+					   size_t numOriginParameters = 0 // 0 is disable
 					   );
 
 	void destroy();
@@ -59,7 +65,7 @@ protected:
 
 	bool m_init = false;
 	int m_devIdx = -1;
-	std::unique_ptr<OpenCLMultiKernel<3>> m_cl;
+	std::unique_ptr<OpenCLMultiKernel<4>> m_cl;
 
 	oclutils::CLMem m_clThetas;
 	oclutils::CLMem m_clIntParams;
@@ -72,7 +78,10 @@ protected:
 	oclutils::CLMem m_clThetaWithAdditions; // on calculateDeflection, bases on uncert differences for thetas are calculated and stored
 	oclutils::CLMem m_clRngStates; // The RNG states that will be used for this
 
-	size_t m_numPoints, m_numFloatParams, m_currentNumParamSets, m_maxNumParamSets;
+	oclutils::CLMem m_clOriginParams;
+	oclutils::CLMem m_clOriginParamIndices;
+
+	size_t m_numPoints, m_numFloatParams, m_currentNumParamSets, m_maxNumParamSets, m_numOriginParams;
 	std::vector<cl_float> m_floatParamsCopy; // Single float params
 	std::vector<cl_float> m_allFloatParams; // repeats of float params
 	std::vector<cl_float> m_allResultsBuffer;
