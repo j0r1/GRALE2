@@ -213,6 +213,9 @@ __kernel void calculateDeflectionAngles(int numPoints, int numParamSets, int num
 
     // Upload only the changed parameters (we'll need an extra kernel)
     {
+		if (changeableParameterIndices.size() == 0)
+			return "No changeable parameters";
+
         vector<cl_int> clChangeableParams;
         for (auto x : changeableParameterIndices)
             clChangeableParams.push_back((cl_int)x);
@@ -221,6 +224,10 @@ __kernel void calculateDeflectionAngles(int numPoints, int numParamSets, int num
         if (!(r = m_clChangeableParamIndices.realloc(*cl, ctx, sizeof(cl_int)*clChangeableParams.size())) ||
             !(r = m_clChangeableParamIndices.enqueueWriteBuffer(*cl, queue, clChangeableParams, true)))
             return "Can't copy changeable parameter indices to GPU: " + cleanup(r.getErrorString());
+
+		// Make sure enough is allocated for use in getChangeableParametersFromOriginParameters
+        if (!(r = m_clChangedParamsBuffer.realloc(*m_cl, ctx, sizeof(cl_float)*changeableParameterIndices.size() )))
+            return "Can't allocate initial changed parameters buffer: " + r.getErrorString();
 
         // And create kernel to incorporate changed parameters into full parameters
 
@@ -344,9 +351,10 @@ __kernel void randomizeImagePlanePositions(int numPoints,
             !(r = m_clOriginParamIndices.enqueueWriteBuffer(*cl, queue, originParameterIndices, true)))
             return "Can't copy origin parameter indices to GPU: " + cleanup(r.getErrorString());
 
-        // TODO: we need to realloc this later, when we know the number of parameter sets
-        //if (!(r = m_clOriginParams.realloc(*cl, ctx, sizeof(cl_float)*numOriginParameters)))
-        //    return "Can't allocate buffer for the origin parameters: " + cleanup(r.getErrorString());
+        // we'll need to realloc this later, but we'll make sure that there's enough space for
+		// one parameter set
+        if (!(r = m_clOriginParams.realloc(*cl, ctx, sizeof(cl_float)*numOriginParameters)))
+            return "Can't allocate buffer for the origin parameters: " + cleanup(r.getErrorString());
 
         // make kernel that transforms the origin parameters to the changeable parameters
         string kernelCode = transformationCode + R"XYZ(
@@ -428,6 +436,60 @@ void OpenCLSinglePlaneDeflection::destroy()
 
     m_cl = nullptr;
     m_init = false;
+}
+
+bool_t OpenCLSinglePlaneDeflection::getChangeableParametersFromOriginParameters(const std::vector<float> &originParams,
+	                                                          std::vector<float> &changeableParams)
+{
+	if (!m_init)
+		return "Not initialized";
+	if (m_numOriginParams == 0)
+		return "No origin parameters were specified at initialization";
+
+	if (originParams.size() != m_numOriginParams)
+		return "Incorrect number of origin parameters";
+
+	changeableParams.resize(m_changeableParameterIndices.size());
+
+	auto queue = m_cl->getCommandQueue();
+	bool_t r;
+	if (!(r = m_clOriginParams.enqueueWriteBuffer(*m_cl, queue, originParams.data(), true)))
+		return "Can't copy origin parameters to the GPU: " + r.getErrorString();
+
+	auto kernel = m_cl->getKernel(KERNELNUMBER_FETCH_ORIGIN_PARAMETERS);
+	cl_int err = 0;
+
+	auto setKernArg = [this, &err, &kernel](cl_uint idx, size_t size, const void *ptr)
+	{
+		err |= m_cl->clSetKernelArg(kernel, idx, size, ptr);
+	};
+
+	cl_int clNumChangeable = changeableParams.size();
+	cl_int clNumOrigin = m_numOriginParams;
+	cl_int clNumParamSets = 1;
+
+	setKernArg(0, sizeof(cl_int), (void*)&clNumChangeable);
+	setKernArg(1, sizeof(cl_int), (void*)&clNumOrigin);
+	setKernArg(2, sizeof(cl_int), (void*)&clNumParamSets);
+	setKernArg(3, sizeof(cl_mem), (void*)&m_clOriginParams.m_pMem);
+	setKernArg(4, sizeof(cl_mem), (void*)&m_clOriginParamIndices.m_pMem);
+	setKernArg(5, sizeof(cl_mem), (void*)&m_clChangedParamsBuffer.m_pMem);
+
+	assert(m_clOriginParams.m_size >= sizeof(float)*clNumOrigin);
+	assert(m_clChangedParamsBuffer.m_size >= sizeof(float)*clNumChangeable);
+
+	if (err != CL_SUCCESS)
+		return "Error setting kernel arguments for fetch origin parameters kernel";
+
+	size_t workSize[2] = { changeableParams.size(), 1 };
+	err = m_cl->clEnqueueNDRangeKernel(queue, kernel, 2, nullptr, workSize, nullptr, 0, nullptr, nullptr);
+	if (err != CL_SUCCESS)
+		return "Error enqueing fetch origin parameter kernel: " + to_string(err);
+
+	if (!(r = m_clChangedParamsBuffer.enqueueReadBuffer(*m_cl, queue, changeableParams, nullptr, nullptr, true)))
+		return "Error reading resulting changable parameters: " + r.getErrorString();
+
+	return true;
 }
 
 bool_t OpenCLSinglePlaneDeflection::calculateDeflection(const std::vector<float> &parameters,  // should have numChangebleParams * numParamSets length

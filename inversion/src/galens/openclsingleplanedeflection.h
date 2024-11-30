@@ -49,6 +49,9 @@ public:
 	void destroy();
 	int getDeviceIndex() const { return m_devIdx; }
 
+	errut::bool_t getChangeableParametersFromOriginParameters(const std::vector<float> &originParams,
+	                                                          std::vector<float> &changeableParams);
+
 	errut::bool_t calculateDeflection(const std::vector<float> &parameters,
 									  std::vector<Vector2Df> &allAlphas,
 									  std::vector<float> &allAxx,
