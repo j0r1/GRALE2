@@ -845,8 +845,10 @@ bool_t OpenCLSinglePlaneDeflectionInstance::scheduleCalculation(const eatk::Floa
     const auto *pGenome = &genome;
     assert(m_genomeOffsets.find(pGenome) == m_genomeOffsets.end()); // Make sure we don't have an entry yet
 
-    assert(genome.getValues().size() == m_changeableParameterIndices.size());
-    size_t offset = m_floatBuffer.size()/m_changeableParameterIndices.size();
+    const size_t numParamsToOptimize = (m_numOriginParams == 0)?m_changeableParameterIndices.size():m_numOriginParams;
+
+    assert(genome.getValues().size() == numParamsToOptimize);
+    size_t offset = m_floatBuffer.size()/numParamsToOptimize;
     for (auto x : genome.getValues())
         m_floatBuffer.push_back(x);
 
@@ -912,6 +914,13 @@ bool OpenCLSinglePlaneDeflectionInstance::getResultsForGenome(const eatk::FloatV
         m_floatBuffer.resize(0);
     }
     return true;
+}
+
+bool_t OpenCLSinglePlaneDeflectionInstance::getChangeableParametersFromOriginParameters(const std::vector<float> &originParams,
+                                                   std::vector<float> &changeableParams)
+{
+    lock_guard<mutex> guard(m_mutex);
+    return OpenCLSinglePlaneDeflection::getChangeableParametersFromOriginParameters(originParams, changeableParams);
 }
 
 } // end namespace

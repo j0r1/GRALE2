@@ -121,6 +121,10 @@ public:
 							 std::vector<float> &potential);
 
 	int getRequestedDeviceIndex() const { return m_requestedDevIdx; }
+
+	// Calls the same function, but with a mutex
+	errut::bool_t getChangeableParametersFromOriginParameters(const std::vector<float> &originParams,
+	                                                          std::vector<float> &changeableParams);
 private:
 	static std::unique_ptr<OpenCLSinglePlaneDeflectionInstance> s_instance;
 	static std::mutex s_instanceMutex;

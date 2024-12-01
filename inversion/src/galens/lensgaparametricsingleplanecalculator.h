@@ -55,6 +55,7 @@ private:
 	std::vector<int> m_intParams;
 	std::vector<float> m_floatParams;
 	std::unique_ptr<GravitationalLens> m_templateLens;
+	size_t m_numOriginParams = 0;
 
 	std::vector<Vector2Df> m_alphas;
 	std::vector<float> m_axx, m_ayy, m_axy, m_potential;

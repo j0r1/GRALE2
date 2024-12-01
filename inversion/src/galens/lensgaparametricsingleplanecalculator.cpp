@@ -170,7 +170,7 @@ bool_t LensGAParametricSinglePlaneCalculator::init(const LensInversionParameters
 	}
 
 	vector<pair<size_t, string>> originParameterMapping = params.getOriginParameterMapping();
-	size_t numOriginParams = params.getNumberOfOriginParameters();
+	m_numOriginParams = params.getNumberOfOriginParameters();
 
 	if (!(r = OpenCLSinglePlaneDeflectionInstance::initInstance((uint64_t)this, 
 																	m_thetas, posUncertainties, m_intParams,
@@ -179,7 +179,7 @@ bool_t LensGAParametricSinglePlaneCalculator::init(const LensInversionParameters
 																	m_devIdx,
 																	posUncertSeed,
 																	originParameterMapping,
-																	numOriginParams
+																	m_numOriginParams
 																	)))
 		return "Couldn't init OpenCLSinglePlaneDeflectionInstance: " + r.getErrorString();
 
@@ -218,6 +218,21 @@ bool_t LensGAParametricSinglePlaneCalculator::init(const LensInversionParameters
 	m_hardMin = params.getHardMin();
 	m_hardMax = params.getHardMax();
 
+	if (m_initMin.size() != m_initMax.size() || m_initMin.size() != m_hardMin.size() ||
+	    m_hardMin.size() != m_hardMax.size())
+		return "Parameter ranges should all have the same size";
+
+	if (m_numOriginParams == 0)
+	{
+		if (m_initMin.size() != m_changeableParamIdx.size())
+			return "Incompatible sizes for bounds and number of changeable parameters";
+	}
+	else
+	{
+		if (m_initMin.size() != m_numOriginParams)
+			return "Incompatible sizes for bounds and number of origin parameters";
+	}
+ 
 	m_infOnBoundsViolation = params.infinityOnBoundsViolation();
 	m_init = true;
 
@@ -228,7 +243,7 @@ bool_t LensGAParametricSinglePlaneCalculator::init(const LensInversionParameters
 
 std::shared_ptr<eatk::FitnessComparison> LensGAParametricSinglePlaneCalculator::getFitnessComparison() const
 {
-	return make_shared<eatk::VectorFitnessComparison<float>>(); // TODO: replace with multi-objective?
+	return make_shared<eatk::VectorFitnessComparison<float>>();
 }
 
 bool_t LensGAParametricSinglePlaneCalculator::createLens(const eatk::Genome &genome0, std::unique_ptr<GravitationalLens> &resultLens) const
@@ -242,16 +257,37 @@ bool_t LensGAParametricSinglePlaneCalculator::createLens(const eatk::Genome &gen
 	auto genome = static_cast<const eatk::FloatVectorGenome&>(genome0);
 	vector<float> &values = genome.getValues();
 
-	assert(values.size() == m_changeableParamIdx.size());
-
-	// Fill in the solution
+	// Bounds have same dimension as parameters
+	assert(values.size() == m_initMin.size());
 	vector<float> fullFloatParams = m_floatParams;
-	for (size_t i = 0 ; i < m_changeableParamIdx.size() ; i++)
-	{
-		size_t dst = m_changeableParamIdx[i];
-		assert(dst < fullFloatParams.size());
 
-		fullFloatParams[dst] = values[i];
+	auto fillChangedParamsInFull = [this,&fullFloatParams](const vector<float> &values)
+	{
+		assert(values.size() == m_changeableParamIdx.size());
+		for (size_t i = 0 ; i < m_changeableParamIdx.size() ; i++)
+		{
+			size_t dst = m_changeableParamIdx[i];
+			assert(dst < fullFloatParams.size());
+
+			fullFloatParams[dst] = values[i];
+		}
+	};
+
+	if (m_numOriginParams == 0)
+	{
+		// Fill in the solution from the changed parameters
+		fillChangedParamsInFull(values);
+	}
+	else // transform the genome values to the actual parameters
+	{
+		vector<float> changeableParams;
+
+		auto &cl = OpenCLSinglePlaneDeflectionInstance::instance();
+		bool_t r = cl.getChangeableParametersFromOriginParameters(values, changeableParams);
+		if (!r)
+			return "Can't convert origin parameters to actual ones: " + r.getErrorString();
+
+		fillChangedParamsInFull(changeableParams);
 	}
 
 	// And create a new lens from these values
