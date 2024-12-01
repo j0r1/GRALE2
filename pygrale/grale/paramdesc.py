@@ -154,13 +154,13 @@ def _processDeflectionGridLens(lensParams, Dd, getParamValue):
     lpCopy = lensParams.copy()
     for k in [ "bottomleft", "topright" ]:
         if not k in lpCopy:
-            raise ParametricDescriptionException(f"Expecting key '{key}' in DeflectionGridLens parameters")
+            raise ParametricDescriptionException(f"Expecting key '{k}' in DeflectionGridLens parameters")
 
         try:
             x, y = lpCopy[k][0], lpCopy[k][1]
             x, y = float(x), float(y)
         except Exception as e:
-            raise ParametricDescriptionException(f"Value for '{key}' should be a fixed 2D coordinate") from e
+            raise ParametricDescriptionException(f"Value for '{k}' should be a fixed 2D coordinate") from e
 
         del lpCopy[k]
 
@@ -206,7 +206,22 @@ def _createTemplateLens_helper(parametricLensDescription, Dd, getParamValue):
 
     return lens, positionNames        
 
-def _createParamOffsetInfo(l, paramNames, deflectionscale, potentialscale):
+def _getCouplingNameAndCode(cname:str):
+    if not ";" in cname:
+        return cname.strip(), ""
+
+    idx = cname.find(";")
+    cn, code = cname[:idx].strip(), cname[idx+1:].strip()
+
+    if not code.startswith("{"): # need to wrap it
+        code = "{ return " + code + "; }"
+
+    return cn, code
+
+def _createParamOffsetInfo(l, paramNames, couplingNames, deflectionscale, potentialscale):
+
+    assert len(paramNames) == len(couplingNames), "Internal error: parameter name array and coupling name array should have same length"
+
     adjustableParams = l.getCLAdjustableFloatingPointParameterInfo(deflectionscale, potentialscale)
     adjustableParamsDict = { }
     for p in adjustableParams:
@@ -216,20 +231,37 @@ def _createParamOffsetInfo(l, paramNames, deflectionscale, potentialscale):
         adjustableParamsDict[name] = p
 
     paramOffsetInfo = []    
-    for n in paramNames:
+    for n, cn in zip(paramNames, couplingNames):
         if not n in adjustableParamsDict:
             raise ParametricDescriptionException(f"Internal error: specified adjustable param {n} does not seem to be valid")
-        paramOffsetInfo.append(adjustableParamsDict[n])
+        d = adjustableParamsDict[n]
+        if cn:
+            d["cname"], d["ccode"] = _getCouplingNameAndCode(cn)
+        paramOffsetInfo.append(d)
 
     return sorted(paramOffsetInfo, key=lambda x: x["offset"])
 
 def _createTemplateLens(parametricLensDescription, Dd):
 
-    l, paramNames = _createTemplateLens_helper(parametricLensDescription, Dd, _getInitialParameterValue)
+    couplingNames = []
+
+    # This is probably not the cleanest way
+    def recordParamCouplingNamesWrapper(params, paramKey):
+        value, isFixed = _getInitialParameterValue(params, paramKey)
+        if not isFixed:
+            v = params[paramKey]
+            n = None
+            if type(v) == dict and "cname" in v:
+                    n = v["cname"]
+            couplingNames.append(n)
+
+        return value, isFixed
+
+    l, paramNames = _createTemplateLens_helper(parametricLensDescription, Dd, recordParamCouplingNamesWrapper)
     scales = l.getSuggestedScales()
     intParam, floatParams = l.getCLParameters(**scales)
     ret = { "templatelens": l,
-            "paramoffsets": _createParamOffsetInfo(l, paramNames, **scales),
+            "paramoffsets": _createParamOffsetInfo(l, paramNames, couplingNames, **scales),
             "paramnames": paramNames, # in original order
             "scales": scales,
             "floatparams": floatParams,
@@ -498,11 +530,18 @@ def analyzeParametricLensDescription(parametricLens, Dd, defaultFraction, clampT
         initMaxValue = initMax[offset]
         
         assert not (offset in paramRanges), f"Internal error: offset {offset} already set"
-        paramRanges.append({ "initialrange": [ initMinValue, initMaxValue ],
+
+        d = { "initialrange": [ initMinValue, initMaxValue ],
                               "hardlimits": [ hardMinValue, hardMaxValue ],
                               "name": offInf["name"],
                               "scalefactor": offInf["scalefactor"],
-                              "offset": offset })
+                              "offset": offset }
+
+        if "cname" in offInf:
+            d["cname"] = offInf["cname"]
+            d["ccode"] = offInf["ccode"]
+        paramRanges.append(d)
+
     paramRanges = sorted(paramRanges, key = lambda x: x["offset"])
 
     # Do a final consistency check
