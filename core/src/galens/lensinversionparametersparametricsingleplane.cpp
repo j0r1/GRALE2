@@ -54,10 +54,10 @@ LensInversionParametersParametricSinglePlane::~LensInversionParametersParametric
 
 bool LensInversionParametersParametricSinglePlane::write(serut::SerializationInterface &si) const
 {
-	if (m_offsets.size() != m_initMin.size() || m_offsets.size() != m_initMax.size() ||
-		m_offsets.size() != m_hardMin.size() || m_offsets.size() != m_hardMax.size())
+	if (m_initMin.size() != m_initMax.size() ||
+		m_initMin.size() != m_hardMin.size() || m_initMin.size() != m_hardMax.size())
 	{
-		setErrorString("Incompatible lengths of offsets, initMin, initMax, hardMin, hardMax");
+		setErrorString("Incompatible lengths of initMin, initMax, hardMin, hardMax");
 		return false;
 	}
 
@@ -94,13 +94,13 @@ bool LensInversionParametersParametricSinglePlane::write(serut::SerializationInt
 		return false;
 	}
 
-	int32_t numOffsets = m_offsets.size();
+	vector<int32_t> num = { (int32_t)m_offsets.size(), (int32_t)m_initMin.size() };
 
 	vector<int32_t> offsets;
 	for (auto x : m_offsets)
 		offsets.push_back((int32_t)x);
 
-	if (!si.writeInt32(numOffsets) ||
+	if (!si.writeInt32s(num) ||
 		!si.writeInt32s(offsets) ||
 		!si.writeFloats(m_initMin) ||
 		!si.writeFloats(m_initMax) ||
@@ -198,23 +198,27 @@ bool LensInversionParametersParametricSinglePlane::read(serut::SerializationInte
 		return false;
 	}
 
-	int32_t numOffsets;
-	if (!si.readInt32(&numOffsets))
+	vector<int32_t> num(2);
+	if (!si.readInt32s(num))
 	{
 		setErrorString(si.getErrorString());
 		return false;
 	}
-	if (numOffsets < 0)
+
+	int32_t numOffsets = num[0];
+	int32_t numMinMax = num[1];
+
+	if (numOffsets < 0 || numMinMax < 0)
 	{
-		setErrorString("Read invalid size of offsets vector");
+		setErrorString("Read invalid size of offsets vector or min/max vectors");
 		return false;
 	}
 
 	vector<int32_t> offsets(numOffsets);
-	m_initMin.resize(numOffsets);
-	m_initMax.resize(numOffsets);
-	m_hardMin.resize(numOffsets);
-	m_hardMax.resize(numOffsets);
+	m_initMin.resize(numMinMax);
+	m_initMax.resize(numMinMax);
+	m_hardMin.resize(numMinMax);
+	m_hardMax.resize(numMinMax);
 
 	if (!si.readInt32s(offsets) ||
 		!si.readFloats(m_initMin) ||

@@ -1029,7 +1029,8 @@ cdef class LensInversionParametersParametricSinglePlane(object):
                   templateLens, deflScale, potScale, offsets, initMin, initMax, hardMin, hardMax,
                   infOnBoundsViolation,
                   fitnessObjectParameters, deviceIndex = "rotate",
-                  randomizeImagePositions = False, initialUncertSeed = 0):
+                  randomizeImagePositions = False, initialUncertSeed = 0,
+                  originParametersMap = [], numOriginParams = 0):
 
         cdef vector[shared_ptr[imagesdataextended.ImagesDataExtended]] imgVector = _createImageVectorFromSinglePlaneImageList(inputImages)
         cdef double cDd = Dd
@@ -1048,7 +1049,9 @@ cdef class LensInversionParametersParametricSinglePlane(object):
         cdef cbool cRandomizeInputPos = randomizeImagePositions
         cdef uint64_t cInitialUncertSeed = initialUncertSeed
         cdef vector[pair[size_t,string]] cOriginParamMapping
-        cdef size_t cNumOriginParams = 0
+        cdef size_t cNumOriginParams = numOriginParams
+        cdef size_t tmpSize
+        cdef string tmpStr
 
         if inputImages is None:
             return
@@ -1062,6 +1065,14 @@ cdef class LensInversionParametersParametricSinglePlane(object):
             if deviceIndex < 0:
                 raise InversionParametersException("Device index can't be negative")
             devIdx = deviceIndex
+
+        for entry in originParametersMap:
+            pos, code = entry
+            if pos < 0:
+                raise InversionParametersException("Invalid negative position in origin parameters map")
+            tmpSize = pos
+            tmpStr = B(code)
+            cOriginParamMapping.push_back(pair[size_t,string](tmpSize, tmpStr))
 
         self.m_pParams = unique_ptr[lensinversionparametersparametricsingleplane.LensInversionParametersParametricSinglePlane](
             new lensinversionparametersparametricsingleplane.LensInversionParametersParametricSinglePlane(

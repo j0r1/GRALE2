@@ -616,6 +616,85 @@ def invert(inputImages, basisFunctions, zd, Dd, popSize, moduleName = "general",
                   geneticAlgorithmParameters, returnNds, cosmology, convergenceParameters,
                   maximumGenerations, multiPopulationParameters, eaType)
 
+def _processCoupledParameters(varParams):
+
+    # First analyze everything so we can find the reference variables
+    cNameMap = { }
+
+    # First keep track of which variable need to be coupled
+    for x in varParams:
+        if not "cname" in x:
+            continue
+
+        cname = x["cname"]
+
+        if not cname in cNameMap:
+            cNameMap[cname] = { "varparams": [] }
+
+        cNameMap[cname]["varparams"].append(x)
+
+    # Then find the one to use as reference
+    for cname in cNameMap:
+        refCandidates = []
+        for p in cNameMap[cname]["varparams"]:
+            if not p["ccode"]:
+                refCandidates.append(p)
+
+        if len(refCandidates) == 0:
+            raise InversionException(f"No reference (unadjusted) variable found for cname '{cname}'")
+
+        if len(refCandidates) > 0:
+            print(f"WARNING: multiple reference candidates found for cname '{cname}', will be using first")
+            # TODO: check if their boundary settings are the same
+
+        ref = refCandidates[0]
+        print(f"INFO: reference for cname '{cname}' is: ", ref)
+        cNameMap[cname]["refparam"] = ref
+
+    coupledVarParams = []
+
+    mapIndices = []
+    codes = []
+
+    for idx,x in enumerate(varParams):
+        if not "cname" in x:
+            l = len(coupledVarParams)
+            coupledVarParams.append(x)
+            mapIndices.append(l)
+            codes.append("")
+            continue
+
+        cname = x["cname"]
+        m = cNameMap[cname]
+        if m["refparam"]["name"] == x["name"]: # This is the reference one, use it
+            l = len(coupledVarParams)
+            coupledVarParams.append(x)
+            mapIndices.append(l)
+            codes.append(x["ccode"])
+            m["refindex"] = l # Record this for a second pass
+        else: # Don't actually include it in the coupledVarParams
+            mapIndices.append(None) # placeholder, we may not know the actual index yet
+            codes.append(x["ccode"])
+
+    assert len(mapIndices) == len(varParams)
+
+    # Second pass, fill in the 'None' values
+    for idx,x in enumerate(varParams):
+        if not "cname" in x:
+            continue
+
+        if mapIndices[idx] is not None:
+            continue
+
+        cname = x["cname"]
+        refIdx = cNameMap[cname]["refindex"]
+        mapIndices[idx] = refIdx
+
+    originParamsMap = list(zip(mapIndices, codes))
+    numOriginParams = len(coupledVarParams)
+
+    return coupledVarParams, originParamsMap, numOriginParams
+
 def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, moduleName = "general",
            defaultInitialParameterFraction = 0.1, clampToHardLimits = False, fitnessObjectParameters = None, convergenceParameters = { },
            geneticAlgorithmParameters = { }, returnNds = False, inverter = "default", feedbackObject = "default",
@@ -693,7 +772,16 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
     templateLens = desc["templatelens"]
     deflScale, potScale = desc["scales"]["deflectionscale"], desc["scales"]["potentialscale"]
     varParams = desc["variablefloatparams"]
+
+    # We need the original offsets
     offsets = [ x["offset"] for x in varParams ]
+
+    isUsingCoupledParameters = sum([ 1 if "cname" in x else 0 for x in varParams ])
+    originParametersMap, numOriginParams = [], 0
+    if isUsingCoupledParameters:
+        # override varParams to the things that are really independent
+        varParams, originParametersMap, numOriginParams = _processCoupledParameters(varParams)
+
     initMin = [ x["initialrange"][0] for x in varParams ]
     initMax = [ x["initialrange"][1] for x in varParams ]
     hardMin = [ x["hardlimits"][0] for x in varParams ]
@@ -732,7 +820,8 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
                   templateLens, deflScale, potScale, offsets, initMin, initMax, hardMin, hardMax,
                   infOnBoundsViolation,
                   fullFitnessObjParams, deviceIndex,
-                  useImagePositionRandomization, initialUncertSeed)
+                  useImagePositionRandomization, initialUncertSeed,
+                  originParametersMap, numOriginParams)
 
     results = _invertCommon(inverter, feedbackObject, moduleName, "parametricsingleplane", fitnessObjectParameters,
                   None, [Dd, zd], inputImages, getParamsFunction, popSize,

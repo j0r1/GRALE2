@@ -42,12 +42,6 @@ bool_t LensGAParametricSinglePlaneCalculator::init(const LensInversionParameters
 	if (numChangeAbleParams == 0)
 		return "No changeable parameters";
 
-	if (numChangeAbleParams != params.getInitMin().size() ||
-	    numChangeAbleParams != params.getInitMax().size() ||
-		numChangeAbleParams != params.getHardMin().size() ||
-		numChangeAbleParams != params.getHardMax().size())
-		return "Internal error: Incompatibility in changeable parameter sizes";
-
 	m_angularScale = params.getDeflectionScale();
 	m_potScale = params.getPotentialScale();
 	m_changeableParamIdx.clear();

@@ -119,6 +119,11 @@ public:
 
 		if (m_generationCount >= m_burnInGenerations && m_sampleFile.is_open())
 		{
+			// TODO
+			// TODO
+			// TODO If origin parameters are used, transform these to actual parameters?
+			// TODO
+			// TODO
 			m_numWalkers = samples.size();
 			for (auto &i : samples)
 			{
