@@ -3,6 +3,7 @@ from libcpp.vector cimport vector
 from libcpp.memory cimport shared_ptr
 from libcpp cimport bool
 from libc.stdint cimport uint64_t
+from libcpp.pair cimport pair
 
 cimport grale.serut as serut
 cimport grale.errut as errut
@@ -29,7 +30,9 @@ cdef extern from "grale/lensinversionparametersparametricsingleplane.h" namespac
                 const configurationparameters.ConfigurationParameters &fitnessObjectParams,
                 int devIdx,
                 bool randomizeImagePositions,
-                uint64_t initialUncertSeed
+                uint64_t initialUncertSeed,
+                const vector[pair[size_t,string]] &originParameterMapping,
+                size_t numOriginParams
                 )
 
         bool read(serut.SerializationInterface &si)

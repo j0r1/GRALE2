@@ -42,8 +42,8 @@ public:
 					   // origin indices determine where the parameter comes from.
 					   // This then determines the length of the origin parameters,
 					   // which can be checked against the argument below
-					   const std::vector<std::pair<size_t, std::string>> &originParameters = {},
-					   size_t numOriginParameters = 0 // 0 is disable
+					   const std::vector<std::pair<size_t, std::string>> &originParameters,
+					   size_t numOriginParameters // 0 is disable
 					   );
 
 	void destroy();
@@ -106,7 +106,9 @@ public:
 					   const std::vector<size_t> changeableParameterIndices,
 					   const std::string &deflectionKernelCode, const std::string &lensRoutineName,
 					   int devIdx,
-					   uint64_t initialUncertSeed
+					   uint64_t initialUncertSeed,
+					   const std::vector<std::pair<size_t, std::string>> &originParameters,
+					   size_t numOriginParameters // 0 is disable
 					   );
 	static void releaseInstance(uint64_t userId);
 	static OpenCLSinglePlaneDeflectionInstance &instance();

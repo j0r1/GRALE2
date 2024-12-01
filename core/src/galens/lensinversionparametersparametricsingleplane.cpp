@@ -23,7 +23,10 @@ LensInversionParametersParametricSinglePlane::LensInversionParametersParametricS
 		const ConfigurationParameters &fitnessObjectParams,
 		int devIdx,
 		bool randomizeImagePositions,
-		uint64_t initialUncertSeed)
+		uint64_t initialUncertSeed,
+		const vector<pair<size_t, std::string>> &originParameterMapping,
+		size_t numOriginParameters
+		)
 {
 	m_images = images;
 	m_Dd = Dd;
@@ -41,6 +44,8 @@ LensInversionParametersParametricSinglePlane::LensInversionParametersParametricS
 	m_devIdx = devIdx;
 	m_randomizeInputPosition = randomizeImagePositions;
 	m_initialUncertSeed = initialUncertSeed;
+	m_originParams = originParameterMapping;
+	m_numOriginParams = numOriginParameters;
 }
 
 LensInversionParametersParametricSinglePlane::~LensInversionParametersParametricSinglePlane()
@@ -128,6 +133,23 @@ bool LensInversionParametersParametricSinglePlane::write(serut::SerializationInt
 	{
 		setErrorString(si.getErrorString());
 		return false;
+	}
+
+	vector<int32_t> originInfo = { (int32_t)m_numOriginParams, (int32_t)m_originParams.size() };
+	if (!si.writeInt32s(originInfo))
+	{
+		setErrorString(si.getErrorString());
+		return false;
+	}
+
+	for (const auto & [pos, code] : m_originParams)
+	{
+		int32_t iPos = (int32_t)pos;
+		if (!si.writeInt32(iPos) || !si.writeString(code))
+		{
+			setErrorString(si.getErrorString());
+			return false;
+		}
 	}
 
 	return true;
@@ -238,6 +260,39 @@ bool LensInversionParametersParametricSinglePlane::read(serut::SerializationInte
 	uint32_t hi = (uint32_t)seedParams[1];
 
 	m_initialUncertSeed = ((uint64_t)low) | (((uint64_t)hi) << 32);
+
+	vector<int32_t> originInfo(2);
+	if (!si.readInt32s(originInfo))
+	{
+		setErrorString(si.getErrorString());
+		return false;
+	}
+
+	m_numOriginParams = originInfo[0];
+	int32_t numMapping = originInfo[1];
+	vector<pair<size_t,string>> originMapping;
+
+	for (int32_t i = 0 ; i < numMapping ; i++)
+	{
+		int32_t position;
+		string code;
+
+		if (!si.readInt32(&position) || !si.readString(code))
+		{
+			setErrorString(si.getErrorString());
+			return false;
+		}
+
+		if (position < 0)
+		{
+			setErrorString("Read invalid origin parameter mapping position " + to_string(position));
+			return false;
+		}
+
+		originMapping.push_back({ (size_t)position, code});
+	}
+
+	m_originParams = originMapping;
 
 	return true;
 }

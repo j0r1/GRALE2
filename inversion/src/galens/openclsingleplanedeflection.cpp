@@ -733,7 +733,10 @@ errut::bool_t OpenCLSinglePlaneDeflectionInstance::initInstance(uint64_t userId,
 					   const std::vector<size_t> changeableParameterIndices,
 					   const std::string &deflectionKernelCode, const std::string &lensRoutineName,
 					   int devIdx,
-					   uint64_t initialUncertSeed)
+					   uint64_t initialUncertSeed,
+					   const std::vector<std::pair<size_t, std::string>> &originParameters,
+					   size_t numOriginParameters
+					   )
 
 {
     lock_guard<mutex> guard(s_instanceMutex);
@@ -760,7 +763,8 @@ errut::bool_t OpenCLSinglePlaneDeflectionInstance::initInstance(uint64_t userId,
 
     unique_ptr<OpenCLSinglePlaneDeflectionInstance> oclCalc = make_unique<OpenCLSinglePlaneDeflectionInstance>();
     bool_t r = oclCalc->init(thetas, thetaUncert, templateIntParameters, templateFloatParameters, changeableParameterIndices,
-                             deflectionKernelCode, lensRoutineName, devIdx, initialUncertSeed);
+                             deflectionKernelCode, lensRoutineName, devIdx, initialUncertSeed,
+							 originParameters, numOriginParameters);
     oclCalc->m_requestedDevIdx = devIdx; // TODO: store this in a better way?
 
     if (!r)

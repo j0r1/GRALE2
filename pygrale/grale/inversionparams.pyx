@@ -11,6 +11,7 @@ from libcpp.cast cimport dynamic_cast
 from libcpp.limits cimport numeric_limits
 from libcpp.cmath cimport isnan
 from libcpp.utility cimport move
+from libcpp.pair cimport pair
 from cpython.array cimport array,clone
 import cython
 from cython.operator cimport dereference as deref
@@ -1046,6 +1047,8 @@ cdef class LensInversionParametersParametricSinglePlane(object):
         cdef cbool cInfOnBoundsViolation = infOnBoundsViolation
         cdef cbool cRandomizeInputPos = randomizeImagePositions
         cdef uint64_t cInitialUncertSeed = initialUncertSeed
+        cdef vector[pair[size_t,string]] cOriginParamMapping
+        cdef size_t cNumOriginParams = 0
 
         if inputImages is None:
             return
@@ -1064,7 +1067,7 @@ cdef class LensInversionParametersParametricSinglePlane(object):
             new lensinversionparametersparametricsingleplane.LensInversionParametersParametricSinglePlane(
                 imgVector, cDd, cZd, deref(cTemplateLens), cDeflScale, cPotScale,
                 cOffsets, cInitMin, cInitMax, cHardMin, cHardMax, cInfOnBoundsViolation, deref(pFitnessObjectParameters),
-                devIdx, cRandomizeInputPos, cInitialUncertSeed
+                devIdx, cRandomizeInputPos, cInitialUncertSeed, cOriginParamMapping, cNumOriginParams
             )
         )
 

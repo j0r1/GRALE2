@@ -27,7 +27,9 @@ public:
 		const ConfigurationParameters &fitnessObjectParams,
 		int devIdx,
 		bool randomizeImagePositions,
-		uint64_t initialUncertSeed
+		uint64_t initialUncertSeed,
+		const std::vector<std::pair<size_t, std::string>> &originParameterMapping,
+		size_t numOriginParameters
 		);
 	~LensInversionParametersParametricSinglePlane();
 
@@ -47,6 +49,8 @@ public:
 	int getDeviceIndex() const { return m_devIdx; }
 	bool getRandomizeInputPositions() const { return m_randomizeInputPosition; }
 	uint64_t getInitialPositionUncertaintySeed() const { return m_initialUncertSeed; }
+	const std::vector<std::pair<size_t, std::string>> &getOriginParameterMapping() const { return m_originParams; }
+	size_t getNumberOfOriginParameters() const { return m_numOriginParams; }
 
 	bool write(serut::SerializationInterface &si) const override;
 	bool read(serut::SerializationInterface &si) override;
@@ -62,6 +66,8 @@ private:
 	int m_devIdx = -1;
 	bool m_randomizeInputPosition = false;
 	uint64_t m_initialUncertSeed = 0;
+	std::vector<std::pair<size_t, std::string>> m_originParams;
+	size_t m_numOriginParams = 0;
 };
 
 } // end namespace

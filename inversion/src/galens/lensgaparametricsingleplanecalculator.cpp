@@ -169,12 +169,17 @@ bool_t LensGAParametricSinglePlaneCalculator::init(const LensInversionParameters
 		cerr << "INFO: NOT enabling EXPERIMENTAL positional uncertainties" << endl;
 	}
 
+	vector<pair<size_t, string>> originParameterMapping = params.getOriginParameterMapping();
+	size_t numOriginParams = params.getNumberOfOriginParameters();
+
 	if (!(r = OpenCLSinglePlaneDeflectionInstance::initInstance((uint64_t)this, 
 																	m_thetas, posUncertainties, m_intParams,
 																	m_floatParams, m_changeableParamIdx,
 																	m_kernelCode, m_kernelName,
 																	m_devIdx,
-																	posUncertSeed
+																	posUncertSeed,
+																	originParameterMapping,
+																	numOriginParams
 																	)))
 		return "Couldn't init OpenCLSinglePlaneDeflectionInstance: " + r.getErrorString();
 
