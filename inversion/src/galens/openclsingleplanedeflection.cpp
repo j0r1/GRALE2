@@ -226,7 +226,7 @@ __kernel void calculateDeflectionAngles(int numPoints, int numParamSets, int num
             return "Can't copy changeable parameter indices to GPU: " + cleanup(r.getErrorString());
 
 		// Make sure enough is allocated for use in getChangeableParametersFromOriginParameters
-        if (!(r = m_clChangedParamsBuffer.realloc(*m_cl, ctx, sizeof(cl_float)*changeableParameterIndices.size() )))
+        if (!(r = m_clChangedParamsBuffer.realloc(*cl, ctx, sizeof(cl_float)*changeableParameterIndices.size() )))
             return "Can't allocate initial changed parameters buffer: " + r.getErrorString();
 
         // And create kernel to incorporate changed parameters into full parameters
@@ -358,7 +358,7 @@ __kernel void randomizeImagePlanePositions(int numPoints,
 
         // make kernel that transforms the origin parameters to the changeable parameters
         string kernelCode = transformationCode + R"XYZ(
-__kernel fetchOriginParameters(int numChangeableParams, int numOriginParams, int numParamSets,
+__kernel void fetchOriginParameters(int numChangeableParams, int numOriginParams, int numParamSets,
                                __global const float *pAllOriginParams,
                                __global const int *pIndexMapping,
                                __global float *pAllChangeableParams)

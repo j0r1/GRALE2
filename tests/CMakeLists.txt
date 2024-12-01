@@ -79,3 +79,6 @@ target_link_libraries(rngasserttest graleinv-static gralecore-static ${GRALE_LIN
 add_executable(pointoffsettest pointoffsettest.cpp)
 target_link_libraries(pointoffsettest graleinv-static gralecore-static ${GRALE_LINK_LIBS})
 
+add_executable(paramtest parametric/paramtest.cpp)
+target_link_libraries(paramtest graleinv-static gralecore-static ${GRALE_LINK_LIBS})
+
