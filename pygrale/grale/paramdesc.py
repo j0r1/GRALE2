@@ -491,6 +491,20 @@ def analyzeParametricLensDescription(parametricLens, Dd, defaultFraction, clampT
             }
          ]
        }
+
+    When a dictionary is used to specify the initial range, you can also specify
+    a special entry ``"cname"``, with which parameters can be coupled to each other.
+    For example, if two variables both have ``"cname": "SomeName"``, then only one
+    of them will be changed, and the other will always have the same value. This can
+    come in handy if you'd like to optimize two models, say one for the
+    visible matter and one for dark matter, and you'd like both to be centered on
+    the exact same position even though this position might need to be determined.
+    Perhaps even the orientation could be forced to be the same this way.
+
+    In such a case, it's even possible to perform some operations on the variables:
+    if ``"cname": "SomeName ; x*2"`` is specified, then this parameter's value will
+    be set to twice the reference value. There should always be one without any extra
+    operations, so that a reference value can be determined.
     """
     inf = _createTemplateLens(parametricLens, Dd)
 
