@@ -8,6 +8,7 @@ import pprint
 import copy
 import math
 import uuid
+import json
 
 class ParametricDescriptionException(Exception):
     """An exception that will be thrown in case something goes wrong when
@@ -601,6 +602,11 @@ def _convertedValueToString(value, stringConverter):
     if type(value) == dict:
         d = "{ "
         for k in value:
+            if k == "cname":
+                cn = str(value[k])
+                d += '"cname": ' + json.dumps(cn) + ", "
+                continue
+
             if not k in [ "initmin", "initmax", "hardmin", "hardmax" ]:
                 raise ParametricDescriptionException(f'Unexpected key {k}, expecting "initmin", "initmax", "hardmin", "hardmax"')
             d += f'"{k}": ' + stringConverter(value[k]) + ", "
