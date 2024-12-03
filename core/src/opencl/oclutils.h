@@ -24,7 +24,7 @@ public:
 
 		m_pMem = nullptr;
 		m_size = 0;
-    }
+	}
 
 	errut::bool_t realloc(OpenCLLibrary &cl, cl_context ctx, size_t s) // Only reallocates if more memory is requested
 	{
@@ -40,7 +40,7 @@ public:
 			return "Can't create buffer of size " + std::to_string(s) + " on GPU: code " + std::to_string(err);
 
 		dealloc(cl);
-    
+
 		m_pMem = pBuf;
 		m_size = s;
 		return true;

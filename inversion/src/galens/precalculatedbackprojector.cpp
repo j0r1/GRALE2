@@ -75,7 +75,7 @@ bool PreCalculatedBackProjector::init(const std::vector<ImagesData *> &images,
 	m_thetas.resize(images.size());
 
 	double maxx = -numeric_limits<double>::max(), minx = numeric_limits<double>::max();
-    double maxy = -numeric_limits<double>::max(), miny = numeric_limits<double>::max();
+	double maxy = -numeric_limits<double>::max(), miny = numeric_limits<double>::max();
 	
 	// Determine the angular scale and store some stuff
 

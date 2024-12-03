@@ -28,17 +28,17 @@ using namespace errut;
 string OpenCLLibrary::getLibraryName()
 {
 #ifdef GRALE_LOADLIBRARY
-    string defaultLibrary = "opencl.dll";
+	string defaultLibrary = "opencl.dll";
 #else
-    #ifdef __APPLE__
-    string defaultLibrary = "/System/Library/Frameworks/OpenCL.framework/OpenCL";
+	#ifdef __APPLE__
+	string defaultLibrary = "/System/Library/Frameworks/OpenCL.framework/OpenCL";
 #else
-    string defaultLibrary = "libOpenCL.so";
+	string defaultLibrary = "libOpenCL.so";
 #endif // __APPLE
 #endif // GRALE_LOADLIBRARY
 
-    string library = defaultLibrary;
-    grale::getenv("GRALE_OPENCLLIB", library); // Doesn't change the value if environment variable not set
+	string library = defaultLibrary;
+	grale::getenv("GRALE_OPENCLLIB", library); // Doesn't change the value if environment variable not set
 
 	return library;
 }

@@ -36,7 +36,7 @@ public:
 		return true;
 	}
 
-    errut::bool_t onFitnessCalculated(size_t generation, const std::shared_ptr<eatk::Population> &population) override
+	errut::bool_t onFitnessCalculated(size_t generation, const std::shared_ptr<eatk::Population> &population) override
 	{
 		m_timer.stop();
 		m_intervals.push_back(m_timer.duration());
@@ -52,7 +52,7 @@ public:
 		return true;
 	}
 
-    errut::bool_t onFitnessCalculated(size_t generation, const std::vector<std::shared_ptr<eatk::Population>> &populations) override
+	errut::bool_t onFitnessCalculated(size_t generation, const std::vector<std::shared_ptr<eatk::Population>> &populations) override
 	{
 		m_timer.stop();
 		m_intervals.push_back(m_timer.duration());

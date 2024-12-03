@@ -95,7 +95,7 @@ private:
 	double angularscale,angularscale2;
 	double relativeangularwidth2;
 	double rawd2,dens;
-};		      
+};
 
 } // end namespace
 

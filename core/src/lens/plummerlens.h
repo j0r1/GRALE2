@@ -88,7 +88,7 @@ protected:
 	bool getSurfaceMassDensityDerivative(double thetaLength, double &deriv) const override;
 private:
 	double mass,angularwidth,angularwidth2;
-};		      
+};
 
 } // end namespace
 

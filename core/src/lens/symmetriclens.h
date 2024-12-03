@@ -59,8 +59,8 @@ public:
 	bool getAlphaVectorSecondDerivatives(Vector2D<double> theta, double &axxx, double &ayyy, double &axxy, double &ayyx) const override;
 	double getSurfaceMassDensity(Vector2D<double> theta) const			{ return getProfileSurfaceMassDensity(theta.getLength()); }
 
-    static SymmetricLens *cast(GravitationalLens *pLens);
-    static const SymmetricLens *cast(const GravitationalLens *pLens);
+	static SymmetricLens *cast(GravitationalLens *pLens);
+	static const SymmetricLens *cast(const GravitationalLens *pLens);
 
 	/** Implementations need to provide this function.
 	 *  Implementations need to provide this function. The function should

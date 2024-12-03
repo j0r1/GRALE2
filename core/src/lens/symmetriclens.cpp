@@ -182,7 +182,7 @@ bool SymmetricLens::getAlphaVectorSecondDerivatives(Vector2D<double> theta, doub
 
 SymmetricLens *SymmetricLens::cast(GravitationalLens *pLens)
 {
-    return dynamic_cast<SymmetricLens *>(pLens);
+	return dynamic_cast<SymmetricLens *>(pLens);
 }
 
 const SymmetricLens *SymmetricLens::cast(const GravitationalLens *pLens)

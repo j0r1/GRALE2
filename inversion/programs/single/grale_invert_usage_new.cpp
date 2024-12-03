@@ -21,7 +21,7 @@ protected:
 	bool_t runModule(const std::string &lensFitnessObjectType, 
 	                 std::unique_ptr<grale::LensFitnessObject> fitnessObject,
 					 const std::string &calculatorType) override
-    {
+	{
 		auto &f = fitnessObject;
 		if (!f.get())
 			return "Unable to create lens fitness object for module: " + lensFitnessObjectType;

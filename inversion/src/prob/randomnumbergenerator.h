@@ -43,8 +43,8 @@ public:
 	RandomNumberGenerator();
 	~RandomNumberGenerator();
 
-    double getRandomDouble() override;
-    float getRandomFloat() override { return (float)getRandomDouble(); }
+	double getRandomDouble() override;
+	float getRandomFloat() override { return (float)getRandomDouble(); }
 	uint32_t getRandomUint32() override;
 
 	uint32_t getSeed() const { return m_seed; }

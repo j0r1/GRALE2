@@ -99,7 +99,7 @@ void FitnessHistory::getDebugInfo(float *pCurValue, float *pRefValue, float *pCo
 
 	int realPos = pos%m_fitnessHistory.size();
 
-       	*pCurValue = m_fitnessHistory[realPos];
+	*pCurValue = m_fitnessHistory[realPos];
 
 	if (pos < m_fitnessHistory.size())
 	{

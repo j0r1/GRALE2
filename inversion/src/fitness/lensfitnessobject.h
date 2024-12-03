@@ -230,9 +230,9 @@ public:
 class LensFitnessObjectRegistry
 {
 public:
-    static LensFitnessObjectRegistry &instance();
+	static LensFitnessObjectRegistry &instance();
 
-    ~LensFitnessObjectRegistry();
+	~LensFitnessObjectRegistry();
 
 	template<class T>
 	errut::bool_t registerLensFitnessObject(const std::string &name)
@@ -241,13 +241,13 @@ public:
 		return registerFitnessObjectFactory(name, std::make_unique<LensFitnessObjectFactoryHelper<T>>());
 	}
 	
-    std::unique_ptr<LensFitnessObject> createFitnessObject(const std::string &name);
+	std::unique_ptr<LensFitnessObject> createFitnessObject(const std::string &name);
 private:
-    LensFitnessObjectRegistry();
+	LensFitnessObjectRegistry();
 	errut::bool_t registerFitnessObjectFactory(const std::string &name, std::unique_ptr<LensFitnessObjectFactory> fitnessObjectFactory);
 
-    std::map<std::string, std::unique_ptr<LensFitnessObjectFactory>> m_registry;
-    static std::unique_ptr<LensFitnessObjectRegistry> s_instance;
+	std::map<std::string, std::unique_ptr<LensFitnessObjectFactory>> m_registry;
+	static std::unique_ptr<LensFitnessObjectRegistry> s_instance;
 };
 
 void registerDefaultLensFitnessObjects();
