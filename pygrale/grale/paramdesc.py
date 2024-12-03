@@ -219,7 +219,7 @@ def _getCouplingNameAndCode(cname:str):
 
     return cn, code
 
-def _createParamOffsetInfo(l, paramNames, couplingNames, deflectionscale, potentialscale):
+def _createParamOffsetInfo(l, paramNames, couplingNames, tagNames, deflectionscale, potentialscale):
 
     assert len(paramNames) == len(couplingNames), "Internal error: parameter name array and coupling name array should have same length"
 
@@ -232,12 +232,15 @@ def _createParamOffsetInfo(l, paramNames, couplingNames, deflectionscale, potent
         adjustableParamsDict[name] = p
 
     paramOffsetInfo = []    
-    for n, cn in zip(paramNames, couplingNames):
+    for n, cn, t in zip(paramNames, couplingNames, tagNames):
         if not n in adjustableParamsDict:
             raise ParametricDescriptionException(f"Internal error: specified adjustable param {n} does not seem to be valid")
         d = adjustableParamsDict[n]
         if cn:
             d["cname"], d["ccode"] = _getCouplingNameAndCode(cn)
+        if t:
+            d["tag"] = t
+
         paramOffsetInfo.append(d)
 
     return sorted(paramOffsetInfo, key=lambda x: x["offset"])
@@ -245,16 +248,22 @@ def _createParamOffsetInfo(l, paramNames, couplingNames, deflectionscale, potent
 def _createTemplateLens(parametricLensDescription, Dd):
 
     couplingNames = []
+    tagNames = []
 
     # This is probably not the cleanest way
     def recordParamCouplingNamesWrapper(params, paramKey):
         value, isFixed = _getInitialParameterValue(params, paramKey)
         if not isFixed:
             v = params[paramKey]
-            n = None
-            if type(v) == dict and "cname" in v:
+            n, t = None, None
+            if type(v) == dict:
+                if "cname" in v:
                     n = v["cname"]
+                if "tag" in v:
+                    t = v["tag"]
+
             couplingNames.append(n)
+            tagNames.append(t)
 
         return value, isFixed
 
@@ -262,7 +271,7 @@ def _createTemplateLens(parametricLensDescription, Dd):
     scales = l.getSuggestedScales()
     intParam, floatParams = l.getCLParameters(**scales)
     ret = { "templatelens": l,
-            "paramoffsets": _createParamOffsetInfo(l, paramNames, couplingNames, **scales),
+            "paramoffsets": _createParamOffsetInfo(l, paramNames, couplingNames, tagNames, **scales),
             "paramnames": paramNames, # in original order
             "scales": scales,
             "floatparams": floatParams,
@@ -506,6 +515,11 @@ def analyzeParametricLensDescription(parametricLens, Dd, defaultFraction, clampT
     if ``"cname": "SomeName ; x*2"`` is specified, then this parameter's value will
     be set to twice the reference value. There should always be one without any extra
     operations, so that a reference value can be determined.
+
+    If a dictionary is used, you can also specify some ``"tag"`` value. This will be
+    interpreted as a string, but will mostly be ignored. You can use this to name
+    some variables yourself, perhaps to make post-processing lens inversion results
+    easier to interpret.
     """
     inf = _createTemplateLens(parametricLens, Dd)
 
@@ -555,6 +569,8 @@ def analyzeParametricLensDescription(parametricLens, Dd, defaultFraction, clampT
         if "cname" in offInf:
             d["cname"] = offInf["cname"]
             d["ccode"] = offInf["ccode"]
+        if "tag" in offInf:
+            d["tag"] = offInf["tag"]
         paramRanges.append(d)
 
     paramRanges = sorted(paramRanges, key = lambda x: x["offset"])
@@ -602,9 +618,9 @@ def _convertedValueToString(value, stringConverter):
     if type(value) == dict:
         d = "{ "
         for k in value:
-            if k == "cname":
+            if k == "cname" or k == "tag":
                 cn = str(value[k])
-                d += '"cname": ' + json.dumps(cn) + ", "
+                d += f'"{k}": ' + json.dumps(cn) + ", "
                 continue
 
             if not k in [ "initmin", "initmax", "hardmin", "hardmax" ]:
