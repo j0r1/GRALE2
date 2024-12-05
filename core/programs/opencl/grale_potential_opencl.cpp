@@ -53,7 +53,7 @@ bool_t OpenCLRenderer::renderGrid(const vector<uint8_t> &lensData, Gravitational
 		potentialScale = ANGLE_ARCSEC*ANGLE_ARCSEC;
 	}
 
-	vector<int> intParams(numIntParams+1); // TODO: why did I do a +1 here?
+	vector<int> intParams(numIntParams+1); // +1 To avoid trying to upload 0 bytes
 	vector<float> floatParams(numFloatParams+1);
 
 	intParams[numIntParams] = -12345;

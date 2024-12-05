@@ -265,7 +265,6 @@ __kernel void fillInChangedParameters(__global const float *pChangedParamsBase,
 	if (thetaUncert.size() > 0)
 	{
 		// kernel for randomization: based on thetas, states, sigmas, calculate thetas with additions
-		// TODO add code for xoshiro128plus functions
 		string src = getOpenCLXoshiro128plusCode();
 		src += R"XYZ(
 __kernel void randomizeImagePlanePositions(int numPoints, 

@@ -45,7 +45,7 @@ bool_t OpenCLRenderer::renderGrid(const vector<uint8_t> &lensData, Gravitational
 		potentialScale = ANGLE_ARCSEC*ANGLE_ARCSEC;
 	}
 
-	vector<int> intParams(numIntParams+1); // TODO: why did I do a +1 here?
+	vector<int> intParams(numIntParams+1); // +1 to avoid trying to upload 0 bytes
 	vector<float> floatParams(numFloatParams+1);
 
 	if (!pLens->getCLParameters(deflectionScale, potentialScale, &(intParams[0]), &(floatParams[0])))
@@ -200,7 +200,7 @@ bool_t OpenCLRenderer::renderPointVector(const std::vector<uint8_t> &lensData, g
 	for (int i = 0 ; i < floatPos.size() ; i++)
 		floatPos[i] = (float)(inputXY[i]/deflectionScale);
 
-	vector<int> intParams(numIntParams+1); // TODO: why did I do a +1 here?
+	vector<int> intParams(numIntParams+1); // +1 To avoid uploading 0 bytes
 	vector<float> floatParams(numFloatParams+1);
 
 	if (!pLens->getCLParameters(deflectionScale, potentialScale, &(intParams[0]), &(floatParams[0])))

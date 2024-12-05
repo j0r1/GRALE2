@@ -149,7 +149,7 @@ bool_t ThreadsRenderer::renderPointVector(const std::vector<uint8_t> &lensData, 
 
 	setProgress(pixelsToRenderApprox, pixelsToRenderApprox);
 
-	// TODO: should really clean up the lens copies, but we're exiting the program anyway
+	// Cleanup of lens copies is done by smart pointer
 
 	return true;
 }

@@ -204,7 +204,6 @@ public:
 
 	virtual std::unique_ptr<GravitationalLens> createUninitializedInstance() const;
 
-	// TODO: experimental
 	// OpenCL stuff
 	
 	virtual bool getSuggestedScales(double *pDeflectionScale, double *pPotentialScale) const;

@@ -29,9 +29,6 @@
 #include "utils.h"
 #include <iostream>
 
-// TODO: FOR DEBUGGING
-#include <stdio.h>
-
 namespace grale
 {
 
