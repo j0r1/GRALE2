@@ -218,7 +218,6 @@ def createEquivalentPotentialGridLens(lens, bottomLeft, topRight, NX, NY, maskRe
                                       exceptionOnFail = True,
                                       dryrun = False
                                       ):
-
     r"""This uses a quadratic programming approach to extrapolate the lens potential values
     in certain regions (typically covering the images in a lensing system), thereby creating
     a lens that has the same effect (because the lens potential is the same in the image

@@ -1,5 +1,88 @@
 import sys
 
+def _commentsremoved(l):
+    newL = []
+    for x in l:
+        if x == "#":
+            break
+        newL.append(x)
+    return "".join(newL)
+
+def _preprocess(lines):
+    newLines = []
+    linesToMerge = None
+    parenthCount = 0
+    for l in lines:
+        if l.strip().startswith("def ") or l.strip().startswith("cdef "):
+            assert parenthCount == 0, "Expecting parenthCount to be zero"
+
+            for x in l:
+                if x == '(':
+                    parenthCount += 1
+                elif x == ')':
+                    parenthCount -= 1
+                    assert parenthCount >= 0, "Negative parenthesis count!"
+
+            if parenthCount == 0:
+                newLines.append(l)
+            else:
+                assert linesToMerge is None
+                linesToMerge = [ _commentsremoved(l).rstrip() ]
+
+        else:
+            if parenthCount == 0: # Not in a 'def' expression
+                newLines.append(l)
+                assert linesToMerge is None
+            else:
+                assert linesToMerge
+
+                for x in l:
+                    if x == '(':
+                        parenthCount += 1
+                    elif x == ')':
+                        parenthCount -= 1
+                        assert parenthCount >= 0, "Negative parenthesis count!"
+        
+                if parenthCount == 0: # final parenthesis closed
+                    linesToMerge.append(" " + _commentsremoved(l.strip()))
+                    newLines.append(" ".join(linesToMerge) + "\n")
+                    linesToMerge = None
+                else: # still not closed
+                    linesToMerge.append(" " + _commentsremoved(l.strip()))
+
+
+    #print("".join(newLines))
+    return newLines
+
+def splitIntoArguments(argsStr):
+    parentCounts = { "()": 0, "[]": 0 }
+    arg = ""
+
+    for idx in range(len(argsStr)):
+        c = argsStr[idx]
+        if c == "(":
+            parentCounts["()"] += 1
+            arg += c
+        elif c == ")":
+            parentCounts["()"] -= 1
+            arg += c
+        elif c == "[":
+            parentCounts["[]"] += 1
+            arg += c
+        elif c == "]":
+            parentCounts["[]"] -= 1
+            arg += c
+        elif c == ",":
+            if parentCounts["()"] == 0 and parentCounts["[]"] == 0:
+                return [ arg.strip() ] + splitIntoArguments(argsStr[idx+1:])
+            
+            arg += c
+        else:
+            arg += c
+
+    return [ arg.strip() ]
+
+
 def gen_pyi(inFn, outFn):
     if type(inFn) == list:
         lines = []
@@ -7,6 +90,8 @@ def gen_pyi(inFn, outFn):
             lines += open(fn).readlines()
     else:
         lines = open(inFn).readlines()
+
+    lines = _preprocess(lines)
 
     state = {
         "needStart": True,
@@ -75,14 +160,19 @@ def gen_pyi(inFn, outFn):
         endPart = l[idx2:]
 
         middle = l[idx1+1:idx2]
-        middle = removeSquareBrackets(middle)
+        #print("TODO: consider arguments:")
+        #print(splitIntoArguments(middle))
+
+        #middle = removeSquareBrackets(middle)
         
-        parts = middle.split(",")
+        #parts = middle.split(",")
+        parts = splitIntoArguments(middle)
         newParts = []
         for arg in parts:
             arg = arg.strip()
             arg = filterTypes(arg, ["cbool ", "double ", "np.ndarray ", "bool ", "int ",
-                                    "bytes ", "LensPlane "])
+                                    "bytes ", "LensPlane ", "np.ndarray[np.float32_t,ndim=1] ",
+                                    "np.ndarray[double, ndim=2] ", "np.ndarray[double,ndim=2] "])
             newParts.append(arg)
 
         middle = ", ".join(newParts)
