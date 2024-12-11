@@ -65,7 +65,6 @@ set(HEADERS
 	image/imagesdataextended.h
 	image/lensplane.h
 	image/imageplane.h
-	image/multiplanecuda.h
 	source/sourceimage.h
 	source/circularsource.h
 	source/ellipticalsource.h
@@ -168,7 +167,6 @@ set(SOURCES
 	image/imagesdataextended.cpp
 	image/lensplane.cpp
 	image/imageplane.cpp
-	image/multiplanecuda.cpp
 	source/sourceimage.cpp
 	source/circularsource.cpp
 	source/ellipticalsource.cpp

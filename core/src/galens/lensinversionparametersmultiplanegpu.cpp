@@ -185,7 +185,7 @@ bool LensInversionParametersMultiPlaneGPU::write(serut::SerializationInterface &
 
 	if (!si.writeInt32(m_deviceIdx))
 	{
-		setErrorString("Unable to write CUDA device index: " + si.getErrorString());
+		setErrorString("Unable to write device index: " + si.getErrorString());
 		return false;
 	}
 	return true;
@@ -333,7 +333,7 @@ bool LensInversionParametersMultiPlaneGPU::read(serut::SerializationInterface &s
 	int32_t devIdx;
 	if (!si.readInt32(&devIdx))
 	{
-		setErrorString("Unable to read CUDA device index: " + si.getErrorString());
+		setErrorString("Unable to read device index: " + si.getErrorString());
 		return false;
 	}
 	m_deviceIdx = devIdx;

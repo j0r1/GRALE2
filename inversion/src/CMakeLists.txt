@@ -10,7 +10,6 @@ set(HEADERS
 	galens/multifitnesshistory.h
 	galens/projectedimagesinterface.h
 	galens/precalculatedbackprojector.h
-	galens/mpcudabackprojector.h
 	galens/lensinversiongafactorycommon.h
 	galens/lensgaindividual.h
 	galens/lensgagenomemutation.h
@@ -60,7 +59,6 @@ set(SOURCES
 	galens/multifitnesshistory.cpp
 	galens/projectedimagesinterface.cpp
 	galens/precalculatedbackprojector.cpp
-	galens/mpcudabackprojector.cpp
 	galens/lensinversiongafactorycommon.cpp
 	galens/lensgaindividual.cpp
 	galens/lensgagenomemutation.cpp

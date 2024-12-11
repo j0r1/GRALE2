@@ -46,14 +46,8 @@ target_link_libraries(backproject graleinv-static gralecore-static ${GRALE_LINK_
 add_executable(precalcbackproj precalcbackproj.cpp)
 target_link_libraries(precalcbackproj graleinv-static gralecore-static ${GRALE_LINK_LIBS})
 
-add_executable(mpcu mpcu.cpp)
-target_link_libraries(mpcu gralecore-static ${GRALE_LINK_LIBS})
-
 add_executable(cosmcheck cosmcheck.cpp)
 target_link_libraries(cosmcheck gralecore-static ${GRALE_LINK_LIBS})
-
-add_executable(mpcubp mpcubp.cpp)
-target_link_libraries(mpcubp graleinv-static gralecore-static ${GRALE_LINK_LIBS})
 
 add_executable(pernodecounttest pernodecounttest.cpp)
 target_link_libraries(pernodecounttest gralecore-static ${GRALE_LINK_LIBS})
