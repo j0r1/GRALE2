@@ -724,7 +724,7 @@ def plotDensityMixed3D2D(lensOrLensInfo, colMapSurface="viridis",
                          zeroKw = { "alpha": 0.5, "edgecolor": None, "facecolor": "gray" },
                          axes = None
                          ):
-    """TODO"""
+    """TODO: experimental function to create a combined 3D and 2D plot."""
 
     angularUnit = _getAngularUnit(angularUnit)
     li = _toLensInfo(lensOrLensInfo)
@@ -1789,7 +1789,9 @@ def _getLensFunctionAndDistance(lensInfo):
 def plotAverageDensityProfile(lensOrLensInfo, thetaMax, center = [0.0, 0.0], thetaSteps = 512, phiSteps = 512, 
                               angularUnit = "default", densityUnit = 1.0, axes = None, renderer = "default",
                               feedbackObject = "default", thetaMin = 0.0, **kwargs):
-    """Creates a plot of the circularly averaged density profile.
+    """Creates a plot of the circularly averaged density profile. Below are the
+supported arguments, other `kwargs` are passed to the `plot` function of
+matplotlib.
 
 Arguments:
  - `lensOrLensInfo`: information about the gravitational lens for which the
@@ -1823,7 +1825,8 @@ Arguments:
 
  - `feedbackObject`: can be used to specify a particular :ref:`feedback mechanism <feedback>`.
 
- - `thetaMin`: TODO
+ - `thetaMin`: if specified, the profile starts at a different radius than just zero.
+
 """
     angularUnit = _getAngularUnit(angularUnit)
 
@@ -1864,8 +1867,9 @@ Arguments:
 def plotIntegratedMassProfile(lensOrLensInfo, thetaMax, center = [0.0, 0.0], thetaSteps = 512, phiSteps = 512,
                               angularUnit = "default", massUnit = 1.0, axes = None, renderer = "default", feedbackObject = "default",
                               **kwargs):
-    """Creates a plot of the circularly integrated mass profile. The arguments are 
-the same as for :func:`plotAverageDensityProfile`."""
+    """Creates a plot of the circularly integrated mass profile. The arguments are mostly
+the same as for :func:`plotAverageDensityProfile` (`thetaMin` is not supported).
+Other `kwargs` arguments are passed to the `plot` function of matplotlib."""
 
     angularUnit = _getAngularUnit(angularUnit)
 
@@ -1922,7 +1926,8 @@ Arguments:
    matplotlib axes object as well. The value `False` has a special meaning: in that case,
    the calculations will be performed as usual, but an actual plot will not be created.
 
- - `squareScale`: TODO
+ - `squareScale`: the size of the squares can be rescaled by this factor, which may make
+   it easier to see if some squares are not present in the grid.
 
  - `kwargs`: these parameters will be passed on to the `imshow <https://matplotlib.org/devdocs/api/_as_gen/matplotlib.axes.Axes.imshow.html>`_
    function in matplotlib.

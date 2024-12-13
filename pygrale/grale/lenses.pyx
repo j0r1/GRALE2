@@ -78,14 +78,17 @@ class LensException(Exception):
     pass
 
 def setNumberOfCalculationThreads(int n):
-    """TODO"""
+    """If ``experimentalThreads`` is set to ``True``, this number of threads will be
+    used to calculate e.g. deflection angles in parallel. If this is zero, it will
+    use as many cores as detected on this computer."""
     if n < 0:
         raise LensException("Number of calculation threads must be at least zero (zero means all possible threads)")
     global _numCalculationThreads
     _numCalculationThreads = n
 
 def getNumberOfCalculationThreads():
-    """TODO"""
+    """Returns the number of calculation threads that's used when ``experimentalThreads`` is ``True``. See
+    also :func:`setNumberOfCalculationThreads`."""
     global _numCalculationThreads
     if _numCalculationThreads == 0:
         _numCalculationThreads = multiprocessing.cpu_count()
@@ -618,9 +621,17 @@ cdef class GravitationalLens:
         r"""getAlphaVectorSecondDerivatives(thetas)
 
         Returns the second derivatives of the deflection angle at the positions specified in 'thetas'.
-        For each position (thetax, thetay), three values (axxx, ayyy, axxy, ayyx) are returned, where
+        For each position (thetax, thetay), four values (axxx, ayyy, axxy, ayyx) are returned, where
 
-        TODO
+        .. math::
+
+            \begin{array}{l}
+              {\rm axxx} = \frac{\partial^2\hat{\alpha}_x}{\partial \theta_x^2} \\
+              {\rm ayyy} = \frac{\partial^2\hat{\alpha}_y}{\partial \theta_y^2} \\
+              {\rm axxy} = \frac{\partial^2\hat{\alpha}_x}{\partial \theta_x\theta_y} = \frac{\partial^2\hat{\alpha}_y}{\partial \theta_x^2}\\ 
+              {\rm ayyx} = \frac{\partial^2\hat{\alpha}_y}{\partial \theta_y\theta_x} = \frac{\partial^2\hat{\alpha}_x}{\partial \theta_y^2} 
+            \end{array}
+
         """
         thetas = np.array(thetas)
         return self._reshapeAndCall1D(lambda x : self._getAlphaVectorSecondDerivatives1_new(x) if experimentalThreads else self._getAlphaVectorSecondDerivatives1(x), thetas, 2, 4)
@@ -1040,6 +1051,13 @@ cdef class GravitationalLens:
             raise LensException(S(self._lens().getErrorString()))
 
     def refinePosition(self, double Ds, double Dds, beta, startTheta, int numIterations = 4):
+        """refinePosition(Ds, Dds, beta, startTheta, numIterations = 4)
+
+        For an image plane position `startTheta` that already corresponds quite well to
+        the source plane position `beta` (for distances `Ds` and `Dds`), this performs
+        `numIterations` corrections based on the gradient of the deflection field, and
+        returns the updated position."""
+
         cdef Vector2Dd vBeta = Vector2Dd(beta[0], beta[1])
         cdef Vector2Dd vStartTheta = Vector2Dd(startTheta[0], startTheta[1])
         cdef Vector2Dd theta = vStartTheta
@@ -2871,11 +2889,25 @@ cdef class HarmonicLens(GravitationalLens):
         }
 
 cdef class PotentialGridLensBase:
+    """This is not really a lens model, but will have many same member functions.
+    It is very similar to a :class:`PotentialGridLens <grale.lenses.PotentialGridLens>`,
+    yielding the same density, deflection angles etc for the same potential grid.
+    For this version is easier to update values of the grid, so perhaps faster in an
+    optimization routine."""
+
     cdef unique_ptr[gravitationallens.PotentialGridLensBase] m_pLens
     cdef int m_numX, m_numY
     cdef int m_init
 
     def __init__(self, double Dd, bottomLeft, topRight, int numX, int numY, values = None):
+        """__init__(Dd, bottomLeft, topRight, numX, numY, values = None)
+
+        Creates a model for an angular diameter distance `Dd`, where initial projected potential
+        values are specified on a 2D grid `values`, if specified. Internally such a 2D grid
+        with shape (`numY`, `numX`) is used, corresponding to a grid of values between
+        `bottomLeft` and `topRight`. For potential values other than those at the grid points, bi-cubic
+        interpolation is used.
+        """
 
         if numX < 2 or numY < 2:
             raise LensException("Invalid dimensions specified")
@@ -2896,6 +2928,10 @@ cdef class PotentialGridLensBase:
             raise LensException("No initial potential values were set")
 
     def getValues(self):
+        """getValues()
+
+        Returns the grid of projected potential values.
+        """
         cdef np.ndarray[double,ndim=1] values
         cdef int num = self._lens().values().size()
 
@@ -2912,6 +2948,11 @@ cdef class PotentialGridLensBase:
         return values.reshape(self.m_numY, self.m_numX)
 
     def setValues(self, np.ndarray[double, ndim=2] v):
+        """setValues(v)
+
+        Sets the projected potential values to `v`. This must be a 2D array compatible 
+        with the settings from the constructor.
+        """
         cdef np.ndarray[double,ndim=1] linArray
         cdef int num = self.m_numX * self.m_numY
         cdef errut.bool_t r
@@ -2984,6 +3025,11 @@ cdef class PotentialGridLensBase:
         return alphas
 
     def getAlphaVector(self, thetas):
+        """getAlphaVector(thetas)
+
+        For one or more image plane points in `thetas`, this routine calculates
+        the deflection angles based on the potential grid.
+        """
         thetas = np.array(thetas)
         return self._reshapeAndCall1D(lambda x: self._getAlphaVector1(x), thetas, 2, 2)
 
@@ -3012,6 +3058,21 @@ cdef class PotentialGridLensBase:
         return derivatives
 
     def getAlphaVectorDerivatives(self, thetas):
+        r"""getAlphaVectorDerivatives(thetas)
+
+        For one or more image plane points in `thetas`, this routine calculates
+        the derivatives of the deflection angles.
+        For each position (thetax, thetay), three values (axx, ayy, axy) are returned, where
+
+        .. math::
+
+            \begin{array}{l}
+              {\rm axx} = \frac{\partial \hat{\alpha}_x}{\partial \theta_x} \\
+              {\rm ayy} = \frac{\partial \hat{\alpha}_y}{\partial \theta_y} \\
+              {\rm axy} = \frac{\partial \hat{\alpha}_x}{\partial \theta_y} = \frac{\partial \hat{\alpha}_y}{\partial \theta_x} 
+            \end{array}
+
+        """
         thetas = np.array(thetas)
         return self._reshapeAndCall1D(lambda x: self._getAlphaVectorDerivatives1(x), thetas, 2, 3)
 
@@ -3038,6 +3099,11 @@ cdef class PotentialGridLensBase:
         return dens
 
     def getSurfaceMassDensity(self, thetas):
+        """getSurfaceMassDensity(thetas)
+
+        For one or more image plane points in `thetas`, this routine calculates
+        the surface mass density of the model based on the gridded lens potential.
+        """
         thetas = np.array(thetas)
         return self._reshapeAndCall1D(lambda x: self._getSurfaceMassDensity1(x), thetas, 2, 1)
 
@@ -3065,6 +3131,11 @@ cdef class PotentialGridLensBase:
         return potential
 
     def getProjectedPotential(self, thetas):
+        """getProjectedPotential(thetas)
+
+        For one or more image plane points in `thetas`, this routine calculates
+        the projected potential.
+        """
         thetas = np.array(thetas)
         return self._reshapeAndCall1D(lambda x: self._getProjectedPotential1(x), thetas, 2, 1)
 
@@ -3374,7 +3445,7 @@ cdef class CubicDeflectionGridLens(GravitationalLens):
              - 'angles': a NumY*NumX*2 numpy array containing the deflection angles.
              - 'bottomleft': the bottom-left coordinate, which will have the deflection
                angle stored at position (0, 0) in the 'angles' grid.
-             - 'topright': the top-right coordinat, which will have the deflection angle
+             - 'topright': the top-right coordinate, which will have the deflection angle
                stored at position (NumY-1, NumX-1) in the 'angles' grid.
         """
         super(CubicDeflectionGridLens, self).__init__(_gravLensRndId)

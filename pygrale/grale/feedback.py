@@ -129,7 +129,7 @@ def getFeedbackClass(feedbackName):
     if feedbackName.lower() == "none":
         return Feedback
 
-    raise FeedbackException("Invalid feedback mechanism name, should be 'default', 'stdio' or 'notebook', but is '{}'".format(feedbackName))
+    raise FeedbackException("Invalid feedback mechanism name, should be 'default', 'stdio', 'notebook' or 'none', but is '{}'".format(feedbackName))
 
 def setDefaultFeedback(feedbackNameOrClass):
     """

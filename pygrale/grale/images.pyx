@@ -122,6 +122,9 @@ cdef class ImagesData:
 
     @staticmethod
     def getAllPropertyNames():
+        """getAllPropertyNames()
+
+        Lists all supported property names."""
         return sorted(list(ImagesData.propertyMapping.keys()))
 
     def __init__(self, int numImages, **kwargs):
@@ -134,7 +137,8 @@ cdef class ImagesData:
          - ``kwargs`` can specify the presence of a number of properties, which can
            be one or more of 
            ``intensity``, ``shear``, ``shear1``, ``shear2``, ``shearweight``, ``distancefraction``, 
-           ``shearsigma``, ``shearsigma1``, ``shearsigma2``, ``redshift``, ``redshiftsigma``.
+           ``shearsigma``, ``shearsigma1``, ``shearsigma2``, ``redshift``, ``redshiftsigma``
+           (call :func:`getAllPropertyNames <grale.images.ImagesData.getAllPropertyNames>` for a complete list).
            E.g to add intensity information to each point, pass
            ``intensity=True`` as an argument. Property names that are set to ``False``
            are simply ignored.

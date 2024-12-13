@@ -768,8 +768,9 @@ def createParametricDescription(lens, massUnitString = "MASS_SUN", angularUnitSt
     """Create a basic representation of a parametric lens model, based on the
     :class:`lens model<grale.lenses.GravitationalLens>` in `lens`. The result is
     a string which represents python code and can be saved to a file for further
-    editing. This result has no parameters that can change, so it will need to be
-    adjusted.
+    editing. By default this result has no parameters that can change and will need to be
+    adjusted, but this behaviour can be changed using the `convertValueFunction`
+    parameter (see below).
     
     To make the description more readable, values for masses will be represented
     as a value times the mass unit, which needs to be represented as string in
@@ -789,7 +790,7 @@ def createParametricDescription(lens, massUnitString = "MASS_SUN", angularUnitSt
           more complex model.
         - `paramName`: the name of the parameter, for example ``"mass"``
         - `uniqueParamName`: internal name of the parameter, which is unique. This is
-          similar as the parameter names in ``variablefloatparams`` from the
+          similar to the parameter names in ``variablefloatparams`` from the
           :func:`analyzeParametricLensDescription` function.
         - `fullParams`: the full lens model parameters of the current (sub) model. This
           could be helpful if you need more information about which submodel is being
@@ -804,7 +805,9 @@ def createParametricDescription(lens, massUnitString = "MASS_SUN", angularUnitSt
           If a third fraction is specified, e.g. ``[ value, fraction, hardfraction ]``,
           then that will be used for the hard bounds.
         - a dictionary containing entries for ``"initmin"`` and ``"initmax"``, and
-          optionally ``"hardmin"`` and ``"hardmax"``.
+          optionally ``"hardmin"`` and ``"hardmax"``. Entries for ``"cname"`` and
+          ``"tag"`` are also allowed - see :func:`analyzeParametricLensDescription`
+          for their meaning.
 
     For some lenses (for now only a :class:`DeflectionGridLens <grale.lenses.DeflectionGridLens>`)
     it may be nessary to store a large amount of data somewhere (e.g. the deflection 

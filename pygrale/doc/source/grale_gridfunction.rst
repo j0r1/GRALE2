@@ -9,3 +9,5 @@ grale.gridfunction
    .. automethod:: __init__
 
 .. autoexception:: GridFunctionException
+
+.. autofunction:: resample2DArray

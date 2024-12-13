@@ -14,6 +14,10 @@ Helper functions
 
 .. autofunction:: createEquivalentPotentialGridLens
 
+.. autofunction:: setNumberOfCalculationThreads
+
+.. autofunction:: getNumberOfCalculationThreads
+
 GravitationalLens
 -----------------
 .. autoclass:: grale.lenses.GravitationalLens
@@ -221,4 +225,12 @@ CubicDeflectionGridLens
 .. autoclass:: grale.lenses.CubicDeflectionGridLens
 
    .. automethod:: __init__
+
+Pseudo-lens class: PotentialGridLensBase
+----------------------------------------
+.. autoclass:: grale.lenses.PotentialGridLensBase
+   :members:
+
+   .. automethod:: __init__
+
 
