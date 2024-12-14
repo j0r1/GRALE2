@@ -1126,10 +1126,12 @@ class ConvergenceParametersException(Exception):
     pass
 
 cdef class ConvergenceParameters(object):
-    """This class is used to control the settings that determine when the
-    GA switches between large and small mutations, what the small mutation
-    size is, and when the GA should terminate. It is controlled with a
-    dictionary with these entries:
+    """This class is used to control the settings that determine when a
+    part of the GA/EA will be considered as converged. In the classic
+    GA, two such stages are used, one with larger mutations, and one with
+    smaller, each also with a different convergence factor.
+
+    The settings are controlled with a dictionary with these entries:
 
      - ``maximumgenerations``: if the number of generations of the GA exceeds
        this number, it will stop (defaults to 16384).
@@ -1137,34 +1139,9 @@ cdef class ConvergenceParameters(object):
        the current fitness values are compared to those of a number of generations
        ago. This number is what's described by the ``historysize`` value (defaults
        to 250). If the relative change of all fitness measures (in a multi-objective
-       setting) are below a certain threshold, the convergence system resets and
-       the GA advances to the next mutation size (or stops if none are left). Note
-       that each time the convergence system starts or resets, nothing can happen
-       untill ``historysize`` generations have passed since no other fitness values
-       can be compared to yet.
-     - `convergencefactors`: this contains the thresholds mentioned above; the
-       default is ``[ 0.1, 0.05 ]``. This arrays needs to have the same length as
-       the following one, which controls the mutation sizes.
-     - `smallmutationsizes`: this array, of the same length as `convergencefactors`,
-       controls the size of the mutations that are allowed. A negative value means
-       that mutated basis function weights will simply be reinitialized, a positive
-       value means that the value of a basis function weight will be changed
-       randomly by an amount that is proportional to the weight, where this positive
-       value specifies the proportionality factor. The default value is ``[ -1.0, 0.1 ]``.
+       setting) are below a certain threshold, convergence is reached.
+     - `convergencefactor`: this contains the threshold mentioned above.
 
-    The default values imply that initially, the random mutations are used, since
-    ``smallmutationsizes[0]`` is negative. For the first 250 generations of the GA,
-    no special action will be taken, but once this `historysize` amount of generations
-    have passed, the fitnesses will be compared to those from 250 generations ago. If
-    the relative change is less than 0.1 (the value in ``convergencefactors[0]``), the
-    mutations are set to the smaller, relative mutations with a factor of 0.1 (the
-    value in ``smallmutationsizes[1]``. For the first 250 generations afterwards, no
-    special action will be taken, but beyond that the relative fitness change is
-    calculated again. If it is less than 0.05 (``convergencefactors[1]``), the
-    algorithm will stop.
-
-    By controlling all these parameters, you could add an extra step with even
-    smaller mutations for example.
     """
 
     cdef unique_ptr[lensgaconverenceparameters.LensGAConvergenceParameters] m_params

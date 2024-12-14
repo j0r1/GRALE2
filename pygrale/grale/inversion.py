@@ -437,7 +437,7 @@ def invertMultiPlane(inputImages, basisLensesAndRedshifts, popSize, moduleName="
      - `cosmology`: The cosmological model to use, to calculate the necessary angular
        diameter distances based on the specified redshifts.
 
-     - `multiPopulationParameters`: TODO
+     - `multiPopulationParameters`: TODO: experimental multi-population feature
 
      - `eaType`: see :func:`getFullEASettings`.
     """
@@ -584,12 +584,13 @@ def invert(inputImages, basisFunctions, zd, Dd, popSize, moduleName = "general",
        number of generations so that the code doesn't take long to run (this is now
        actually merged into the `convergenceParameters`)
 
-     - `multiPopulationParameters`: TODO
+     - `multiPopulationParameters`: TODO: experimental multi-population feature
 
      - `eaType`: see :func:`getFullEASettings`.
      
-     - `useImagePositionRandomization`: TODO
-
+     - `useImagePositionRandomization`: if set to ``True``, images that contain
+       the ``"positionuncertainty"`` property will be randomized slightly according
+       to this property's value. This can be used to avoid overfitting.
     """
 
     # Check positional uncertainties
@@ -908,10 +909,22 @@ def defaultLensModelFunction(operation, operationInfo, parameters):
 # We need a new type to disambiguate between a list of regions in a single
 # lensplane, and regions for multiple lens planes
 class Regions(object):
-    """TODO"""
+    """For free-form lens inversions, typically a grid based approach
+    is used, where a square region is subdivided into smaller grid cells.
+    A single lens plane can be covered by multiple such regions, in case
+    the lens is relatively large and has distinct strong lensing parts.
+    This class represents one or more of these regions, in a single
+    lens plane. For a multi-plane scenario, multiple of these Regions
+    objects could be used.
+    """
 
     def __init__(self, regionInfoList):
-        """TODO"""
+        """Construct an instance based on `regionInfoList`. In principle
+        this should be a list of dictionaries with keys ``"size"`` and
+        ``"center"`` (the latter is assumed to be (0, 0) if not present).
+        It can also just be a single dictionary, as a shorthand for a list
+        containing only this one entry.
+        """
         if type(regionInfoList) == dict:
             regionInfoList = [ regionInfoList ]
 
@@ -922,11 +935,12 @@ class Regions(object):
             self.regionInfoList.append({ "size": size, "center": center })
 
     def getNumberOfRegions(self):
-        """TODO"""
+        """Returns the number of different regions that were specified in
+        the constructor."""
         return len(self.regionInfoList)
     
     def getRegions(self):
-        """TODO"""
+        """Returns the regions that were specified in the constructor."""
         return self.regionInfoList
 
 class _MultiGridWrapper(object):
@@ -1038,6 +1052,11 @@ class InversionWorkSpace(object):
          - `regionSize` and `regionCenter`: the width and height of the region in which the
            inversion should take plane, as well as its center. This will be used to base the
            grid dimensions on, but by default some randomness will be added (see e.g. :func:`setUniformGrid`).
+           For a more complex setup, where multiple such regions (in the same lens plane) are
+           needed, these can be set to `None`, and the `multiRegionInfo` parameter below can
+           be used. While region information is not needed when :func:`invertBasisFunctions`
+           or :func:`invertParametric` are used, at least one region needs to be defined, even
+           if it is just a 'dummy' value.
            
            These are the default values in :func:`setUniformGrid` and :func:`setSubdivisionGrid`
            but can still be overridden there.
@@ -1045,7 +1064,12 @@ class InversionWorkSpace(object):
            In case of a multi-plane inversion, you can specify different sizes for each plane
            if desired, otherwise the same settings will be used for all planes.
 
-         - `multiRegionInfo`: TODO
+         - `multiRegionInfo`: for a more complex lens, where several strong lensing regions are
+           present, you may want to use several regions than can be subdivided as the inversion
+           progresses. For a single lens plane, you can specify a :class:`Regions <grale.inversion.Regions>`
+           object, a dictionary with ``"regionSize"`` and ``"regionCenter"`` keys, or a list of
+           these. For a multi-plane scenario, a list of :class:`Regions <grale.inversion.Regions>`
+           objects is needed, one for each lens plane.
 
          - `inverter`: specifies the inverter to be used. See the :mod:`inverters<grale.inverters>`
 
@@ -1129,10 +1153,15 @@ class InversionWorkSpace(object):
         grid dimensions on, but by default some randomness will be added 
         (see e.g. :func:`setUniformGrid`).
 
-        TODO: multiRegionInfo
-        
+        For a more complex setup, where multiple such regions (in the same lens plane) are
+        needed, these can be set to `None`, and the `multiRegionInfo` parameter can
+        be used. In this case, `multiRegionInfo` should be a
+        :class:`Regions <grale.inversion.Regions>` object, a dictionary with
+        ``"regionSize"`` and ``"regionCenter"`` keys, or a list of these.
+
         In a multi-plane scenario, ``lpIdx`` can be used to specify a particular
-        lens plane for which the region should be set.
+        lens plane for which the region should be set, otherwise the same region
+        settings are used for each lens plane.
         """
 
         if lpIdx != "all":
@@ -1239,15 +1268,15 @@ class InversionWorkSpace(object):
         containing the width and center of the actual grid to use. This gives
         you somewhat more freedom in adding randomness to the grid size and center.
 
-        If specified, `regionSize` and `regionCenter` override the internally stored
-        dimensions.
+        If specified, `regionSize`, `regionCenter` or `multiRegionInfo` override 
+        the internally stored dimensions.
 
         In a multi-plane scenario, ``lpIdx`` can be used to specify only one
         lens plane.
 
-        TODO: multiRegionInfo
-
-        TODO: excludeFunction
+        The `excludeFunction` parameter can be used to exclude certain regions
+        from the generated grid, see :func:`MultiGridCreator.getUniformGrid <grale.grid.MultiGridCreator.getUniformGrid>`
+        for more information.
         """
         
         def process(i) -> _MultiGridWrapper:
@@ -1268,13 +1297,15 @@ class InversionWorkSpace(object):
                            lensFilter = None, lensInfoFilter = None, lpIdx = None, excludeFunction=None, checkSubDivFunction=None):
         """Based on the lens that's provided as input, create a subdivision grid
         where regions with more mass are subdivided further, such that the number
-        of resulting grid cells lies between `minSquares` and `maxSquares`. For
-        more information about the procedure, see :func:`grid.createSubdivisionGrid <grale.grid.createSubdivisionGrid>`.
+        of resulting grid cells lies between `minSquares` and `maxSquares`. By
+        default, the procedure starts from a single large grid cell, but by
+        setting `startSubDiv` to some other value N, you can start from a uniform
+        NxN grid instead. For more information about the procedure,
+        see :func:`MultiGridCreator.getSubdivisionGrid <grale.grid.MultiGridCreator.getSubdivisionGrid>`.
 
         The usage of the `randomFraction` parameter is the same as in :func:`setUniformGrid`.
-
-        If specified, `regionSize` and `regionCenter` override the internally stored
-        dimensions.
+        If specified, `regionSize`, `regionCenter` or `multiRegionInfo` override 
+        the internally stored dimensions.
 
         In a multi-plane setting, if `lensOrLensInfo` is a :class:`MultiPlaneContainer <grale.lenses.MultiPlaneContainer>`
         result returned from a previous invert call, the specified subdivision will
@@ -1283,7 +1314,20 @@ class InversionWorkSpace(object):
         instance can be used for a specific lens plane, but in that case ``lpIdx`` must be
         set to the correct lens plane index.
 
-        TODO: multiRegionInfo, checkSubDivFunction, excludeFunction, lensFilter, lensInfoFilter
+        If specified, `lensFilter` can be used to apply some kind of filtering
+        on the lens model, in case `lensOrLensInfo` refers to a
+        :class:`gravitational lens <grale.lenses.GravitationalLens>` instance.
+        Similar filtering can be done for a :class:`LensInfo <grale.plotutil.LensInfo>`
+        object by specifying the `lensInfoFilter` function. Both filter functions
+        need to accept four parameters: the lens or LensInfo object, the bottom-left
+        coordinate of a region, the top-right coordinate, and an `lpIdx` parameter
+        for the lens plane under consideration. They should return a lens or
+        LensInfo object respectively.
+
+        With `excludeFunction` you can determine if a grid cell should be excluded
+        from the final grid, and with `checkSubDivFunction` you can specify if some
+        grid cell may be subdivided further. Both parameters are passed on to
+        :class:`MultiGridCreator.getSubdivisionGrid <grale.grid.MultiGridCreator.getSubdivisionGrid>`.
         """
 
         def process(i, lensFilter, lensInfoFilter) -> _MultiGridWrapper:
@@ -1783,19 +1827,21 @@ class InversionWorkSpace(object):
          - `strongSubDivInfo`: this can either be a number, causing a uniform subdivision grid
            to be created for the strong lensing region (see :func:`setUniformGrid`). Alternatively,
            it can be a tuple (lens, minSubDiv, maxSubDiv) which will be used to create a
-           subdivision grid through a call to :func:`setSubdivisionGrid`.
-           TODO: Update this for dict style arguments
+           subdivision grid through a call to :func:`setSubdivisionGrid`, or more explicitly
+           a dictionary containing keys ``"lens"``, ``"mindiv"``, ``"maxdiv"`` and optionally
+           ``"startsubdiv"``.
 
         - `weakSubDiv`: this should be a number that specifies the uniform subdivision parameter
           for the :func:`setUniformGrid` call for the weak lensing region. If this is set to zero
           or ``None``, the function will only create the strong lensing part.
 
-        - `weakRegionSize`: this specifies the size of the grid for the weak lensing area. The
-          strong lensing size is the one that was specified in the constructor.
-
-        - `weakRegionCenter`: TODO
+        - `weakRegionSize` and `weakRegionCenter`: these specify the dimensions of the grid for 
+          the weak lensing area. The strong lensing size is by default the one that was specified
+          in the constructor. If the weak lensing part should consist of different regions, 
+          the following `weakMultiRegionInfo` parameter can be used.
         
-        - `weakMultiRegionInfo`: TODO
+        - `weakMultiRegionInfo`: similar to `multiRegionInfo` from the constructor, but for the
+          weak lensing grid. This allows more complex regions to be specified.
 
         - `weakRandomFraction`: the default will add a random offset to the weak lensing grid
           that's based on the grid cell size. A different value will be passed directly to the
@@ -1812,20 +1858,20 @@ class InversionWorkSpace(object):
           to ``wide`` instead of ``regular``), or the masses of the basis functions in the weak
           lensing area should not be counted in this search.
 
-        - `strongExcludeFunction`: TODO
+        - `strongExcludeFunction` and `strongCheckSubDivFunction`: for the strong lensing part,
+          these are passed as `excludeFunction` and `checkSubDivFunction` arguments of
+          :func:`setUniformGrid` and :func:`setSubdivisionGrid`.
 
-        - `strongCheckSubDivFunction`: TODO 
+        - `weakExcludeFunction`: for the weak lensing part, this is passed as the `excludeFunction`
+          argument of :func:`setUniformGrid`.
 
-        - `weakExcludeFunction`: TODO
+        - `strongLensModelFunction` and `strongLensModelInitialParams`: based on the strong lensing
+          grid that's built, :func:`addBasisFunctionsBasedOnCurrentGrid` will be called to actually
+          add basis functions. These parameters are passed as `lensModelFunction` and
+          `lensModelFunctionParameters` of that function respectively.
 
-        - `strongLensModelFunction`: TODO
-
-        - `strongLensModelInitialParams`: TODO
-
-        - `weakLensModelFunction`: TODO
-        
-        - `weakLensModelInitialParams`: TODO
-
+        - `weakLensModelFunction` and `weakLensModelInitialParams`: same, but for the weak lensing
+          grid.
         """
 
         strongGrid, weakGrid = self._getStrongAndWeakGrids(strongSubDivInfo, weakSubDiv, weakRegionSize,

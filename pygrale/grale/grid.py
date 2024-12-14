@@ -47,8 +47,16 @@ def fractionalGridToRealGrid(grid):
 
 def createMultiUniformGrid(uniformRegionInfo, # [ { size, center, axissubdiv } ]
                            excludeFunction = None):
-    """TODO"""
-    
+    """This is a generalization of :func:`createUniformGrid`, to work with
+    different regions that should each be uniformly subdivided. The
+    `uniformRegionInfo` parameter should be a list of dictionaries,
+    each having keys ``"size"``, ``"center"`` and ``"axissubdiv"``, 
+    describing dimensions and subdivision of a particular region.
+
+    If `excludeFunction` is specified, for each grid cell it will be called as
+    ``excludeFunction(cellCenter, cellSize, True)``, and if the function returns ``True``
+    then that particular cell will not be included in the final grid.
+    """ 
     if not uniformRegionInfo:
         raise GridException("No regions were specified")
 
@@ -263,7 +271,22 @@ def createMultiSubdivisionGridForFITS(fitsHDUEntry, centerRaDec,
         ignoreOffset = True,
         useAbsoluteValues = True,
         checkSubDivFunction = None):
-    """TODO"""
+    """This is a generalization of :func:`createSubdivisionGridForFITS`, calls
+    :func:`createMultiSubdivisionGridForFunction` internally, where you can find the
+    explanation of the algorithm used.
+
+    Arguments:
+
+     - `fitsHDUEntry`: the FITS entry on which the subdivision grid should be based
+     - `centerRaDec`: use these RA,Dec coordinates to recalculate the coordinates in the
+       FITS file, i.e. that specific point will be associated to the new (0,0) coordinate.
+     - `subdivRegionInfo`, `minSquares`, `maxSquares`, `startSubDiv`, `excludeFunction`, `maxIntegrationSubDiv`,
+       `keepLarger` and `checkSubDivFunction`: see :func:`createMultiSubdivisionGridForFunction`
+     - `ignoreOffset`: adds or subtracts a value from the data so that the minimum value
+       becomes zero.
+     - `useAbsoluteValues`: set to ``False`` to allow negative values (probably not a good
+       idea).
+    """
 
     class tmpClass(object):
         pass
@@ -320,7 +343,9 @@ def createSubdivisionGridForFITS(fitsHDUEntry, centerRaDec, gridSize, gridCenter
        becomes zero.
      - `useAbsoluteValues`: set to ``False`` to allow negative values (probably not a good
        idea).
-     - `checkSubDivFunction`: TODO
+     - `checkSubDivFunction`: if specified, when a cell is considered to be subdivided, this
+       function is called with as its two arguments the cell's center and size. If it returns
+       ``False``, no subdivision may take place.
     """
 
     return createMultiSubdivisionGridForFITS(fitsHDUEntry, centerRaDec,
@@ -419,7 +444,7 @@ def createSubdivisionGridForFunction(targetDensityFunction, size, center, minSqu
         maxIntegrationSubDiv = 256,
         keepLarger = False,
         checkSubDivFunction = None):
-    """Creates a grid of which the cell density is based on the values provided by a function `f`,
+    """Creates a grid of which the cell density is based on the values provided by a function `targetDensityFunction`,
     and do the refinement in such a way that the resulting number of grid cells is within the
     specified bounds. This is the core function that's used by :func:`createSubdivisionGrid`
     and :func:`createSubdivisionGridForFITS`, which themselves may me more straightforward to 
@@ -449,7 +474,9 @@ def createSubdivisionGridForFunction(targetDensityFunction, size, center, minSqu
        fewer parts according to their size.
      - `keepLarger`: if ``True``, after subdividing a grid cell, the original cell will also
        be kept in the list of cells.
-     - `checkSubDivFunction`: TODO
+     - `checkSubDivFunction`: if specified, when a cell is considered to be subdivided, this
+       function is called with as its two arguments the cell's center and size. If it returns
+       ``False``, no subdivision may take place.
 
     Refinement algorithm: in a helper routine, each cell will be split into four smaller cells
     whenever the integrated value of the cell exceeds some threshold. The main function then
@@ -530,7 +557,9 @@ def createSubdivisionGrid(size, center, lensInfo, minSquares, maxSquares, startS
        becomes zero.
      - `useAbsoluteValues`: set to ``False`` to allow negative values (probably not a good
        idea).
-     - `checkSubDivFunction`: TODO
+     - `checkSubDivFunction`: if specified, when a cell is considered to be subdivided, this
+       function is called with as its two arguments the cell's center and size. If it returns
+       ``False``, no subdivision may take place.
     """
     return createMultiSubdivisionGrid([{ "size": size, "center": center, "startsubdiv": startSubDiv}],
                                       lensInfo, minSquares, maxSquares, excludeFunction, maxIntegrationSubDiv,

@@ -36,8 +36,6 @@ def print(*args): # Do a flush afterwards
 # For now, always use the timed version: better chance of detecting a
 # crashed MPI process (since we're using a named pipe in that case, the
 # crashed subprocess doesn't seem to register as a closed connection?
-# TODO: alternatively the 'mpi' version could be disabled, and 'mpics'
-#       used?
 if not hasattr(subprocess, 'STARTUPINFO'): # Not Windows: can't use 'poll' there
     # print("Using timed IO")
     from . import timedio as timed_or_untimed_io

@@ -965,6 +965,17 @@ def createPointImagesData(thetas):
     return imgDat
 
 def addPositionUncertainty(imgDatOrList, amount):
+    """For the :class:`images <grale.images.ImagesData>` that are specified as input, 
+    this function adds the 'positionuncertainty' property, and sets it to the
+    specified amount.
+
+    Arguments:
+     - `imgDatOrList`: this can be a single :class:`ImagesData <grale.images.ImagesData>`
+       instance, a single dictionary where the ``"imgdata"`` key specifies such an
+       instance, or a list of these.
+     - `amount`: the value that should be set for the 'positionuncertainty' property
+       that's added to each :class:`ImagesData <grale.images.ImagesData>` instance.
+    """
     from .images import ImagesData, ImagesDataException
 
     if type(imgDatOrList) == ImagesData:

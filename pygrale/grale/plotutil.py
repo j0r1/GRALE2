@@ -2004,11 +2004,17 @@ Arguments:
 
  - `fillTriangles`: if set, the triangulation, if present, will be filled.
 
- - `imagePlotOptionsFunction`: TODO
+ - `imagePlotOptionsFunction`: if present, this will be called with two arguments, `srcIdx` and
+   `imgIdx`, describing which source and image is being plot. The function should return
+   a dictionary which is then passed as keyword arguments to the `plot` function
+   of matplotlib.
 
- - `shearLengthMultiplier`: TODO
+ - `shearLengthMultiplier`: then the images data instance represents shear info,
+   the sticks that represent the shear size and orientation can be rescaled using
+   this factor.
 
- - `shearPlotOptionsFunction`: TODO
+ - `shearPlotOptionsFunction`: similar to `imagePlotOptionsFunction`, but is used if
+   an images data instance represents shear.
 
 """
     angularUnit = _getAngularUnit(angularUnit)
@@ -2278,8 +2284,8 @@ def _isAverageLens(lens):
 
 def getDensitiesAtImagePositions(lens, imgList, reducePositionFirst, densFunction = None, forceAverage = None):
     """Gets the densities at the image position for the specified lens,
-    mainly intended for use with a lens that's an average of several
-    lenses.
+mainly intended for use with a lens that's an average of several
+lenses.
 
 Arguments:
  - `lens`: the gravitational lens to use
@@ -2291,7 +2297,10 @@ Arguments:
    magnification.
  - `reducePositionFirst`: if ``True``, an extended image will first be reduced to a single point (the average position
    of the points in the image), and at this position the densities will be evaluated.
- - `forceAverage`: TODO
+ - `forceAverage`: should be ``None``, ``True`` or ``False``. If set to ``None``, an
+   attempt will be made to see if the lens model represents an average of several
+   lens models, and processing will be done accordingly. By setting it to ``True``
+   or ``False``, this can manually be specified.
 """
 
     if forceAverage is None:
@@ -2410,7 +2419,10 @@ Arguments:
    then merged for each extended image (:func:`mergeDensityMeasurementsAndAveragePositions` is used
    for this). The position for an image is also taken to be the average
    of its points. When set to ``"none"``, all image points are treated individually.
- - `forceAverage`: TODO
+ - `forceAverage`: should be ``None``, ``True`` or ``False``. If set to ``None``, an
+   attempt will be made to see if the lens model represents an average of several
+   lens models, and processing will be done accordingly. By setting it to ``True``
+   or ``False``, this can manually be specified.
  - `kwargs`: these parameters will be passed on to the `plot <https://matplotlib.org/api/_as_gen/matplotlib.pyplot.plot.html#matplotlib.pyplot.plot>`_ 
    or `errorbar <https://matplotlib.org/api/_as_gen/matplotlib.pyplot.errorbar.html#matplotlib.pyplot.errorbar>`_
    functions in matplotlib.
@@ -2460,7 +2472,13 @@ Arguments:
     
 def plotShearComponents(thetas, gamma1, gamma2, lengthMultiplier, angularUnit="default",
                         axes=None, **kwargs):
-    """TODO"""
+    """For shear compontents `gamma1` and `gamma2`, corresponding to positions
+    `theta`, this plots them as sticks with a certain orientation and size.
+    The size can be rescaled using `lengthMultiplier`. The x/y axes of the
+    plot are shown using the `angularUnit`, similar as in other plots. If no
+    specific `axes` object is specified, the current one is used. Extra
+    aruments `kwargs` are passed on to the matplotlib `plot` function.
+    """
 
     thetas, gamma1, gamma2 = np.array(thetas), np.array(gamma1), np.array(gamma2)
     thetas = thetas.reshape((-1,2))

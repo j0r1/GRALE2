@@ -28,6 +28,8 @@ Functions
 
 .. autofunction:: createSourceFromImagesData
 
+.. autofunction:: addPositionUncertainty
+
 ImagesData
 ----------
 

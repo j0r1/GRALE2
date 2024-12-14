@@ -1,4 +1,4 @@
-"""Module meant for various utilities, but currently only RMS calculation."""
+"""Module meant for various utilities."""
 
 import numpy as np
 from .inverters import _getNumHelpers
@@ -1017,7 +1017,29 @@ def createThetaGridAndImagesMask(bottomLeft, topRight, NX, NY, maskRegions, enla
     return thetas, mask
 
 def adjustShearMeasurements(pixelFrameCoords, pixelFrameGamma1, pixelFrameGamma2, centeredRaDecCoords, mirror=False, tol=None):
-    """TODO"""
+    """It is possible that shear measurements are specified in one coordinate
+    frame, but you need to know them in a rotated, possibly mirrored frame. This
+    function can perform the required calculation. In the names of the parameters
+    we're assuming that shear measurements need to be transformed from values that
+    are given in a coordinate frame that's aligned with the pixels of the CCD camera,
+    and need to be transformed to a coordinate system that's aligned with RA/Dec
+    coordinates (but also recentered). Of course, these names just suggest coordinate
+    systems, the transformation could be the other way around as well, for example.
+
+    Arguments:
+     - `pixelFrameCoords`: The coordinates of the shear measurements in the coordinate
+       frame that's aligned with the CCD pixels.
+     - `pixelFrameGamma1`: The first shear component as measured in the coordinate
+       frame that's aligned with the pixels.
+     - `pixelFrameGamma2`: Same for the second shear component.
+     - `centeredRaDecCoords`: The same points as specified in `pixelFrameCoords`, but
+       now having their coordinates in the frame that's being transformed to, for example
+       one aligned with the RA/Dec axes.
+     - `mirror`: In case the two coordinate systems don't differ by simply a rotation,
+       this flag can be set to indicate this.
+     - `tol`: tolerance parameter that is passed to SciPy's minimize function ("Nelder-Mead")
+       is used.
+    """
        
     origShape1 = pixelFrameGamma1.shape
     origShape2 = pixelFrameGamma2.shape
