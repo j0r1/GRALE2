@@ -280,7 +280,7 @@ def createMultiSubdivisionGridForFITS(fitsHDUEntry, centerRaDec,
      - `fitsHDUEntry`: the FITS entry on which the subdivision grid should be based
      - `centerRaDec`: use these RA,Dec coordinates to recalculate the coordinates in the
        FITS file, i.e. that specific point will be associated to the new (0,0) coordinate.
-     - `subdivRegionInfo`, `minSquares`, `maxSquares`, `startSubDiv`, `excludeFunction`, `maxIntegrationSubDiv`,
+     - `subdivRegionInfo`, `minSquares`, `maxSquares`, `excludeFunction`, `maxIntegrationSubDiv`,
        `keepLarger` and `checkSubDivFunction`: see :func:`createMultiSubdivisionGridForFunction`
      - `ignoreOffset`: adds or subtracts a value from the data so that the minimum value
        becomes zero.
@@ -360,7 +360,46 @@ def createMultiSubdivisionGridForFunction(targetDensityFunction,
         maxIntegrationSubDiv = 256,
         keepLarger = False,
         checkSubDivFunction = None):
-    """TODO"""
+    """This is a generalization of :func:`createSubdivisionGridForFunction`, to allow
+    the subdivision routine to work with several square regions at once. Most arguments
+    are the same, but `subdivRegionInfo` now lists information about multiple regions.
+
+    Arguments:
+
+     - `targetDensityFunction`: a function which will be called with a (Ny,Nx,2) shaped NumPy array, describing
+       X,Y coordinates on a 2D grid. The function must return an (Ny, Nx) shaped NumPy array
+       containing the densities at the specified coordinates. Note that because the algorithm
+       below will numerically integrate cells in the grid, it is probably not a good idea to
+       let this function return negative values.
+     - `subdivRegionInfo`: This specifies the different square regions that will be subdivided.
+       It should be a list of dictionaries with the following keys: ``"size"``, ``"center"``
+       and optionally ``"startsubdiv"``. The first two describe the region itself; if the
+       last one (defaults to 1) has value N, the subdivision process starts from a uniform
+       NxN grid.
+     - `minSquares` and `maxSquares`: stop looking for the required grid refinement when the
+       total number of grid cells (for all regions) lies between these values.
+     - `excludeFunction`: if specified, for each grid cell it will be called as 
+       ``excludeFunction(cellCenter, cellSize, True)`` for the initial uniform grids
+       (see ``"startsubdiv"`` keys in `subdivRegionInfo`), and as
+       ``excludeFunction(cellCenter, cellSize, False)`` for the next subdivision
+       steps. If the function returns ``True`` then that particular cell will not be included
+       in the final grid.
+     - `maxIntegrationSubDiv`: to determine if a cell needs to be subdivided, the algorithm
+       will integrate the contents numerically. This number specifies the maximum number of
+       parts that are used for the entire `size` range. Smaller cells will be subdivided in
+       fewer parts according to their size.
+     - `keepLarger`: if ``True``, after subdividing a grid cell, the original cell will also
+       be kept in the list of cells.
+     - `checkSubDivFunction`: if specified, when a cell is considered to be subdivided, this
+       function is called with as its two arguments the cell's center and size. If it returns
+       ``False``, no subdivision may take place.
+
+    The refinement algorithm is still the same as in :func:`createSubdivisionGridForFunction`:
+    in a helper routine, each cell will be split into four smaller cells
+    whenever the integrated value of the cell exceeds some threshold. The main function then
+    iteratively looks for an appropriate threshold, so that the final number of cells lies
+    within the desired bounds.
+    """
 
     if not subdivRegionInfo:
         raise GridException("No subdivision region info was specified")
@@ -497,8 +536,28 @@ def createMultiSubdivisionGrid(subdivRegionInfo, # [ { size, center, startsubdiv
         ignoreOffset = True,
         useAbsoluteValues = True,
         checkSubDivFunction = None):
-    """TODO"""
-    
+    """This is a generalization of :func:`createSubdivisionGrid`, to work with
+    several square regions at the same time. It creates a subdivision grid that's
+    based on the provided lens information; internally, the function
+    :func:`createMultiSubdivisionGridForFunction` is called, where you 
+    can find the explanation of the algorithm used.
+
+    Arguments:
+
+     - `subdivRegionInfo`: specifies the regions, will be passed as the same
+       parameter of :func:`createMultiSubdivisionGridForFunction`.
+     - `lensInfo`: information about the gravitational lens, can either
+       be a single :class:`LensInfo<grale.plotutil.LensInfo>` (or
+       :class:`DensInfo<grale.plotutil.DensInfo>`) object, or a list of these,
+       one for each region in the `subdivRegionInfo` list.
+     - `minSquares`, `maxSquares`, `excludeFunction`, `maxIntegrationSubDiv`,
+       `keepLarger` and `checkSubDivFunction`: see
+       :func:`createSubdivisionGridForFunction`.
+     - `ignoreOffset`: adds or subtracts a value from the data so that the minimum value
+       becomes zero.
+     - `useAbsoluteValues`: set to ``False`` to allow negative values (probably not a good
+       idea).
+    """
     if not excludeFunction:
         excludeFunction = _defaultExcludeFunction
     if not checkSubDivFunction:
@@ -680,11 +739,36 @@ def _debugPlot(g):
         print()
 
 class MultiGridCreator(object):
-    """TODO"""
+    """This is a class to manage the grid creation for one or more regions.
+    It allows you to first define the regions, and then ask for them to be
+    subdivided uniformly (see :func:`getUniformGrid`) or using the
+    subdivision algorithm (see :func:`getSubdivisionGrid`). It is
+    used by the :class:`InversionWorkSpace <grale.inversion.InversionWorkSpace>`
+    class to manage the inversion regions.
+    """
 
     def __init__(self, regionSize = None, regionCenter = None, multiRegionInfo = None,
                  defaultRandomFraction = 0.05):
-        """TODO""" # defaultRandomFraction can also be a function
+        """Initializes the MultiGridCreator object.
+
+        Arguments:
+
+         - `regionSize` and `regionCenter`: if these are specified, `multiRegionInfo`
+           must be ``None``, and they then specify a the size and center of a single
+           square region that will be subdivided by other functions in the class.
+           The `regionCenter` parameter is optional and defaults to (0, 0)
+         - `multiRegionInfo`: it is also possible to specify multiple square regions that
+           should be subdivided at the same time, in a similar way (uniformly or using
+           the subdivision algorithm). This should then be a list of dictionaries, 
+           each having a ``"size"`` key and optionally a ``"center"`` key. The 
+           `regionSize` and `regionCenter` arguments should be ``None`` if this is used.
+         - `defaultRandomFraction`: each time :func:`getUniformGrid` or :func:`getSubdivisionGrid`
+           is called, some random offset is added to the center(s) of the region(s). If this
+           is a number, it specifies the fraction of the size that an offset can be.
+           It is also possible to specify a function, which will be called with
+           size and center of a region as its two arguments, and should return the
+           size and center to actually use.
+        """
       
         self.defaultRandomFraction = defaultRandomFraction
         self.multiRegionInfo = []
@@ -692,7 +776,8 @@ class MultiGridCreator(object):
 
     def setRegionSize(self, regionSize = None, regionCenter = None, 
                       multiRegionInfo = None):
-        """TODO"""
+        """Allows you to update the regions that were set in the constructor. See
+        the documentation there for the meaning of the parameters."""
 
         if multiRegionInfo:
             if not (regionSize is None and regionCenter is None):
