@@ -5,7 +5,7 @@ def _getLenstoolPotentialInfoFromLines(lines):
     potentialInfo = [ ]
     curInfo = { }
     for l in lines:
-        if l.startswith("potentiel"):
+        if l.startswith("potentiel") or l.startswith("potential"):
             if curInfo:
                 potentialInfo.append(curInfo)
             curInfo = { }
@@ -33,7 +33,7 @@ def _getLenstoolCosmologyFromLines(lines):
 
     idx = None
     for i in range(len(lines)):
-        if lines[i].startswith("cosmologie"):
+        if lines[i].startswith("cosmologie") or lines[i].startswith("cosmology"):
             idx = i
             break
     else:
@@ -57,7 +57,7 @@ def _getLenstoolCosmologyFromLines(lines):
                                settings["omegaX"],
                                settings["wX"])
 
-def createLensFromLenstoolFile(inputData, mirrorX = False):
+def createLensFromLenstoolFile(inputData, mirrorX = False, cosmology = None):
     """Based on a `LensTool <https://projets.lam.fr/projects/lenstool/wiki>`_ model,
     a corresponding :class:`lens model<grale.lenses.GravitationalLens>` is constructed.
     The function returns a tuple consisting of the lens model, the lens redshift and
@@ -68,13 +68,16 @@ def createLensFromLenstoolFile(inputData, mirrorX = False):
     model type 81) is handled.
 
     Arguments:
+
      - `inputData`: the data from a LensTool file (typically with '.par' extension), either
        as a file name, a file object or a string.
      - `mirrorX`: if ``True``, the model will be mirrored along the X-axis.
+     - `cosmology`: if specified, the cosmological model from the input file will be ignored
+       and this one will be used.
     """
     lines = _getLinesFromInputData(inputData)
     potentialInfo = _getLenstoolPotentialInfoFromLines(lines)
-    cosm = _getLenstoolCosmologyFromLines(lines)
+    cosm = _getLenstoolCosmologyFromLines(lines) if not cosmology else cosmology
     if not potentialInfo:
         return (None, None, cosm)
 
@@ -84,7 +87,7 @@ def createLensFromLenstoolFile(inputData, mirrorX = False):
     LensException = lenses.LensException
 
     def _ltPIEMDHandler(info, Dd):
-        epsHat = info["ellipticite"]
+        epsHat = info["ellipticite"] if "ellipticite" in info else info["ellipticity"]
         a = info["core_radius"]*ANGLE_ARCSEC if "core_radius" in info else info["core_radius_kpc"]/(Dd/DIST_KPC)
         s = info["cut_radius"]*ANGLE_ARCSEC if "cut_radius" in info else info["cut_radius_kpc"]/(Dd/DIST_KPC)
         sigma = info["v_disp"]*1000
@@ -103,7 +106,7 @@ def createLensFromLenstoolFile(inputData, mirrorX = False):
 
     subLenses = [ ]
     for p in potentialInfo:
-        profileId = int(p["profil"])
+        profileId = int(p["profil"]) if "profil" in p else p["profile"]
         if not profileId in _lenstoolPotentialHandlers:
             raise LensException("No handler for profile {}".format(profileId))
 
