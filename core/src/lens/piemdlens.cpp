@@ -105,11 +105,14 @@ bool PIEMDLens::processParameters(const GravitationalLensParams *pLensParams)
 
 	m_coreRadius = pParams->getCoreRadius();
 	m_scaleRadius = pParams->getScaleRadius();
-	if (m_coreRadius < 0 || m_scaleRadius < m_coreRadius)
+	if (m_coreRadius < 0)
 	{
-		setErrorString("Invalid radii");
+		setErrorString("Invalid core radius");
 		return false;
 	}
+
+	if (m_scaleRadius <= m_coreRadius)
+		std::cerr << "WARNING: scale radius <= core radius, lens effect will be disabled" << endl;
 
 	m_epsilon = pParams->getEpsilon();
 	if (m_epsilon < 0.0 || m_epsilon >= 1.0)
@@ -157,6 +160,12 @@ Vector2Dd PIEMDLens::calcI(double omega, Vector2Dd theta) const
 
 bool PIEMDLens::getAlphaVector(Vector2Dd theta,Vector2Dd *pAlpha) const
 {
+	if (m_scaleRadius <= m_coreRadius)
+	{
+		*pAlpha = Vector2Dd(0,0);
+		return true;
+	}
+
 	Vector2Dd corePart = calcI(m_coreRadius, theta);
 	Vector2Dd scalePart = calcI(m_scaleRadius, theta);
 
@@ -206,7 +215,13 @@ void PIEMDLens::getIDerivs(double omega, Vector2D<double> theta, double &axx, do
 
 bool PIEMDLens::getAlphaVectorDerivatives(Vector2D<double> theta, double &axx, double &ayy, double &axy) const
 {
-	//return GravitationalLens::getAlphaVectorDerivatives(theta, axx, ayy, axy);
+	if (m_scaleRadius <= m_coreRadius)
+	{
+		axx = 0;
+		ayy = 0;
+		axy = 0;
+		return true;
+	}
 
 	double axx_a, ayy_a, axy_a;
 	double axx_s, ayy_s, axy_s;
@@ -226,6 +241,9 @@ bool PIEMDLens::getAlphaVectorDerivatives(Vector2D<double> theta, double &axx, d
 
 double PIEMDLens::getSurfaceMassDensity(Vector2Dd theta) const
 {
+	if (m_scaleRadius <= m_coreRadius)
+		return 0;
+
 	double tmpX = theta.getX()/(1.0+m_epsilon);
 	double tmpY = theta.getY()/(1.0-m_epsilon);
 
@@ -255,8 +273,7 @@ bool PIEMDLens::getCLParameters(double deflectionScale, double potentialScale, i
 
 	pFloatParams[0] = (float)(m_sigma0/densScale);
 	pFloatParams[1] = (float)(m_coreRadius/deflectionScale);
-	// The scale radius is used relative to core radius
-	pFloatParams[2] = (float)((m_scaleRadius - m_coreRadius)/deflectionScale);
+	pFloatParams[2] = (float)(m_scaleRadius/deflectionScale);
 	pFloatParams[3] = (float)m_epsilon;
 	return true;
 }
@@ -336,29 +353,35 @@ LensQuantities clPIEMDLensProgram(float2 coord, __global const int *pIntParams, 
 {
 	float sigma0 = pFloatParams[0];
 	float coreRadius = pFloatParams[1];
-	float scaleRadius = pFloatParams[2] + coreRadius; // Use a relative quantity to more easily constrain it
+	float scaleRadius = pFloatParams[2];
 	float epsilon = pFloatParams[3];
 	LensQuantities r;
 
 	float2 corePart = clPIEMDLensProgram_calcI(coreRadius, coord, epsilon);
 	float2 scalePart = clPIEMDLensProgram_calcI(scaleRadius, coord, epsilon);
-	float diffRadii = scaleRadius-coreRadius;
-
 	float deflectionFactor = sigma0 * (1.0f-epsilon*epsilon)/sqrt(epsilon);
-	float fa = scaleRadius/diffRadii;
-	float fs = coreRadius/diffRadii;
 
-	float2 alpha;
-	if (diffRadii == 0) // this means coreRadius == scaleRadius, and corePart == scalePart
-		alpha = (float2)(0,0);
+	float diffRadii = scaleRadius-coreRadius;
+	float fa = 0;
+	float fs = 0;
+	if (diffRadii <= 0)
+	{
+		r.alphaX = 0;
+		r.alphaY = 0;
+	}
 	else
-		alpha = (corePart*fa - scalePart*fs) * deflectionFactor;
+	{
+		fa = scaleRadius/diffRadii;
+		fs = coreRadius/diffRadii;
 
-	//if (isnan(alpha.x) || isnan(alpha.y))
-	//	printf("NaN in alpha for point %d, genome %d\n", get_global_id(0), get_global_id(1));
+		float2 alpha = (corePart*fa - scalePart*fs) * deflectionFactor;
 
-	r.alphaX = alpha.x;
-	r.alphaY = alpha.y;
+		//if (isnan(alpha.x) || isnan(alpha.y))
+		//	printf("NaN in alpha for point %d, genome %d\n", get_global_id(0), get_global_id(1));
+
+		r.alphaX = alpha.x;
+		r.alphaY = alpha.y;
+	}
 )XYZ";
 	if (potential)
 		program += R"XYZ(
@@ -366,14 +389,7 @@ LensQuantities clPIEMDLensProgram(float2 coord, __global const int *pIntParams, 
 )XYZ";
 	if (derivatives)
 		program += R"XYZ(
-
-	float axx_a, ayy_a, axy_a;
-	float axx_s, ayy_s, axy_s;
-
-	clPIEMDLensProgram_calcIDerivs(coreRadius, coord, &axx_a, &ayy_a, &axy_a, epsilon, deflectionFactor);
-	clPIEMDLensProgram_calcIDerivs(scaleRadius, coord, &axx_s, &ayy_s, &axy_s, epsilon, deflectionFactor);
-
-	if (diffRadii == 0) // this means coreRadius == scaleRadius, and a.._a == a.._s
+	if (diffRadii <= 0) // this means coreRadius == scaleRadius, and a.._a == a.._s
 	{
 		r.axx = 0;
 		r.ayy = 0;
@@ -381,6 +397,12 @@ LensQuantities clPIEMDLensProgram(float2 coord, __global const int *pIntParams, 
 	}
 	else
 	{
+		float axx_a, ayy_a, axy_a;
+		float axx_s, ayy_s, axy_s;
+
+		clPIEMDLensProgram_calcIDerivs(coreRadius, coord, &axx_a, &ayy_a, &axy_a, epsilon, deflectionFactor);
+		clPIEMDLensProgram_calcIDerivs(scaleRadius, coord, &axx_s, &ayy_s, &axy_s, epsilon, deflectionFactor);
+
 		r.axx = axx_a*fa - axx_s*fs;
 		r.ayy = ayy_a*fa - ayy_s*fs;
 		r.axy = axy_a*fa - axy_s*fs;
@@ -404,8 +426,7 @@ unique_ptr<GravitationalLensParams> PIEMDLens::createLensParamFromCLFloatParams(
 
 	double sigma0 = (double)pFloatParams[0] * densScale;
 	double coreRad = (double)pFloatParams[1] * deflectionScale;
-	// The scale radius is used relative to core radius
-	double scaleRad = (double)(pFloatParams[2] + pFloatParams[1]) * deflectionScale;
+	double scaleRad = (double)pFloatParams[2] * deflectionScale;
 	double eps = (double)pFloatParams[3];
 
 	return make_unique<PIEMDLensParams>(sigma0, coreRad, scaleRad, eps);
@@ -418,9 +439,7 @@ vector<CLFloatParamInfo> PIEMDLens::getCLAdjustableFloatingPointParameterInfo(do
 	return {
 		{ .name = "centraldensity_scaled", .offset = 0, .scaleFactor = densScale, .hardMin = 0 },
 		{ .name = "coreradius_scaled", .offset = 1, .scaleFactor = deflectionScale, .hardMin = 0 },
-		// We'll use the scale radius as a difference with coreradius, so that it's easy to
-		// constrain to be larger than the core radius
-		{ .name = "scaleradius_difference_scaled", .offset = 2, .scaleFactor = deflectionScale, .hardMin = 0 },
+		{ .name = "scaleradius_scaled", .offset = 2, .scaleFactor = deflectionScale, .hardMin = 0 },
 		{ .name = "epsilon", .offset = 3, .scaleFactor = 1.0, .hardMin = 0.01, .hardMax = 0.99 }, // TODO 0 and 1 are not allowed, what are good bounds?
 	};
 }
