@@ -823,8 +823,21 @@ class MultiGridCreator(object):
         return randomizedMultiReg
 
     def getUniformGrid(self, subDiv, randomFraction = None, excludeFunction = None):
-        """TODO"""
-        
+        """Based on the region information supplied by the constructor or by
+        :func:`setRegionSize`, this subdivides the regions in a uniform way based
+        on `subDiv`. If this is an integer number N, then each region will be
+        subdivided into an NxN grid. Alternatively, this can be a list with one
+        number per region, in case each region should be subdivided in a different
+        way.
+
+        If `randomFraction` is ``None``, the default from the constructor is used,
+        but here it can be overridden. See the constructor's documentation for an
+        explanation of its meaning.
+
+        If `excludeFunction` is specified, for each grid cell it will be called as
+        ``excludeFunction(cellCenter, cellSize, True)``, and if the function returns ``True``
+        then that particular cell will not be included in the final grid.
+        """
         if randomFraction is None:
             randomFraction = self.defaultRandomFraction
 
@@ -844,7 +857,55 @@ class MultiGridCreator(object):
                            lensInfoFilter = None, lensInfoFilterParams = {},
                            excludeFunction=None, checkSubDivFunction=None,
                            renderer = "default", feedbackObject = "default"):
-        """TODO"""
+        """Based on the region information supplied by the constructor or by
+        :func:`setRegionSize`, this subdivides the regions using the algorithm from
+        :func:`createMultiSubdivisionGridForFunction`, which inspects the density
+        information from `lensOrLensInfo`
+
+        Arguments:
+
+         - `lensOrLensInfo`: should either be a single :class:`LensInfo <grale.plotutil.LensInfo>`
+           or :class:`DensInfo <grale.plotutil.DensInfo>` instance, or a single
+           :class:`gravitational lens <grale.lenses.GravitationalLens>` model. If the latter
+           is the case, for each region it will be converted to a :class:`LensInfo <grale.plotutil.LensInfo>`
+           object, to get information about the density.
+         - `minSquares` and `maxSquares`: construct a subdivision grid with a total number
+           of grid cells between these bounds, as in :func:`createMultiSubdivisionGridForFunction`
+         - `startSubDiv`: in the subdivision procedure, each region will start from an NxN uniform
+           subdivision, before refining regions with more mass. If this parameter is a single integer
+           number N, the same NxN subdivision will be used for each region. It can also be a list of
+           numbers, to start with different uniform subdivisions for each region.
+         - `randomFraction`: if this is ``None``, the default from the constructor is used,
+           but here it can be overridden. See the constructor's documentation for an
+           explanation of its meaning.
+         - `lensFilter`: if specified, this function can be used to apply some kind of filtering
+           on the lens model, in case `lensOrLensInfo` refers to a
+           :class:`gravitational lens <grale.lenses.GravitationalLens>` instance.
+           The function will be called with three arguments plus the arguments specified
+           in the `lensFilterParams` dictionary. The first three arguments are the lens model,
+           the bottom-left corner of a region, and the top-right corner. The function
+           should return another lens model.
+         - `lensFilterParams`: a dictionary with extra arguments for the previous function.
+         - `lensInfoFilter`: similar to `lensFilter`, in case a :class:`LensInfo <grale.plotutil.LensInfo>`
+           object is used. In this case there is only one mandatory argument, the LensInfo
+           object itself. Extra keyword arguments can be provided using the following `lensInfoFilterParams`
+           dictionary. The function should return another LensInfo object.
+         - `lensInfoFilterParams`: a dictionary with keyword arguments for the previous
+           function.
+         - `excludeFunction`: if specified, for each grid cell it will be called as 
+           ``excludeFunction(cellCenter, cellSize, True)`` for the initial uniform grids, and as
+           ``excludeFunction(cellCenter, cellSize, False)`` for the next subdivision
+           steps. If the function returns ``True`` then that particular cell will not be included
+           in the final grid.
+         - `checkSubDivFunction`: if specified, when a cell is considered to be subdivided, this
+           function is called with as its two arguments the cell's center and size. If it returns
+           ``False``, no subdivision may take place.
+         - `renderer`: if a lens model is used as the `lensOrLensInfo` parameter, then for each
+           region that's present a mass map will be calculated. This specifies the :mod:`renderer <grale.renderers>` used
+           for this calculation.
+         - `feedbackObject`: the :mod:`feedback <grale.feedback>` mechanism used by the previous
+           renderer.
+        """
         
         if lensFilter is None:
             lensFilter = lambda x, bl, tr, **params: x
@@ -880,8 +941,8 @@ class MultiGridCreator(object):
                 tr = [ c[0] + (w*extraFrac)/2, c[1] + (w*extraFrac)/2 ]
                 lensOrLensInfo = lensFilter(lensOrLensInfo, bl, tr, **lensFilterParams)
 
-                lensInfo = plotutil.LensInfo(lensOrLensInfo, bottomleft=bl, topright=tr)
-                lensInfo.getDensityPoints(renderer, feedbackObject)
+                lensInfo = plotutil.LensInfo(lensOrLensInfo, bottomleft=bl, topright=tr) # TODO: configure number of points?
+                lensInfo.getDensityPoints(renderer, feedbackObject) # Pre-calculate the density points
             
                 lensInfo = lensInfoFilter(lensInfo, **lensInfoFilterParams)
                 allLensInfos.append(lensInfo)

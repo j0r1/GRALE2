@@ -1318,11 +1318,12 @@ class InversionWorkSpace(object):
         on the lens model, in case `lensOrLensInfo` refers to a
         :class:`gravitational lens <grale.lenses.GravitationalLens>` instance.
         Similar filtering can be done for a :class:`LensInfo <grale.plotutil.LensInfo>`
-        object by specifying the `lensInfoFilter` function. Both filter functions
-        need to accept four parameters: the lens or LensInfo object, the bottom-left
+        object by specifying the `lensInfoFilter` function. The first filter function
+        needs to accept four parameters: the lens object, the bottom-left
         coordinate of a region, the top-right coordinate, and an `lpIdx` parameter
-        for the lens plane under consideration. They should return a lens or
-        LensInfo object respectively.
+        for the lens plane under consideration. For the second filter function two
+        parameters are passed, the LensInfo object and an `lpIdx` parameter.
+        They should return a lens or LensInfo object respectively.
 
         With `excludeFunction` you can determine if a grid cell should be excluded
         from the final grid, and with `checkSubDivFunction` you can specify if some
