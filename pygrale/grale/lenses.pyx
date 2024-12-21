@@ -2716,6 +2716,27 @@ cdef class PIEMDLens(GravitationalLens):
             "epsilon": pParams.getEpsilon()
         }
 
+    @staticmethod
+    def getVelocityDispersionFromCentralDensity(centralDensity, coreRadius, scaleRadius, Dd):
+        a, s, dens = coreRadius, scaleRadius, centralDensity
+        return (dens * (a*s**2)*(4*constants.CONST_G*Dd)/(3*(s**2-a**2)))**0.5
+
+    @staticmethod
+    def getEllipticityFromEpsilon(epsilon):
+        eps = epsilon
+        e = 2*eps/(1+eps)
+        X = (1.0-e)**2
+        return (1-X)/(1+X)
+
+    def getEllipticity(self):
+        params = self.getLensParameters();
+        return PIEMDLens.getEllipticityFromEpsilon(params["epsilon"])
+
+    def getVelocityDispersion(self):
+        params = self.getLensParameters();
+        Dd = self.getLensDistance()
+        return PIEMDLens.getVelocityDispersionFromCentralDensity(params["centraldensity"], params["coreradius"], params["scaleradius"], Dd)
+
 cdef class PIMDLens(GravitationalLens):
     r"""The circularly symmetric version of the PIEMD lens (:class:`PIEMDLens`),
     corresponding to en 'epsilon' parameter of zero.
