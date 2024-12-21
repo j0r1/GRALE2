@@ -9,3 +9,4 @@ grale.paramdesc
 
 .. autofunction:: analyzeParametricLensDescription
 
+.. autofunction:: refineParametricDescription

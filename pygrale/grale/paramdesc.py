@@ -858,6 +858,62 @@ def getSupportedLensTypes():
     """List which gravitational lens types are recognized in the parametric description."""
     return [ (x, _supportedLensTypes[x]["lens"]) for x in _supportedLensTypes ]
 
+def refineParametricDescription(varFloatParams, lens, fraction = 0.05, evaluate = True):
+    """This is a helper function to adjust an earlier parametric lens description
+    based on an estimate of the solution. The envisioned usage is to first do a
+    general parametric lens inversion, which provides `varFloatParams` and leads
+    to a lens model `lens`, then adjust the initial parameter ranges to a narrow
+    range around the values from this model, so that a following MCMC exploration can 
+    look in the most interesting region of the parameter space.
+    
+    Arguments:
+     
+     - `varFloatParams`: this should be the description of the variable parameters and
+       their bounds from an earlier analysis of a parametric lens description. If the
+       first call was made using :func:`analyzeParametricLensDescription`, then the
+       returned dictionary contains this input using the ``"variablefloatparams"`` key.
+       If the :func:`InversionWorkSpace.invertParametric <grale.inversion.InversionWorkSpace.invertParametric>`
+       or :func:`invertParametric <grale.inversion.invertParametric>` calls were used,
+       they provide this input as the last entry in the returned tuple.
+     - `lens`: this should be the lens model that results from a parametric optimization,
+       that was performed with a lens description that led to the `varFloatParams` input.
+       The initial bounds on the parameters that are allowed to change are set to a
+       small range around the corresponding value from this model.
+     - `fraction`: for the parameters that are not fixed, the initial values will be
+       based on this fraction. For example, if this is 0.05, or 5%, the initial value
+       range will be set to 95% and 105% of the value of the lens model.
+     - `evaluate`: by default, the new parametric description will be returned as a Python
+       dictionary. If set to `False`, a string will be returned instead.
+    """
+
+    paramInfo = { varFloatParams[i]["name"]:varFloatParams[i] for i in range(len(varFloatParams)) }
+
+    def cvf(value, lensName, paramName, uniqueParamName, lensParams):
+        if not uniqueParamName in paramInfo:
+            return value
+
+        prevParams = paramInfo[uniqueParamName]
+        newInitMin = value*(1-fraction)
+        newInitMax = value*(1+fraction)
+        if newInitMax < newInitMin:
+            newInitMin, newInitMax = newInitMax, newInitMin
+
+        scaleFactor = prevParams["scalefactor"]
+
+        newDict = { "initmin": newInitMin, "initmax": newInitMax, 
+                 "hardmin": prevParams["hardlimits"][0] * scaleFactor,
+                 "hardmax": prevParams["hardlimits"][1] * scaleFactor }
+
+        return newDict
+
+    newDesc = createParametricDescription(lens, convertValueFunction=cvf)
+    if not evaluate:
+        return newDesc
+    
+    inf = float("inf")
+    newDesc = eval(newDesc)
+    return newDesc
+
 def main2():
     pprint.pprint(getSupportedLensTypes())
 
