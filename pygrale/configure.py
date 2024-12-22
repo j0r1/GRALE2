@@ -17,9 +17,12 @@ def addNumPyDirs(includeDirs, libDirs):
         # Try to deduce paths
         import numpy
 
-        numpyIncludeDir = os.path.join(os.path.dirname(numpy.__file__), "core", "include")
-        if os.path.exists(numpyIncludeDir):
-            includeDirs.append(numpyIncludeDir)
+        for core in [ "core", "_core" ]:
+            numpyIncludeDir = os.path.join(os.path.dirname(numpy.__file__), core, "include")
+            if os.path.exists(numpyIncludeDir):
+                includeDirs.append(numpyIncludeDir)
+                break
+
     except Exception as e:
         print("Exception during addNumPyDirs: {}".format(e))
 
