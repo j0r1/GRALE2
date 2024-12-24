@@ -86,8 +86,14 @@ bool OpenCLMultiKernel<NumKernels>::init(int devIdx)
 	cl_int err;
 	std::vector<cl_device_id> devices(numDevices);
 	clGetDeviceIDs(platform, clDevType, numDevices, devices.data(), nullptr);
+
+	std::string devTypeStr = "unknown";
+	if (clDevType == CL_DEVICE_TYPE_CPU)
+		devTypeStr = "CPU";
+	else if (clDevType == CL_DEVICE_TYPE_GPU)
+		devTypeStr = "GPU";
 	
-	std::cerr << "INFO: Found " << numDevices << " OpenCL devices" << std::endl;
+	std::cerr << "INFO: Found " << numDevices << " OpenCL devices of type " << devTypeStr << std::endl;
 	std::cerr << "INFO: OpenCL Devices:" << std::endl;
 	for (auto x : devices)
 	{
