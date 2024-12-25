@@ -858,7 +858,7 @@ def getSupportedLensTypes():
     """List which gravitational lens types are recognized in the parametric description."""
     return [ (x, _supportedLensTypes[x]["lens"]) for x in _supportedLensTypes ]
 
-def refineParametricDescription(varFloatParams, lens, fraction = 0.05, evaluate = True):
+def refineParametricDescription(varFloatParams, lens, fraction, evaluate = True):
     """This is a helper function to adjust an earlier parametric lens description
     based on an estimate of the solution. The envisioned usage is to first do a
     general parametric lens inversion, which provides `varFloatParams` and leads
