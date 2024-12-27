@@ -193,6 +193,19 @@ def _processPIEMDLens(lensParams, Dd, getParamValue):
 
     return newParams, positionNames
 
+def _processLTPIEMDLens(lensParams, Dd, getParamValue):
+
+    positionNames = [ ]
+    lensParams, newParams = _checkParameterValues(lensParams, [ ("ellipticity", "ellipticity"),
+                                                                ("coreradius", "coreradius_scaled"),
+                                                                ("scaleradius", "scaleradius_scaled"),
+                                                                ("velocitydispersion", "velocitydispersion_scaled")],
+                                                  getParamValue, positionNames)
+    if lensParams:
+        raise ParametricDescriptionException("Excess parameters for LTPIEMDLens")
+
+    return newParams, positionNames
+
 def _createTemplateLens_helper(parametricLensDescription, Dd, getParamValue):
     lensType = parametricLensDescription["type"]
     lensParams = parametricLensDescription["params"]
@@ -762,6 +775,22 @@ def _analyzePIEMDLens(lens, massUnitString, angularUnitString, convertValueFunct
         '}'
     ]
 
+def _analyzeLTPIEMDLens(lens, massUnitString, angularUnitString, convertValueFunction, objectStore, objectStoreName):
+
+    params = lens.getLensParameters()
+    velDispStr = _convertedValueToString(convertValueFunction(params["velocitydispersion"], ["LTPIEMDLens"], "velocitydispersion", "velocitydispersion_scaled", params), _getUnitlessValue)
+    ellStr = _convertedValueToString(convertValueFunction(params["ellipticity"], ["LTPIEMDLens"], "ellipticity", "ellipticity", params), _getUnitlessValue)
+    coreRadStr = _convertedValueToString(convertValueFunction(params["coreradius"], ["LTPIEMDLens"], "coreradius", "coreradius_scaled", params), lambda x: _getUnitValue(x, angularUnitString))
+    scaleRadStr = _convertedValueToString(convertValueFunction(params["scaleradius"], ["LTPIEMDLens"], "scaleradius", "scaleradius_scaled", params), lambda x: _getUnitValue(x, angularUnitString))
+    return [
+        '{',
+        f'    "velocitydispersion": {velDispStr},',
+        f'    "ellipticity": {ellStr},',
+        f'    "coreradius": {coreRadStr},',
+        f'    "scaleradius": {scaleRadStr},',
+        '}'
+    ]
+
 def createParametricDescription(lens, massUnitString = "MASS_SUN", angularUnitString = "ANGLE_ARCSEC",
                                 asString = True, convertValueFunction = None,
                                 objectStore = None, objectStoreName = None):
@@ -850,6 +879,7 @@ _supportedLensTypes = {
     "MassSheetLens": { "handler": _processMassSheetLens, "lens": lenses.MassSheetLens, "analysis": _analyzeMassSheetLens },
     "DeflectionGridLens": { "handler": _processDeflectionGridLens, "lens": lenses.DeflectionGridLens, "analysis": _analyzeDeflectionGridLens },
     "PIEMDLens" : { "handler": _processPIEMDLens, "lens": lenses.PIEMDLens, "analysis": _analyzePIEMDLens },
+    "LTPIEMDLens" : { "handler": _processLTPIEMDLens, "lens": lenses.LTPIEMDLens, "analysis": _analyzeLTPIEMDLens },
 }
 
 _supportedLensTypesByClass = { _supportedLensTypes[name]["lens"]: { "name": name, **_supportedLensTypes[name] } for name in _supportedLensTypes }
