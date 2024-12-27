@@ -88,23 +88,21 @@ PIEMDLens::PIEMDLens() : GravitationalLens(PIEMD)
 {
 }
 
+PIEMDLens::PIEMDLens(LensType t) : GravitationalLens(t)
+{
+}
+
 PIEMDLens::~PIEMDLens()
 {
 }
 
-bool PIEMDLens::processParameters(const GravitationalLensParams *pLensParams)
+bool PIEMDLens::subInit(double sigma0, double coreRad, double scaleRad, double eps)
 {
-	const PIEMDLensParams *pParams = dynamic_cast<const PIEMDLensParams* >(pLensParams);
-	if (!pParams)
-	{
-		setErrorString("Parameters are not of type 'PIEMDLensParams'");
-		return false;
-	}
+	m_sigma0 = sigma0;
+	//pParams->getCentralDensity();
 
-	m_sigma0 = pParams->getCentralDensity();
-
-	m_coreRadius = pParams->getCoreRadius();
-	m_scaleRadius = pParams->getScaleRadius();
+	m_coreRadius = coreRad; //pParams->getCoreRadius();
+	m_scaleRadius = scaleRad; //pParams->getScaleRadius();
 	if (m_coreRadius < 0)
 	{
 		setErrorString("Invalid core radius");
@@ -114,7 +112,7 @@ bool PIEMDLens::processParameters(const GravitationalLensParams *pLensParams)
 	if (m_scaleRadius <= m_coreRadius)
 		std::cerr << "WARNING: scale radius <= core radius, lens effect will be disabled" << endl;
 
-	m_epsilon = pParams->getEpsilon();
+	m_epsilon = eps; //pParams->getEpsilon();
 	if (m_epsilon < 0.0 || m_epsilon >= 1.0)
 	{
 		setErrorString("Invalid epsilon value");
@@ -134,6 +132,18 @@ bool PIEMDLens::processParameters(const GravitationalLensParams *pLensParams)
 	m_densFactor = m_sigma0*m_scaleRadius*m_coreRadius/(m_scaleRadius-m_coreRadius);
 
 	return true;
+}
+
+bool PIEMDLens::processParameters(const GravitationalLensParams *pLensParams)
+{
+	const PIEMDLensParams *pParams = dynamic_cast<const PIEMDLensParams* >(pLensParams);
+	if (!pParams)
+	{
+		setErrorString("Parameters are not of type 'PIEMDLensParams'");
+		return false;
+	}
+
+	return subInit(pParams->getCentralDensity(), pParams->getCoreRadius(), pParams->getScaleRadius(), pParams->getEpsilon());
 }
 
 Vector2Dd PIEMDLens::calcI(double omega, Vector2Dd theta) const
@@ -442,6 +452,141 @@ vector<CLFloatParamInfo> PIEMDLens::getCLAdjustableFloatingPointParameterInfo(do
 		{ .name = "scaleradius_scaled", .offset = 2, .scaleFactor = deflectionScale, .hardMin = 0 },
 		{ .name = "epsilon", .offset = 3, .scaleFactor = 1.0, .hardMin = 0.01, .hardMax = 0.99 }, // TODO 0 and 1 are not allowed, what are good bounds?
 	};
+}
+
+LTPIEMDLensParams::LTPIEMDLensParams() 
+	: m_velDisp(0),
+	  m_coreRadius(0),
+	  m_scaleRadius(0),
+	  m_ellipticity(0)
+{
+}
+
+LTPIEMDLensParams::LTPIEMDLensParams(double velDisp, double coreRadius, double scaleRadius, double ellipticity)
+	: m_velDisp(velDisp),
+	  m_coreRadius(coreRadius),
+	  m_scaleRadius(scaleRadius),
+	  m_ellipticity(ellipticity)
+{
+}
+
+LTPIEMDLensParams::~LTPIEMDLensParams()
+{
+}
+
+bool LTPIEMDLensParams::write(serut::SerializationInterface &si) const
+{
+	if (!(si.writeDouble(m_velDisp) &&
+	      si.writeDouble(m_coreRadius) &&
+		  si.writeDouble(m_scaleRadius) &&
+		  si.writeDouble(m_ellipticity)))
+	{
+		setErrorString(si.getErrorString());
+		return false;
+	}
+	return true;
+}
+
+bool LTPIEMDLensParams::read(serut::SerializationInterface &si)
+{
+	if (!(si.readDouble(&m_velDisp) &&
+		  si.readDouble(&m_coreRadius) &&
+		  si.readDouble(&m_scaleRadius) &&
+		  si.readDouble(&m_ellipticity)))
+	{
+		setErrorString(si.getErrorString());
+		return false;
+	}
+	return true;
+}
+
+std::unique_ptr<GravitationalLensParams> LTPIEMDLensParams::createCopy() const
+{
+	return std::make_unique<LTPIEMDLensParams>(m_velDisp, m_coreRadius, m_scaleRadius, m_ellipticity);
+}
+
+LTPIEMDLens::LTPIEMDLens() : PIEMDLens(LTPIEMD)
+{
+}
+
+LTPIEMDLens::~LTPIEMDLens()
+{
+}
+
+bool LTPIEMDLens::processParameters(const GravitationalLensParams *pLensParams)
+{
+	const LTPIEMDLensParams *pParams = dynamic_cast<const LTPIEMDLensParams* >(pLensParams);
+	if (!pParams)
+	{
+		setErrorString("Parameters are not of type 'LTPIEMDLensParams'");
+		return false;
+	}
+
+	double velDisp = pParams->getVelocityDispersion();
+	double epsHat = pParams->getEllipticity();
+	double a = pParams->getCoreRadius();
+	double s = pParams->getScaleRadius();
+	double Dd = getLensDistance();
+
+	double centralDens = (3.0*velDisp*velDisp)/(4.0*CONST_G*Dd)*(s*s-a*a)/(a*s*s);
+	double e = 1.0-std::sqrt((1.0-epsHat)/(1.0+epsHat));
+	double eps = e/(2.0-e);
+
+	return subInit(centralDens, a, s, eps);
+}
+
+bool LTPIEMDLens::getCLParameters(double deflectionScale, double potentialScale, int *pIntParams, float *pFloatParams) const
+{
+	/*
+	double densScale = SPEED_C*SPEED_C/(4.0*CONST_PI*CONST_G*getLensDistance());
+
+	pFloatParams[0] = (float)(m_sigma0/densScale);
+	pFloatParams[1] = (float)(m_coreRadius/deflectionScale);
+	pFloatParams[2] = (float)(m_scaleRadius/deflectionScale);
+	pFloatParams[3] = (float)m_epsilon;
+	return true;*/
+	setErrorString("TODO");
+	return false;
+}
+
+string LTPIEMDLens::getCLProgram(double deflectionScale, double potentialScale, std::string &subRoutineName, bool derivatives, bool potential) const
+{
+	subRoutineName = "clPIEMDLensProgram";
+
+	// TODO: reuse code from base lens
+	setErrorString("TODO");
+	return "";
+}
+
+unique_ptr<GravitationalLensParams> LTPIEMDLens::createLensParamFromCLFloatParams(double deflectionScale, double potentialScale, float *pFloatParams) const
+{
+	/*
+	double densScale = SPEED_C*SPEED_C/(4.0*CONST_PI*CONST_G*getLensDistance());
+
+	double sigma0 = (double)pFloatParams[0] * densScale;
+	double coreRad = (double)pFloatParams[1] * deflectionScale;
+	double scaleRad = (double)pFloatParams[2] * deflectionScale;
+	double eps = (double)pFloatParams[3];
+
+	return make_unique<PIEMDLensParams>(sigma0, coreRad, scaleRad, eps);*/
+	setErrorString("TODO");
+	return nullptr;
+}
+
+vector<CLFloatParamInfo> LTPIEMDLens::getCLAdjustableFloatingPointParameterInfo(double deflectionScale, double potentialScale) const
+{
+	/*
+	double densScale = SPEED_C*SPEED_C/(4.0*CONST_PI*CONST_G*getLensDistance());
+
+	return {
+		{ .name = "centraldensity_scaled", .offset = 0, .scaleFactor = densScale, .hardMin = 0 },
+		{ .name = "coreradius_scaled", .offset = 1, .scaleFactor = deflectionScale, .hardMin = 0 },
+		{ .name = "scaleradius_scaled", .offset = 2, .scaleFactor = deflectionScale, .hardMin = 0 },
+		{ .name = "epsilon", .offset = 3, .scaleFactor = 1.0, .hardMin = 0.01, .hardMax = 0.99 }, // TODO 0 and 1 are not allowed, what are good bounds?
+	};
+	*/
+	// TODO
+	return {};
 }
 
 } // end namespace

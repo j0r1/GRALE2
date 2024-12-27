@@ -63,6 +63,7 @@ cdef extern from "grale/gravitationallens.h" namespace "grale::GravitationalLens
         CircularPieces,
         MPContainer,
         CubicDeflectionGrid,
+        LTPIEMD,
         MaxLensType
 
 cdef extern from "grale/gravitationallens.h" namespace "grale":
@@ -424,6 +425,20 @@ cdef extern from "grale/piemdlens.h" namespace "grale":
         pass
 
 ctypedef const PIEMDLensParams* PIEMDLensParamsPtrConst
+
+cdef extern from "grale/piemdlens.h" namespace "grale":
+
+    cdef cppclass LTPIEMDLensParams(GravitationalLensParams):
+        LTPIEMDLensParams(double velDisp, double coreRadius, double scaleRadius, double ellipticity)
+        double getVelocityDispersion()
+        double getCoreRadius()
+        double getScaleRadius()
+        double getEllipticity()
+
+    cdef cppclass LTPIEMDLens(GravitationalLens):
+        pass
+
+ctypedef const LTPIEMDLensParams* LTPIEMDLensParamsPtrConst
 
 cdef extern from "grale/pimdlens.h" namespace "grale":
 

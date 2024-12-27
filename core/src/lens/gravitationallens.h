@@ -103,6 +103,7 @@ public:
 		CircularPieces, /** Exact lens potentials within circular regions, interpolated ones in between */
 		MPContainer, /** Container for multiple lenses at different redshifts. */
 		CubicDeflectionGrid, /** Similar to DeflectionGrid, but using cubic interpolation instead of linear. */
+		LTPIEMD, /** PIEMD, but using lenstool parametrization */
 		MaxLensType
 	};
 protected:

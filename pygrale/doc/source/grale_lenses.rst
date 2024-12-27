@@ -184,6 +184,12 @@ PIEMDLens
 
    .. automethod:: __init__
 
+LTPIEMDLens
+-----------
+.. autoclass:: grale.lenses.LTPIEMDLens
+
+   .. automethod:: __init__
+
 PIMDLens
 ---------
 .. autoclass:: grale.lenses.PIMDLens

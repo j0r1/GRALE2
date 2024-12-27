@@ -248,6 +248,7 @@ double GravitationalLens::getInverseMagnification(double D_s, double D_ds, Vecto
 #define LENSNUMBER_CIRCULARPIECES						27
 #define LENSNUMBER_MULTIPLANECONTAINER					28
 #define LENSNUMBER_CUBICDEFLECTIONGRIDLENS				29
+#define LENSNUMBER_LTPIEMD							30
 //#define LENSNUMBER_TESTLENS						234	
 
 bool GravitationalLens::write(serut::SerializationInterface &si) const
@@ -352,6 +353,9 @@ bool GravitationalLens::write(serut::SerializationInterface &si) const
 		break;
 	case CubicDeflectionGrid:
 		lensNumber = LENSNUMBER_CUBICDEFLECTIONGRIDLENS;
+		break;
+	case LTPIEMD:
+		lensNumber = LENSNUMBER_LTPIEMD;
 		break;
 	default:
 		setErrorString("Lens type not recognized");
@@ -561,6 +565,10 @@ bool GravitationalLens::read(serut::SerializationInterface &si, std::unique_ptr<
 	case LENSNUMBER_CUBICDEFLECTIONGRIDLENS:
 		pTmpLens = make_unique<CubicDeflectionGridLens>();
 		pParams = make_unique<DeflectionGridLensParams>(); // We reuse the parameters of the DeflectionGridLens
+		break;
+	case LENSNUMBER_LTPIEMD:
+		pTmpLens = make_unique<LTPIEMDLens>();
+		pParams = make_unique<LTPIEMDLensParams>();
 		break;
 	default:
 		errorString = std::string("Can't recognize lens type");
