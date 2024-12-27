@@ -100,13 +100,14 @@ protected:
 	PIEMDLens(LensType t);
 	bool subInit(double sigma0, double coreRad, double scaleRad, double eps);
 	bool processParameters(const GravitationalLensParams *pLensParams);
-private:
+
 	Vector2Dd calcI(double omega, Vector2Dd theta) const;
 	void getIDerivs(double omega, Vector2D<double> theta, double &axx, double &ayy, double &axy) const;
 
-	double m_sigma0;
 	double m_coreRadius;
 	double m_scaleRadius;
+private:
+	double m_sigma0;
 	double m_epsilon;
 	double m_sqrtEpsilon;
 	double m_epsFrac;
@@ -131,6 +132,9 @@ public:
 	std::vector<CLFloatParamInfo> getCLAdjustableFloatingPointParameterInfo(double deflectionScale, double potentialScale) const override;
 protected:
 	bool processParameters(const GravitationalLensParams *pLensParams);
+private:
+	double m_velDisp = 0;
+	double m_epsHat = 0;
 };
 
 } // end namespace

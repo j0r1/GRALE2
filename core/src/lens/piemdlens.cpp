@@ -26,6 +26,7 @@
 #include "piemdlens.h"
 #include "constants.h"
 #include "mathfunctions.h"
+#include "utils.h"
 #include <iostream>
 
 using namespace std;
@@ -288,13 +289,11 @@ bool PIEMDLens::getCLParameters(double deflectionScale, double potentialScale, i
 	return true;
 }
 
-string PIEMDLens::getCLProgram(double deflectionScale, double potentialScale, std::string &subRoutineName, bool derivatives, bool potential) const
+static inline string getPIEMDSubRoutines(const string &subRoutineName)
 {
-	subRoutineName = "clPIEMDLensProgram";
-
 	string program = R"XYZ(
 
-float2 clPIEMDLensProgram_calcI(float omega_scaled, float2 theta, float epsilon)
+float2 )XYZ" + subRoutineName + R"XYZ(_calcI(float omega_scaled, float2 theta, float epsilon)
 {
 	float X = theta.x;
 	float Y = theta.y;
@@ -318,7 +317,7 @@ float2 clPIEMDLensProgram_calcI(float omega_scaled, float2 theta, float epsilon)
 	return (float2)(re, im);
 }
 
-void clPIEMDLensProgram_calcIDerivs(float omega_scaled, float2 theta, float *pAxx, float *pAyy, float *pAxy, float epsilon, float deflectionFactor)
+void )XYZ" + subRoutineName + R"XYZ(_calcIDerivs(float omega_scaled, float2 theta, float *pAxx, float *pAyy, float *pAxy, float epsilon, float deflectionFactor)
 {
 	float X = theta.x;
 	float Y = theta.y;
@@ -358,17 +357,26 @@ void clPIEMDLensProgram_calcIDerivs(float omega_scaled, float2 theta, float *pAx
 	*pAyy = -factor*(R*Ry + Z*Zy);
 	*pAxy = -factor*(R*Rx + Z*Zx);
 }
+)XYZ";
+	return program;
+}
 
-LensQuantities clPIEMDLensProgram(float2 coord, __global const int *pIntParams, __global const float *pFloatParams)
+static inline string getPIEMDMainProgram(const string &subRoutineName, const string &piemdParams, bool derivatives, bool potential)
 {
-	float sigma0 = pFloatParams[0];
-	float coreRadius = pFloatParams[1];
-	float scaleRadius = pFloatParams[2];
-	float epsilon = pFloatParams[3];
+	string program = getPIEMDSubRoutines(subRoutineName);
+	program += R"XYZ(
+
+LensQuantities )XYZ" + subRoutineName + R"XYZ((float2 coord, __global const int *pIntParams, __global const float *pFloatParams)
+{
+)XYZ";
+
+	program += piemdParams;
+
+	program += R"XYZ(
 	LensQuantities r;
 
-	float2 corePart = clPIEMDLensProgram_calcI(coreRadius, coord, epsilon);
-	float2 scalePart = clPIEMDLensProgram_calcI(scaleRadius, coord, epsilon);
+	float2 corePart = )XYZ" + subRoutineName + R"XYZ(_calcI(coreRadius, coord, epsilon);
+	float2 scalePart = )XYZ" + subRoutineName + R"XYZ(_calcI(scaleRadius, coord, epsilon);
 	float deflectionFactor = sigma0 * (1.0f-epsilon*epsilon)/sqrt(epsilon);
 
 	float diffRadii = scaleRadius-coreRadius;
@@ -410,8 +418,8 @@ LensQuantities clPIEMDLensProgram(float2 coord, __global const int *pIntParams, 
 		float axx_a, ayy_a, axy_a;
 		float axx_s, ayy_s, axy_s;
 
-		clPIEMDLensProgram_calcIDerivs(coreRadius, coord, &axx_a, &ayy_a, &axy_a, epsilon, deflectionFactor);
-		clPIEMDLensProgram_calcIDerivs(scaleRadius, coord, &axx_s, &ayy_s, &axy_s, epsilon, deflectionFactor);
+		)XYZ" + subRoutineName + R"XYZ(_calcIDerivs(coreRadius, coord, &axx_a, &ayy_a, &axy_a, epsilon, deflectionFactor);
+		)XYZ" + subRoutineName + R"XYZ(_calcIDerivs(scaleRadius, coord, &axx_s, &ayy_s, &axy_s, epsilon, deflectionFactor);
 
 		r.axx = axx_a*fa - axx_s*fs;
 		r.ayy = ayy_a*fa - ayy_s*fs;
@@ -428,6 +436,20 @@ LensQuantities clPIEMDLensProgram(float2 coord, __global const int *pIntParams, 
 	)XYZ";
 
 	return program;
+}
+
+string PIEMDLens::getCLProgram(double deflectionScale, double potentialScale, std::string &subRoutineName, bool derivatives, bool potential) const
+{
+	subRoutineName = "clPIEMDLensProgram";
+
+	string piemdParams = R"XYZ(
+	float sigma0 = pFloatParams[0];
+	float coreRadius = pFloatParams[1];
+	float scaleRadius = pFloatParams[2];
+	float epsilon = pFloatParams[3];
+	)XYZ";
+
+	return getPIEMDMainProgram(subRoutineName, piemdParams, derivatives, potential);
 }
 
 unique_ptr<GravitationalLensParams> PIEMDLens::createLensParamFromCLFloatParams(double deflectionScale, double potentialScale, float *pFloatParams) const
@@ -532,61 +554,66 @@ bool LTPIEMDLens::processParameters(const GravitationalLensParams *pLensParams)
 	double e = 1.0-std::sqrt((1.0-epsHat)/(1.0+epsHat));
 	double eps = e/(2.0-e);
 
+	m_velDisp = velDisp;
+	m_epsHat = epsHat;
+
 	return subInit(centralDens, a, s, eps);
 }
 
+static const double velScale = 100000.0; // units of 100km/s
+
 bool LTPIEMDLens::getCLParameters(double deflectionScale, double potentialScale, int *pIntParams, float *pFloatParams) const
 {
-	/*
-	double densScale = SPEED_C*SPEED_C/(4.0*CONST_PI*CONST_G*getLensDistance());
-
-	pFloatParams[0] = (float)(m_sigma0/densScale);
+	pFloatParams[0] = (float)(m_velDisp/velScale);
 	pFloatParams[1] = (float)(m_coreRadius/deflectionScale);
 	pFloatParams[2] = (float)(m_scaleRadius/deflectionScale);
-	pFloatParams[3] = (float)m_epsilon;
-	return true;*/
-	setErrorString("TODO");
-	return false;
+	pFloatParams[3] = (float)m_epsHat;
+	return true;
 }
 
 string LTPIEMDLens::getCLProgram(double deflectionScale, double potentialScale, std::string &subRoutineName, bool derivatives, bool potential) const
 {
-	subRoutineName = "clPIEMDLensProgram";
+	subRoutineName = "clLTPIEMDLensProgram";
 
-	// TODO: reuse code from base lens
-	setErrorString("TODO");
-	return "";
+	//double densScale = SPEED_C*SPEED_C/(4.0*CONST_PI*CONST_G*getLensDistance()); // sigma0 should be in these units
+	//double sigma0ScaleFactor = (velScale*velScale)/(4.0*CONST_G*Dd*deflectionScale);
+	//double finalDensScale = sigma0ScaleFactor/densScale;
+	double finalDensScale = ((velScale/SPEED_C)*(velScale/SPEED_C)*CONST_PI)/deflectionScale;
+
+	string piemdParams = R"XYZ(
+	float velDisp = pFloatParams[0]; // scaled with 'velScale'
+	float coreRadius = pFloatParams[1];
+	float scaleRadius = pFloatParams[2];
+	float epsHat = pFloatParams[3];
+	
+	float finalDensScale = )XYZ" + float_to_string((float)finalDensScale) + R"XYZ(;
+	float aRescaled = coreRadius/scaleRadius;
+	float sigma0 = finalDensScale * (3.0*velDisp*velDisp) * (1.0 - aRescaled*aRescaled)/coreRadius;
+	float eTmp = 1.0-sqrt((1.0-epsHat)/(1.0+epsHat));
+	float epsilon = eTmp/(2.0-eTmp);
+	)XYZ";
+
+	return getPIEMDMainProgram(subRoutineName, piemdParams, derivatives, potential);
 }
 
 unique_ptr<GravitationalLensParams> LTPIEMDLens::createLensParamFromCLFloatParams(double deflectionScale, double potentialScale, float *pFloatParams) const
 {
-	/*
-	double densScale = SPEED_C*SPEED_C/(4.0*CONST_PI*CONST_G*getLensDistance());
-
-	double sigma0 = (double)pFloatParams[0] * densScale;
+	double velDisp = (double)pFloatParams[0] * velScale;
 	double coreRad = (double)pFloatParams[1] * deflectionScale;
 	double scaleRad = (double)pFloatParams[2] * deflectionScale;
-	double eps = (double)pFloatParams[3];
+	double epsHat = (double)pFloatParams[3];
 
-	return make_unique<PIEMDLensParams>(sigma0, coreRad, scaleRad, eps);*/
-	setErrorString("TODO");
-	return nullptr;
+	return make_unique<LTPIEMDLensParams>(velDisp, coreRad, scaleRad, epsHat);
 }
 
 vector<CLFloatParamInfo> LTPIEMDLens::getCLAdjustableFloatingPointParameterInfo(double deflectionScale, double potentialScale) const
 {
-	/*
-	double densScale = SPEED_C*SPEED_C/(4.0*CONST_PI*CONST_G*getLensDistance());
-
 	return {
-		{ .name = "centraldensity_scaled", .offset = 0, .scaleFactor = densScale, .hardMin = 0 },
+		{ .name = "velocitydispersion_scaled", .offset = 0, .scaleFactor = velScale, .hardMin = 0 },
 		{ .name = "coreradius_scaled", .offset = 1, .scaleFactor = deflectionScale, .hardMin = 0 },
 		{ .name = "scaleradius_scaled", .offset = 2, .scaleFactor = deflectionScale, .hardMin = 0 },
-		{ .name = "epsilon", .offset = 3, .scaleFactor = 1.0, .hardMin = 0.01, .hardMax = 0.99 }, // TODO 0 and 1 are not allowed, what are good bounds?
+		{ .name = "ellipticity", .offset = 3, .scaleFactor = 1.0, .hardMin = 0.01, .hardMax = 0.99 }, // TODO 0 and 1 are not allowed, what are good bounds?
 	};
-	*/
-	// TODO
-	return {};
 }
 
 } // end namespace
