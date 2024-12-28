@@ -92,12 +92,11 @@ def createLensFromLenstoolFile(inputData, mirrorX = False, cosmology = None):
         s = info["cut_radius"]*ANGLE_ARCSEC if "cut_radius" in info else info["cut_radius_kpc"]/(Dd/DIST_KPC)
         sigma = info["v_disp"]*1000
 
-        centralDensity = (3*sigma**2)/(4*CONST_G*Dd) * (s**2-a**2)/(a*s**2)
-        e = 1.0-((1.0-epsHat)/(1.0+epsHat))**0.5
-        eps = e/(2-e)
-        #print("centralDensity", centralDensity)
-        #print("e", e)
-        #print()
+        centralDensity = lenses.PIEMDLens.getCentralDensityFromVelocityDispersion(sigma, a, s, Dd)
+        eps = lenses.PIEMDLens.getEpsilonFromEllipticity(epsHat)
+
+        if eps == 0: # Can't use PIEMDLens for this
+            return lenses.PIMDLens(Dd, { "centraldensity": centralDensity, "coreradius": a, "scaleradius": s })
 
         return lenses.PIEMDLens(Dd, { "centraldensity": centralDensity, "coreradius": a, "scaleradius": s,
                                       "epsilon": eps })
