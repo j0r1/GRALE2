@@ -1,5 +1,44 @@
 from .privimages import _getLinesFromInputData
 import numpy as np
+import os
+
+def _getLenstoolPotFileInfoFromLines(lines):
+    from .lenses import LensException
+    
+    potInfo = [ ]
+    curInfo = { }
+    potfileIdent = "potfile"
+    identNrs = set()
+    for l in lines:
+        if l.startswith(potfileIdent):
+            if len(l) == len(potfileIdent):
+                raise LensException(f"No 'potfile' identifier present in line '{l}'")
+            identNr = int(l[len(potfileIdent):])
+            if identNr in identNrs:
+                raise LensException(f"'potfile' identifier {identNr} found multiple times")
+            identNrs.add(identNr)
+            
+            if curInfo:
+                potInfo.append(curInfo)
+            curInfo = { "potfile": identNr }
+
+        elif l.startswith(" ") or l.startswith("\t"):
+            if curInfo is not None:
+                parts = l.strip().split()
+                if parts[0] == "end":
+                    potInfo.append(curInfo)
+                    curInfo = None
+                else:
+                    key, value = parts[0], parts[1:]
+                    curInfo[key] = value
+        else:
+            if curInfo:
+                potInfo.append(curInfo)
+            curInfo = None
+
+    if curInfo:
+        potInfo.append(curInfo)
+    return potInfo
 
 def _getLenstoolPotentialInfoFromLines(lines):
     potentialInfo = [ ]
@@ -27,6 +66,91 @@ def _getLenstoolPotentialInfoFromLines(lines):
     if curInfo:
         potentialInfo.append(curInfo)
     return potentialInfo
+
+def _getLenstoolPotFileModelsFromLines(lines, zd, Dd, baseDir):
+    from . import lenses
+    from . import images
+    from .constants import ANGLE_ARCSEC, ANGLE_DEGREE
+
+    LensException = lenses.LensException
+        
+    potInfos = _getLenstoolPotFileInfoFromLines(lines)
+    newLensParams = []
+    for pf in potInfos:
+        del pf["potfile"]
+       
+        zdNew = float(pf["zlens"][0]) 
+        if zd is not None and zdNew != zd:
+            raise LensException(f"Redshift from 'potfile' info ({zdNew}) is not expected lens redshift {zd}")
+        del pf["zlens"]
+
+        lensType = int(pf["type"][0])
+        if lensType != 81:
+            raise LensException(f"Unknown lens type {lensType} in potfile")
+        del pf["type"]
+    
+        core0 = float(pf["core"][0])*ANGLE_ARCSEC
+        del pf["core"]
+
+        velDisp0 = float(pf["sigma"][1])*1000
+        del pf["sigma"]
+
+        cut0 = float(pf["cut"][1])*ANGLE_ARCSEC
+        del pf["cut"]
+
+        mag0 = float(pf["mag0"][0])
+        del pf["mag0"]
+
+        slope = float(pf["slope"][1])
+        del pf["slope"]
+
+        vdslope = float(pf["vdslope"][1])
+        del pf["vdslope"]
+                
+        pfType = int(pf["filein"][0])
+        if pfType != 3:
+            raise LensException(f"Unknown potfile type {pfType}, expecting 3")
+    
+        fileName = os.path.join(baseDir, pf["filein"][1])
+        del pf["filein"]
+
+        # TODO: some better warning?
+        if pf:
+            print("Warning: not using some entries from potfile:", pf)
+
+        refCtr = None
+
+        for l in open(fileName, "rt"):
+            l = l.strip()
+            if l.startswith("#REFERENCE"):
+                parts = l.split()
+                ra, dec = map(float, parts[2:4])
+                refCtr = [ra*ANGLE_DEGREE, dec*ANGLE_DEGREE]
+                continue
+            
+            if l.startswith("#"):
+                continue
+
+            ident, ra, dec, a, b, theta, mag, lum = map(float, l.split())
+            if a != 1 or b != 1 or theta != 0:
+                raise LensException("Unexpected a, b, or theta (expecting a=1, b=1, theta=0)")
+
+            velDisp = velDisp0*10**(0.4*(mag0-mag)/vdslope)
+            core = core0*10**(0.4*(mag0-mag)/2)
+            cut = cut0*10**(0.4*(mag0-mag)*2/slope)
+            pos = images.centerOnPosition([ra*ANGLE_DEGREE, dec*ANGLE_DEGREE], refCtr)
+            newLensParams.append({
+                "x": pos[0],
+                "y": pos[1],
+                "factor": 1,
+                "angle": 0,
+                "lens": lenses.PIMDLens(Dd, {
+                    "centraldensity": lenses.PIEMDLens.getCentralDensityFromVelocityDispersion(velDisp, core, cut, Dd),
+                    "coreradius": core,
+                    "scaleradius": cut,
+                })
+            })
+    return newLensParams
 
 def _getLenstoolCosmologyFromLines(lines):
     from .lenses import LensException
@@ -57,6 +181,8 @@ def _getLenstoolCosmologyFromLines(lines):
                                settings["omegaX"],
                                settings["wX"])
 
+
+
 def createLensFromLenstoolFile(inputData, mirrorX = False, cosmology = None):
     """Based on a `LensTool <https://projets.lam.fr/projects/lenstool/wiki>`_ model,
     a corresponding :class:`lens model<grale.lenses.GravitationalLens>` is constructed.
@@ -75,7 +201,7 @@ def createLensFromLenstoolFile(inputData, mirrorX = False, cosmology = None):
      - `cosmology`: if specified, the cosmological model from the input file will be ignored
        and this one will be used.
     """
-    lines = _getLinesFromInputData(inputData)
+    lines, isFileName = _getLinesFromInputData(inputData)
     potentialInfo = _getLenstoolPotentialInfoFromLines(lines)
     cosm = _getLenstoolCosmologyFromLines(lines) if not cosmology else cosmology
     if not potentialInfo:
@@ -83,6 +209,8 @@ def createLensFromLenstoolFile(inputData, mirrorX = False, cosmology = None):
 
     from .constants import ANGLE_ARCSEC, CONST_G, DIST_KPC
     from . import lenses
+
+    baseDir = "" if not isFileName else os.path.dirname(inputData)
 
     LensException = lenses.LensException
 
@@ -104,6 +232,7 @@ def createLensFromLenstoolFile(inputData, mirrorX = False, cosmology = None):
     _lenstoolPotentialHandlers = { 81: _ltPIEMDHandler }
 
     subLenses = [ ]
+    zd = None
     for p in potentialInfo:
         profileId = int(p["profil"]) if "profil" in p else p["profile"]
         if not profileId in _lenstoolPotentialHandlers:
@@ -111,6 +240,7 @@ def createLensFromLenstoolFile(inputData, mirrorX = False, cosmology = None):
 
         handler = _lenstoolPotentialHandlers[profileId]
         zd = p["z_lens"]
+
         Dd = cosm.getAngularDiameterDistance(zd)
         lens = handler(p, Dd)
 
@@ -128,6 +258,8 @@ def createLensFromLenstoolFile(inputData, mirrorX = False, cosmology = None):
     for d in subLenses:
         if d["lens"].getLensDistance() != Dd_first:
             raise LensException("Not all lens components have same lens distance")
+
+    subLenses += _getLenstoolPotFileModelsFromLines(lines, zd, Dd_first, baseDir)
 
     return (lenses.CompositeLens(Dd_first, subLenses), zd, cosm)
 

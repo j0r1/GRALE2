@@ -126,18 +126,18 @@ def _getLineAnalyzer(la):
 def _getLinesFromInputData(inputData):
     try:
         # Check if it's a file that's already open
-        return inputData.readlines()
+        return inputData.readlines(), False
     except:
         pass
 
     try:
         with open(inputData, "rt") as f:
-            return f.readlines()
+            return f.readlines(), True
     except:
         pass
 
     # Check if it's a string that can be split in lines
-    return inputData.splitlines()
+    return inputData.splitlines(), False
 
 def readInputImagesFile(inputData, isPointImagesFile, lineAnalyzer = "default", centerOn = (0, 0)):
     """This function can process a text file (or previously read text data) into
@@ -289,7 +289,7 @@ def readInputImagesFile(inputData, isPointImagesFile, lineAnalyzer = "default", 
     """
 
     lineAnalyzer = _getLineAnalyzer(lineAnalyzer)
-    lines = _getLinesFromInputData(inputData)
+    lines, isFileName = _getLinesFromInputData(inputData)
 
     internalIdPrefix = "justsomelongandunlikelyprefix_"
     internalSourceId = 0
