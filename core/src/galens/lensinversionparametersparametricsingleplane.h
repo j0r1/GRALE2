@@ -53,6 +53,7 @@ public:
 	uint64_t getInitialPositionUncertaintySeed() const { return m_initialUncertSeed; }
 	const std::vector<std::pair<size_t, std::string>> &getOriginParameterMapping() const { return m_originParams; }
 	size_t getNumberOfOriginParameters() const { return m_numOriginParams; }
+	const std::vector<std::shared_ptr<ParameterPrior>> getParameterPriors() const { return m_priors; }
 
 	bool write(serut::SerializationInterface &si) const override;
 	bool read(serut::SerializationInterface &si) override;

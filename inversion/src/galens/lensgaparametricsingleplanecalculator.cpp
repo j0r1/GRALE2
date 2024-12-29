@@ -6,6 +6,8 @@
 #include <iostream>
 #include <list>
 #include <cassert>
+#include <chrono>
+#include <thread>
 
 using namespace errut;
 using namespace std;
@@ -226,6 +228,43 @@ bool_t LensGAParametricSinglePlaneCalculator::init(const LensInversionParameters
 		if (m_initMin.size() != m_numOriginParams)
 			return "Incompatible sizes for bounds and number of origin parameters";
 	}
+
+	// Prior stuff
+
+	m_priors = params.getParameterPriors();
+	if (m_priors.size() != m_initMin.size())
+		return "Should have received as many priors as parameters (" + to_string(m_initMin.size()) + ") but got " + to_string(m_priors.size());
+
+	bool haveRealPrior = false;
+	for (const auto &p : m_priors)
+		if (p->getType() != ParameterPrior::None)
+			haveRealPrior = true;
+
+	m_fitnessToAddPriorTo = -1;
+	if (!haveRealPrior)
+	{
+		m_priors.clear();
+		cerr << "INFO: no prior information detected" << endl;
+	}
+	else
+	{
+		for (size_t i = 0 ; i < m_fitObj->getNumberOfFitnessComponents() ; i++)
+		{
+			if (m_fitObj->isNegativeLogProb_Overall(i))
+			{
+				if (m_fitnessToAddPriorTo >= 0)
+					return "Found more than one fitness component to add prior info to: had " + to_string(m_fitnessToAddPriorTo) + ", but now also " + to_string(i);
+				m_fitnessToAddPriorTo = i;
+			}
+		}
+		cerr << "INFO: adding prior information to fitness component " << m_fitnessToAddPriorTo << endl;
+	}
+
+	if (m_priors.size() > 0 && m_fitnessToAddPriorTo < 0)
+	{
+		cerr << endl << endl << "WARNING: detected prior information on parameters, but there's no fitness component to add this to" << endl << endl << endl;
+		this_thread::sleep_for(chrono::seconds(3));
+	}
  
 	m_infOnBoundsViolation = params.infinityOnBoundsViolation();
 	m_init = true;
@@ -330,7 +369,6 @@ errut::bool_t LensGAParametricSinglePlaneCalculator::pollCalculate(const eatk::G
 	if (m_infOnBoundsViolation)
 	{
 		assert(dynamic_cast<const eatk::FloatVectorGenome *>(&genome0));
-		const eatk::FloatVectorGenome &genome = static_cast<const eatk::FloatVectorGenome&>(genome0);
 		const vector<float> &values = genome.getValues();
 
 		assert(values.size() == m_hardMin.size());
@@ -455,7 +493,24 @@ errut::bool_t LensGAParametricSinglePlaneCalculator::pollCalculate(const eatk::G
 	vector<float> &fitnessValues = fitness.getValues();
 	if (!m_fitObj->calculateOverallFitness(*m_oclBp, fitnessValues.data()))
 		return "Can't calculate fitness: " + m_fitObj->getErrorString();
-	
+
+	if (m_fitnessToAddPriorTo >= 0)
+	{
+		const vector<float> &values = genome.getValues();
+		assert(m_priors.size() == values.size());
+		assert(m_fitnessToAddPriorTo < fitnessValues.size());
+
+		float negLogPrior = 0;
+		for (size_t i = 0 ; i < values.size() ; i++)
+		{
+			assert(m_priors[i]);
+			negLogPrior += m_priors[i]->getNegativeLogProb(values[i]);
+		}
+
+		fitnessValues[m_fitnessToAddPriorTo] += negLogPrior;
+		//cerr << "Added prior" << negLogPrior << endl;
+	}
+
 	fitness.setCalculated();
 	
 	return true;
