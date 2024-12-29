@@ -5,6 +5,7 @@
 #include "gravitationallens.h"
 #include "imagesdataextended.h"
 #include "configurationparameters.h"
+#include "parameterprior.h"
 #include <vector>
 #include <cassert>
 
@@ -29,7 +30,8 @@ public:
 		bool randomizeImagePositions,
 		uint64_t initialUncertSeed,
 		const std::vector<std::pair<size_t, std::string>> &originParameterMapping,
-		size_t numOriginParameters
+		size_t numOriginParameters,
+		const std::vector<std::shared_ptr<ParameterPrior>> &priors
 		);
 	~LensInversionParametersParametricSinglePlane();
 
@@ -68,6 +70,7 @@ private:
 	uint64_t m_initialUncertSeed = 0;
 	std::vector<std::pair<size_t, std::string>> m_originParams;
 	size_t m_numOriginParams = 0;
+	std::vector<std::shared_ptr<ParameterPrior>> m_priors;
 };
 
 } // end namespace

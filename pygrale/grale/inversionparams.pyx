@@ -39,6 +39,7 @@ cimport grale.cppcosmology as cppcosmology
 cimport grale.lensgaconverenceparameters as lensgaconverenceparameters
 cimport grale.lensgamultipopulationparameters as lensgamultipopulationparameters
 cimport grale.errut as errut
+cimport grale.parameterprior as parameterprior
 
 include "stringwrappers.pyx"
 
@@ -1030,7 +1031,8 @@ cdef class LensInversionParametersParametricSinglePlane(object):
                   infOnBoundsViolation,
                   fitnessObjectParameters, deviceIndex = "rotate",
                   randomizeImagePositions = False, initialUncertSeed = 0,
-                  originParametersMap = [], numOriginParams = 0):
+                  originParametersMap = [], numOriginParams = 0,
+                  priors = []):
 
         cdef vector[shared_ptr[imagesdataextended.ImagesDataExtended]] imgVector = _createImageVectorFromSinglePlaneImageList(inputImages)
         cdef double cDd = Dd
@@ -1052,6 +1054,7 @@ cdef class LensInversionParametersParametricSinglePlane(object):
         cdef size_t cNumOriginParams = numOriginParams
         cdef size_t tmpSize
         cdef string tmpStr
+        cdef vector[shared_ptr[parameterprior.ParameterPrior]] cPriors
 
         if inputImages is None:
             return
@@ -1074,11 +1077,14 @@ cdef class LensInversionParametersParametricSinglePlane(object):
             tmpStr = B(code)
             cOriginParamMapping.push_back(pair[size_t,string](tmpSize, tmpStr))
 
+        # TODO: priors
+
         self.m_pParams = unique_ptr[lensinversionparametersparametricsingleplane.LensInversionParametersParametricSinglePlane](
             new lensinversionparametersparametricsingleplane.LensInversionParametersParametricSinglePlane(
                 imgVector, cDd, cZd, deref(cTemplateLens), cDeflScale, cPotScale,
                 cOffsets, cInitMin, cInitMax, cHardMin, cHardMax, cInfOnBoundsViolation, deref(pFitnessObjectParameters),
-                devIdx, cRandomizeInputPos, cInitialUncertSeed, cOriginParamMapping, cNumOriginParams
+                devIdx, cRandomizeInputPos, cInitialUncertSeed, cOriginParamMapping, cNumOriginParams,
+                cPriors
             )
         )
 

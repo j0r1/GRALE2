@@ -15,7 +15,9 @@ bool_t ParameterPrior::read(serut::SerializationInterface &si, unique_ptr<Parame
 		return "Can't read prior type: " + si.getErrorString();
 
 	unique_ptr<ParameterPrior> newPrior;
-	if (tpe == (int)ParameterPrior::Gaussian)
+	if (tpe == (int)ParameterPrior::None)
+		newPrior = make_unique<NoParameterPrior>();
+	else if (tpe == (int)ParameterPrior::Gaussian)
 		newPrior = make_unique<GaussianParameterPrior>();
 	else
 		return "Invalid prior type " + to_string(tpe);

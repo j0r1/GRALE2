@@ -25,7 +25,8 @@ LensInversionParametersParametricSinglePlane::LensInversionParametersParametricS
 		bool randomizeImagePositions,
 		uint64_t initialUncertSeed,
 		const vector<pair<size_t, std::string>> &originParameterMapping,
-		size_t numOriginParameters
+		size_t numOriginParameters,
+		const std::vector<std::shared_ptr<ParameterPrior>> &priors
 		)
 {
 	m_images = images;
@@ -46,6 +47,7 @@ LensInversionParametersParametricSinglePlane::LensInversionParametersParametricS
 	m_initialUncertSeed = initialUncertSeed;
 	m_originParams = originParameterMapping;
 	m_numOriginParams = numOriginParameters;
+	m_priors = priors;
 }
 
 LensInversionParametersParametricSinglePlane::~LensInversionParametersParametricSinglePlane()
@@ -118,8 +120,9 @@ bool LensInversionParametersParametricSinglePlane::write(serut::SerializationInt
 		return false;
 	}
 
-	array<int32_t,3> iParams = { (int32_t)m_devIdx, (m_infOnBoundsViolation)?1:0,
-								 (m_randomizeInputPosition)?1:0 };
+	array<int32_t,4> iParams = { (int32_t)m_devIdx, (m_infOnBoundsViolation)?1:0,
+								 (m_randomizeInputPosition)?1:0,
+								 (int32_t)m_priors.size() };
 
 	if (!si.writeInt32s(iParams.data(), iParams.size()))
 	{
@@ -152,6 +155,17 @@ bool LensInversionParametersParametricSinglePlane::write(serut::SerializationInt
 		}
 	}
 
+	for (const auto &p : m_priors)
+	{
+		assert(p.get());
+		errut::bool_t r = p->write(si);
+		if (!r)
+		{
+			setErrorString("Can't write prior info: " + r.getErrorString());
+			return false;
+		}
+	}
+	
 	return true;
 }
 
@@ -242,7 +256,7 @@ bool LensInversionParametersParametricSinglePlane::read(serut::SerializationInte
 		return false;
 	}
 
-	array<int32_t,3> iParams;
+	array<int32_t,4> iParams;
 	if (!si.readInt32s(iParams.data(), iParams.size()))
 	{
 		setErrorString(si.getErrorString());
@@ -252,6 +266,12 @@ bool LensInversionParametersParametricSinglePlane::read(serut::SerializationInte
 	m_devIdx = (int)iParams[0];
 	m_infOnBoundsViolation = (iParams[1] == 0)?false:true;
 	m_randomizeInputPosition = (iParams[2] == 0)?false:true;
+	int32_t numPriors = iParams[3];
+	if (numPriors < 0)
+	{
+		setErrorString("Read negative number of priors");
+		return false;
+	}
 
 	vector<int32_t> seedParams(2);
 	if (!si.readInt32s(seedParams))
@@ -297,6 +317,20 @@ bool LensInversionParametersParametricSinglePlane::read(serut::SerializationInte
 	}
 
 	m_originParams = originMapping;
+
+	m_priors.resize(numPriors);
+	for (auto &p : m_priors)
+	{
+		unique_ptr<ParameterPrior> newPrior;
+		errut::bool_t r = ParameterPrior::read(si, newPrior);
+		if (!r)
+		{
+			setErrorString("Can't read prior: " + r.getErrorString());
+			return false;
+		}
+
+		p = move(newPrior);
+	}
 
 	return true;
 }

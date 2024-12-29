@@ -11,7 +11,7 @@ namespace grale
 class ParameterPrior
 {
 public:
-	enum PriorType { Invalid = 0, Gaussian = 1 };
+	enum PriorType { Invalid = 0, None, Gaussian };
 
 	virtual ~ParameterPrior() { }
 
@@ -26,6 +26,18 @@ protected:
 	virtual errut::bool_t writeInternal(serut::SerializationInterface &si) const = 0;
 private:
 	PriorType m_type = Invalid;
+};
+
+class NoParameterPrior : public ParameterPrior
+{
+public:
+	NoParameterPrior() : ParameterPrior(None) { }
+	~NoParameterPrior() { }
+private:
+	float getNegativeLogProb(float x) const override { return 0; }
+
+	errut::bool_t readInternal(serut::SerializationInterface &si) override { return true; }
+	errut::bool_t writeInternal(serut::SerializationInterface &si) const override { return true; }
 };
 
 class GaussianParameterPrior : public ParameterPrior
