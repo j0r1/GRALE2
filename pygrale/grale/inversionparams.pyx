@@ -1077,7 +1077,14 @@ cdef class LensInversionParametersParametricSinglePlane(object):
             tmpStr = B(code)
             cOriginParamMapping.push_back(pair[size_t,string](tmpSize, tmpStr))
 
-        # TODO: priors
+        for p in priors:
+            if p is None:
+                cPriors.push_back(shared_ptr[parameterprior.ParameterPrior](new parameterprior.NoParameterPrior()))
+            elif p["type"] == "gaussian":
+                mu, sigma = p["params"]
+                cPriors.push_back(shared_ptr[parameterprior.ParameterPrior](new parameterprior.GaussianParameterPrior(mu, sigma)))
+            else:
+                raise InversionParametersException(f"Invalid prior {p}")
 
         self.m_pParams = unique_ptr[lensinversionparametersparametricsingleplane.LensInversionParametersParametricSinglePlane](
             new lensinversionparametersparametricsingleplane.LensInversionParametersParametricSinglePlane(
