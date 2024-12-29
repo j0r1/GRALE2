@@ -908,7 +908,6 @@ def getSupportedLensTypes():
     """List which gravitational lens types are recognized in the parametric description."""
     return [ (x, _supportedLensTypes[x]["lens"]) for x in _supportedLensTypes ]
 
-# TODO: copy prior!
 def refineParametricDescription(varFloatParams, lens, fraction, evaluate = True):
     """This is a helper function to adjust an earlier parametric lens description
     based on an estimate of the solution. The envisioned usage is to first do a
@@ -955,9 +954,18 @@ def refineParametricDescription(varFloatParams, lens, fraction, evaluate = True)
                  "hardmin": prevParams["hardlimits"][0] * scaleFactor,
                  "hardmax": prevParams["hardlimits"][1] * scaleFactor }
 
+        if "tag" in prevParams:
+            newDict["tag"] = prevParams["tag"]
+        if "cname" in prevParams:
+            newDict["cname"] = prevParams["cname"]
+        if "prior" in prevParams:
+            newDict["prior"] = prevParams["prior"]
+
         return newDict
 
     newDesc = createParametricDescription(lens, convertValueFunction=cvf)
+    #print("REFINED DESCRIPTION:")
+    #print(newDesc)
     if not evaluate:
         return newDesc
     
