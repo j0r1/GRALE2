@@ -232,9 +232,12 @@ def _getCouplingNameAndCode(cname:str):
 
     return cn, code
 
-def _createParamOffsetInfo(l, paramNames, couplingNames, tagNames, deflectionscale, potentialscale):
+def _createParamOffsetInfo(l, paramNames, couplingNames, tagNames, priors,
+                           deflectionscale, potentialscale):
 
     assert len(paramNames) == len(couplingNames), "Internal error: parameter name array and coupling name array should have same length"
+    assert len(paramNames) == len(tagNames), "Internal error: parameter name array and tag name array differ in length"
+    assert len(priors) == len(paramNames), "Internal error: parameter name array and prior array should have same length"
 
     adjustableParams = l.getCLAdjustableFloatingPointParameterInfo(deflectionscale, potentialscale)
     adjustableParamsDict = { }
@@ -245,7 +248,7 @@ def _createParamOffsetInfo(l, paramNames, couplingNames, tagNames, deflectionsca
         adjustableParamsDict[name] = p
 
     paramOffsetInfo = []    
-    for n, cn, t in zip(paramNames, couplingNames, tagNames):
+    for n, cn, t, pr in zip(paramNames, couplingNames, tagNames, priors):
         if not n in adjustableParamsDict:
             raise ParametricDescriptionException(f"Internal error: specified adjustable param {n} does not seem to be valid")
         d = adjustableParamsDict[n]
@@ -253,6 +256,9 @@ def _createParamOffsetInfo(l, paramNames, couplingNames, tagNames, deflectionsca
             d["cname"], d["ccode"] = _getCouplingNameAndCode(cn)
         if t:
             d["tag"] = t
+        if pr:
+            _checkPrior(pr)
+            d["prior"] = copy.deepcopy(pr)
 
         paramOffsetInfo.append(d)
 
@@ -262,21 +268,25 @@ def _createTemplateLens(parametricLensDescription, Dd):
 
     couplingNames = []
     tagNames = []
+    priors = []
 
     # This is probably not the cleanest way
     def recordParamCouplingNamesWrapper(params, paramKey):
         value, isFixed = _getInitialParameterValue(params, paramKey)
         if not isFixed:
             v = params[paramKey]
-            n, t = None, None
+            n, t, pr = None, None, None
             if type(v) == dict:
                 if "cname" in v:
                     n = v["cname"]
                 if "tag" in v:
                     t = v["tag"]
+                if "prior" in v:
+                    pr = copy.deepcopy(v["prior"])
 
             couplingNames.append(n)
             tagNames.append(t)
+            priors.append(pr)
 
         return value, isFixed
 
@@ -284,7 +294,7 @@ def _createTemplateLens(parametricLensDescription, Dd):
     scales = l.getSuggestedScales()
     intParam, floatParams = l.getCLParameters(**scales)
     ret = { "templatelens": l,
-            "paramoffsets": _createParamOffsetInfo(l, paramNames, couplingNames, tagNames, **scales),
+            "paramoffsets": _createParamOffsetInfo(l, paramNames, couplingNames, tagNames, priors, **scales),
             "paramnames": paramNames, # in original order
             "scales": scales,
             "floatparams": floatParams,
@@ -508,6 +518,7 @@ def analyzeParametricLensDescription(parametricLens, Dd, defaultFraction, clampT
                 # defaults.
                 "y": { "initmin": -2*ANGLE_ARCSEC, "initmax": 2*ANGLE_ARCSEC,
                        "hardmin": -3*ANGLE_ARCSEC, "hardmax": 3*ANGLE_ARCSEC },
+                
                 # And some fixed values
                 "mass": 1e13*MASS_SUN,
                 "width": 2*ANGLE_ARCSEC
@@ -534,6 +545,9 @@ def analyzeParametricLensDescription(parametricLens, Dd, defaultFraction, clampT
     some variables yourself, perhaps to make post-processing lens inversion results
     easier to interpret.
     """
+    # TODO: also add { "prior": { "type": "gaussian", "params": [ someMu, someSigma ]}}
+    #       to explanation
+
     inf = _createTemplateLens(parametricLens, Dd)
 
     def getNameForOffset(off):
@@ -584,6 +598,8 @@ def analyzeParametricLensDescription(parametricLens, Dd, defaultFraction, clampT
             d["ccode"] = offInf["ccode"]
         if "tag" in offInf:
             d["tag"] = offInf["tag"]
+        if "prior" in offInf:
+            d["prior"] = offInf["prior"]
         paramRanges.append(d)
 
     paramRanges = sorted(paramRanges, key = lambda x: x["offset"])
@@ -634,6 +650,9 @@ def _convertedValueToString(value, stringConverter):
             if k == "cname" or k == "tag":
                 cn = str(value[k])
                 d += f'"{k}": ' + json.dumps(cn) + ", "
+                continue
+            if k == "prior":
+                d += '"prior": ' + _formatPrior(value[k], stringConverter) + ', '
                 continue
 
             if not k in [ "initmin", "initmax", "hardmin", "hardmax" ]:
@@ -791,6 +810,7 @@ def _analyzeLTPIEMDLens(lens, massUnitString, angularUnitString, convertValueFun
         '}'
     ]
 
+# TODO: convert prior parameters to units
 def createParametricDescription(lens, massUnitString = "MASS_SUN", angularUnitString = "ANGLE_ARCSEC",
                                 asString = True, convertValueFunction = None,
                                 objectStore = None, objectStoreName = None):
@@ -888,6 +908,7 @@ def getSupportedLensTypes():
     """List which gravitational lens types are recognized in the parametric description."""
     return [ (x, _supportedLensTypes[x]["lens"]) for x in _supportedLensTypes ]
 
+# TODO: copy prior!
 def refineParametricDescription(varFloatParams, lens, fraction, evaluate = True):
     """This is a helper function to adjust an earlier parametric lens description
     based on an estimate of the solution. The envisioned usage is to first do a
@@ -943,6 +964,50 @@ def refineParametricDescription(varFloatParams, lens, fraction, evaluate = True)
     inf = float("inf")
     newDesc = eval(newDesc)
     return newDesc
+
+def _checkGaussianPriorParameters(params):
+    if len(params) != 2:
+        raise ParametricDescriptionException(f"Gaussian prior should have two parameters, got these: {params}")
+
+    mu, sigma = params
+    try:
+        # Some operation to check that these are numbers
+        mu**2, sigma**2
+        return
+    except:
+        pass
+    raise ParametricDescriptionException(f"Either mu ({mu}) or sigma ({sigma}) does not appear to be a number")
+
+def _formatGaussionPriorParameters(params, stringConverter):
+    return '[' + stringConverter(params[0]) + ',' + stringConverter(params[1]) + ']'
+
+_supportedPriors = { 
+    "gaussian": { "check": _checkGaussianPriorParameters, "format": _formatGaussionPriorParameters },
+}
+
+def _checkPrior(pr):
+    if type(pr) != dict or not 'type' in pr or not 'params' in pr:
+        raise ParametricDescriptionException("Prior description needs to be a dictionary with 'type' and 'params' keys")
+    pr = copy.copy(pr)
+
+    t = pr["type"]
+    del pr["type"]
+    params = pr["params"]
+    del pr["params"]
+    if pr:
+        raise ParametricDescriptionException(f"Excess information in prior info: {pr}")
+
+    if not t in _supportedPriors:
+        raise ParametricDescriptionException(f"Invalid prior name '{t}'")
+    
+    checkFunction = _supportedPriors[t]["check"]
+    checkFunction(params)
+
+def _formatPrior(pr, stringConverter):
+    _checkPrior(pr) # Make sure it's valid before we try to format it
+    t = pr["type"]
+    formatFunction = _supportedPriors[t]["format"]
+    return '{ "type": "' + t + '", "params": ' + formatFunction(pr["params"], stringConverter) + '}'
 
 def main2():
     pprint.pprint(getSupportedLensTypes())
