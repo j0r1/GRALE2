@@ -981,8 +981,14 @@ def _checkGaussianPriorParameters(params):
 def _formatGaussionPriorParameters(params, stringConverter):
     return '[' + stringConverter(params[0]) + ',' + stringConverter(params[1]) + ']'
 
+def _scaleGaussianPriorParameters(params, scaleFactor):
+    return [ params[0]/scaleFactor, params[1]/scaleFactor ]
+
 _supportedPriors = { 
-    "gaussian": { "check": _checkGaussianPriorParameters, "format": _formatGaussionPriorParameters },
+    "gaussian": {
+        "check": _checkGaussianPriorParameters,
+        "format": _formatGaussionPriorParameters,
+        "scale": _scaleGaussianPriorParameters },
 }
 
 def _checkPrior(pr):
@@ -1008,6 +1014,12 @@ def _formatPrior(pr, stringConverter):
     t = pr["type"]
     formatFunction = _supportedPriors[t]["format"]
     return '{ "type": "' + t + '", "params": ' + formatFunction(pr["params"], stringConverter) + '}'
+
+def getUnitAdjustedPrior(prior, scaleFactor):
+    _checkPrior(prior)
+    t = prior["type"]
+    scaleFunction = _supportedPriors[t]["scale"]
+    return { "type": t, "params": scaleFunction(prior["params"], scaleFactor) }
 
 def main2():
     pprint.pprint(getSupportedLensTypes())

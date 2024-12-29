@@ -318,6 +318,8 @@ bool LensInversionParametersParametricSinglePlane::read(serut::SerializationInte
 
 	m_originParams = originMapping;
 
+	cerr << "Reading " << numPriors << " priors" << endl;
+
 	m_priors.resize(numPriors);
 	for (auto &p : m_priors)
 	{
@@ -330,6 +332,7 @@ bool LensInversionParametersParametricSinglePlane::read(serut::SerializationInte
 		}
 
 		p = move(newPrior);
+		cerr << p->getString() << endl;
 	}
 
 	return true;

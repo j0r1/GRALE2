@@ -45,6 +45,11 @@ float GaussianParameterPrior::getNegativeLogProb(float x) const
 	return 0.5*diff*diff;
 }
 
+string GaussianParameterPrior::getString() const
+{
+	return "gaussianprior(mu=" + to_string(m_mu) + ",sigma=" + to_string(m_sigma) + ")";
+}
+
 bool_t GaussianParameterPrior::readInternal(serut::SerializationInterface &si)
 {
 	vector<float> vals(2);

@@ -15,10 +15,13 @@ public:
 
 	virtual ~ParameterPrior() { }
 
+	PriorType getType() const { return m_type; }
+
 	static errut::bool_t read(serut::SerializationInterface &si, std::unique_ptr<ParameterPrior> &prior);
 	errut::bool_t write(serut::SerializationInterface &si) const;
 
 	virtual float getNegativeLogProb(float x) const = 0;
+	virtual std::string getString() const = 0;
 protected:
 	ParameterPrior(PriorType t) : m_type(t) { }
 
@@ -35,6 +38,7 @@ public:
 	~NoParameterPrior() { }
 private:
 	float getNegativeLogProb(float x) const override { return 0; }
+	std::string getString() const override { return "noprior"; }
 
 	errut::bool_t readInternal(serut::SerializationInterface &si) override { return true; }
 	errut::bool_t writeInternal(serut::SerializationInterface &si) const override { return true; }
@@ -47,6 +51,7 @@ public:
 	~GaussianParameterPrior() { }
 private:
 	float getNegativeLogProb(float x) const override;
+	std::string getString() const override;
 
 	errut::bool_t readInternal(serut::SerializationInterface &si) override;
 	errut::bool_t writeInternal(serut::SerializationInterface &si) const override;
