@@ -644,7 +644,7 @@ def _processCoupledParameters(varParams):
         if len(refCandidates) == 0:
             raise InversionException(f"No reference (unadjusted) variable found for cname '{cname}'")
 
-        if len(refCandidates) > 0:
+        if len(refCandidates) > 1:
             print(f"WARNING: multiple reference candidates found for cname '{cname}', will be using first")
             # TODO: check if their boundary settings are the same
 
