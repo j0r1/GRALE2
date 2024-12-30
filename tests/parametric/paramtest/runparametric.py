@@ -70,5 +70,5 @@ for imgListFn, solFn in [ ("imglist_noise.pickle", "sol_jade_noise.lensdata"),
         #iws.addImageDataToList(null, i["z"], "pointnullgrid")
         #iws.addImageDataToList(i["imgdata"], i["z"], "pointgroupimages")
 
-    lens, _, _, _ = iws.invertParametric(lensDescription, 512)
+    lens, _, _, _, _ = iws.invertParametric(lensDescription, 512)
     lens.save(solFn)

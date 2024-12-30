@@ -67,8 +67,8 @@ for imgListFn, solFn, sampFn, paramFn in [ ("imglist_noise.pickle", "sol_mcmc_no
     for i in imgList:
         iws.addImageDataToList(i["imgdata"], i["z"], "pointimages")
 
-    lens, _, _, paramInfo = iws.invertParametric(lensDescription, 512)
-    usedParameters = [ x["name"] for x in paramInfo ]
+    lens, _, _, _, allParamInfo = iws.invertParametric(lensDescription, 512)
+    usedParameters = [ x["name"] for x in allParamInfo ]
 
     def cvf(value, lensNameList, paramName, uniqueParamName, allParams):
         if uniqueParamName in usedParameters:
@@ -83,10 +83,10 @@ for imgListFn, solFn, sampFn, paramFn in [ ("imglist_noise.pickle", "sol_mcmc_no
     for i in imgList:
         iws.addImageDataToList(i["imgdata"], i["z"], "bayesstronglensing")
 
-    lens, _, _, paramInfo = iws.invertParametric(refinedLensDescription, 512, maximumGenerations=2000, eaType = "MCMC",
+    lens, _, _, reducedParamInfo, _ = iws.invertParametric(refinedLensDescription, 512, maximumGenerations=2000, eaType = "MCMC",
                               fitnessObjectParameters = { "fitness_bayesweaklensing_stronglenssigma": 0.05*ANGLE_ARCSEC},
                               geneticAlgorithmParameters = { "annealgenerationsscale": 900, "burningenerations": 1000,
                                                              "samplesfilename": sampFn})
     lens.save(solFn)
-    pickle.dump(paramInfo, open(paramFn, "wb"))
+    pickle.dump(reducedParamInfo, open(paramFn, "wb"))
 
