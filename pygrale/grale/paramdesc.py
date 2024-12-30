@@ -253,6 +253,7 @@ def _createParamOffsetInfo(l, paramNames, couplingNames, tagNames, priors,
             raise ParametricDescriptionException(f"Internal error: specified adjustable param {n} does not seem to be valid")
         d = adjustableParamsDict[n]
         if cn:
+            d["cname_orig"] = cn
             d["cname"], d["ccode"] = _getCouplingNameAndCode(cn)
         if t:
             d["tag"] = t
@@ -596,6 +597,7 @@ def analyzeParametricLensDescription(parametricLens, Dd, defaultFraction, clampT
         if "cname" in offInf:
             d["cname"] = offInf["cname"]
             d["ccode"] = offInf["ccode"]
+            d["cname_orig"] = offInf["cname_orig"]
         if "tag" in offInf:
             d["tag"] = offInf["tag"]
         if "prior" in offInf:
@@ -956,8 +958,8 @@ def refineParametricDescription(varFloatParams, lens, fraction, evaluate = True)
 
         if "tag" in prevParams:
             newDict["tag"] = prevParams["tag"]
-        if "cname" in prevParams:
-            newDict["cname"] = prevParams["cname"]
+        if "cname_orig" in prevParams:
+            newDict["cname"] = prevParams["cname_orig"]
         if "prior" in prevParams:
             newDict["prior"] = prevParams["prior"]
 
