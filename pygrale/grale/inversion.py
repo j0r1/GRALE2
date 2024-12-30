@@ -781,7 +781,10 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
     originParametersMap, numOriginParams = [], 0
     if isUsingCoupledParameters:
         # override varParams to the things that are really independent
-        varParams, originParametersMap, numOriginParams = _processCoupledParameters(varParams)
+        origVarParams = varParams
+        varParams, originParametersMap, numOriginParams = _processCoupledParameters(origVarParams)
+    else:
+        origVarParams = varParams
 
     initMin = [ x["initialrange"][0] for x in varParams ]
     initMax = [ x["initialrange"][1] for x in varParams ]
@@ -830,7 +833,11 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
                   geneticAlgorithmParameters, returnNds, cosmology, convergenceParameters,
                   maximumGenerations, None, eaType)
 
-    results = results + (varParams,)
+    # Return both varParams and origVarParams here, the first is needed to interpret
+    # the bayesian samples, the second contains information about all parameters that
+    # are changed, can be useful to refine a lens description for example
+    # so that info about cname is available too
+    results = results + (varParams, origVarParams, )
     return results
 
 def defaultLensModelFunction(operation, operationInfo, parameters):
