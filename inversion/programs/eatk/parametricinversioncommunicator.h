@@ -136,6 +136,11 @@ public:
 
 		m_generationCount++;
 		updateAnnealFactor();
+
+		// if (best.size() > 0)
+		// 	std::cerr << "    BEST: " << best[0]->toString() << std::endl;
+		// for (auto &s : samples)
+		// 	std::cerr << "   " << s->toString() << std::endl;
 	}
 private:
 	size_t m_generationCount = 0;

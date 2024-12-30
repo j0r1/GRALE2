@@ -361,6 +361,7 @@ __kernel void fetchOriginParameters(int numChangeableParams, int numOriginParams
 							   __global const float *pAllOriginParams,
 							   __global const int *pIndexMapping,
 							   __global float *pAllChangeableParams)
+							   //int debug)
 {
 	const int dstIdx = get_global_id(0);
 	if (dstIdx >= numChangeableParams)
@@ -384,6 +385,8 @@ __kernel void fetchOriginParameters(int numChangeableParams, int numOriginParams
 		 transformedValue = originValue;
 	}
 	pChangeableParams[dstIdx] = transformedValue;
+	//if (debug)
+	//	printf("dstIdx = %d, srcIdx = %d, originValue = %g, transformedValue = %g\n", dstIdx, srcIdx, originValue, transformedValue);
 }
 )XYZ";
 		cerr << "Compiling:\n" << kernelCode << endl;
@@ -450,9 +453,13 @@ bool_t OpenCLSinglePlaneDeflection::getChangeableParametersFromOriginParameters(
 
 	changeableParams.resize(m_changeableParameterIndices.size());
 
+	//cerr << "originParams = " << endl;
+	//for (auto p : originParams)
+	//	cerr << "   "  << p << endl;
+
 	auto queue = m_cl->getCommandQueue();
 	bool_t r;
-	if (!(r = m_clOriginParams.enqueueWriteBuffer(*m_cl, queue, originParams.data(), true)))
+	if (!(r = m_clOriginParams.enqueueWriteBuffer(*m_cl, queue, originParams, true)))
 		return "Can't copy origin parameters to the GPU: " + r.getErrorString();
 
 	auto kernel = m_cl->getKernel(KERNELNUMBER_FETCH_ORIGIN_PARAMETERS);
@@ -466,6 +473,7 @@ bool_t OpenCLSinglePlaneDeflection::getChangeableParametersFromOriginParameters(
 	cl_int clNumChangeable = changeableParams.size();
 	cl_int clNumOrigin = m_numOriginParams;
 	cl_int clNumParamSets = 1;
+	//cl_int debug = 1;
 
 	setKernArg(0, sizeof(cl_int), (void*)&clNumChangeable);
 	setKernArg(1, sizeof(cl_int), (void*)&clNumOrigin);
@@ -473,6 +481,7 @@ bool_t OpenCLSinglePlaneDeflection::getChangeableParametersFromOriginParameters(
 	setKernArg(3, sizeof(cl_mem), (void*)&m_clOriginParams.m_pMem);
 	setKernArg(4, sizeof(cl_mem), (void*)&m_clOriginParamIndices.m_pMem);
 	setKernArg(5, sizeof(cl_mem), (void*)&m_clChangedParamsBuffer.m_pMem);
+	//setKernArg(6, sizeof(cl_int), (void*)&debug);
 
 	assert(m_clOriginParams.m_size >= sizeof(float)*clNumOrigin);
 	assert(m_clChangedParamsBuffer.m_size >= sizeof(float)*clNumChangeable);
@@ -588,12 +597,15 @@ bool_t OpenCLSinglePlaneDeflection::calculateDeflection(const std::vector<float>
 			err |= m_cl->clSetKernelArg(kernel, idx, size, ptr);
 		};
 
+		//cl_int debug = 0;
+
 		setKernArg(0, sizeof(cl_int), (void*)&clNumChangeable);
 		setKernArg(1, sizeof(cl_int), (void*)&clNumOrigin);
 		setKernArg(2, sizeof(cl_int), (void*)&clNumParamSets);
 		setKernArg(3, sizeof(cl_mem), (void*)&m_clOriginParams.m_pMem);
 		setKernArg(4, sizeof(cl_mem), (void*)&m_clOriginParamIndices.m_pMem);
 		setKernArg(5, sizeof(cl_mem), (void*)&m_clChangedParamsBuffer.m_pMem);
+		//setKernArg(6, sizeof(cl_int), (void*)&debug);
 
 		if (err != CL_SUCCESS)
 			return "Error setting kernel arguments for fetch origin parameters kernel";

@@ -290,6 +290,8 @@ bool_t LensGAParametricSinglePlaneCalculator::createLens(const eatk::Genome &gen
 	auto genome = static_cast<const eatk::FloatVectorGenome&>(genome0);
 	vector<float> &values = genome.getValues();
 
+	//cerr << "Creating lens from best genome" << genome0.toString() << endl;
+
 	// Bounds have same dimension as parameters
 	assert(values.size() == m_initMin.size());
 	vector<float> fullFloatParams = m_floatParams;
@@ -322,6 +324,10 @@ bool_t LensGAParametricSinglePlaneCalculator::createLens(const eatk::Genome &gen
 
 		fillChangedParamsInFull(changeableParams);
 	}
+
+	//cerr << "Creating lens from Float params:" << endl;
+	//for (auto f : fullFloatParams)
+	//	cerr << "  " << f << endl;
 
 	// And create a new lens from these values
 	lens = m_templateLens->createLensFromCLFloatParams(m_angularScale, m_potScale, fullFloatParams.data());
