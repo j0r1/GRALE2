@@ -70,7 +70,7 @@ def _getLenstoolPotentialInfoFromLines(lines):
 def _getLenstoolPotFileModelsFromLines(lines, zd, Dd, baseDir):
     from . import lenses
     from . import images
-    from .constants import ANGLE_ARCSEC, ANGLE_DEGREE
+    from .constants import ANGLE_ARCSEC, ANGLE_DEGREE, DIST_KPC
 
     LensException = lenses.LensException
         
@@ -95,8 +95,12 @@ def _getLenstoolPotFileModelsFromLines(lines, zd, Dd, baseDir):
         velDisp0 = float(pf["sigma"][1])*1000
         del pf["sigma"]
 
-        cut0 = float(pf["cut"][1])*ANGLE_ARCSEC
-        del pf["cut"]
+        if "cut" in pf:
+            cut0 = float(pf["cut"][1])*ANGLE_ARCSEC
+            del pf["cut"]
+        else:
+            cut0 = float(pf["cutkpc"][1])*DIST_KPC/Dd
+            del pf["cutkpc"]
 
         mag0 = float(pf["mag0"][0])
         del pf["mag0"]
