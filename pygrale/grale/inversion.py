@@ -700,7 +700,7 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
            defaultInitialParameterFraction = 0.1, clampToHardLimits = False, fitnessObjectParameters = None, convergenceParameters = { },
            geneticAlgorithmParameters = { }, returnNds = False, inverter = "default", feedbackObject = "default",
            cosmology = None, maximumGenerations = None, eaType = "JADE", deviceIndex = "rotate",
-           useImagePositionRandomization = False):
+           useImagePositionRandomization = False, allowUnusedPriors = False):
     """This is a low-level function, used by the similarly named function
     in :class:`InversionWorkSpace`.
 
@@ -766,6 +766,10 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
      - `useImagePositionRandomization`: if set to ``True``, images that contain
        the ``"positionuncertainty"`` property will be randomized slightly according
        to this property's value. This can be used to avoid overfitting.
+     
+     - `allowUnusedPriors`: by default, if prior information is set on the parameters
+       but the fitness measure cannot incorporate this, an error will be generated. To
+       ignore this error, the flag can be set to ``True``.
     """
 
     desc = paramdesc.analyzeParametricLensDescription(parametricLensDescription, Dd, defaultInitialParameterFraction, clampToHardLimits)
@@ -826,7 +830,7 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
                   infOnBoundsViolation,
                   fullFitnessObjParams, deviceIndex,
                   useImagePositionRandomization, initialUncertSeed,
-                  originParametersMap, numOriginParams, priors)
+                  originParametersMap, numOriginParams, priors, allowUnusedPriors)
 
     results = _invertCommon(inverter, feedbackObject, moduleName, "parametricsingleplane", fitnessObjectParameters,
                   None, [Dd, zd], inputImages, getParamsFunction, popSize,

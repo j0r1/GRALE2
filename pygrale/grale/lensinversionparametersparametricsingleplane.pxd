@@ -34,7 +34,8 @@ cdef extern from "grale/lensinversionparametersparametricsingleplane.h" namespac
                 uint64_t initialUncertSeed,
                 const vector[pair[size_t,string]] &originParameterMapping,
                 size_t numOriginParams,
-                const vector[shared_ptr[parameterprior.ParameterPrior]] &priors
+                const vector[shared_ptr[parameterprior.ParameterPrior]] &priors,
+                bool allowUnusedPriors
                 )
 
         bool read(serut.SerializationInterface &si)

@@ -31,7 +31,8 @@ public:
 		uint64_t initialUncertSeed,
 		const std::vector<std::pair<size_t, std::string>> &originParameterMapping,
 		size_t numOriginParameters,
-		const std::vector<std::shared_ptr<ParameterPrior>> &priors
+		const std::vector<std::shared_ptr<ParameterPrior>> &priors,
+		bool allowUnusedPriors
 		);
 	~LensInversionParametersParametricSinglePlane();
 
@@ -54,6 +55,7 @@ public:
 	const std::vector<std::pair<size_t, std::string>> &getOriginParameterMapping() const { return m_originParams; }
 	size_t getNumberOfOriginParameters() const { return m_numOriginParams; }
 	const std::vector<std::shared_ptr<ParameterPrior>> getParameterPriors() const { return m_priors; }
+	bool shouldAllowUnusedPriors() const { return m_allowUnusedPriors; }
 
 	bool write(serut::SerializationInterface &si) const override;
 	bool read(serut::SerializationInterface &si) override;
@@ -72,6 +74,7 @@ private:
 	std::vector<std::pair<size_t, std::string>> m_originParams;
 	size_t m_numOriginParams = 0;
 	std::vector<std::shared_ptr<ParameterPrior>> m_priors;
+	bool m_allowUnusedPriors = false;
 };
 
 } // end namespace

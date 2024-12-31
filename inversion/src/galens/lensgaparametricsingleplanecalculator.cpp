@@ -6,8 +6,6 @@
 #include <iostream>
 #include <list>
 #include <cassert>
-#include <chrono>
-#include <thread>
 
 using namespace errut;
 using namespace std;
@@ -257,13 +255,19 @@ bool_t LensGAParametricSinglePlaneCalculator::init(const LensInversionParameters
 				m_fitnessToAddPriorTo = i;
 			}
 		}
-		cerr << "INFO: adding prior information to fitness component " << m_fitnessToAddPriorTo << endl;
+
+		if (m_fitnessToAddPriorTo >= 0)
+			cerr << "INFO: adding prior information to fitness component " << m_fitnessToAddPriorTo << endl;
+		else
+			cerr << "INFO: couldn't find any fitness component to add prior information to" << endl;
 	}
 
 	if (m_priors.size() > 0 && m_fitnessToAddPriorTo < 0)
 	{
-		cerr << endl << endl << "WARNING: detected prior information on parameters, but there's no fitness component to add this to" << endl << endl << endl;
-		this_thread::sleep_for(chrono::seconds(3));
+		if (!params.shouldAllowUnusedPriors())
+			return "Detected prior information on parameters, but there's no fitness component to add this to (use 'allowUnusedPriors' flag to continue anyway)";
+			
+		cerr << "INFO: Detected prior information on parameters, but there's no fitness component to add this to - continuing because 'allowUnusedPriors' is set" << endl;
 	}
  
 	m_infOnBoundsViolation = params.infinityOnBoundsViolation();

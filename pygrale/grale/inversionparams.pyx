@@ -1032,7 +1032,7 @@ cdef class LensInversionParametersParametricSinglePlane(object):
                   fitnessObjectParameters, deviceIndex = "rotate",
                   randomizeImagePositions = False, initialUncertSeed = 0,
                   originParametersMap = [], numOriginParams = 0,
-                  priors = []):
+                  priors = [], allowUnusedPriors = False):
 
         cdef vector[shared_ptr[imagesdataextended.ImagesDataExtended]] imgVector = _createImageVectorFromSinglePlaneImageList(inputImages)
         cdef double cDd = Dd
@@ -1055,6 +1055,7 @@ cdef class LensInversionParametersParametricSinglePlane(object):
         cdef size_t tmpSize
         cdef string tmpStr
         cdef vector[shared_ptr[parameterprior.ParameterPrior]] cPriors
+        cdef cbool cAllowUnusedPriors = allowUnusedPriors
 
         if inputImages is None:
             return
@@ -1091,7 +1092,7 @@ cdef class LensInversionParametersParametricSinglePlane(object):
                 imgVector, cDd, cZd, deref(cTemplateLens), cDeflScale, cPotScale,
                 cOffsets, cInitMin, cInitMax, cHardMin, cHardMax, cInfOnBoundsViolation, deref(pFitnessObjectParameters),
                 devIdx, cRandomizeInputPos, cInitialUncertSeed, cOriginParamMapping, cNumOriginParams,
-                cPriors
+                cPriors, cAllowUnusedPriors
             )
         )
 
