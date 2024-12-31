@@ -389,7 +389,7 @@ __kernel void fetchOriginParameters(int numChangeableParams, int numOriginParams
 	//	printf("dstIdx = %d, srcIdx = %d, originValue = %g, transformedValue = %g\n", dstIdx, srcIdx, originValue, transformedValue);
 }
 )XYZ";
-		cerr << "Compiling:\n" << kernelCode << endl;
+		//cerr << "Compiling:\n" << kernelCode << endl;
 		string faillog;
 		if (!cl->loadKernel(kernelCode, "fetchOriginParameters", faillog, KERNELNUMBER_FETCH_ORIGIN_PARAMETERS))
 		{
