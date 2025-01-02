@@ -339,8 +339,8 @@ fitting is somewhat improved by setting this to ``True``; this causes
 the original grid cell to be present in the subdivision grid even when
 it's subdivided further.
 
-Inversion
----------
+Free-form Inversion
+-------------------
 
 While creating gravitational lens simulations is interesting in its own
 right, usually one is far more interested in performing a gravitational lens
@@ -908,6 +908,17 @@ setting a different file name for each job will help, for example something like
 in a PBS script::
 
     export GRALE_OPENCL_AUTODEVICEFILE="/dev/shm/grale_gpu_counter_${PBS_JOBID}.dat"
+
+Parametric inversion (experimental)
+-----------------------------------
+
+:class:`InversionWorkSpace <grale.inversion.InversionWorkSpace>`
+
+:func:`InversionWorkSpace.invertParametric <grale.inversion.InversionWorkSpace.invertParametric>`
+
+:func:`invertParametric <grale.inversion.invertParametric>`
+
+:mod:`paramdesc <grale.paramdesc>`
 
 .. _tut-graleeditor:
 
