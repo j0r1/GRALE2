@@ -375,7 +375,8 @@ errut::bool_t LensGAParametricSinglePlaneCalculator::pollCalculate(const eatk::G
 	if (!cl.getResultsForGenome(genome, m_alphas, m_axx, m_ayy, m_axy, m_potential))
 		return true; // No error, but not ready yet
 
-	// Check if the bounds were violated (if requested), is for mcmc
+	// Check if the bounds were violated (if requested), is for mcmc,
+	// In GA or JADE the algorithm should protect agains going out of bounds
 	if (m_infOnBoundsViolation)
 	{
 		assert(dynamic_cast<const eatk::FloatVectorGenome *>(&genome0));
