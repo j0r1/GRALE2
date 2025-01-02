@@ -910,7 +910,85 @@ def getSupportedLensTypes():
     """List which gravitational lens types are recognized in the parametric description."""
     return [ (x, _supportedLensTypes[x]["lens"]) for x in _supportedLensTypes ]
 
-def refineParametricDescription(varFloatParams, lens, fraction, evaluate = True):
+def _refineValue(v1, v2, fraction, lensType, paramName):
+    
+    v1min, v1max = None, None
+    try:
+        v1min, v1max = v2*(1-fraction), v2*(1+fraction)
+    except:
+        # Probably not a number, try a function call
+        pass
+
+    if v1min is None or v1max is None:
+        v1min, v1max = fraction(v2, lensType, paramName)
+
+    if v1min > v1max:
+        v1min, v1max = v1max, v1min
+
+    if type(v1) == list or type(v1) == tuple:
+        return { "initmin": v1min, "initmax": v1max }
+
+    if type(v1) != dict: # just a value, keep it
+        return v1
+
+    v1 = v1.copy()
+    v1["initmin"] = v1min
+    v1["initmax"] = v1max
+    return v1
+
+def refineParametricDescription(initialParamDesc, lens, fraction):
+    """This is a helper function to adjust an earlier parametric lens description
+    based on an estimate of the solution. The envisioned usage is to first do a
+    general parametric lens inversion based on `initialParamDesc`, which leads
+    to a lens model `lens`. Then you adjust the initial parameter ranges to a narrow
+    range around the values from this model, so that a following MCMC exploration can 
+    look in the most interesting region of the parameter space.
+
+    Arguments:
+
+     - `initialParamDesc`: the parametric model description (see e.g.
+       :func:`analyzeParametricLensDescription`) that is used to obtain an initial
+       lens model, which is then passed as the following argument.
+     - `lens`: this should be the lens model that results from the parametric optimization
+       that was performed with the previous lens description.
+       The initial bounds on the parameters that are allowed to change are set to a
+       small range around the corresponding value from this model.
+     - `fraction`: for the parameters that are not fixed, the initial values will be
+       based on this fraction. For example, if this is 0.05, or 5%, the initial value
+       range will be set to 95% and 105% of the value of the lens model. Alternatively,
+       this can also be a callback function that should return the new initial value
+       range. It is called with three arguments, the value itself, the type of the lens
+       and the name of the parameter.
+    """
+
+    paramDesc = initialParamDesc.copy()
+    refineDesc = lens if type(lens) == dict else eval(createParametricDescription(lens)) # TODO: other parameters?
+    
+    t1, t2 = paramDesc["type"], refineDesc["type"]
+    if t1 != t2:
+        raise Exception(f'Lens type mismatch: {t1} != {t2}')
+
+    p1, p2 = paramDesc["params"], refineDesc["params"]
+    if t1 == "CompositeLens":
+        assert type(p1) == list and type(p2) == list, "Parameters of CompositeLens should be lists"
+        assert len(p1) == len(p2), "Different number of sublenses in CompositeLens"
+
+        for subP1, subP2 in zip(p1, p2):
+            for prop in [ "x", "y", "angle", "factor" ]:
+                subP1[prop] = _refineValue(subP1[prop], subP2[prop], fraction, t1, prop)
+
+            subLens1, subLens2 = subP1["lens"], subP2["lens"]
+            subLens1 = refineParametricDescription(subLens1, subLens2, fraction)
+            subP1["lens"] = subLens1
+    else:
+        assert type(p1) == dict and type(p2) == dict, "Parameters should be contained in dictionaries"
+        for k in p1:
+            p1[k] = _refineValue(p1[k], p2[k], fraction, t1, k)
+
+    return paramDesc
+
+
+def refineParametricDescription_old(varFloatParams, lens, fraction, evaluate = True):
     """This is a helper function to adjust an earlier parametric lens description
     based on an estimate of the solution. The envisioned usage is to first do a
     general parametric lens inversion, which provides `varFloatParams` and leads
