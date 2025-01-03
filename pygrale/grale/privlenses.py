@@ -188,18 +188,18 @@ def _getLenstoolCosmologyFromLines(lines):
 
 
 def createLensFromLenstoolFile(inputData, mirrorX = False, cosmology = None):
-    """Based on a `LensTool <https://projets.lam.fr/projects/lenstool/wiki>`_ model,
+    """Based on a `Lenstool <https://projets.lam.fr/projects/lenstool/wiki>`_ model,
     a corresponding :class:`lens model<grale.lenses.GravitationalLens>` is constructed.
     The function returns a tuple consisting of the lens model, the lens redshift and
     the cosmological model. An illustration can be found in the notebook
     `lenstooltest.ipynb <_static/lenstooltest.ipynb>`_
 
-    Note that this is preliminary code, and currently only the PIEMD model (LensTool
+    Note that this is preliminary code, and currently only the PIEMD model (Lenstool
     model type 81) is handled.
 
     Arguments:
 
-     - `inputData`: the data from a LensTool file (typically with '.par' extension), either
+     - `inputData`: the data from a Lenstool file (typically with '.par' extension), either
        as a file name, a file object or a string.
      - `mirrorX`: if ``True``, the model will be mirrored along the X-axis.
      - `cosmology`: if specified, the cosmological model from the input file will be ignored

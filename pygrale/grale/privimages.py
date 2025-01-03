@@ -139,6 +139,45 @@ def _getLinesFromInputData(inputData):
     # Check if it's a string that can be split in lines
     return inputData.splitlines(), False
 
+def readLenstoolInputImagesFile(fileName, centerOn, useRADirection = True):
+    """Read point images data from a
+    `Lenstool <https://projets.lam.fr/projects/lenstool/wiki>`_ input file 
+    called `fileName` (e.g. 'imawcs.mul' or 'imawcs.cat'). The coordinates need 
+    to be specified in RA,Dec notation, and relative coordinates will be calculated 
+    based on the center position `centerOn`. By default, the orientation of the
+    RA-axis will be used, in case you'd prefer to mirror this the `useRADirection`
+    flag can be set to ``False``.
+    """
+    from .images import centerOnPosition
+    from .constants import ANGLE_DEGREE
+
+    firstLine = open(fileName, "rt").readline()
+    parts = firstLine.strip().split()
+    if not parts[0] == "#REFERENCE" and int(parts[1]) == 0 and len(parts) == 2:
+        raise Exception("Expecting file to start with '#REFERENCE 0'")
+
+    def la(line):
+        parts = line.split()
+        if len(parts) != 8:
+            raise Exception("Expecting eight columns in input file")
+
+        if "." in parts[0]:
+            nameParts = parts[0].split(".")
+            src, img = ".".join(nameParts[:-1]), nameParts[-1]
+        elif parts[0][-1].isalpha():
+            src, img = parts[0][:-1], parts[0][-1]
+        else:
+            raise Exception(f"Can't understand source/image identifier '{parts[0]}'")
+
+        ra, dec, z = map(float, parts[1:3] + parts[6:7])
+        x, y = centerOnPosition((ra*ANGLE_DEGREE, dec*ANGLE_DEGREE), centerOn)
+        if not useRADirection:
+            x = -x
+        return { "srcnr": src, "imgnr": img, "x": x, "y": y, "z": z }
+
+    return readInputImagesFile(fileName, True, lineAnalyzer=la)
+
+
 def readInputImagesFile(inputData, isPointImagesFile, lineAnalyzer = "default", centerOn = (0, 0)):
     """This function can process a text file (or previously read text data) into
     one or more :class:`ImagesData` instances.

@@ -12,6 +12,8 @@ Functions
 
 .. autofunction:: readInputImagesFile
 
+.. autofunction:: readLenstoolInputImagesFile
+
 .. autofunction:: getDefaultLineAnalyzer
 
 .. autofunction:: setDefaultLineAnalyzer
