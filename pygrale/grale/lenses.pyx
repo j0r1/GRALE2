@@ -2741,6 +2741,14 @@ cdef class PIEMDLens(GravitationalLens):
         e = 1.0-((1.0-epsHat)/(1.0+epsHat))**0.5
         return e/(2-e)
 
+    def getCentralDensity(self):
+        params = self.getLensParameters();
+        return params["centraldensity"]
+
+    def getEpsilon(self):
+        params = self.getLensParameters();
+        return params["epsilon"]
+
     def getEllipticity(self):
         params = self.getLensParameters();
         return PIEMDLens.getEllipticityFromEpsilon(params["epsilon"])
@@ -3537,12 +3545,20 @@ cdef class LTPIEMDLens(GravitationalLens):
             "ellipticity": pParams.getEllipticity()
         }
 
+    def getEllipticity(self):
+        params = self.getLensParameters()
+        return params["ellipticity"]
+
+    def getVelocityDispersion(self):
+        params = self.getLensParameters()
+        return params["velocitydispersion"]
+
     def getEpsilon(self):
-        params = self.getLensParameters();
+        params = self.getLensParameters()
         return PIEMDLens.getEpsilonFromEllipticity(params["ellipticity"])
 
     def getCentralDensity(self):
-        params = self.getLensParameters();
+        params = self.getLensParameters()
         Dd = self.getLensDistance()
         return PIEMDLens.getCentralDensityFromVelocityDispersion(params["velocitydispersion"], params["coreradius"], params["scaleradius"], Dd)
 
