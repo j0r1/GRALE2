@@ -304,6 +304,7 @@ Indices and tables
    grale_inverters.rst
    grale_lenses.rst
    grale_lensinfocache.rst
+   grale_ltparamdesc.rst
    grale_multiplane.rst
    grale_paramdesc.rst
    grale_plotutil.rst
