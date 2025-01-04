@@ -3,7 +3,7 @@ settings from a Lenstool configuration file. The module itself can also
 be executed on the command line to generate template inversion scripts
 based on a Lenstool configuration.
 
-TODO:
+Usage::
 
     python -m grale.ltparamdesc ...
 
@@ -50,7 +50,7 @@ def _addBlock(outputLines, block, factor=1):
 def _processPotfileFile(fileName, mag0, slope, vdSlope, coreStr, bsSigma, bsCut, vdVarName, cutVarName,
                         useRADirection, lensDistanceString, arcsecString, degreeString, kpcString):
 
-    import .images as images
+    from . import images
 
     outputLines = []
 
@@ -167,8 +167,8 @@ def createParametricDescriptionFromLenstoolInput(fileName,
      - `kpcString`: TODO
 
     """
-    import .images as images
-    import .cosmology as cosmology
+    from . import images
+    from . import cosmology
 
     lines = open(fileName, "rt").readlines()
 
@@ -458,11 +458,7 @@ def createParametricDescriptionFromLenstoolInput(fileName,
              "description": "\n".join(outputLines)
            }
 
-def main():
-    modPar = sys.argv[1]
-    useRADirection = True if int(sys.argv[2]) else False
-    
-    r = createParametricDescriptionFromLenstoolInput(sys.argv[1], useRADirection=useRADirection)
+def _startFromImgFileName(f, r, useRADirection, outParamFn):
     cosm = r["cosmology"]
     zd = r["zd"]
     Dd = cosm.getAngularDiameterDistance(zd)
@@ -470,8 +466,6 @@ def main():
     centerPos = r["center"]
     imgFn = r["imagesFileName"]
     mcmcUncert = r["positionalUncertainty"]
-    mcmcGenerations = 5000
-    popSize = 512
 
     print(f"""from grale.all import *
 import pickle
@@ -486,10 +480,101 @@ Dd = cosm.getAngularDiameterDistance(zd)
 center = V({centerPos[0]/ANGLE_DEGREE},{centerPos[1]/ANGLE_DEGREE}) * ANGLE_DEGREE
 imgList = images.readLenstoolInputImagesFile("{imgFn}", center, {useRADirection})
 
-initialParamDesc = """ + r["description"])
-    
+positionalUncertainty = {mcmcUncert/ANGLE_ARCSEC}*ANGLE_ARCSEC
+""", file=f)
+    if outParamFn:
+        print(f'initialParamDesc = eval(open("{outParamFn}","rt").read()) # Process file as if commands were at this point in the file', file=f)
+    else:
+        print("initialParamDesc = " + r["description"], file=f)
+    print(file=f)
+
+def _startFromLtConfig(f, ltCfgFn, useRADirection):
+    print(f"""from grale.all import *
+import pickle
+
+r = ltparamdesc.createParametricDescriptionFromLenstoolInput("{ltCfgFn}", useRADirection={useRADirection})
+
+cosm = r["cosmology"]
+cosmology.setDefaultCosmology(cosm)
+
+zd = r["zd"]
+Dd = cosm.getAngularDiameterDistance(zd)
+
+imgList = r["images"]
+positionalUncertainty = r["positionalUncertainty"]
+
+initialParamDesc = eval(r["description"]) # 'description' holds a string, we must interpret it
+""", file=f)
+
+def usage():
     print("""
-# This is a helper function that will be called later. It performs the first
+Usage:
+    python -m grale.ltparamdesc -in mod.par -out inv.py [-outparam desc.py] [-noRAdir] [-force] [-fromimgfile]
+""", file=sys.stderr)
+    sys.exit(-1)
+
+def main():
+    idx = 1
+    ltCfgFn = None
+    outFn = None
+    outParamFn = None
+    useRADir = True
+    force = False
+    fromImgFileName = False
+
+    try:
+        while idx < len(sys.argv):
+            opt = sys.argv[idx]
+            if opt == "-in":
+                ltCfgFn = sys.argv[idx+1]
+                idx += 1
+            elif opt == "-out":
+                outFn = sys.argv[idx+1]
+                idx += 1
+            elif opt == "-outparam":
+                outParamFn = sys.argv[idx+1]
+                idx += 1
+            elif opt == "-noRAdir":
+                useRADir = False
+            elif opt == "-force":
+                force = True
+            elif opt == "-fromimgfile":
+                fromImgFileName = True
+            else:
+                raise Exception(f"Unknown option '{opt}'")
+
+            idx += 1
+
+        if not ltCfgFn:
+            raise Exception("Input file needs to be set using '-in'")
+        if not outFn:
+            raise Exception("Output file needs to be set using '-out'")
+    except Exception as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+        usage()
+
+    try:
+        if os.path.exists(outFn) and not force:
+            raise Exception(f"Output file '{outFn}' already exists, use '-force' to continue anyway")
+        if outParamFn and os.path.exists(outParamFn) and not force:
+            raise Exception(f"Output parameters file {outParamFn} already exists, use '-force' to continue anyway")
+
+        r = createParametricDescriptionFromLenstoolInput(ltCfgFn, useRADirection=useRADir)
+        if outParamFn:
+            open(outParamFn, "wt").write(r["description"])
+
+        with open(outFn, "wt") as f:
+            if fromImgFileName:
+                _startFromImgFileName(f, r, useRADir, outParamFn)
+            else:
+                _startFromLtConfig(f, ltCfgFn, useRADir)
+                if outParamFn:
+                    print(f"Warning: parameter file name '{outParamFn}' will not be used in this inversion mode", file=sys.stderr)
+
+            mcmcGenerations = 5000
+            popSize = 512
+
+            print("""# This is a helper function that will be called later. It performs the first
 # inversion, not using MCMC but using the genetic algorithm to find a single
 # best solution for this parametric description
 def initialInversion(imgList, paramDesc):
@@ -509,7 +594,7 @@ def initialInversion(imgList, paramDesc):
 
     # Invert!
     startLens, _, _, _, _ = iws.invertParametric(paramDesc, """ + str(popSize) + """, eaType = "JADE",
-                                                 fitnessObjectParameters = { "fitness_bayesweaklensing_stronglenssigma": """ + f"{mcmcUncert/ANGLE_ARCSEC}*ANGLE_ARCSEC" +  """ }
+                                                 fitnessObjectParameters = { "fitness_bayesweaklensing_stronglenssigma": positionalUncertainty }
                                                  )
 
     startLens.save("startInv.lensdata")
@@ -543,7 +628,7 @@ def mcmcInversion(imgList, paramDesc):
 
     # This specifies that all strong lensing images are considered to have an
     # uncertainty
-    fitParams = { "fitness_bayesweaklensing_stronglenssigma": """ + f"{mcmcUncert/ANGLE_ARCSEC}*ANGLE_ARCSEC" + """ }
+    fitParams = { "fitness_bayesweaklensing_stronglenssigma": positionalUncertainty }
 
     # Run the MCMC algorithm! It will move several 'walkers' around, for several generations.
     lens, _, _, reducedParamInfo, _ = iws.invertParametric(paramDesc, """ + str(popSize) + """, maximumGenerations = totalGenerations, eaType = "MCMC", 
@@ -565,7 +650,11 @@ newParamDesc = initialInversion(imgList, initialParamDesc)
 # Do the actual MCMC inversion
 mcmcInversion(imgList, newParamDesc)
 
-""")
+""", file=f)
+    except Exception as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+        sys.exit(-1)
 
 if __name__ == "__main__":
     main()
+

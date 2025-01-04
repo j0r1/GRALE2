@@ -18,6 +18,7 @@ from . import util
 from . import grid
 from . import paramdesc
 from . import lensinfocache
+from . import ltparamdesc
 from grale.constants import *
 import matplotlib.pyplot as plt
 import numpy as np
