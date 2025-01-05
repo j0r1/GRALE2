@@ -783,7 +783,51 @@ cdef class MCMCParameters(EAParameters):
 
     def _fillInSettings(self, r):
         cdef eaparameters.MCMCParametersPtrConst pParams = dynamic_cast[eaparameters.MCMCParametersPtrConst](self.m_pParams.get())
+        if not pParams:
+            raise Exception("Internal error: can't dynamic_cast parameters to correct type")
+
         r["a"] = deref(pParams).getGoodmanWeare_a()
+        r["samplesfilename"] = S(deref(pParams).getSamplesFilename())
+        r["samplegenerations"] = deref(pParams).getSampleGenerations()
+        r["burningenerations"] = deref(pParams).getBurnInGenerations()
+        r["annealgenerationsscale"] = deref(pParams).getAnnealGenerationsTimeScale()
+        r["alpha0"] = deref(pParams).getAnnealAlpha0()
+        r["alphamax"] = deref(pParams).getAnnealAlphaMax()
+
+cdef class MetropolisHastingsMCMCParameters(EAParameters):
+    """TODO"""
+    def __init__(self, stepscales = [], samplesfilename = "", samplegenerations = 0, burningenerations = 0,
+                 annealgenerationsscale = 0, alpha0 = 0.1, alphamax = 1.0):
+        """__init()__"
+
+        TODO
+        """
+        cdef vector[double] cStepScales
+        cdef double cAlpha0, cAlphaMax
+        cdef string cFileName
+        cdef size_t cGen, cAnnealGen, cBurnGen
+        
+        for x in stepscales:
+            cStepScales.push_back(x);
+
+        cAlpha0 = alpha0
+        cAlphaMax = alphamax
+        cFileName = B(samplesfilename)
+        cGen = samplegenerations
+        cBurnGen = burningenerations
+        cAnnealGen = annealgenerationsscale
+        self.m_pParams = unique_ptr[eaparameters.EAParameters](new eaparameters.MetropolisHastingsMCMCParameters(cStepScales, cFileName, cGen, cBurnGen, cAnnealGen, cAlpha0, cAlphaMax))
+
+    def _fillInSettings(self, r):
+        cdef eaparameters.MetropolisHastingsMCMCParametersPtrConst pParams = dynamic_cast[eaparameters.MetropolisHastingsMCMCParametersPtrConst](self.m_pParams.get())
+        if not pParams:
+            raise Exception("Internal error: can't dynamic_cast parameters to correct type")
+
+        stepScales = []
+        for i in range(deref(pParams).getStepScales().size()):
+            stepScales.append(deref(pParams).getStepScales()[i])
+
+        r["stepscales"] = stepScales
         r["samplesfilename"] = S(deref(pParams).getSamplesFilename())
         r["samplegenerations"] = deref(pParams).getSampleGenerations()
         r["burningenerations"] = deref(pParams).getBurnInGenerations()

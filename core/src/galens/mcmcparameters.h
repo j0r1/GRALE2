@@ -6,18 +6,18 @@
 namespace grale
 {
 
-class MCMCParameters : public EAParameters
+class GeneralMCMCParameters : public EAParameters
 {
-public:
+protected:
 	// For burnin, just don't output the samples
 	// Annealing will calculate prob^alpha where alpha = alpha0 * (1/alpha0)^(t/T)
-	MCMCParameters(double a = 2.0, const std::string &samplesFileName = "",
+	GeneralMCMCParameters(ParameterType t, const std::string &samplesFileName = "",
 	               size_t sampleGenerations = 0,
 				   size_t burninGenerations = 0, // this many will not be logged to the sample file
 	               size_t annealGenerationsScale = 0, double alpha0 = 0.1, double alphaMax = 1.0);
-	~MCMCParameters();
+public:
+	~GeneralMCMCParameters();
 
-	double getGoodmanWeare_a() const { return m_a; }
 	const std::string getSamplesFilename() const { return m_fileName; }
 	// Note: these generations will be multiplied by two when starting the
 	// actual algorithm, since two rounds are needed to advance all goodman-weare
@@ -31,12 +31,47 @@ protected:
 	errut::bool_t readInternal(serut::SerializationInterface &si) override;
 	errut::bool_t writeInternal(serut::SerializationInterface &si) const override;
 private:
-	double m_a;
 	std::string m_fileName;
 	size_t m_sampleGenerations;
 	size_t m_burnInGenerations;
 	size_t m_annealGenerations;
 	double m_alpha0, m_alphaMax;
+};
+
+// TODO: rename this to be specific for goodman-weare
+class MCMCParameters : public GeneralMCMCParameters
+{
+public:
+	MCMCParameters(double a = 2.0, const std::string &samplesFileName = "",
+	               size_t sampleGenerations = 0,
+				   size_t burninGenerations = 0, // this many will not be logged to the sample file
+	               size_t annealGenerationsScale = 0, double alpha0 = 0.1, double alphaMax = 1.0);
+	~MCMCParameters();
+
+	double getGoodmanWeare_a() const { return m_a; }
+protected:
+	errut::bool_t readInternal(serut::SerializationInterface &si) override;
+	errut::bool_t writeInternal(serut::SerializationInterface &si) const override;
+private:
+	double m_a;
+};
+
+class MetropolisHastingsMCMCParameters : public GeneralMCMCParameters
+{
+public:
+	MetropolisHastingsMCMCParameters(const std::vector<double> &stepScales,
+				   const std::string &samplesFileName = "",
+	               size_t sampleGenerations = 0,
+				   size_t burninGenerations = 0, // this many will not be logged to the sample file
+	               size_t annealGenerationsScale = 0, double alpha0 = 0.1, double alphaMax = 1.0);
+	~MetropolisHastingsMCMCParameters();
+
+	const std::vector<double> &getStepScales() const { return m_stepScales; }
+protected:
+	errut::bool_t readInternal(serut::SerializationInterface &si) override;
+	errut::bool_t writeInternal(serut::SerializationInterface &si) const override;
+private:
+	std::vector<double> m_stepScales;
 };
 
 } // end namespace

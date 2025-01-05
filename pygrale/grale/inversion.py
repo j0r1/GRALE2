@@ -798,11 +798,11 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
 
     # TODO: should be a cleaner way to do this
     usingMcmc = False
-    if eaType == "MCMC":
+    if eaType == "MCMC" or eaType == "MCMC-MH":
         usingMcmc = True
     elif type(eaType) == list or type(eaType) == tuple:
         for t in eaType:
-            if t == "MCMC":
+            if t == "MCMC" or eaType == "MCMC-MH":
                 usingMcmc = True
 
     infOnBoundsViolation = False if not usingMcmc else True

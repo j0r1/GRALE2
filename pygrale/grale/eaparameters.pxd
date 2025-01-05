@@ -74,12 +74,7 @@ cdef extern from "grale/rndparameters.h" namespace "grale":
 ctypedef const RNDParameters* RNDParametersPtrConst
 
 cdef extern from "grale/mcmcparameters.h" namespace "grale":
-    cdef cppclass MCMCParameters(EAParameters):
-        MCMCParameters(double a, const string &sampleFileName, size_t sampleGenerations,
-                       size_t burnInGenerations,
-                       size_t annealGenerationsScale, double alpha0, double alphaMax)
-
-        double getGoodmanWeare_a() const
+    cdef cppclass GeneralMCMCParameters(EAParameters):
         const string getSamplesFilename()
         size_t getSampleGenerations() const
         size_t getBurnInGenerations() const
@@ -87,5 +82,23 @@ cdef extern from "grale/mcmcparameters.h" namespace "grale":
         double getAnnealAlpha0() const
         double getAnnealAlphaMax() const
 
+cdef extern from "grale/mcmcparameters.h" namespace "grale":
+    cdef cppclass MCMCParameters(GeneralMCMCParameters):
+        MCMCParameters(double a, const string &sampleFileName, size_t sampleGenerations,
+                       size_t burnInGenerations,
+                       size_t annealGenerationsScale, double alpha0, double alphaMax)
+
+        double getGoodmanWeare_a() const
+
 ctypedef const MCMCParameters* MCMCParametersPtrConst
+
+cdef extern from "grale/mcmcparameters.h" namespace "grale":
+    cdef cppclass MetropolisHastingsMCMCParameters(GeneralMCMCParameters):
+        MetropolisHastingsMCMCParameters(vector[double] &stepScales, const string &sampleFileName, size_t sampleGenerations,
+                       size_t burnInGenerations,
+                       size_t annealGenerationsScale, double alpha0, double alphaMax)
+
+        const vector[double] &getStepScales() const
+
+ctypedef const MetropolisHastingsMCMCParameters* MetropolisHastingsMCMCParametersPtrConst
 
