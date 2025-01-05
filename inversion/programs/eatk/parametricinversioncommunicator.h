@@ -197,7 +197,7 @@ protected:
 	errut::bool_t runMCMC(const std::shared_ptr<eatk::RandomNumberGenerator> &rng,
 						int popSize, const std::shared_ptr<grale::LensGAParametricSinglePlaneCalculator> &calculator,
 						const std::shared_ptr<eatk::PopulationFitnessCalculation> &popCalc,
-						std::shared_ptr<eatk::IndividualCreation> &creation,
+						std::shared_ptr<eatk::IndividualCreation> &creation, const std::string &eaType,
 						const grale::EAParameters &eaParams)
 
 	{
@@ -211,16 +211,15 @@ protected:
 		if (calculator->isRandomizingInputPositions())
 			return "MCMC sampling cannot be used together with input image randomization";
 
-		if (!dynamic_cast<const grale::MCMCParameters*>(&eaParams))
-			return "Parameters are not of type MCMCParameters";
-		const grale::MCMCParameters &mcmcParams = static_cast<const grale::MCMCParameters&>(eaParams);
+		if (!dynamic_cast<const grale::GeneralMCMCParameters*>(&eaParams))
+			return "Parameters are not of type GeneralMCMCParameters";
+		const grale::GeneralMCMCParameters &mcmcParams = static_cast<const grale::GeneralMCMCParameters&>(eaParams);
 
 		// NOTE: we're ignoring the convergence parameters!
 		
-		int maxEAGenerations = mcmcParams.getSampleGenerations() * 2; // Here we use *2 since it takes 2 generations to advance the full set of walkers
+		int maxEAGenerations = mcmcParams.getSampleGenerations();
 		int annealScale = mcmcParams.getAnnealGenerationsTimeScale(); // These don't need *2, is used when a full sample is received
 		int burninGenerations = mcmcParams.getBurnInGenerations();
-		double a = mcmcParams.getGoodmanWeare_a();
 		double alpha0 = mcmcParams.getAnnealAlpha0();
 		double alphaMax = mcmcParams.getAnnealAlphaMax();
 		std::string samplesFileName = mcmcParams.getSamplesFilename();
@@ -233,18 +232,53 @@ protected:
 			std::this_thread::sleep_for(std::chrono::seconds(3));
 		}
 
-		eatk::FixedGenerationsStopCriterion stop(maxEAGenerations);
-		MyGW gw(rng, eatk::GoodmanWeareEvolver::NegativeLog, a);
+		std::shared_ptr<eatk::PopulationEvolver> evolver;
 		errut::bool_t r;
-		if (!(r = gw.init(samplesFileName, burninGenerations, annealScale, alpha0, alphaMax)))
-			return r;
+		size_t popMax = popSize;
 
+		if (eaType == "MCMC")
+		{
+			if (!dynamic_cast<const grale::MCMCParameters*>(&eaParams))
+				return "Parameters are not of type MCMCParameters";
+			const grale::MCMCParameters &mcmcParams = static_cast<const grale::MCMCParameters&>(eaParams);
+			double a = mcmcParams.getGoodmanWeare_a();	
+
+			std::shared_ptr<MyGW> gw = std::make_shared<MyGW>(rng, eatk::SamplingEvolver::NegativeLog, a);
+			if (!(r = gw->init(samplesFileName, burninGenerations, annealScale, alpha0, alphaMax)))
+				return r;
+
+			evolver = gw;
+			maxEAGenerations *= 2; // Here we use *2 since it takes 2 generations to advance the full set of walkers
+			popMax = popSize*3/2;
+			WriteLineStdout("GAMESSAGESTR: Running MCMC algorithm"); // TODO: more info about settings
+		}
+		else if (eaType == "MCMC-MH")
+		{
+			if (!dynamic_cast<const grale::MetropolisHastingsMCMCParameters*>(&eaParams))
+				return "Parameters are not of type MetropolisHastingsMCMCParameters";
+			const grale::MetropolisHastingsMCMCParameters &mcmcParams = static_cast<const grale::MetropolisHastingsMCMCParameters&>(eaParams);
+			const std::vector<double> stepScales = mcmcParams.getStepScales();
+
+			std::shared_ptr<MyMH> mh = std::make_shared<MyMH>(rng, stepScales, eatk::SamplingEvolver::NegativeLog);
+			if (!(r = mh->init(samplesFileName, burninGenerations, annealScale, alpha0, alphaMax)))
+				return r;
+
+			evolver = mh;
+			popMax = popSize*2;
+			WriteLineStdout("GAMESSAGESTR: Running MCMC-MH algorithm"); // TODO: more info about settings
+		}
+		else
+			return "Unrecognized MCMC EA type '" + eaType + "'";
+
+		assert(evolver.get());
+
+		eatk::FixedGenerationsStopCriterion stop(maxEAGenerations);
 		MyGA ea;
-		r = ea.run(*creation, gw, *popCalc, stop, popSize, popSize, popSize*3/2);
+		r = ea.run(*creation, *evolver, *popCalc, stop, popSize, popSize, popMax);
 		if (!r)
 			return r;
 
-		m_best = gw.getBestIndividuals();
+		m_best = evolver->getBestIndividuals();
 		creation = std::make_shared<eatk::PopulationReuseCreation>(ea.getPopulations());
 		return true;
 	}
@@ -307,9 +341,9 @@ protected:
 			bool_t r;
 
 			// Do MCMC in another routine
-			if (eaType == "MCMC")
+			if (eaType == "MCMC" || eaType == "MCMC-MH")
 			{
-				if (!(r = runMCMC(rng, popSize, genomeCalculator, calc, creation, eaParams)))
+				if (!(r = runMCMC(rng, popSize, genomeCalculator, calc, creation, eaType, eaParams)))
 					return r;
 			}
 			else

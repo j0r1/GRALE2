@@ -59,7 +59,7 @@ private:
 class MetropolisHastingsMCMCParameters : public GeneralMCMCParameters
 {
 public:
-	MetropolisHastingsMCMCParameters(const std::vector<double> &stepScales,
+	MetropolisHastingsMCMCParameters(const std::vector<double> &stepScales = {},
 				   const std::string &samplesFileName = "",
 	               size_t sampleGenerations = 0,
 				   size_t burninGenerations = 0, // this many will not be logged to the sample file

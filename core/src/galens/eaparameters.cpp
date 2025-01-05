@@ -53,6 +53,9 @@ bool_t EAParameters::read(SerializationInterface &si, unique_ptr<EAParameters> &
 	case MCMC:
 		params = make_unique<MCMCParameters>();
 		break;
+	case MetropolisHastingsMCMC:
+		params = make_unique<MetropolisHastingsMCMCParameters>();
+		break;
 	default:
 		return "Can't interpret EAParameters type id " + to_string(typeInt);
 	}
