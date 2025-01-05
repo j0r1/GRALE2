@@ -6,6 +6,7 @@
 #include <eatk/vectorgenomefitness.h>
 #include <eatk/vectordifferentialevolution.h>
 #include <eatk/goodmanweareevolver.h>
+#include <eatk/metropolishastingsevolver.h>
 #include <eatk/vectorgenomeuniformmutation.h>
 #include <eatk/vectorgenomefractionalmutation.h>
 #include <eatk/vectorgenomeuniformcrossover.h>
@@ -36,13 +37,14 @@ public:
 	size_t m_numObj;
 };
 
-class MyGW : public eatk::GoodmanWeareEvolver
-{       
-public: 
-	MyGW(const std::shared_ptr<eatk::RandomNumberGenerator> &rng, ProbType probType, double a)
-		: eatk::GoodmanWeareEvolver(rng, probType, a) { } 
+template <class BaseClass>
+class CommonSamplingCode : public BaseClass
+{
+public:
+	template<typename... Args>
+	CommonSamplingCode(Args&&... args) : BaseClass(std::forward<Args>(args)...) { }
 
-	~MyGW()
+	~CommonSamplingCode()
 	{
 		std::stringstream ss;
 		ss << "GAMESSAGESTR: wrote " << m_generationsWritten << " generations of " << m_numWalkers << " walkers, total of " << m_samplesWritten << " samples, each " << m_floatsPerSample << " float values";
@@ -82,7 +84,7 @@ public:
 			alpha = m_alphaMax;
 
 		m_currentAlpha = alpha;
-		setAnnealingExponent(alpha);
+		BaseClass::setAnnealingExponent(alpha);
 	}
 
 	void onSamples(const std::vector<std::shared_ptr<eatk::Individual>> &samples)
@@ -90,7 +92,7 @@ public:
 		std::stringstream ss;
 		ss << "Generation " << m_generationCount << ": best = ";
 
-		const auto &best = getBestIndividuals();
+		const auto &best = BaseClass::getBestIndividuals();
 		if (best.size() == 0)
 			ss << "(no best yet)";
 		else
@@ -146,16 +148,32 @@ private:
 	size_t m_generationCount = 0;
 	std::string m_filename;
 	std::ofstream m_sampleFile;
-	size_t m_burnInGenerations;
-	size_t m_annealScaleGenerations;
-	double m_alpha0;
-	double m_alphaMax;
-	double m_currentAlpha;
+	size_t m_burnInGenerations = 0;
+	size_t m_annealScaleGenerations = 0;
+	double m_alpha0 = 1.0;
+	double m_alphaMax = 1.0;
+	double m_currentAlpha = 1.0;
 	size_t m_floatsPerSample = 0;
 	size_t m_samplesWritten = 0;
 	size_t m_generationsWritten = 0;
 	size_t m_numWalkers = 0;
+};
+
+class MyGW : public CommonSamplingCode<eatk::GoodmanWeareEvolver>
+{       
+public: 
+	MyGW(const std::shared_ptr<eatk::RandomNumberGenerator> &rng, ProbType probType, double a)
+		: CommonSamplingCode<eatk::GoodmanWeareEvolver>(rng, probType, a) { } 
 };          
+
+class MyMH : public CommonSamplingCode<eatk::MetropolisHastingsEvolver>
+{
+public:
+	MyMH(const std::shared_ptr<eatk::RandomNumberGenerator> &rng,
+		 const std::vector<double> &stepScales,
+		 ProbType probType)
+		: CommonSamplingCode<eatk::MetropolisHastingsEvolver>(rng, stepScales, probType) { }
+};
 
 class ParametricInversionCommunicator : public InversionCommunicatorBase
 {
