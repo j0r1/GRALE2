@@ -522,6 +522,23 @@ errut::bool_t LensGAParametricSinglePlaneCalculator::pollCalculate(const eatk::G
 		//cerr << "Added prior" << negLogPrior << endl;
 	}
 
+
+	if (std::getenv("TESTLTPIEMDPRIOR"))
+	{
+		// TODO: for testing
+		const vector<float> &values = genome.getValues();
+		assert(values.size() == 2);
+		if (fitnessValues.size() == 1)
+		{
+			float vdisp = values[0];
+			float a = values[1];
+			float s = 2000*ANGLE_ARCSEC/0.0048481368110953596;
+			float aovers = a/s;
+
+			fitnessValues[0] += -std::log(vdisp) + std::log(a) - std::log(1.0f-aovers*aovers);
+		}
+	}
+
 	fitness.setCalculated();
 	
 	return true;
