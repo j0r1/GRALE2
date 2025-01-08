@@ -115,6 +115,48 @@ bool PIMDLens::processParameters(const GravitationalLensParams *pLensParams)
 	return true;
 }
 
+/* This code also works getAlphaVector:
+
+	double Dd = getLensDistance();
+	double Q = 8.0*CONST_PI*CONST_G/(SPEED_C*SPEED_C) * m_densFactor *Dd;
+
+	auto f = [](double t2, double a_s) {
+		return 1.0/(a_s + std::sqrt(a_s*a_s + t2));
+	};
+
+	double t2 = theta.getLengthSquared();
+	double common = Q*(f(t2, m_coreRadius) - f(t2, m_scaleRadius));
+	*pAlpha = Vector2Dd(common*theta.getX(), common*theta.getY());
+
+   And this works for getAlphaVectorSecondDerivatives
+
+	double Dd = getLensDistance();
+	double Q = 8.0*CONST_PI*CONST_G/(SPEED_C*SPEED_C) * m_densFactor *Dd;
+
+	auto sq = [](double t2, double a_s) {
+		return std::sqrt(a_s*a_s + t2);
+	};
+
+	auto f = [](double a_s, double sq) {
+		return 1.0/(a_s + sq);
+	};
+
+	double t2 = theta.getLengthSquared();
+	double tx = theta.getX();
+	double ty = theta.getY();
+
+	double sq_s = sq(t2, m_scaleRadius);
+	double sq_a = sq(t2, m_coreRadius);
+	double f_s = f(m_scaleRadius, sq_s);
+	double f_a = f(m_coreRadius, sq_a);
+
+	double firstpart = f_s*f_s/sq_s - f_a*f_a/sq_a;
+	double secondpart = f_a - f_s;
+	axx = Q*( tx*tx*firstpart + secondpart);
+	ayy = Q*( ty*ty*firstpart + secondpart);
+	axy = Q*( tx*ty*firstpart );
+*/
+
 double PIMDLens::getMassInside(double thetaLength) const
 {
 	double t2 = thetaLength*thetaLength;
