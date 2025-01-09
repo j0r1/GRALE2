@@ -63,6 +63,13 @@ public:
 
 	double getMassInside(double thetaLength) const;
 	double getProfileSurfaceMassDensity(double thetaLength) const;
+
+	bool getSuggestedScales(double *pDeflectionScale, double *pPotentialScale) const override;
+	bool getCLParameterCounts(int *pNumIntParams, int *pNumFloatParams) const override;
+	bool getCLParameters(double deflectionScale, double potentialScale, int *pIntParams, float *pFloatParams) const override;
+	std::string getCLProgram(double deflectionScale, double potentialScale, std::string &subRoutineName, bool derivatives = true, bool potential = true) const override;
+	std::unique_ptr<GravitationalLensParams> createLensParamFromCLFloatParams(double deflectionScale, double potentialScale, float *pFloatParams) const override;
+	std::vector<CLFloatParamInfo> getCLAdjustableFloatingPointParameterInfo(double deflectionScale, double potentialScale) const override;
 private:
 	bool processParameters(const GravitationalLensParams *pLensParams);
 
@@ -72,6 +79,7 @@ private:
 
 	double m_massFactor, m_densFactor;
 	double m_a2, m_s2;
+	double m_angularScale;
 };
 
 } // end namespace
