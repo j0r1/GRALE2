@@ -64,6 +64,7 @@ cdef extern from "grale/gravitationallens.h" namespace "grale::GravitationalLens
         MPContainer,
         CubicDeflectionGrid,
         LTPIEMD,
+        LTPIMD
         MaxLensType
 
 cdef extern from "grale/gravitationallens.h" namespace "grale":
@@ -452,6 +453,19 @@ cdef extern from "grale/pimdlens.h" namespace "grale":
         pass
 
 ctypedef const PIMDLensParams* PIMDLensParamsPtrConst
+
+cdef extern from "grale/pimdlens.h" namespace "grale":
+
+    cdef cppclass LTPIMDLensParams(GravitationalLensParams):
+        LTPIMDLensParams(double velDisp, double coreRadius, double scaleRadius)
+        double getVelocityDispersion()
+        double getCoreRadius()
+        double getScaleRadius()
+
+    cdef cppclass LTPIMDLens(GravitationalLens):
+        pass
+
+ctypedef const LTPIMDLensParams* LTPIMDLensParamsPtrConst
 
 cdef extern from "grale/alphapotlens.h" namespace "grale":
 

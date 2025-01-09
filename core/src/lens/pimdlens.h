@@ -53,6 +53,26 @@ private:
 	double m_scaleRadius;
 };
 
+class GRALE_IMPORTEXPORT LTPIMDLensParams : public GravitationalLensParams
+{
+public:
+	LTPIMDLensParams();
+	LTPIMDLensParams(double velDisp, double coreRadius, double angularRadius);
+	~LTPIMDLensParams();
+
+	bool write(serut::SerializationInterface &si) const;
+	bool read(serut::SerializationInterface &si);
+	std::unique_ptr<GravitationalLensParams> createCopy() const;
+
+	double getVelocityDispersion() const						{ return m_velDisp; }
+	double getCoreRadius() const								{ return m_coreRadius; }
+	double getScaleRadius() const								{ return m_scaleRadius; }
+private:
+	double m_velDisp;
+	double m_coreRadius;
+	double m_scaleRadius;
+};
+
 class GRALE_IMPORTEXPORT PIMDLens : public SymmetricLens
 {
 public:
@@ -70,7 +90,9 @@ public:
 	std::string getCLProgram(double deflectionScale, double potentialScale, std::string &subRoutineName, bool derivatives = true, bool potential = true) const override;
 	std::unique_ptr<GravitationalLensParams> createLensParamFromCLFloatParams(double deflectionScale, double potentialScale, float *pFloatParams) const override;
 	std::vector<CLFloatParamInfo> getCLAdjustableFloatingPointParameterInfo(double deflectionScale, double potentialScale) const override;
-private:
+protected:
+	PIMDLens(LensType t);
+	bool subInit(double sigma0, double coreRad, double scaleRad);
 	bool processParameters(const GravitationalLensParams *pLensParams);
 
 	double m_sigma0;
@@ -80,6 +102,24 @@ private:
 	double m_massFactor, m_densFactor;
 	double m_a2, m_s2;
 	double m_angularScale;
+};
+
+class GRALE_IMPORTEXPORT LTPIMDLens : public PIMDLens
+{
+public:
+	LTPIMDLens();
+	~LTPIMDLens();
+
+	std::unique_ptr<GravitationalLens> createUninitializedInstance() const override { return std::make_unique<LTPIMDLens>(); }
+
+	bool getCLParameters(double deflectionScale, double potentialScale, int *pIntParams, float *pFloatParams) const override;
+	std::string getCLProgram(double deflectionScale, double potentialScale, std::string &subRoutineName, bool derivatives = true, bool potential = true) const override;
+	std::unique_ptr<GravitationalLensParams> createLensParamFromCLFloatParams(double deflectionScale, double potentialScale, float *pFloatParams) const override;
+	std::vector<CLFloatParamInfo> getCLAdjustableFloatingPointParameterInfo(double deflectionScale, double potentialScale) const override;
+private:
+	bool processParameters(const GravitationalLensParams *pLensParams);
+
+	double m_velDisp = 0;
 };
 
 } // end namespace

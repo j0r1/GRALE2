@@ -1019,6 +1019,8 @@ cdef class GravitationalLens:
             l = CubicDeflectionGridLens(None, None)
         elif t == gravitationallens.LTPIEMD:
             l = LTPIEMDLens(None, None)
+        elif t == gravitationallens.LTPIMD:
+            l = LTPIMDLens(None, None)
         else: # Unknown, can still use the interface
             l = GravitationalLens(_gravLensRndId)
 
@@ -3548,6 +3550,64 @@ cdef class LTPIEMDLens(GravitationalLens):
     def getEllipticity(self):
         params = self.getLensParameters()
         return params["ellipticity"]
+
+    def getVelocityDispersion(self):
+        params = self.getLensParameters()
+        return params["velocitydispersion"]
+
+    def getEpsilon(self):
+        params = self.getLensParameters()
+        return PIEMDLens.getEpsilonFromEllipticity(params["ellipticity"])
+
+    def getCentralDensity(self):
+        params = self.getLensParameters()
+        Dd = self.getLensDistance()
+        return PIEMDLens.getCentralDensityFromVelocityDispersion(params["velocitydispersion"], params["coreradius"], params["scaleradius"], Dd)
+
+cdef class LTPIMDLens(GravitationalLens):
+    r"""Same as :class:`PIMDLens`, but using Lenstool-like parameters."""
+
+    cdef gravitationallens.GravitationalLens* _allocLens(self) except NULL:
+        return new gravitationallens.LTPIMDLens()
+
+    cdef gravitationallens.GravitationalLensParams* _allocParams(self, params) except NULL:
+        cdef double velDisp, coreRadius, scaleRadius
+
+        GravitationalLens._checkParams(params, ["velocitydispersion", "coreradius", "scaleradius" ])
+        velDisp = params["velocitydispersion"]
+        coreRadius = params["coreradius"]
+        scaleRadius = params["scaleradius"]
+
+        return new gravitationallens.LTPIMDLensParams(velDisp, coreRadius, scaleRadius)
+
+    def __init__(self, Dd, params):
+        r"""__init__(Dd, params)
+
+        Parameters:
+         - Dd is the angular diameter distance to the lens.
+         - params: a dictionary containing the following entries:
+
+           * 'velocitydispersion': the velocity dispersion for the lens
+           * 'coreradius': the core radius :math:`a` of the profile
+           * 'scaleradius': the scale radius :math:`s` of the profile
+
+        """
+        super(LTPIMDLens, self).__init__(_gravLensRndId)
+        self._lensInit(Dd, params)
+
+    def getLensParameters(self):
+        cdef gravitationallens.LTPIMDLensParamsPtrConst pParams
+        
+        self._check()
+        pParams = dynamic_cast[gravitationallens.LTPIMDLensParamsPtrConst](GravitationalLens._getLens(self).getLensParameters())
+        if pParams == NULL:
+            raise LensException("Unexpected: parameters are not those of a LTPIMDLens")
+
+        return { 
+            "velocitydispersion": pParams.getVelocityDispersion(), 
+            "coreradius": pParams.getCoreRadius(),
+            "scaleradius": pParams.getScaleRadius(),
+        }
 
     def getVelocityDispersion(self):
         params = self.getLensParameters()

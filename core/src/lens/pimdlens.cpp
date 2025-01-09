@@ -82,9 +82,62 @@ std::unique_ptr<GravitationalLensParams> PIMDLensParams::createCopy() const
 }
 
 
+LTPIMDLensParams::LTPIMDLensParams() 
+	: m_velDisp(0),
+	  m_coreRadius(0),
+	  m_scaleRadius(0)
+{
+}
+
+LTPIMDLensParams::LTPIMDLensParams(double velDisp, double coreRadius, double scaleRadius)
+	: m_velDisp(velDisp),
+	  m_coreRadius(coreRadius),
+	  m_scaleRadius(scaleRadius)
+{
+}
+
+LTPIMDLensParams::~LTPIMDLensParams()
+{
+}
+
+bool LTPIMDLensParams::write(serut::SerializationInterface &si) const
+{
+	if (!(si.writeDouble(m_velDisp) &&
+	      si.writeDouble(m_coreRadius) &&
+		  si.writeDouble(m_scaleRadius)))
+	{
+		setErrorString(si.getErrorString());
+		return false;
+	}
+	return true;
+}
+
+bool LTPIMDLensParams::read(serut::SerializationInterface &si)
+{
+	if (!(si.readDouble(&m_velDisp) &&
+		  si.readDouble(&m_coreRadius) &&
+		  si.readDouble(&m_scaleRadius)))
+	{
+		setErrorString(si.getErrorString());
+		return false;
+	}
+	return true;
+}
+
+std::unique_ptr<GravitationalLensParams> LTPIMDLensParams::createCopy() const
+{
+	return std::make_unique<LTPIMDLensParams>(m_velDisp, m_coreRadius, m_scaleRadius);
+}
+
+
 PIMDLens::PIMDLens() : SymmetricLens(GravitationalLens::PIMD)
 {
 }
+
+PIMDLens::PIMDLens(LensType t) : SymmetricLens(t)
+{
+}
+
 
 PIMDLens::~PIMDLens()
 {
@@ -100,15 +153,23 @@ bool PIMDLens::processParameters(const GravitationalLensParams *pLensParams)
 		return false;
 	}
 
-	m_sigma0 = pParams->getCentralDensity();
+	return subInit(pParams->getCentralDensity(), pParams->getCoreRadius(), pParams->getScaleRadius());
+}
 
-	m_coreRadius = pParams->getCoreRadius();
-	m_scaleRadius = pParams->getScaleRadius();
-	if (m_coreRadius < 0 || m_scaleRadius < m_coreRadius)
+bool PIMDLens::subInit(double sigma0, double coreRad, double scaleRad)
+{
+	m_sigma0 = sigma0;
+	m_coreRadius = coreRad;
+	m_scaleRadius = scaleRad;
+
+	if (m_coreRadius < 0)
 	{
-		setErrorString("Invalid radii");
+		setErrorString("Invalid core radius");
 		return false;
 	}
+
+	if (m_scaleRadius <= m_coreRadius)
+		std::cerr << "WARNING: scale radius <= core radius, lens effect will be disabled" << endl;
 
 	double Dd = getLensDistance();
 	m_massFactor = 2.0*CONST_PI*m_sigma0*m_scaleRadius*m_coreRadius/(m_scaleRadius-m_coreRadius) *Dd*Dd;
@@ -165,6 +226,9 @@ bool PIMDLens::processParameters(const GravitationalLensParams *pLensParams)
 
 double PIMDLens::getMassInside(double thetaLength) const
 {
+	if (m_scaleRadius <= m_coreRadius)
+		return 0;
+
 	double t2 = thetaLength*thetaLength;
 
 	return m_massFactor*(SQRT(m_a2 + t2) - m_coreRadius - SQRT(m_s2 + t2) + m_scaleRadius);
@@ -172,6 +236,9 @@ double PIMDLens::getMassInside(double thetaLength) const
 
 double PIMDLens::getProfileSurfaceMassDensity(double thetaLength) const
 {
+	if (m_scaleRadius <= m_coreRadius)
+		return 0;
+
 	double t2 = thetaLength*thetaLength;
 
 	return m_densFactor*(1.0/SQRT(m_a2 + t2) - 1.0/SQRT(m_s2 + t2));
@@ -273,6 +340,71 @@ vector<CLFloatParamInfo> PIMDLens::getCLAdjustableFloatingPointParameterInfo(dou
 
 	return {
 		{ .name = "centraldensity_scaled", .offset = 0, .scaleFactor = densScale, .hardMin = 0 },
+		{ .name = "coreradius_scaled", .offset = 1, .scaleFactor = deflectionScale, .hardMin = 0 },
+		{ .name = "scaleradius_scaled", .offset = 2, .scaleFactor = deflectionScale, .hardMin = 0 },
+	};
+}
+
+LTPIMDLens::LTPIMDLens() : PIMDLens(GravitationalLens::LTPIMD)
+{
+}
+
+LTPIMDLens::~LTPIMDLens()
+{
+}
+
+bool LTPIMDLens::processParameters(const GravitationalLensParams *pLensParams)
+{
+	const LTPIMDLensParams *pParams = dynamic_cast<const LTPIMDLensParams *>(pLensParams);
+	if (pParams == 0)
+	{
+		setErrorString("Parameters are not of type 'LTPIMDLensParams'");
+		return false;
+	}
+
+	double velDisp = pParams->getVelocityDispersion();
+	double a = pParams->getCoreRadius();
+	double s = pParams->getScaleRadius();
+	double Dd = getLensDistance();
+
+	double centralDens = (3.0*velDisp*velDisp)/(4.0*CONST_G*Dd)*(s*s-a*a)/(a*s*s);
+
+	m_velDisp = velDisp;
+	return subInit(centralDens, a, s);
+}
+
+static const double velScale = 100000.0; // units of 100km/s
+
+bool LTPIMDLens::getCLParameters(double deflectionScale, double potentialScale, int *pIntParams, float *pFloatParams) const
+{
+	pFloatParams[0] = (float)(m_velDisp/velScale);
+	pFloatParams[1] = (float)(m_coreRadius/deflectionScale);
+	pFloatParams[2] = (float)(m_scaleRadius/deflectionScale);
+	return true;
+}
+
+string LTPIMDLens::getCLProgram(double deflectionScale, double potentialScale, std::string &subRoutineName, bool derivatives, bool potential) const
+{
+	subRoutineName = "clLTPIMDLensProgram";
+
+	return "TODO";
+
+	//return program;
+}
+
+unique_ptr<GravitationalLensParams> LTPIMDLens::createLensParamFromCLFloatParams(double deflectionScale, double potentialScale, float *pFloatParams) const
+{
+	double velDisp = (double)pFloatParams[0] * velScale;
+	double coreRad = (double)pFloatParams[1] * deflectionScale;
+	double scaleRad = (double)pFloatParams[2] * deflectionScale;
+
+	return make_unique<LTPIMDLensParams>(velDisp, coreRad, scaleRad);
+}
+
+vector<CLFloatParamInfo> LTPIMDLens::getCLAdjustableFloatingPointParameterInfo(double deflectionScale, double potentialScale) const
+{
+	return {
+		{ .name = "velocitydispersion_scaled", .offset = 0, .scaleFactor = velScale, .hardMin = 0 },
 		{ .name = "coreradius_scaled", .offset = 1, .scaleFactor = deflectionScale, .hardMin = 0 },
 		{ .name = "scaleradius_scaled", .offset = 2, .scaleFactor = deflectionScale, .hardMin = 0 },
 	};
