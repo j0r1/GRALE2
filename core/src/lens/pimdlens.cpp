@@ -268,21 +268,13 @@ bool PIMDLens::getCLParameters(double deflectionScale, double potentialScale, in
 	return true;
 }
 
-string PIMDLens::getCLProgram(double deflectionScale, double potentialScale, std::string &subRoutineName, bool derivatives, bool potential) const
+string PIMDLens::getPIMDMainProgram(const string &subRoutineName, const string &pimdParams, double deflectionScale, double potentialScale, bool derivatives, bool potential) const
 {
-	subRoutineName = "clPIMDLensProgram";
-
 	double Q_scaled = m_angularScale/deflectionScale;
-
-	string pimdParams = R"XYZ(
-	float sigma0 = pFloatParams[0];
-	float coreRadius = pFloatParams[1];
-	float scaleRadius = pFloatParams[2];
-	)XYZ";
 
 	string program = R"XYZ(
 
-LensQuantities clPIMDLensProgram(float2 coord, __global const int *pIntParams, __global const float *pFloatParams)
+LensQuantities )XYZ" + subRoutineName + R"XYZ((float2 coord, __global const int *pIntParams, __global const float *pFloatParams)
 {)XYZ" + pimdParams + R"XYZ(
 
 	float Q_scaled = )XYZ" + float_to_string((float)Q_scaled) + R"XYZ(;
@@ -319,8 +311,20 @@ LensQuantities clPIMDLensProgram(float2 coord, __global const int *pIntParams, _
 
 }
 	)XYZ";
-
 	return program;
+}
+
+string PIMDLens::getCLProgram(double deflectionScale, double potentialScale, std::string &subRoutineName, bool derivatives, bool potential) const
+{
+	subRoutineName = "clPIMDLensProgram";
+
+	string pimdParams = R"XYZ(
+	float sigma0 = pFloatParams[0];
+	float coreRadius = pFloatParams[1];
+	float scaleRadius = pFloatParams[2];
+	)XYZ";
+
+	return getPIMDMainProgram(subRoutineName, pimdParams, deflectionScale, potentialScale, derivatives, potential);
 }
 
 unique_ptr<GravitationalLensParams> PIMDLens::createLensParamFromCLFloatParams(double deflectionScale, double potentialScale, float *pFloatParams) const
@@ -387,9 +391,20 @@ string LTPIMDLens::getCLProgram(double deflectionScale, double potentialScale, s
 {
 	subRoutineName = "clLTPIMDLensProgram";
 
-	return "TODO";
+	// Same as in LTPIEMDLens
+	double finalDensScale = ((velScale/SPEED_C)*(velScale/SPEED_C)*CONST_PI)/deflectionScale;
 
-	//return program;
+	string pimdParams = R"XYZ(
+	float velDisp = pFloatParams[0]; // scaled with 'velScale'
+	float coreRadius = pFloatParams[1];
+	float scaleRadius = pFloatParams[2];
+
+	float finalDensScale = )XYZ" + float_to_string((float)finalDensScale) + R"XYZ(;
+	float aRescaled = coreRadius/scaleRadius;
+	float sigma0 = finalDensScale * (3.0*velDisp*velDisp) * (1.0 - aRescaled*aRescaled)/coreRadius;
+	)XYZ";
+
+	return getPIMDMainProgram(subRoutineName, pimdParams, deflectionScale, potentialScale, derivatives, potential);
 }
 
 unique_ptr<GravitationalLensParams> LTPIMDLens::createLensParamFromCLFloatParams(double deflectionScale, double potentialScale, float *pFloatParams) const

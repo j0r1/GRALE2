@@ -94,6 +94,7 @@ protected:
 	PIMDLens(LensType t);
 	bool subInit(double sigma0, double coreRad, double scaleRad);
 	bool processParameters(const GravitationalLensParams *pLensParams);
+	std::string getPIMDMainProgram(const std::string &subRoutineName, const std::string &pimdParams, double deflectionScale, double potentialScale, bool derivatives, bool potential) const;
 
 	double m_sigma0;
 	double m_coreRadius;
