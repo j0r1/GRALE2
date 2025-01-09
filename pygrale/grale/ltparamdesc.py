@@ -313,8 +313,6 @@ def createParametricDescriptionFromLenstoolInput(fileName,
     "type": "CompositeLens", "params": [
 """.splitlines()
 
-    # TODO: useRADirection !!
-
     if useRADirection:
         xString = lambda s: s + f" * (-{arcsecString})"
         xStringComment = " # Flip X to use RA based orientation"

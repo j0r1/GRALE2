@@ -180,6 +180,18 @@ def _processDeflectionGridLens(lensParams, Dd, getParamValue):
 
     return lensParams.copy(), [] # No variable parameters
 
+def _processPIMDLens(lensParams, Dd, getParamValue):
+
+    positionNames = [ ]
+    lensParams, newParams = _checkParameterValues(lensParams, [ ("coreradius", "coreradius_scaled"),
+                                                                ("scaleradius", "scaleradius_scaled"),
+                                                                ("centraldensity", "centraldensity_scaled")],
+                                                  getParamValue, positionNames)
+    if lensParams:
+        raise ParametricDescriptionException("Excess parameters for PIMDLens")
+
+    return newParams, positionNames
+
 def _processPIEMDLens(lensParams, Dd, getParamValue):
 
     positionNames = [ ]
@@ -203,6 +215,18 @@ def _processLTPIEMDLens(lensParams, Dd, getParamValue):
                                                   getParamValue, positionNames)
     if lensParams:
         raise ParametricDescriptionException("Excess parameters for LTPIEMDLens")
+
+    return newParams, positionNames
+
+def _processLTPIMDLens(lensParams, Dd, getParamValue):
+
+    positionNames = [ ]
+    lensParams, newParams = _checkParameterValues(lensParams, [ ("coreradius", "coreradius_scaled"),
+                                                                ("scaleradius", "scaleradius_scaled"),
+                                                                ("velocitydispersion", "velocitydispersion_scaled")],
+                                                  getParamValue, positionNames)
+    if lensParams:
+        raise ParametricDescriptionException("Excess parameters for LTPIMDLens")
 
     return newParams, positionNames
 
@@ -780,6 +804,20 @@ def _analyzeDeflectionGridLens(lens, massUnitString, angularUnitString, convertV
         '}'
     ]
 
+def _analyzePIMDLens(lens, massUnitString, angularUnitString, convertValueFunction, objectStore, objectStoreName):
+
+    params = lens.getLensParameters()
+    sigma0Str = _convertedValueToString(convertValueFunction(params["centraldensity"], ["PIMDLens"], "centraldensity", "centraldensity_scaled", params), _getUnitlessValue)
+    coreRadStr = _convertedValueToString(convertValueFunction(params["coreradius"], ["PIMDLens"], "coreradius", "coreradius_scaled", params), lambda x: _getUnitValue(x, angularUnitString))
+    scaleRadStr = _convertedValueToString(convertValueFunction(params["scaleradius"], ["PIMDLens"], "scaleradius", "scaleradius_scaled", params), lambda x: _getUnitValue(x, angularUnitString))
+    return [
+        '{',
+        f'    "centraldensity": {sigma0Str},',
+        f'    "coreradius": {coreRadStr},',
+        f'    "scaleradius": {scaleRadStr},',
+        '}'
+    ]
+
 def _analyzePIEMDLens(lens, massUnitString, angularUnitString, convertValueFunction, objectStore, objectStoreName):
 
     params = lens.getLensParameters()
@@ -807,6 +845,20 @@ def _analyzeLTPIEMDLens(lens, massUnitString, angularUnitString, convertValueFun
         '{',
         f'    "velocitydispersion": {velDispStr},',
         f'    "ellipticity": {ellStr},',
+        f'    "coreradius": {coreRadStr},',
+        f'    "scaleradius": {scaleRadStr},',
+        '}'
+    ]
+
+def _analyzeLTPIMDLens(lens, massUnitString, angularUnitString, convertValueFunction, objectStore, objectStoreName):
+
+    params = lens.getLensParameters()
+    velDispStr = _convertedValueToString(convertValueFunction(params["velocitydispersion"], ["LTPIMDLens"], "velocitydispersion", "velocitydispersion_scaled", params), _getUnitlessValue)
+    coreRadStr = _convertedValueToString(convertValueFunction(params["coreradius"], ["LTPIMDLens"], "coreradius", "coreradius_scaled", params), lambda x: _getUnitValue(x, angularUnitString))
+    scaleRadStr = _convertedValueToString(convertValueFunction(params["scaleradius"], ["LTPIMDLens"], "scaleradius", "scaleradius_scaled", params), lambda x: _getUnitValue(x, angularUnitString))
+    return [
+        '{',
+        f'    "velocitydispersion": {velDispStr},',
         f'    "coreradius": {coreRadStr},',
         f'    "scaleradius": {scaleRadStr},',
         '}'
@@ -900,7 +952,9 @@ _supportedLensTypes = {
     "SISLens": { "handler": _processSISLens, "lens": lenses.SISLens, "analysis": _analyzeSISLens },
     "MassSheetLens": { "handler": _processMassSheetLens, "lens": lenses.MassSheetLens, "analysis": _analyzeMassSheetLens },
     "DeflectionGridLens": { "handler": _processDeflectionGridLens, "lens": lenses.DeflectionGridLens, "analysis": _analyzeDeflectionGridLens },
+    "PIMDLens" : { "handler": _processPIMDLens, "lens": lenses.PIMDLens, "analysis": _analyzePIMDLens },
     "PIEMDLens" : { "handler": _processPIEMDLens, "lens": lenses.PIEMDLens, "analysis": _analyzePIEMDLens },
+    "LTPIMDLens" : { "handler": _processLTPIMDLens, "lens": lenses.LTPIMDLens, "analysis": _analyzeLTPIMDLens },
     "LTPIEMDLens" : { "handler": _processLTPIEMDLens, "lens": lenses.LTPIEMDLens, "analysis": _analyzeLTPIEMDLens },
 }
 
