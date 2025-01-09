@@ -270,14 +270,17 @@ bool PIMDLens::getCLParameters(double deflectionScale, double potentialScale, in
 
 string PIMDLens::getPIMDMainProgram(const string &subRoutineName, const string &pimdParams, double deflectionScale, double potentialScale, bool derivatives, bool potential) const
 {
-	double Q_scaled = m_angularScale/deflectionScale;
+	double Dd = getLensDistance();
+	double densScale = SPEED_C*SPEED_C/(4.0*CONST_PI*CONST_G*getLensDistance());
+	double Q_factor = densScale*8.0*CONST_PI*CONST_G/(SPEED_C*SPEED_C)*Dd;
 
 	string program = R"XYZ(
 
 LensQuantities )XYZ" + subRoutineName + R"XYZ((float2 coord, __global const int *pIntParams, __global const float *pFloatParams)
 {)XYZ" + pimdParams + R"XYZ(
 
-	float Q_scaled = )XYZ" + float_to_string((float)Q_scaled) + R"XYZ(;
+	float Q_factor = )XYZ" + float_to_string((float)Q_factor) + R"XYZ(;
+	float Q_scaled = Q_factor * sigma0 * coreRadius*scaleRadius/(scaleRadius-coreRadius);
 	float t2 = coord.x*coord.x + coord.y*coord.y;
 
 	double sq_s = sqrt(scaleRadius*scaleRadius + t2);
