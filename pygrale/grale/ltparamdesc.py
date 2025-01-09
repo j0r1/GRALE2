@@ -14,14 +14,15 @@ import os
 
 # "x", "y", "angle", "velocitydispersion", "coreradius", "scaleradius", "ellipticity" entries
 def _addBlock(outputLines, block, factor=1):
+
+    lensName = "LTPIEMDLens"
     try:
         ellStr = block["ellipticity"].strip()
         if ellStr[-1] == ",":
             ellStr = ellStr[:-1]
         ellipt = float(ellStr)
         if ellipt == 0:
-            # TODO: create PIMDLens/LTPIMDLens OpenCL version and use this
-            block["ellipticity"] = f"0.0001, # Was really '{block['ellipticity']}' but can't use this in PIEMD lens"
+            lensName = "LTPIMDLens"
     except Exception as e:
         #print(e, file=sys.stderr)
         pass
@@ -35,15 +36,18 @@ def _addBlock(outputLines, block, factor=1):
         "angle": {block['angle']}
         "factor": {factor},
         "lens": {{
-            "type": "LTPIEMDLens",
+            "type": "{lensName}",
             "params": {{
                 "velocitydispersion": {block['velocitydispersion']}
                 "coreradius": {block['coreradius']}
                 "scaleradius": {block['scaleradius']}
-                "ellipticity": {block['ellipticity']}
-            }}
-        }}
-    }},"""
+"""
+    if lensName == "LTPIEMDLens":
+        o += f"""                "ellipticity": {block['ellipticity']}
+"""
+    o += """            }
+        }
+    },"""
     for l in o.splitlines():
         outputLines.append(l)
 
