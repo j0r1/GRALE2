@@ -310,6 +310,7 @@ Indices and tables
    grale_plotutil.rst
    grale_renderers.rst
    grale_util.rst
+   grale_editor_noninteractive.rst
    grale_editor.rst
    inversion_module_usage.rst
    internals.rst

@@ -5,8 +5,36 @@ based on a Lenstool configuration.
 
 Usage::
 
-    python -m grale.ltparamdesc ...
+    python -m grale.ltparamdesc -in mod.par -out inv.py \\
+          [-outparam desc.py] [-noRAdir] [-force] [-fromimgfile]
 
+Arguments:
+
+ - `-in mod.par`: this refers to the Lenstool input file that should be
+   processed.
+ - `-out inv.py`: this specifies the name of the main Python script that
+   is to be generated. The script will contain code to setup the inversion
+   and run it in two steps: in the first part, a good starting point for
+   all the parameters will be determined, using a GA-like approach. In
+   the second step the parameters around this point will be explored using
+   an MCMC technique to reveal information about the uncertainties of the
+   parameters.
+ - `-outparam desc.py`: if specified, this optional parameter gives the
+   name of the file that will contain the parametric description that
+   has been derived from the Lenstool input file. See the :mod:`paramdesc <grale.paramdesc>`
+   module for an explanation of such a description.
+ - `-noRAdir`: by default, the coordinates in the input file will be
+   converted so that they follow the orientation of the RA axis (so this axis
+   points left). To mirror the coordinates you can specify this flag.
+ - `-force`: by default, the program will halt instead of overwriting one
+   of the output files. To disable this safety you can set this parameter.
+ - `-fromimgfile`: the script that's generated will again read the same
+   file as specified using the `-in` option. You can also make it so that
+   the script only reads the images file, by setting this command line
+   option. If no `-outparam` is specified, then the entire parametric
+   description is stored in the output script. If the `-outparam` is
+   specified, the generated script is smaller and will read the model
+   from that file.
 """
 from .constants import *
 import sys
@@ -154,21 +182,35 @@ def createParametricDescriptionFromLenstoolInput(fileName,
     itself can also be executed from the command line to generate template inversion files.
 
     The dictionary that is returned has the following entries:
-     - ``"images"``: TODO
-     - ``"imagesFileName"``: TODO
-     - ``"cosmology"``: TODO
-     - ``"positionalUncertainty"``: TODO
-     - ``"zd"``: TODO
-     - ``"center"``: TODO
-     - ``"description"``: TODO
+
+     - ``"images"``: this is a list of the images, basically what the
+       :func:`readLenstoolInputImagesFile <grale.images.readLenstoolInputImagesFile>`
+       returns for the image file specified in the Lenstool script.
+     - ``"imagesFileName"``: the name of the images file that is stored in the Lenstool
+       script.
+     - ``"cosmology"``: an instance of :class:`Cosmology <grale.cosmology.Cosmology>`,
+       based on the settings that were read from the input file.
+     - ``"positionalUncertainty"``: the uncertainly that is applicable to the input images
+     - ``"zd"``: the redshift of the lens
+     - ``"center"``: this should be used as the center of the coordinate system, can
+       be used in a call to :func:`readLenstoolInputImagesFile <grale.images.readLenstoolInputImagesFile>`
+       for example.
+     - ``"description"``: a string containing the parametric description (see module 
+       :mod:`paramdesc <grale.paramdesc>`). You'll probably need to '`eval <https://docs.python.org/3/library/functions.html#eval>`_'
+       this to be able to actually use it, but the string representation is much more
+       readable.
 
     Arguments:
 
-     - `useRADirection`: TODO
-     - `lensDistanceString`: TODO
-     - `arcsecString`: TODO
-     - `degreeString`: TODO
-     - `kpcString`: TODO
+     - `fileName`: name of the Lenstool input file that needs to be analyzed
+     - `useRADirection`: by default, coordinates in the Lenstool file are converted
+       so that they use the RA direction (axis points left). To use mirrored coordinates
+       (as Lenstool itself does) you can set this to ``False``
+     - `lensDistanceString`: sometimes a conversion may be needed that involves the
+       lens distance. This string is used in the generated output for this.
+     - `arcsecString`: string to be used when expressing something in arcsec
+     - `degreeString`: string to be used when expressing something in degrees
+     - `kpcString`: string to be used when expressing something in kpc.
 
     """
     from . import images

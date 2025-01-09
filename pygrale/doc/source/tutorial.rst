@@ -920,6 +920,8 @@ Parametric inversion (experimental)
 
 :mod:`paramdesc <grale.paramdesc>`
 
+:mod:`ltparamdesc <grale.ltparamdesc>`
+
 .. _tut-graleeditor:
 
 GRALE Editor

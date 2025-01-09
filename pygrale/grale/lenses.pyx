@@ -30,7 +30,9 @@ directly. Instead allocate a class derived from this; currently available are
  * :class:`EllipticSersicLens`
  * :class:`ProfileLens`
  * :class:`PIEMDLens`
+ * :class:`LTPIEMDLens`
  * :class:`PIMDLens`
+ * :class:`LTPIMDLens`
  * :class:`AlphaPotLens`
  * :class:`HarmonicLens`
  * :class:`PotentialGridLens`

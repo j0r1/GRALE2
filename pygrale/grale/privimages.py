@@ -147,6 +147,9 @@ def readLenstoolInputImagesFile(fileName, centerOn, useRADirection = True):
     based on the center position `centerOn`. By default, the orientation of the
     RA-axis will be used, in case you'd prefer to mirror this the `useRADirection`
     flag can be set to ``False``.
+
+    This function internally uses :func:`readInputImagesFile`, look there for a
+    description of the output.
     """
     from .images import centerOnPosition
     from .constants import ANGLE_DEGREE
