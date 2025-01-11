@@ -144,6 +144,8 @@ std::vector<CLFloatParamInfo> SISLens::getCLAdjustableFloatingPointParameterInfo
 std::string SISLens::getCLProgram(double deflectionScale, double potentialScale, std::string &subRoutineName, bool derivatives, bool potential) const
 {
 	std::string program;
+	// NOTE: hardcoding these will be OK since it only depends on values that stay fixed,
+	//       even when another SISLens instance is present
 	float einstRadFactor = (float)(((4.0*CONST_PI/(SPEED_C*SPEED_C)) * velScale*velScale)/deflectionScale);
 	float potentialFactor = (float)(deflectionScale*deflectionScale/potentialScale);
 

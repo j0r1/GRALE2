@@ -154,6 +154,8 @@ std::unique_ptr<GravitationalLensParams> MassSheetLens::createLensParamFromCLFlo
 std::string MassSheetLens::getCLProgram(double deflectionScale, double potentialScale, std::string &subRoutineName, bool derivatives, bool potential) const
 {
 	std::string program;
+	// NOTE: hardcoding this will be OK since it only depends on values that stay fixed,
+	//       even when another MassSheetLens instance is present
 	float potentialScaleFactor = (float)(0.5*deflectionScale*deflectionScale/potentialScale); // scale factor for potential
 
 	program += R"XYZ(

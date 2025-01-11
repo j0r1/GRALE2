@@ -178,6 +178,8 @@ std::vector<CLFloatParamInfo> PlummerLens::getCLAdjustableFloatingPointParameter
 std::string PlummerLens::getCLProgram(double deflectionScale, double potentialScale, std::string &subRoutineName, bool derivatives, bool potential) const
 {
 	std::string program;
+	// NOTE: hardcoding this will be OK since it only depends on values that stay fixed,
+	//       even when another PlummerLens instance is present
 	float potentialPrefactor =(float)(deflectionScale*deflectionScale/(potentialScale*2.0));
 
 	program = R"XYZ(

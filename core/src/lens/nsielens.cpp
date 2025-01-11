@@ -200,6 +200,8 @@ std::vector<CLFloatParamInfo> NSIELens::getCLAdjustableFloatingPointParameterInf
 std::string NSIELens::getCLProgram(double deflectionScale, double potentialScale, std::string &subRoutineName, bool derivatives, bool potential) const
 {
 	subRoutineName = "clNSIELensProgram";
+	// NOTE: hardcoding these will be OK since it only depends on values that stay fixed,
+	//       even when another NSIELens instance is present
 	float extraFactor = (float)((4.0*CONST_PI*velScale*velScale/(SPEED_C*SPEED_C))/deflectionScale);
 	float potentialPrefactor = (float)(deflectionScale*deflectionScale/potentialScale);
 

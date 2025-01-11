@@ -272,6 +272,8 @@ string PIMDLens::getPIMDMainProgram(const string &subRoutineName, const string &
 {
 	double Dd = getLensDistance();
 	double densScale = SPEED_C*SPEED_C/(4.0*CONST_PI*CONST_G*getLensDistance());
+	// NOTE: hardcoding this will be OK since it only depends on values that stay fixed,
+	//       even when another PIMDLens instance is present
 	double Q_factor = densScale*8.0*CONST_PI*CONST_G/(SPEED_C*SPEED_C)*Dd;
 
 	string program = R"XYZ(
@@ -395,6 +397,8 @@ string LTPIMDLens::getCLProgram(double deflectionScale, double potentialScale, s
 	subRoutineName = "clLTPIMDLensProgram";
 
 	// Same as in LTPIEMDLens
+	// NOTE: hardcoding this will be OK since it only depends on values that stay fixed,
+	//       even when another LTPIMDLens instance is present
 	double finalDensScale = ((velScale/SPEED_C)*(velScale/SPEED_C)*CONST_PI)/deflectionScale;
 
 	string pimdParams = R"XYZ(

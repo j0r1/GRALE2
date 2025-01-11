@@ -578,6 +578,8 @@ string LTPIEMDLens::getCLProgram(double deflectionScale, double potentialScale, 
 	//double densScale = SPEED_C*SPEED_C/(4.0*CONST_PI*CONST_G*getLensDistance()); // sigma0 should be in these units
 	//double sigma0ScaleFactor = (velScale*velScale)/(4.0*CONST_G*Dd*deflectionScale);
 	//double finalDensScale = sigma0ScaleFactor/densScale;
+	// NOTE: hardcoding this will be OK since it only depends on values that stay fixed,
+	//       even when another LTPIEMDLens instance is present
 	double finalDensScale = ((velScale/SPEED_C)*(velScale/SPEED_C)*CONST_PI)/deflectionScale;
 
 	string piemdParams = R"XYZ(
