@@ -1,3 +1,8 @@
+"""This module contains functionality to script some of the operations
+you'd normally perform manually inside the :ref:`GRALE Editor <graleeditor>`.
+You'll need to have a working graphical environment in which it would
+be possible to just start the GRALE Editor, otherwise this will not work.
+"""
 from base import GraphicsView, Layer
 import scenes
 import sys
@@ -14,9 +19,12 @@ import numpy as np
 from grale.constants import ANGLE_ARCSEC
 
 class SceneViewDesciptionException(Exception):
+    """TODO"""
     pass
 
 class SceneViewDesciption(object):
+    """TODO"""
+
     def __init__(self, json_obj_fn = None):
         if json_obj_fn is None:
             self.clear()
