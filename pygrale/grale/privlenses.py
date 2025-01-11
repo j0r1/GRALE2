@@ -124,6 +124,19 @@ def _getLenstoolPotFileModelsFromLines(lines, zd, Dd, baseDir):
 
         refCtr = None
 
+        # Add dummy lens that keeps track of best parameters
+        newLensParams.append({
+            "x": 0,
+            "y": 0,
+            "factor": 0,
+            "angle": 0,
+            "lens": lenses.LTPIMDLens(Dd, {
+                "velocitydispersion": velDisp0,
+                "coreradius": core0,
+                "scaleradius": cut0,
+            })
+        })
+
         for l in open(fileName, "rt"):
             l = l.strip()
             if l.startswith("#REFERENCE"):
@@ -148,8 +161,8 @@ def _getLenstoolPotFileModelsFromLines(lines, zd, Dd, baseDir):
                 "y": pos[1],
                 "factor": 1,
                 "angle": 0,
-                "lens": lenses.PIMDLens(Dd, {
-                    "centraldensity": lenses.PIEMDLens.getCentralDensityFromVelocityDispersion(velDisp, core, cut, Dd),
+                "lens": lenses.LTPIMDLens(Dd, {
+                    "velocitydispersion": velDisp,
                     "coreradius": core,
                     "scaleradius": cut,
                 })
@@ -224,14 +237,11 @@ def createLensFromLenstoolFile(inputData, mirrorX = False, cosmology = None):
         s = info["cut_radius"]*ANGLE_ARCSEC if "cut_radius" in info else info["cut_radius_kpc"]/(Dd/DIST_KPC)
         sigma = info["v_disp"]*1000
 
-        centralDensity = lenses.PIEMDLens.getCentralDensityFromVelocityDispersion(sigma, a, s, Dd)
-        eps = lenses.PIEMDLens.getEpsilonFromEllipticity(epsHat)
+        if epsHat == 0: # Can't use PIEMDLens for this
+            return lenses.LTPIMDLens(Dd, { "velocitydispersion": sigma, "coreradius": a, "scaleradius": s })
 
-        if eps == 0: # Can't use PIEMDLens for this
-            return lenses.PIMDLens(Dd, { "centraldensity": centralDensity, "coreradius": a, "scaleradius": s })
-
-        return lenses.PIEMDLens(Dd, { "centraldensity": centralDensity, "coreradius": a, "scaleradius": s,
-                                      "epsilon": eps })
+        return lenses.LTPIEMDLens(Dd, { "velocitydispersion": sigma, "coreradius": a, "scaleradius": s,
+                                        "ellipticity": epsHat })
 
     _lenstoolPotentialHandlers = { 81: _ltPIEMDHandler }
 
