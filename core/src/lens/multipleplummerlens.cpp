@@ -257,13 +257,15 @@ bool MultiplePlummerLens::getSuggestedScales(double *pDeflectionScale, double *p
 
 bool MultiplePlummerLens::getCLParameterCounts(int *pNumIntParams, int *pNumFloatParams) const
 {
-	*pNumIntParams = 0;
+	*pNumIntParams = 1; // Can't hardcode this, would be incorrect when several MultiplePlummerLens instances are present
 	*pNumFloatParams = 4*numlenses;
 	return true;
 }
 
 bool MultiplePlummerLens::getCLParameters(double deflectionScale, double potentialScale, int *pIntParams, float *pFloatParams) const
 {
+	pIntParams[0] = numlenses;
+
 	for (int i = 0 ; i < numlenses ; i++)
 	{
 		double scaledWidth = lensinfo[i].getAngularWidth()*scalefactor/deflectionScale;
@@ -318,6 +320,8 @@ std::unique_ptr<GravitationalLensParams> MultiplePlummerLens::createLensParamFro
 std::string MultiplePlummerLens::getCLProgram(double deflectionScale, double potentialScale, std::string &subRoutineName, bool derivatives, bool potential) const
 {
 	std::string prog;
+	// NOTE: hardcoding this will be OK since it only depends on values that stay fixed,
+	//       even when another MultiplePlummerLens instance is present
 	float potentialPrefactor = (float)(deflectionScale*deflectionScale/(2.0*potentialScale));
 
 	prog += R"XYZ(
@@ -325,7 +329,8 @@ LensQuantities clMultiplePlummerLensProgram(float2 coord, __global const int *pI
 {
 	LensQuantities r = { 0 } ;
 
-	for (int i = 0 ; i < )XYZ" + std::to_string(numlenses) +  R"XYZ( ; i++)
+	const int numLenses = pIntParams[0];
+	for (int i = 0 ; i < numLenses ; i++)
 	{
 		int i4 = i*4;
 		float scaledMass = pFloatParams[i4+0];
