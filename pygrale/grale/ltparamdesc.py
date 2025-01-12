@@ -5,7 +5,7 @@ based on a Lenstool configuration.
 
 Usage::
 
-    python -m grale.ltparamdesc -in mod.par -out inv.py \\
+    python -m grale.ltparamdesc -in mod.par (-out inv.py | -exec)\\
           [-outparam desc.py] [-noRAdir] [-force] [-fromimgfile]
 
 Arguments:
@@ -37,8 +37,14 @@ Arguments:
    from that file.
 """
 from .constants import *
+from . import cosmology
+from . import images
+from . import inversion
+from . import paramdesc
 import sys
 import os
+from io import StringIO
+import traceback
 
 # "x", "y", "angle", "velocitydispersion", "coreradius", "scaleradius", "ellipticity" entries
 def _addBlock(outputLines, block, factor=1):
@@ -81,8 +87,6 @@ def _addBlock(outputLines, block, factor=1):
 
 def _processPotfileFile(fileName, mag0, slope, vdSlope, coreStr, bsSigma, bsCut, vdVarName, cutVarName,
                         useRADirection, lensDistanceString, arcsecString, degreeString, kpcString):
-
-    from . import images
 
     outputLines = []
 
@@ -213,8 +217,6 @@ def createParametricDescriptionFromLenstoolInput(fileName,
      - `kpcString`: string to be used when expressing something in kpc.
 
     """
-    from . import images
-    from . import cosmology
 
     lines = open(fileName, "rt").readlines()
 
@@ -553,7 +555,7 @@ initialParamDesc = eval(r["description"]) # 'description' holds a string, we mus
 def usage():
     print("""
 Usage:
-    python -m grale.ltparamdesc -in mod.par -out inv.py [-outparam desc.py] [-noRAdir] [-force] [-fromimgfile]
+    python -m grale.ltparamdesc -in mod.par (-out inv.py | -exec) [-outparam desc.py] [-noRAdir] [-force] [-fromimgfile]
 """, file=sys.stderr)
     sys.exit(-1)
 
@@ -565,6 +567,7 @@ def main():
     useRADir = True
     force = False
     fromImgFileName = False
+    execScript = False
 
     try:
         while idx < len(sys.argv):
@@ -584,6 +587,8 @@ def main():
                 force = True
             elif opt == "-fromimgfile":
                 fromImgFileName = True
+            elif opt == "-exec":
+                execScript = True
             else:
                 raise Exception(f"Unknown option '{opt}'")
 
@@ -591,14 +596,14 @@ def main():
 
         if not ltCfgFn:
             raise Exception("Input file needs to be set using '-in'")
-        if not outFn:
-            raise Exception("Output file needs to be set using '-out'")
+        if not execScript and not outFn:
+            raise Exception("Output file needs to be set using '-out' if '-exec' is not set")
     except Exception as e:
         print(f"ERROR: {e}", file=sys.stderr)
         usage()
 
     try:
-        if os.path.exists(outFn) and not force:
+        if outFn and os.path.exists(outFn) and not force:
             raise Exception(f"Output file '{outFn}' already exists, use '-force' to continue anyway")
         if outParamFn and os.path.exists(outParamFn) and not force:
             raise Exception(f"Output parameters file {outParamFn} already exists, use '-force' to continue anyway")
@@ -607,21 +612,21 @@ def main():
         if outParamFn:
             open(outParamFn, "wt").write(r["description"])
 
-        with open(outFn, "wt") as f:
-            if fromImgFileName:
-                _startFromImgFileName(f, r, useRADir, outParamFn)
-            else:
-                _startFromLtConfig(f, ltCfgFn, useRADir)
-                if outParamFn:
-                    print(f"Warning: parameter file name '{outParamFn}' will not be used in this inversion mode", file=sys.stderr)
+        stringOutput = StringIO()
+        if fromImgFileName:
+            _startFromImgFileName(stringOutput, r, useRADir, outParamFn)
+        else:
+            _startFromLtConfig(stringOutput, ltCfgFn, useRADir)
+            if outParamFn:
+                print(f"Warning: parameter file name '{outParamFn}' will not be used in this inversion mode", file=sys.stderr)
 
-            mcmcGenerations = 5000
-            popSize = 512
+        mcmcGenerations = 5000
+        popSize = 512
 
-            print("""# This is a helper function that will be called later. It performs the first
+        print("""# This is a helper function that will be called later. It performs the first
 # inversion, not using MCMC but using the genetic algorithm to find a single
 # best solution for this parametric description
-def initialInversion(imgList, paramDesc):
+def initialInversion(zd, imgList, paramDesc, positionalUncertainty):
 
     # This configures the inversion code to continuously add some random noise
     # to the input positions, to prevent overfitting
@@ -654,7 +659,7 @@ def initialInversion(imgList, paramDesc):
 # This is the second helper function, that will be called with the refined
 # parametric description. It uses the Goodman-Weare algorithm (same as 'emcee')
 # to explore the parameter space
-def mcmcInversion(imgList, paramDesc):
+def mcmcInversion(zd, imgList, paramDesc, positionalUncertainty):
 
     iws = inversion.InversionWorkSpace(zd, 100*ANGLE_ARCSEC)
     for i in imgList:
@@ -691,13 +696,24 @@ def mcmcInversion(imgList, paramDesc):
     pickle.dump(reducedParamInfo, open("paraminfo.dat", "wb"))
 
 # Run the initial inversion to get a good starting point for the MCMC part
-newParamDesc = initialInversion(imgList, initialParamDesc)
+newParamDesc = initialInversion(zd, imgList, initialParamDesc, positionalUncertainty)
 # Do the actual MCMC inversion
-mcmcInversion(imgList, newParamDesc)
+mcmcInversion(zd, imgList, newParamDesc, positionalUncertainty)
 
-""", file=f)
+""", file=stringOutput)
+
+        finalScript = stringOutput.getvalue()
+        if outFn:
+            with open(outFn, "wt") as f:
+                f.write(finalScript)
+
+        if execScript:
+            print("Executing final script:")
+            exec(finalScript)
+
     except Exception as e:
         print(f"ERROR: {e}", file=sys.stderr)
+        traceback.print_exc()
         sys.exit(-1)
 
 if __name__ == "__main__":
