@@ -6,7 +6,8 @@ based on a Lenstool configuration.
 Usage::
 
     python -m grale.ltparamdesc -in mod.par (-out inv.py | -exec)\\
-          [-outparam desc.py] [-noRAdir] [-force] [-fromimgfile]
+          [-outparam desc.py] [-noRAdir] [-force] [-fromimgfile] \\
+          [-popsize 512] [-mcmcgen 5000]
 
 Arguments:
 
@@ -19,6 +20,8 @@ Arguments:
    the second step the parameters around this point will be explored using
    an MCMC technique to reveal information about the uncertainties of the
    parameters.
+ - `-exec`: if set, the `-out` option may be omitted and the resulting
+   script will be executed
  - `-outparam desc.py`: if specified, this optional parameter gives the
    name of the file that will contain the parametric description that
    has been derived from the Lenstool input file. See the :mod:`paramdesc <grale.paramdesc>`
@@ -35,6 +38,11 @@ Arguments:
    description is stored in the output script. If the `-outparam` is
    specified, the generated script is smaller and will read the model
    from that file.
+ - `-popsize 512`: sets the population size for initial inversion and MCMC
+   parts in the generated script. Defaults to 512
+ - `-mcmcgen 5000`: sets the number of generations/steps to perform during
+   the MCMC exploration, half of this will be considered as burn-in. Defaults
+   to 5000.
 """
 from .constants import *
 from . import cosmology
@@ -45,6 +53,7 @@ import sys
 import os
 from io import StringIO
 import traceback
+import pickle
 
 # "x", "y", "angle", "velocitydispersion", "coreradius", "scaleradius", "ellipticity" entries
 def _addBlock(outputLines, block, factor=1):
@@ -568,6 +577,8 @@ def main():
     force = False
     fromImgFileName = False
     execScript = False
+    mcmcGenerations = 5000
+    popSize = 512
 
     try:
         while idx < len(sys.argv):
@@ -589,6 +600,12 @@ def main():
                 fromImgFileName = True
             elif opt == "-exec":
                 execScript = True
+            elif opt == "-mcmcgen":
+                mcmcGenerations = int(sys.argv[idx+1])
+                idx += 1
+            elif opt == "-popsize":
+                popSize = int(sys.argv[idx+1])
+                idx += 1
             else:
                 raise Exception(f"Unknown option '{opt}'")
 
@@ -620,8 +637,7 @@ def main():
             if outParamFn:
                 print(f"Warning: parameter file name '{outParamFn}' will not be used in this inversion mode", file=sys.stderr)
 
-        mcmcGenerations = 5000
-        popSize = 512
+
 
         print("""# This is a helper function that will be called later. It performs the first
 # inversion, not using MCMC but using the genetic algorithm to find a single
