@@ -131,7 +131,7 @@ def _processPotfileFile(fileName, mag0, slope, vdSlope, coreStr, bsSigma, bsCut,
         if "{" in vdispStr:
             vdispStr += f", # initial range and possibly hard limits are not used, the settings of {vdVarName} will be used, "
         else:
-            vdispStr += "(" + vdispStr + f") * {velDispFactor}, # "
+            vdispStr = "(" + vdispStr + f") * {velDispFactor}, # "
         vdispStr += f"factor comes from 10**(0.4*({mag0}-{mag})/{vdSlope})"
 
         if "{" in cutStr:
