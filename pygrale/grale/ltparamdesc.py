@@ -638,7 +638,8 @@ def initialInversion(imgList, paramDesc):
 
     # Invert!
     startLens, _, _, _, _ = iws.invertParametric(paramDesc, """ + str(popSize) + """, eaType = "JADE",
-                                                 fitnessObjectParameters = { "fitness_bayesweaklensing_stronglenssigma": positionalUncertainty }
+                                                 fitnessObjectParameters = { "fitness_bayesweaklensing_stronglenssigma": positionalUncertainty },
+                                                 useImagePositionRandomization=True # Needs to be set for the addPositionUncertainty to have effect
                                                  )
 
     startLens.save("startInv.lensdata")
