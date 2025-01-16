@@ -43,7 +43,18 @@ public:
 					   // This then determines the length of the origin parameters,
 					   // which can be checked against the argument below
 					   const std::vector<std::pair<size_t, std::string>> &originParameters,
-					   size_t numOriginParameters // 0 is disable
+					   size_t numOriginParameters, // 0 is disable
+
+					   // Empty mean no reprojection, otherwise where int is >= 0 specifies
+					   // the thetas that should be retraced, and specifies a source identifier.
+					   // The float is the distance fraction.
+					   //
+					   // The idea is: trace each of these points to the source plane (kernel), use the
+					   // identifier to know which belong together so an average source pos can be
+					   // calculated (kernel) and retrace the points based on this (kernel). Should
+					   // also store the last difference in the source plane to check how well it
+					   // succeeded
+					   const std::vector<std::pair<int, float>> &recalcThetaInfo = { }
 					   );
 
 	void destroy();
@@ -89,6 +100,10 @@ protected:
 	std::vector<cl_float> m_allFloatParams; // repeats of float params
 	std::vector<cl_float> m_allResultsBuffer;
 	std::vector<size_t> m_changeableParameterIndices;
+
+	errut::bool_t initRecalc(const std::vector<std::pair<int, float>> &recalcThetaInfo);
+
+	bool m_recalcThetas = false;
 };
 
 // Using same single instance code as in OpenCLMultiPlaneCalculator (for multiplane)

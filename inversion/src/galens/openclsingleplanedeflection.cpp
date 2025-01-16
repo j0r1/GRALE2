@@ -32,7 +32,9 @@ bool_t OpenCLSinglePlaneDeflection::init(const std::vector<Vector2Df> &thetas, /
 					   int devIdx,
 					   uint64_t initialUncertSeed,
 					   const std::vector<std::pair<size_t, std::string>> &originParameters,
-					   size_t numOriginParameters)
+					   size_t numOriginParameters,
+					   const std::vector<std::pair<int, float>> &recalcThetaInfo
+					   )
 {
 	if (m_init)
 		return "Already initialized";
@@ -403,6 +405,12 @@ __kernel void fetchOriginParameters(int numChangeableParams, int numOriginParams
 			return cleanup("No origin parameters specified, but expected size is not zero");
 	}
 
+	if (recalcThetaInfo.size() > 0)
+	{
+		if (!(r = initRecalc(recalcThetaInfo)))
+			return cleanup(r.getErrorString());
+	}
+
 	// Ok
 
 	m_numOriginParams = numOriginParameters;
@@ -416,6 +424,11 @@ __kernel void fetchOriginParameters(int numChangeableParams, int numOriginParams
 	m_init = true;
 	m_devIdx = devIdx;
 
+	return true;
+}
+
+errut::bool_t OpenCLSinglePlaneDeflection::initRecalc(const std::vector<std::pair<int, float>> &recalcThetaInfo)
+{
 	return true;
 }
 
