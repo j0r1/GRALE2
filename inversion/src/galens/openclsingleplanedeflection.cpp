@@ -214,7 +214,7 @@ __kernel void calculateDeflectionAngles(int numPoints, int numParamSets, int num
 	// Upload only the changed parameters (we'll need an extra kernel)
 	{
 		if (changeableParameterIndices.size() == 0)
-			return "No changeable parameters";
+			return cleanup("No changeable parameters");
 
 		vector<cl_int> clChangeableParams;
 		for (auto x : changeableParameterIndices)
@@ -227,7 +227,7 @@ __kernel void calculateDeflectionAngles(int numPoints, int numParamSets, int num
 
 		// Make sure enough is allocated for use in getChangeableParametersFromOriginParameters
 		if (!(r = m_clChangedParamsBuffer.realloc(*cl, ctx, sizeof(cl_float)*changeableParameterIndices.size() )))
-			return "Can't allocate initial changed parameters buffer: " + r.getErrorString();
+			return "Can't allocate initial changed parameters buffer: " + cleanup(r.getErrorString());
 
 		// And create kernel to incorporate changed parameters into full parameters
 
@@ -308,10 +308,10 @@ __kernel void randomizeImagePlanePositions(int numPoints,
 	if (originParameters.size() > 0)
 	{
 		if (numOriginParameters == 0)
-			return "Origin parameters specified, but size was set to 0";
+			return cleanup("Origin parameters specified, but size was set to 0");
 
 		if (originParameters.size() != changeableParameterIndices.size())
-			return "Origin parameters array length must be same as changeable parameters";
+			return cleanup("Origin parameters array length must be same as changeable parameters");
 
 		vector<bool> originParameterUsed(numOriginParameters, false);
 		vector<cl_int> originParameterIndices;
@@ -323,7 +323,7 @@ __kernel void randomizeImagePlanePositions(int numPoints,
 			const auto & [srcIdx, code ] = originParameters[destIdx];
 			originParameterIndices.push_back(srcIdx);
 			if (srcIdx >= originParameterUsed.size()) 
-				return "Invalid source index " + to_string(srcIdx) + " for origin parameter (length is " + to_string(numOriginParameters) + ")";
+				return cleanup("Invalid source index " + to_string(srcIdx) + " for origin parameter (length is " + to_string(numOriginParameters) + ")");
 			originParameterUsed[srcIdx] = true;
 
 			if (code.length() > 0) // code should be in curly braces, with return statement
@@ -343,7 +343,7 @@ __kernel void randomizeImagePlanePositions(int numPoints,
 		for (size_t srcIdx = 0 ; srcIdx < originParameterUsed.size() ; srcIdx++)
 		{
 			if (!originParameterUsed[srcIdx])
-				return "Index " + to_string(srcIdx) + " of the " + to_string(numOriginParameters) + " origin parameters is not used";
+				return cleanup("Index " + to_string(srcIdx) + " of the " + to_string(numOriginParameters) + " origin parameters is not used");
 		}
 
 		if (!(r = m_clOriginParamIndices.realloc(*cl, ctx, sizeof(cl_int)*originParameterIndices.size())) ||
@@ -400,7 +400,7 @@ __kernel void fetchOriginParameters(int numChangeableParams, int numOriginParams
 	else
 	{
 		if (numOriginParameters != 0)
-			return "No origin parameters specified, but expected size is not zero";
+			return cleanup("No origin parameters specified, but expected size is not zero");
 	}
 
 	// Ok
