@@ -7,7 +7,7 @@ Usage::
 
     python -m grale.ltparamdesc -in mod.par (-out inv.py | -exec)\\
           [-outparam desc.py] [-noRAdir] [-force] [-fromimgfile] \\
-          [-popsize 512] [-mcmcgen 5000]
+          [-popsize 512] [-mcmcgen 5000] [-outfnsuffix suff]
 
 Arguments:
 
@@ -43,6 +43,8 @@ Arguments:
  - `-mcmcgen 5000`: sets the number of generations/steps to perform during
    the MCMC exploration, half of this will be considered as burn-in. Defaults
    to 5000.
+ - `-outfnsuffix suff`: for the output file names in the script, use this
+   as the suffix (default is empty).
 """
 from .constants import *
 from . import cosmology
@@ -579,6 +581,7 @@ def main():
     execScript = False
     mcmcGenerations = 5000
     popSize = 512
+    outFnSuffix = ""
 
     try:
         while idx < len(sys.argv):
@@ -605,6 +608,9 @@ def main():
                 idx += 1
             elif opt == "-popsize":
                 popSize = int(sys.argv[idx+1])
+                idx += 1
+            elif opt == "-outfnsuffix":
+                outFnSuffix = sys.argv[idx+1]
                 idx += 1
             else:
                 raise Exception(f"Unknown option '{opt}'")
@@ -639,7 +645,7 @@ def main():
 
 
 
-        print("""# This is a helper function that will be called later. It performs the first
+        print(f"""# This is a helper function that will be called later. It performs the first
 # inversion, not using MCMC but using the genetic algorithm to find a single
 # best solution for this parametric description
 def initialInversion(zd, imgList, paramDesc, positionalUncertainty):
@@ -658,12 +664,12 @@ def initialInversion(zd, imgList, paramDesc, positionalUncertainty):
         iws.addImageDataToList(i["imgdata"], i["z"], "bayesstronglensing")
 
     # Invert!
-    startLens, _, _, _, _ = iws.invertParametric(paramDesc, """ + str(popSize) + """, eaType = "JADE",
-                                                 fitnessObjectParameters = { "fitness_bayesweaklensing_stronglenssigma": positionalUncertainty },
+    startLens, _, _, _, _ = iws.invertParametric(paramDesc, {popSize}, eaType = "JADE",
+                                                 fitnessObjectParameters = {{ "fitness_bayesweaklensing_stronglenssigma": positionalUncertainty }},
                                                  useImagePositionRandomization=True # Needs to be set for the addPositionUncertainty to have effect
                                                  )
 
-    startLens.save("startInv.lensdata")
+    startLens.save("startInv{outFnSuffix}.lensdata")
 
     # This routine will create a modified parametric description, where
     # the initial parameter ranges will be close to the value from the
@@ -686,22 +692,22 @@ def mcmcInversion(zd, imgList, paramDesc, positionalUncertainty):
 
     # Well run the algorithm for several generation, half of which will be
     # ignored as burn-in samples
-    totalGenerations = """ + str(mcmcGenerations) + """
+    totalGenerations = {mcmcGenerations}
     burnInGenerations = totalGenerations//2
 
     # We'll also specify the file to which the samples are written
-    mcmcParams = { "burningenerations": burnInGenerations, "samplesfilename": "samples.dat" }
+    mcmcParams = {{ "burningenerations": burnInGenerations, "samplesfilename": "samples{outFnSuffix}.dat" }}
 
     # This specifies that all strong lensing images are considered to have an
     # uncertainty
-    fitParams = { "fitness_bayesweaklensing_stronglenssigma": positionalUncertainty }
+    fitParams = {{ "fitness_bayesweaklensing_stronglenssigma": positionalUncertainty }}
 
     # Run the MCMC algorithm! It will move several 'walkers' around, for several generations.
-    lens, _, _, reducedParamInfo, _ = iws.invertParametric(paramDesc, """ + str(popSize) + """, maximumGenerations = totalGenerations, eaType = "MCMC", 
+    lens, _, _, reducedParamInfo, _ = iws.invertParametric(paramDesc, {popSize}, maximumGenerations = totalGenerations, eaType = "MCMC", 
                                                  geneticAlgorithmParameters=mcmcParams, fitnessObjectParameters=fitParams,
                                                  clampToHardLimits=True)
 
-    lens.save("mcmcInv.lensdata")
+    lens.save("mcmcInv{outFnSuffix}.lensdata")
 
     # To interpret the samples that are written to file, we also write out the
     # information about the parameters that are being varied. These parameters
@@ -709,7 +715,7 @@ def mcmcInversion(zd, imgList, paramDesc, positionalUncertainty):
     # calculations, and it's those scaled values that are written to the file.
     # The 'paramInfo' list contains the scale factors to convert the values from
     # file to the real values.
-    pickle.dump(reducedParamInfo, open("paraminfo.dat", "wb"))
+    pickle.dump(reducedParamInfo, open("paraminfo{outFnSuffix}.dat", "wb"))
 
 # Run the initial inversion to get a good starting point for the MCMC part
 newParamDesc = initialInversion(zd, imgList, initialParamDesc, positionalUncertainty)
