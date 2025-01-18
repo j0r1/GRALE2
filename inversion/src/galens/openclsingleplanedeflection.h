@@ -69,7 +69,12 @@ public:
 									  std::vector<float> &allAyy,
 									  std::vector<float> &allAxy,
 									  std::vector<float> &allPotentials
+									  // TODO
+									  // std::vector<std::pair<Vector2Df,float>> &tracedThetasAndBetaDiffs
 									  );
+	// TODO: some function to get mapping from these tracedThetasAndBetaDiffs positions
+	//       to the actual thetas during initialization
+
 	// should have numChangebleParams * numParamSets length
 	//     Here we can either modify the full parameters on the CPU and upload
 	//     these, or upload only these parameters and let a kernel change them
@@ -101,7 +106,7 @@ protected:
 	std::vector<cl_float> m_allResultsBuffer;
 	std::vector<size_t> m_changeableParameterIndices;
 
-	errut::bool_t initRecalc(const std::vector<std::pair<int, float>> &recalcThetaInfo);
+	errut::bool_t initRecalc(size_t numTotalPoints, const std::vector<std::pair<int, float>> &recalcThetaInfo);
 
 	bool m_recalcThetas = false;
 };

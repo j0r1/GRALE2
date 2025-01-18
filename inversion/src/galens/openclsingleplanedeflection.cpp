@@ -1,6 +1,7 @@
 #include "openclsingleplanedeflection.h"
 #include "xoshiro128plus.h"
 #include "opencl_xoshiro128plus.h"
+#include <map>
 
 using namespace std;
 using namespace errut;
@@ -407,7 +408,10 @@ __kernel void fetchOriginParameters(int numChangeableParams, int numOriginParams
 
 	if (recalcThetaInfo.size() > 0)
 	{
-		if (!(r = initRecalc(recalcThetaInfo)))
+		if (recalcThetaInfo.size() != thetas.size())
+			return cleanup("Recalculate thetas vector should be of equal length as the thetas vector (" + to_string(recalcThetaInfo.size())
+					       + " != " + to_string(thetas.size()) + ")");
+		if (!(r = initRecalc(thetas.size(), recalcThetaInfo)))
 			return cleanup(r.getErrorString());
 	}
 
@@ -427,8 +431,143 @@ __kernel void fetchOriginParameters(int numChangeableParams, int numOriginParams
 	return true;
 }
 
-errut::bool_t OpenCLSinglePlaneDeflection::initRecalc(const std::vector<std::pair<int, float>> &recalcThetaInfo)
+errut::bool_t OpenCLSinglePlaneDeflection::initRecalc(size_t numTotalPoints, const std::vector<std::pair<int, float>> &recalcThetaInfo)
 {
+	// Build maps for distance fractions and points for sources
+
+	map<size_t, float> sourceDfrac;
+	map<size_t, vector<size_t>> sourceThetas;
+
+	for (size_t tIdx = 0 ; tIdx < recalcThetaInfo.size() ; tIdx++)
+	{
+		auto [ srcIdx, dfrac ] = recalcThetaInfo[tIdx];
+		if (srcIdx < 0) // signals not used
+			continue;
+
+		size_t src = (size_t)srcIdx;
+		auto itFrac = sourceDfrac.find(src);
+		if (itFrac == sourceDfrac.end())
+			sourceDfrac[src] = dfrac;
+		else
+		{
+			if (itFrac->second != dfrac)
+				return "Incompatible distance fraction for source " + to_string(src) + ", point idx " + to_string(tIdx) + ": expecting "
+					   + to_string(itFrac->second) + " but got " + to_string(dfrac);
+		}
+
+		auto itPoints = sourceThetas.find(src);
+		if (itPoints == sourceThetas.end())
+			sourceThetas[src] = { tIdx };
+		else
+		{
+			auto &positions = itPoints->second;
+			assert(positions.size() >= 1);
+			assert(tIdx >= 1);
+			assert(tIdx < numTotalPoints);
+
+			if (positions.back()+1 != tIdx)
+				return "Expecting points from same source to be consecutive: for source " + to_string(src) + " index " + to_string(tIdx)
+					   + " does not follow " + to_string(positions.back());
+			positions.push_back(tIdx);
+		}
+	}
+
+	// Build mappings, in general these arrays will be shorter than the total number of points
+	// The backproject kernel and reproject kernel will have this size in one dimension
+
+	vector<size_t> thetaIndices;
+	vector<float> imgDfracs;
+
+	// Where the thetaIndices start for each source, and how many points it has for that source
+	// This is needed to calculate the average of the backprojected points
+	vector<size_t> sourceStart;
+	vector<size_t> sourceNumImages;
+
+	for (const auto& [ src, thetas ] : sourceThetas)
+	{
+		assert(sourceDfrac.find(src) != sourceDfrac.end());
+		float dfrac = sourceDfrac[src];
+
+		sourceStart.push_back(thetaIndices.size()); // this is the start pos at that instant
+		sourceNumImages.push_back(thetas.size());
+
+		for (auto t : thetas)
+		{
+			thetaIndices.push_back(t);
+			imgDfracs.push_back(dfrac);
+		}
+	}
+
+	assert(thetaIndices.size() == imgDfracs.size());
+	assert(thetaIndices.size() <= numTotalPoints);
+
+/*
+__kernel void backprojectKernel(int numBpPoints, int numParamSets,
+								__global const float *pFullThetas, // Can be either with or without randomization
+								__global const int *pBpThetaIndices,
+								__global const float *pDistFrac,
+								__global const int *pIntParams,
+								__global const float *pFloatParamsBase,
+								__global float *pAllBetas,
+)
+{
+	const int ptIdx = get_global_id(0);
+	if (ptIdx >= numBpPoints)
+		return;
+	const int paramSet = get_global_id(1);
+	if (paramSet >= numParamSets)
+		return;
+	
+	int thetaIdx = pBpThetaIndices[ptIdx] * 2; // *2 for two float components
+	float2 theta = (float2)(pFullThetas[thetaIdx+0], pFullThetas[thetaIdx+1]);
+	float dfrac = pDistFrac[ptIdx];
+
+	__global const float *pFloatParams = pFloatParamsBase + paramSet*numFloatParams;
+	LensQuantities r = TODO_LENSROUTINE_NAME(theta, pIntParams, pFloatParams);
+
+	__global float *pBetas = pAllBetas + 2*numBpPoints*paramSet;
+	int resultOffset = 2*ptIdx;
+
+	pBetas[resultOffset+0] = theta.x - dfrac * r.alphaX;
+	pBetas[resultOffset+1] = theta.y - dfrac * r.alphaY;
+}
+
+__kernel void averageSourcePositions(int numSources, int numBpPoints, int numParamSets,
+                                     __global const float *pAllBetas,
+									 __global const int *pSourceStarts,
+									 __global const int *pSourceNumImages,
+									 __global float *pAllAverageBetas
+									 )
+{
+	const int srcIdx = get_global_id(0);
+	if (srcIdx >= numSources)
+		return;
+	const int paramSet = get_global_id(1);
+	if (paramSet >= numParamSets)
+		return;
+
+	__global const float *pInputBetas = pAllBetas + 2*numBpPoints*paramSet;
+	__global float *pOutAvgBetas = pAllAverageBetas + 2*numBpPoints*paramSet;
+
+	const int betaStartIdx = pSourceStarts[srcIdx] * 2;
+	const int numPointsToAverage = pSourceNumImages[srcIdx];
+	float2 srcAvg = (float2)(0.0, 0.0);
+
+	for (int i = 0 ; i < numPointsToAverage ; i++)
+		srcAvg += (float2)(pInputBetas[betaStartIdx + 2*i+0], pInputBetas[betaStartIdx + 2*i+1]);
+
+	srcAvg /= (float)numPointsToAverage;
+
+	// Store the average position for each image point
+	for (int i = 0 ; i < numPointsToAverage ; i++)
+	{
+		pOutAvgBetas[betaStartIdx + 2*i + 0] = srcAvg.x;
+		pOutAvgBetas[betaStartIdx + 2*i + 1] = srcAvg.y;
+	}
+}
+
+*/
+
 	return true;
 }
 
