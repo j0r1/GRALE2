@@ -502,7 +502,7 @@ errut::bool_t OpenCLSinglePlaneDeflection::initRecalc(size_t numTotalPoints, con
 	assert(thetaIndices.size() <= numTotalPoints);
 
 /*
-__kernel void backprojectKernel(int numBpPoints, int numParamSets,
+__kernel void backprojectKernel(int numBpPoints, int numParamSets, int numFloatParams,
 								__global const float *pFullThetas, // Can be either with or without randomization
 								__global const int *pBpThetaIndices,
 								__global const float *pDistFrac,
@@ -564,6 +564,71 @@ __kernel void averageSourcePositions(int numSources, int numBpPoints, int numPar
 		pOutAvgBetas[betaStartIdx + 2*i + 0] = srcAvg.x;
 		pOutAvgBetas[betaStartIdx + 2*i + 1] = srcAvg.y;
 	}
+}
+
+float2 retraceKernelStep(float2 theta, float dfrac, float2 betaTarget,
+                         __global const float *pIntParams, __global const float *pFloatParams)
+{
+	LensQuantities r = TODO_LENSROUTINE_NAME(theta, pIntParams, pFloatParams);
+
+	float2 betaCur = theta - dfrac*(float2)(r.alphaX, r.alphaY);
+	float2 betaDiff = betaTarget - betaCur;
+	float mxx = 1.0-dfrac*r.axx;
+	float myy = 1.0-dfrac*r.ayy;
+	float mxy = -dfrac*r.axy;
+
+	// Get inverse magnification matrix and multiply with betaDiff
+	float denom = mxx*myy - mxy*mxy;
+	float txDiff = ( myy*betaDiff.x - mxy*betaDiff.y)/denom;
+	float tyDiff = (-mxy*betaDiff.x + mxx*betaDiff.y)/denom;
+	return theta + (float2)(txDiff, tyDiff);
+}
+
+__kernel void retraceKernel(int numBpPoints, int numParamSets, int numFloatParams,
+								__global const float *pFullThetas, // Can be either with or without randomization
+								__global const int *pBpThetaIndices,
+								__global const float *pDistFrac,
+								__global const float *pAllAverageBetas
+								__global const int *pIntParams,
+								__global const float *pFloatParamsBase,
+								__global float *pAllTracedThetas,
+								__global float *pAllSourcePlaneDists
+)
+{
+	const int ptIdx = get_global_id(0);
+	if (ptIdx >= numBpPoints)
+		return;
+	const int paramSet = get_global_id(1);
+	if (paramSet >= numParamSets)
+		return;
+
+	int thetaIdx = pBpThetaIndices[ptIdx] * 2; // *2 for two float components
+	float2 theta = (float2)(pFullThetas[thetaIdx+0], pFullThetas[thetaIdx+1]);
+	float dfrac = pDistFrac[ptIdx];
+
+	__global const float *pFloatParams = pFloatParamsBase + paramSet*numFloatParams;
+	__global float *pAverageBetas = pAllAverageBetas + 2*numBpPoints*paramSet;
+
+	const int resultOffset = 2*ptIdx;
+	float2 betaTarget = (float2)(pAverageBetas[resultOffset + 0], pAverageBetas[resultOffset + 1]);
+
+	// Do the refinement step for a number of iterations
+	const int numIterations = TODO_NUMITERATIONS;
+	for (int i = 0 ; i < numIterations ; i++)
+		theta = retraceKernelStep(theta, dfrac, betaTarget, pIntParams, pFloatParams);
+
+	// And calculate the resulting difference in the source plane
+	LensQuantities r = TODO_LENSROUTINE_NAME(theta, pIntParams, pFloatParams);
+	float2 betaCur = theta - dfrac*(float2)(r.alphaX, r.alphaY);
+	float2 betaDiff = betaTarget - betaCur;
+	float betaDiffSize = sqrt(betaDiff.x*betaDiff.x + betaDiff.y*betaDiff.y);
+
+	__global float *pTracedThetas = pAllTracedThetas + 2*numBpPoints*paramSet;
+	__global float *pSourcePlaneDists = pAllSourcePlaneDists + numBpPoints*paramSet;
+
+	pTracedThetas[resultOffset+0] = theta.x;
+	pTracedThetas[resultOffset+1] = theta.y;
+	pSourcePlaneDists[ptIdx] = betaDiffSize;
 }
 
 */
