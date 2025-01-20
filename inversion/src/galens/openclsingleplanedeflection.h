@@ -54,7 +54,8 @@ public:
 					   // calculated (kernel) and retrace the points based on this (kernel). Should
 					   // also store the last difference in the source plane to check how well it
 					   // succeeded
-					   const std::vector<std::pair<int, float>> &recalcThetaInfo = { }
+					   const std::vector<std::pair<int, float>> &recalcThetaInfo = { },
+					   size_t numRetraceIterations = 5
 					   );
 
 	void destroy();
@@ -72,6 +73,16 @@ public:
 									  // TODO
 									  // std::vector<std::pair<Vector2Df,float>> &tracedThetasAndBetaDiffs
 									  );
+
+	errut::bool_t calculateDeflectionAndRetrace(const std::vector<float> &parameters,
+									  std::vector<Vector2Df> &allAlphas,
+									  std::vector<float> &allAxx,
+									  std::vector<float> &allAyy,
+									  std::vector<float> &allAxy,
+									  std::vector<float> &allPotentials,
+									  std::vector<Vector2Df> &tracedThetas,
+									  std::vector<float> &tracedBetaDiffs
+									  );
 	// TODO: some function to get mapping from these tracedThetasAndBetaDiffs positions
 	//       to the actual thetas during initialization
 
@@ -80,11 +91,14 @@ public:
 	//     these, or upload only these parameters and let a kernel change them
 	//     in the full parameters
 protected:
+	static constexpr size_t NumKernels = 7;
+
 	errut::bool_t randomizeInputPositions();
+	errut::bool_t getNumParamSets(const std::vector<float> &parameters, size_t &numParamSets);
 
 	bool m_init = false;
 	int m_devIdx = -1;
-	std::unique_ptr<OpenCLMultiKernel<4>> m_cl;
+	std::unique_ptr<OpenCLMultiKernel<NumKernels>> m_cl;
 
 	oclutils::CLMem m_clThetas;
 	oclutils::CLMem m_clIntParams;
@@ -106,9 +120,21 @@ protected:
 	std::vector<cl_float> m_allResultsBuffer;
 	std::vector<size_t> m_changeableParameterIndices;
 
-	errut::bool_t initRecalc(size_t numTotalPoints, const std::vector<std::pair<int, float>> &recalcThetaInfo);
+	errut::bool_t initRecalc(size_t numTotalPoints, const std::vector<std::pair<int, float>> &recalcThetaInfo,
+			                 OpenCLMultiKernel<NumKernels> &cl, const std::string &deflectionKernelCode,
+							 const std::string &lensRoutineName, size_t numRetraceIterations);
 
 	bool m_recalcThetas = false;
+	cl_int m_clNumSources = 0;
+	cl_int m_clNumBpImages = 0;
+	oclutils::CLMem m_clBpThetaIndices;
+	oclutils::CLMem m_clBpDistFracs;
+	oclutils::CLMem m_clAllBetas;
+	oclutils::CLMem m_clSourceStarts;
+	oclutils::CLMem m_clSourceNumImages;
+	oclutils::CLMem m_clAllTracedThetas;
+	oclutils::CLMem m_clAllBetaDiffs;
+
 };
 
 // Using same single instance code as in OpenCLMultiPlaneCalculator (for multiplane)

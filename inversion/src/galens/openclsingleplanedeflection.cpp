@@ -15,6 +15,9 @@ using namespace oclutils;
 #define KERNELNUMBER_FILLIN_CHANGED_PARAMS			1
 #define KERNELNUMBER_CALCULATE_RANDOM_POINTOFFSETS	2
 #define KERNELNUMBER_FETCH_ORIGIN_PARAMETERS		3
+#define KERNELNUMBER_BACKPROJECT_POINTS				4
+#define KERNELNUMBER_AVERAGE_BETAS					5
+#define KERNELNUMBER_REPROJECT_BETAS				6
 
 OpenCLSinglePlaneDeflection::OpenCLSinglePlaneDeflection()
 {
@@ -34,13 +37,14 @@ bool_t OpenCLSinglePlaneDeflection::init(const std::vector<Vector2Df> &thetas, /
 					   uint64_t initialUncertSeed,
 					   const std::vector<std::pair<size_t, std::string>> &originParameters,
 					   size_t numOriginParameters,
-					   const std::vector<std::pair<int, float>> &recalcThetaInfo
+					   const std::vector<std::pair<int, float>> &recalcThetaInfo,
+					   size_t numRetraceIterations
 					   )
 {
 	if (m_init)
 		return "Already initialized";
 	
-	auto cl = make_unique<OpenCLMultiKernel<4>>();
+	auto cl = make_unique<OpenCLMultiKernel<NumKernels>>();
 
 	string libName = cl->getLibraryName();
 	if (!cl->loadLibrary(libName))
@@ -411,7 +415,7 @@ __kernel void fetchOriginParameters(int numChangeableParams, int numOriginParams
 		if (recalcThetaInfo.size() != thetas.size())
 			return cleanup("Recalculate thetas vector should be of equal length as the thetas vector (" + to_string(recalcThetaInfo.size())
 					       + " != " + to_string(thetas.size()) + ")");
-		if (!(r = initRecalc(thetas.size(), recalcThetaInfo)))
+		if (!(r = initRecalc(thetas.size(), recalcThetaInfo, *cl, deflectionKernelCode, lensRoutineName, numRetraceIterations)))
 			return cleanup(r.getErrorString());
 	}
 
@@ -431,7 +435,9 @@ __kernel void fetchOriginParameters(int numChangeableParams, int numOriginParams
 	return true;
 }
 
-errut::bool_t OpenCLSinglePlaneDeflection::initRecalc(size_t numTotalPoints, const std::vector<std::pair<int, float>> &recalcThetaInfo)
+errut::bool_t OpenCLSinglePlaneDeflection::initRecalc(size_t numTotalPoints, const std::vector<std::pair<int, float>> &recalcThetaInfo,
+													  OpenCLMultiKernel<NumKernels> &cl, const std::string &deflectionKernelCode,
+													  const std::string &lensRoutineName, size_t numRetraceIterations)
 {
 	// Build maps for distance fractions and points for sources
 
@@ -475,33 +481,67 @@ errut::bool_t OpenCLSinglePlaneDeflection::initRecalc(size_t numTotalPoints, con
 	// Build mappings, in general these arrays will be shorter than the total number of points
 	// The backproject kernel and reproject kernel will have this size in one dimension
 
-	vector<size_t> thetaIndices;
-	vector<float> imgDfracs;
+	vector<cl_int> thetaIndices;
+	vector<cl_float> imgDfracs;
 
 	// Where the thetaIndices start for each source, and how many points it has for that source
 	// This is needed to calculate the average of the backprojected points
-	vector<size_t> sourceStart;
-	vector<size_t> sourceNumImages;
+	vector<cl_int> sourceStart;
+	vector<cl_int> sourceNumImages;
 
 	for (const auto& [ src, thetas ] : sourceThetas)
 	{
 		assert(sourceDfrac.find(src) != sourceDfrac.end());
 		float dfrac = sourceDfrac[src];
 
-		sourceStart.push_back(thetaIndices.size()); // this is the start pos at that instant
-		sourceNumImages.push_back(thetas.size());
+		sourceStart.push_back((cl_int)thetaIndices.size()); // this is the start pos at that instant
+		sourceNumImages.push_back((cl_int)thetas.size());
 
 		for (auto t : thetas)
 		{
-			thetaIndices.push_back(t);
-			imgDfracs.push_back(dfrac);
+			thetaIndices.push_back((cl_int)t);
+			imgDfracs.push_back((cl_float)dfrac);
 		}
 	}
 
+	assert(sourceStart.size() == sourceNumImages.size());
+	m_clNumSources = (cl_int)sourceStart.size();
+
 	assert(thetaIndices.size() == imgDfracs.size());
 	assert(thetaIndices.size() <= numTotalPoints);
+	m_clNumBpImages = (cl_int)thetaIndices.size();
 
-/*
+	auto cleanup = [this, &cl](const string &r)
+	{
+		m_clBpDistFracs.dealloc(cl);
+		m_clBpThetaIndices.dealloc(cl);
+		m_clAllBetas.dealloc(cl);
+		m_clSourceStarts.dealloc(cl);
+		m_clSourceNumImages.dealloc(cl);
+		m_clAllTracedThetas.dealloc(cl);
+		m_clAllBetaDiffs.dealloc(cl);
+		return r;
+	};
+
+	auto ctx = cl.getContext();
+	auto queue = cl.getCommandQueue();
+	bool_t r;
+
+	if (!(r = m_clBpThetaIndices.realloc(cl, ctx, sizeof(cl_int)*thetaIndices.size())) ||
+		!(r = m_clBpThetaIndices.enqueueWriteBuffer(cl, queue, thetaIndices, true)))
+		return "Can't copy backproject theta indices to GPU: " + cleanup(r.getErrorString());
+
+	if (!(r = m_clBpDistFracs.realloc(cl, ctx, sizeof(cl_float)*imgDfracs.size())) ||
+		!(r = m_clBpDistFracs.enqueueWriteBuffer(cl, queue, imgDfracs, true)))
+		return "Can't copy distance fractions to GPU: " + cleanup(r.getErrorString());
+
+	// TODO: Buffer for betas needs to be allocated when everything is executed since
+	//       we don't know the needed size at this point
+
+	// Backproject kernel
+	{
+		string backprojectKernel = deflectionKernelCode;
+		backprojectKernel += R"XYZ(
 __kernel void backprojectKernel(int numBpPoints, int numParamSets, int numFloatParams,
 								__global const float *pFullThetas, // Can be either with or without randomization
 								__global const int *pBpThetaIndices,
@@ -523,7 +563,7 @@ __kernel void backprojectKernel(int numBpPoints, int numParamSets, int numFloatP
 	float dfrac = pDistFrac[ptIdx];
 
 	__global const float *pFloatParams = pFloatParamsBase + paramSet*numFloatParams;
-	LensQuantities r = TODO_LENSROUTINE_NAME(theta, pIntParams, pFloatParams);
+	LensQuantities r = )XYZ" + lensRoutineName + R"XYZ((theta, pIntParams, pFloatParams);
 
 	__global float *pBetas = pAllBetas + 2*numBpPoints*paramSet;
 	int resultOffset = 2*ptIdx;
@@ -531,12 +571,31 @@ __kernel void backprojectKernel(int numBpPoints, int numParamSets, int numFloatP
 	pBetas[resultOffset+0] = theta.x - dfrac * r.alphaX;
 	pBetas[resultOffset+1] = theta.y - dfrac * r.alphaY;
 }
+)XYZ";
+		string faillog;
+		if (!cl.loadKernel(backprojectKernel, "backprojectKernel", faillog, KERNELNUMBER_BACKPROJECT_POINTS))
+		{
+			cerr << faillog << endl;
+			return cleanup(cl.getErrorString());
+		}
+	}
 
+	if (!(r = m_clSourceStarts.realloc(cl, ctx, sizeof(cl_int)*sourceStart.size())) ||
+		!(r = m_clSourceStarts.enqueueWriteBuffer(cl, queue, sourceStart, true)))
+		return "Can't copy source start indices to GPU: " + cleanup(r.getErrorString());
+
+	if (!(r = m_clSourceNumImages.realloc(cl, ctx, sizeof(cl_int)*sourceNumImages.size())) ||
+		!(r = m_clSourceNumImages.enqueueWriteBuffer(cl, queue, sourceNumImages, true)))
+		return "Can't copy number of images for each source to GPU: " + cleanup(r.getErrorString());
+
+
+	// Average source pos kernel
+	{
+		string averageBetaKernel = R"XYZ(
 __kernel void averageSourcePositions(int numSources, int numBpPoints, int numParamSets,
-                                     __global const float *pAllBetas,
 									 __global const int *pSourceStarts,
 									 __global const int *pSourceNumImages,
-									 __global float *pAllAverageBetas
+                                     __global float *pAllBetas,
 									 )
 {
 	const int srcIdx = get_global_id(0);
@@ -546,15 +605,14 @@ __kernel void averageSourcePositions(int numSources, int numBpPoints, int numPar
 	if (paramSet >= numParamSets)
 		return;
 
-	__global const float *pInputBetas = pAllBetas + 2*numBpPoints*paramSet;
-	__global float *pOutAvgBetas = pAllAverageBetas + 2*numBpPoints*paramSet;
+	__global float *pBetas = pAllBetas + 2*numBpPoints*paramSet;
 
 	const int betaStartIdx = pSourceStarts[srcIdx] * 2;
 	const int numPointsToAverage = pSourceNumImages[srcIdx];
 	float2 srcAvg = (float2)(0.0, 0.0);
 
 	for (int i = 0 ; i < numPointsToAverage ; i++)
-		srcAvg += (float2)(pInputBetas[betaStartIdx + 2*i+0], pInputBetas[betaStartIdx + 2*i+1]);
+		srcAvg += (float2)(pBetas[betaStartIdx + 2*i+0], pBetas[betaStartIdx + 2*i+1]);
 
 	srcAvg /= (float)numPointsToAverage;
 
@@ -565,11 +623,26 @@ __kernel void averageSourcePositions(int numSources, int numBpPoints, int numPar
 		pOutAvgBetas[betaStartIdx + 2*i + 1] = srcAvg.y;
 	}
 }
+)XYZ";
+		string faillog;
+		if (!cl.loadKernel(averageBetaKernel, "averageSourcePositions", faillog, KERNELNUMBER_AVERAGE_BETAS))
+		{
+			cerr << faillog << endl;
+			return cleanup(cl.getErrorString());
+		}
+	}
 
+	// TODO: need to allocate m_clAllTracedThetas and m_clAllBetaDiffs in other routine,
+	//       size cannot be determined at this point
+	
+	// Retrace kernel
+	{
+		string reprojectKernel = deflectionKernelCode;
+		reprojectKernel += R"XYZ(
 float2 retraceKernelStep(float2 theta, float dfrac, float2 betaTarget,
                          __global const float *pIntParams, __global const float *pFloatParams)
 {
-	LensQuantities r = TODO_LENSROUTINE_NAME(theta, pIntParams, pFloatParams);
+	LensQuantities r = )XYZ" + lensRoutineName + R"XYZ((theta, pIntParams, pFloatParams);
 
 	float2 betaCur = theta - dfrac*(float2)(r.alphaX, r.alphaY);
 	float2 betaDiff = betaTarget - betaCur;
@@ -613,12 +686,12 @@ __kernel void retraceKernel(int numBpPoints, int numParamSets, int numFloatParam
 	float2 betaTarget = (float2)(pAverageBetas[resultOffset + 0], pAverageBetas[resultOffset + 1]);
 
 	// Do the refinement step for a number of iterations
-	const int numIterations = TODO_NUMITERATIONS;
+	const int numIterations = )XYZ" + to_string(numRetraceIterations) + R"XYZ(;
 	for (int i = 0 ; i < numIterations ; i++)
 		theta = retraceKernelStep(theta, dfrac, betaTarget, pIntParams, pFloatParams);
 
 	// And calculate the resulting difference in the source plane
-	LensQuantities r = TODO_LENSROUTINE_NAME(theta, pIntParams, pFloatParams);
+	LensQuantities r = )XYZ" + lensRoutineName + R"XYZ((theta, pIntParams, pFloatParams);
 	float2 betaCur = theta - dfrac*(float2)(r.alphaX, r.alphaY);
 	float2 betaDiff = betaTarget - betaCur;
 	float betaDiffSize = sqrt(betaDiff.x*betaDiff.x + betaDiff.y*betaDiff.y);
@@ -630,8 +703,16 @@ __kernel void retraceKernel(int numBpPoints, int numParamSets, int numFloatParam
 	pTracedThetas[resultOffset+1] = theta.y;
 	pSourcePlaneDists[ptIdx] = betaDiffSize;
 }
+)XYZ";
+		string faillog;
+		if (!cl.loadKernel(reprojectKernel, "retraceKernel", faillog, KERNELNUMBER_REPROJECT_BETAS))
+		{
+			cerr << faillog << endl;
+			return cleanup(cl.getErrorString());
+		}
+	}
 
-*/
+	// TODO perform sanity check so that opencl float array can be copied into Vector2Df array
 
 	return true;
 }
@@ -652,6 +733,14 @@ void OpenCLSinglePlaneDeflection::destroy()
 	m_clRngStates.dealloc(*m_cl);
 	m_clOriginParamIndices.dealloc(*m_cl);
 	m_clOriginParams.dealloc(*m_cl);
+
+	m_clBpDistFracs.dealloc(*m_cl);
+	m_clBpThetaIndices.dealloc(*m_cl);
+	m_clAllBetas.dealloc(*m_cl);
+	m_clSourceStarts.dealloc(*m_cl);
+	m_clSourceNumImages.dealloc(*m_cl);
+	m_clAllTracedThetas.dealloc(*m_cl);
+	m_clAllBetaDiffs.dealloc(*m_cl);
 
 	m_cl = nullptr;
 	m_init = false;
@@ -717,19 +806,11 @@ bool_t OpenCLSinglePlaneDeflection::getChangeableParametersFromOriginParameters(
 	return true;
 }
 
-bool_t OpenCLSinglePlaneDeflection::calculateDeflection(const std::vector<float> &parameters,  // should have numChangebleParams * numParamSets length
-									  std::vector<Vector2Df> &allAlphas,
-									  std::vector<float> &allAxx,
-									  std::vector<float> &allAyy,
-									  std::vector<float> &allAxy,
-									  std::vector<float> &allPotentials)
+bool_t OpenCLSinglePlaneDeflection::getNumParamSets(const std::vector<float> &parameters, size_t &numParamSets)
 {
-	if (!m_init)
-		return "Not initialized";
-
 	size_t changeableSize = m_changeableParameterIndices.size();
-	
-	size_t numParamSets = 0;
+
+	numParamSets = 0;
 	if (m_numOriginParams == 0) // Use changed parameters directly
 	{
 		if (parameters.size()%changeableSize != 0)
@@ -747,10 +828,27 @@ bool_t OpenCLSinglePlaneDeflection::calculateDeflection(const std::vector<float>
 
 	if (numParamSets == 0)
 		return "No parameters specified";
+	return true;
+}
+
+bool_t OpenCLSinglePlaneDeflection::calculateDeflection(const std::vector<float> &parameters,  // should have numChangebleParams * numParamSets length
+									  std::vector<Vector2Df> &allAlphas,
+									  std::vector<float> &allAxx,
+									  std::vector<float> &allAyy,
+									  std::vector<float> &allAxy,
+									  std::vector<float> &allPotentials)
+{
+	if (!m_init)
+		return "Not initialized";
 
 	bool_t r;
+	size_t numParamSets = 0;
+	if (!(r = getNumParamSets(parameters, numParamSets)))
+		return r;
+
 	auto ctx = m_cl->getContext();
 	auto queue = m_cl->getCommandQueue();
+	size_t changeableSize = m_changeableParameterIndices.size();
 
 	// Need to do this here, in the following 'if' we'll be using the size
 	m_allResultsBuffer.resize(numParamSets*m_numPoints*6); // 6 properties per point
@@ -910,6 +1008,39 @@ bool_t OpenCLSinglePlaneDeflection::calculateDeflection(const std::vector<float>
 		allAxy[i] = m_allResultsBuffer[j+4];
 		allPotentials[i] = m_allResultsBuffer[j+5];
 	}
+
+	return true;
+}
+
+
+errut::bool_t OpenCLSinglePlaneDeflection::calculateDeflectionAndRetrace(const std::vector<float> &parameters,
+								  std::vector<Vector2Df> &allAlphas,
+								  std::vector<float> &allAxx,
+								  std::vector<float> &allAyy,
+								  std::vector<float> &allAxy,
+								  std::vector<float> &allPotentials,
+								  std::vector<Vector2Df> &tracedThetas,
+								  std::vector<float> &tracedBetaDiffs
+								  )
+{
+	bool_t r;
+	if (!(r = calculateDeflection(parameters, allAlphas, allAxx, allAyy, allAxy, allPotentials)))
+		return r;
+
+	if (!m_recalcThetas)
+	{
+		tracedThetas.clear();
+		tracedBetaDiffs.clear();
+		return true; // TODO: or generate error?
+	}
+
+	size_t numParamSets = 0;
+	if (!(r = getNumParamSets(parameters, numParamSets)))
+		return r;
+
+	// TODO: resize output buffers m_clAllBetas, m_clAllTracedThetas, m_clAllBetaDiffs
+	//       start kernels, copy output
+	return "TODO";
 
 	return true;
 }
