@@ -1085,6 +1085,37 @@ errut::bool_t OpenCLSinglePlaneDeflection::calculateDeflectionAndRetrace(const s
 			return "Error enqueing backproject parameter kernel: " + to_string(err);
 
 		// TODO: for debugging! Remove this again!
+		//if (!(r = m_clAllBetas.enqueueReadBuffer(*m_cl, queue, tracedThetas.data(), tracedThetas.size()*sizeof(float)*2, nullptr, nullptr, true)))
+		//	return "Can't read betas: " + r.getErrorString();
+	}
+
+	// Average the betas
+	{
+		cl_int err = 0;
+		auto kernel = m_cl->getKernel(KERNELNUMBER_AVERAGE_BETAS);
+		auto setKernArg = [this, &err, &kernel](cl_uint idx, size_t size, const void *ptr)
+		{
+			err |= m_cl->clSetKernelArg(kernel, idx, size, ptr);
+		};
+
+		cl_int clNumParamSets = (cl_int)numParamSets;
+
+		setKernArg(0, sizeof(cl_int), (void*)&m_clNumSources);
+		setKernArg(1, sizeof(cl_int), (void*)&m_clNumBpImages);
+		setKernArg(2, sizeof(cl_int), (void*)&clNumParamSets);
+		setKernArg(3, sizeof(cl_mem), (void*)&m_clSourceStarts);
+		setKernArg(4, sizeof(cl_mem), (void*)&m_clSourceNumImages);
+		setKernArg(5, sizeof(cl_mem), (void*)&m_clAllBetas.m_pMem);
+
+		if (err != CL_SUCCESS)
+			return "Error setting kernel arguments for fetch origin parameters kernel";
+
+		size_t workSize[2] = { (size_t)m_clNumSources, numParamSets };
+		err = m_cl->clEnqueueNDRangeKernel(queue, kernel, 2, nullptr, workSize, nullptr, 0, nullptr, nullptr);
+		if (err != CL_SUCCESS)
+			return "Error enqueing averaging backprojected position kernel: " + to_string(err);
+
+		// TODO: for debugging! Remove this again!
 		if (!(r = m_clAllBetas.enqueueReadBuffer(*m_cl, queue, tracedThetas.data(), tracedThetas.size()*sizeof(float)*2, nullptr, nullptr, true)))
 			return "Can't read betas: " + r.getErrorString();
 	}
