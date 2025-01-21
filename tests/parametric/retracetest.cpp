@@ -61,8 +61,8 @@ int main(int argc, char *argv[])
 	vector<Vector2Df> thetas;
 	vector<pair<int, float>> recalcThetaInfo;
 
-	double thetaRandomess = 2.1*ANGLE_ARCSEC;
-	//double thetaRandomess = 0;
+	//double thetaRandomess = 2.1*ANGLE_ARCSEC;
+	double thetaRandomess = 0;
 
 	while (numBetas > 0)
 	{
@@ -117,18 +117,20 @@ int main(int argc, char *argv[])
 	size_t numOriginParams = 0;
 	size_t numRetraceSteps = 5;
 
-	//vector<float> inKernelThetaUncert;
-	//double inKernelThetaUncertSize = 2*ANGLE_ARCSEC;
-	//for (auto x : thetas)
-	//	inKernelThetaUncert.push_back( (float)(inKernelThetaUncertSize/deflScale) );
+	vector<float> inKernelThetaUncert;
+	double inKernelThetaUncertSize = 0.1*ANGLE_ARCSEC; // is gaussian
+	for (auto x : thetas)
+		inKernelThetaUncert.push_back( (float)(inKernelThetaUncertSize/deflScale) );
 
-	// TODO: also test with uncert enabled
 	bool_t r;
-	if (!(r = clDef.init(thetas, {}, intParams, floatParams, changeableParamIdx, 
-	                     prog, subRoutName, 0, 0, originParams, numOriginParams,
+	if (!(r = clDef.init(thetas, inKernelThetaUncert, intParams, floatParams, changeableParamIdx, 
+	                     prog, subRoutName, 0, 12345, originParams, numOriginParams,
 						 recalcThetaInfo, numRetraceSteps
 						 )))
 		throw runtime_error("Can't init OpenCL calculation code: " + r.getErrorString());
+
+	if (!(r = clDef.randomizeInputPositions()))
+		throw runtime_error("Can't randomize input positions: " + r.getErrorString());
 
 	vector<Vector2Df> allAlphas;
 	vector<float> allAxx, allAyy, allAxy;

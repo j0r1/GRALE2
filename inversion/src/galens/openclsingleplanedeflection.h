@@ -90,10 +90,11 @@ public:
 	//     Here we can either modify the full parameters on the CPU and upload
 	//     these, or upload only these parameters and let a kernel change them
 	//     in the full parameters
+
+	errut::bool_t randomizeInputPositions();
 protected:
 	static constexpr size_t NumKernels = 7;
 
-	errut::bool_t randomizeInputPositions();
 	errut::bool_t getNumParamSets(const std::vector<float> &parameters, size_t &numParamSets);
 
 	bool m_init = false;
