@@ -61,7 +61,8 @@ int main(int argc, char *argv[])
 	vector<Vector2Df> thetas;
 	vector<pair<int, float>> recalcThetaInfo;
 
-	double thetaRandomess = 0.1*ANGLE_ARCSEC;
+	double thetaRandomess = 2.1*ANGLE_ARCSEC;
+	//double thetaRandomess = 0;
 
 	while (numBetas > 0)
 	{
@@ -114,12 +115,18 @@ int main(int argc, char *argv[])
 	OpenCLSinglePlaneDeflection clDef;
 	vector<pair<size_t, string>> originParams;
 	size_t numOriginParams = 0;
+	size_t numRetraceSteps = 5;
+
+	//vector<float> inKernelThetaUncert;
+	//double inKernelThetaUncertSize = 2*ANGLE_ARCSEC;
+	//for (auto x : thetas)
+	//	inKernelThetaUncert.push_back( (float)(inKernelThetaUncertSize/deflScale) );
 
 	// TODO: also test with uncert enabled
 	bool_t r;
 	if (!(r = clDef.init(thetas, {}, intParams, floatParams, changeableParamIdx, 
 	                     prog, subRoutName, 0, 0, originParams, numOriginParams,
-						 recalcThetaInfo
+						 recalcThetaInfo, numRetraceSteps
 						 )))
 		throw runtime_error("Can't init OpenCL calculation code: " + r.getErrorString());
 
@@ -138,99 +145,15 @@ int main(int argc, char *argv[])
 		if (allTracedThetas.size() == 0 || allSourcePlaneDiffs.size() == 0)
 			throw runtime_error("No trace info was deteced");
 
-		for (auto t : allTracedThetas)
-			cout << t.getX() << "," << t.getY() << endl;
+		assert(thetas.size() == allTracedThetas.size() && allTracedThetas.size() == allSourcePlaneDiffs.size());
 
-		throw runtime_error("TODO");
-
-		double maxDiff = 0;
-		double minDiff = numeric_limits<double>::max();
-		auto recordDiff = [&maxDiff, &minDiff](double d)
+		for (auto i = 0 ; i < thetas.size() ; i++)
 		{
-			if (d < minDiff)
-				minDiff = d;
-			if (d > maxDiff)
-				maxDiff = d;
+			auto tOrig = thetas[i];
+			auto tNew = allTracedThetas[i];
 
-			return d;
-		};
-
-		size_t numGenomes = 1;
-		for (size_t i = 0 ; i < numGenomes ; i++)
-		{
-			unique_ptr<GravitationalLens> newLens = lens.createLensFromCLFloatParams(deflScale, potScale, floatParams.data());
-			for (size_t pt = 0 ; pt < thetas.size() ; pt++)
-			{
-				Vector2Dd theta(thetas[pt].getX(), thetas[pt].getY());
-				theta *= deflScale;
-
-				Vector2Dd alpha;
-				newLens->getAlphaVector(theta, &alpha);
-				alpha /= deflScale;
-
-				Vector2Df gpuAlpha = allAlphas[i*thetas.size() + pt];
-
-				auto diff = [&recordDiff](Vector2Dd a, Vector2Df b)
-				{
-					Vector2Dd b2(b.getX(), b.getY());
-					Vector2Dd diff = a;
-					diff -= b2;
-					return recordDiff(diff.getLength());
-				};
-
-				cerr << "Genome " << i << " point " << pt << endl;
-				cerr << "Alpha: CPU:  " << alpha.getX() << "," << alpha.getY() << endl;
-				cerr << "       GPU:  " << gpuAlpha.getX() << "," << gpuAlpha.getY() << endl;
-				cerr << "       diff: " << diff(alpha, gpuAlpha) << endl;
-
-				double axx, ayy, axy;
-				newLens->getAlphaVectorDerivatives(theta, axx, ayy, axy);
-				float gpuAxx = allAxx[i*thetas.size() + pt];
-				float gpuAyy = allAyy[i*thetas.size() + pt];
-				float gpuAxy = allAxy[i*thetas.size() + pt];
-
-				auto diff3 = [&recordDiff](double x0, double y0, double z0, float x1, float y1, float z1)
-				{
-					x0 -= x1; y0 -= y1; z0 -= z1;
-					return recordDiff(std::sqrt(x0*x0 + y0*y0 + z0*z0));
-				};
-
-				cerr << "Deriv: CPU:  " << axx << "," << ayy << "," << axy << endl;
-				cerr << "       GPU:  " << gpuAxx << "," << gpuAyy << "," << gpuAxy << endl;
-				cerr << "       diff: " << diff3(axx, ayy, axy, gpuAxx, gpuAyy, gpuAxy) << endl;
-
-				// Fot the potential we need to look at differences
-				Vector2Dd theta0(thetas[0].getX(), thetas[0].getY());
-				theta0 *= deflScale;
-
-				double pot0 = numeric_limits<double>::quiet_NaN();
-				newLens->getProjectedPotential(1.0, 1.0, theta0, &pot0);
-				pot0 /= potScale;
-
-				double pot = numeric_limits<double>::quiet_NaN();
-				newLens->getProjectedPotential(1.0, 1.0, theta, &pot);
-				pot /= potScale;
-
-				// Look at potential differences!
-				pot -= pot0;
-
-				float gpuPot = allPotentials[i*thetas.size() + pt];
-				gpuPot -= allPotentials[i*thetas.size() + 0];
-
-				auto diff1 = [&recordDiff](double p0, float p1)
-				{
-					return recordDiff(std::abs(p0 - (double)p1));
-				};
-
-				cerr << "Poten: CPU: " << pot << endl;
-				cerr << "       GPU: " << gpuPot << endl;
-				cerr << "       diff: " << diff1(pot, gpuPot) << endl;
-
-				cerr << endl;
-			}
+			cout << tOrig.getX() << " " << tOrig.getY() << " " << tNew.getX() << " " << tNew.getY() << " " << allSourcePlaneDiffs[i] << endl;
 		}
-		cerr << "Min diff: " << minDiff << endl;
-		cerr << "Max diff: " << maxDiff << endl;
 	}
 
 	return 0;
