@@ -61,6 +61,8 @@ int main(int argc, char *argv[])
 	vector<Vector2Df> thetas;
 	vector<pair<int, float>> recalcThetaInfo;
 
+	double thetaRandomess = 0.1*ANGLE_ARCSEC;
+
 	while (numBetas > 0)
 	{
 		double x = (rng.getRandomDouble()*2.0*betaRange - betaRange);
@@ -81,8 +83,11 @@ int main(int argc, char *argv[])
 		{
 			for (auto pt : thetaPoints)
 			{
+				double rndX = (rng.getRandomDouble()-0.5)*thetaRandomess;
+				double rndY = (rng.getRandomDouble()-0.5)*thetaRandomess;
+				
 				recalcThetaInfo.push_back({ srcNum, dfrac });
-				thetas.push_back({ (float)(pt.getX()/deflScale), (float)(pt.getY()/deflScale) });
+				thetas.push_back({ (float)((pt.getX() + rndX)/deflScale), (float)((pt.getY() + rndY)/deflScale) });
 			}
 
 			numBetas--;
@@ -104,6 +109,8 @@ int main(int argc, char *argv[])
 	string prog = lens.getCLLensProgram(deflScale, potScale, subRoutName);
 	
 	vector<size_t> changeableParamIdx = { 0 };
+	vector<float> changedParameters = { floatParams[0] };
+
 	OpenCLSinglePlaneDeflection clDef;
 	vector<pair<size_t, string>> originParams;
 	size_t numOriginParams = 0;
@@ -122,22 +129,19 @@ int main(int argc, char *argv[])
 	vector<Vector2Df> allTracedThetas;
 	vector<float> allSourcePlaneDiffs;
 
-	vector<vector<float>> allChangedParams = {
-								  { floatParams[0], floatParams[1] },
-	                              { floatParams[0], floatParams[1],
-	                               floatParams[0]/2, floatParams[1],
-								   floatParams[0], floatParams[1]/2 },
-								  { floatParams[0]/2, floatParams[1] }
-	};
-
 	{
-		if (!(r = clDef.calculateDeflectionAndRetrace(floatParams, // Just use the parameters themselves
+		if (!(r = clDef.calculateDeflectionAndRetrace(changedParameters,
 											allAlphas, allAxx, allAyy, allAxy, allPotentials,
 											allTracedThetas, allSourcePlaneDiffs)))
 			throw runtime_error("Can't calculate deflections: " + r.getErrorString());
 
 		if (allTracedThetas.size() == 0 || allSourcePlaneDiffs.size() == 0)
 			throw runtime_error("No trace info was deteced");
+
+		for (auto t : allTracedThetas)
+			cout << t.getX() << "," << t.getY() << endl;
+
+		throw runtime_error("TODO");
 
 		double maxDiff = 0;
 		double minDiff = numeric_limits<double>::max();

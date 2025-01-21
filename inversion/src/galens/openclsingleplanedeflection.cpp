@@ -537,9 +537,6 @@ errut::bool_t OpenCLSinglePlaneDeflection::initRecalc(size_t numTotalPoints, con
 		!(r = m_clBpDistFracs.enqueueWriteBuffer(cl, queue, imgDfracs, true)))
 		return "Can't copy distance fractions to GPU: " + cleanup(r.getErrorString());
 
-	// TODO: Buffer for betas needs to be allocated when everything is executed since
-	//       we don't know the needed size at this point
-
 	// Backproject kernel
 	{
 		string backprojectKernel = deflectionKernelCode;
@@ -1042,9 +1039,58 @@ errut::bool_t OpenCLSinglePlaneDeflection::calculateDeflectionAndRetrace(const s
 	if (!(r = getNumParamSets(parameters, numParamSets)))
 		return r;
 
-	// TODO: resize output buffers m_clAllBetas, m_clAllTracedThetas, m_clAllBetaDiffs
+	assert(numParamSets > 0);
+	cerr << "DEBUG: numParamSets = " << numParamSets << endl;
+
+	auto ctx = m_cl->getContext();
+	auto queue = m_cl->getCommandQueue();
+
+	// Allocate room to store (intermediate) betas
+	if (!(r = m_clAllBetas.realloc(*m_cl, ctx, sizeof(cl_float)*2*m_clNumBpImages*numParamSets)))
+		return "Can't allocate beta byffer: " + r.getErrorString();
+
+	tracedThetas.resize(m_clNumBpImages*numParamSets);
+	tracedBetaDiffs.resize(m_clNumBpImages*numParamSets);
+
+	// Start first kernel
+	{
+		cl_int err = 0;
+		auto kernel = m_cl->getKernel(KERNELNUMBER_BACKPROJECT_POINTS);
+		auto setKernArg = [this, &err, &kernel](cl_uint idx, size_t size, const void *ptr)
+		{
+			err |= m_cl->clSetKernelArg(kernel, idx, size, ptr);
+		};
+
+		cl_int clNumParamSets = (cl_int)numParamSets;
+		cl_int clNumFloatParams = (cl_int)m_numFloatParams;
+		// Depending on the case, either use the real thetas or the ones to which random numbers have been added
+		void *pThetas = (m_clThetaWithAdditions.m_pMem)?m_clThetaWithAdditions.m_pMem:m_clThetas.m_pMem;
+
+		setKernArg(0, sizeof(cl_int), (void*)&m_clNumBpImages);
+		setKernArg(1, sizeof(cl_int), (void*)&clNumParamSets);
+		setKernArg(2, sizeof(cl_int), (void*)&clNumFloatParams);
+		setKernArg(3, sizeof(cl_mem), (void*)&pThetas);
+		setKernArg(4, sizeof(cl_mem), (void*)&m_clBpThetaIndices.m_pMem);
+		setKernArg(5, sizeof(cl_mem), (void*)&m_clBpDistFracs.m_pMem);
+		setKernArg(6, sizeof(cl_mem), (void*)&m_clIntParams.m_pMem);
+		setKernArg(7, sizeof(cl_mem), (void*)&m_clFloatParams.m_pMem);
+		setKernArg(8, sizeof(cl_mem), (void*)&m_clAllBetas.m_pMem);
+
+		if (err != CL_SUCCESS)
+			return "Error setting kernel arguments for fetch origin parameters kernel";
+
+		size_t workSize[2] = { (size_t)m_clNumBpImages, numParamSets };
+		err = m_cl->clEnqueueNDRangeKernel(queue, kernel, 2, nullptr, workSize, nullptr, 0, nullptr, nullptr);
+		if (err != CL_SUCCESS)
+			return "Error enqueing backproject parameter kernel: " + to_string(err);
+
+		// TODO: for debugging! Remove this again!
+		if (!(r = m_clAllBetas.enqueueReadBuffer(*m_cl, queue, tracedThetas.data(), tracedThetas.size()*sizeof(float)*2, nullptr, nullptr, true)))
+			return "Can't read betas: " + r.getErrorString();
+	}
+
+	// TODO: resize output buffers m_clAllTracedThetas, m_clAllBetaDiffs
 	//       start kernels, copy output
-	return "TODO";
 
 	return true;
 }
