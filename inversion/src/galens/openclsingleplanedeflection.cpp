@@ -632,9 +632,6 @@ __kernel void averageSourcePositions(int numSources, int numBpPoints, int numPar
 		}
 	}
 
-	// TODO: need to allocate m_clAllTracedThetas and m_clAllBetaDiffs in other routine,
-	//       size cannot be determined at this point
-	
 	// Retrace kernel
 	{
 		string reprojectKernel = deflectionKernelCode;
@@ -713,7 +710,17 @@ __kernel void retraceKernel(int numBpPoints, int numParamSets, int numFloatParam
 		}
 	}
 
-	// TODO perform sanity check so that opencl float array can be copied into Vector2Df array
+	if (sizeof(Vector2Df) != sizeof(float)*2)
+		return "Sanity check failed: 2D float vector is not of expected size";
+
+	size_t testSize = 10;
+	vector<Vector2Df> testVec(testSize);
+	uint8_t *pStart = (uint8_t*)&(testVec[0]);
+	uint8_t *pEnd = (uint8_t*)&(testVec[testSize-1]);
+	size_t numBytes = pEnd-pStart;
+
+	if (numBytes != 2*sizeof(float)*(testSize-1))
+		return "Sanity check failed: vector<Vector2Df> is not laid out in memory as expected";
 
 	return true;
 }
@@ -1088,7 +1095,7 @@ errut::bool_t OpenCLSinglePlaneDeflection::calculateDeflectionAndRetrace(const s
 		if (err != CL_SUCCESS)
 			return "Error enqueing backproject parameter kernel: " + to_string(err);
 
-		// TODO: for debugging! Remove this again!
+		// For debugging! Disable this again!
 		//if (!(r = m_clAllBetas.enqueueReadBuffer(*m_cl, queue, tracedThetas.data(), tracedThetas.size()*sizeof(float)*2, nullptr, nullptr, true)))
 		//	return "Can't read betas: " + r.getErrorString();
 	}
@@ -1119,7 +1126,7 @@ errut::bool_t OpenCLSinglePlaneDeflection::calculateDeflectionAndRetrace(const s
 		if (err != CL_SUCCESS)
 			return "Error enqueing averaging backprojected position kernel: " + to_string(err);
 
-		// TODO: for debugging! Remove this again!
+		// For debugging! Disable this again!
 		//if (!(r = m_clAllBetas.enqueueReadBuffer(*m_cl, queue, tracedThetas.data(), tracedThetas.size()*sizeof(float)*2, nullptr, nullptr, true)))
 		//	return "Can't read betas: " + r.getErrorString();
 	}
