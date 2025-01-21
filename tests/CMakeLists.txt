@@ -76,3 +76,6 @@ target_link_libraries(pointoffsettest graleinv-static gralecore-static ${GRALE_L
 add_executable(paramtest parametric/paramtest.cpp)
 target_link_libraries(paramtest graleinv-static gralecore-static ${GRALE_LINK_LIBS})
 
+add_executable(retracetest parametric/retracetest.cpp)
+target_link_libraries(retracetest graleinv-static gralecore-static ${GRALE_LINK_LIBS})
+

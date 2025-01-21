@@ -417,6 +417,8 @@ __kernel void fetchOriginParameters(int numChangeableParams, int numOriginParams
 					       + " != " + to_string(thetas.size()) + ")");
 		if (!(r = initRecalc(thetas.size(), recalcThetaInfo, *cl, deflectionKernelCode, lensRoutineName, numRetraceIterations)))
 			return cleanup(r.getErrorString());
+
+		m_recalcThetas = true;
 	}
 
 	// Ok
@@ -548,7 +550,7 @@ __kernel void backprojectKernel(int numBpPoints, int numParamSets, int numFloatP
 								__global const float *pDistFrac,
 								__global const int *pIntParams,
 								__global const float *pFloatParamsBase,
-								__global float *pAllBetas,
+								__global float *pAllBetas
 )
 {
 	const int ptIdx = get_global_id(0);
@@ -595,7 +597,7 @@ __kernel void backprojectKernel(int numBpPoints, int numParamSets, int numFloatP
 __kernel void averageSourcePositions(int numSources, int numBpPoints, int numParamSets,
 									 __global const int *pSourceStarts,
 									 __global const int *pSourceNumImages,
-                                     __global float *pAllBetas,
+                                     __global float *pAllBetas
 									 )
 {
 	const int srcIdx = get_global_id(0);
@@ -619,8 +621,8 @@ __kernel void averageSourcePositions(int numSources, int numBpPoints, int numPar
 	// Store the average position for each image point
 	for (int i = 0 ; i < numPointsToAverage ; i++)
 	{
-		pOutAvgBetas[betaStartIdx + 2*i + 0] = srcAvg.x;
-		pOutAvgBetas[betaStartIdx + 2*i + 1] = srcAvg.y;
+		pBetas[betaStartIdx + 2*i + 0] = srcAvg.x;
+		pBetas[betaStartIdx + 2*i + 1] = srcAvg.y;
 	}
 }
 )XYZ";
@@ -628,6 +630,7 @@ __kernel void averageSourcePositions(int numSources, int numBpPoints, int numPar
 		if (!cl.loadKernel(averageBetaKernel, "averageSourcePositions", faillog, KERNELNUMBER_AVERAGE_BETAS))
 		{
 			cerr << faillog << endl;
+			cerr << averageBetaKernel << endl;
 			return cleanup(cl.getErrorString());
 		}
 	}
@@ -640,7 +643,7 @@ __kernel void averageSourcePositions(int numSources, int numBpPoints, int numPar
 		string reprojectKernel = deflectionKernelCode;
 		reprojectKernel += R"XYZ(
 float2 retraceKernelStep(float2 theta, float dfrac, float2 betaTarget,
-                         __global const float *pIntParams, __global const float *pFloatParams)
+                         __global const int *pIntParams, __global const float *pFloatParams)
 {
 	LensQuantities r = )XYZ" + lensRoutineName + R"XYZ((theta, pIntParams, pFloatParams);
 
@@ -661,7 +664,7 @@ __kernel void retraceKernel(int numBpPoints, int numParamSets, int numFloatParam
 								__global const float *pFullThetas, // Can be either with or without randomization
 								__global const int *pBpThetaIndices,
 								__global const float *pDistFrac,
-								__global const float *pAllAverageBetas
+								__global const float *pAllAverageBetas,
 								__global const int *pIntParams,
 								__global const float *pFloatParamsBase,
 								__global float *pAllTracedThetas,
@@ -708,6 +711,7 @@ __kernel void retraceKernel(int numBpPoints, int numParamSets, int numFloatParam
 		if (!cl.loadKernel(reprojectKernel, "retraceKernel", faillog, KERNELNUMBER_REPROJECT_BETAS))
 		{
 			cerr << faillog << endl;
+			cerr << reprojectKernel << endl;
 			return cleanup(cl.getErrorString());
 		}
 	}
