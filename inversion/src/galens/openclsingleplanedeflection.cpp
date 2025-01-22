@@ -1022,6 +1022,7 @@ bool_t OpenCLSinglePlaneDeflection::calculateDeflection(const std::vector<float>
 
 
 errut::bool_t OpenCLSinglePlaneDeflection::calculateDeflectionAndRetrace(const std::vector<float> &parameters,
+								  std::vector<Vector2Df> &changedThetas,
 								  std::vector<Vector2Df> &allAlphas,
 								  std::vector<float> &allAxx,
 								  std::vector<float> &allAyy,
@@ -1169,6 +1170,18 @@ errut::bool_t OpenCLSinglePlaneDeflection::calculateDeflectionAndRetrace(const s
 			return "Can't read betas: " + r.getErrorString();
 		if (!(r = m_clAllBetaDiffs.enqueueReadBuffer(*m_cl, queue, tracedBetaDiffs, nullptr, nullptr, true)))
 			return "Can't read source plane differences: " + r.getErrorString();
+	}
+
+	if (m_clThetaWithAdditions.m_pMem)
+	{
+		assert(m_clThetaWithAdditions.m_size == sizeof(float)*2*m_numPoints);
+		changedThetas.resize(m_numPoints);
+		if (!(r = m_clThetaWithAdditions.enqueueReadBuffer(*m_cl, queue, changedThetas.data(), tracedBetaDiffs.size()*sizeof(float)*2, nullptr, nullptr, true)))
+			return "Can't copy randomized input positions: " + r.getErrorString();
+	}
+	else
+	{
+		changedThetas.clear();
 	}
 
 	return true;

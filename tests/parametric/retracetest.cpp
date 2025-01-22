@@ -118,7 +118,7 @@ int main(int argc, char *argv[])
 	size_t numRetraceSteps = 5;
 
 	vector<float> inKernelThetaUncert;
-	double inKernelThetaUncertSize = 0.1*ANGLE_ARCSEC; // is gaussian
+	double inKernelThetaUncertSize = 0.5*ANGLE_ARCSEC; // is gaussian
 	for (auto x : thetas)
 		inKernelThetaUncert.push_back( (float)(inKernelThetaUncertSize/deflScale) );
 
@@ -139,7 +139,10 @@ int main(int argc, char *argv[])
 	vector<float> allSourcePlaneDiffs;
 
 	{
+		vector<Vector2Df> changedThetas;
+
 		if (!(r = clDef.calculateDeflectionAndRetrace(changedParameters,
+										    changedThetas,
 											allAlphas, allAxx, allAyy, allAxy, allPotentials,
 											allTracedThetas, allSourcePlaneDiffs)))
 			throw runtime_error("Can't calculate deflections: " + r.getErrorString());
@@ -148,13 +151,17 @@ int main(int argc, char *argv[])
 			throw runtime_error("No trace info was deteced");
 
 		assert(thetas.size() == allTracedThetas.size() && allTracedThetas.size() == allSourcePlaneDiffs.size());
+		assert(thetas.size() == changedThetas.size());
 
 		for (auto i = 0 ; i < thetas.size() ; i++)
 		{
 			auto tOrig = thetas[i];
+			auto tRand = changedThetas[i];
 			auto tNew = allTracedThetas[i];
 
-			cout << tOrig.getX() << " " << tOrig.getY() << " " << tNew.getX() << " " << tNew.getY() << " " << allSourcePlaneDiffs[i] << endl;
+			cout << tOrig.getX() << " " << tOrig.getY() << " " 
+				 << tRand.getX() << " " << tRand.getY() << " "
+				 << tNew.getX() << " " << tNew.getY() << " " << allSourcePlaneDiffs[i] << endl;
 		}
 	}
 

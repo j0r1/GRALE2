@@ -75,6 +75,7 @@ public:
 									  );
 
 	errut::bool_t calculateDeflectionAndRetrace(const std::vector<float> &parameters,
+									  std::vector<Vector2Df> &changedThetas,
 									  std::vector<Vector2Df> &allAlphas,
 									  std::vector<float> &allAxx,
 									  std::vector<float> &allAyy,
