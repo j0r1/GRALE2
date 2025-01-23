@@ -154,8 +154,8 @@ public:
 					   uint64_t initialUncertSeed,
 					   const std::vector<std::pair<size_t, std::string>> &originParameters,
 					   size_t numOriginParameters, // 0 is disable
-					   const std::vector<std::pair<int, float>> &recalcThetaInfo = { },
-					   size_t numRetraceIterations = 5
+					   const std::vector<std::pair<int, float>> &recalcThetaInfo,
+					   size_t numRetraceIterations
 					   );
 
 	static void releaseInstance(uint64_t userId);
