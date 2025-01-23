@@ -566,7 +566,8 @@ initialParamDesc = eval(r["description"]) # 'description' holds a string, we mus
 def usage():
     print("""
 Usage:
-    python -m grale.ltparamdesc -in mod.par (-out inv.py | -exec) [-outparam desc.py] [-noRAdir] [-force] [-fromimgfile]
+    python -m grale.ltparamdesc -in mod.par (-out inv.py | -exec) [-outparam desc.py] [-noRAdir] [-force] [-fromimgfile] \\
+                                [-mcmcgen 5000] [-popsize 512] [-outfnsuffix]
 """, file=sys.stderr)
     sys.exit(-1)
 
