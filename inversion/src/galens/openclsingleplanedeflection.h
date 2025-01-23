@@ -54,8 +54,8 @@ public:
 					   // calculated (kernel) and retrace the points based on this (kernel). Should
 					   // also store the last difference in the source plane to check how well it
 					   // succeeded
-					   const std::vector<std::pair<int, float>> &recalcThetaInfo = { },
-					   size_t numRetraceIterations = 5
+					   const std::vector<std::pair<int, float>> &recalcThetaInfo,
+					   size_t numRetraceIterations
 					   );
 
 	void destroy();
@@ -70,8 +70,6 @@ public:
 									  std::vector<float> &allAyy,
 									  std::vector<float> &allAxy,
 									  std::vector<float> &allPotentials
-									  // TODO
-									  // std::vector<std::pair<Vector2Df,float>> &tracedThetasAndBetaDiffs
 									  );
 
 	errut::bool_t calculateDeflectionAndRetrace(const std::vector<float> &parameters,
@@ -136,7 +134,6 @@ protected:
 	oclutils::CLMem m_clSourceNumImages;
 	oclutils::CLMem m_clAllTracedThetas;
 	oclutils::CLMem m_clAllBetaDiffs;
-
 };
 
 // Using same single instance code as in OpenCLMultiPlaneCalculator (for multiplane)
@@ -156,17 +153,24 @@ public:
 					   int devIdx,
 					   uint64_t initialUncertSeed,
 					   const std::vector<std::pair<size_t, std::string>> &originParameters,
-					   size_t numOriginParameters // 0 is disable
+					   size_t numOriginParameters, // 0 is disable
+					   const std::vector<std::pair<int, float>> &recalcThetaInfo = { },
+					   size_t numRetraceIterations = 5
 					   );
+
 	static void releaseInstance(uint64_t userId);
 	static OpenCLSinglePlaneDeflectionInstance &instance();
 
 	void setTotalGenomesToCalculate(size_t iteration, size_t num);
 	errut::bool_t scheduleCalculation(const eatk::FloatVectorGenome &genome);
+
+	bool getAdjustedThetas(std::vector<Vector2Df> &adjustedThetas);
+	
 	bool getResultsForGenome(const eatk::FloatVectorGenome &genome,
 	                         std::vector<Vector2Df> &alphas, std::vector<float> &axx,
 							 std::vector<float> &ayy, std::vector<float> &axy,
-							 std::vector<float> &potential);
+							 std::vector<float> &potential, std::vector<Vector2Df> &tracedThetas,
+							 std::vector<float> &tracedBetaDiffs);
 
 	int getRequestedDeviceIndex() const { return m_requestedDevIdx; }
 
@@ -190,6 +194,9 @@ private:
 	std::vector<Vector2Df> m_allAlphas;
 	std::vector<float> m_allAxx, m_allAyy, m_allAxy;
 	std::vector<float> m_allPotentials;
+	std::vector<Vector2Df> m_allTracedThetas;
+	std::vector<float> m_allTracedBetaDiffs;
+	std::vector<Vector2Df> m_adjustedThetas;
 	int m_requestedDevIdx = -1;
 };	
 }

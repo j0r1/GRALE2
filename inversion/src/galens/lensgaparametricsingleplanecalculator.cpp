@@ -359,6 +359,7 @@ errut::bool_t LensGAParametricSinglePlaneCalculator::startNewCalculation(const e
 
 	auto &cl = OpenCLSinglePlaneDeflectionInstance::instance();
 	cl.scheduleCalculation(genome);
+	m_firstCalculationForNewGeneration = true;
 
 	return true;
 }
@@ -372,8 +373,49 @@ errut::bool_t LensGAParametricSinglePlaneCalculator::pollCalculate(const eatk::G
 	assert(m_numObjectives == fitness.getValues().size());
 
 	auto &cl = OpenCLSinglePlaneDeflectionInstance::instance();
-	if (!cl.getResultsForGenome(genome, m_alphas, m_axx, m_ayy, m_axy, m_potential))
+	if (m_firstCalculationForNewGeneration) // See if we can set some new randomized positions
+	{
+		if (!cl.getAdjustedThetas(m_adjustedThetas))
+			return true; // No error, but not ready yet
+
+		m_firstCalculationForNewGeneration = false;
+		if (m_adjustedThetas.size() > 0) // Randomization was done
+		{
+			// Need to use point map to really get the full thetas
+			const vector<size_t> &pointMap = m_pointMap.getPointMapping();
+
+			m_fullAdjustedThetas.resize(pointMap.size());
+			for (size_t i = 0 ; i < m_fullAdjustedThetas.size() ; i++)
+			{
+				assert(i < pointMap.size());
+				size_t idxForPoint = pointMap[i];
+
+				assert(idxForPoint < m_adjustedThetas.size());
+				m_fullAdjustedThetas[i] = m_adjustedThetas[idxForPoint];
+			}
+			m_oclBp->setAdjustedThetas(m_fullAdjustedThetas);
+		}
+	}
+#ifndef NDEBUG
+	else
+	{
+		// TODO: this check won't work anymore if getAdjustedThetas does a swap
+		//       instead of a copy!
+		vector<Vector2Df> check;
+		if (cl.getAdjustedThetas(check))
+		{
+			assert(check == m_adjustedThetas);
+		}
+	}
+#endif // !NDEBUG
+
+	// This routine can reset the flag that indicates the calculation isn't finished, that's why the
+	// getAdjustedThetas code needs to be first
+	if (!cl.getResultsForGenome(genome, m_alphas, m_axx, m_ayy, m_axy, m_potential, m_tracedThetas, m_tracedBetaDiffs))
 		return true; // No error, but not ready yet
+
+
+
 
 	// Check if the bounds were violated (if requested), is for mcmc,
 	// In GA or JADE the algorithm should protect agains going out of bounds

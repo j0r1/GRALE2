@@ -21,6 +21,15 @@ public:
 	~OclCalculatedBackProjector();
 
 	errut::bool_t init(const std::vector<ImagesDataExtended *> &images, double angularScale); 
+
+	// TODO: use this if image position randomization is enabled; randomized positions need
+	//       to be obtained from GPU - is this overkill? Is currently only used for theta
+	//       differences with the retraced thetas, perhaps just calculating the retraced
+	//       theta diff is better?
+	//       Still, what if at some point the actual changed thetas are needed, and they
+	//       will not be updated
+	void setAdjustedThetas(const std::vector<Vector2Df> &adjustedThetas);
+
 	void setBetaBuffer(const float *pBetas, size_t s)									{ m_pBetas = pBetas; m_betasSize = s; }
 	void setAlphaBuffer(const float *pAlphas, size_t s)									{ m_pAlphas = pAlphas; m_alphasSize = s; }
 	void setDerivBuffers(const float *pAxx, const float *pAyy, const float *pAxy, size_t s) { m_pAxx = pAxx; m_pAyy = pAyy; m_pAxy = pAxy;  m_derivSize = s; }
@@ -33,6 +42,9 @@ public:
 	const Vector2D<float> *getBetas(int sourceNumber, int imageNumber) const;
 	const Vector2D<float> *getThetas(int sourceNumber) const;
 	const Vector2D<float> *getThetas(int sourceNumber, int imageNumber) const;
+	bool hasRetracedThetas(int sourceNum) const override;
+	const Vector2D<float> *getRetracedThetas(int sourceNum) const override;
+	const Vector2D<float> *getRetracedThetas(int sourceNum, int imageNum) const override;
 	const Vector2D<float> *getAlphas(int sourceNumber) const;
 	const Vector2D<float> *getAlphas(int sourceNumber, int imageNumber) const;
 	const float *getDerivativesXX(int sourceNumber) const;
@@ -166,6 +178,40 @@ inline const float *OclCalculatedBackProjector::getLensPotential(int sourceNumbe
 inline const float *OclCalculatedBackProjector::getLensPotential(int sourceNumber, int imageNumber) const
 {
 	return getOffsetInArray<1>(m_pPotentials, m_potSize, sourceNumber, imageNumber);
+}
+
+inline bool OclCalculatedBackProjector::hasRetracedThetas(int sourceNum) const
+{
+	//throw std::runtime_error("TODO");
+	return false;
+}
+
+inline const Vector2D<float> *OclCalculatedBackProjector::getRetracedThetas(int sourceNum) const
+{
+	throw std::runtime_error("TODO");
+	return nullptr;
+}
+
+inline const Vector2D<float> *OclCalculatedBackProjector::getRetracedThetas(int sourceNum, int imageNum) const
+{
+	throw std::runtime_error("TODO");
+	return nullptr;
+}
+
+inline void OclCalculatedBackProjector::setAdjustedThetas(const std::vector<Vector2Df> &adjustedThetas)
+{
+	size_t idx = 0;
+	for (auto &src : m_thetas)
+	{
+		for (auto &t : src)
+		{
+			assert(idx < adjustedThetas.size());
+			t = adjustedThetas[idx];
+			idx++;
+		}
+	}
+
+	assert(idx == adjustedThetas.size());
 }
 
 } // end namespace

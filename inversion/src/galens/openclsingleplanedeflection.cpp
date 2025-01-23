@@ -1036,6 +1036,22 @@ errut::bool_t OpenCLSinglePlaneDeflection::calculateDeflectionAndRetrace(const s
 	if (!(r = calculateDeflection(parameters, allAlphas, allAxx, allAyy, allAxy, allPotentials)))
 		return r;
 
+	auto ctx = m_cl->getContext();
+	auto queue = m_cl->getCommandQueue();
+
+	// Fetch the changed thetas
+	if (m_clThetaWithAdditions.m_pMem)
+	{
+		assert(m_clThetaWithAdditions.m_size == sizeof(float)*2*m_numPoints);
+		changedThetas.resize(m_numPoints);
+		if (!(r = m_clThetaWithAdditions.enqueueReadBuffer(*m_cl, queue, changedThetas.data(), tracedBetaDiffs.size()*sizeof(float)*2, nullptr, nullptr, true)))
+			return "Can't copy randomized input positions: " + r.getErrorString();
+	}
+	else
+	{
+		changedThetas.clear();
+	}
+
 	if (!m_recalcThetas)
 	{
 		tracedThetas.clear();
@@ -1049,9 +1065,6 @@ errut::bool_t OpenCLSinglePlaneDeflection::calculateDeflectionAndRetrace(const s
 
 	assert(numParamSets > 0);
 	cerr << "DEBUG: numParamSets = " << numParamSets << endl;
-
-	auto ctx = m_cl->getContext();
-	auto queue = m_cl->getCommandQueue();
 
 	// Allocate room to store (intermediate) betas
 	if (!(r = m_clAllBetas.realloc(*m_cl, ctx, sizeof(cl_float)*2*m_clNumBpImages*numParamSets)))
@@ -1172,18 +1185,6 @@ errut::bool_t OpenCLSinglePlaneDeflection::calculateDeflectionAndRetrace(const s
 			return "Can't read source plane differences: " + r.getErrorString();
 	}
 
-	if (m_clThetaWithAdditions.m_pMem)
-	{
-		assert(m_clThetaWithAdditions.m_size == sizeof(float)*2*m_numPoints);
-		changedThetas.resize(m_numPoints);
-		if (!(r = m_clThetaWithAdditions.enqueueReadBuffer(*m_cl, queue, changedThetas.data(), tracedBetaDiffs.size()*sizeof(float)*2, nullptr, nullptr, true)))
-			return "Can't copy randomized input positions: " + r.getErrorString();
-	}
-	else
-	{
-		changedThetas.clear();
-	}
-
 	return true;
 }
 
@@ -1236,7 +1237,9 @@ errut::bool_t OpenCLSinglePlaneDeflectionInstance::initInstance(uint64_t userId,
 					   int devIdx,
 					   uint64_t initialUncertSeed,
 					   const std::vector<std::pair<size_t, std::string>> &originParameters,
-					   size_t numOriginParameters
+					   size_t numOriginParameters,
+					   const std::vector<std::pair<int, float>> &recalcThetaInfo,
+					   size_t numRetraceIterations
 					   )
 
 {
@@ -1265,7 +1268,7 @@ errut::bool_t OpenCLSinglePlaneDeflectionInstance::initInstance(uint64_t userId,
 	unique_ptr<OpenCLSinglePlaneDeflectionInstance> oclCalc = make_unique<OpenCLSinglePlaneDeflectionInstance>();
 	bool_t r = oclCalc->init(thetas, thetaUncert, templateIntParameters, templateFloatParameters, changeableParameterIndices,
 							 deflectionKernelCode, lensRoutineName, devIdx, initialUncertSeed,
-							 originParameters, numOriginParameters);
+							 originParameters, numOriginParameters, recalcThetaInfo, numRetraceIterations);
 	oclCalc->m_requestedDevIdx = devIdx; // TODO: store this in a better way?
 
 	if (!r)
@@ -1358,7 +1361,9 @@ bool_t OpenCLSinglePlaneDeflectionInstance::scheduleCalculation(const eatk::Floa
 	if (offset+1 == m_totalGenomesToCalculate)
 	{
 		//cerr << "Got " << m_totalGenomesToCalculate << " genomes, need to calculate!" << endl;
-		bool_t r = calculateDeflection(m_floatBuffer, m_allAlphas, m_allAxx, m_allAyy, m_allAxy, m_allPotentials);
+		bool_t r = calculateDeflectionAndRetrace(m_floatBuffer, m_adjustedThetas,
+		                                         m_allAlphas, m_allAxx, m_allAyy, m_allAxy, m_allPotentials,
+												 m_allTracedThetas, m_allTracedBetaDiffs);
 		if (!r)
 			return r;
 		//cerr << "Delections calculated successfully" << endl;
@@ -1371,10 +1376,25 @@ bool_t OpenCLSinglePlaneDeflectionInstance::scheduleCalculation(const eatk::Floa
 	return true;
 }
 
+bool OpenCLSinglePlaneDeflectionInstance::getAdjustedThetas(std::vector<Vector2Df> &adjustedThetas)
+{
+	lock_guard<mutex> guard(m_mutex);
+	if (!m_calculationDone)
+		return false;
+
+	// We need to make a copy since multiple threads can request this information
+	vector<Vector2Df> copy = m_adjustedThetas;
+	adjustedThetas.swap(copy);
+
+	return true;
+}
+
 bool OpenCLSinglePlaneDeflectionInstance::getResultsForGenome(const eatk::FloatVectorGenome &genome,
 							 vector<Vector2Df> &alphas, vector<float> &axx,
 							 vector<float> &ayy, vector<float> &axy,
-							 vector<float> &potential)
+							 vector<float> &potential,
+							 vector<Vector2Df> &tracedThetas,
+							 vector<float> &tracedBetaDiffs)
 {
 	lock_guard<mutex> guard(m_mutex);
 	if (!m_calculationDone)
@@ -1387,6 +1407,7 @@ bool OpenCLSinglePlaneDeflectionInstance::getResultsForGenome(const eatk::FloatV
 	int offset = it->second;
 	int pointOffsetStart = offset*m_numPoints;
 	int pointOffsetEnd = pointOffsetStart + m_numPoints;
+
 	// cerr << "offset for genome " << (void*)pGenome << " is " << offset 
 	//	  << ", numPoints = " << m_numPoints << endl;
 
@@ -1399,12 +1420,26 @@ bool OpenCLSinglePlaneDeflectionInstance::getResultsForGenome(const eatk::FloatV
 	axy.resize(m_numPoints);
 	potential.resize(m_numPoints);
 
+	tracedThetas.resize(m_clNumBpImages);
+	tracedBetaDiffs.resize(m_clNumBpImages);
+
 	assert(sizeof(Vector2Df) == sizeof(float)*2);
 	memcpy(alphas.data(), m_allAlphas.data()+pointOffsetStart, m_numPoints*2*sizeof(float));
 	memcpy(axx.data(), m_allAxx.data()+pointOffsetStart, m_numPoints*sizeof(float));
 	memcpy(ayy.data(), m_allAyy.data()+pointOffsetStart, m_numPoints*sizeof(float));
 	memcpy(axy.data(), m_allAxy.data()+pointOffsetStart, m_numPoints*sizeof(float));
 	memcpy(potential.data(), m_allPotentials.data()+pointOffsetStart, m_numPoints*sizeof(float));
+
+	if (m_clNumBpImages > 0)
+	{
+		int bpPointOffsetStart = offset*m_clNumBpImages;
+		int bpPointOffsetEnd = bpPointOffsetStart + m_clNumBpImages;
+		assert(bpPointOffsetStart < m_allTracedThetas.size());
+		assert(bpPointOffsetStart <= m_allTracedThetas.size());
+
+		memcpy(tracedThetas.data(), m_allTracedThetas.data() + bpPointOffsetStart, m_clNumBpImages*2*sizeof(float));
+		memcpy(tracedBetaDiffs.data(), m_allTracedBetaDiffs.data() + bpPointOffsetStart, m_clNumBpImages*sizeof(float));
+	}
 
 	m_genomeOffsets.erase(it);
 	if (m_genomeOffsets.empty())

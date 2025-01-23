@@ -32,7 +32,6 @@ bool_t OclCalculatedBackProjector::init(const std::vector<ImagesDataExtended *> 
 	if (sizeof(arr1) != sizeof(arr2))
 		return "Alignment error, can't use backprojector for OpenCL buffer";
 
-
 	m_thetas.resize(images.size());
 	m_angularScale = angularScale;
 
