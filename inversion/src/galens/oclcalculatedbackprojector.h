@@ -8,6 +8,7 @@
 #include <vector>
 #include <limits>
 #include <string>
+#include <memory>
 
 namespace grale
 {
@@ -29,6 +30,12 @@ public:
 	//       Still, what if at some point the actual changed thetas are needed, and they
 	//       will not be updated
 	void setAdjustedThetas(const std::vector<Vector2Df> &adjustedThetas);
+	void setRetraceInfo(const std::shared_ptr<std::vector<bool>> &tracedSourcesFlags,
+			            const std::shared_ptr<std::vector<std::vector<Vector2Df>>> &tracedSourcesPoints)
+	{
+		m_tracedSourcesFlags = tracedSourcesFlags;
+		m_tracedSourcesPoints = tracedSourcesPoints;
+	}
 
 	void setBetaBuffer(const float *pBetas, size_t s)									{ m_pBetas = pBetas; m_betasSize = s; }
 	void setAlphaBuffer(const float *pAlphas, size_t s)									{ m_pAlphas = pAlphas; m_alphasSize = s; }
@@ -81,6 +88,9 @@ private:
 	const float *m_pPotentials = nullptr;
 	size_t m_betasSize = 0, m_alphasSize = 0, m_derivSize = 0, m_potSize = 0;
 	double m_angularScale = 0;
+
+	std::shared_ptr<std::vector<bool>> m_tracedSourcesFlags;
+	std::shared_ptr<std::vector<std::vector<Vector2Df>>> m_tracedSourcesPoints;
 
 	template <int ptMultiplier>
 	const float *getOffsetInArray(const float *pBasePtr, size_t bufSize, int sourceNumber) const
@@ -182,20 +192,28 @@ inline const float *OclCalculatedBackProjector::getLensPotential(int sourceNumbe
 
 inline bool OclCalculatedBackProjector::hasRetracedThetas(int sourceNum) const
 {
-	//throw std::runtime_error("TODO");
-	return false;
+	assert(sourceNum < m_tracedSourcesFlags->size());
+	return (*m_tracedSourcesFlags)[sourceNum];
 }
 
 inline const Vector2D<float> *OclCalculatedBackProjector::getRetracedThetas(int sourceNum) const
 {
-	throw std::runtime_error("TODO");
-	return nullptr;
+	assert(sourceNum < m_tracedSourcesPoints->size());
+	const std::vector<Vector2Df> &allSrcPoints = (*m_tracedSourcesPoints)[sourceNum];
+	assert(allSrcPoints.size() == getNumberOfImagePoints(sourceNum));
+	return allSrcPoints.data();
 }
 
 inline const Vector2D<float> *OclCalculatedBackProjector::getRetracedThetas(int sourceNum, int imageNum) const
 {
-	throw std::runtime_error("TODO");
-	return nullptr;
+	assert(sourceNum < m_tracedSourcesPoints->size());
+	const std::vector<Vector2Df> &allSrcPoints = (*m_tracedSourcesPoints)[sourceNum];
+	assert(allSrcPoints.size() == getNumberOfImagePoints(sourceNum));
+
+	size_t imgOff = m_offsets[sourceNum][imageNum];
+	assert(imgOff + getNumberOfImagePoints(sourceNum, imageNum) <= allSrcPoints.size());
+
+	return allSrcPoints.data() + imgOff;
 }
 
 inline void OclCalculatedBackProjector::setAdjustedThetas(const std::vector<Vector2Df> &adjustedThetas)

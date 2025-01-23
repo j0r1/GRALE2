@@ -98,11 +98,17 @@ bool_t LensGAParametricSinglePlaneCalculator::init(const LensInversionParameters
 
 	bool anyRetrace = false;
 
-	for (size_t imgIdx = 0 ; imgIdx < images.size() ; imgIdx++)
+	m_tracedSourcesFlags = make_shared<std::vector<bool>>();
+	m_tracedSourcesPoints = make_shared<std::vector<std::vector<Vector2Df>>>();
+
+	for (size_t srcIdx = 0 ; srcIdx < images.size() ; srcIdx++)
 	{
-		auto &img = images[imgIdx];
-		bool retrace = retraceImage[imgIdx];
+		auto &img = images[srcIdx];
+		bool retrace = retraceImage[srcIdx];
 		anyRetrace |= retrace;
+
+		m_tracedSourcesFlags->push_back(retrace);
+		m_tracedSourcesPoints->push_back(std::vector<Vector2Df>());
 
 		int numImages = img->getNumberOfImages();
 		double frac = img->getDds()/img->getDs();
@@ -122,7 +128,7 @@ bool_t LensGAParametricSinglePlaneCalculator::init(const LensInversionParameters
 				if (img->hasProperty(ImagesData::PositionUncertainty))
 					uncert = (float)(img->getImagePointProperty(ImagesData::PositionUncertainty, i, p) / m_angularScale);
 
-				auto newPointCallback = [imgIdx, havePosUncerts, uncert, retrace, frac,
+				auto newPointCallback = [this, srcIdx, havePosUncerts, uncert, retrace, frac,
 					                     &posUncertainties, &recalcThetaInfo](Vector2Df pt, bool forceUnique, size_t thetaIndex) -> bool_t
 				{
 					if (havePosUncerts)
@@ -130,7 +136,11 @@ bool_t LensGAParametricSinglePlaneCalculator::init(const LensInversionParameters
 
 					pair<int, float> traceInf = {-1, numeric_limits<float>::quiet_NaN() };
 					if (retrace)
-						traceInf = { imgIdx, frac };
+					{
+						traceInf = { srcIdx, frac };
+						m_bpPointInfo.push_back({ srcIdx, m_tracedSourcesPoints->back().size() });
+						m_tracedSourcesPoints->back().push_back({ numeric_limits<float>::quiet_NaN(), numeric_limits<float>::quiet_NaN() });
+					}
 					recalcThetaInfo.push_back(traceInf);
 					return true;
 				};
@@ -168,7 +178,12 @@ bool_t LensGAParametricSinglePlaneCalculator::init(const LensInversionParameters
 
 	m_thetas = m_pointMap.getPoints();
 	if (!anyRetrace) // Don't do extra calculations if no retracing is needed
+	{
 		recalcThetaInfo.clear();
+		m_tracedSourcesPoints = nullptr;
+		m_tracedSourcesFlags = nullptr;
+		m_bpPointInfo.clear();
+	}
 
 	cerr << "INFO: total points " << m_pointMap.getPointMapping().size() << " =? " << m_distFrac.size() << ", unique points = " << m_thetas.size() << endl;
 	// cerr << "Point map is:" << endl;
@@ -442,7 +457,7 @@ errut::bool_t LensGAParametricSinglePlaneCalculator::pollCalculate(const eatk::G
 #ifndef NDEBUG
 	else
 	{
-		// TODO: this check won't work anymore if getAdjustedThetas does a swap
+		// Note: this check won't work anymore if getAdjustedThetas does a swap
 		//       instead of a copy!
 		vector<Vector2Df> check;
 		if (cl.getAdjustedThetas(check))
@@ -581,6 +596,32 @@ errut::bool_t LensGAParametricSinglePlaneCalculator::pollCalculate(const eatk::G
 		}
 
 		m_oclBp->setPotentialBuffers(m_scaledPotentials.data(), m_scaledPotentials.size());
+	}
+
+	if (m_tracedThetas.size() > 0)
+	{
+		// TODO: also use m_tracedBetaDiffs to see if the convergence made sense? Perhaps just for statistics?
+		assert(m_tracedThetas.size() == m_bpPointInfo.size());
+		for (size_t i = 0 ; i < m_tracedThetas.size() ; i++)
+		{
+			auto [ srcIdx, thetaIdx ] = m_bpPointInfo[i];
+			assert(srcIdx < m_tracedSourcesPoints->size());
+			assert(thetaIdx < (*m_tracedSourcesPoints)[srcIdx].size());
+			(*m_tracedSourcesPoints)[srcIdx][thetaIdx] = m_tracedThetas[i];
+		}
+
+#ifndef NDEBUG
+		for (auto &src : (*m_tracedSourcesPoints))
+		{
+			for (auto &imgPt : src)
+			{
+				assert(!std::isnan(imgPt.getX()));
+				assert(!std::isnan(imgPt.getY()));
+			}
+		}
+#endif // !NDEBUG
+
+		m_oclBp->setRetraceInfo(m_tracedSourcesFlags, m_tracedSourcesPoints);
 	}
 
 	vector<float> &fitnessValues = fitness.getValues();

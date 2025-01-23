@@ -133,6 +133,11 @@ public:
 	/** Returns the (stored) positions in the image plane of a specific image of a specific source. */
 	virtual const Vector2D<float> *getThetas(int sourcenum, int imagenum) const = 0;
 
+	// TODO: make pure virtual?
+	virtual bool hasRetracedThetas(int sourceNum) const { return false; }
+	virtual const Vector2D<float> *getRetracedThetas(int sourceNum) const { return nullptr; }
+	virtual const Vector2D<float> *getRetracedThetas(int sourceNum, int imageNum) const { return nullptr; }
+
 	/** Returns alpha_xx values for all points of a specific source. */
 	virtual const float *getDerivativesXX(int sourceNumber) const = 0;
 

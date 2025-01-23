@@ -57,6 +57,10 @@ private:
 	std::unique_ptr<GravitationalLens> m_templateLens;
 	size_t m_numOriginParams = 0;
 
+	std::shared_ptr<std::vector<bool>> m_tracedSourcesFlags;
+	std::shared_ptr<std::vector<std::vector<Vector2Df>>> m_tracedSourcesPoints;
+	std::vector<std::pair<size_t, size_t>> m_bpPointInfo;
+
 	std::vector<Vector2Df> m_alphas, m_tracedThetas;
 	std::vector<float> m_axx, m_ayy, m_axy, m_potential, m_tracedBetaDiffs;
 	std::vector<Vector2Df> m_adjustedThetas, m_fullAdjustedThetas;
