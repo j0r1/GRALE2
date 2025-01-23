@@ -32,7 +32,8 @@ public:
 		const std::vector<std::pair<size_t, std::string>> &originParameterMapping,
 		size_t numOriginParameters,
 		const std::vector<std::shared_ptr<ParameterPrior>> &priors,
-		bool allowUnusedPriors
+		bool allowUnusedPriors,
+		const std::vector<bool> &retraceImages
 		);
 	~LensInversionParametersParametricSinglePlane();
 
@@ -56,6 +57,7 @@ public:
 	size_t getNumberOfOriginParameters() const { return m_numOriginParams; }
 	const std::vector<std::shared_ptr<ParameterPrior>> getParameterPriors() const { return m_priors; }
 	bool shouldAllowUnusedPriors() const { return m_allowUnusedPriors; }
+	const std::vector<bool> &shouldRetraceImages() const { return m_retraceImages; }
 
 	bool write(serut::SerializationInterface &si) const override;
 	bool read(serut::SerializationInterface &si) override;
@@ -75,6 +77,7 @@ private:
 	size_t m_numOriginParams = 0;
 	std::vector<std::shared_ptr<ParameterPrior>> m_priors;
 	bool m_allowUnusedPriors = false;
+	std::vector<bool> m_retraceImages;
 };
 
 } // end namespace

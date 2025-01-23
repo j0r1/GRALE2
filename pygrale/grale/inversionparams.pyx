@@ -1076,7 +1076,9 @@ cdef class LensInversionParametersParametricSinglePlane(object):
                   fitnessObjectParameters, deviceIndex = "rotate",
                   randomizeImagePositions = False, initialUncertSeed = 0,
                   originParametersMap = [], numOriginParams = 0,
-                  priors = [], allowUnusedPriors = False):
+                  priors = [], allowUnusedPriors = False,
+                  retraceImages = []
+                 ):
 
         cdef vector[shared_ptr[imagesdataextended.ImagesDataExtended]] imgVector = _createImageVectorFromSinglePlaneImageList(inputImages)
         cdef double cDd = Dd
@@ -1100,6 +1102,7 @@ cdef class LensInversionParametersParametricSinglePlane(object):
         cdef string tmpStr
         cdef vector[shared_ptr[parameterprior.ParameterPrior]] cPriors
         cdef cbool cAllowUnusedPriors = allowUnusedPriors
+        cdef vector[cbool] cRetraceImages
 
         if inputImages is None:
             return
@@ -1131,12 +1134,15 @@ cdef class LensInversionParametersParametricSinglePlane(object):
             else:
                 raise InversionParametersException(f"Invalid prior {p}")
 
+        for v in retraceImages:
+            cRetraceImages.push_back(True if v else False)
+
         self.m_pParams = unique_ptr[lensinversionparametersparametricsingleplane.LensInversionParametersParametricSinglePlane](
             new lensinversionparametersparametricsingleplane.LensInversionParametersParametricSinglePlane(
                 imgVector, cDd, cZd, deref(cTemplateLens), cDeflScale, cPotScale,
                 cOffsets, cInitMin, cInitMax, cHardMin, cHardMax, cInfOnBoundsViolation, deref(pFitnessObjectParameters),
                 devIdx, cRandomizeInputPos, cInitialUncertSeed, cOriginParamMapping, cNumOriginParams,
-                cPriors, cAllowUnusedPriors
+                cPriors, cAllowUnusedPriors, cRetraceImages
             )
         )
 

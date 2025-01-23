@@ -27,7 +27,8 @@ LensInversionParametersParametricSinglePlane::LensInversionParametersParametricS
 		const vector<pair<size_t, std::string>> &originParameterMapping,
 		size_t numOriginParameters,
 		const std::vector<std::shared_ptr<ParameterPrior>> &priors,
-		bool allowUnusedPriors
+		bool allowUnusedPriors,
+		const std::vector<bool> &retraceImages
 		)
 {
 	m_images = images;
@@ -50,6 +51,7 @@ LensInversionParametersParametricSinglePlane::LensInversionParametersParametricS
 	m_numOriginParams = numOriginParameters;
 	m_priors = priors;
 	m_allowUnusedPriors = allowUnusedPriors;
+	m_retraceImages = retraceImages;
 }
 
 LensInversionParametersParametricSinglePlane::~LensInversionParametersParametricSinglePlane()
@@ -166,6 +168,21 @@ bool LensInversionParametersParametricSinglePlane::write(serut::SerializationInt
 			setErrorString("Can't write prior info: " + r.getErrorString());
 			return false;
 		}
+	}
+
+	if (m_retraceImages.size() != (size_t)numImgs)
+	{
+		setErrorString("Number of retrace flags does not equal the number of images data instances");
+		return false;
+	}
+	vector<int32_t> flags;
+	for (auto v : m_retraceImages)
+		flags.push_back((v)?1:0);
+
+	if (!si.writeInt32s(flags))
+	{
+		setErrorString(si.getErrorString());
+		return false;
 	}
 	
 	return true;
@@ -339,6 +356,16 @@ bool LensInversionParametersParametricSinglePlane::read(serut::SerializationInte
 		p = move(newPrior);
 		//cerr << p->getString() << endl;
 	}
+
+	vector<int32_t> flags(numImgs);
+	if (!si.readInt32s(flags))
+	{
+		setErrorString(si.getErrorString());
+		return false;
+	}
+	m_retraceImages.clear();
+	for (auto v : flags)
+		m_retraceImages.push_back((v == 0)?false:true);
 
 	return true;
 }

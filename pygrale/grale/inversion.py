@@ -823,6 +823,18 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
     
     initialUncertSeed = 0 if not hasPositionUncert else random.getrandbits(64)
 
+    retraceImages = []
+    for img in inputImages:
+        if not "params" in img:
+            raise InversionException("Input image is not a dictionary with 'params' entry")
+        params = img["params"]
+        if not "type" in params:
+            raise InversionException("Input image parameters does not have a 'type' entry")
+
+        # TODO: is there a better way to decide when to retrace something? For now this
+        #       is only needed in this case, and can only be done by the opencl code
+        retraceImages.append(True if params["type"] == "bayesstronglensing" else False)
+
     def getParamsFunction(fullFitnessObjParams, massScale):
         assert massScale is None, f"Internal error: expecting massScale to be None, but is {massScale}"
         return inversionparams.LensInversionParametersParametricSinglePlane(inputImages, Dd, zd,
@@ -830,7 +842,8 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
                   infOnBoundsViolation,
                   fullFitnessObjParams, deviceIndex,
                   useImagePositionRandomization, initialUncertSeed,
-                  originParametersMap, numOriginParams, priors, allowUnusedPriors)
+                  originParametersMap, numOriginParams, priors, allowUnusedPriors,
+                  retraceImages)
 
     results = _invertCommon(inverter, feedbackObject, moduleName, "parametricsingleplane", fitnessObjectParameters,
                   None, [Dd, zd], inputImages, getParamsFunction, popSize,
