@@ -349,6 +349,7 @@ errut::bool_t LensGAParametricSinglePlaneCalculator::onNewCalculationStart(size_
 	
 	auto &cl = OpenCLSinglePlaneDeflectionInstance::instance();
 	cl.setTotalGenomesToCalculate(iteration, genomesForPopulationCalculator);
+	m_firstCalculationForNewGeneration = true;
 	
 	return true;
 }
@@ -358,8 +359,9 @@ errut::bool_t LensGAParametricSinglePlaneCalculator::startNewCalculation(const e
 	const eatk::FloatVectorGenome &genome = static_cast<const eatk::FloatVectorGenome &>(genome0);
 
 	auto &cl = OpenCLSinglePlaneDeflectionInstance::instance();
-	cl.scheduleCalculation(genome);
-	m_firstCalculationForNewGeneration = true;
+	bool_t r;
+	if (!(r = cl.scheduleCalculation(genome)))
+		return "Can't start new calculation for genome: " + r.getErrorString();
 
 	return true;
 }
