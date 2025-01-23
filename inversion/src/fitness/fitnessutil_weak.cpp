@@ -336,10 +336,51 @@ float calculateWeakLensingFitness_Bayes(const ProjectedImagesInterface &interfac
 	// The SL part
 	
 	vector<Vector2Df> thetaDiffs;
-	// We don't need the fitness, just the differences in the image plane
-	// that are calculated here
-	float dummy = calculateOverlapFitness_PointGroups(pointGroups, interface, 
-													  strongIndices, AverageBeta, &thetaDiffs);
+	if (strongIndices.size() > 0)
+	{
+		bool traced = false;
+		if (interface.hasRetracedThetas(strongIndices[0]))
+		{
+			traced = true;
+			// TODO: replace by assert?
+			for (size_t idx = 1 ; idx < strongIndices.size() ; idx++)
+				if (!interface.hasRetracedThetas(strongIndices[idx]))
+					throw runtime_error("Internal error: not all bayes strong lensing images are using retrace");
+		}
+		else
+		{
+			traced = false;
+			// TODO: replace by assert?
+			for (size_t idx = 1 ; idx < strongIndices.size() ; idx++)
+				if (interface.hasRetracedThetas(strongIndices[idx]))
+					throw runtime_error("Internal error: not all bayes strong lensing images are not using retrace");
+		}
+
+		if (traced)
+		{
+			for (int srcIdx : strongIndices)
+			{
+				int numPts = interface.getNumberOfImagePoints(srcIdx);
+				const Vector2Df *pOrigThetas = interface.getThetas(srcIdx);
+				const Vector2Df *pTracedThetas = interface.getRetracedThetas(srcIdx);
+				assert(pOrigThetas);
+				assert(pTracedThetas);
+				for (int i = 0 ; i < numPts ; i++)
+				{
+					Vector2Df diff = pOrigThetas[i];
+					diff -= pTracedThetas[i];
+					thetaDiffs.push_back(diff);
+				}
+			}
+		}
+		else
+		{
+			// We don't need the fitness, just the differences in the image plane
+			// that are calculated here
+			float dummy = calculateOverlapFitness_PointGroups(pointGroups, interface, 
+															  strongIndices, AverageBeta, &thetaDiffs);
+		}
+	}
 
 	float minLogSLProb = 0;
 	float sigmaScaled = (float)(((double)slSigmaArcsec * ANGLE_ARCSEC)/interface.getAngularScale());
