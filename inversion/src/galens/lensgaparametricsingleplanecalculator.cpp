@@ -88,9 +88,22 @@ bool_t LensGAParametricSinglePlaneCalculator::init(const LensInversionParameters
 	}
 
 	vector<float> posUncertainties;
+	vector<float> retraceDistanceFractions;
+	const vector<shared_ptr<ImagesDataExtended>> &images = params.getImages();
+	const vector<bool> &retraceImage = params.shouldRetraceImages();
+	vector<pair<int, float>> recalcThetaInfo;
 
-	for (auto &img : params.getImages())
+	if (images.size() != retraceImage.size())
+		return "Different number of images and retrace flags";
+
+	bool anyRetrace = false;
+
+	for (size_t imgIdx = 0 ; imgIdx < images.size() ; imgIdx++)
 	{
+		auto &img = images[imgIdx];
+		bool retrace = retraceImage[imgIdx];
+		anyRetrace |= retrace;
+
 		int numImages = img->getNumberOfImages();
 		double frac = img->getDds()/img->getDs();
 		assert(!isnan(frac));
@@ -109,27 +122,53 @@ bool_t LensGAParametricSinglePlaneCalculator::init(const LensInversionParameters
 				if (img->hasProperty(ImagesData::PositionUncertainty))
 					uncert = (float)(img->getImagePointProperty(ImagesData::PositionUncertainty, i, p) / m_angularScale);
 
-				int ptIdx = m_pointMap.addPoint(floatPos);
-				if (ptIdx < 0) // returns -1 for a new point, point index for an existing one
+				auto newPointCallback = [imgIdx, havePosUncerts, uncert, retrace, frac,
+					                     &posUncertainties, &recalcThetaInfo](Vector2Df pt, bool forceUnique, size_t thetaIndex) -> bool_t
 				{
-					m_thetas.push_back(floatPos);
 					if (havePosUncerts)
 						posUncertainties.push_back(uncert);
-				}
-				else
+
+					pair<int, float> traceInf = {-1, numeric_limits<float>::quiet_NaN() };
+					if (retrace)
+						traceInf = { imgIdx, frac };
+					recalcThetaInfo.push_back(traceInf);
+					return true;
+				};
+
+				auto existingPointCallback = [havePosUncerts, retrace, uncert, &posUncertainties, &recalcThetaInfo](Vector2Df pt, size_t thetaIndex) -> bool_t
 				{
+					size_t ptIdx = thetaIndex;
 					if (havePosUncerts)
 					{
 						assert(ptIdx < posUncertainties.size());
 						if (posUncertainties[ptIdx] != uncert)
 							return "Points with same positions have different uncertainties";
 					}
-				}
+
+					if (retrace)
+						return "Can't retrace points that are already known!";
+
+					assert(ptIdx < recalcThetaInfo.size());
+					if (recalcThetaInfo[ptIdx].first >= 0)
+						return "Different retrace settings for identical points";
+
+					return true;
+				};
+
+				bool forceNew = false;
+				if (retrace)
+					forceNew = true;
+				if (!(r = m_pointMap.addPoint(floatPos, forceNew, newPointCallback, existingPointCallback)))
+					return r;
 	
 				m_distFrac.push_back(frac);
 			}
 		}
 	}
+
+	m_thetas = m_pointMap.getPoints();
+	if (!anyRetrace) // Don't do extra calculations if no retracing is needed
+		recalcThetaInfo.clear();
 
 	cerr << "INFO: total points " << m_pointMap.getPointMapping().size() << " =? " << m_distFrac.size() << ", unique points = " << m_thetas.size() << endl;
 	// cerr << "Point map is:" << endl;
@@ -173,7 +212,9 @@ bool_t LensGAParametricSinglePlaneCalculator::init(const LensInversionParameters
 																	m_devIdx,
 																	posUncertSeed,
 																	originParameterMapping,
-																	m_numOriginParams
+																	m_numOriginParams,
+																	recalcThetaInfo,
+																	5 // TODO: make this configurable
 																	)))
 		return "Couldn't init OpenCLSinglePlaneDeflectionInstance: " + r.getErrorString();
 
@@ -415,9 +456,6 @@ errut::bool_t LensGAParametricSinglePlaneCalculator::pollCalculate(const eatk::G
 	// getAdjustedThetas code needs to be first
 	if (!cl.getResultsForGenome(genome, m_alphas, m_axx, m_ayy, m_axy, m_potential, m_tracedThetas, m_tracedBetaDiffs))
 		return true; // No error, but not ready yet
-
-
-
 
 	// Check if the bounds were violated (if requested), is for mcmc,
 	// In GA or JADE the algorithm should protect agains going out of bounds

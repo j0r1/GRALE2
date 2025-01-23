@@ -82,26 +82,35 @@ private:
 			m_pointIndex.clear();
 		}
 
-		int addPoint(Vector2Df pt) // Returns -1 for a new point, the existing index for an existing one
+		template <class CB1, class CB2>
+		errut::bool_t addPoint(Vector2Df pt, bool forceUnique, CB1 newPointCallback, CB2 existingPointCallback)
 		{
+			errut::bool_t r;
 			auto it = m_thetaMap.find(pt);
-			if (it == m_thetaMap.end()) // new point
+			if (forceUnique || it == m_thetaMap.end()) // new point
 			{
-				size_t ptIdx = m_thetaMap.size();
+				size_t ptIdx = m_points.size();
+				m_points.push_back(pt);
 				m_pointIndex.push_back(ptIdx);
 
-				m_thetaMap[pt] = ptIdx;
-				return -1;
+				if (!forceUnique) // Don't make future references to unique points
+					m_thetaMap[pt] = ptIdx;
+
+				if (!(r = newPointCallback(pt, forceUnique, ptIdx)))
+					return r;
 			}
 			else
 			{
 				size_t ptIdx = it->second;
 				m_pointIndex.push_back(ptIdx);
-				return (int)ptIdx;
+				if (!(r = existingPointCallback(pt, ptIdx)))
+					return r;
 			}
+			return true;
 		}
 
 		const std::vector<size_t> &getPointMapping() const { return m_pointIndex; }
+		const std::vector<Vector2Df> &getPoints() const { return m_points; }
 	private:
 		struct Vec2DfComparator
 		{
@@ -113,6 +122,8 @@ private:
 		    }
 		};
 		std::vector<size_t> m_pointIndex;
+		std::vector<Vector2Df> m_points;
+
 		std::map<Vector2Df, size_t, Vec2DfComparator> m_thetaMap;
 	};
 
