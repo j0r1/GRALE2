@@ -1044,7 +1044,7 @@ errut::bool_t OpenCLSinglePlaneDeflection::calculateDeflectionAndRetrace(const s
 	{
 		assert(m_clThetaWithAdditions.m_size == sizeof(float)*2*m_numPoints);
 		changedThetas.resize(m_numPoints);
-		if (!(r = m_clThetaWithAdditions.enqueueReadBuffer(*m_cl, queue, changedThetas.data(), tracedBetaDiffs.size()*sizeof(float)*2, nullptr, nullptr, true)))
+		if (!(r = m_clThetaWithAdditions.enqueueReadBuffer(*m_cl, queue, changedThetas.data(), changedThetas.size()*sizeof(float)*2, nullptr, nullptr, true)))
 			return "Can't copy randomized input positions: " + r.getErrorString();
 	}
 	else
@@ -1064,7 +1064,7 @@ errut::bool_t OpenCLSinglePlaneDeflection::calculateDeflectionAndRetrace(const s
 		return r;
 
 	assert(numParamSets > 0);
-	cerr << "DEBUG: numParamSets = " << numParamSets << endl;
+	//cerr << "DEBUG: numParamSets = " << numParamSets << endl;
 
 	// Allocate room to store (intermediate) betas
 	if (!(r = m_clAllBetas.realloc(*m_cl, ctx, sizeof(cl_float)*2*m_clNumBpImages*numParamSets)))
