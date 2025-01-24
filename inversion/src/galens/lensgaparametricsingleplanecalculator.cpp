@@ -229,9 +229,12 @@ bool_t LensGAParametricSinglePlaneCalculator::init(const LensInversionParameters
 																	originParameterMapping,
 																	m_numOriginParams,
 																	recalcThetaInfo,
-																	5 // TODO: make this configurable
+																	params.getNumberOfRetraceSteps()
 																	)))
 		return "Couldn't init OpenCLSinglePlaneDeflectionInstance: " + r.getErrorString();
+
+	if (anyRetrace)
+		cerr << "INFO: using " << params.getNumberOfRetraceSteps() << " retrace steps" << endl;
 
 	list<ImagesDataExtended *> empty;
 

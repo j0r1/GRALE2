@@ -1077,7 +1077,8 @@ cdef class LensInversionParametersParametricSinglePlane(object):
                   randomizeImagePositions = False, initialUncertSeed = 0,
                   originParametersMap = [], numOriginParams = 0,
                   priors = [], allowUnusedPriors = False,
-                  retraceImages = []
+                  retraceImages = [],
+                  numRetraceSteps = 5,
                  ):
 
         cdef vector[shared_ptr[imagesdataextended.ImagesDataExtended]] imgVector = _createImageVectorFromSinglePlaneImageList(inputImages)
@@ -1103,6 +1104,7 @@ cdef class LensInversionParametersParametricSinglePlane(object):
         cdef vector[shared_ptr[parameterprior.ParameterPrior]] cPriors
         cdef cbool cAllowUnusedPriors = allowUnusedPriors
         cdef vector[cbool] cRetraceImages
+        cdef size_t cNumRetraceSteps = numRetraceSteps
 
         if inputImages is None:
             return
@@ -1142,7 +1144,7 @@ cdef class LensInversionParametersParametricSinglePlane(object):
                 imgVector, cDd, cZd, deref(cTemplateLens), cDeflScale, cPotScale,
                 cOffsets, cInitMin, cInitMax, cHardMin, cHardMax, cInfOnBoundsViolation, deref(pFitnessObjectParameters),
                 devIdx, cRandomizeInputPos, cInitialUncertSeed, cOriginParamMapping, cNumOriginParams,
-                cPriors, cAllowUnusedPriors, cRetraceImages
+                cPriors, cAllowUnusedPriors, cRetraceImages, cNumRetraceSteps
             )
         )
 

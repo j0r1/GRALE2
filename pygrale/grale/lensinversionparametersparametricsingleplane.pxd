@@ -36,7 +36,8 @@ cdef extern from "grale/lensinversionparametersparametricsingleplane.h" namespac
                 size_t numOriginParams,
                 const vector[shared_ptr[parameterprior.ParameterPrior]] &priors,
                 bool allowUnusedPriors,
-                const vector[bool] &retraceImages
+                const vector[bool] &retraceImages,
+                size_t numRetraceSteps
                 )
 
         bool read(serut.SerializationInterface &si)

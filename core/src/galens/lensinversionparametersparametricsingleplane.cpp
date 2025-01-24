@@ -28,7 +28,8 @@ LensInversionParametersParametricSinglePlane::LensInversionParametersParametricS
 		size_t numOriginParameters,
 		const std::vector<std::shared_ptr<ParameterPrior>> &priors,
 		bool allowUnusedPriors,
-		const std::vector<bool> &retraceImages
+		const std::vector<bool> &retraceImages,
+		size_t numRetraceSteps
 		)
 {
 	m_images = images;
@@ -52,6 +53,7 @@ LensInversionParametersParametricSinglePlane::LensInversionParametersParametricS
 	m_priors = priors;
 	m_allowUnusedPriors = allowUnusedPriors;
 	m_retraceImages = retraceImages;
+	m_numRetraceSteps = numRetraceSteps;
 }
 
 LensInversionParametersParametricSinglePlane::~LensInversionParametersParametricSinglePlane()
@@ -180,6 +182,13 @@ bool LensInversionParametersParametricSinglePlane::write(serut::SerializationInt
 		flags.push_back((v)?1:0);
 
 	if (!si.writeInt32s(flags))
+	{
+		setErrorString(si.getErrorString());
+		return false;
+	}
+
+	int32_t numRetr = (int32_t)m_numRetraceSteps;
+	if (!si.writeInt32(numRetr))
 	{
 		setErrorString(si.getErrorString());
 		return false;
@@ -366,6 +375,20 @@ bool LensInversionParametersParametricSinglePlane::read(serut::SerializationInte
 	m_retraceImages.clear();
 	for (auto v : flags)
 		m_retraceImages.push_back((v == 0)?false:true);
+
+	int32_t numRetr;
+	if (!si.readInt32(&numRetr))
+	{
+		setErrorString(si.getErrorString());
+		return false;
+	}
+
+	if (numRetr < 0)
+	{
+		setErrorString("Negative number of retrace steps");
+		return false;
+	}
+	m_numRetraceSteps = (size_t)numRetr;
 
 	return true;
 }

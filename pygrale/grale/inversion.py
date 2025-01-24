@@ -700,7 +700,7 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
            defaultInitialParameterFraction = 0.1, clampToHardLimits = False, fitnessObjectParameters = None, convergenceParameters = { },
            geneticAlgorithmParameters = { }, returnNds = False, inverter = "default", feedbackObject = "default",
            cosmology = None, maximumGenerations = None, eaType = "JADE", deviceIndex = "rotate",
-           useImagePositionRandomization = False, allowUnusedPriors = False):
+           useImagePositionRandomization = False, allowUnusedPriors = False, numberOfRetraceSteps = 5):
     """This is a low-level function, used by the similarly named function
     in :class:`InversionWorkSpace`.
 
@@ -770,6 +770,9 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
      - `allowUnusedPriors`: by default, if prior information is set on the parameters
        but the fitness measure cannot incorporate this, an error will be generated. To
        ignore this error, the flag can be set to ``True``.
+
+     - `numberOfRetraceSteps`: TODO, either a number or "disable", for the bayesian strong
+       lensing
     """
 
     desc = paramdesc.analyzeParametricLensDescription(parametricLensDescription, Dd, defaultInitialParameterFraction, clampToHardLimits)
@@ -824,7 +827,12 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
     initialUncertSeed = 0 if not hasPositionUncert else random.getrandbits(64)
 
     retraceImages = []
+    anyRetrace = False
     for img in inputImages:
+        if numberOfRetraceSteps == "disable":
+            retraceImages.append(False)
+            continue
+
         if not "params" in img:
             raise InversionException("Input image is not a dictionary with 'params' entry")
         params = img["params"]
@@ -834,6 +842,13 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
         # TODO: is there a better way to decide when to retrace something? For now this
         #       is only needed in this case, and can only be done by the opencl code
         retraceImages.append(True if params["type"] == "bayesstronglensing" else False)
+        if retraceImages[-1]:
+            anyRetrace = True
+
+    if numberOfRetraceSteps == "disable":
+        numberOfRetraceSteps = 5 # Just make sure it's a number
+        if anyRetrace:
+            print(f"WARNING: disabling OpenCL based retrace code")
 
     def getParamsFunction(fullFitnessObjParams, massScale):
         assert massScale is None, f"Internal error: expecting massScale to be None, but is {massScale}"
@@ -843,7 +858,7 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
                   fullFitnessObjParams, deviceIndex,
                   useImagePositionRandomization, initialUncertSeed,
                   originParametersMap, numOriginParams, priors, allowUnusedPriors,
-                  retraceImages)
+                  retraceImages, numberOfRetraceSteps)
 
     results = _invertCommon(inverter, feedbackObject, moduleName, "parametricsingleplane", fitnessObjectParameters,
                   None, [Dd, zd], inputImages, getParamsFunction, popSize,
