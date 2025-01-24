@@ -192,12 +192,16 @@ inline const float *OclCalculatedBackProjector::getLensPotential(int sourceNumbe
 
 inline bool OclCalculatedBackProjector::hasRetracedThetas(int sourceNum) const
 {
+	if (!m_tracedSourcesPoints)
+		return false;
+
 	assert(sourceNum < m_tracedSourcesFlags->size());
 	return (*m_tracedSourcesFlags)[sourceNum];
 }
 
 inline const Vector2D<float> *OclCalculatedBackProjector::getRetracedThetas(int sourceNum) const
 {
+	assert(m_tracedSourcesPoints.get());
 	assert(sourceNum < m_tracedSourcesPoints->size());
 	const std::vector<Vector2Df> &allSrcPoints = (*m_tracedSourcesPoints)[sourceNum];
 	assert(allSrcPoints.size() == getNumberOfImagePoints(sourceNum));
@@ -206,6 +210,7 @@ inline const Vector2D<float> *OclCalculatedBackProjector::getRetracedThetas(int 
 
 inline const Vector2D<float> *OclCalculatedBackProjector::getRetracedThetas(int sourceNum, int imageNum) const
 {
+	assert(m_tracedSourcesPoints.get());
 	assert(sourceNum < m_tracedSourcesPoints->size());
 	const std::vector<Vector2Df> &allSrcPoints = (*m_tracedSourcesPoints)[sourceNum];
 	assert(allSrcPoints.size() == getNumberOfImagePoints(sourceNum));

@@ -829,10 +829,6 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
     retraceImages = []
     anyRetrace = False
     for img in inputImages:
-        if numberOfRetraceSteps == "disable":
-            retraceImages.append(False)
-            continue
-
         if not "params" in img:
             raise InversionException("Input image is not a dictionary with 'params' entry")
         params = img["params"]
@@ -845,10 +841,16 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
         if retraceImages[-1]:
             anyRetrace = True
 
+    #print("DEBUG: numberOfRetraceSteps = ", numberOfRetraceSteps)
+    #print("DEBUG: anyRetrace =", anyRetrace)
+    #print("DEBUG: retraceImages =", retraceImages)
+
     if numberOfRetraceSteps == "disable":
         numberOfRetraceSteps = 5 # Just make sure it's a number
         if anyRetrace:
             print(f"WARNING: disabling OpenCL based retrace code")
+        for i in range(len(retraceImages)):
+            retraceImages[i] = False
 
     def getParamsFunction(fullFitnessObjParams, massScale):
         assert massScale is None, f"Internal error: expecting massScale to be None, but is {massScale}"
