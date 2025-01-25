@@ -513,8 +513,9 @@ def calculateImagePredictions(imgList, lensModel, cosmology=None,
                                     "beta_est": betas})
         else:
             for x in imgPos:
-                if useFSolve:
-                    imgPlane = createImgPlaneFn(lensPlane, x["z"])
+
+                #if useFSolve:
+                imgPlane = createImgPlaneFn(lensPlane, x["z"]) # Always need this to call imgPlane.traceTheta below
 
                 thetaPred = [ ]
                 betaFromThetaPred = []
