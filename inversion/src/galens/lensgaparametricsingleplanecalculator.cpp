@@ -22,7 +22,7 @@ class AccumulatedBetaStats
 public:
 	AccumulatedBetaStats(double deflScale) : m_deflScale(deflScale) { }
 
-	void accumulate(const vector<float> &limits, const vector<size_t> &counts, size_t otherCounts)
+	void accumulate(const vector<float> &limits, const vector<size_t> &counts, size_t otherCounts, size_t penaltyCount)
 	{
 		if (m_limits.size() == 0)
 		{
@@ -31,6 +31,7 @@ public:
 			m_limits = limits;
 			m_counts = counts;
 			m_otherCounts = otherCounts;
+			m_penaltyCount = penaltyCount;
 		}
 		else
 		{
@@ -39,6 +40,7 @@ public:
 			for (size_t i = 0 ; i < counts.size() ; i++)
 				m_counts[i] += counts[i];
 			m_otherCounts += otherCounts;
+			m_penaltyCount += penaltyCount;
 		}
 	}
 
@@ -49,8 +51,7 @@ public:
 		ss << "DEBUG: Beta Size Stats: ";
 		for (size_t i = 0 ; i < m_limits.size() ; i++)
 			ss << m_counts[i] << " < " << std::setprecision(8) << std::fixed << ((m_limits[i]*m_deflScale)/ANGLE_ARCSEC) << " | ";
-		ss << " other: " << m_otherCounts;
-		ss << endl;
+		ss << " other: " << m_otherCounts << " ; penalty count = " << m_penaltyCount << endl;
 		cerr << ss.str();
 	}
 
@@ -60,6 +61,7 @@ public:
 	vector<float> m_limits;
 	vector<size_t> m_counts;
 	size_t m_otherCounts = 0;
+	size_t m_penaltyCount = 0;
 };
 
 class BetaSizeStats
@@ -90,7 +92,7 @@ public:
 	~BetaSizeStats()
 	{
 		lock_guard<mutex> guard(s_statsMutex);
-		s_accStats->accumulate(m_limits, m_counts, m_otherCounts);
+		s_accStats->accumulate(m_limits, m_counts, m_otherCounts, m_penaltyCount);
 		s_accStats->m_regCount--;
 		if (s_accStats->m_regCount == 0)
 			s_accStats = nullptr;
@@ -112,6 +114,7 @@ public:
 	vector<float> m_limits;
 	vector<size_t> m_counts;
 	size_t m_otherCounts = 0;
+	size_t m_penaltyCount = 0;
 
 	static mutex s_statsMutex;
 	static unique_ptr<AccumulatedBetaStats> s_accStats;
@@ -295,6 +298,7 @@ bool_t LensGAParametricSinglePlaneCalculator::init(const LensInversionParameters
 	{
 		// Keep some stats for now
 		m_stats = make_unique<BetaSizeStats>(m_angularScale);
+		m_betaThresHold = (float)((0.001*ANGLE_ARCSEC)/m_angularScale);
 	}
 
 	cerr << "INFO: total points " << m_pointMap.getPointMapping().size() << " =? " << m_distFrac.size() << ", unique points = " << m_thetas.size() << endl;
@@ -717,12 +721,34 @@ errut::bool_t LensGAParametricSinglePlaneCalculator::pollCalculate(const eatk::G
 	{
 		// TODO: also use m_tracedBetaDiffs to see if the convergence made sense? Perhaps just for statistics?
 		assert(m_tracedThetas.size() == m_bpPointInfo.size());
+		assert(m_tracedBetaDiffs.size() == m_bpPointInfo.size());
 		for (size_t i = 0 ; i < m_tracedThetas.size() ; i++)
 		{
 			auto [ srcIdx, thetaIdx ] = m_bpPointInfo[i];
 			assert(srcIdx < m_tracedSourcesPoints->size());
 			assert(thetaIdx < (*m_tracedSourcesPoints)[srcIdx].size());
-			(*m_tracedSourcesPoints)[srcIdx][thetaIdx] = m_tracedThetas[i];
+
+			if (m_tracedBetaDiffs[i] < m_betaThresHold)
+				(*m_tracedSourcesPoints)[srcIdx][thetaIdx] = m_tracedThetas[i];
+			else // TODO, what makes more sense here?
+			{
+				assert(srcIdx < m_oclBp->getNumberOfSources());
+				assert(thetaIdx < m_oclBp->getNumberOfImagePoints(srcIdx));
+				
+				Vector2Df diff = m_tracedThetas[i];
+				diff -= m_oclBp->getThetas(srcIdx)[thetaIdx];
+				
+				Vector2Df unitVect = diff;
+				unitVect /= diff.getLength();
+				
+				Vector2Df penalty = unitVect;
+				penalty *= 100000; // Some penalty, in units of the angular scale unit, should really do something relative to the sigma
+				penalty += diff;
+
+				(*m_tracedSourcesPoints)[srcIdx][thetaIdx] = penalty;
+
+				m_stats->m_penaltyCount++; // Keep track for the stats
+			}
 		}
 
 #ifndef NDEBUG

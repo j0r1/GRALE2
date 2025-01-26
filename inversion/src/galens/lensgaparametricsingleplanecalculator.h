@@ -136,6 +136,7 @@ private:
 	ThetaPointMap m_pointMap;
 
 	std::unique_ptr<BetaSizeStats> m_stats;
+	float m_betaThresHold = 0;
 };
 
 } // end namespace
