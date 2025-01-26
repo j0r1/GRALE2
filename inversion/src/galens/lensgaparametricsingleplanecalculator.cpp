@@ -1,17 +1,124 @@
 #include "lensgaparametricsingleplanecalculator.h"
 #include "openclsingleplanedeflection.h"
 #include "utils.h"
+#include "constants.h"
 #include <eatk/vectorgenomefitness.h>
 #include <eatk/valuefitness.h>
 #include <iostream>
+#include <iomanip>
 #include <list>
 #include <cassert>
+#include <sstream>
+#include <mutex>
 
 using namespace errut;
 using namespace std;
 
 namespace grale
 {
+
+class AccumulatedBetaStats
+{
+public:
+	AccumulatedBetaStats(double deflScale) : m_deflScale(deflScale) { }
+
+	void accumulate(const vector<float> &limits, const vector<size_t> &counts, size_t otherCounts)
+	{
+		if (m_limits.size() == 0)
+		{
+			assert(m_counts.size() == 0);
+			assert(m_otherCounts == 0);
+			m_limits = limits;
+			m_counts = counts;
+			m_otherCounts = otherCounts;
+		}
+		else
+		{
+			assert(m_limits.size() == limits.size());
+			assert(m_counts.size() == counts.size());
+			for (size_t i = 0 ; i < counts.size() ; i++)
+				m_counts[i] += counts[i];
+			m_otherCounts += otherCounts;
+		}
+	}
+
+	~AccumulatedBetaStats()
+	{
+		stringstream ss;
+
+		ss << "DEBUG: Beta Size Stats: ";
+		for (size_t i = 0 ; i < m_limits.size() ; i++)
+			ss << m_counts[i] << " < " << std::setprecision(8) << std::fixed << ((m_limits[i]*m_deflScale)/ANGLE_ARCSEC) << " | ";
+		ss << " other: " << m_otherCounts;
+		ss << endl;
+		cerr << ss.str();
+	}
+
+	double m_deflScale = 0;
+	size_t m_regCount = 0;
+
+	vector<float> m_limits;
+	vector<size_t> m_counts;
+	size_t m_otherCounts = 0;
+};
+
+class BetaSizeStats
+{
+public:
+	BetaSizeStats(double deflScale)
+	{
+		for (auto s : vector<double> { 0.000001, 
+				                       0.00001,
+									   0.0001,
+									   0.001,
+									   0.01,
+									   0.1 })
+		{
+			s *= ANGLE_ARCSEC;
+			s /= deflScale;
+
+			m_limits.push_back(s);
+			m_counts.push_back(0);
+		}
+
+		lock_guard<mutex> guard(s_statsMutex);
+		if (!s_accStats)
+			s_accStats = make_unique<AccumulatedBetaStats>(deflScale);
+		s_accStats->m_regCount++;
+	}
+
+	~BetaSizeStats()
+	{
+		lock_guard<mutex> guard(s_statsMutex);
+		s_accStats->accumulate(m_limits, m_counts, m_otherCounts);
+		s_accStats->m_regCount--;
+		if (s_accStats->m_regCount == 0)
+			s_accStats = nullptr;
+	}
+
+	void count(float v)
+	{
+		for (size_t i = 0 ; i < m_limits.size() ; i++)
+		{
+			if (v < m_limits[i])
+			{
+				m_counts[i]++;
+				return;
+			}
+		}
+		m_otherCounts++;
+	}
+
+	vector<float> m_limits;
+	vector<size_t> m_counts;
+	size_t m_otherCounts = 0;
+
+	static mutex s_statsMutex;
+	static unique_ptr<AccumulatedBetaStats> s_accStats;
+};
+
+mutex BetaSizeStats::s_statsMutex;
+unique_ptr<AccumulatedBetaStats> BetaSizeStats::s_accStats;
 
 LensGAParametricSinglePlaneCalculator::LensGAParametricSinglePlaneCalculator(std::unique_ptr<LensFitnessObject> fitObj)
 	: m_fitObj(move(fitObj))
@@ -183,6 +290,11 @@ bool_t LensGAParametricSinglePlaneCalculator::init(const LensInversionParameters
 		m_tracedSourcesPoints = nullptr;
 		m_tracedSourcesFlags = nullptr;
 		m_bpPointInfo.clear();
+	}
+	else
+	{
+		// Keep some stats for now
+		m_stats = make_unique<BetaSizeStats>(m_angularScale);
 	}
 
 	cerr << "INFO: total points " << m_pointMap.getPointMapping().size() << " =? " << m_distFrac.size() << ", unique points = " << m_thetas.size() << endl;
@@ -625,6 +737,10 @@ errut::bool_t LensGAParametricSinglePlaneCalculator::pollCalculate(const eatk::G
 #endif // !NDEBUG
 
 		m_oclBp->setRetraceInfo(m_tracedSourcesFlags, m_tracedSourcesPoints);
+
+		// TODO: always do this? Or only in debug mode? Or flag during initialization?
+		for (auto x : m_tracedBetaDiffs)
+			m_stats->count(x);
 	}
 
 	vector<float> &fitnessValues = fitness.getValues();

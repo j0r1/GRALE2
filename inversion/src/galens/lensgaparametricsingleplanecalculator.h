@@ -11,6 +11,8 @@
 namespace grale
 {
 
+class BetaSizeStats;
+
 // TODO: for now, all properties (deflection, derivatives, potential) are calculated
 //       for all image points
 class LensGAParametricSinglePlaneCalculator : public LensGAGenomeCalculator
@@ -132,6 +134,8 @@ private:
 	};
 
 	ThetaPointMap m_pointMap;
+
+	std::unique_ptr<BetaSizeStats> m_stats;
 };
 
 } // end namespace
