@@ -2725,12 +2725,12 @@ cdef class PIEMDLens(GravitationalLens):
     @staticmethod
     def getVelocityDispersionFromCentralDensity(centralDensity, coreRadius, scaleRadius, Dd):
         a, s, dens = coreRadius, scaleRadius, centralDensity
-        return (dens * (a*s**2)*(4*constants.CONST_G*Dd)/(3*(s**2-a**2)))**0.5
+        return (dens * a*(4*constants.CONST_G*Dd)/3)**0.5
 
     @staticmethod
     def getCentralDensityFromVelocityDispersion(velocityDispersion, coreRadius, scaleRadius, Dd):
         a, s, sigma = coreRadius, scaleRadius, velocityDispersion
-        return (3*sigma**2)/(4*constants.CONST_G*Dd) * (s**2-a**2)/(a*s**2)
+        return (3*sigma**2)/(4*constants.CONST_G*Dd)/a
 
     @staticmethod
     def getEllipticityFromEpsilon(epsilon):

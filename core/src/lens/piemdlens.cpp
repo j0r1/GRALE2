@@ -550,7 +550,7 @@ bool LTPIEMDLens::processParameters(const GravitationalLensParams *pLensParams)
 	double s = pParams->getScaleRadius();
 	double Dd = getLensDistance();
 
-	double centralDens = (3.0*velDisp*velDisp)/(4.0*CONST_G*Dd)*(s*s-a*a)/(a*s*s);
+	double centralDens = (3.0*velDisp*velDisp)/(4.0*CONST_G*Dd)/a;
 	double e = 1.0-std::sqrt((1.0-epsHat)/(1.0+epsHat));
 	double eps = e/(2.0-e);
 
@@ -589,8 +589,7 @@ string LTPIEMDLens::getCLProgram(double deflectionScale, double potentialScale, 
 	float epsHat = pFloatParams[3];
 	
 	float finalDensScale = )XYZ" + float_to_string((float)finalDensScale) + R"XYZ(;
-	float aRescaled = coreRadius/scaleRadius;
-	float sigma0 = finalDensScale * (3.0*velDisp*velDisp) * (1.0 - aRescaled*aRescaled)/coreRadius;
+	float sigma0 = finalDensScale * (3.0*velDisp*velDisp)/coreRadius;
 	float eTmp = 1.0-sqrt((1.0-epsHat)/(1.0+epsHat));
 	float epsilon = eTmp/(2.0-eTmp);
 	)XYZ";
