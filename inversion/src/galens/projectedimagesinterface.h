@@ -38,6 +38,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include <vector>
+#include <stdexcept>
 
 namespace grale
 {
@@ -135,8 +136,10 @@ public:
 
 	// TODO: make pure virtual?
 	virtual bool hasRetracedThetas(int sourceNum) const { return false; }
-	virtual const Vector2D<float> *getRetracedThetas(int sourceNum) const { return nullptr; }
-	virtual const Vector2D<float> *getRetracedThetas(int sourceNum, int imageNum) const { return nullptr; }
+	virtual const Vector2D<float> *getRetracedThetas(int sourceNum) const { throw std::runtime_error("getRetracedThetas(srcNum) not supported"); return nullptr; }
+	virtual const Vector2D<float> *getRetracedThetas(int sourceNum, int imageNum) const { throw std::runtime_error("getRetracedThetas(srcNum, imgNum) not supported"); return nullptr; }
+	virtual const int *getRetracingConvergedFlags(int sourceNum) const { throw std::runtime_error("getRetracingConvergedFlags(srcNum) not supported"); return nullptr; }
+	virtual const int *getRetracingConvergedFlags(int sourceNum, int imageNum) const { throw std::runtime_error("getRetracingConvergedFlags(srcNum, imgNum) not supported"); return nullptr; }
 
 	/** Returns alpha_xx values for all points of a specific source. */
 	virtual const float *getDerivativesXX(int sourceNumber) const = 0;

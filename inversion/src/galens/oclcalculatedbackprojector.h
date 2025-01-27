@@ -31,10 +31,12 @@ public:
 	//       will not be updated
 	void setAdjustedThetas(const std::vector<Vector2Df> &adjustedThetas);
 	void setRetraceInfo(const std::shared_ptr<std::vector<bool>> &tracedSourcesFlags,
-			            const std::shared_ptr<std::vector<std::vector<Vector2Df>>> &tracedSourcesPoints)
+			            const std::shared_ptr<std::vector<std::vector<Vector2Df>>> &tracedSourcesPoints,
+						const std::shared_ptr<std::vector<std::vector<int>>> &tracedSourcesConvergedFlags)
 	{
 		m_tracedSourcesFlags = tracedSourcesFlags;
 		m_tracedSourcesPoints = tracedSourcesPoints;
+		m_tracedSourcesConvergedFlags = tracedSourcesConvergedFlags;
 	}
 
 	void setBetaBuffer(const float *pBetas, size_t s)									{ m_pBetas = pBetas; m_betasSize = s; }
@@ -52,6 +54,8 @@ public:
 	bool hasRetracedThetas(int sourceNum) const override;
 	const Vector2D<float> *getRetracedThetas(int sourceNum) const override;
 	const Vector2D<float> *getRetracedThetas(int sourceNum, int imageNum) const override;
+	const int *getRetracingConvergedFlags(int sourceNum) const override;
+	const int *getRetracingConvergedFlags(int sourceNum, int imageNum) const override;
 	const Vector2D<float> *getAlphas(int sourceNumber) const;
 	const Vector2D<float> *getAlphas(int sourceNumber, int imageNumber) const;
 	const float *getDerivativesXX(int sourceNumber) const;
@@ -91,6 +95,7 @@ private:
 
 	std::shared_ptr<std::vector<bool>> m_tracedSourcesFlags;
 	std::shared_ptr<std::vector<std::vector<Vector2Df>>> m_tracedSourcesPoints;
+	std::shared_ptr<std::vector<std::vector<int>>> m_tracedSourcesConvergedFlags;
 
 	template <int ptMultiplier>
 	const float *getOffsetInArray(const float *pBasePtr, size_t bufSize, int sourceNumber) const
@@ -219,6 +224,28 @@ inline const Vector2D<float> *OclCalculatedBackProjector::getRetracedThetas(int 
 	assert(imgOff + getNumberOfImagePoints(sourceNum, imageNum) <= allSrcPoints.size());
 
 	return allSrcPoints.data() + imgOff;
+}
+
+inline const int *OclCalculatedBackProjector::getRetracingConvergedFlags(int sourceNum) const
+{
+	assert(m_tracedSourcesConvergedFlags.get());
+	assert(sourceNum < m_tracedSourcesConvergedFlags->size());
+	const std::vector<int> &allSrcConvFlags= (*m_tracedSourcesConvergedFlags)[sourceNum];
+	assert(allSrcConvFlags.size() == getNumberOfImagePoints(sourceNum));
+	return allSrcConvFlags.data();
+}
+
+inline const int *OclCalculatedBackProjector::getRetracingConvergedFlags(int sourceNum, int imageNum) const
+{
+	assert(m_tracedSourcesConvergedFlags.get());
+	assert(sourceNum < m_tracedSourcesConvergedFlags->size());
+	const std::vector<int> &allSrcConvFlags = (*m_tracedSourcesConvergedFlags)[sourceNum];
+	assert(allSrcConvFlags.size() == getNumberOfImagePoints(sourceNum));
+
+	size_t imgOff = m_offsets[sourceNum][imageNum];
+	assert(imgOff + getNumberOfImagePoints(sourceNum, imageNum) <= allSrcConvFlags.size());
+
+	return allSrcConvFlags.data() + imgOff;
 }
 
 inline void OclCalculatedBackProjector::setAdjustedThetas(const std::vector<Vector2Df> &adjustedThetas)

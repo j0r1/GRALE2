@@ -208,8 +208,9 @@ bool_t LensGAParametricSinglePlaneCalculator::init(const LensInversionParameters
 
 	bool anyRetrace = false;
 
-	m_tracedSourcesFlags = make_shared<std::vector<bool>>();
-	m_tracedSourcesPoints = make_shared<std::vector<std::vector<Vector2Df>>>();
+	m_tracedSourcesFlags = make_shared<vector<bool>>();
+	m_tracedSourcesPoints = make_shared<vector<vector<Vector2Df>>>();
+	m_tracedSourcesConvergedFlags = make_shared<vector<vector<int>>>();
 
 	for (size_t srcIdx = 0 ; srcIdx < images.size() ; srcIdx++)
 	{
@@ -218,7 +219,8 @@ bool_t LensGAParametricSinglePlaneCalculator::init(const LensInversionParameters
 		anyRetrace |= retrace;
 
 		m_tracedSourcesFlags->push_back(retrace);
-		m_tracedSourcesPoints->push_back(std::vector<Vector2Df>());
+		m_tracedSourcesPoints->push_back(vector<Vector2Df>());
+		m_tracedSourcesConvergedFlags->push_back(vector<int>());
 
 		int numImages = img->getNumberOfImages();
 		double frac = img->getDds()/img->getDs();
@@ -250,6 +252,7 @@ bool_t LensGAParametricSinglePlaneCalculator::init(const LensInversionParameters
 						traceInf = { srcIdx, frac };
 						m_bpPointInfo.push_back({ srcIdx, m_tracedSourcesPoints->back().size() });
 						m_tracedSourcesPoints->back().push_back({ numeric_limits<float>::quiet_NaN(), numeric_limits<float>::quiet_NaN() });
+						m_tracedSourcesConvergedFlags->back().push_back(false);
 					}
 					recalcThetaInfo.push_back(traceInf);
 					return true;
@@ -292,13 +295,18 @@ bool_t LensGAParametricSinglePlaneCalculator::init(const LensInversionParameters
 		recalcThetaInfo.clear();
 		m_tracedSourcesPoints = nullptr;
 		m_tracedSourcesFlags = nullptr;
+		m_tracedSourcesConvergedFlags = nullptr;
 		m_bpPointInfo.clear();
 	}
 	else
 	{
 		// Keep some stats for now
 		m_stats = make_unique<BetaSizeStats>(m_angularScale);
-		m_betaThresHold = (float)((0.001*ANGLE_ARCSEC)/m_angularScale);
+
+		// Set threshold to accept retrace as converged
+		m_betaThresHold = (float)(params.getSourcePlaneDistanceThreshold()/m_angularScale);
+		if (m_betaThresHold < 0)
+			return "Negative convergence threshold for retracing is not allowed";
 	}
 
 	cerr << "INFO: total points " << m_pointMap.getPointMapping().size() << " =? " << m_distFrac.size() << ", unique points = " << m_thetas.size() << endl;
@@ -725,30 +733,19 @@ errut::bool_t LensGAParametricSinglePlaneCalculator::pollCalculate(const eatk::G
 		for (size_t i = 0 ; i < m_tracedThetas.size() ; i++)
 		{
 			auto [ srcIdx, thetaIdx ] = m_bpPointInfo[i];
+			assert(m_tracedSourcesPoints.get());
+			assert(m_tracedSourcesConvergedFlags.get());
 			assert(srcIdx < m_tracedSourcesPoints->size());
+			assert(srcIdx < m_tracedSourcesConvergedFlags->size());
 			assert(thetaIdx < (*m_tracedSourcesPoints)[srcIdx].size());
+			assert(thetaIdx < (*m_tracedSourcesConvergedFlags)[srcIdx].size());
 
-			if (m_tracedBetaDiffs[i] < m_betaThresHold)
-				(*m_tracedSourcesPoints)[srcIdx][thetaIdx] = m_tracedThetas[i];
-			else // TODO, what makes more sense here?
-			{
-				assert(srcIdx < m_oclBp->getNumberOfSources());
-				assert(thetaIdx < m_oclBp->getNumberOfImagePoints(srcIdx));
-				
-				Vector2Df diff = m_tracedThetas[i];
-				diff -= m_oclBp->getThetas(srcIdx)[thetaIdx];
-				
-				Vector2Df unitVect = diff;
-				unitVect /= diff.getLength();
-				
-				Vector2Df penalty = unitVect;
-				penalty *= 100000; // Some penalty, in units of the angular scale unit, should really do something relative to the sigma
-				penalty += diff;
+			bool hasConverged = (m_tracedBetaDiffs[i] < m_betaThresHold)?true:false;
+			(*m_tracedSourcesPoints)[srcIdx][thetaIdx] = m_tracedThetas[i];
+			(*m_tracedSourcesConvergedFlags)[srcIdx][thetaIdx] = hasConverged;
 
-				(*m_tracedSourcesPoints)[srcIdx][thetaIdx] = penalty;
-
+			if (!hasConverged)
 				m_stats->m_penaltyCount++; // Keep track for the stats
-			}
 		}
 
 #ifndef NDEBUG
@@ -762,7 +759,7 @@ errut::bool_t LensGAParametricSinglePlaneCalculator::pollCalculate(const eatk::G
 		}
 #endif // !NDEBUG
 
-		m_oclBp->setRetraceInfo(m_tracedSourcesFlags, m_tracedSourcesPoints);
+		m_oclBp->setRetraceInfo(m_tracedSourcesFlags, m_tracedSourcesPoints, m_tracedSourcesConvergedFlags);
 
 		// TODO: always do this? Or only in debug mode? Or flag during initialization?
 		for (auto x : m_tracedBetaDiffs)

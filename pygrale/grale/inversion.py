@@ -700,7 +700,8 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
            defaultInitialParameterFraction = 0.1, clampToHardLimits = False, fitnessObjectParameters = None, convergenceParameters = { },
            geneticAlgorithmParameters = { }, returnNds = False, inverter = "default", feedbackObject = "default",
            cosmology = None, maximumGenerations = None, eaType = "JADE", deviceIndex = "rotate",
-           useImagePositionRandomization = False, allowUnusedPriors = False, numberOfRetraceSteps = 5):
+           useImagePositionRandomization = False, allowUnusedPriors = False, numberOfRetraceSteps = 5,
+           retraceSourcePlaneThreshold = "auto"):
     """This is a low-level function, used by the similarly named function
     in :class:`InversionWorkSpace`.
 
@@ -773,6 +774,8 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
 
      - `numberOfRetraceSteps`: TODO, either a number or "disable", for the bayesian strong
        lensing
+
+     - `retraceSourcePlaneThreshold`: TODO, either "auto" or a number
     """
 
     desc = paramdesc.analyzeParametricLensDescription(parametricLensDescription, Dd, defaultInitialParameterFraction, clampToHardLimits)
@@ -852,6 +855,31 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
         for i in range(len(retraceImages)):
             retraceImages[i] = False
 
+    if retraceSourcePlaneThreshold == "auto":
+        if not anyRetrace:
+            retraceSourcePlaneThreshold = -1 # Shouldn't matter, will trigger an error if something is wrong in the code
+        else:
+            allPts = []
+            for img in inputImages:
+                if img["params"]["type"] != "bayesstronglensing":
+                    continue
+                
+                imgDat = img["images"]
+                for image in imgDat.getAllImagePoints():
+                    for x in image:
+                        allPts.append(x["position"])
+                
+            pts = np.array(allPts)
+            maxVec = np.max(pts, axis=0)
+            minVec = np.min(pts, axis=0)
+            diff = maxVec-minVec
+            scale = np.sum(diff**2)**0.5
+
+            retraceSourcePlaneThreshold = scale/10000 # TODO: make this configurable?
+    
+    if anyRetrace:
+        print(f"DEBUG: using retraceSourcePlaneThreshold {retraceSourcePlaneThreshold/CT.ANGLE_ARCSEC} arcsec")
+
     def getParamsFunction(fullFitnessObjParams, massScale):
         assert massScale is None, f"Internal error: expecting massScale to be None, but is {massScale}"
         return inversionparams.LensInversionParametersParametricSinglePlane(inputImages, Dd, zd,
@@ -860,7 +888,7 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
                   fullFitnessObjParams, deviceIndex,
                   useImagePositionRandomization, initialUncertSeed,
                   originParametersMap, numOriginParams, priors, allowUnusedPriors,
-                  retraceImages, numberOfRetraceSteps)
+                  retraceImages, numberOfRetraceSteps, retraceSourcePlaneThreshold)
 
     results = _invertCommon(inverter, feedbackObject, moduleName, "parametricsingleplane", fitnessObjectParameters,
                   None, [Dd, zd], inputImages, getParamsFunction, popSize,

@@ -335,6 +335,9 @@ float calculateWeakLensingFitness_Bayes(const ProjectedImagesInterface &interfac
 
 	// The SL part
 	
+	float minLogSLProb = 0;
+	float sigmaScaled = (float)(((double)slSigmaArcsec * ANGLE_ARCSEC)/interface.getAngularScale());
+	float nonConvergencePenalty = 1000*sigmaScaled; // TODO: make this configurable?
 	vector<Vector2Df> thetaDiffs;
 	if (strongIndices.size() > 0)
 	{
@@ -363,13 +366,32 @@ float calculateWeakLensingFitness_Bayes(const ProjectedImagesInterface &interfac
 				int numPts = interface.getNumberOfImagePoints(srcIdx);
 				const Vector2Df *pOrigThetas = interface.getThetas(srcIdx);
 				const Vector2Df *pTracedThetas = interface.getRetracedThetas(srcIdx);
+				const int *pTracingConverged = interface.getRetracingConvergedFlags(srcIdx);
 				assert(pOrigThetas);
 				assert(pTracedThetas);
+				assert(pTracingConverged);
 				for (int i = 0 ; i < numPts ; i++)
 				{
 					Vector2Df diff = pOrigThetas[i];
 					diff -= pTracedThetas[i];
-					thetaDiffs.push_back(diff);
+
+					if (pTracingConverged[i])
+						thetaDiffs.push_back(diff);
+					else
+					{
+						Vector2Df unitVec = diff;
+						float d = diff.getLength();
+						if (d != 0)
+							unitVec /= d;
+						else
+							unitVec = Vector2Df(1,0);
+
+						Vector2Df penaltyVec = unitVec;
+						penaltyVec *= nonConvergencePenalty;
+						penaltyVec += diff;
+
+						thetaDiffs.push_back(penaltyVec);
+					}
 				}
 			}
 		}
@@ -382,8 +404,6 @@ float calculateWeakLensingFitness_Bayes(const ProjectedImagesInterface &interfac
 		}
 	}
 
-	float minLogSLProb = 0;
-	float sigmaScaled = (float)(((double)slSigmaArcsec * ANGLE_ARCSEC)/interface.getAngularScale());
 	for (auto dtheta : thetaDiffs)
 	{
 		dtheta /= sigmaScaled;

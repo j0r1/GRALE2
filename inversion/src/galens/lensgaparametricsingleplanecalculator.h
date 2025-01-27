@@ -61,6 +61,7 @@ private:
 
 	std::shared_ptr<std::vector<bool>> m_tracedSourcesFlags;
 	std::shared_ptr<std::vector<std::vector<Vector2Df>>> m_tracedSourcesPoints;
+	std::shared_ptr<std::vector<std::vector<int>>> m_tracedSourcesConvergedFlags;
 	std::vector<std::pair<size_t, size_t>> m_bpPointInfo;
 
 	std::vector<Vector2Df> m_alphas, m_tracedThetas;
