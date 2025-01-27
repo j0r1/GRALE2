@@ -7,7 +7,8 @@ Usage::
 
     python -m grale.ltparamdesc -in mod.par (-out inv.py | -exec)\\
           [-outparam desc.py] [-noRAdir] [-force] [-fromimgfile] \\
-          [-popsize 512] [-mcmcgen 5000] [-outfnsuffix suff]
+          [-popsize 512] [-mcmcgen 5000] [-outfnsuffix suff] \\
+          [-refinefactor 0.0001] [-debug]
 
 Arguments:
 
@@ -45,6 +46,11 @@ Arguments:
    to 5000.
  - `-outfnsuffix suff`: for the output file names in the script, use this
    as the suffix (default is empty).
+ - `-refinefactor 0.0001`: when the initial inversion has been found, the
+   MCMC phase will start from a narrow region around that model's parameters.
+   This specifies the fraction of the parameter change that's used for the
+   initialization of a new set of trial solutions.
+ - `-debug`: if present, more debug output will be shown.
 """
 from .constants import *
 from . import cosmology
@@ -515,7 +521,7 @@ def createParametricDescriptionFromLenstoolInput(fileName,
              "description": "\n".join(outputLines)
            }
 
-def _startFromImgFileName(f, r, useRADirection, outParamFn):
+def _startFromImgFileName(f, r, useRADirection, outParamFn, debugCode):
     cosm = r["cosmology"]
     zd = r["zd"]
     Dd = cosm.getAngularDiameterDistance(zd)
@@ -526,7 +532,7 @@ def _startFromImgFileName(f, r, useRADirection, outParamFn):
 
     print(f"""from grale.all import *
 import pickle
-
+{debugCode}
 zd = {zd}
 
 cosmParams = {cosmParams}
@@ -545,14 +551,10 @@ positionalUncertainty = {mcmcUncert/ANGLE_ARCSEC}*ANGLE_ARCSEC
         print("initialParamDesc = " + r["description"], file=f)
     print(file=f)
 
-def _startFromLtConfig(f, ltCfgFn, useRADirection):
+def _startFromLtConfig(f, ltCfgFn, useRADirection, debugCode):
     print(f"""from grale.all import *
 import pickle
-
-# May be helpful for debugging
-#inverters.debugOutput = True
-#inverters.debugDirectStderr = True
-
+{debugCode}
 r = ltparamdesc.createParametricDescriptionFromLenstoolInput("{ltCfgFn}", useRADirection={useRADirection})
 
 cosm = r["cosmology"]
@@ -571,7 +573,7 @@ def usage():
     print("""
 Usage:
     python -m grale.ltparamdesc -in mod.par (-out inv.py | -exec) [-outparam desc.py] [-noRAdir] [-force] [-fromimgfile] \\
-                                [-mcmcgen 5000] [-popsize 512] [-outfnsuffix]
+                                [-mcmcgen 5000] [-popsize 512] [-outfnsuffix] [-refinefactor 0.0001] [-debug]
 """, file=sys.stderr)
     sys.exit(-1)
 
@@ -587,6 +589,8 @@ def main():
     mcmcGenerations = 5000
     popSize = 512
     outFnSuffix = ""
+    refineFactor = 0.0001
+    debug = False
 
     try:
         while idx < len(sys.argv):
@@ -617,6 +621,11 @@ def main():
             elif opt == "-outfnsuffix":
                 outFnSuffix = sys.argv[idx+1]
                 idx += 1
+            elif opt == "-refinefactor":
+                refineFactor = float(sys.argv[idx+1])
+                idx += 1
+            elif opt == "-debug":
+                debug = True
             else:
                 raise Exception(f"Unknown option '{opt}'")
 
@@ -630,6 +639,14 @@ def main():
         print(f"ERROR: {e}", file=sys.stderr)
         usage()
 
+    debugCode = ""
+    if debug:
+        debugCode = """
+# May be helpful for debugging
+inverters.debugOutput = True
+inverters.debugDirectStderr = True
+"""
+
     try:
         if outFn and os.path.exists(outFn) and not force:
             raise Exception(f"Output file '{outFn}' already exists, use '-force' to continue anyway")
@@ -642,13 +659,11 @@ def main():
 
         stringOutput = StringIO()
         if fromImgFileName:
-            _startFromImgFileName(stringOutput, r, useRADir, outParamFn)
+            _startFromImgFileName(stringOutput, r, useRADir, outParamFn, debugCode)
         else:
-            _startFromLtConfig(stringOutput, ltCfgFn, useRADir)
+            _startFromLtConfig(stringOutput, ltCfgFn, useRADir, debugCode)
             if outParamFn:
                 print(f"Warning: parameter file name '{outParamFn}' will not be used in this inversion mode", file=sys.stderr)
-
-
 
         print(f"""# This is a helper function that will be called later. It performs the first
 # inversion, not using MCMC but using the genetic algorithm to find a single
@@ -681,7 +696,7 @@ def initialInversion(zd, imgList, paramDesc, positionalUncertainty):
     # the initial parameter ranges will be close to the value from the
     # solution that was found. This can then be used in an MCMC run to
     # explore parameter uncertainties
-    refinedModel = paramdesc.refineParametricDescription(paramDesc, startLens, 0.001)
+    refinedModel = paramdesc.refineParametricDescription(paramDesc, startLens, {refineFactor})
     return refinedModel
 
 # This is the second helper function, that will be called with the refined
