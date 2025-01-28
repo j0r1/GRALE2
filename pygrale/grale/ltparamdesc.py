@@ -687,7 +687,6 @@ def initialInversion(zd, imgList, paramDesc, positionalUncertainty):
     startLens, _, _, _, _ = iws.invertParametric(paramDesc, {popSize}, eaType = "JADE",
                                                  fitnessObjectParameters = {{ "fitness_bayesweaklensing_stronglenssigma": positionalUncertainty }},
                                                  useImagePositionRandomization=True, # Needs to be set for the addPositionUncertainty to have effect
-                                                 numberOfRetraceSteps = "disable" # Don't use accurate retracing for this initial search, use a single step based on the inverse magnification matrix
                                                  )
 
     startLens.save("startInv{outFnSuffix}.lensdata")
