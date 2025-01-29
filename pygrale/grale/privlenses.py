@@ -200,7 +200,7 @@ def _getLenstoolCosmologyFromLines(lines):
 
 
 
-def createLensFromLenstoolFile(inputData, mirrorX = False, cosmology = None):
+def createLensFromLenstoolFile(inputData, useRADirection, cosmology = None):
     """Based on a `Lenstool <https://projets.lam.fr/projects/lenstool/wiki>`_ model,
     a corresponding :class:`lens model<grale.lenses.GravitationalLens>` is constructed.
     The function returns a tuple consisting of the lens model, the lens redshift and
@@ -214,7 +214,9 @@ def createLensFromLenstoolFile(inputData, mirrorX = False, cosmology = None):
 
      - `inputData`: the data from a Lenstool file (typically with '.par' extension), either
        as a file name, a file object or a string.
-     - `mirrorX`: if ``True``, the model will be mirrored along the X-axis.
+     - `useRADirection`: if ``True``, coordinates in the Lenstool file are converted
+       so that they use the RA direction (axis points left). To use mirrored coordinates
+       (as Lenstool itself does) you can set this to ``False``
      - `cosmology`: if specified, the cosmological model from the input file will be ignored
        and this one will be used.
     """
@@ -262,7 +264,7 @@ def createLensFromLenstoolFile(inputData, mirrorX = False, cosmology = None):
         y = p["y_centre"]*ANGLE_ARCSEC
         angle = p["angle_pos"] # TODO: check!
         
-        if mirrorX:
+        if useRADirection:
             x = -x
             angle = 180-angle
 

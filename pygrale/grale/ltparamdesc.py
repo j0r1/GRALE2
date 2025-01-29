@@ -191,7 +191,7 @@ def _getLimitsAndPrior(setting, modifier = lambda s: s, flipMinMax = False, cnam
         return f'{{ "initmin": {minVal}, "initmax": {maxVal}, "prior": {{ "type": "gaussian", "params": [ {mu}, {sigma} ] }}, {cnameStr} }}'
 
 def createParametricDescriptionFromLenstoolInput(fileName,
-                                                 useRADirection = True,
+                                                 useRADirection,
                                                  lensDistanceString = "Dd",
                                                  arcsecString = "ANGLE_ARCSEC",
                                                  degreeString = "ANGLE_DEGREE",
@@ -224,7 +224,7 @@ def createParametricDescriptionFromLenstoolInput(fileName,
     Arguments:
 
      - `fileName`: name of the Lenstool input file that needs to be analyzed
-     - `useRADirection`: by default, coordinates in the Lenstool file are converted
+     - `useRADirection`: if ``True``, coordinates in the Lenstool file are converted
        so that they use the RA direction (axis points left). To use mirrored coordinates
        (as Lenstool itself does) you can set this to ``False``
      - `lensDistanceString`: sometimes a conversion may be needed that involves the

@@ -139,14 +139,15 @@ def _getLinesFromInputData(inputData):
     # Check if it's a string that can be split in lines
     return inputData.splitlines(), False
 
-def readLenstoolInputImagesFile(fileName, centerOn, useRADirection = True):
+def readLenstoolInputImagesFile(fileName, centerOn, useRADirection):
     """Read point images data from a
     `Lenstool <https://projets.lam.fr/projects/lenstool/wiki>`_ input file 
     called `fileName` (e.g. 'imawcs.mul' or 'imawcs.cat'). The coordinates need 
     to be specified in RA,Dec notation, and relative coordinates will be calculated 
-    based on the center position `centerOn`. By default, the orientation of the
-    RA-axis will be used, in case you'd prefer to mirror this the `useRADirection`
-    flag can be set to ``False``.
+    based on the center position `centerOn`. The orientation of the
+    RA-axis (x-axis points left) can be used by setting `useRADirection` to ``True``, 
+    or in case you'd prefer to mirror this (like Lenstool does) the flag can be
+    set to ``False``.
 
     This function internally uses :func:`readInputImagesFile`, look there for a
     description of the output.
