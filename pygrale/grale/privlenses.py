@@ -67,7 +67,7 @@ def _getLenstoolPotentialInfoFromLines(lines):
         potentialInfo.append(curInfo)
     return potentialInfo
 
-def _getLenstoolPotFileModelsFromLines(lines, zd, Dd, baseDir):
+def _getLenstoolPotFileModelsFromLines(lines, zd, Dd, baseDir, useRADirection):
     from . import lenses
     from . import images
     from .constants import ANGLE_ARCSEC, ANGLE_DEGREE, DIST_KPC
@@ -155,10 +155,14 @@ def _getLenstoolPotFileModelsFromLines(lines, zd, Dd, baseDir):
             velDisp = velDisp0*10**(0.4*(mag0-mag)/vdslope)
             core = core0*10**(0.4*(mag0-mag)/2)
             cut = cut0*10**(0.4*(mag0-mag)*2/slope)
-            pos = images.centerOnPosition([ra*ANGLE_DEGREE, dec*ANGLE_DEGREE], refCtr)
+            x, y = images.centerOnPosition([ra*ANGLE_DEGREE, dec*ANGLE_DEGREE], refCtr)
+
+            if not useRADirection:
+                x = -x
+
             newLensParams.append({
-                "x": pos[0],
-                "y": pos[1],
+                "x": x,
+                "y": y,
                 "factor": 1,
                 "angle": 0,
                 "lens": lenses.LTPIMDLens(Dd, {
@@ -275,7 +279,7 @@ def createLensFromLenstoolFile(inputData, useRADirection, cosmology = None):
         if d["lens"].getLensDistance() != Dd_first:
             raise LensException("Not all lens components have same lens distance")
 
-    subLenses += _getLenstoolPotFileModelsFromLines(lines, zd, Dd_first, baseDir)
+    subLenses += _getLenstoolPotFileModelsFromLines(lines, zd, Dd_first, baseDir, useRADirection)
 
     return (lenses.CompositeLens(Dd_first, subLenses), zd, cosm)
 
