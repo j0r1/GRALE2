@@ -173,8 +173,8 @@ bool OpenCLMultiKernel<NumKernels>::loadKernel(const std::string &programString,
 			return false;
 		}
 
-		err = clBuildProgram(program, 1, &m_device, "-cl-std=CL2.0", nullptr, nullptr); // Needed CL2.0 support for printf for debugging
-		//err = clBuildProgram(program, 1, &m_device, "", nullptr, nullptr);
+		//err = clBuildProgram(program, 1, &m_device, "-cl-std=CL2.0", nullptr, nullptr); // Needed CL2.0 support for printf for debugging
+		err = clBuildProgram(program, 1, &m_device, "", nullptr, nullptr);
 		if (err != CL_SUCCESS)
 		{
 			size_t logLength;
