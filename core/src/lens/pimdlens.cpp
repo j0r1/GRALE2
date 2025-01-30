@@ -244,6 +244,24 @@ double PIMDLens::getProfileSurfaceMassDensity(double thetaLength) const
 	return m_densFactor*(1.0/SQRT(m_a2 + t2) - 1.0/SQRT(m_s2 + t2));
 }
 
+bool PIMDLens::getProjectedPotential(double D_s, double D_ds, Vector2D<double> theta, double *pPotentialValue) const
+{
+	if (m_scaleRadius <= m_coreRadius)
+	{
+		*pPotentialValue = 0;
+		return true;
+	}
+
+	double factor = (-8.0*CONST_PI*CONST_G/(SPEED_C*SPEED_C))*getLensDistance()*m_densFactor;
+	double theta2 = theta.getLengthSquared();
+	double sqrtS = std::sqrt(m_scaleRadius*m_scaleRadius + theta2);
+	double sqrtA = std::sqrt(m_coreRadius*m_coreRadius + theta2);
+
+	*pPotentialValue = factor*(sqrtS - sqrtA + m_coreRadius*std::log(m_coreRadius + sqrtA) - m_scaleRadius*std::log(m_scaleRadius + sqrtS));
+
+	return true;
+}
+
 bool PIMDLens::getSuggestedScales(double *pDeflectionScale, double *pPotentialScale) const
 {
 	*pDeflectionScale = m_angularScale;

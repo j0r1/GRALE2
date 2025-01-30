@@ -84,6 +84,9 @@ public:
 	double getMassInside(double thetaLength) const;
 	double getProfileSurfaceMassDensity(double thetaLength) const;
 
+	bool getProjectedPotential(double D_s, double D_ds, Vector2D<double> theta, 
+	                           double *pPotentialValue) const;
+
 	bool getSuggestedScales(double *pDeflectionScale, double *pPotentialScale) const override;
 	bool getCLParameterCounts(int *pNumIntParams, int *pNumFloatParams) const override;
 	bool getCLParameters(double deflectionScale, double potentialScale, int *pIntParams, float *pFloatParams) const override;
