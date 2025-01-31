@@ -310,25 +310,48 @@ LensQuantities )XYZ" + subRoutineName + R"XYZ((float2 coord, __global const int 
 	double f_a = 1.0/(coreRadius + sq_a);
 	float f_diff = f_a - f_s;
 	float common = Q_scaled*f_diff;
+	float diffRadii = scaleRadius-coreRadius;
 
 	LensQuantities r;
-	r.alphaX = common*coord.x;
-	r.alphaY = common*coord.y;
+	if (diffRadii <= 0)
+	{
+		r.alphaX = 0;
+		r.alphaY = 0;
+	}
+	else
+	{
+		r.alphaX = common*coord.x;
+		r.alphaY = common*coord.y;
+	}
 )XYZ";
 	if (potential)
 		program += R"XYZ(
-	float potFactor = )XYZ" + float_to_string((float)potFactor) + R"XYZ(;
-	r.potential = potFactor*(sq_s - sq_a + coreRadius*log(coreRadius+sq_a) - scaleRadius*log(scaleRadius + sq_s));
+	if (diffRadii <= 0)
+		r.potential = 0;
+	else
+	{
+		float potFactor = )XYZ" + float_to_string((float)potFactor) + R"XYZ(;
+		r.potential = potFactor*(sq_s - sq_a + coreRadius*log(coreRadius+sq_a) - scaleRadius*log(scaleRadius + sq_s));
+	}
 )XYZ";
 	if (derivatives)
 		program += R"XYZ(
-	float firstpart = f_s*f_s/sq_s - f_a*f_a/sq_a;
-	float secondpart = f_diff;
-	float tx = coord.x;
-	float ty = coord.y;
-	r.axx = Q_scaled*( tx*tx*firstpart + secondpart);
-	r.ayy = Q_scaled*( ty*ty*firstpart + secondpart);
-	r.axy = Q_scaled*( tx*ty*firstpart );
+	if (diffRadii <= 0)
+	{
+		r.axx = 0;
+		r.ayy = 0;
+		r.axy = 0;
+	}
+	else
+	{
+		float firstpart = f_s*f_s/sq_s - f_a*f_a/sq_a;
+		float secondpart = f_diff;
+		float tx = coord.x;
+		float ty = coord.y;
+		r.axx = Q_scaled*( tx*tx*firstpart + secondpart);
+		r.ayy = Q_scaled*( ty*ty*firstpart + secondpart);
+		r.axy = Q_scaled*( tx*ty*firstpart );
+	}
 )XYZ";
 
 	program += R"XYZ(
