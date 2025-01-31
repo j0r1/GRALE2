@@ -293,6 +293,7 @@ string PIMDLens::getPIMDMainProgram(const string &subRoutineName, const string &
 	// NOTE: hardcoding this will be OK since it only depends on values that stay fixed,
 	//       even when another PIMDLens instance is present
 	double Q_factor = densScale*8.0*CONST_PI*CONST_G/(SPEED_C*SPEED_C)*Dd;
+	double potFactor = -0.5*Q_factor*deflectionScale*deflectionScale/potentialScale;
 
 	string program = R"XYZ(
 
@@ -316,7 +317,8 @@ LensQuantities )XYZ" + subRoutineName + R"XYZ((float2 coord, __global const int 
 )XYZ";
 	if (potential)
 		program += R"XYZ(
-	r.potential = nan((uint)0); // Currently not supported
+	float potFactor = )XYZ" + float_to_string((float)potFactor) + R"XYZ(;
+	r.potential = potFactor*(sq_s - sq_a + coreRadius*log(coreRadius+sq_a) - scaleRadius*log(scaleRadius + sq_s));
 )XYZ";
 	if (derivatives)
 		program += R"XYZ(
