@@ -343,6 +343,92 @@ static inline string getPIEMDSubRoutines(const string &subRoutineName)
 {
 	string program = R"XYZ(
 
+float2 )XYZ" + subRoutineName + R"XYZ(_complex_cosh(float2 x)
+{
+	float a = x.x;
+	float b = x.y;
+
+	float re = cos(b)*cosh(a);
+	float im = sin(b)*sinh(a);
+	return (float2)(re, im);
+}
+
+float2 )XYZ" + subRoutineName + R"XYZ(_complex_sinh(float2 x)
+{
+	float a = x.x;
+	float b = x.y;
+
+	float re = sinh(a)*cos(b);
+	float im = cosh(a)*sin(b);
+	return (float2)(re, im);
+}
+
+float2 )XYZ" + subRoutineName + R"XYZ(_complex_log(float2 x)
+{
+	float a = x.x;
+	float b = x.y;
+
+	float len2 = a*a+b*b;
+	float re = 0.5*log(len2);
+	float im = atan2(b,a);
+	return (float2)(re, im);
+}
+
+float2 )XYZ" + subRoutineName + R"XYZ(_complex_mult(float2 first, float2 second)
+{
+	float a = first.x;
+	float b = first.y;
+	float c = second.x;
+	float d = second.y;
+
+	float re = a*c - b*d;
+	float im = b*c + a*d;
+	return (float2)(re, im);
+}
+
+float2 )XYZ" + subRoutineName + R"XYZ(_complex_div(float2 first, float2 second)
+{
+	float a = first.x;
+	float b = first.y;
+	float c = second.x;
+	float d = second.y;
+
+	float denom = c*c+d*d;
+	float re = (a*c + b*d)/denom;
+	float im = (b*c - a*d)/denom;
+
+	return (float2)(re, im);
+}
+
+float )XYZ" + subRoutineName + R"XYZ(_potOmegaPart(float2 theta, float2 eta, float2 t_eps, float omega)
+{
+	float2 t_ew = t_eps/omega;
+	float r_em_w2 = dot(t_ew, t_ew);
+	float r_em_w = sqrt(r_em_w2);
+
+	float2 dzeta = (float2)(0.5*log(r_em_w + sqrt(1.0+r_em_w2)) , 0);
+
+	float2 coshepd = )XYZ" + subRoutineName + R"XYZ(_complex_cosh(eta+dzeta);
+	float2 coshemd = )XYZ" + subRoutineName + R"XYZ(_complex_cosh(eta-dzeta);
+	float2 coshe = )XYZ" + subRoutineName + R"XYZ(_complex_cosh(eta);
+	float2 cosheSquared = )XYZ" + subRoutineName + R"XYZ(_complex_mult(coshe, coshe);
+	float2 coshepdxemd = )XYZ" + subRoutineName + R"XYZ(_complex_mult(coshepd, coshemd);
+	float2 div1 = )XYZ" + subRoutineName + R"XYZ(_complex_div(cosheSquared, coshepdxemd);
+	float2 div2 = )XYZ" + subRoutineName + R"XYZ(_complex_div(coshepd, coshemd);
+	float2 logdiv1 = )XYZ" + subRoutineName + R"XYZ(_complex_log(div1);
+	float2 logdiv2 = )XYZ" + subRoutineName + R"XYZ(_complex_log(div2);
+	float2 sinh2eta = )XYZ" + subRoutineName + R"XYZ(_complex_sinh(2.0f*eta);
+	float sinh2dzeta = sinh(2.0f*dzeta.x);
+
+	float2 K1 = )XYZ" + subRoutineName + R"XYZ(_complex_mult(sinh2eta, logdiv1);
+	float2 K2 = sinh2dzeta * logdiv2;
+	float2 K = K1+K2;
+	float2 reXimY = (float2)(theta.x, -theta.y);
+	float2 part = )XYZ" + subRoutineName + R"XYZ(_complex_mult(reXimY, K);
+	float imPart = part.y;
+	return imPart/r_em_w;
+}
+
 float2 )XYZ" + subRoutineName + R"XYZ(_calcI(float omega_scaled, float2 theta, float epsilon)
 {
 	float X = theta.x;
@@ -411,8 +497,11 @@ void )XYZ" + subRoutineName + R"XYZ(_calcIDerivs(float omega_scaled, float2 thet
 	return program;
 }
 
-static inline string getPIEMDMainProgram(const string &subRoutineName, const string &piemdParams, bool derivatives, bool potential)
+static inline string getPIEMDMainProgram(const string &subRoutineName, const string &piemdParams, bool derivatives, bool potential, double Dd, double deflectionScale, double potentialScale)
 {
+	double densScale = SPEED_C*SPEED_C/(4.0*CONST_PI*CONST_G*Dd);
+	double potFactor = 8.0*CONST_PI*CONST_G/(SPEED_C*SPEED_C)*Dd*densScale*deflectionScale*deflectionScale/potentialScale; 
+
 	string program = getPIEMDSubRoutines(subRoutineName);
 	program += R"XYZ(
 
@@ -453,7 +542,23 @@ LensQuantities )XYZ" + subRoutineName + R"XYZ((float2 coord, __global const int 
 )XYZ";
 	if (potential)
 		program += R"XYZ(
-	r.potential = nan((uint)0); // Currently not supported
+	if (diffRadii <= 0)
+		r.potential = 0;
+	else
+	{
+		float R = sqrt(dot(coord, coord));
+		float sqrtEpsilon = sqrt(epsilon);
+		float2 eta = (float2)(-0.5*asinh(2.0*sqrtEpsilon/(1.0-epsilon) * coord.y/R ),
+							  +0.5*asin(2.0*sqrtEpsilon/(1.0+epsilon) * coord.x/R ) );
+		float2 theta_eps = (float2)(coord.x/(1.0+epsilon), coord.y/(1.0-epsilon));
+		float epsPreFactor = 0.5*(1.0-epsilon*epsilon)/sqrtEpsilon;
+		float potFactor = )XYZ" + float_to_string((float)potFactor) + R"XYZ(;
+		float totalPreFactor = potFactor*epsPreFactor*sigma0*scaleRadius*coreRadius/(scaleRadius-coreRadius);
+		
+		float p1 = )XYZ" + subRoutineName + R"XYZ(_potOmegaPart(coord, eta, theta_eps, coreRadius);
+		float p2 = )XYZ" + subRoutineName + R"XYZ(_potOmegaPart(coord, eta, theta_eps, scaleRadius);
+		r.potential = totalPreFactor * (p1-p2);
+	}
 )XYZ";
 	if (derivatives)
 		program += R"XYZ(
@@ -499,7 +604,7 @@ string PIEMDLens::getCLProgram(double deflectionScale, double potentialScale, st
 	float epsilon = pFloatParams[3];
 	)XYZ";
 
-	return getPIEMDMainProgram(subRoutineName, piemdParams, derivatives, potential);
+	return getPIEMDMainProgram(subRoutineName, piemdParams, derivatives, potential, getLensDistance(), deflectionScale, potentialScale);
 }
 
 unique_ptr<GravitationalLensParams> PIEMDLens::createLensParamFromCLFloatParams(double deflectionScale, double potentialScale, float *pFloatParams) const
@@ -644,7 +749,7 @@ string LTPIEMDLens::getCLProgram(double deflectionScale, double potentialScale, 
 	float epsilon = eTmp/(2.0-eTmp);
 	)XYZ";
 
-	return getPIEMDMainProgram(subRoutineName, piemdParams, derivatives, potential);
+	return getPIEMDMainProgram(subRoutineName, piemdParams, derivatives, potential, getLensDistance(), deflectionScale, potentialScale);
 }
 
 unique_ptr<GravitationalLensParams> LTPIEMDLens::createLensParamFromCLFloatParams(double deflectionScale, double potentialScale, float *pFloatParams) const
