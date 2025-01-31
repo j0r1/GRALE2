@@ -28,6 +28,7 @@
 #include "mathfunctions.h"
 #include "utils.h"
 #include <iostream>
+#include <complex>
 
 using namespace std;
 
@@ -262,6 +263,55 @@ double PIEMDLens::getSurfaceMassDensity(Vector2Dd theta) const
 	double t2 = thetaLength*thetaLength;
 
 	return m_densFactor*(1.0/SQRT(m_a2 + t2) - 1.0/SQRT(m_s2 + t2));
+}
+
+bool PIEMDLens::getProjectedPotential(double D_s, double D_ds, Vector2D<double> theta, double *pPotentialValue) const
+{
+	if (m_scaleRadius <= m_coreRadius)
+	{
+		*pPotentialValue = 0;
+		return true;
+	}
+
+	double R = theta.getLength();
+	complex eta { -0.5*std::asinh(2.0*m_sqrtEpsilon/(1.0-m_epsilon) * theta.getY()/R ),
+			      +0.5*std::asin(2.0*m_sqrtEpsilon/(1.0+m_epsilon) * theta.getX()/R ) };
+
+	double X_eps = theta.getX()/(1.0+m_epsilon);
+	double Y_eps = theta.getY()/(1.0-m_epsilon);
+
+	auto omegaDepPart = [theta,eta,R,X_eps,Y_eps](double omega)
+	{
+		double Xew = X_eps/omega;
+		double Yew = Y_eps/omega;
+		double r_em_w2 = Xew*Xew + Yew*Yew;
+		double r_em_w = std::sqrt(r_em_w2);
+
+		double dzeta = 0.5*std::log(r_em_w + std::sqrt(1.0+r_em_w2));
+
+		complex coshepd = std::cosh(eta+dzeta);
+		complex coshemd = std::cosh(eta-dzeta);
+		complex coshe = std::cosh(eta);
+		complex K1 = std::sinh(2.0*eta)*std::log(coshe*coshe/(coshepd*coshemd));
+		complex K2 = std::sinh(2.0*dzeta)*std::log(coshepd/coshemd);
+		complex K = K1+K2;
+		complex reX { theta.getX(), 0.0 };
+		complex imY { 0.0, theta.getY() };
+		complex part = (reX - imY)*K;
+		double imPart = part.imag();
+		return imPart/r_em_w;
+	};
+
+	double epsPreFactor = 0.5*(1.0-m_epsilon*m_epsilon)/m_sqrtEpsilon;
+	double totalPreFactor = epsPreFactor*8.0*CONST_PI*CONST_G/(SPEED_C*SPEED_C)*getLensDistance()*m_densFactor;
+
+	double p1 = omegaDepPart(m_coreRadius);
+	double p2 = omegaDepPart(m_scaleRadius);
+	double phi = totalPreFactor * (p1-p2);
+
+	*pPotentialValue = phi;
+
+	return true;
 }
 
 bool PIEMDLens::getSuggestedScales(double *pDeflectionScale, double *pPotentialScale) const

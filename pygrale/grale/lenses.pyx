@@ -2675,6 +2675,7 @@ cdef class PIEMDLens(GravitationalLens):
 
      * `Eliasdottir, A., et al, Where is the matter in the Merging Cluster Abell 2218? <http://adsabs.harvard.edu/abs/2007arXiv0710.5636E>`_
      * `Kassiola, A., Kovner, I., Analytic lenses with elliptic mass distributions, pseudo-isothermal and others, instead of elliptic potentials <http://adsabs.harvard.edu/abs/1993LIACo..31..571K>`_
+     * `Kassiola, A., Kovner, I., Elliptic Mass Distributions versus Elliptic Potentials in Gravitational Lenses <https://ui.adsabs.harvard.edu/abs/1993ApJ...417..450K/abstract>`_
     """
 
     cdef gravitationallens.GravitationalLens* _allocLens(self) except NULL:
