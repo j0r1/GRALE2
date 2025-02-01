@@ -273,6 +273,12 @@ bool PIEMDLens::getProjectedPotential(double D_s, double D_ds, Vector2D<double> 
 		return true;
 	}
 
+	if (theta.getX() == 0 && theta.getY() == 0)
+	{
+		*pPotentialValue = 0; // this appears to be the limit from various numerical experiments
+		return true;
+	}
+
 	double R = theta.getLength();
 	complex eta { -0.5*std::asinh(2.0*m_sqrtEpsilon/(1.0-m_epsilon) * theta.getY()/R ),
 			      +0.5*std::asin(2.0*m_sqrtEpsilon/(1.0+m_epsilon) * theta.getX()/R ) };
@@ -543,6 +549,8 @@ LensQuantities )XYZ" + subRoutineName + R"XYZ((float2 coord, __global const int 
 	if (potential)
 		program += R"XYZ(
 	if (diffRadii <= 0)
+		r.potential = 0;
+	else if (coord.x == 0 && coord.y == 0)
 		r.potential = 0;
 	else
 	{
