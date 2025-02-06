@@ -102,26 +102,29 @@ def _addBlock(outputLines, block, factor=1):
     for l in o.splitlines():
         outputLines.append(l)
 
-def _processPotfileFile(fileName, mag0, slope, vdSlope, coreStr, bsSigma, bsCut, vdVarName, cutVarName,
-                        useRADirection, lensDistanceString, arcsecString, degreeString, kpcString):
+def _processPotfileFile(fileName, mag0, slope, vdSlope, coreStr, bsSigma, bsCut, isCutArcsec, vdVarName, cutVarName,
+                        useRADirection, lensDistanceString, arcsecString, degreeString, kpcString,
+                        useRelativeRaDec):
 
     outputLines = []
 
     lines = open(fileName, "rt").readlines()
-    firstLine = lines[0]
-    del lines[0]
 
-    parts = firstLine.strip().split()
-    if parts[0] != "#REFERENCE":
-        raise Exception(f"Expecting galaxy file '{fileName}' to start with '#REFERENCE'")
+    if not useRelativeRaDec:
+        firstLine = lines[0]
+        del lines[0]
 
-    if int(parts[1]) != 0:
-        raise Exception(f"Expecting first number on first line of '{fileName}' to be 0, but is {parts[1]}")
+        parts = firstLine.strip().split()
+        if parts[0] != "#REFERENCE":
+            raise Exception(f"Expecting galaxy file '{fileName}' to start with '#REFERENCE'")
 
-    ra, dec = map(float, parts[2:4])
-    ra *= ANGLE_DEGREE
-    dec *= ANGLE_DEGREE
-    centerPos = (ra, dec)
+        if int(parts[1]) != 0:
+            raise Exception(f"Expecting first number on first line of '{fileName}' to be 0, but is {parts[1]}")
+
+        ra, dec = map(float, parts[2:4])
+        ra *= ANGLE_DEGREE
+        dec *= ANGLE_DEGREE
+        centerPos = (ra, dec)
 
     for l in lines:
         if not l.strip() or l.strip().startswith("#"):
@@ -130,15 +133,21 @@ def _processPotfileFile(fileName, mag0, slope, vdSlope, coreStr, bsSigma, bsCut,
         parts = l.split()
         idNum, ra, dec, a, b, theta, mag, lum = map(float, parts)
         if a != 1 or b != 1 or theta != 0:
-            raise Exception(f"Expecting a = 1 (got {a}), b = 1 (got {b}) and theta = 0 (got {theta})")
+            #raise Exception(f"Expecting a = 1 (got {a}), b = 1 (got {b}) and theta = 0 (got {theta})")
+            print(f"Warning in potfile {fileName}: Expecting a = 1 (got {a}), b = 1 (got {b}) and theta = 0 (got {theta})")
 
-        ra *= ANGLE_DEGREE
-        dec *= ANGLE_DEGREE
-        x, y = images.centerOnPosition([ra, dec], centerPos)
-        x /= ANGLE_ARCSEC
-        y /= ANGLE_ARCSEC
-        if not useRADirection:
-            x = -x
+        if useRelativeRaDec:
+            x, y = ra, dec
+            if useRADirection: # TODO: is this correct?
+                x = -x
+        else:
+            ra *= ANGLE_DEGREE
+            dec *= ANGLE_DEGREE
+            x, y = images.centerOnPosition([ra, dec], centerPos)
+            x /= ANGLE_ARCSEC
+            y /= ANGLE_ARCSEC
+            if not useRADirection:
+                x = -x
 
         velDispFactor = 10**(0.4*(mag0-mag)/vdSlope)
         coreFactor = 10**(0.4*(mag0-mag)/2)
@@ -147,7 +156,9 @@ def _processPotfileFile(fileName, mag0, slope, vdSlope, coreStr, bsSigma, bsCut,
         # Better to not mention the hard limits here, are not really used internally but
         # might cause a sanity check to fail after a model refinement
         vdispStr = _getLimitsAndPrior(bsSigma, lambda s: s + " * 1000", cnameStr = f'"cname": "{vdVarName} ; x * {velDispFactor}"', noHard=True)
-        cutStr = _getLimitsAndPrior(bsCut, lambda s: s + f" * {arcsecString}", cnameStr = f'"cname": "{cutVarName} ; x * {cutFactor}"', noHard=True)
+
+        cutLambda = (lambda s: s + f" * {arcsecString}") if isCutArcsec else (lambda s: s + f" * {kpcString}/{lensDistanceString}")
+        cutStr = _getLimitsAndPrior(bsCut, cutLambda, cnameStr = f'"cname": "{cutVarName} ; x * {cutFactor}"', noHard=True)
 
         if "{" in vdispStr:
             vdispStr += f", # initial range and possibly hard limits are not used, the settings of {vdVarName} will be used, "
@@ -192,6 +203,7 @@ def _getLimitsAndPrior(setting, modifier = lambda s: s, flipMinMax = False, cnam
 
 def createParametricDescriptionFromLenstoolInput(fileName,
                                                  useRADirection,
+                                                 parseImages = True,
                                                  lensDistanceString = "Dd",
                                                  arcsecString = "ANGLE_ARCSEC",
                                                  degreeString = "ANGLE_DEGREE",
@@ -206,7 +218,8 @@ def createParametricDescriptionFromLenstoolInput(fileName,
 
      - ``"images"``: this is a list of the images, basically what the
        :func:`readLenstoolInputImagesFile <grale.images.readLenstoolInputImagesFile>`
-       returns for the image file specified in the Lenstool script.
+       returns for the image file specified in the Lenstool script. Is ``None``
+       in case the `parseImages` flag was set to ``False``.
      - ``"imagesFileName"``: the name of the images file that is stored in the Lenstool
        script.
      - ``"cosmology"``: an instance of :class:`Cosmology <grale.cosmology.Cosmology>`,
@@ -227,6 +240,8 @@ def createParametricDescriptionFromLenstoolInput(fileName,
      - `useRADirection`: if ``True``, coordinates in the Lenstool file are converted
        so that they use the RA direction (axis points left). To use mirrored coordinates
        (as Lenstool itself does) you can set this to ``False``
+     - `parseImages`: can be set to ``False`` if the specified images file is not
+       processed further, only the file name will be stored.
      - `lensDistanceString`: sometimes a conversion may be needed that involves the
        lens distance. This string is used in the generated output for this.
      - `arcsecString`: string to be used when expressing something in arcsec
@@ -293,6 +308,8 @@ def createParametricDescriptionFromLenstoolInput(fileName,
             parts = l.strip().split()
             blockName = parts[0]
             blockArgs = parts[1:]
+            if blockName == "cosmologie":
+                blockName = "cosmology"
             currentBlock = { "blockname": blockName, "blockargs": blockArgs, "settings": { } }
 
     if not currentBlock or currentBlock["blockname"] != "fini":
@@ -321,8 +338,12 @@ def createParametricDescriptionFromLenstoolInput(fileName,
 
     imageFileName = os.path.join(os.path.dirname(fileName), bs["multfile"][1])
     # TODO: read this here? Or just pass filename?
-    imgList = images.readLenstoolInputImagesFile(imageFileName, center, useRADirection)
-    print(f"Read {len(imgList)} sources from {imageFileName}", file=sys.stderr)
+    if parseImages:
+        imgList = images.readLenstoolInputImagesFile(imageFileName, center, useRADirection)
+        print(f"Read {len(imgList)} sources from {imageFileName}", file=sys.stderr)
+    else:
+        imgList = None
+        print(f"Skipping reading images file {imageFileName}")
 
     positionSigmaForMCMC = float(bs["sigposArcsec"][0])
     print(f"Using positional uncertainty {positionSigmaForMCMC} arcsec in MCMC", file=sys.stderr)
@@ -422,20 +443,36 @@ def createParametricDescriptionFromLenstoolInput(fileName,
             if not lastBlock:
                 raise Exception("No previous lens info to specify optimization parameters for")
 
-            if "v_disp" in bs:
+            if "ellipticite" in bs and "ellipticity" in bs:
+                raise Exception("Both 'ellipticity' and 'ellipticite' present in limit block")
+        
+            # It seems that if 0 is the setting in the limit block, then the value
+            # from the previous 'potentiel' block should be used
+            def _checkPresentAndVariable(n):
+                if n in bs and int(bs[n][0]) != 0:
+                    return True
+                return False
+
+            if _checkPresentAndVariable("v_disp"):
                 lastBlock["velocitydispersion"] = _getLimitsAndPrior(bs["v_disp"], lambda s: s + " * 1000") + ","
-            if "angle_pos" in bs:
+            if _checkPresentAndVariable("angle_pos"):
                 lastBlock["angle"] = _getLimitsAndPrior(bs["angle_pos"], angString, useRADirection) + "," + angStringComment
-            if "ellipticity" in bs:
+            if _checkPresentAndVariable("ellipticity"):
                 lastBlock["ellipticity"] = _getLimitsAndPrior(bs["ellipticity"]) + ","
-            if "x_centre" in bs:
+            if _checkPresentAndVariable("ellipticite"):
+                lastBlock["ellipticity"] = _getLimitsAndPrior(bs["ellipticite"]) + ","
+            if _checkPresentAndVariable("x_centre"):
                 lastBlock["x"] = _getLimitsAndPrior(bs["x_centre"], xString, useRADirection) + "," + xStringComment
-            if "y_centre" in bs:
+            if _checkPresentAndVariable("y_centre"):
                 lastBlock["y"] = _getLimitsAndPrior(bs["y_centre"], lambda s: s + f" * {arcsecString}") + ","
-            if "core_radius" in bs:
+            if _checkPresentAndVariable("core_radius"):
                 lastBlock["coreradius"] = _getLimitsAndPrior(bs["core_radius"], lambda s: s + f" * {arcsecString}") + ","
-            if "cut_radius" in bs:
+            if _checkPresentAndVariable("core_radius_kpc"):
+                lastBlock["coreradius"] = _getLimitsAndPrior(bs["core_radius_kpc"], lambda s: s + f" * {kpcString}/{lensDistanceString}") + ","
+            if _checkPresentAndVariable("cut_radius"):
                 lastBlock["scaleradius"] = _getLimitsAndPrior(bs["cut_radius"], lambda s: s + f" * {arcsecString}") + ","
+            if _checkPresentAndVariable("cut_radius_kpc"):
+                lastBlock["scaleradius"] = _getLimitsAndPrior(bs["cut_radius_kpc"], lambda s: s + f" * {kpcString}/{lensDistanceString}") + ","
 
             # Finalize this, don't accept any other modifications
             _addBlock(outputLines, lastBlock)
@@ -449,26 +486,30 @@ def createParametricDescriptionFromLenstoolInput(fileName,
                 _addBlock(outputLines, lastBlock)
                 lastBlock = None
 
-            prof = int(bs["type"][0])
+            prof = int(bs["type"][0]) if "type" in bs else 81 # Defaults to 81 I think
             if prof != 81:
                 Exception(f"Can't handle profile type {prof}")
 
-            coreStr = bs["core"][0] + f" * {arcsecString}"
-            zd = float(bs["z_lens"][0])
-            if knownZ is None:
-                knownZ = zd
-            if knownZ != zd:
-                raise Exception(f"Encountered redshift {zd} in potfile entry, but was expecting {knownZ}")
+            coreStr = (bs["core"][0] + f" * {arcsecString}") if "core" in bs else (bs["corekpc"][0] + f" * {kpcString}/{lensDistanceString}")
+
+            if "z_lens" in bs:
+                zd = float(bs["z_lens"][0])
+                if knownZ is None:
+                    knownZ = zd
+                if knownZ != zd:
+                    raise Exception(f"Encountered redshift {zd} in potfile entry, but was expecting {knownZ}")
 
             mag0 = float(bs["mag0"][0])
 
             # We'll do this again later to possibly add cname identifiers (not very efficient, I know)
             velDisp0 = _getLimitsAndPrior(bs["sigma"], lambda s: s + f" * 1000")
-            cut0 = _getLimitsAndPrior(bs["cut"], lambda s: s + f" * {arcsecString}")
+            cut0 = _getLimitsAndPrior(bs["cut"], lambda s: s + f" * {arcsecString}") if "cut" in bs else _getLimitsAndPrior(bs["cutkpc"], lambda s: s + f" * {kpcString}/{lensDistanceString}")
             vd0Name = f"veldispVar{potfileIndex}" if "{" in velDisp0 else None
             cut0Name = f"cut0Var{potfileIndex}" if "{" in cut0 else None
             velDisp0 = _getLimitsAndPrior(bs["sigma"], lambda s: s + f" * 1000", cnameStr="" if not vd0Name else f'"cname": "{vd0Name}"')
-            cut0 = _getLimitsAndPrior(bs["cut"], lambda s: s + f" * {arcsecString}", cnameStr="" if not cut0Name else f'"cname": "{cut0Name}"')
+            
+            cutCname = "" if not cut0Name else f'"cname": "{cut0Name}"' 
+            cut0 = _getLimitsAndPrior(bs["cut"], lambda s: s + f" * {arcsecString}", cnameStr=cutCname) if "cut" in bs else _getLimitsAndPrior(bs["cutkpc"], lambda s: s + f" * {kpcString}/{lensDistanceString}", cnameStr=cutCname)
 
             vdSlope = _getLimitsAndPrior(bs["vdslope"])
             if "{" in vdSlope:
@@ -492,12 +533,18 @@ def createParametricDescriptionFromLenstoolInput(fileName,
                     "comment": "Dummy block to allow potfile parameter changes",
                 }, factor=0)
 
-            if int(bs["filein"][0]) != 3:
-                raise Exception("Expecting file type 3 for 'filein' in potfile section")
+
+            potFileIn = int(bs["filein"][0])
+            if not potFileIn in [1, 3]:
+                raise Exception("Expecting file type 1 or 3 for 'filein' in potfile section")
+            useRelativeRaDec = True if potFileIn == 1 else False
 
             galFileName = os.path.join(os.path.dirname(fileName), bs["filein"][1])
-            outputLines += _processPotfileFile(galFileName, mag0, slope, vdSlope, coreStr, bs["sigma"], bs["cut"], vd0Name, cut0Name,
-                                               useRADirection, lensDistanceString, arcsecString, degreeString, kpcString)
+
+            outputLines += _processPotfileFile(galFileName, mag0, slope, vdSlope, coreStr, bs["sigma"], bs["cut"] if "cut" in bs else bs["cutkpc"],
+                                               "cut" in bs, vd0Name, cut0Name,
+                                               useRADirection, lensDistanceString, arcsecString, degreeString, kpcString,
+                                               useRelativeRaDec)
         else:
             raise Exception(f"Unknown block type {b['blockname']}")
 
@@ -653,7 +700,7 @@ inverters.debugDirectStderr = True
         if outParamFn and os.path.exists(outParamFn) and not force:
             raise Exception(f"Output parameters file {outParamFn} already exists, use '-force' to continue anyway")
 
-        r = createParametricDescriptionFromLenstoolInput(ltCfgFn, useRADirection=useRADir)
+        r = createParametricDescriptionFromLenstoolInput(ltCfgFn, useRADirection=useRADir, parseImages=(not fromImgFileName))
         if outParamFn:
             open(outParamFn, "wt").write(r["description"])
 
