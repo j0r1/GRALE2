@@ -132,9 +132,11 @@ def _processPotfileFile(fileName, mag0, slope, vdSlope, coreStr, bsSigma, bsCut,
 
         parts = l.split()
         idNum, ra, dec, a, b, theta, mag, lum = map(float, parts)
-        if a != 1 or b != 1 or theta != 0:
+        #if a != 1 or b != 1 or theta != 0:
             #raise Exception(f"Expecting a = 1 (got {a}), b = 1 (got {b}) and theta = 0 (got {theta})")
-            print(f"Warning in potfile {fileName}: Expecting a = 1 (got {a}), b = 1 (got {b}) and theta = 0 (got {theta})")
+            #print(f"Warning in potfile {fileName}: Expecting a = 1 (got {a}), b = 1 (got {b}) and theta = 0 (got {theta})")
+
+        ellipticity = (a**2-b**2)/(a**2+b**2)
 
         if useRelativeRaDec:
             x, y = ra, dec
@@ -175,11 +177,11 @@ def _processPotfileFile(fileName, mag0, slope, vdSlope, coreStr, bsSigma, bsCut,
         _addBlock(outputLines, {
             "x": f"{x} * {arcsecString},",
             "y": f"{y} * {arcsecString},",
-            "angle": "0,",
+            "angle": f"{theta}," if not useRADirection else f"(180-{theta}), # Use angle supplement for RA based orientation",
             "velocitydispersion": vdispStr,
             "coreradius": "(" + coreStr + f") * {coreFactor}, # factor comes from 10**(0.4*({mag0}-{mag})/2)",
             "scaleradius": cutStr,
-            "ellipticity": "0",
+            "ellipticity": f"{ellipticity}",
             "comment": f"Galaxy ID {idNum} from file {fileName}",
         })
 
