@@ -10,13 +10,18 @@ def _getLenstoolPotFileInfoFromLines(lines):
     potfileIdent = "potfile"
     identNrs = set()
     for l in lines:
+        l = l.rstrip()
         if l.startswith(potfileIdent):
+
             if len(l) == len(potfileIdent):
-                raise LensException(f"No 'potfile' identifier present in line '{l}'")
-            identNr = int(l[len(potfileIdent):])
-            if identNr in identNrs:
-                raise LensException(f"'potfile' identifier {identNr} found multiple times")
-            identNrs.add(identNr)
+                #raise LensException(f"No 'potfile' identifier present in line '{l}'")
+                print(f"Warning: no 'potfile' identifier present in line '{l}'")
+                identNr = "unknown"
+            else:
+                identNr = int(l[len(potfileIdent):])
+                if identNr in identNrs:
+                    raise LensException(f"'potfile' identifier {identNr} found multiple times")
+                identNrs.add(identNr)
             
             if curInfo:
                 potInfo.append(curInfo)
@@ -89,8 +94,12 @@ def _getLenstoolPotFileModelsFromLines(lines, zd, Dd, baseDir, useRADirection):
             raise LensException(f"Unknown lens type {lensType} in potfile")
         del pf["type"]
     
-        core0 = float(pf["core"][0])*ANGLE_ARCSEC
-        del pf["core"]
+        if "core" in pf:
+            core0 = float(pf["core"][0])*ANGLE_ARCSEC
+            del pf["core"]
+        else:
+            core0 = float(pf["corekpc"][0])*DIST_KPC/Dd
+            del pf["corekpc"]
 
         velDisp0 = float(pf["sigma"][1])*1000
         del pf["sigma"]
@@ -112,8 +121,9 @@ def _getLenstoolPotFileModelsFromLines(lines, zd, Dd, baseDir, useRADirection):
         del pf["vdslope"]
                 
         pfType = int(pf["filein"][0])
-        if pfType != 3:
-            raise LensException(f"Unknown potfile type {pfType}, expecting 3")
+        if pfType not in [ 1, 3 ]:
+            raise LensException(f"Unknown potfile type {pfType}, expecting 1 or 3")
+        useRelativeRaDec = True if pfType == 1 else False
     
         fileName = os.path.join(baseDir, pf["filein"][1])
         del pf["filein"]
@@ -139,37 +149,56 @@ def _getLenstoolPotFileModelsFromLines(lines, zd, Dd, baseDir, useRADirection):
 
         for l in open(fileName, "rt"):
             l = l.strip()
-            if l.startswith("#REFERENCE"):
-                parts = l.split()
-                ra, dec = map(float, parts[2:4])
-                refCtr = [ra*ANGLE_DEGREE, dec*ANGLE_DEGREE]
-                continue
+
+            if useRelativeRaDec:
+                if l.startswith("#REFERENCE"):
+                    parts = l.split()
+                    ra, dec = map(float, parts[2:4])
+                    refCtr = [ra*ANGLE_DEGREE, dec*ANGLE_DEGREE]
+                    continue
             
             if l.startswith("#"):
                 continue
 
             ident, ra, dec, a, b, theta, mag, lum = map(float, l.split())
-            if a != 1 or b != 1 or theta != 0:
-                raise LensException("Unexpected a, b, or theta (expecting a=1, b=1, theta=0)")
+            ellipticity = (a**2-b**2)/(a**2+b**2)
 
             velDisp = velDisp0*10**(0.4*(mag0-mag)/vdslope)
             core = core0*10**(0.4*(mag0-mag)/2)
             cut = cut0*10**(0.4*(mag0-mag)*2/slope)
-            x, y = images.centerOnPosition([ra*ANGLE_DEGREE, dec*ANGLE_DEGREE], refCtr)
 
-            if not useRADirection:
-                x = -x
+            if not useRelativeRaDec:
+                x, y = images.centerOnPosition([ra*ANGLE_DEGREE, dec*ANGLE_DEGREE], refCtr)
+                if not useRADirection:
+                    x = -x
+            else:
+                x, y = ra, dec
+                if useRADirection:
+                    x = -x
+
+            if useRADirection: # TODO: does this depend on filetype of 1 or 3 as well?
+                theta = 180 - theta
+
+            if ellipticity == 0:
+                subLens = lenses.LTPIMDLens(Dd, {
+                    "velocitydispersion": velDisp,
+                    "coreradius": core,
+                    "scaleradius": cut,
+                })
+            else:
+                subLens = lenses.LTPIEMDLens(Dd, {
+                    "velocitydispersion": velDisp,
+                    "coreradius": core,
+                    "scaleradius": cut,
+                    "ellipticity": ellipticity
+                })
 
             newLensParams.append({
                 "x": x,
                 "y": y,
                 "factor": 1,
-                "angle": 0,
-                "lens": lenses.LTPIMDLens(Dd, {
-                    "velocitydispersion": velDisp,
-                    "coreradius": core,
-                    "scaleradius": cut,
-                })
+                "angle": theta,
+                "lens": subLens
             })
     return newLensParams
 
