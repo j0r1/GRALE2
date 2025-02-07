@@ -139,7 +139,8 @@ def _processPotfileFile(fileName, mag0, slope, vdSlope, coreStr, bsSigma, bsCut,
         ellipticity = (a**2-b**2)/(a**2+b**2)
 
         if useRelativeRaDec:
-            x, y = ra, dec
+            x = ra*ANGLE_ARCSEC
+            y = dec*ANGLE_ARCSEC
             if useRADirection: # TODO: is this correct?
                 x = -x
         else:

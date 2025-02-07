@@ -166,13 +166,15 @@ def _getLenstoolPotFileModelsFromLines(lines, zd, Dd, baseDir, useRADirection):
             velDisp = velDisp0*10**(0.4*(mag0-mag)/vdslope)
             core = core0*10**(0.4*(mag0-mag)/2)
             cut = cut0*10**(0.4*(mag0-mag)*2/slope)
+            #print(f"mag0 = {mag0}, mag={mag}, velDisp0 = {velDisp0}, velDisp0 = {velDisp}, vdslope = {vdslope}")
 
             if not useRelativeRaDec:
                 x, y = images.centerOnPosition([ra*ANGLE_DEGREE, dec*ANGLE_DEGREE], refCtr)
                 if not useRADirection:
                     x = -x
             else:
-                x, y = ra, dec
+                x = ra*ANGLE_ARCSEC
+                y = dec*ANGLE_ARCSEC
                 if useRADirection:
                     x = -x
 
