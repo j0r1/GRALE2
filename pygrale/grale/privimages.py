@@ -139,7 +139,7 @@ def _getLinesFromInputData(inputData):
     # Check if it's a string that can be split in lines
     return inputData.splitlines(), False
 
-def readLenstoolInputImagesFile(fileName, centerOn, useRADirection):
+def readLenstoolInputImagesFile(fileName, centerOn, useRADirection, strict=True):
     """Read point images data from a
     `Lenstool <https://projets.lam.fr/projects/lenstool/wiki>`_ input file 
     called `fileName` (e.g. 'imawcs.mul' or 'imawcs.cat'). The coordinates need 
@@ -149,6 +149,9 @@ def readLenstoolInputImagesFile(fileName, centerOn, useRADirection):
     or in case you'd prefer to mirror this (like Lenstool does) the flag can be
     set to ``False``.
 
+    In principe the input file should start with the line "#REFERENCE 0", to
+    skip this requirement set `strict` to `False`.
+
     This function internally uses :func:`readInputImagesFile`, look there for a
     description of the output.
     """
@@ -157,13 +160,15 @@ def readLenstoolInputImagesFile(fileName, centerOn, useRADirection):
 
     firstLine = open(fileName, "rt").readline()
     parts = firstLine.strip().split()
-    if not parts[0] == "#REFERENCE" and int(parts[1]) == 0 and len(parts) == 2:
-        raise Exception("Expecting file to start with '#REFERENCE 0'")
+    if len(parts) != 2 or parts[0] != "#REFERENCE" or parts[1] != "0":
+        if strict:
+            raise Exception("Expecting file to start with '#REFERENCE 0'")
+        print(f"WARNING: {fileName} does not start with '#REFERENCE 0', continuing anyway since 'strict' was not set")
 
     def la(line):
         parts = line.split()
-        if len(parts) != 8:
-            raise Exception("Expecting eight columns in input file")
+        if len(parts) not in [ 8, 4 ]:
+            raise Exception("Expecting four or eight columns in input file")
 
         if "." in parts[0]:
             nameParts = parts[0].split(".")
@@ -171,13 +176,24 @@ def readLenstoolInputImagesFile(fileName, centerOn, useRADirection):
         elif parts[0][-1].isalpha():
             src, img = parts[0][:-1], parts[0][-1]
         else:
-            raise Exception(f"Can't understand source/image identifier '{parts[0]}'")
+            # Seems older format with only a source name
+            src = parts[0]
+            img = None
+        #else:
+        #    raise Exception(f"Can't understand source/image identifier '{parts[0]}'")
 
-        ra, dec, z = map(float, parts[1:3] + parts[6:7])
+        if len(parts) == 4:
+            ra, dec, z = map(float, parts[1:])
+        else:
+            ra, dec, z = map(float, parts[1:3] + parts[6:7])
+
         x, y = centerOnPosition((ra*ANGLE_DEGREE, dec*ANGLE_DEGREE), centerOn)
         if not useRADirection:
             x = -x
-        return { "srcnr": src, "imgnr": img, "x": x, "y": y, "z": z }
+        ret = { "srcnr": src, "x": x, "y": y, "z": z }
+        if img is not None:
+            ret["imgnr"] = img
+        return ret
 
     return readInputImagesFile(fileName, True, lineAnalyzer=la)
 
