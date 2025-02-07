@@ -150,7 +150,7 @@ def _getLenstoolPotFileModelsFromLines(lines, zd, Dd, baseDir, useRADirection):
         for l in open(fileName, "rt"):
             l = l.strip()
 
-            if useRelativeRaDec:
+            if not useRelativeRaDec:
                 if l.startswith("#REFERENCE"):
                     parts = l.split()
                     ra, dec = map(float, parts[2:4])
@@ -169,6 +169,8 @@ def _getLenstoolPotFileModelsFromLines(lines, zd, Dd, baseDir, useRADirection):
             #print(f"mag0 = {mag0}, mag={mag}, velDisp0 = {velDisp0}, velDisp0 = {velDisp}, vdslope = {vdslope}")
 
             if not useRelativeRaDec:
+                if refCtr is None:
+                    raise LensException(f"Can'r recenter coordinate from 'potfile', no center set, need '#REFERENCE'")
                 x, y = images.centerOnPosition([ra*ANGLE_DEGREE, dec*ANGLE_DEGREE], refCtr)
                 if not useRADirection:
                     x = -x
