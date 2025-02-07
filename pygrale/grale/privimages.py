@@ -356,10 +356,13 @@ def readInputImagesFile(inputData, isPointImagesFile, lineAnalyzer = "default", 
             emptyLineCount = 0
           
         if emptyLineCount == 0: # New info
+            info = lineAnalyzer(l)
+            if info is None: # Skip line
+                continue
+
             if isPointImagesFile:
                 internalImageId += 1
             
-            info = lineAnalyzer(l)
             imagesId = idStr(internalImageId) if not "imgnr" in info else info["imgnr"]
             sourceId = idStr(internalSourceId) if not "srcnr" in info else info["srcnr"]
             
