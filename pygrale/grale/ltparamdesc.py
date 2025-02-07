@@ -8,7 +8,7 @@ Usage::
     python -m grale.ltparamdesc -in mod.par (-out inv.py | -exec)\\
           [-outparam desc.py] [-noRAdir] [-force] [-fromimgfile] \\
           [-popsize 512] [-mcmcgen 5000] [-outfnsuffix suff] \\
-          [-refinefactor 0.0001] [-debug]
+          [-refinefactor 0.0001] [-debug] [-nostricimages]
 
 Arguments:
 
@@ -51,6 +51,8 @@ Arguments:
    This specifies the fraction of the parameter change that's used for the
    initialization of a new set of trial solutions.
  - `-debug`: if present, more debug output will be shown.
+ - `-nostrictimages`: if set, the input images file is not required to
+   start with '#REFERENCE 0'
 """
 from .constants import *
 from . import cosmology
@@ -207,6 +209,7 @@ def _getLimitsAndPrior(setting, modifier = lambda s: s, flipMinMax = False, cnam
 def createParametricDescriptionFromLenstoolInput(fileName,
                                                  useRADirection,
                                                  parseImages = True,
+                                                 strictImages = True,
                                                  lensDistanceString = "Dd",
                                                  arcsecString = "ANGLE_ARCSEC",
                                                  degreeString = "ANGLE_DEGREE",
@@ -245,6 +248,8 @@ def createParametricDescriptionFromLenstoolInput(fileName,
        (as Lenstool itself does) you can set this to ``False``
      - `parseImages`: can be set to ``False`` if the specified images file is not
        processed further, only the file name will be stored.
+     - `strictImages`: by default, the input images file needs to start with
+       '#REFERENCE 0', by setting this flag to ``False`` this requirement is relaxed.
      - `lensDistanceString`: sometimes a conversion may be needed that involves the
        lens distance. This string is used in the generated output for this.
      - `arcsecString`: string to be used when expressing something in arcsec
@@ -342,7 +347,7 @@ def createParametricDescriptionFromLenstoolInput(fileName,
     imageFileName = os.path.join(os.path.dirname(fileName), bs["multfile"][1])
     # TODO: read this here? Or just pass filename?
     if parseImages:
-        imgList = images.readLenstoolInputImagesFile(imageFileName, center, useRADirection)
+        imgList = images.readLenstoolInputImagesFile(imageFileName, center, useRADirection, strictImages)
         print(f"Read {len(imgList)} sources from {imageFileName}", file=sys.stderr)
     else:
         imgList = None
@@ -514,10 +519,10 @@ def createParametricDescriptionFromLenstoolInput(fileName,
             cutCname = "" if not cut0Name else f'"cname": "{cut0Name}"' 
             cut0 = _getLimitsAndPrior(bs["cut"], lambda s: s + f" * {arcsecString}", cnameStr=cutCname) if "cut" in bs else _getLimitsAndPrior(bs["cutkpc"], lambda s: s + f" * {kpcString}/{lensDistanceString}", cnameStr=cutCname)
 
-            vdSlope = _getLimitsAndPrior(bs["vdslope"])
+            vdSlope = _getLimitsAndPrior(bs["vdslope"] if "vdslope" in bs else [0, "4.0"])
             if "{" in vdSlope:
                 raise Exception("Varying vdslope is currently not supported")
-            slope = _getLimitsAndPrior(bs["slope"])
+            slope = _getLimitsAndPrior(bs["slope"] if "slope" in bs else [0, "4.0"])
             if "{" in slope:
                 raise Exception("Varying slope is currently not supported")
 
@@ -571,7 +576,7 @@ def createParametricDescriptionFromLenstoolInput(fileName,
              "description": "\n".join(outputLines)
            }
 
-def _startFromImgFileName(f, r, useRADirection, outParamFn, debugCode):
+def _startFromImgFileName(f, r, useRADirection, outParamFn, debugCode, strictImages):
     cosm = r["cosmology"]
     zd = r["zd"]
     Dd = cosm.getAngularDiameterDistance(zd)
@@ -591,7 +596,7 @@ cosmology.setDefaultCosmology(cosm)
 Dd = cosm.getAngularDiameterDistance(zd)
 
 center = V({centerPos[0]/ANGLE_DEGREE},{centerPos[1]/ANGLE_DEGREE}) * ANGLE_DEGREE
-imgList = images.readLenstoolInputImagesFile("{imgFn}", center, {useRADirection})
+imgList = images.readLenstoolInputImagesFile("{imgFn}", center, {useRADirection}, strict={strictImages})
 
 positionalUncertainty = {mcmcUncert/ANGLE_ARCSEC}*ANGLE_ARCSEC
 """, file=f)
@@ -601,11 +606,11 @@ positionalUncertainty = {mcmcUncert/ANGLE_ARCSEC}*ANGLE_ARCSEC
         print("initialParamDesc = " + r["description"], file=f)
     print(file=f)
 
-def _startFromLtConfig(f, ltCfgFn, useRADirection, debugCode):
+def _startFromLtConfig(f, ltCfgFn, useRADirection, debugCode, strictImages):
     print(f"""from grale.all import *
 import pickle
 {debugCode}
-r = ltparamdesc.createParametricDescriptionFromLenstoolInput("{ltCfgFn}", useRADirection={useRADirection})
+r = ltparamdesc.createParametricDescriptionFromLenstoolInput("{ltCfgFn}", useRADirection={useRADirection}, strictImages={strictImages})
 
 cosm = r["cosmology"]
 cosmology.setDefaultCosmology(cosm)
@@ -623,7 +628,8 @@ def usage():
     print("""
 Usage:
     python -m grale.ltparamdesc -in mod.par (-out inv.py | -exec) [-outparam desc.py] [-noRAdir] [-force] [-fromimgfile] \\
-                                [-mcmcgen 5000] [-popsize 512] [-outfnsuffix] [-refinefactor 0.0001] [-debug]
+                                [-mcmcgen 5000] [-popsize 512] [-outfnsuffix] [-refinefactor 0.0001] [-debug] \\
+                                [-nostrictimages]
 """, file=sys.stderr)
     sys.exit(-1)
 
@@ -640,6 +646,7 @@ def main():
     popSize = 512
     outFnSuffix = ""
     refineFactor = 0.0001
+    strictImages = True
     debug = False
 
     try:
@@ -676,6 +683,8 @@ def main():
                 idx += 1
             elif opt == "-debug":
                 debug = True
+            elif opt == "-nostrictimages":
+                strictImages = False
             else:
                 raise Exception(f"Unknown option '{opt}'")
 
@@ -703,15 +712,15 @@ inverters.debugDirectStderr = True
         if outParamFn and os.path.exists(outParamFn) and not force:
             raise Exception(f"Output parameters file {outParamFn} already exists, use '-force' to continue anyway")
 
-        r = createParametricDescriptionFromLenstoolInput(ltCfgFn, useRADirection=useRADir, parseImages=(not fromImgFileName))
+        r = createParametricDescriptionFromLenstoolInput(ltCfgFn, useRADirection=useRADir, parseImages=(not fromImgFileName), strictImages=strictImages)
         if outParamFn:
             open(outParamFn, "wt").write(r["description"])
 
         stringOutput = StringIO()
         if fromImgFileName:
-            _startFromImgFileName(stringOutput, r, useRADir, outParamFn, debugCode)
+            _startFromImgFileName(stringOutput, r, useRADir, outParamFn, debugCode, strictImages)
         else:
-            _startFromLtConfig(stringOutput, ltCfgFn, useRADir, debugCode)
+            _startFromLtConfig(stringOutput, ltCfgFn, useRADir, debugCode, strictImages)
             if outParamFn:
                 print(f"Warning: parameter file name '{outParamFn}' will not be used in this inversion mode", file=sys.stderr)
 
