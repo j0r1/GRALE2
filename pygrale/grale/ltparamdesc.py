@@ -160,10 +160,10 @@ def _processPotfileFile(fileName, mag0, slope, vdSlope, coreStr, bsSigma, bsCut,
         
         # Better to not mention the hard limits here, are not really used internally but
         # might cause a sanity check to fail after a model refinement
-        vdispStr = _getLimitsAndPrior(bsSigma, lambda s: s + " * 1000", cnameStr = f'"cname": "{vdVarName} ; x * {velDispFactor}"', noHard=True)
+        vdispStr = _getLimitsAndPrior(bsSigma, lambda s: s + " * 1000", cnameStr = f'"cname": "{vdVarName} ; x * {velDispFactor}"', noHard=True, noPrior=True)
 
         cutLambda = (lambda s: s + f" * {arcsecString}") if isCutArcsec else (lambda s: s + f" * {kpcString}/{lensDistanceString}")
-        cutStr = _getLimitsAndPrior(bsCut, cutLambda, cnameStr = f'"cname": "{cutVarName} ; x * {cutFactor}"', noHard=True)
+        cutStr = _getLimitsAndPrior(bsCut, cutLambda, cnameStr = f'"cname": "{cutVarName} ; x * {cutFactor}"', noHard=True, noPrior=True)
 
         if "{" in vdispStr:
             vdispStr += f", # initial range and possibly hard limits are not used, the settings of {vdVarName} will be used, "
@@ -190,7 +190,7 @@ def _processPotfileFile(fileName, mag0, slope, vdSlope, coreStr, bsSigma, bsCut,
 
     return outputLines
 
-def _getLimitsAndPrior(setting, modifier = lambda s: s, flipMinMax = False, cnameStr = "", noHard=False):
+def _getLimitsAndPrior(setting, modifier = lambda s: s, flipMinMax = False, cnameStr = "", noHard=False, noPrior=False):
     if int(setting[0]) == 0: # Just a value
         return modifier(setting[1])
     elif int(setting[0]) == 1: # Uniform, use hard limits as specified
@@ -204,7 +204,15 @@ def _getLimitsAndPrior(setting, modifier = lambda s: s, flipMinMax = False, cnam
     elif int(setting[0]) == 3: # Gaussian, use 1 sigma for init range, no hard limits for now
         minVal, maxVal = modifier(f"({setting[1]} - {setting[2]})"), modifier(f"({setting[1]} + {setting[2]})")
         mu, sigma = modifier(setting[1]), modifier(setting[2])
+
+        if noPrior:
+            # This is set if we're using a cname to derive this variable's value from another one
+            # In that case, only the original variable should have prior information set
+            return f'{{ "initmin": {minVal}, "initmax": {maxVal}, {cnameStr} }}'
+
         return f'{{ "initmin": {minVal}, "initmax": {maxVal}, "prior": {{ "type": "gaussian", "params": [ {mu}, {sigma} ] }}, {cnameStr} }}'
+
+    raise Exception(f"Unrecognized block setting '{setting}'")
 
 def createParametricDescriptionFromLenstoolInput(fileName,
                                                  useRADirection,
