@@ -256,11 +256,12 @@ def _getCouplingNameAndCode(cname:str):
 
     return cn, code
 
-def _createParamOffsetInfo(l, paramNames, couplingNames, tagNames, priors,
+def _createParamOffsetInfo(l, paramNames, couplingNames, tagNames, varNames, priors,
                            deflectionscale, potentialscale):
 
     assert len(paramNames) == len(couplingNames), "Internal error: parameter name array and coupling name array should have same length"
     assert len(paramNames) == len(tagNames), "Internal error: parameter name array and tag name array differ in length"
+    assert len(paramNames) == len(varNames), "Internal error: parameter name array and var name array differ in length"
     assert len(priors) == len(paramNames), "Internal error: parameter name array and prior array should have same length"
 
     adjustableParams = l.getCLAdjustableFloatingPointParameterInfo(deflectionscale, potentialscale)
@@ -272,7 +273,7 @@ def _createParamOffsetInfo(l, paramNames, couplingNames, tagNames, priors,
         adjustableParamsDict[name] = p
 
     paramOffsetInfo = []    
-    for n, cn, t, pr in zip(paramNames, couplingNames, tagNames, priors):
+    for n, cn, t, var, pr in zip(paramNames, couplingNames, tagNames, varNames, priors):
         if not n in adjustableParamsDict:
             raise ParametricDescriptionException(f"Internal error: specified adjustable param {n} does not seem to be valid")
         d = adjustableParamsDict[n]
@@ -281,6 +282,8 @@ def _createParamOffsetInfo(l, paramNames, couplingNames, tagNames, priors,
             d["cname"], d["ccode"] = _getCouplingNameAndCode(cn)
         if t:
             d["tag"] = t
+        if var:
+            d["varname"] = var
         if pr:
             _checkPrior(pr)
             d["prior"] = copy.deepcopy(pr)
@@ -294,13 +297,14 @@ def _createTemplateLens(parametricLensDescription, Dd):
     couplingNames = []
     tagNames = []
     priors = []
+    varNames = []
 
     # This is probably not the cleanest way
     def recordParamCouplingNamesWrapper(params, paramKey):
         value, isFixed = _getInitialParameterValue(params, paramKey)
         if not isFixed:
             v = params[paramKey]
-            n, t, pr = None, None, None
+            n, t, pr, var = None, None, None, None
             if type(v) == dict:
                 if "cname" in v:
                     n = v["cname"]
@@ -308,10 +312,13 @@ def _createTemplateLens(parametricLensDescription, Dd):
                     t = v["tag"]
                 if "prior" in v:
                     pr = copy.deepcopy(v["prior"])
+                if "varname" in v:
+                    var = v["varname"]
 
             couplingNames.append(n)
             tagNames.append(t)
             priors.append(pr)
+            varNames.append(var)
 
         return value, isFixed
 
@@ -319,7 +326,7 @@ def _createTemplateLens(parametricLensDescription, Dd):
     scales = l.getSuggestedScales()
     intParam, floatParams = l.getCLParameters(**scales)
     ret = { "templatelens": l,
-            "paramoffsets": _createParamOffsetInfo(l, paramNames, couplingNames, tagNames, priors, **scales),
+            "paramoffsets": _createParamOffsetInfo(l, paramNames, couplingNames, tagNames, varNames, priors, **scales),
             "paramnames": paramNames, # in original order
             "scales": scales,
             "floatparams": floatParams,
@@ -624,6 +631,8 @@ def analyzeParametricLensDescription(parametricLens, Dd, defaultFraction, clampT
             d["cname_orig"] = offInf["cname_orig"]
         if "tag" in offInf:
             d["tag"] = offInf["tag"]
+        if "varname" in offInf:
+            d["varname"] = offInf["varname"]
         if "prior" in offInf:
             d["prior"] = offInf["prior"]
         paramRanges.append(d)
@@ -673,7 +682,7 @@ def _convertedValueToString(value, stringConverter):
     if type(value) == dict:
         d = "{ "
         for k in value:
-            if k == "cname" or k == "tag":
+            if k == "cname" or k == "tag" or k == "varname":
                 cn = str(value[k])
                 d += f'"{k}": ' + json.dumps(cn) + ", "
                 continue
@@ -1090,6 +1099,8 @@ def refineParametricDescription_old(varFloatParams, lens, fraction, evaluate = T
 
         if "tag" in prevParams:
             newDict["tag"] = prevParams["tag"]
+        if "varname" in prevParams:
+            newDict["varname"] = prevParams["varname"]
         if "cname_orig" in prevParams:
             newDict["cname"] = prevParams["cname_orig"]
         if "prior" in prevParams:
