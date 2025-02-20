@@ -66,7 +66,7 @@ def _checkParameterValues(lensParams, paramMapping, getParamValue, positionNames
 
     return remainingLensParams, newParams
 
-def _processPlummerLens(lensParams, Dd, getParamValue):
+def _processPlummerLens(lensParams, Dd, getParamValue, saveCLCode):
     positionNames = [ ]
     lensParams, newParams = _checkParameterValues(lensParams, [ ("mass", "mass_scaled"),
                                                                 ("width", "width_scaled")],
@@ -76,7 +76,7 @@ def _processPlummerLens(lensParams, Dd, getParamValue):
     
     return newParams, positionNames
 
-def _processCompositeLens(lensParams, Dd, getParamValue):
+def _processCompositeLens(lensParams, Dd, getParamValue, saveCLCode):
     compParams = []
     positionNames = []
 
@@ -88,7 +88,7 @@ def _processCompositeLens(lensParams, Dd, getParamValue):
                                                        ("angle", f"angle_{idx}") ],
                                                      getParamValue, positionNames)
 
-        l, posNames = _createTemplateLens_helper(subParams["lens"], Dd, getParamValue)
+        l, posNames = _createTemplateLens_helper(subParams["lens"], Dd, getParamValue, saveCLCode)
         newParams["lens"] = l
         del subParams["lens"]
         for p in posNames:
@@ -101,7 +101,7 @@ def _processCompositeLens(lensParams, Dd, getParamValue):
         
     return compParams, positionNames
 
-def _processNSIELens(lensParams, Dd, getParamValue):
+def _processNSIELens(lensParams, Dd, getParamValue, saveCLCode):
     positionNames = [ ]
     lensParams, newParams = _checkParameterValues(lensParams, [ ("ellipticity", "ellipticity"),
                                                                 ("coreRadius", "core_scaled"),
@@ -112,7 +112,7 @@ def _processNSIELens(lensParams, Dd, getParamValue):
     
     return newParams, positionNames
 
-def _processSISLens(lensParams, Dd, getParamValue):
+def _processSISLens(lensParams, Dd, getParamValue, saveCLCode):
     positionNames = [ ]
     lensParams, newParams = _checkParameterValues(lensParams, [ ("velocityDispersion", "sigma_scaled") ],
                                                   getParamValue, positionNames)    
@@ -121,7 +121,7 @@ def _processSISLens(lensParams, Dd, getParamValue):
     
     return newParams, positionNames
 
-def _processMassSheetLens(lensParams, Dd, getParamValue):
+def _processMassSheetLens(lensParams, Dd, getParamValue, saveCLCode):
     positionNames = []
     if "Ds" in lensParams or "Dds" in lensParams:
         raise ParametricDescriptionException("For a mass sheet lens, 'Ds' and 'Dds' cannot be used, use 'density' instead")
@@ -133,7 +133,7 @@ def _processMassSheetLens(lensParams, Dd, getParamValue):
         raise ParametricDescriptionException("Excess parameters for MassSheetLens")
     return newParams, positionNames
 
-def _processMultiplePlummerLens(lensParams, Dd, getParamValue):
+def _processMultiplePlummerLens(lensParams, Dd, getParamValue, saveCLCode):
     positionNames = []
     newMultiParams = []
     for i,subParams in enumerate(lensParams):
@@ -150,7 +150,7 @@ def _processMultiplePlummerLens(lensParams, Dd, getParamValue):
 
     return newMultiParams, positionNames
 
-def _processDeflectionGridLens(lensParams, Dd, getParamValue):
+def _processDeflectionGridLens(lensParams, Dd, getParamValue, saveCLCode):
     # No parameters can be changed
     lpCopy = lensParams.copy()
     for k in [ "bottomleft", "topright" ]:
@@ -180,7 +180,7 @@ def _processDeflectionGridLens(lensParams, Dd, getParamValue):
 
     return lensParams.copy(), [] # No variable parameters
 
-def _processPIMDLens(lensParams, Dd, getParamValue):
+def _processPIMDLens(lensParams, Dd, getParamValue, saveCLCode):
 
     positionNames = [ ]
     lensParams, newParams = _checkParameterValues(lensParams, [ ("coreradius", "coreradius_scaled"),
@@ -192,7 +192,7 @@ def _processPIMDLens(lensParams, Dd, getParamValue):
 
     return newParams, positionNames
 
-def _processPIEMDLens(lensParams, Dd, getParamValue):
+def _processPIEMDLens(lensParams, Dd, getParamValue, saveCLCode):
 
     positionNames = [ ]
     lensParams, newParams = _checkParameterValues(lensParams, [ ("epsilon", "epsilon"),
@@ -205,7 +205,7 @@ def _processPIEMDLens(lensParams, Dd, getParamValue):
 
     return newParams, positionNames
 
-def _processLTPIEMDLens(lensParams, Dd, getParamValue):
+def _processLTPIEMDLens(lensParams, Dd, getParamValue, saveCLCode):
 
     positionNames = [ ]
     lensParams, newParams = _checkParameterValues(lensParams, [ ("ellipticity", "ellipticity"),
@@ -218,7 +218,7 @@ def _processLTPIEMDLens(lensParams, Dd, getParamValue):
 
     return newParams, positionNames
 
-def _processLTPIMDLens(lensParams, Dd, getParamValue):
+def _processLTPIMDLens(lensParams, Dd, getParamValue, saveCLCode):
 
     positionNames = [ ]
     lensParams, newParams = _checkParameterValues(lensParams, [ ("coreradius", "coreradius_scaled"),
@@ -230,7 +230,7 @@ def _processLTPIMDLens(lensParams, Dd, getParamValue):
 
     return newParams, positionNames
 
-def _createTemplateLens_helper(parametricLensDescription, Dd, getParamValue):
+def _createTemplateLens_helper(parametricLensDescription, Dd, getParamValue, saveCLCode = None):
     lensType = parametricLensDescription["type"]
     lensParams = parametricLensDescription["params"]
     if not lensType in _supportedLensTypes:
@@ -239,8 +239,11 @@ def _createTemplateLens_helper(parametricLensDescription, Dd, getParamValue):
     t = _supportedLensTypes[lensType]
     handler, lensClass = t["handler"], t["lens"]
 
-    newParams, positionNames = handler(lensParams, Dd, getParamValue) # Need Dd as a parameter because of possible recursion
+    newParams, positionNames = handler(lensParams, Dd, getParamValue, saveCLCode) # Need Dd as a parameter because of possible recursion
     lens = lensClass(Dd, newParams)
+
+    if "neglogprob" in parametricLensDescription and saveCLCode is not None:
+        saveCLCode(parametricLensDescription["neglogprob"])
 
     return lens, positionNames        
 
@@ -322,7 +325,29 @@ def _createTemplateLens(parametricLensDescription, Dd):
 
         return value, isFixed
 
-    l, paramNames = _createTemplateLens_helper(parametricLensDescription, Dd, recordParamCouplingNamesWrapper)
+    allClCodeInfo = []
+    def saveCLCode(p):
+        if type(p) is list:
+            for part in p:
+                saveCLCode(part)
+        elif type(p) is dict:
+            if not "clcode" in p:
+                raise ParametricDescriptionException(f"The 'neglogprob' section doesn't contain a 'clcode' entry: {p}")
+
+            cp = copy.copy(p)
+            del cp["clcode"]
+
+            if "args" in cp:
+                del cp["args"]
+
+            if cp:
+                raise ParametricDescriptionException(f"The 'neglogprob' section contains more entries than 'args' and 'clcode': {list(cp.keys())}")
+
+            allClCodeInfo.append(p)
+        else:
+            raise ParametricDescriptionException(f"Invalid 'neglogprob' parameter type for '{p}'")
+
+    l, paramNames = _createTemplateLens_helper(parametricLensDescription, Dd, recordParamCouplingNamesWrapper, saveCLCode)
     scales = l.getSuggestedScales()
     intParam, floatParams = l.getCLParameters(**scales)
     ret = { "templatelens": l,
@@ -330,7 +355,8 @@ def _createTemplateLens(parametricLensDescription, Dd):
             "paramnames": paramNames, # in original order
             "scales": scales,
             "floatparams": floatParams,
-            "description": copy.deepcopy(parametricLensDescription)
+            "description": copy.deepcopy(parametricLensDescription),
+            "allclcodeinfo": allClCodeInfo
           }
     return ret
 
@@ -556,6 +582,11 @@ def analyzeParametricLensDescription(parametricLens, Dd, defaultFraction, clampT
                 "width": 2*ANGLE_ARCSEC
             }
          ]
+         # TODO:
+         "neglogprob": [
+            { "params": [ "var1", "var2" ],
+              "clcode": "{ return ... }" }
+         ]
        }
 
     When a dictionary is used to specify the initial range, you can also specify
@@ -651,6 +682,20 @@ def analyzeParametricLensDescription(parametricLens, Dd, defaultFraction, clampT
 
     #print("variablefloatparams")
     #pprint.pprint(paramRanges)
+
+    varNameOffsets = { }
+    for x in paramRanges:
+        if not "varname" in x:
+            continue
+        varName = x["varname"]
+        if varName in varNameOffsets:
+            raise ParametricDescriptionException(f"Variable name '{varName}' is used more than once")
+        varNameOffsets[varName] = x["offset"]
+
+    #print("varNameOffsets")
+    #pprint.pprint(varNameOffsets)
+
+    _createOpenClCode(inf["allclcodeinfo"], varNameOffsets)
     
     ret = {
         "templatelens": inf["templatelens"],
@@ -659,6 +704,49 @@ def analyzeParametricLensDescription(parametricLens, Dd, defaultFraction, clampT
         "variablefloatparams": paramRanges
     }
     return ret
+
+def _getFunctionNameAndArguments(code):
+    origCode = code
+    code = code.replace("\r\n", "\n")
+    code = code.replace("\n", " ")
+    code = code.strip()
+    idx = code.find(" ")
+    if idx < 0:
+        raise ParametricDescriptionException(f"Can't analyze OpenCL function: {code}")
+
+    retType = code[:idx]
+    if retType != "float":
+        raise ParametricDescriptionException(f"Expecting return type 'float' in OpenCL code, but is '{retType}' in {code}")
+
+    argStart = code.find("(", idx+1)
+    if argStart < 0:
+        raise ParametricDescriptionException(f"Can't find start of arguments in OpenCL code {code}")
+    funcName = code[idx+1:argStart].strip()
+    if not funcName:
+        raise ParametricDescriptionException(f"Empty function name in OpenCL code {code}")
+
+    argEnd = code.find(")", argStart+1)
+    if argEnd < 0:
+        raise ParametricDescriptionException(f"Can't find end of arguments in OpenCL code {code}")
+    argString  = code[argStart+1:argEnd].strip()
+
+    if not argString:
+        args = []
+    else:
+        args = argString.split(",")
+        args = [ a.strip() for a in args ]
+        for a in args:
+            if not a:
+                raise ParametricDescriptionException(f"Empty argument in OpenCL code {code}")
+
+    return funcName, args
+
+def _createOpenClCode(allClCodeInfo, varNameOffsets):
+    for inf in allClCodeInfo:
+        funcName, funcArgs = _getFunctionNameAndArguments(inf["clcode"])
+        import pprint
+        print("function name:", funcName)
+        print("function arguments:", funcArgs)
 
 def _getUnitlessValue(x):
     return f"{x:.10g}"
