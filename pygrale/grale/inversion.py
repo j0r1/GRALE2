@@ -779,6 +779,7 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
     """
 
     desc = paramdesc.analyzeParametricLensDescription(parametricLensDescription, Dd, defaultInitialParameterFraction, clampToHardLimits)
+    clProbCode = desc["neglogprobcode"]
     
     templateLens = desc["templatelens"]
     deflScale, potScale = desc["scales"]["deflectionscale"], desc["scales"]["potentialscale"]
@@ -879,6 +880,9 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
     
     if anyRetrace:
         print(f"DEBUG: using retraceSourcePlaneThreshold {retraceSourcePlaneThreshold/CT.ANGLE_ARCSEC} arcsec")
+
+    print("TODO: process extra CL code")
+    print(clProbCode)
 
     def getParamsFunction(fullFitnessObjParams, massScale):
         assert massScale is None, f"Internal error: expecting massScale to be None, but is {massScale}"

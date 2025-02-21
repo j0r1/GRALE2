@@ -582,11 +582,6 @@ def analyzeParametricLensDescription(parametricLens, Dd, defaultFraction, clampT
                 "width": 2*ANGLE_ARCSEC
             }
          ]
-         # TODO:
-         "neglogprob": [
-            { "params": [ "var1", "var2" ],
-              "clcode": "{ return ... }" }
-         ]
        }
 
     When a dictionary is used to specify the initial range, you can also specify
@@ -610,6 +605,12 @@ def analyzeParametricLensDescription(parametricLens, Dd, defaultFraction, clampT
     """
     # TODO: also add { "prior": { "type": "gaussian", "params": [ someMu, someSigma ]}}
     #       to explanation
+
+    # TODO:
+    #     "neglogprob": [
+    #        { "params": [ "var1", "var2" ],
+    #          "clcode": "{ return ... }" }
+    #     ]
 
     inf = _createTemplateLens(parametricLens, Dd)
 
@@ -695,13 +696,14 @@ def analyzeParametricLensDescription(parametricLens, Dd, defaultFraction, clampT
     #print("varNameOffsets")
     #pprint.pprint(varNameOffsets)
 
-    _createOpenClCode(inf["allclcodeinfo"], varNameOffsets)
+    clCode = _createOpenClCode(inf["allclcodeinfo"], varNameOffsets)
     
     ret = {
         "templatelens": inf["templatelens"],
         "floatparams": inf["floatparams"],
         "scales": inf["scales"],
-        "variablefloatparams": paramRanges
+        "variablefloatparams": paramRanges,
+        "neglogprobcode": clCode
     }
     return ret
 
@@ -742,11 +744,62 @@ def _getFunctionNameAndArguments(code):
     return funcName, args
 
 def _createOpenClCode(allClCodeInfo, varNameOffsets):
+
+    functionOrder = [ ]
+    uniqueFunctionCode = { }
+    negLogProbCalls = [ ]
+
     for inf in allClCodeInfo:
+        code = inf["clcode"]
         funcName, funcArgs = _getFunctionNameAndArguments(inf["clcode"])
-        import pprint
-        print("function name:", funcName)
-        print("function arguments:", funcArgs)
+
+        if funcName in uniqueFunctionCode:
+            # If the same function name is used, and it's actually the same
+            # function, don't complain, just ignore. This allows us to introduce
+            # a helper function multiple times.
+            if uniqueFunctionCode[funcName]["code"] != code:
+                raise ParametricDescriptionException(f"Multiple function definitions for function '{funcName}'")
+        else:
+            uniqueFunctionCode[funcName] = { "args": funcArgs, "code": code }
+            functionOrder.append(funcName)
+
+        if "args" in inf:
+            # If this is present, the function should be called with the same
+            # number of arguments as 'funcArgs'
+            # If not present, it's just a helper function
+            argVarNames = inf["args"]
+            if len(argVarNames) != len(funcArgs):
+                raise ParametricDescriptionException(f"When calling OpenCL function {funcName}, {len(argVarNames)} variables are used, but expecting {len(funcArgs)}")
+
+            offsets = []
+            for vn in argVarNames:
+                if not vn in varNameOffsets:
+                    raise ParametricDescriptionException(f"Variable name {vn} in call to OpenCL function {funcName} is not known")
+
+                offsets.append((vn, varNameOffsets[vn]))
+
+            callLine = f"    value += {funcName}(" + ", ".join(map(lambda o: f"pFloatParams[{o[1]}] /* {o[0]} */", offsets)) + ");";
+            negLogProbCalls.append(callLine)
+
+    if not negLogProbCalls:
+        return None
+
+    totalCode = ""
+    for fn in functionOrder:
+        totalCode += uniqueFunctionCode[fn]["code"]
+        totalCode += "\n"
+
+    totalCode += """
+float calculateTotalNegLogProbContributions(const float *pFloatParams)
+{
+    float value = 0;
+"""
+    totalCode += "\n".join(negLogProbCalls)
+    totalCode += """
+    return value;
+}
+"""
+    return totalCode
 
 def _getUnitlessValue(x):
     return f"{x:.10g}"
