@@ -710,7 +710,7 @@ def analyzeParametricLensDescription(parametricLens, Dd, defaultFraction, clampT
     #print("varNameOffsets")
     #pprint.pprint(varNameOffsets)
 
-    clCode = _createOpenClCode(inf["allclcodeinfo"], varNameOffsets)
+    clCode = _createOpenClCode(inf["allclcodeinfo"], varNameOffsets, paramRanges)
     
     ret = {
         "templatelens": inf["templatelens"],
@@ -757,12 +757,22 @@ def _getFunctionNameAndArguments(code):
 
     return funcName, args
 
-def _createOpenClCode(allClCodeInfo, varNameOffsets):
+def _createOpenClCode(allClCodeInfo, varNameOffsets, paramRanges):
 
     functionOrder = [ ]
     uniqueFunctionCode = { }
     negLogProbCalls = [ ]
 
+    # Introduce some defaults
+    for knownFunctionsCodes in [
+                "float neg_log_gaussian(float x, float mu, float sigma) { float fracdiff = (x-mu)/sigma; return 0.5*fracdiff*fracdiff; }"
+            ]:
+
+        funcName, funcArgs = _getFunctionNameAndArguments(knownFunctionsCodes)
+        uniqueFunctionCode[funcName] = { "args": funcArgs, "code": knownFunctionsCodes }
+        functionOrder.append(funcName)
+
+    # Analyze the explicitly specified OpenCL code
     for inf in allClCodeInfo:
 
         if "clcode" in inf:
@@ -814,6 +824,19 @@ def _createOpenClCode(allClCodeInfo, varNameOffsets):
 
             callLine = f"    value += {funcName}(" + ", ".join(offsetsAndValues) + ");";
             negLogProbCalls.append(callLine)
+
+    # Convert the parameter priors into OpenCL calls
+    for inf in paramRanges:
+        if not "prior" in inf:
+            continue
+        prior = inf["prior"]
+        offset = inf["offset"]
+        name = inf["varname"] if "varname" in inf else inf["name"]
+        callStr = _toScaledClCall(inf["prior"], f"pFloatParams[{offset}]", inf["scalefactor"])
+        callStr += f" // Prior for '{name}', based on: {prior}"
+
+        callLine = f"    // value += " + callStr # TODO: remove comment here to really activate!
+        negLogProbCalls.append(callLine)
 
     if not negLogProbCalls:
         return None
@@ -1312,11 +1335,16 @@ def _formatGaussionPriorParameters(params, stringConverter):
 def _scaleGaussianPriorParameters(params, scaleFactor):
     return [ params[0]/scaleFactor, params[1]/scaleFactor ]
 
+def _scaledClGaussianPriorCode(varString, params):
+    return "neg_log_gaussian(" + varString + ", " + json.dumps(params[0]) + ", " + json.dumps(params[1]) + "); "
+
 _supportedPriors = { 
     "gaussian": {
         "check": _checkGaussianPriorParameters,
         "format": _formatGaussionPriorParameters,
-        "scale": _scaleGaussianPriorParameters },
+        "scale": _scaleGaussianPriorParameters,
+        "toscaledclcall": _scaledClGaussianPriorCode
+        },
 }
 
 def _checkPrior(pr):
@@ -1342,6 +1370,16 @@ def _formatPrior(pr, stringConverter):
     t = pr["type"]
     formatFunction = _supportedPriors[t]["format"]
     return '{ "type": "' + t + '", "params": ' + formatFunction(pr["params"], stringConverter) + '}'
+
+def _toScaledClCall(prior, varString, scaleFactor):
+    _checkPrior(prior)
+    t = prior["type"]
+
+    scaleFunction = _supportedPriors[t]["scale"]
+    adjParams = scaleFunction(prior["params"], scaleFactor)
+
+    codeFunction = _supportedPriors[t]["toscaledclcall"]
+    return codeFunction(varString, adjParams)
 
 def getUnitAdjustedPrior(prior, scaleFactor):
     _checkPrior(prior)
