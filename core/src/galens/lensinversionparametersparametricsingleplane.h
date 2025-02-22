@@ -35,7 +35,8 @@ public:
 		bool allowUnusedPriors,
 		const std::vector<bool> &retraceImages,
 		size_t numRetraceSteps,
-		double sourcePlaneDistThreshold // threshold to accept retrace convergence
+		double sourcePlaneDistThreshold, // threshold to accept retrace convergence
+		const std::string &clPriorCode
 		);
 	~LensInversionParametersParametricSinglePlane();
 
@@ -62,6 +63,7 @@ public:
 	const std::vector<bool> &shouldRetraceImages() const { return m_retraceImages; }
 	size_t getNumberOfRetraceSteps() const { return m_numRetraceSteps; }
 	double getSourcePlaneDistanceThreshold() const { return m_sourcePlaneDistThreshold; }
+	std::string getOpenCLPriorCode() const { return m_clPriorCode; }
 
 	bool write(serut::SerializationInterface &si) const override;
 	bool read(serut::SerializationInterface &si) override;
@@ -84,6 +86,7 @@ private:
 	std::vector<bool> m_retraceImages;
 	size_t m_numRetraceSteps = 0;
 	double m_sourcePlaneDistThreshold = 0;
+	std::string m_clPriorCode;
 };
 
 } // end namespace

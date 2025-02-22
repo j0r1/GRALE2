@@ -18,6 +18,7 @@ using namespace oclutils;
 #define KERNELNUMBER_BACKPROJECT_POINTS				4
 #define KERNELNUMBER_AVERAGE_BETAS					5
 #define KERNELNUMBER_REPROJECT_BETAS				6
+#define KERNELNUMBER_NEGLOGPRIORS					7
 
 OpenCLSinglePlaneDeflection::OpenCLSinglePlaneDeflection()
 {
@@ -33,6 +34,7 @@ bool_t OpenCLSinglePlaneDeflection::init(const std::vector<Vector2Df> &thetas, /
 					   const std::vector<float> &templateFloatParameters, // only floating point params can change
 					   const std::vector<size_t> changeableParameterIndices,
 					   const std::string &deflectionKernelCode, const std::string &lensRoutineName,
+					   const std::string &extraClPriorCode,
 					   int devIdx,
 					   uint64_t initialUncertSeed,
 					   const std::vector<std::pair<size_t, std::string>> &originParameters,
@@ -410,6 +412,34 @@ __kernel void fetchOriginParameters(int numChangeableParams, int numOriginParams
 			return cleanup("No origin parameters specified, but expected size is not zero");
 	}
 
+	// Prior kernel
+	if (extraClPriorCode.length() > 0)
+	{
+		string clPriorKernel = extraClPriorCode;
+		clPriorKernel += R"XYZ(
+
+__kernel void calculateTotalNegLogProbContributionsKernel(int numParamSets, int numFloatParams,
+									__global const float *pFloatParamsBase,
+									__global float *pResults)
+{
+	const int paramSet = get_global_id(0); // Only parallellize over parameter sets (genomes)
+	if (paramSet >= numParamSets)
+		return;
+
+	__global const float *pFloatParams = pFloatParamsBase + paramSet*numFloatParams;
+	pResults[paramSet] = calculateTotalNegLogProbContributions(pFloatParams);
+}
+)XYZ";
+		string faillog;
+		if (!cl->loadKernel(clPriorKernel, "calculateTotalNegLogProbContributionsKernel", faillog, KERNELNUMBER_NEGLOGPRIORS))
+		{
+			cerr << faillog << endl;
+			cerr << "// Entire kernel code is:" << endl;
+			cerr << clPriorKernel << endl;
+			return cleanup("Error 'neglogprob' kernel, more info on stderr (set inverters.debugDirectStderr to True)" + cl->getErrorString());
+		}
+	} 
+
 	if (recalcThetaInfo.size() > 0)
 	{
 		if (recalcThetaInfo.size() != thetas.size())
@@ -433,6 +463,7 @@ __kernel void fetchOriginParameters(int numChangeableParams, int numOriginParams
 	m_cl = move(cl);
 	m_init = true;
 	m_devIdx = devIdx;
+	m_haveClPriors = (extraClPriorCode.length() > 0)?true:false;
 
 	return true;
 }
@@ -844,7 +875,8 @@ bool_t OpenCLSinglePlaneDeflection::calculateDeflection(const std::vector<float>
 									  std::vector<float> &allAxx,
 									  std::vector<float> &allAyy,
 									  std::vector<float> &allAxy,
-									  std::vector<float> &allPotentials)
+									  std::vector<float> &allPotentials,
+									  std::vector<float> &allClNegLogProbs)
 {
 	if (!m_init)
 		return "Not initialized";
@@ -888,6 +920,12 @@ bool_t OpenCLSinglePlaneDeflection::calculateDeflection(const std::vector<float>
 		{
 			if (!(r = m_clOriginParams.realloc(*m_cl, ctx, sizeof(cl_float)*m_numOriginParams*numParamSets)))
 				return "Can't allocate buffer for the origin parameters: " + r.getErrorString();
+		}
+
+		if (m_haveClPriors)
+		{
+			if (!(r = m_clPriorResults.realloc(*m_cl, ctx, sizeof(cl_float)*numParamSets)))
+				return "Can't allocate buffer for the OpenCL prior results: " + r.getErrorString();
 		}
 	}
 
@@ -965,6 +1003,37 @@ bool_t OpenCLSinglePlaneDeflection::calculateDeflection(const std::vector<float>
 			return "Error enqueing parameter fill in kernel: " + to_string(err);
 	}
 
+	// Prior code, if necessary
+	if (m_haveClPriors)
+	{
+		auto kernel = m_cl->getKernel(KERNELNUMBER_NEGLOGPRIORS);
+		cl_int err = 0;
+
+		auto setKernArg = [this, &err, &kernel](cl_uint idx, size_t size, const void *ptr)
+		{
+			err |= m_cl->clSetKernelArg(kernel, idx, size, ptr);
+		};
+
+		setKernArg(0, sizeof(cl_int), (void*)&clNumParamSets);
+		setKernArg(1, sizeof(cl_int), (void*)&clNumFloatParams);
+		setKernArg(2, sizeof(cl_mem), (void*)&m_clFloatParams.m_pMem);
+		setKernArg(3, sizeof(cl_mem), (void*)&m_clPriorResults.m_pMem);
+
+		if (err != CL_SUCCESS)
+			return "Error setting kernel arguments for prior kernel";
+
+		size_t workSize[1] = { numParamSets };
+		err = m_cl->clEnqueueNDRangeKernel(queue, kernel, 1, nullptr, workSize, nullptr, 0, nullptr, nullptr);
+		if (err != CL_SUCCESS)
+			return "Error enqueing prior kernel: " + to_string(err);
+
+		allClNegLogProbs.resize(numParamSets);
+		if (!(r = m_clPriorResults.enqueueReadBuffer(*m_cl, queue, allClNegLogProbs, nullptr, nullptr, true)))
+			return "Error reading prior results: " + r.getErrorString();
+	}
+	else
+		allClNegLogProbs.clear();
+
 	// Input position randomization is moved to other function
 
 	// Finally perform the actual calculation of deflection angles
@@ -1028,12 +1097,13 @@ errut::bool_t OpenCLSinglePlaneDeflection::calculateDeflectionAndRetrace(const s
 								  std::vector<float> &allAyy,
 								  std::vector<float> &allAxy,
 								  std::vector<float> &allPotentials,
+								  std::vector<float> &allClNegLogProbs,
 								  std::vector<Vector2Df> &tracedThetas,
 								  std::vector<float> &tracedBetaDiffs
 								  )
 {
 	bool_t r;
-	if (!(r = calculateDeflection(parameters, allAlphas, allAxx, allAyy, allAxy, allPotentials)))
+	if (!(r = calculateDeflection(parameters, allAlphas, allAxx, allAyy, allAxy, allPotentials, allClNegLogProbs)))
 		return r;
 
 	auto ctx = m_cl->getContext();
@@ -1234,6 +1304,7 @@ errut::bool_t OpenCLSinglePlaneDeflectionInstance::initInstance(uint64_t userId,
 					   const std::vector<float> &templateFloatParameters, // only floating point params can change
 					   const std::vector<size_t> changeableParameterIndices,
 					   const std::string &deflectionKernelCode, const std::string &lensRoutineName,
+					   const std::string &extraClPriorCode,
 					   int devIdx,
 					   uint64_t initialUncertSeed,
 					   const std::vector<std::pair<size_t, std::string>> &originParameters,
@@ -1267,7 +1338,7 @@ errut::bool_t OpenCLSinglePlaneDeflectionInstance::initInstance(uint64_t userId,
 
 	unique_ptr<OpenCLSinglePlaneDeflectionInstance> oclCalc = make_unique<OpenCLSinglePlaneDeflectionInstance>();
 	bool_t r = oclCalc->init(thetas, thetaUncert, templateIntParameters, templateFloatParameters, changeableParameterIndices,
-							 deflectionKernelCode, lensRoutineName, devIdx, initialUncertSeed,
+							 deflectionKernelCode, lensRoutineName, extraClPriorCode, devIdx, initialUncertSeed,
 							 originParameters, numOriginParameters, recalcThetaInfo, numRetraceIterations);
 	oclCalc->m_requestedDevIdx = devIdx; // TODO: store this in a better way?
 
@@ -1363,6 +1434,7 @@ bool_t OpenCLSinglePlaneDeflectionInstance::scheduleCalculation(const eatk::Floa
 		//cerr << "Got " << m_totalGenomesToCalculate << " genomes, need to calculate!" << endl;
 		bool_t r = calculateDeflectionAndRetrace(m_floatBuffer, m_adjustedThetas,
 		                                         m_allAlphas, m_allAxx, m_allAyy, m_allAxy, m_allPotentials,
+												 m_allClPriors,
 												 m_allTracedThetas, m_allTracedBetaDiffs);
 		if (!r)
 			return r;
@@ -1394,7 +1466,8 @@ bool OpenCLSinglePlaneDeflectionInstance::getResultsForGenome(const eatk::FloatV
 							 vector<float> &ayy, vector<float> &axy,
 							 vector<float> &potential,
 							 vector<Vector2Df> &tracedThetas,
-							 vector<float> &tracedBetaDiffs)
+							 vector<float> &tracedBetaDiffs,
+							 float &negLogPriorProb)
 {
 	lock_guard<mutex> guard(m_mutex);
 	if (!m_calculationDone)
@@ -1441,6 +1514,14 @@ bool OpenCLSinglePlaneDeflectionInstance::getResultsForGenome(const eatk::FloatV
 		memcpy(tracedBetaDiffs.data(), m_allTracedBetaDiffs.data() + bpPointOffsetStart, m_clNumBpImages*sizeof(float));
 	}
 
+	if (m_allClPriors.size() > 0)
+	{
+		assert(offset < m_allClPriors.size());
+		negLogPriorProb = m_allClPriors[offset];
+	}
+	else
+		negLogPriorProb = 0;
+
 	m_genomeOffsets.erase(it);
 	if (m_genomeOffsets.empty())
 	{
@@ -1449,6 +1530,7 @@ bool OpenCLSinglePlaneDeflectionInstance::getResultsForGenome(const eatk::FloatV
 		m_totalGenomesToCalculate = 0;
 		m_floatBuffer.resize(0);
 	}
+
 	return true;
 }
 

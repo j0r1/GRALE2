@@ -881,9 +881,6 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
     if anyRetrace:
         print(f"DEBUG: using retraceSourcePlaneThreshold {retraceSourcePlaneThreshold/CT.ANGLE_ARCSEC} arcsec")
 
-    print("TODO: process extra CL code")
-    print(clProbCode)
-
     def getParamsFunction(fullFitnessObjParams, massScale):
         assert massScale is None, f"Internal error: expecting massScale to be None, but is {massScale}"
         return inversionparams.LensInversionParametersParametricSinglePlane(inputImages, Dd, zd,
@@ -892,7 +889,8 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
                   fullFitnessObjParams, deviceIndex,
                   useImagePositionRandomization, initialUncertSeed,
                   originParametersMap, numOriginParams, priors, allowUnusedPriors,
-                  retraceImages, numberOfRetraceSteps, retraceSourcePlaneThreshold)
+                  retraceImages, numberOfRetraceSteps, retraceSourcePlaneThreshold,
+                  clProbCode)
 
     results = _invertCommon(inverter, feedbackObject, moduleName, "parametricsingleplane", fitnessObjectParameters,
                   None, [Dd, zd], inputImages, getParamsFunction, popSize,

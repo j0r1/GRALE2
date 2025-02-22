@@ -124,7 +124,7 @@ int main(int argc, char *argv[])
 
 	bool_t r;
 	if (!(r = clDef.init(thetas, inKernelThetaUncert, intParams, floatParams, changeableParamIdx, 
-	                     prog, subRoutName, 0, 12345, originParams, numOriginParams,
+	                     prog, subRoutName, "", 0, 12345, originParams, numOriginParams,
 						 recalcThetaInfo, numRetraceSteps
 						 )))
 		throw runtime_error("Can't init OpenCL calculation code: " + r.getErrorString());
@@ -135,6 +135,7 @@ int main(int argc, char *argv[])
 	vector<Vector2Df> allAlphas;
 	vector<float> allAxx, allAyy, allAxy;
 	vector<float> allPotentials;
+	vector<float> allPriors;
 	vector<Vector2Df> allTracedThetas;
 	vector<float> allSourcePlaneDiffs;
 
@@ -144,8 +145,11 @@ int main(int argc, char *argv[])
 		if (!(r = clDef.calculateDeflectionAndRetrace(changedParameters,
 										    changedThetas,
 											allAlphas, allAxx, allAyy, allAxy, allPotentials,
+											allPriors,
 											allTracedThetas, allSourcePlaneDiffs)))
 			throw runtime_error("Can't calculate deflections: " + r.getErrorString());
+
+		assert(allPriors.size() == 0);
 
 		if (allTracedThetas.size() == 0 || allSourcePlaneDiffs.size() == 0)
 			throw runtime_error("No trace info was deteced");

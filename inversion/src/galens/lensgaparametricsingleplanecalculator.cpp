@@ -344,10 +344,13 @@ bool_t LensGAParametricSinglePlaneCalculator::init(const LensInversionParameters
 	vector<pair<size_t, string>> originParameterMapping = params.getOriginParameterMapping();
 	m_numOriginParams = params.getNumberOfOriginParameters();
 
+	m_extraClPriorCode = params.getOpenCLPriorCode();
+
 	if (!(r = OpenCLSinglePlaneDeflectionInstance::initInstance((uint64_t)this, 
 																	m_thetas, posUncertainties, m_intParams,
 																	m_floatParams, m_changeableParamIdx,
 																	m_kernelCode, m_kernelName,
+																	m_extraClPriorCode,
 																	m_devIdx,
 																	posUncertSeed,
 																	originParameterMapping,
@@ -596,7 +599,8 @@ errut::bool_t LensGAParametricSinglePlaneCalculator::pollCalculate(const eatk::G
 
 	// This routine can reset the flag that indicates the calculation isn't finished, that's why the
 	// getAdjustedThetas code needs to be first
-	if (!cl.getResultsForGenome(genome, m_alphas, m_axx, m_ayy, m_axy, m_potential, m_tracedThetas, m_tracedBetaDiffs))
+	float negLogClPriorProb = 0;
+	if (!cl.getResultsForGenome(genome, m_alphas, m_axx, m_ayy, m_axy, m_potential, m_tracedThetas, m_tracedBetaDiffs, negLogClPriorProb))
 		return true; // No error, but not ready yet
 
 	// Check if the bounds were violated (if requested), is for mcmc,
@@ -785,6 +789,11 @@ errut::bool_t LensGAParametricSinglePlaneCalculator::pollCalculate(const eatk::G
 
 		fitnessValues[m_fitnessToAddPriorTo] += negLogPrior;
 		//cerr << "Added prior" << negLogPrior << endl;
+
+		// Also add what was calculated in OpenCL
+		// TODO: move previous code to that OpenCL as well
+		fitnessValues[m_fitnessToAddPriorTo] += negLogClPriorProb;
+		//cerr << "Added CL prior " << negLogClPriorProb << endl;
 	}
 
 	fitness.setCalculated();

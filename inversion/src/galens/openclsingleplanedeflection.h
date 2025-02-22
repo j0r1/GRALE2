@@ -36,6 +36,7 @@ public:
 					   const std::vector<float> &templateFloatParameters, // only floating point params can change
 					   const std::vector<size_t> changeableParameterIndices,
 					   const std::string &deflectionKernelCode, const std::string &lensRoutineName,
+					   const std::string &extraClPriorCode,
 					   int devIdx, // negative means rotate
 					   uint64_t initialUncertSeed,
 					   // Should have same length as changeableParameterIndices,
@@ -69,7 +70,8 @@ public:
 									  std::vector<float> &allAxx,
 									  std::vector<float> &allAyy,
 									  std::vector<float> &allAxy,
-									  std::vector<float> &allPotentials
+									  std::vector<float> &allPotentials,
+									  std::vector<float> &allClNegLogProbs
 									  );
 
 	errut::bool_t calculateDeflectionAndRetrace(const std::vector<float> &parameters,
@@ -79,6 +81,7 @@ public:
 									  std::vector<float> &allAyy,
 									  std::vector<float> &allAxy,
 									  std::vector<float> &allPotentials,
+									  std::vector<float> &allClNegLogProbs,
 									  std::vector<Vector2Df> &tracedThetas,
 									  std::vector<float> &tracedBetaDiffs
 									  );
@@ -92,7 +95,7 @@ public:
 
 	errut::bool_t randomizeInputPositions();
 protected:
-	static constexpr size_t NumKernels = 7;
+	static constexpr size_t NumKernels = 8;
 
 	errut::bool_t getNumParamSets(const std::vector<float> &parameters, size_t &numParamSets);
 
@@ -134,6 +137,9 @@ protected:
 	oclutils::CLMem m_clSourceNumImages;
 	oclutils::CLMem m_clAllTracedThetas;
 	oclutils::CLMem m_clAllBetaDiffs;
+
+	bool m_haveClPriors = false;
+	oclutils::CLMem m_clPriorResults;
 };
 
 // Using same single instance code as in OpenCLMultiPlaneCalculator (for multiplane)
@@ -150,6 +156,7 @@ public:
 					   const std::vector<float> &templateFloatParameters, // only floating point params can change
 					   const std::vector<size_t> changeableParameterIndices,
 					   const std::string &deflectionKernelCode, const std::string &lensRoutineName,
+					   const std::string &extraClPriorCode,
 					   int devIdx,
 					   uint64_t initialUncertSeed,
 					   const std::vector<std::pair<size_t, std::string>> &originParameters,
@@ -170,7 +177,7 @@ public:
 	                         std::vector<Vector2Df> &alphas, std::vector<float> &axx,
 							 std::vector<float> &ayy, std::vector<float> &axy,
 							 std::vector<float> &potential, std::vector<Vector2Df> &tracedThetas,
-							 std::vector<float> &tracedBetaDiffs);
+							 std::vector<float> &tracedBetaDiffs, float &negLogPriorProb);
 
 	int getRequestedDeviceIndex() const { return m_requestedDevIdx; }
 
@@ -197,6 +204,7 @@ private:
 	std::vector<Vector2Df> m_allTracedThetas;
 	std::vector<float> m_allTracedBetaDiffs;
 	std::vector<Vector2Df> m_adjustedThetas;
+	std::vector<float> m_allClPriors;
 	int m_requestedDevIdx = -1;
 };	
 }

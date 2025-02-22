@@ -65,12 +65,13 @@ int main(void)
 
 	bool_t r;
 	if (!(r = clDef.init(thetas, {}, intParams, floatParams, changeableParamIdx, 
-	                     prog, subRoutName, 0, 0, originParams, numOriginParams, {}, 0)))
+	                     prog, subRoutName, "", 0, 0, originParams, numOriginParams, {}, 0)))
 		throw runtime_error("Can't init OpenCL calculation code: " + r.getErrorString());
 
 	vector<Vector2Df> allAlphas;
 	vector<float> allAxx, allAyy, allAxy;
 	vector<float> allPotentials;
+	vector<float> allPriors;
 
 	vector<vector<float>> allChangedParams = {
 								  { floatParams[0], floatParams[1] },
@@ -83,8 +84,11 @@ int main(void)
 	for (auto &changedParams : allChangedParams)
 	{
 		if (!(r = clDef.calculateDeflection(changedParams,
-											allAlphas, allAxx, allAyy, allAxy, allPotentials)))
+											allAlphas, allAxx, allAyy, allAxy, allPotentials,
+											allPriors)))
 			throw runtime_error("Can't calculate deflections: " + r.getErrorString());
+
+		assert(allPriors.size() == 0);
 
 		double maxDiff = 0;
 		double minDiff = numeric_limits<double>::max();

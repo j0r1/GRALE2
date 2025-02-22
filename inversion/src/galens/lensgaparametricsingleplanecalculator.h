@@ -80,6 +80,8 @@ private:
 	std::vector<std::shared_ptr<ParameterPrior>> m_priors;
 	int m_fitnessToAddPriorTo = -1;
 
+	std::string m_extraClPriorCode;
+
 	class ThetaPointMap
 	{
 	public:

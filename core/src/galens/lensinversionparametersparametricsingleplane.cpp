@@ -30,7 +30,8 @@ LensInversionParametersParametricSinglePlane::LensInversionParametersParametricS
 		bool allowUnusedPriors,
 		const std::vector<bool> &retraceImages,
 		size_t numRetraceSteps,
-		double sourcePlaneDistThreshold
+		double sourcePlaneDistThreshold,
+		const std::string &clPriorCode
 		)
 {
 	m_images = images;
@@ -56,6 +57,7 @@ LensInversionParametersParametricSinglePlane::LensInversionParametersParametricS
 	m_retraceImages = retraceImages;
 	m_numRetraceSteps = numRetraceSteps;
 	m_sourcePlaneDistThreshold = sourcePlaneDistThreshold;
+	m_clPriorCode = clPriorCode;
 }
 
 LensInversionParametersParametricSinglePlane::~LensInversionParametersParametricSinglePlane()
@@ -197,6 +199,12 @@ bool LensInversionParametersParametricSinglePlane::write(serut::SerializationInt
 	}
 
 	if (!si.writeDouble(m_sourcePlaneDistThreshold))
+	{
+		setErrorString(si.getErrorString());
+		return false;
+	}
+
+	if (!si.writeString(m_clPriorCode))
 	{
 		setErrorString(si.getErrorString());
 		return false;
@@ -399,6 +407,12 @@ bool LensInversionParametersParametricSinglePlane::read(serut::SerializationInte
 	m_numRetraceSteps = (size_t)numRetr;
 
 	if (!si.readDouble(&m_sourcePlaneDistThreshold))
+	{
+		setErrorString(si.getErrorString());
+		return false;
+	}
+
+	if (!si.readString(m_clPriorCode))
 	{
 		setErrorString(si.getErrorString());
 		return false;
