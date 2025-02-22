@@ -331,17 +331,29 @@ def _createTemplateLens(parametricLensDescription, Dd):
             for part in p:
                 saveCLCode(part)
         elif type(p) is dict:
-            if not "clcode" in p:
-                raise ParametricDescriptionException(f"The 'neglogprob' section doesn't contain a 'clcode' entry: {p}")
+            if "clcall" in p and "clcode" in p:
+                raise ParametricDescriptionException(f"Both 'clcode' and 'clcall' are present in 'clcode' {p}")
 
             cp = copy.copy(p)
-            del cp["clcode"]
 
-            if "args" in cp:
+            if "clcall" in p:
+                del cp["clcall"]
+
+                if not "args" in cp:
+                    raise ParametricDescriptionException(f"Need an 'args' section in 'neglogprob' entry {p}")
                 del cp["args"]
+            else:
+                if not "clcode" in p:
+                    raise ParametricDescriptionException(f"The 'neglogprob' section doesn't contain a 'clcode' entry or 'clcall' entry: {p}")
+
+                del cp["clcode"]
+
+                # Can exist without args, to introduce a new helper function
+                if "args" in cp:
+                    del cp["args"]
 
             if cp:
-                raise ParametricDescriptionException(f"The 'neglogprob' section contains more entries than 'args' and 'clcode': {list(cp.keys())}")
+                raise ParametricDescriptionException(f"The 'neglogprob' section contains more entries than 'args' and 'clcode'/'clcall': {list(cp.keys())}")
 
             allClCodeInfo.append(p)
         else:
@@ -608,8 +620,10 @@ def analyzeParametricLensDescription(parametricLens, Dd, defaultFraction, clampT
 
     # TODO:
     #     "neglogprob": [
-    #        { "params": [ "var1", "var2" ],
-    #          "clcode": "{ return ... }" }
+    #        { "args": [ "var1", "var2" ],
+    #          "clcode": "{ return ... }" },
+    #        { "args": [ "var1", (123, "var_for_unit") ],
+    #          "clcall": "functionname",
     #     ]
 
     inf = _createTemplateLens(parametricLens, Dd)
@@ -691,7 +705,7 @@ def analyzeParametricLensDescription(parametricLens, Dd, defaultFraction, clampT
         varName = x["varname"]
         if varName in varNameOffsets:
             raise ParametricDescriptionException(f"Variable name '{varName}' is used more than once")
-        varNameOffsets[varName] = x["offset"]
+        varNameOffsets[varName] = { "offset": x["offset"], "scalefactor": x["scalefactor"] }
 
     #print("varNameOffsets")
     #pprint.pprint(varNameOffsets)
@@ -750,18 +764,25 @@ def _createOpenClCode(allClCodeInfo, varNameOffsets):
     negLogProbCalls = [ ]
 
     for inf in allClCodeInfo:
-        code = inf["clcode"]
-        funcName, funcArgs = _getFunctionNameAndArguments(inf["clcode"])
 
-        if funcName in uniqueFunctionCode:
-            # If the same function name is used, and it's actually the same
-            # function, don't complain, just ignore. This allows us to introduce
-            # a helper function multiple times.
-            if uniqueFunctionCode[funcName]["code"] != code:
-                raise ParametricDescriptionException(f"Multiple function definitions for function '{funcName}'")
+        if "clcode" in inf:
+            code = inf["clcode"]
+            funcName, funcArgs = _getFunctionNameAndArguments(inf["clcode"])
+
+            if funcName in uniqueFunctionCode:
+                # If the same function name is used, and it's actually the same
+                # function, don't complain, just ignore. This allows us to introduce
+                # a helper function multiple times.
+                if uniqueFunctionCode[funcName]["code"] != code:
+                    raise ParametricDescriptionException(f"Multiple function definitions for function '{funcName}'")
+            else:
+                uniqueFunctionCode[funcName] = { "args": funcArgs, "code": code }
+                functionOrder.append(funcName)
         else:
-            uniqueFunctionCode[funcName] = { "args": funcArgs, "code": code }
-            functionOrder.append(funcName)
+            funcName = inf["clcall"]
+            if not funcName in uniqueFunctionCode:
+                raise ParametricDescriptionException(f"Performing a 'clcall' of function '{funcName}', but this has not been defined")
+            funcArgs = uniqueFunctionCode[funcName]["args"]
 
         if "args" in inf:
             # If this is present, the function should be called with the same
@@ -771,14 +792,27 @@ def _createOpenClCode(allClCodeInfo, varNameOffsets):
             if len(argVarNames) != len(funcArgs):
                 raise ParametricDescriptionException(f"When calling OpenCL function {funcName}, {len(argVarNames)} variables are used, but expecting {len(funcArgs)}")
 
-            offsets = []
+            offsetsAndValues = []
             for vn in argVarNames:
-                if not vn in varNameOffsets:
-                    raise ParametricDescriptionException(f"Variable name {vn} in call to OpenCL function {funcName} is not known")
 
-                offsets.append((vn, varNameOffsets[vn]))
+                if type(vn) == str:
+                    if not vn in varNameOffsets:
+                        raise ParametricDescriptionException(f"Variable name {vn} in call to OpenCL function {funcName} is not known")
 
-            callLine = f"    value += {funcName}(" + ", ".join(map(lambda o: f"pFloatParams[{o[1]}] /* {o[0]} */", offsets)) + ");";
+                    offsetsAndValues.append("pFloatParams[{}] /* {} */".format(varNameOffsets[vn]["offset"], vn))
+                elif type(vn) == tuple or type(vn) == list:
+                    value, scaleVar = vn
+                    if not scaleVar in varNameOffsets:
+                        raise ParametricDescriptionException(f"Variable name {vn} (for scale factor) in call to OpenCL function {funcName} is not known")
+
+                    value /= varNameOffsets[scaleVar]["scalefactor"]
+                    offsetsAndValues.append(json.dumps(value))
+                else: # assume it's a float or int value for example
+                    value = vn
+                    offsetsAndValues.append(json.dumps(value))
+
+
+            callLine = f"    value += {funcName}(" + ", ".join(offsetsAndValues) + ");";
             negLogProbCalls.append(callLine)
 
     if not negLogProbCalls:
