@@ -424,13 +424,11 @@ bool_t LensGAParametricSinglePlaneCalculator::init(const LensInversionParameters
 		if (p->getType() != ParameterPrior::None)
 			haveRealPrior = true;
 
-	m_fitnessToAddPriorTo = -1;
 	if (!haveRealPrior)
-	{
 		m_priors.clear();
-		cerr << "INFO: no prior information detected" << endl;
-	}
-	else
+
+	m_fitnessToAddPriorTo = -1;
+	if (m_priors.size() > 0 || m_extraClPriorCode.length() > 0)
 	{
 		for (size_t i = 0 ; i < m_fitObj->getNumberOfFitnessComponents() ; i++)
 		{
@@ -447,8 +445,10 @@ bool_t LensGAParametricSinglePlaneCalculator::init(const LensInversionParameters
 		else
 			cerr << "INFO: couldn't find any fitness component to add prior information to" << endl;
 	}
+	else
+		cerr << "INFO: no prior information detected" << endl;
 
-	if (m_priors.size() > 0 && m_fitnessToAddPriorTo < 0)
+	if ((m_priors.size() > 0 || m_extraClPriorCode.length() > 0) && m_fitnessToAddPriorTo < 0)
 	{
 		if (!params.shouldAllowUnusedPriors())
 			return "Detected prior information on parameters, but there's no fitness component to add this to (use 'allowUnusedPriors' flag to continue anyway)";
@@ -777,18 +777,22 @@ errut::bool_t LensGAParametricSinglePlaneCalculator::pollCalculate(const eatk::G
 	if (m_fitnessToAddPriorTo >= 0)
 	{
 		const vector<float> &values = genome.getValues();
-		assert(m_priors.size() == values.size());
-		assert(m_fitnessToAddPriorTo < fitnessValues.size());
 
-		float negLogPrior = 0;
-		for (size_t i = 0 ; i < values.size() ; i++)
+		if (m_priors.size() > 0) // Per parameter prior
 		{
-			assert(m_priors[i]);
-			negLogPrior += m_priors[i]->getNegativeLogProb(values[i]);
-		}
+			assert(m_priors.size() == values.size());
+			assert(m_fitnessToAddPriorTo < fitnessValues.size());
 
-		fitnessValues[m_fitnessToAddPriorTo] += negLogPrior;
-		//cerr << "Added prior" << negLogPrior << endl;
+			float negLogPrior = 0;
+			for (size_t i = 0 ; i < values.size() ; i++)
+			{
+				assert(m_priors[i]);
+				negLogPrior += m_priors[i]->getNegativeLogProb(values[i]);
+			}
+
+			fitnessValues[m_fitnessToAddPriorTo] += negLogPrior;
+			//cerr << "Added prior" << negLogPrior << endl;
+		}
 
 		// Also add what was calculated in OpenCL
 		// TODO: move previous code to that OpenCL as well
