@@ -76,7 +76,7 @@ def _getInitialMinOrMaxParameterValue(params, paramKey, fraction, isMin):
         
     return value, True
 
-def _checkParameterValues(lensParams, paramMapping, getParamValue, positionNames):
+def _checkParameterValues(lensParams, paramMapping, getParamValue, positionNames, fixedPositionNames):
     remainingLensParams = lensParams.copy() # shallow copy is enough
     newParams = { }
     
@@ -84,24 +84,27 @@ def _checkParameterValues(lensParams, paramMapping, getParamValue, positionNames
         
         newParams[x], isFixedOrName = getParamValue(lensParams, x)
         del remainingLensParams[x]
+
         if isFixedOrName is False:
             positionNames.append(y)
+        else:
+            fixedPositionNames.append(y)
 
     return remainingLensParams, newParams
 
 def _processPlummerLens(lensParams, Dd, getParamValue, saveCLCode):
-    positionNames = [ ]
+    positionNames, fixedPositionNames = [ ], [ ]
     lensParams, newParams = _checkParameterValues(lensParams, [ ("mass", "mass_scaled"),
                                                                 ("width", "width_scaled")],
-                                                  getParamValue, positionNames)    
+                                                  getParamValue, positionNames, fixedPositionNames)
     if lensParams:
         raise ParametricDescriptionException("Excess parameters for PlummerLens")
     
-    return newParams, positionNames
+    return newParams, positionNames, fixedPositionNames
 
 def _processCompositeLens(lensParams, Dd, getParamValue, saveCLCode):
     compParams = []
-    positionNames = []
+    positionNames, fixedPositionNames = [ ], [ ]
 
     for idx, subParams in enumerate(lensParams):
         subParams, newParams = _checkParameterValues(subParams, 
@@ -109,55 +112,57 @@ def _processCompositeLens(lensParams, Dd, getParamValue, saveCLCode):
                                                        ("y", f"y_{idx}_scaled"),
                                                        ("factor", f"factor_{idx}"),
                                                        ("angle", f"angle_{idx}") ],
-                                                     getParamValue, positionNames)
+                                                     getParamValue, positionNames, fixedPositionNames)
 
-        l, posNames = _createTemplateLens_helper(subParams["lens"], Dd, getParamValue, saveCLCode)
+        l, posNames, fixedPosNames = _createTemplateLens_helper(subParams["lens"], Dd, getParamValue, saveCLCode)
         newParams["lens"] = l
         del subParams["lens"]
         for p in posNames:
             positionNames.append(f"lens_{idx}," + p)
+        for p in fixedPosNames:
+            fixedPositionNames.append(f"lens_{idx}," + p)
         
         if subParams:
             raise ParametricDescriptionException("Excess parameters for CompositeLens")
         
         compParams.append(newParams)
         
-    return compParams, positionNames
+    return compParams, positionNames, fixedPositionNames
 
 def _processNSIELens(lensParams, Dd, getParamValue, saveCLCode):
-    positionNames = [ ]
+    positionNames, fixedPositionNames = [ ], [ ]
     lensParams, newParams = _checkParameterValues(lensParams, [ ("ellipticity", "ellipticity"),
                                                                 ("coreRadius", "core_scaled"),
                                                                 ("velocityDispersion", "sigma_scaled") ],
-                                                  getParamValue, positionNames)    
+                                                  getParamValue, positionNames, fixedPositionNames)
     if lensParams:
         raise ParametricDescriptionException("Excess parameters for NSIELens")
     
-    return newParams, positionNames
+    return newParams, positionNames, fixedPositionNames
 
 def _processSISLens(lensParams, Dd, getParamValue, saveCLCode):
-    positionNames = [ ]
+    positionNames, fixedPositionNames = [ ], [ ]
     lensParams, newParams = _checkParameterValues(lensParams, [ ("velocityDispersion", "sigma_scaled") ],
-                                                  getParamValue, positionNames)    
+                                                  getParamValue, positionNames, fixedPositionNames)
     if lensParams:
         raise ParametricDescriptionException("Excess parameters for SISLens")
     
-    return newParams, positionNames
+    return newParams, positionNames, fixedPositionNames
 
 def _processMassSheetLens(lensParams, Dd, getParamValue, saveCLCode):
-    positionNames = []
+    positionNames, fixedPositionNames = [ ], [ ]
     if "Ds" in lensParams or "Dds" in lensParams:
         raise ParametricDescriptionException("For a mass sheet lens, 'Ds' and 'Dds' cannot be used, use 'density' instead")
 
     lensParams, newParams = _checkParameterValues(lensParams, [ ("density", "density_scaled") ],
-                                                  getParamValue, positionNames)    
+                                                  getParamValue, positionNames, fixedPositionNames)
 
     if lensParams:
         raise ParametricDescriptionException("Excess parameters for MassSheetLens")
-    return newParams, positionNames
+    return newParams, positionNames, fixedPositionNames
 
 def _processMultiplePlummerLens(lensParams, Dd, getParamValue, saveCLCode):
-    positionNames = []
+    positionNames, fixedPositionNames = [ ], [ ]
     newMultiParams = []
     for i,subParams in enumerate(lensParams):
         subParams, newParams = _checkParameterValues(subParams, [ ("x", f"x_{i}_scaled"),
@@ -165,13 +170,13 @@ def _processMultiplePlummerLens(lensParams, Dd, getParamValue, saveCLCode):
                                                                   ("mass", f"mass_{i}_scaled"),
                                                                   ("width", f"width_{i}_scaled"),
                                                                   ],
-                                                     getParamValue, positionNames)
+                                                     getParamValue, positionNames, fixedPositionNames)
         if subParams:
             raise ParametricDescriptionException("Excess parameters for MultiplePlummerLens")
         
         newMultiParams.append(newParams)
 
-    return newMultiParams, positionNames
+    return newMultiParams, positionNames, fixedPositionNames
 
 def _processDeflectionGridLens(lensParams, Dd, getParamValue, saveCLCode):
     # No parameters can be changed
@@ -201,57 +206,57 @@ def _processDeflectionGridLens(lensParams, Dd, getParamValue, saveCLCode):
     if lpCopy:
         raise ParametricDescriptionException("Excess parameters for DeflectionGridLens")
 
-    return lensParams.copy(), [] # No variable parameters
+    return lensParams.copy(), [], [] # No variable parameters or fixed parameters that can be referred to
 
 def _processPIMDLens(lensParams, Dd, getParamValue, saveCLCode):
 
-    positionNames = [ ]
+    positionNames, fixedPositionNames = [ ], [ ]
     lensParams, newParams = _checkParameterValues(lensParams, [ ("coreradius", "coreradius_scaled"),
                                                                 ("scaleradius", "scaleradius_scaled"),
                                                                 ("centraldensity", "centraldensity_scaled")],
-                                                  getParamValue, positionNames)
+                                                  getParamValue, positionNames, fixedPositionNames)
     if lensParams:
         raise ParametricDescriptionException("Excess parameters for PIMDLens")
 
-    return newParams, positionNames
+    return newParams, positionNames, fixedPositionNames
 
 def _processPIEMDLens(lensParams, Dd, getParamValue, saveCLCode):
 
-    positionNames = [ ]
+    positionNames, fixedPositionNames = [ ], [ ]
     lensParams, newParams = _checkParameterValues(lensParams, [ ("epsilon", "epsilon"),
                                                                 ("coreradius", "coreradius_scaled"),
                                                                 ("scaleradius", "scaleradius_scaled"),
                                                                 ("centraldensity", "centraldensity_scaled")],
-                                                  getParamValue, positionNames)
+                                                  getParamValue, positionNames, fixedPositionNames)
     if lensParams:
         raise ParametricDescriptionException("Excess parameters for PIEMDLens")
 
-    return newParams, positionNames
+    return newParams, positionNames, fixedPositionNames
 
 def _processLTPIEMDLens(lensParams, Dd, getParamValue, saveCLCode):
 
-    positionNames = [ ]
+    positionNames, fixedPositionNames = [ ], [ ]
     lensParams, newParams = _checkParameterValues(lensParams, [ ("ellipticity", "ellipticity"),
                                                                 ("coreradius", "coreradius_scaled"),
                                                                 ("scaleradius", "scaleradius_scaled"),
                                                                 ("velocitydispersion", "velocitydispersion_scaled")],
-                                                  getParamValue, positionNames)
+                                                  getParamValue, positionNames, fixedPositionNames)
     if lensParams:
         raise ParametricDescriptionException("Excess parameters for LTPIEMDLens")
 
-    return newParams, positionNames
+    return newParams, positionNames, fixedPositionNames
 
 def _processLTPIMDLens(lensParams, Dd, getParamValue, saveCLCode):
 
-    positionNames = [ ]
+    positionNames, fixedPositionNames = [ ], [ ]
     lensParams, newParams = _checkParameterValues(lensParams, [ ("coreradius", "coreradius_scaled"),
                                                                 ("scaleradius", "scaleradius_scaled"),
                                                                 ("velocitydispersion", "velocitydispersion_scaled")],
-                                                  getParamValue, positionNames)
+                                                  getParamValue, positionNames, fixedPositionNames)
     if lensParams:
         raise ParametricDescriptionException("Excess parameters for LTPIMDLens")
 
-    return newParams, positionNames
+    return newParams, positionNames, fixedPositionNames
 
 def _createTemplateLens_helper(parametricLensDescription, Dd, getParamValue, saveCLCode = None):
     lensType = parametricLensDescription["type"]
@@ -262,13 +267,13 @@ def _createTemplateLens_helper(parametricLensDescription, Dd, getParamValue, sav
     t = _supportedLensTypes[lensType]
     handler, lensClass = t["handler"], t["lens"]
 
-    newParams, positionNames = handler(lensParams, Dd, getParamValue, saveCLCode) # Need Dd as a parameter because of possible recursion
+    newParams, positionNames, fixedPositionNames = handler(lensParams, Dd, getParamValue, saveCLCode) # Need Dd as a parameter because of possible recursion
     lens = lensClass(Dd, newParams)
 
     if "neglogprob" in parametricLensDescription and saveCLCode is not None:
         saveCLCode(parametricLensDescription["neglogprob"])
 
-    return lens, positionNames        
+    return lens, positionNames, fixedPositionNames
 
 def _getCouplingNameAndCode(cname:str):
     if not ";" in cname:
@@ -282,13 +287,15 @@ def _getCouplingNameAndCode(cname:str):
 
     return cn, code
 
-def _createParamOffsetInfo(l, paramNames, couplingNames, tagNames, varNames, priors,
+def _createParamOffsetInfo(l, paramNames, couplingNames, tagNames, varNames, priors, fixedParamNames, fixedVarNames,
                            deflectionscale, potentialscale):
 
     assert len(paramNames) == len(couplingNames), "Internal error: parameter name array and coupling name array should have same length"
     assert len(paramNames) == len(tagNames), "Internal error: parameter name array and tag name array differ in length"
     assert len(paramNames) == len(varNames), "Internal error: parameter name array and var name array differ in length"
     assert len(priors) == len(paramNames), "Internal error: parameter name array and prior array should have same length"
+
+    assert len(fixedParamNames) == len(fixedVarNames), "Internal error: expecting same amount of fixed var names as parameters"
 
     adjustableParams = l.getCLAdjustableFloatingPointParameterInfo(deflectionscale, potentialscale)
     adjustableParamsDict = { }
@@ -302,7 +309,7 @@ def _createParamOffsetInfo(l, paramNames, couplingNames, tagNames, varNames, pri
     for n, cn, t, var, pr in zip(paramNames, couplingNames, tagNames, varNames, priors):
         if not n in adjustableParamsDict:
             raise ParametricDescriptionException(f"Internal error: specified adjustable param {n} does not seem to be valid")
-        d = adjustableParamsDict[n]
+        d = adjustableParamsDict[n].copy()
         if cn:
             d["cname_orig"] = cn
             d["cname"], d["ccode"] = _getCouplingNameAndCode(cn)
@@ -316,7 +323,20 @@ def _createParamOffsetInfo(l, paramNames, couplingNames, tagNames, varNames, pri
 
         paramOffsetInfo.append(d)
 
-    return sorted(paramOffsetInfo, key=lambda x: x["offset"])
+    fixedOffsetInfo = []
+    for n, var in zip(fixedParamNames, fixedVarNames):
+        if not n in adjustableParamsDict:
+            raise ParametricDescriptionException(f"Internal error: specified adjustable param {n} does not seem to be valid (for fixed param)")
+
+        d = adjustableParamsDict[n].copy()
+        if var:
+            d["varname"] = var
+
+        del d["hard_max"]
+        del d["hard_min"]
+        fixedOffsetInfo.append(d)
+
+    return sorted(paramOffsetInfo, key=lambda x: x["offset"]), sorted(fixedOffsetInfo, key=lambda x: x["offset"])
 
 def _createTemplateLens(parametricLensDescription, Dd):
 
@@ -324,6 +344,7 @@ def _createTemplateLens(parametricLensDescription, Dd):
     tagNames = []
     priors = []
     varNames = []
+    fixedVarNames = []
 
     # This is probably not the cleanest way
     def recordParamCouplingNamesWrapper(params, paramKey):
@@ -345,6 +366,14 @@ def _createTemplateLens(parametricLensDescription, Dd):
             tagNames.append(t)
             priors.append(pr)
             varNames.append(var)
+
+        else: # Fixed value, possibly with a name
+            if type(isFixedOrName) != bool:
+                assert type(isFixedOrName) == str, f"Internal error: expecting a 'str', but got '{type(isFixedOrName)}'"
+                fixedVarNames.append(isFixedOrName)
+            else:
+                assert isFixedOrName is True, "Internal error: expecting a 'True' value here"
+                fixedVarNames.append(None)
 
         return value, isFixedOrName
 
@@ -382,12 +411,17 @@ def _createTemplateLens(parametricLensDescription, Dd):
         else:
             raise ParametricDescriptionException(f"Invalid 'neglogprob' parameter type for '{p}'")
 
-    l, paramNames = _createTemplateLens_helper(parametricLensDescription, Dd, recordParamCouplingNamesWrapper, saveCLCode)
+    l, paramNames, fixedParamNames = _createTemplateLens_helper(parametricLensDescription, Dd, recordParamCouplingNamesWrapper, saveCLCode)
+
     scales = l.getSuggestedScales()
     intParam, floatParams = l.getCLParameters(**scales)
+    varParamOffsetInfo, fixedParamOffsetInfo = _createParamOffsetInfo(l, paramNames, couplingNames, tagNames, varNames, priors,
+                                                                      fixedParamNames, fixedVarNames, **scales)
+
     ret = { "templatelens": l,
-            "paramoffsets": _createParamOffsetInfo(l, paramNames, couplingNames, tagNames, varNames, priors, **scales),
+            "paramoffsets": varParamOffsetInfo,
             "paramnames": paramNames, # in original order
+            "fixedparamoffsets": fixedParamOffsetInfo,
             "scales": scales,
             "floatparams": floatParams,
             "description": copy.deepcopy(parametricLensDescription),
@@ -428,11 +462,11 @@ def _createInitialMinMaxParameters(templateLensDesciption, defaultFraction):
     Dd = templateLensDesciption["templatelens"].getLensDistance()
     parametricLensDescription = templateLensDesciption["description"]
     
-    l, paramNames = _createTemplateLens_helper(parametricLensDescription, Dd,
+    l, paramNames, _ = _createTemplateLens_helper(parametricLensDescription, Dd,
                                               lambda params, key: _getInitialMinOrMaxParameterValue(params, key, defaultFraction, True))
     _, initMinParams = l.getCLParameters(**scales)
 
-    l, paramNames = _createTemplateLens_helper(parametricLensDescription, Dd,
+    l, paramNames, _ = _createTemplateLens_helper(parametricLensDescription, Dd,
                                               lambda params, key: _getInitialMinOrMaxParameterValue(params, key, defaultFraction, False))
     _, initMaxParams = l.getCLParameters(**scales)
 
@@ -516,7 +550,7 @@ def _createHardMinMaxParameters(templateLensDesciption):
     paramOffsets = { x["name"]:x for x in paramOffsets }
     scales = templateLensDesciption["scales"]
 
-    l, paramNames = _createTemplateLens_helper(parametricLensDescription, Dd,
+    l, paramNames, _ = _createTemplateLens_helper(parametricLensDescription, Dd,
                                               lambda params, key: _mergeHardMinOrMaxParameterValue(params, key, knownParamNames, paramOffsets))
 
     # Now parametricLensDescription is modified, to contain
@@ -525,7 +559,7 @@ def _createHardMinMaxParameters(templateLensDesciption):
 
     knownParamNames = copy.deepcopy(templateLensDesciption["paramnames"])
     hardInfMinNames = []
-    l, _ = _createTemplateLens_helper(parametricLensDescription, Dd,
+    l, _, _ = _createTemplateLens_helper(parametricLensDescription, Dd,
                                      lambda params, key: _getHardMinOrMaxParameterValue(params, key, True, knownParamNames, hardInfMinNames))
 
     _, hardMinParams = l.getCLParameters(**scales) # These should all be finite
@@ -533,7 +567,7 @@ def _createHardMinMaxParameters(templateLensDesciption):
 
     knownParamNames = copy.deepcopy(templateLensDesciption["paramnames"])
     hardInfMaxNames = []
-    l, _ = _createTemplateLens_helper(parametricLensDescription, Dd,
+    l, _, _ = _createTemplateLens_helper(parametricLensDescription, Dd,
                                      lambda params, key: _getHardMinOrMaxParameterValue(params, key, False, knownParamNames, hardInfMaxNames))
 
     _, hardMaxParams = l.getCLParameters(**scales) # These should all be finite
@@ -725,13 +759,14 @@ def analyzeParametricLensDescription(parametricLens, Dd, defaultFraction, clampT
     #pprint.pprint(paramRanges)
 
     varNameOffsets = { }
-    for x in paramRanges:
-        if not "varname" in x:
-            continue
-        varName = x["varname"]
-        if varName in varNameOffsets:
-            raise ParametricDescriptionException(f"Variable name '{varName}' is used more than once")
-        varNameOffsets[varName] = { "offset": x["offset"], "scalefactor": x["scalefactor"] }
+    for varNameDict in [ inf["fixedparamoffsets"], paramRanges ]:
+        for x in varNameDict:
+            if not "varname" in x:
+                continue
+            varName = x["varname"]
+            if varName in varNameOffsets:
+                raise ParametricDescriptionException(f"Variable name '{varName}' is used more than once")
+            varNameOffsets[varName] = { "offset": x["offset"], "scalefactor": x["scalefactor"] }
 
     #print("varNameOffsets")
     #pprint.pprint(varNameOffsets)
