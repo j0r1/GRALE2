@@ -39,7 +39,6 @@ cimport grale.cppcosmology as cppcosmology
 cimport grale.lensgaconverenceparameters as lensgaconverenceparameters
 cimport grale.lensgamultipopulationparameters as lensgamultipopulationparameters
 cimport grale.errut as errut
-cimport grale.parameterprior as parameterprior
 
 include "stringwrappers.pyx"
 
@@ -1076,7 +1075,7 @@ cdef class LensInversionParametersParametricSinglePlane(object):
                   fitnessObjectParameters, deviceIndex = "rotate",
                   randomizeImagePositions = False, initialUncertSeed = 0,
                   originParametersMap = [], numOriginParams = 0,
-                  priors = [], allowUnusedPriors = False,
+                  allowUnusedPriors = False,
                   retraceImages = [],
                   numRetraceSteps = 5,
                   sourcePlaneDistanceThreshold = -1,
@@ -1103,7 +1102,6 @@ cdef class LensInversionParametersParametricSinglePlane(object):
         cdef size_t cNumOriginParams = numOriginParams
         cdef size_t tmpSize
         cdef string tmpStr
-        cdef vector[shared_ptr[parameterprior.ParameterPrior]] cPriors
         cdef cbool cAllowUnusedPriors = allowUnusedPriors
         cdef vector[cbool] cRetraceImages
         cdef size_t cNumRetraceSteps = numRetraceSteps
@@ -1131,15 +1129,6 @@ cdef class LensInversionParametersParametricSinglePlane(object):
             tmpStr = B(code)
             cOriginParamMapping.push_back(pair[size_t,string](tmpSize, tmpStr))
 
-        for p in priors:
-            if p is None:
-                cPriors.push_back(shared_ptr[parameterprior.ParameterPrior](new parameterprior.NoParameterPrior()))
-            elif p["type"] == "gaussian":
-                mu, sigma = p["params"]
-                cPriors.push_back(shared_ptr[parameterprior.ParameterPrior](new parameterprior.GaussianParameterPrior(mu, sigma)))
-            else:
-                raise InversionParametersException(f"Invalid prior {p}")
-
         for v in retraceImages:
             cRetraceImages.push_back(True if v else False)
 
@@ -1151,7 +1140,7 @@ cdef class LensInversionParametersParametricSinglePlane(object):
                 imgVector, cDd, cZd, deref(cTemplateLens), cDeflScale, cPotScale,
                 cOffsets, cInitMin, cInitMax, cHardMin, cHardMax, cInfOnBoundsViolation, deref(pFitnessObjectParameters),
                 devIdx, cRandomizeInputPos, cInitialUncertSeed, cOriginParamMapping, cNumOriginParams,
-                cPriors, cAllowUnusedPriors, cRetraceImages, cNumRetraceSteps, cSourceConvThreshold,
+                cAllowUnusedPriors, cRetraceImages, cNumRetraceSteps, cSourceConvThreshold,
                 cClPriorCode
             )
         )

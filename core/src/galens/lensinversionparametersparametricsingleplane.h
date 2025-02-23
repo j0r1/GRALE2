@@ -5,7 +5,6 @@
 #include "gravitationallens.h"
 #include "imagesdataextended.h"
 #include "configurationparameters.h"
-#include "parameterprior.h"
 #include <vector>
 #include <cassert>
 
@@ -31,7 +30,6 @@ public:
 		uint64_t initialUncertSeed,
 		const std::vector<std::pair<size_t, std::string>> &originParameterMapping,
 		size_t numOriginParameters,
-		const std::vector<std::shared_ptr<ParameterPrior>> &priors,
 		bool allowUnusedPriors,
 		const std::vector<bool> &retraceImages,
 		size_t numRetraceSteps,
@@ -58,7 +56,6 @@ public:
 	uint64_t getInitialPositionUncertaintySeed() const { return m_initialUncertSeed; }
 	const std::vector<std::pair<size_t, std::string>> &getOriginParameterMapping() const { return m_originParams; }
 	size_t getNumberOfOriginParameters() const { return m_numOriginParams; }
-	const std::vector<std::shared_ptr<ParameterPrior>> getParameterPriors() const { return m_priors; }
 	bool shouldAllowUnusedPriors() const { return m_allowUnusedPriors; }
 	const std::vector<bool> &shouldRetraceImages() const { return m_retraceImages; }
 	size_t getNumberOfRetraceSteps() const { return m_numRetraceSteps; }
@@ -81,7 +78,6 @@ private:
 	uint64_t m_initialUncertSeed = 0;
 	std::vector<std::pair<size_t, std::string>> m_originParams;
 	size_t m_numOriginParams = 0;
-	std::vector<std::shared_ptr<ParameterPrior>> m_priors;
 	bool m_allowUnusedPriors = false;
 	std::vector<bool> m_retraceImages;
 	size_t m_numRetraceSteps = 0;

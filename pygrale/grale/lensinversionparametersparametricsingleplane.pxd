@@ -14,7 +14,6 @@ cimport grale.configurationparameters as configurationparameters
 cimport grale.vector2d as vector2d
 cimport grale.lensinversionbasislensinfo as lensinversionbasislensinfo
 cimport grale.scalesearchparameters as scalesearchparameters
-cimport grale.parameterprior as parameterprior
 
 cdef extern from "grale/lensinversionparametersparametricsingleplane.h" namespace "grale":
     cdef cppclass LensInversionParametersParametricSinglePlane(errut.ErrorBase):
@@ -34,7 +33,6 @@ cdef extern from "grale/lensinversionparametersparametricsingleplane.h" namespac
                 uint64_t initialUncertSeed,
                 const vector[pair[size_t,string]] &originParameterMapping,
                 size_t numOriginParams,
-                const vector[shared_ptr[parameterprior.ParameterPrior]] &priors,
                 bool allowUnusedPriors,
                 const vector[bool] &retraceImages,
                 size_t numRetraceSteps,

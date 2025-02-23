@@ -77,7 +77,6 @@ private:
 
 	std::vector<float> m_initMin, m_initMax;
 	std::vector<float> m_hardMin, m_hardMax;
-	std::vector<std::shared_ptr<ParameterPrior>> m_priors;
 	int m_fitnessToAddPriorTo = -1;
 
 	std::string m_extraClPriorCode;

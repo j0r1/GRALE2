@@ -801,7 +801,6 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
     initMax = [ x["initialrange"][1] for x in varParams ]
     hardMin = [ x["hardlimits"][0] for x in varParams ]
     hardMax = [ x["hardlimits"][1] for x in varParams ]
-    priors = [ paramdesc.getUnitAdjustedPrior(x["prior"], x["scalefactor"]) if "prior" in x else None for x in varParams ]
 
     # TODO: should be a cleaner way to do this
     usingMcmc = False
@@ -888,7 +887,7 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
                   infOnBoundsViolation,
                   fullFitnessObjParams, deviceIndex,
                   useImagePositionRandomization, initialUncertSeed,
-                  originParametersMap, numOriginParams, priors, allowUnusedPriors,
+                  originParametersMap, numOriginParams, allowUnusedPriors,
                   retraceImages, numberOfRetraceSteps, retraceSourcePlaneThreshold,
                   clProbCode)
 

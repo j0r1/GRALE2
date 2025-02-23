@@ -835,7 +835,7 @@ def _createOpenClCode(allClCodeInfo, varNameOffsets, paramRanges):
         callStr = _toScaledClCall(inf["prior"], f"pFloatParams[{offset}]", inf["scalefactor"])
         callStr += f" // Prior for '{name}', based on: {prior}"
 
-        callLine = f"    // value += " + callStr # TODO: remove comment here to really activate!
+        callLine = f"    value += " + callStr
         negLogProbCalls.append(callLine)
 
     if not negLogProbCalls:
