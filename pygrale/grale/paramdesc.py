@@ -15,9 +15,29 @@ class ParametricDescriptionException(Exception):
     analyzing or creating a lens description for parametric inversion."""
     pass
 
+# A fixed value van also be { "fixed": value } or { "fixed": value, "varname": "x" },
+# to be able to assign a variable name to a fixed value (to be able to use this in
+# OpenCL prior code
+def _isFixedDictValue(d):
+    if not "fixed" in d:
+        return False
+
+    dc = d.copy()
+    del dc["fixed"]
+
+    if "varname" in dc:
+        del dc["varname"]
+
+    if dc:
+        raise ParametricDescriptionException(f"Unused keys {list(dc.keys())} in fixed value specification {d}")
+    return True
+
 def _getInitialParameterValue(params, paramKey):
     value = params[paramKey]
     if type(value) == dict:
+        if _isFixedDictValue(value):
+            return value["fixed"], value["varname"] if "varname" in value else True
+
         return (value["initmin"] + value["initmax"])*0.5, False
     
     if type(value) == list or type(value) == tuple:
@@ -34,6 +54,9 @@ def _getInitialMinOrMaxParameterValue(params, paramKey, fraction, isMin):
     fracSign = -1 if isMin else 1
 
     if type(value) == dict:
+        if _isFixedDictValue(value):
+            return value["fixed"], value["varname"] if "varname" in value else True
+
         return value[key], False
     
     if type(value) == list or type(value) == tuple:
@@ -59,9 +82,9 @@ def _checkParameterValues(lensParams, paramMapping, getParamValue, positionNames
     
     for x,y in paramMapping:
         
-        newParams[x], isFixed = getParamValue(lensParams, x)
+        newParams[x], isFixedOrName = getParamValue(lensParams, x)
         del remainingLensParams[x]
-        if not isFixed:
+        if isFixedOrName is False:
             positionNames.append(y)
 
     return remainingLensParams, newParams
@@ -304,8 +327,8 @@ def _createTemplateLens(parametricLensDescription, Dd):
 
     # This is probably not the cleanest way
     def recordParamCouplingNamesWrapper(params, paramKey):
-        value, isFixed = _getInitialParameterValue(params, paramKey)
-        if not isFixed:
+        value, isFixedOrName = _getInitialParameterValue(params, paramKey)
+        if isFixedOrName is False:
             v = params[paramKey]
             n, t, pr, var = None, None, None, None
             if type(v) == dict:
@@ -323,7 +346,7 @@ def _createTemplateLens(parametricLensDescription, Dd):
             priors.append(pr)
             varNames.append(var)
 
-        return value, isFixed
+        return value, isFixedOrName
 
     allClCodeInfo = []
     def saveCLCode(p):
@@ -427,6 +450,9 @@ def _getHardMinOrMaxParameterValue(params, paramKey, isMin, knownParamNames, har
     if type(value) != dict:
         return value, True
 
+    if _isFixedDictValue(value):
+        return value["fixed"], value["varname"] if "varname" in value else True
+
     paramName = knownParamNames.pop(0)
 
     key, infValue = ("hardmin", float("-inf")) if isMin else ("hardmax", float("inf"))
@@ -447,9 +473,9 @@ def _mergeHardMinOrMaxParameterValue(params, key, knownParamNames, paramOffsets)
     # pprint.pprint(knownParamNames)
     # print("paramOffsets")
     # pprint.pprint(paramOffsets)
-    startValue, isFixed = _getInitialParameterValue(params, key)
-    if isFixed:
-        return startValue, True
+    startValue, isFixedOrName = _getInitialParameterValue(params, key)
+    if isFixedOrName is not False:
+        return startValue, isFixedOrName
 
     paramName = knownParamNames.pop(0)
     paramInfo = paramOffsets[paramName]
@@ -1191,6 +1217,10 @@ def _refineValue(v1, v2, fraction, lensType, paramName):
 
     if type(v1) != dict: # just a value, keep it
         return v1
+
+    # It's a dict, but still may represent a fixed value
+    if "fixed" in v1:
+        return v1.copy()
 
     v1 = v1.copy()
     v1["initmin"] = v1min
