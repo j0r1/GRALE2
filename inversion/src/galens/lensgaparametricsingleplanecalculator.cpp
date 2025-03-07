@@ -402,6 +402,26 @@ bool_t LensGAParametricSinglePlaneCalculator::init(const LensInversionParameters
 	    m_hardMin.size() != m_hardMax.size())
 		return "Parameter ranges should all have the same size";
 
+	{
+		for (size_t i = 0 ; i < m_initMin.size() ; i++)
+		{
+			if (params.allowEqualValuesInInitialRange())
+			{
+				if (!(m_hardMin[i] <= m_initMin[i] && m_initMin[i] <= m_initMax[i] && m_initMax[i] <= m_hardMax[i]))
+					return "Error in boundary check for parameter " + std::to_string(i) + ": hardMin = " + std::to_string(m_hardMin[i])
+						+ " initMin = " + std::to_string(m_initMin[i]) + " initMax = " + std::to_string(m_initMax[i])
+						+ " hardMin = " + std::to_string(m_hardMax[i]);
+			}
+			else
+			{
+				if (!(m_hardMin[i] <= m_initMin[i] && m_initMin[i] < m_initMax[i] && m_initMax[i] <= m_hardMax[i]))
+					return "Error in boundary check for parameter " + std::to_string(i) + ": hardMin = " + std::to_string(m_hardMin[i])
+						+ " initMin = " + std::to_string(m_initMin[i]) + " initMax = " + std::to_string(m_initMax[i])
+						+ " hardMin = " + std::to_string(m_hardMax[i]);
+			}
+		}
+	}
+
 	if (m_numOriginParams == 0)
 	{
 		if (m_initMin.size() != m_changeableParamIdx.size())

@@ -34,7 +34,8 @@ public:
 		const std::vector<bool> &retraceImages,
 		size_t numRetraceSteps,
 		double sourcePlaneDistThreshold, // threshold to accept retrace convergence
-		const std::string &clPriorCode
+		const std::string &clPriorCode,
+		bool allowEqualInitRange
 		);
 	~LensInversionParametersParametricSinglePlane();
 
@@ -61,6 +62,7 @@ public:
 	size_t getNumberOfRetraceSteps() const { return m_numRetraceSteps; }
 	double getSourcePlaneDistanceThreshold() const { return m_sourcePlaneDistThreshold; }
 	std::string getOpenCLPriorCode() const { return m_clPriorCode; }
+	bool allowEqualValuesInInitialRange() const { return m_allowEqualInitRange; }
 
 	bool write(serut::SerializationInterface &si) const override;
 	bool read(serut::SerializationInterface &si) override;
@@ -83,6 +85,7 @@ private:
 	size_t m_numRetraceSteps = 0;
 	double m_sourcePlaneDistThreshold = 0;
 	std::string m_clPriorCode;
+	bool m_allowEqualInitRange = false;
 };
 
 } // end namespace

@@ -701,7 +701,8 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
            geneticAlgorithmParameters = { }, returnNds = False, inverter = "default", feedbackObject = "default",
            cosmology = None, maximumGenerations = None, eaType = "JADE", deviceIndex = "rotate",
            useImagePositionRandomization = False, allowUnusedPriors = False, numberOfRetraceSteps = 5,
-           retraceSourcePlaneThreshold = "auto"):
+           retraceSourcePlaneThreshold = "auto", allowEmptyInitialValueRange = False,
+           internalRecalcLens = None):
     """This is a low-level function, used by the similarly named function
     in :class:`InversionWorkSpace`.
 
@@ -776,6 +777,8 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
        lensing
 
      - `retraceSourcePlaneThreshold`: TODO, either "auto" or a number
+
+     - `allowEmptyInitialValueRange`: TODO
     """
 
     desc = paramdesc.analyzeParametricLensDescription(parametricLensDescription, Dd, defaultInitialParameterFraction, clampToHardLimits)
@@ -801,6 +804,16 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
     initMax = [ x["initialrange"][1] for x in varParams ]
     hardMin = [ x["hardlimits"][0] for x in varParams ]
     hardMax = [ x["hardlimits"][1] for x in varParams ]
+
+    if internalRecalcLens is not None:
+        _, floatParams = internalRecalcLens.getCLParameters(deflScale, potScale)
+        # Change initmin/initmax to be the exact same value? Will this trigger an
+        # error in a check later on?
+        for idx, x in enumerate(varParams):
+            off = x["offset"]
+            v = floatParams[off]
+            initMin[idx] = v
+            initMax[idx] = v
 
     # TODO: should be a cleaner way to do this
     usingMcmc = False
@@ -889,7 +902,7 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
                   useImagePositionRandomization, initialUncertSeed,
                   originParametersMap, numOriginParams, allowUnusedPriors,
                   retraceImages, numberOfRetraceSteps, retraceSourcePlaneThreshold,
-                  clProbCode)
+                  clProbCode, allowEmptyInitialValueRange)
 
     results = _invertCommon(inverter, feedbackObject, moduleName, "parametricsingleplane", fitnessObjectParameters,
                   None, [Dd, zd], inputImages, getParamsFunction, popSize,
@@ -1716,6 +1729,14 @@ class InversionWorkSpace(object):
             bfAndZs = [ { "lenses": x[0], "z": x[1] } for x in zip(self.basisFunctions, self.zd) ]
             lens = invertMultiPlane(self.imgDataList, bfAndZs, populationSize, **newKwargs)
         return lens
+
+    def calculateParametricFitness(self, lens, parametricLensDescription):
+        """TODO"""
+        if not lens:
+            return InversionException("A lens must be specified")
+
+        _, fitness, names, _, _ = self.invertParametric(parametricLensDescription, 4, eaType="JADE", maximumGenerations=0, internalRecalcLens=lens, allowEmptyInitialValueRange=True)
+        return fitness, names
 
     def calculateFitness(self, lensOrBackProjectedImages):
         """For the current grid, the current images data sets, calculate the fitness values
