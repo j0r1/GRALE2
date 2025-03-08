@@ -440,7 +440,7 @@ def _getShouldBeSameArray(templateLensDescription):
 
     return shouldBeSame
 
-def _checkShouldBeSame(templateLensDescription, minParams, maxParams):
+def _checkShouldBeSame(templateLensDescription, minParams, maxParams, allowSameMinMax = False):
     shouldBeSame = _getShouldBeSameArray(templateLensDescription)
 
     for idx, value in enumerate(shouldBeSame):
@@ -451,12 +451,13 @@ def _checkShouldBeSame(templateLensDescription, minParams, maxParams):
 
         else:
             if minParams[idx] == maxParams[idx]:
-                raise ParametricDescriptionException(f"Values at floating point offset {idx} should be allowed to change, but initial min/max values are the same (so no variation will be introduced)")
+                if not allowSameMinMax:
+                    raise ParametricDescriptionException(f"Values at floating point offset {idx} should be allowed to change, but initial min/max values are the same (so no variation will be introduced)")
 
             if minParams[idx] > maxParams[idx]:
                 raise ParametricDescriptionException(f"Min/max value at floating point offset {idx} should be other way around")
 
-def _createInitialMinMaxParameters(templateLensDesciption, defaultFraction):
+def _createInitialMinMaxParameters(templateLensDesciption, defaultFraction, allowSameMinMax):
     
     scales = templateLensDesciption["scales"]
     Dd = templateLensDesciption["templatelens"].getLensDistance()
@@ -473,7 +474,7 @@ def _createInitialMinMaxParameters(templateLensDesciption, defaultFraction):
     assert templateLensDesciption["floatparams"].shape == initMinParams.shape, "Internal error: mismatch in floating point parameter shapes"
     assert initMaxParams.shape == initMinParams.shape, "Internal error: mismatch in floating point parameter shapes (2)"
 
-    _checkShouldBeSame(templateLensDesciption, initMinParams, initMaxParams)
+    _checkShouldBeSame(templateLensDesciption, initMinParams, initMaxParams, allowSameMinMax)
 
     return initMinParams, initMaxParams
 
@@ -601,7 +602,7 @@ def _createHardMinMaxParameters(templateLensDesciption):
 
     return hardMinParams, hardMaxParams
 
-def analyzeParametricLensDescription(parametricLens, Dd, defaultFraction, clampToHardLimits = False):
+def analyzeParametricLensDescription(parametricLens, Dd, defaultFraction, clampToHardLimits = False, allowSameInitialMinMax = False):
     """Analyze the parametric lens description in `parametricLens`, which
     should be a dictionary, for a lens at angular diameter distance `Dd`.
     In case a parameter is set to change with some fraction about a value,
@@ -694,7 +695,7 @@ def analyzeParametricLensDescription(parametricLens, Dd, defaultFraction, clampT
                 return x["name"]
         return "unknown"
 
-    initMin, initMax = _createInitialMinMaxParameters(inf, defaultFraction)
+    initMin, initMax = _createInitialMinMaxParameters(inf, defaultFraction, allowSameInitialMinMax)
     hardMin, hardMax = _createHardMinMaxParameters(inf)
 
     numParams = initMin.shape[0]
@@ -750,9 +751,10 @@ def analyzeParametricLensDescription(parametricLens, Dd, defaultFraction, clampT
         n = p["name"]
         hardMin, hardMax = p["hardlimits"]
         initMin, initMax = p["initialrange"]
-        if initMin == initMax:
-            raise ParametricDescriptionException(f"Consistency error: Paraameter '{n}' has emty initial range ({initMin})")
-        if not (hardMin <= initMin < initMax <= hardMax):
+        if initMin == initMax and not allowSameInitialMinMax:
+            raise ParametricDescriptionException(f"Consistency error: Parameter '{n}' has emty initial range ({initMin})")
+
+        if not (hardMin <= initMin <= initMax <= hardMax):
             raise ParametricDescriptionException(f"Consistency error: Parameter '{n}' fails range check: hardMin = {hardMin}, initMin = {initMin}, initMax = {initMax}, hardMax = {hardMax}")
 
     #print("variablefloatparams")

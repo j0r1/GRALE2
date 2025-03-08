@@ -696,6 +696,32 @@ def _processCoupledParameters(varParams):
 
     return coupledVarParams, originParamsMap, numOriginParams
 
+def _checkInternalRecalcLensConsistency(internalRecalcLens, parametricLensDescription):
+    from .constants import ANGLE_ARCSEC, MASS_SUN
+    calcLensDesc = internalRecalcLens if type(internalRecalcLens) == dict else eval(paramdesc.createParametricDescription(internalRecalcLens))
+
+    t1, t2 = calcLensDesc["type"], parametricLensDescription["type"]
+    if t1 != t2:
+        raise Exception(f'Lens type mismatch for fitness calculation: {t1} != {t2}')
+
+    p1, p2 = calcLensDesc["params"], parametricLensDescription["params"]
+    if t1 == "CompositeLens":
+        assert type(p1) == list and type(p2) == list, "Parameters of CompositeLens should be lists"
+        assert len(p1) == len(p2), "Different number of sublenses in CompositeLens"
+
+        for subP1, subP2 in zip(p1, p2):
+            for prop in subP1:
+                if not prop in subP2:
+                    raise InversionException(f"Missing property {prop} in lens description")
+
+            subLens1, subLens2 = subP1["lens"], subP2["lens"]
+            _checkInternalRecalcLensConsistency(subLens1, subLens2)
+    else:
+        assert type(p1) == dict and type(p2) == dict, "Parameters should be contained in dictionaries"
+        for k in p1:
+            if not k in p2:
+                raise InversionException(f"Missing property {k} in lens description")
+
 def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, moduleName = "general",
            defaultInitialParameterFraction = 0.1, clampToHardLimits = False, fitnessObjectParameters = None, convergenceParameters = { },
            geneticAlgorithmParameters = { }, returnNds = False, inverter = "default", feedbackObject = "default",
@@ -781,7 +807,7 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
      - `allowEmptyInitialValueRange`: TODO
     """
 
-    desc = paramdesc.analyzeParametricLensDescription(parametricLensDescription, Dd, defaultInitialParameterFraction, clampToHardLimits)
+    desc = paramdesc.analyzeParametricLensDescription(parametricLensDescription, Dd, defaultInitialParameterFraction, clampToHardLimits, allowEmptyInitialValueRange)
     clProbCode = desc["neglogprobcode"]
     
     templateLens = desc["templatelens"]
@@ -806,6 +832,8 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
     hardMax = [ x["hardlimits"][1] for x in varParams ]
 
     if internalRecalcLens is not None:
+        _checkInternalRecalcLensConsistency(internalRecalcLens, parametricLensDescription)
+
         _, floatParams = internalRecalcLens.getCLParameters(deflScale, potScale)
         # Change initmin/initmax to be the exact same value? Will this trigger an
         # error in a check later on?
@@ -1730,10 +1758,19 @@ class InversionWorkSpace(object):
             lens = invertMultiPlane(self.imgDataList, bfAndZs, populationSize, **newKwargs)
         return lens
 
-    def calculateParametricFitness(self, lens, parametricLensDescription):
+    def calculateParametricFitness(self, lens, parametricLensDescription = None):
         """TODO"""
         if not lens:
             return InversionException("A lens must be specified")
+
+        if parametricLensDescription is None:
+            from .constants import ANGLE_ARCSEC, MASS_SUN
+            def cvf(value, lensName, paramName, uniqueParamName, fullParams):
+                # Consider every parameter as a variable one, but set an empty range
+                # from which this parameter can be chosen
+                return { "initmin": value, "initmax": value }
+
+            parametricLensDescription = eval(paramdesc.createParametricDescription(lens, convertValueFunction=cvf))
 
         _, fitness, names, _, _ = self.invertParametric(parametricLensDescription, 1, eaType="CALCULATE", maximumGenerations=0, internalRecalcLens=lens, allowEmptyInitialValueRange=True, inverter="threads:1")
         return fitness, names
