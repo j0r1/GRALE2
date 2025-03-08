@@ -18,6 +18,41 @@
 #include <eatk/singlebestelitism.h>
 #include <eatk/remainingtargetpopulationsizeiteration.h>
 
+class DummyEvolver : public eatk::PopulationEvolver
+{
+public:
+	errut::bool_t check(const std::shared_ptr<eatk::Population> &population)
+	{
+		if (population->size() != 1)
+			return "Expecting a population size of 1";
+		return true;
+	}
+
+	errut::bool_t createNewPopulation(size_t generation, std::shared_ptr<eatk::Population> &population, size_t targetPopulationSize)
+	{
+		if (generation != 0)
+			return "Expecting only a single generation";
+		if (population->size() != 1)
+			return "Expecting a population size of one";
+		if (targetPopulationSize != 1)
+			return "Expecting a target population size of one";
+
+		m_best.clear();
+		m_best.push_back(population->individual(0)->createCopy());
+
+		// For now, an assertion is triggered if the OpenCL code doesn't
+		// need to perform any calculations. This currently makes sure
+		// that a recalculation is needed
+		population->individual(0)->fitness()->setCalculated(false);
+
+		return true;
+	}
+
+	const std::vector<std::shared_ptr<eatk::Individual>> &getBestIndividuals() const { return m_best; }
+private:
+	std::vector<std::shared_ptr<eatk::Individual>> m_best;
+};
+
 class ParametricCreation : public eatk::VectorDifferentialEvolutionIndividualCreation<float,float>
 {
 public:
@@ -302,17 +337,6 @@ protected:
 		if (!genomeCalculator)
 			return "Calculator does not seem to be a LensGAParametricSinglePlaneCalculator one";
 
-		// Do sanity check on limits, TODO: remove this here? Already seems to be done in LensGAParametricSinglePlaneCalculator
-		{
-			const std::vector<float> &initMin = genomeCalculator->getInitMin();
-			const std::vector<float> &initMax = genomeCalculator->getInitMax();
-			const std::vector<float> &hardMin = genomeCalculator->getHardMin();
-			const std::vector<float> &hardMax = genomeCalculator->getHardMax();
-
-			if (initMin.size() != initMax.size() || initMax.size() != hardMax.size() || hardMin.size() != hardMax.size())
-				return "Initial value ranges and hard boundaries do not all have compatible sizes";
-		}
-
 		size_t numObjectives = genomeCalculator->getNumberOfObjectives();
 
 		std::shared_ptr<eatk::PopulationFitnessCalculation> calc;
@@ -360,11 +384,33 @@ protected:
 					if (!(r = runGA(eaType, numObjectives, rng, comparison, popSize, genomeCalculator, calc, creation, eaParams, stop)))
 						return r;
 				}
+				else if (eaType == "CALCULATE")
+				{
+					if (!(r = runCalculate(popSize, genomeCalculator, calc, creation)))
+						return r;
+				}
 				else
 					return "Unexpected EA type '" + eaType + "'";
 			}
 		}
 
+		return true;
+	}
+
+	errut::bool_t runCalculate(int popSize, const std::shared_ptr<grale::LensGAParametricSinglePlaneCalculator> &genomeCalculator,
+						const std::shared_ptr<eatk::PopulationFitnessCalculation> &calc,
+						std::shared_ptr<eatk::IndividualCreation> &creation)
+	{
+		DummyEvolver evolver; // Just to calculate fitness values
+
+		eatk::FixedGenerationsStopCriterion stop(0);
+		MyGA ea;
+		bool_t r = ea.run(*creation, evolver, *calc, stop, popSize, popSize, popSize);
+		if (!r)
+			return r;
+
+		m_best = evolver.getBestIndividuals();
+		creation = std::make_shared<eatk::PopulationReuseCreation>(ea.getPopulations());
 		return true;
 	}
 

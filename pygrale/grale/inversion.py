@@ -1735,7 +1735,7 @@ class InversionWorkSpace(object):
         if not lens:
             return InversionException("A lens must be specified")
 
-        _, fitness, names, _, _ = self.invertParametric(parametricLensDescription, 4, eaType="JADE", maximumGenerations=0, internalRecalcLens=lens, allowEmptyInitialValueRange=True)
+        _, fitness, names, _, _ = self.invertParametric(parametricLensDescription, 1, eaType="CALCULATE", maximumGenerations=0, internalRecalcLens=lens, allowEmptyInitialValueRange=True, inverter="threads:1")
         return fitness, names
 
     def calculateFitness(self, lensOrBackProjectedImages):

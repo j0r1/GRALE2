@@ -107,6 +107,8 @@ def _getEAParameterClass(eaType):
         paramClass = inversionparams.MCMCParameters
     elif eaType == "MCMC-MH":
         paramClass = inversionparams.MetropolisHastingsMCMCParameters
+    elif eaType == "CALCULATE":
+        paramClass = inversionparams.RNDParameters # TODO: just to use something, provide something better?
     else:
         raise Exception("Unknown EA type '{}'".format(eaType))
 
