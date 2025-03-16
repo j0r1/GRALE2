@@ -184,11 +184,35 @@ PIEMDLens
 
    .. automethod:: __init__
 
+   .. automethod:: getVelocityDispersionFromCentralDensity
+
+   .. automethod:: getCentralDensityFromVelocityDispersion
+
+   .. automethod:: getEllipticityFromEpsilon
+
+   .. automethod:: getEpsilonFromEllipticity
+
+   .. automethod:: getCentralDensity
+
+   .. automethod:: getVelocityDispersion
+
+   .. automethod:: getEpsilon
+
+   .. automethod:: getEllipticity
+
 LTPIEMDLens
 -----------
 .. autoclass:: grale.lenses.LTPIEMDLens
 
    .. automethod:: __init__
+
+   .. automethod:: getCentralDensity
+
+   .. automethod:: getVelocityDispersion
+
+   .. automethod:: getEpsilon
+
+   .. automethod:: getEllipticity
 
 PIMDLens
 ---------
@@ -201,6 +225,10 @@ LTPIMDLens
 .. autoclass:: grale.lenses.LTPIMDLens
 
    .. automethod:: __init__
+
+   .. automethod:: getCentralDensity
+
+   .. automethod:: getVelocityDispersion
 
 AlphaPotLens
 ------------

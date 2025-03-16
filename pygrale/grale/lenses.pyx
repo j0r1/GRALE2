@@ -2724,17 +2724,23 @@ cdef class PIEMDLens(GravitationalLens):
         }
 
     @staticmethod
-    def getVelocityDispersionFromCentralDensity(centralDensity, coreRadius, scaleRadius, Dd):
-        a, s, dens = coreRadius, scaleRadius, centralDensity
+    def getVelocityDispersionFromCentralDensity(centralDensity, coreRadius, Dd):
+        """Helper function to convert between the central density parameter and
+        the velocity dispersion."""
+        a, dens = coreRadius, centralDensity
         return (dens * a*(4*constants.CONST_G*Dd)/3)**0.5
 
     @staticmethod
-    def getCentralDensityFromVelocityDispersion(velocityDispersion, coreRadius, scaleRadius, Dd):
-        a, s, sigma = coreRadius, scaleRadius, velocityDispersion
+    def getCentralDensityFromVelocityDispersion(velocityDispersion, coreRadius, Dd):
+        """Inverse of :func:`getVelocityDispersionFromCentralDensity`, to convert
+        velocity dispersion to central density for this lens model."""
+        a, sigma = coreRadius, velocityDispersion
         return (3*sigma**2)/(4*constants.CONST_G*Dd)/a
 
     @staticmethod
     def getEllipticityFromEpsilon(epsilon):
+        """Converts the epsilon parameter to the ellipticity parameter as used in
+        LensTool models."""
         eps = epsilon
         e = 2*eps/(1+eps)
         X = (1.0-e)**2
@@ -2742,26 +2748,32 @@ cdef class PIEMDLens(GravitationalLens):
 
     @staticmethod
     def getEpsilonFromEllipticity(ellipticity):
+        """Converts the ellipticity parameter as used in LensTool to the corresponding
+        epsilon parameter."""
         epsHat = ellipticity
         e = 1.0-((1.0-epsHat)/(1.0+epsHat))**0.5
         return e/(2-e)
 
     def getCentralDensity(self):
+        """TODO"""
         params = self.getLensParameters();
         return params["centraldensity"]
 
     def getEpsilon(self):
+        """TODO"""
         params = self.getLensParameters();
         return params["epsilon"]
 
     def getEllipticity(self):
+        """TODO"""
         params = self.getLensParameters();
         return PIEMDLens.getEllipticityFromEpsilon(params["epsilon"])
 
     def getVelocityDispersion(self):
+        """TODO"""
         params = self.getLensParameters();
         Dd = self.getLensDistance()
-        return PIEMDLens.getVelocityDispersionFromCentralDensity(params["centraldensity"], params["coreradius"], params["scaleradius"], Dd)
+        return PIEMDLens.getVelocityDispersionFromCentralDensity(params["centraldensity"], params["coreradius"], Dd)
 
 cdef class PIMDLens(GravitationalLens):
     r"""The circularly symmetric version of the PIEMD lens (:class:`PIEMDLens`),
@@ -3551,21 +3563,25 @@ cdef class LTPIEMDLens(GravitationalLens):
         }
 
     def getEllipticity(self):
+        """TODO"""
         params = self.getLensParameters()
         return params["ellipticity"]
 
     def getVelocityDispersion(self):
+        """TODO"""
         params = self.getLensParameters()
         return params["velocitydispersion"]
 
     def getEpsilon(self):
+        """TODO"""
         params = self.getLensParameters()
         return PIEMDLens.getEpsilonFromEllipticity(params["ellipticity"])
 
     def getCentralDensity(self):
+        """TODO"""
         params = self.getLensParameters()
         Dd = self.getLensDistance()
-        return PIEMDLens.getCentralDensityFromVelocityDispersion(params["velocitydispersion"], params["coreradius"], params["scaleradius"], Dd)
+        return PIEMDLens.getCentralDensityFromVelocityDispersion(params["velocitydispersion"], params["coreradius"], Dd)
 
 cdef class LTPIMDLens(GravitationalLens):
     r"""Same as :class:`PIMDLens`, but using Lenstool-like parameters."""
@@ -3613,16 +3629,14 @@ cdef class LTPIMDLens(GravitationalLens):
         }
 
     def getVelocityDispersion(self):
+        """TODO"""
         params = self.getLensParameters()
         return params["velocitydispersion"]
 
-    def getEpsilon(self):
-        params = self.getLensParameters()
-        return PIEMDLens.getEpsilonFromEllipticity(params["ellipticity"])
-
     def getCentralDensity(self):
+        """TODO"""
         params = self.getLensParameters()
         Dd = self.getLensDistance()
-        return PIEMDLens.getCentralDensityFromVelocityDispersion(params["velocitydispersion"], params["coreradius"], params["scaleradius"], Dd)
+        return PIEMDLens.getCentralDensityFromVelocityDispersion(params["velocitydispersion"], params["coreradius"], Dd)
 
 from .privlenses import createLensFromLenstoolFile, createEquivalentPotentialGridLens
