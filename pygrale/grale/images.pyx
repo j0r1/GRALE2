@@ -1008,12 +1008,30 @@ cdef class LensPlane:
             buf = chararrayfrombytes(lensData)
             m = make_unique[serut.MemorySerializer](buf.data.as_voidptr, len(lensData), <void *>NULL, 0)
 
-            if renderer is None:
+            if renderer is None and not lenses.useThreadedCalculations:
+                # This is the old way, single core rendering inside the LensPlane constructor
                 if not self._lensPlane().init(deref(m), Vector2Dd(bottomLeft[0], bottomLeft[1]), Vector2Dd(topRight[0], topRight[1]),
                                               numX, numY):
                     raise LensPlaneException("Unable to initialize lens plane: " + S(self._lensPlane().getErrorString()))
+
             else:
-                b = renderer.render(lensData, bottomLeft, topRight, numX, numY)
+
+                if renderer is None: # means that lenses.useThreadedCalculations is True
+                    from .util import createThetaGrid
+
+                    # Render this locally, will use threads. Pass it as a renderer buffer to
+                    # the LensPlane instance
+                    thetas = createThetaGrid(bottomLeft, topRight, numX, numY)
+                    alphaAndDerivs = np.zeros((numY,numX,5), dtype=np.float64)
+                    alphaAndDerivs[:,:,:2] = lens.getAlphaVector(thetas)
+                    alphaAndDerivs[:,:,2:] = lens.getAlphaVectorDerivatives(thetas)
+
+                    b = alphaAndDerivs.tobytes()
+                else:
+                    # Use one of the renderers to do the calculations in a separate process
+                    b = renderer.render(lensData, bottomLeft, topRight, numX, numY)
+
+                # Pass the rendered buffer back to the lensplane instance
                 buf2 = chararrayfrombytes(b)
                 m2 = make_unique[serut.MemorySerializer](buf2.data.as_voidptr, len(b), <void *>NULL, 0)
                 if not self._lensPlane().init(deref(m), Vector2Dd(bottomLeft[0], bottomLeft[1]), Vector2Dd(topRight[0], topRight[1]),
