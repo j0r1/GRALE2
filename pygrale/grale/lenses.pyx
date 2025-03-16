@@ -73,14 +73,14 @@ ctypedef vector2d.Vector2Dd Vector2Dd
 
 cdef int _numCalculationThreads = 0
 
-experimentalThreads = False
+useThreadedCalculations = True
 
 class LensException(Exception):
     """This exception is raised if something goes wrong in the :class:`GravitationalLens` derived classes."""
     pass
 
 def setNumberOfCalculationThreads(int n):
-    """If ``experimentalThreads`` is set to ``True``, this number of threads will be
+    """If ``useThreadedCalculations`` is set to ``True``, this number of threads will be
     used to calculate e.g. deflection angles in parallel. If this is zero, it will
     use as many cores as detected on this computer."""
     if n < 0:
@@ -89,7 +89,7 @@ def setNumberOfCalculationThreads(int n):
     _numCalculationThreads = n
 
 def getNumberOfCalculationThreads():
-    """Returns the number of calculation threads that's used when ``experimentalThreads`` is ``True``. See
+    """Returns the number of calculation threads that's used when ``useThreadedCalculations`` is ``True``. See
     also :func:`setNumberOfCalculationThreads`."""
     global _numCalculationThreads
     if _numCalculationThreads == 0:
@@ -290,7 +290,7 @@ cdef class GravitationalLens:
         cdef string errStr
         cdef size_t numTreads = getNumberOfCalculationThreads()
 
-        print("_traceTheta1_new")
+        #print("_traceTheta1_new")
 
         if thetas.shape[0] % 2 == 0:
             pThetaX = &thetas[0]
@@ -327,7 +327,7 @@ cdef class GravitationalLens:
         cdef string errStr
         cdef size_t numTreads = getNumberOfCalculationThreads()
 
-        print("_getAlphaVector1_new")
+        #print("_getAlphaVector1_new")
 
         if thetas.shape[0] % 2 == 0:
             pThetaX = &thetas[0]
@@ -364,7 +364,7 @@ cdef class GravitationalLens:
         cdef string errStr
         cdef size_t numTreads = getNumberOfCalculationThreads()
 
-        print("_getAlphaVectorDerivatives1_new")
+        #print("_getAlphaVectorDerivatives1_new")
 
         if thetas.shape[0] % 2 == 0:
             pThetaX = &thetas[0]
@@ -403,7 +403,7 @@ cdef class GravitationalLens:
         cdef string errStr
         cdef size_t numTreads = getNumberOfCalculationThreads()
 
-        print("_getAlphaVectorSecondDerivatives1_new")
+        #print("_getAlphaVectorSecondDerivatives1_new")
 
         if thetas.shape[0] % 2 == 0:
             pThetaX = &thetas[0]
@@ -440,7 +440,7 @@ cdef class GravitationalLens:
         cdef string errStr
         cdef size_t numTreads = getNumberOfCalculationThreads()
 
-        print("_getInverseMagnification1_new")
+        #print("_getInverseMagnification1_new")
 
         if thetas.shape[0] % 2 == 0:
             pThetaX = &thetas[0]
@@ -473,7 +473,7 @@ cdef class GravitationalLens:
         cdef string errStr
         cdef size_t numTreads = getNumberOfCalculationThreads()
 
-        print("_getSurfaceMassDensity1_new")
+        #print("_getSurfaceMassDensity1_new")
 
         if thetas.shape[0] % 2 == 0:
             pThetaX = &thetas[0]
@@ -508,7 +508,7 @@ cdef class GravitationalLens:
         cdef string errStr
         cdef size_t numTreads = getNumberOfCalculationThreads()
 
-        print("_getProjectedPotential1_new")
+        #print("_getProjectedPotential1_new")
 
         if thetas.shape[0] % 2 == 0:
             pThetaX = &thetas[0]
@@ -591,7 +591,7 @@ cdef class GravitationalLens:
         to the angular diameter distances Ds and Dds.
         """
         thetas = np.array(thetas)
-        return self._reshapeAndCall1D(lambda x : self._traceTheta1_new(float(Ds), float(Dds), x) if experimentalThreads else self._traceTheta1(float(Ds), float(Dds), x), thetas, 2, 2)
+        return self._reshapeAndCall1D(lambda x : self._traceTheta1_new(float(Ds), float(Dds), x) if useThreadedCalculations else self._traceTheta1(float(Ds), float(Dds), x), thetas, 2, 2)
 
     def getAlphaVector(self, thetas):
         """getAlphaVector(thetas)
@@ -599,7 +599,7 @@ cdef class GravitationalLens:
         Returns the deflection angles at the positions in 'thetas'.
         """
         thetas = np.array(thetas)
-        return self._reshapeAndCall1D(lambda x : self._getAlphaVector1_new(x) if experimentalThreads else self._getAlphaVector1(x), thetas, 2, 2)
+        return self._reshapeAndCall1D(lambda x : self._getAlphaVector1_new(x) if useThreadedCalculations else self._getAlphaVector1(x), thetas, 2, 2)
 
     def getAlphaVectorDerivatives(self, thetas):
         r"""getAlphaVectorDerivatives(thetas)
@@ -617,7 +617,7 @@ cdef class GravitationalLens:
 
         """
         thetas = np.array(thetas)
-        return self._reshapeAndCall1D(lambda x : self._getAlphaVectorDerivatives1_new(x) if experimentalThreads else self._getAlphaVectorDerivatives1(x), thetas, 2, 3)
+        return self._reshapeAndCall1D(lambda x : self._getAlphaVectorDerivatives1_new(x) if useThreadedCalculations else self._getAlphaVectorDerivatives1(x), thetas, 2, 3)
 
     def getAlphaVectorSecondDerivatives(self, thetas):
         r"""getAlphaVectorSecondDerivatives(thetas)
@@ -636,7 +636,7 @@ cdef class GravitationalLens:
 
         """
         thetas = np.array(thetas)
-        return self._reshapeAndCall1D(lambda x : self._getAlphaVectorSecondDerivatives1_new(x) if experimentalThreads else self._getAlphaVectorSecondDerivatives1(x), thetas, 2, 4)
+        return self._reshapeAndCall1D(lambda x : self._getAlphaVectorSecondDerivatives1_new(x) if useThreadedCalculations else self._getAlphaVectorSecondDerivatives1(x), thetas, 2, 4)
 
     def getInverseMagnification(self, Ds, Dds, thetas):
         """getInverseMagnification(Ds, Dds, thetas)
@@ -645,7 +645,7 @@ cdef class GravitationalLens:
         plane with angular diameter distances Ds and Dds.
         """
         thetas = np.array(thetas)
-        return self._reshapeAndCall1D(lambda x : self._getInverseMagnification1_new(float(Ds), float(Dds), x) if experimentalThreads else self._getInverseMagnification1(float(Ds), float(Dds), x), thetas, 2, 1)
+        return self._reshapeAndCall1D(lambda x : self._getInverseMagnification1_new(float(Ds), float(Dds), x) if useThreadedCalculations else self._getInverseMagnification1(float(Ds), float(Dds), x), thetas, 2, 1)
 
     def getSurfaceMassDensity(self, thetas):
         """getSurfaceMassDensity(thetas)
@@ -654,7 +654,7 @@ cdef class GravitationalLens:
         in 'thetas'.
         """
         thetas = np.array(thetas)
-        return self._reshapeAndCall1D(lambda x : self._getSurfaceMassDensity1_new(x) if experimentalThreads else self._getSurfaceMassDensity1(x), thetas, 2, 1)
+        return self._reshapeAndCall1D(lambda x : self._getSurfaceMassDensity1_new(x) if useThreadedCalculations else self._getSurfaceMassDensity1(x), thetas, 2, 1)
 
     def getSurfaceMassDensityMap(self, bottomLeft, topRight, int numX, int numY, feedbackObject = "default", renderer = "default", reduceToPixels = True):
         """getSurfaceMassDensityMap(bottomLeft, topRight, numX, numY, feedbackObject = "default", renderer = "default", reduceToPixels = True)
@@ -694,22 +694,11 @@ cdef class GravitationalLens:
         massMap = np.zeros([numY, numX], dtype = np.double)
 
         if renderer is None:
-            x0 = bottomLeft[0]
-            y0 = bottomLeft[1]
-            dX = width/(numX-1)
-            dY = height/(numY-1)
 
             feedbackObject.onStatus("Calculating mass map")
 
-            for yi in range(numY):
-                y = y0 + dY*yi
-
-                pct = 100.0 * <double>(yi)/<double>(numY) + 0.5
-                feedbackObject.onProgress(<int>(pct))
-
-                for xi in range(numX):
-                    x = x0 + dX*xi
-                    massMap[yi,xi] = self._lens().getSurfaceMassDensity(Vector2Dd(x,y))
+            from .util import createThetaGrid
+            massMap[:,:] = self.getSurfaceMassDensity(createThetaGrid(bottomLeft, topRight, numX, numY))
 
             feedbackObject.onProgress(100)
             feedbackObject.onStatus("Done")
@@ -740,7 +729,7 @@ cdef class GravitationalLens:
         distances Ds and Dds, measured at the positions in 'thetas'.
         """
         thetas = np.array(thetas)
-        return self._reshapeAndCall1D(lambda x : self._getProjectedPotential1_new(float(Ds), float(Dds), x) if experimentalThreads else self._getProjectedPotential1(float(Ds), float(Dds), x), thetas, 2, 1)
+        return self._reshapeAndCall1D(lambda x : self._getProjectedPotential1_new(float(Ds), float(Dds), x) if useThreadedCalculations else self._getProjectedPotential1(float(Ds), float(Dds), x), thetas, 2, 1)
 
     def getRadialMassProfile(self, thetaRadii):
         """getRadialMassProfile(thetaRadii)
