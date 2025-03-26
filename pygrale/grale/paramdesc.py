@@ -677,15 +677,18 @@ def analyzeParametricLensDescription(parametricLens, Dd, defaultFraction, clampT
     easier to interpret.
     """
     # TODO: also add { "prior": { "type": "gaussian", "params": [ someMu, someSigma ]}}
-    #       to explanation
+    #       to explanation; TODO: is now translated to "neglogprob"
 
     # TODO:
     #     "neglogprob": [
     #        { "args": [ "var1", "var2" ],
-    #          "clcode": "{ return ... }" },
+    #          "clcode": "float functionname(float a, float b) { ... ;  return ... }" },
     #        { "args": [ "var1", (123, "var_for_unit") ],
     #          "clcall": "functionname",
     #     ]
+
+    # TODO: "varname"
+    # TODO: { "fixed": 123 } for fixed value also possible, allows use of "varname"
 
     inf = _createTemplateLens(parametricLens, Dd)
 
