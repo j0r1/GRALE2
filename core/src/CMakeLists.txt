@@ -46,6 +46,7 @@ set(HEADERS
 	lens/circularpieceslens.h
 	lens/multiplanecontainer.h
 	lens/cubicdeflectiongridlens.h
+	lens/hernquistlens.h
 	math/mathfunctions.h
 	math/real1dfunction.h
 	math/real1dfunctionintegrator.h
@@ -163,6 +164,7 @@ set(SOURCES
 	lens/circularpieceslens.cpp
 	lens/multiplanecontainer.cpp
 	lens/cubicdeflectiongridlens.cpp
+	lens/hernquistlens.cpp
 	image/imagesdata.cpp
 	image/imagesdataextended.cpp
 	image/lensplane.cpp

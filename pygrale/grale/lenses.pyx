@@ -1012,6 +1012,8 @@ cdef class GravitationalLens:
             l = LTPIEMDLens(None, None)
         elif t == gravitationallens.LTPIMD:
             l = LTPIMDLens(None, None)
+        elif t == gravitationallens.Hernquist:
+            l = HernquistLens(None, None)
         else: # Unknown, can still use the interface
             l = GravitationalLens(_gravLensRndId)
 
@@ -3627,5 +3629,47 @@ cdef class LTPIMDLens(GravitationalLens):
         params = self.getLensParameters()
         Dd = self.getLensDistance()
         return PIEMDLens.getCentralDensityFromVelocityDispersion(params["velocitydispersion"], params["coreradius"], Dd)
+
+cdef class HernquistLens(GravitationalLens):
+    """TODO"""
+
+    cdef gravitationallens.GravitationalLens* _allocLens(self) except NULL:
+        return new gravitationallens.HernquistLens()
+
+    cdef gravitationallens.GravitationalLensParams* _allocParams(self, params) except NULL:
+        cdef double sigma_s, theta_s
+
+        GravitationalLens._checkParams(params, ["sigma_s", "theta_s"])
+        sigma_s = params["sigma_s"]
+        theta_s = params["theta_s"]
+
+        return new gravitationallens.HernquistLensParams(sigma_s, theta_s)
+
+    def __init__(self, Dd, params):
+        r"""__init__(Dd, params)
+
+        Parameters:
+         - Dd is the angular diameter distance to the lens.
+         - params: a dictionary containing the following entries:
+
+           * 'theta_s': an angular scale factor for the Hernquist profile
+           * 'sigma_s': the projected density as this scale radius
+
+        """
+        super(HernquistLens, self).__init__(_gravLensRndId)
+        self._lensInit(Dd, params)
+
+    def getLensParameters(self):
+        cdef gravitationallens.HernquistLensParamsPtrConst pParams
+
+        self._check()
+        pParams = dynamic_cast[gravitationallens.HernquistLensParamsPtrConst](GravitationalLens._getLens(self).getLensParameters())
+        if pParams == NULL:
+            raise LensException("Unexpected: parameters are not those of a HernquistLens")
+
+        return {
+            "theta_s": pParams.getAngularRadiusScale(),
+            "sigma_s": pParams.getDensityScale(),
+        }
 
 from .privlenses import createLensFromLenstoolFile, createEquivalentPotentialGridLens

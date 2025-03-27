@@ -97,9 +97,10 @@ public:
 	bool getProjectedPotential(double D_s, double D_ds, Vector2D<double> theta, double *pPotentialValue) const;
 	double getMassInside(double thetaLength) const;
 	double getProfileSurfaceMassDensity(double thetaLength) const;
+
+	static double F(double x);
 private:
 	bool processParameters(const GravitationalLensParams *params);
-	static double F(double x);
 	static double DF(double x);
 	static double P(double x);
 
