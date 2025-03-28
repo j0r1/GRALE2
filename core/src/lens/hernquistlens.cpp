@@ -1,7 +1,7 @@
 #include "graleconfig.h"
 #include "hernquistlens.h"
 #include "constants.h"
-
+#include <stdexcept>
 #include <iostream>
 
 namespace grale
@@ -46,37 +46,23 @@ std::unique_ptr<GravitationalLensParams> HernquistLensParams::createCopy() const
 	return std::make_unique<HernquistLensParams>(m_densityScale, m_angularRadiusScale);
 }
 
-HernquistLens::HernquistLens() : SymmetricLens(GravitationalLens::Hernquist)
+CircularHernquistLensProfile::CircularHernquistLensProfile()
 {
 }
 
-HernquistLens::~HernquistLens()
+CircularHernquistLensProfile::CircularHernquistLensProfile(double sigma_s, double theta_s, double Dd)
 {
-}
-
-bool HernquistLens::processParameters(const GravitationalLensParams *p)
-{
-	const HernquistLensParams *pParams = dynamic_cast<const HernquistLensParams *>(p);
-	if (!pParams)
-	{
-		setErrorString("Parameters are not of type 'HernquistLensParams'");
-		return false;
-	}
-
-	double sigma_s = pParams->getDensityScale();
-	double theta_s = pParams->getAngularRadiusScale();
-	double r_s = theta_s * getLensDistance();
-	double Dd = getLensDistance();
-
 	m_angularRadiusScale = theta_s;
 	m_Sigma_s = sigma_s;
 	m_Sigma0 = 15.0*sigma_s/4.0;
 	m_massScale = 2.0*CONST_PI*Dd*Dd*theta_s*theta_s*m_Sigma0;
-
-	return true;
 }
 
-double HernquistLens::getMassInside(double thetaLength) const
+CircularHernquistLensProfile::~CircularHernquistLensProfile()
+{
+}
+
+double CircularHernquistLensProfile::getMassInside(double thetaLength) const
 {
 	double x = thetaLength/m_angularRadiusScale;
 	double x2 = x*x;
@@ -96,7 +82,7 @@ double HernquistLens::getMassInside(double thetaLength) const
 	return m_massScale * (gx + 1.0);
 }
 
-double HernquistLens::getProfileSurfaceMassDensity(double thetaLength) const
+double CircularHernquistLensProfile::getSurfaceMassDensity(double thetaLength) const
 {
 	double x = thetaLength/m_angularRadiusScale;
 
@@ -108,6 +94,46 @@ double HernquistLens::getProfileSurfaceMassDensity(double thetaLength) const
 	denom *= denom;
 
 	return m_Sigma0 * (-3.0 + (2.0 + x2) * F(x))/denom;
+}
+
+double CircularHernquistLensProfile::getSurfaceMassDensityDerivativeOverTheta(double theta) const
+{
+	throw std::runtime_error("TODO");
+}
+
+HernquistLens::HernquistLens() : SymmetricLens(GravitationalLens::Hernquist)
+{
+}
+
+HernquistLens::~HernquistLens()
+{
+}
+
+bool HernquistLens::processParameters(const GravitationalLensParams *p)
+{
+	const HernquistLensParams *pParams = dynamic_cast<const HernquistLensParams *>(p);
+	if (!pParams)
+	{
+		setErrorString("Parameters are not of type 'HernquistLensParams'");
+		return false;
+	}
+
+	double sigma_s = pParams->getDensityScale();
+	double theta_s = pParams->getAngularRadiusScale();
+	double Dd = getLensDistance();
+
+	m_profile = CircularHernquistLensProfile(sigma_s, theta_s, Dd);
+	return true;
+}
+
+double HernquistLens::getMassInside(double thetaLength) const
+{
+	return m_profile.getMassInside(thetaLength);
+}
+
+double HernquistLens::getProfileSurfaceMassDensity(double thetaLength) const
+{
+	return m_profile.getSurfaceMassDensity(thetaLength);
 }
 
 } // end namespace

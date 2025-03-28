@@ -2,6 +2,7 @@
 
 #include "graleconfig.h"
 #include "nfwlens.h"
+#include "circularlensprofile.h"
 
 namespace grale
 {
@@ -24,6 +25,25 @@ private:
 	double m_angularRadiusScale = 0;
 };
 
+class CircularHernquistLensProfile : public CircularLensProfile
+{
+public:
+	CircularHernquistLensProfile();
+	CircularHernquistLensProfile(double sigma_s, double theta_s, double Dd);
+	~CircularHernquistLensProfile();
+
+	double getMassInside(double theta) const;
+	double getSurfaceMassDensity(double theta) const;
+	double getSurfaceMassDensityDerivativeOverTheta(double theta) const;
+private:
+	static double F(double x) { return NFWLens::F(x); }
+
+	double m_Sigma0 = 0;
+	double m_Sigma_s = 0;
+	double m_angularRadiusScale = 0;
+	double m_massScale = 0;
+};
+
 class GRALE_IMPORTEXPORT HernquistLens : public SymmetricLens
 {
 public:
@@ -36,12 +56,8 @@ public:
 	double getProfileSurfaceMassDensity(double thetaLength) const;
 private:
 	bool processParameters(const GravitationalLensParams *params);
-	static double F(double x) { return NFWLens::F(x); }
 
-	double m_Sigma0 = 0;
-	double m_Sigma_s = 0;
-	double m_angularRadiusScale = 0;
-	double m_massScale = 0;
+	CircularHernquistLensProfile m_profile;
 };
 
 } // end namespace
