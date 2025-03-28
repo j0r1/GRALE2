@@ -73,7 +73,12 @@ ctypedef vector2d.Vector2Dd Vector2Dd
 
 cdef int _numCalculationThreads = 0
 
-useThreadedCalculations = True
+# TODO: turned this off again, this way is not safe when using GSL in the
+#       elliptical lenses for example. In the separate rendering program,
+#       copies of the lenses are made for safety, but this is not done in
+#       this code.
+#       Need to add a check to see if this is allowed?
+useThreadedCalculations = False
 
 class LensException(Exception):
     """This exception is raised if something goes wrong in the :class:`GravitationalLens` derived classes."""
@@ -1014,6 +1019,8 @@ cdef class GravitationalLens:
             l = LTPIMDLens(None, None)
         elif t == gravitationallens.Hernquist:
             l = HernquistLens(None, None)
+        elif t == gravitationallens.EllipticHernquist:
+            l = EllipticHernquistLens(None, None)
         else: # Unknown, can still use the interface
             l = GravitationalLens(_gravLensRndId)
 
@@ -3670,6 +3677,51 @@ cdef class HernquistLens(GravitationalLens):
         return {
             "theta_s": pParams.getAngularRadiusScale(),
             "sigma_s": pParams.getDensityScale(),
+        }
+
+cdef class EllipticHernquistLens(GravitationalLens):
+    """TODO"""
+
+    cdef gravitationallens.GravitationalLens* _allocLens(self) except NULL:
+        return new gravitationallens.EllipticHernquistLens()
+
+    cdef gravitationallens.GravitationalLensParams* _allocParams(self, params) except NULL:
+        cdef double sigma_s, theta_s, q
+
+        GravitationalLens._checkParams(params, ["sigma_s", "theta_s", "q"])
+        sigma_s = params["sigma_s"]
+        theta_s = params["theta_s"]
+        q = params["q"]
+
+        return new gravitationallens.EllipticHernquistLensParams(sigma_s, theta_s, q)
+
+    def __init__(self, Dd, params):
+        r"""__init__(Dd, params)
+
+        Parameters:
+         - Dd is the angular diameter distance to the lens.
+         - params: a dictionary containing the following entries:
+
+           * 'theta_s': an angular scale factor for the Hernquist profile
+           * 'sigma_s': the projected density as this scale radius (for the circular version)
+           * 'q': a measure of the ellipticity of the lens, where 1 describes again the
+             circular profile.
+        """
+        super(EllipticHernquistLens, self).__init__(_gravLensRndId)
+        self._lensInit(Dd, params)
+
+    def getLensParameters(self):
+        cdef gravitationallens.EllipticHernquistLensParamsPtrConst pParams
+
+        self._check()
+        pParams = dynamic_cast[gravitationallens.EllipticHernquistLensParamsPtrConst](GravitationalLens._getLens(self).getLensParameters())
+        if pParams == NULL:
+            raise LensException("Unexpected: parameters are not those of an EllipticHernquistLens")
+
+        return {
+            "theta_s": pParams.getAngularRadiusScale(),
+            "sigma_s": pParams.getDensityScale(),
+            "q": pParams.getEllipticity(),
         }
 
 from .privlenses import createLensFromLenstoolFile, createEquivalentPotentialGridLens
