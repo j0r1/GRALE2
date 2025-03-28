@@ -56,6 +56,7 @@
 #include "multiplanecontainer.h"
 #include "cubicdeflectiongridlens.h"
 #include "hernquistlens.h"
+#include "elliptichernquistlens.h"
 #include "constants.h"
 #include <serut/fileserializer.h>
 #include <serut/memoryserializer.h>
@@ -252,6 +253,7 @@ double GravitationalLens::getInverseMagnification(double D_s, double D_ds, Vecto
 #define LENSNUMBER_LTPIEMD							30
 #define LENSNUMBER_LTPIMD							31
 #define LENSNUMBER_HERNQUIST						32
+#define LENSNUMBER_ELLHERNQUIST						33
 //#define LENSNUMBER_TESTLENS						234	
 
 bool GravitationalLens::write(serut::SerializationInterface &si) const
@@ -365,6 +367,9 @@ bool GravitationalLens::write(serut::SerializationInterface &si) const
 		break;
 	case Hernquist:
 		lensNumber = LENSNUMBER_HERNQUIST;
+		break;
+	case EllipticHernquist:
+		lensNumber = LENSNUMBER_ELLHERNQUIST;
 		break;
 	default:
 		setErrorString("Lens type not recognized");
@@ -586,6 +591,10 @@ bool GravitationalLens::read(serut::SerializationInterface &si, std::unique_ptr<
 	case LENSNUMBER_HERNQUIST:
 		pTmpLens = make_unique<HernquistLens>();
 		pParams = make_unique<HernquistLensParams>();
+		break;
+	case LENSNUMBER_ELLHERNQUIST:
+		pTmpLens = make_unique<EllipticHernquistLens>();
+		pParams = make_unique<EllipticHernquistLensParams>();
 		break;
 	default:
 		errorString = std::string("Can't recognize lens type");

@@ -105,7 +105,8 @@ public:
 		CubicDeflectionGrid, /** Similar to DeflectionGrid, but using cubic interpolation instead of linear. */
 		LTPIEMD, /** PIEMD, but using lenstool parametrization */
 		LTPIMD, /** PIMD, but using lenstool parametrization */
-		Hernquist, /** Hernquist model. */
+		Hernquist, /** A symmetric Hernquist profile. */
+		EllipticHernquist, /** An elliptical generalization of the symmetric Hernquist profile. */
 		MaxLensType
 	};
 protected:

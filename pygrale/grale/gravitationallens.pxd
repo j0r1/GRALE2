@@ -66,6 +66,7 @@ cdef extern from "grale/gravitationallens.h" namespace "grale::GravitationalLens
         LTPIEMD,
         LTPIMD,
         Hernquist,
+        EllipticHernquist,
         MaxLensType
 
 cdef extern from "grale/gravitationallens.h" namespace "grale":
@@ -581,4 +582,17 @@ cdef extern from "grale/hernquistlens.h" namespace "grale":
         pass
 
 ctypedef const HernquistLensParams* HernquistLensParamsPtrConst
+
+cdef extern from "grale/elliptichernquistlens.h" namespace "grale":
+
+    cdef cppclass EllipticHernquistLensParams(GravitationalLensParams):
+        EllipticHernquistLensParams(double sigma_s, double theta_s, double q)
+        double getDensityScale() const
+        double getAngularRadiusScale() const
+        double getEllipticity() const
+
+    cdef cppclass EllipticHernquistLens(GravitationalLens):
+        pass
+
+ctypedef const EllipticHernquistLensParams* EllipticHernquistLensParamsPtrConst
 
