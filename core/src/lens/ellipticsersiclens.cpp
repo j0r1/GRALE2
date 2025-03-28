@@ -91,14 +91,14 @@ public:
 		m_derivScale = m_densityScale/(m_angularScale*m_angularScale);
 	}
 
-	double getMassInside(double theta)
+	double getMassInside(double theta) const
 	{
 		double x = theta/m_angularScale;
 
 		return m_massScale*G(x, m_index);
 	}
 
-	double getSurfaceMassDensity(double theta)
+	double getSurfaceMassDensity(double theta) const
 	{
 		double x = theta/m_angularScale;
 		double x1overN = POW(x, 1.0/m_index);
@@ -106,7 +106,7 @@ public:
 		return m_densityScale*EXP(-x1overN);
 	}
 
-	double getSurfaceMassDensityDerivativeOverTheta(double theta)
+	double getSurfaceMassDensityDerivativeOverTheta(double theta) const
 	{
 		double x = theta/m_angularScale;
 		double x1overN = POW(x, 1.0/m_index);

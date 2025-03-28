@@ -27,6 +27,7 @@
 #include "ellipticnfwlens.h"
 #include "circularlensprofile.h"
 #include "constants.h"
+#include "nfwlens.h"
 
 namespace grale
 {
@@ -88,21 +89,21 @@ public:
 		m_angularRadiusScale = theta_s;
 	}
 
-	double getMassInside(double theta)
+	double getMassInside(double theta) const
 	{
 		double x = theta/m_angularRadiusScale;
 
 		return m_massScale * ( LN(0.5*x) + F(x) );
 	}
 
-	double getSurfaceMassDensity(double theta)
+	double getSurfaceMassDensity(double theta) const
 	{
 		double x = theta/m_angularRadiusScale;
 
 		return m_densScale*(1.0-F(x))/(x*x-1.0);
 	}
 
-	double getSurfaceMassDensityDerivativeOverTheta(double theta)
+	double getSurfaceMassDensityDerivativeOverTheta(double theta) const
 	{
 		double x = theta/m_angularRadiusScale;
 		double x2 = x*x;
@@ -111,20 +112,7 @@ public:
 		return - m_derivScale * (1.0+2.0*x2-3.0*x2*F(x))/(x2*x2min1*x2min1);
 	}
 private:
-	double F(double x)
-	{
-		if (x < 1.0)
-		{
-			double tmp = SQRT(1.0-x*x);
-			return ATANH(tmp)/tmp;
-		}
-		else if (x > 1.0)
-		{
-			double tmp = SQRT(x*x-1.0);
-			return ATAN(tmp)/tmp;
-		}
-		return 1.0;
-	}
+	static double F(double x) { return NFWLens::F(x); }
 
 	double m_massScale;
 	double m_densScale;

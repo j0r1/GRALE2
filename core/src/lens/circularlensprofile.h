@@ -35,9 +35,9 @@ class GRALE_IMPORTEXPORT CircularLensProfile
 public:
 	CircularLensProfile()										{ }
 	virtual ~CircularLensProfile()									{ }
-	virtual double getMassInside(double theta) = 0;
-	virtual double getSurfaceMassDensity(double theta) = 0;
-	virtual double getSurfaceMassDensityDerivativeOverTheta(double theta) = 0;
+	virtual double getMassInside(double theta) const = 0;
+	virtual double getSurfaceMassDensity(double theta) const = 0;
+	virtual double getSurfaceMassDensityDerivativeOverTheta(double theta) const = 0;
 };
 
 } // end namespace
