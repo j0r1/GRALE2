@@ -85,12 +85,12 @@ double HernquistLens::getMassInside(double thetaLength) const
 	if (x < 1.0)
 	{
 		double oneMinX2 = 1.0-x2;
-		gx = 1.0/(x2-1.0) - x2*std::atanh(std::sqrt(oneMinX2))/std::pow(oneMinX2, 1.5);
+		gx = 1.0/(x2-1.0) + x2*std::atanh(std::sqrt(oneMinX2))/std::pow(oneMinX2, 1.5);
 	}
 	else if (x > 1.0)
 	{
 		double x2MinOne = x2-1.0;
-		gx = 1.0/x2MinOne + x2*std::atan(std::sqrt(x2MinOne))/std::pow(x2MinOne, 1.5);
+		gx = 1.0/x2MinOne - x2*std::atan(std::sqrt(x2MinOne))/std::pow(x2MinOne, 1.5);
 	}
 
 	return m_massScale * (gx + 1.0);
