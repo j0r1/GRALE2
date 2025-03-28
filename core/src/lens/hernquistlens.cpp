@@ -96,9 +96,28 @@ double CircularHernquistLensProfile::getSurfaceMassDensity(double thetaLength) c
 	return m_Sigma0 * (-3.0 + (2.0 + x2) * F(x))/denom;
 }
 
-double CircularHernquistLensProfile::getSurfaceMassDensityDerivativeOverTheta(double theta) const
+double CircularHernquistLensProfile::getSurfaceMassDensityDerivativeOverTheta(double thetaLength) const
 {
-	throw std::runtime_error("TODO");
+	double x = thetaLength/m_angularRadiusScale;
+	double x2 = x*x;
+	double x2Min1 = x2-1.0;
+	double x2Min1Sq = x2Min1*x2Min1;
+	double x2Min1Cube = x2Min1Sq*x2Min1;
+	double firstTerm = (13.0*x2 + 2.0)/(x2*x2Min1Cube);
+	double threeX2plus4 = 3.0*(x2 + 4.0);
+	double qx = -16.0/35.0;
+
+	if (x < 1.0)
+	{
+		double oneMinX2 = -x2Min1;
+		qx = firstTerm + threeX2plus4 * std::atanh(std::sqrt(oneMinX2))/std::pow(oneMinX2, 3.5);
+	}
+	else if (x > 1.0)
+	{
+		qx = firstTerm - threeX2plus4 * std::atan(std::sqrt(x2Min1))/std::pow(x2Min1, 3.5);
+	}
+
+	return (m_Sigma0/(m_angularRadiusScale*m_angularRadiusScale)) * qx;
 }
 
 HernquistLens::HernquistLens() : SymmetricLens(GravitationalLens::Hernquist)
