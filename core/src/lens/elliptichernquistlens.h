@@ -33,6 +33,8 @@ public:
 	~EllipticHernquistLens();
 
 	std::unique_ptr<GravitationalLens> createUninitializedInstance() const override { return std::make_unique<EllipticHernquistLens>(); }
+
+	bool getAlphaVectorDerivatives(Vector2D<double> theta, double &axx, double &ayy, double &axy) const override;
 private:
 	bool processParameters(const GravitationalLensParams *pLensParams);
 

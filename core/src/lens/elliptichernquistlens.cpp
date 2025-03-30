@@ -78,4 +78,10 @@ bool EllipticHernquistLens::processParameters(const GravitationalLensParams *pLe
 	return true;
 }
 
+bool EllipticHernquistLens::getAlphaVectorDerivatives(Vector2D<double> theta, double &axx, double &ayy, double &axy) const
+{
+	setErrorString("Deflection derivatives currently not supported (you can create a deflection grid lens if needed)");
+	return false;
+}
+
 } // end namespace
