@@ -3714,11 +3714,34 @@ cdef class EllipticHernquistLens(GravitationalLens):
     cdef gravitationallens.GravitationalLensParams* _allocParams(self, params) except NULL:
         cdef double sigma_s, theta_s, q
 
-        GravitationalLens._checkParams(params, ["sigma_s", "theta_s", "q"])
-        sigma_s = params["sigma_s"]
+        haveDens = False
+        try:
+            GravitationalLens._checkParams(params, ["sigma_s", "theta_s", "q", "Dd"])
+            haveDens = True
+        except Exception as e:
+            pass
+
+        if haveDens:
+            sigma_s = params["sigma_s"]
+            theta_s = params["theta_s"]
+            q = params["q"]
+            return new gravitationallens.EllipticHernquistLensParams(sigma_s, theta_s, q)
+
+        haveMass = False
+        try:
+            GravitationalLens._checkParams(params, ["mass", "theta_s", "q", "Dd"])
+            haveMass = True
+        except Exception as e:
+            pass
+
+        if not haveMass:
+            raise LensException("Need either 'sigma_s', 'theta_s' and 'q' parameters, or 'mass', 'theta_s' and 'q'")
+
         theta_s = params["theta_s"]
         q = params["q"]
-
+        M = params["mass"]
+        Dd = params["Dd"]
+        sigma_s = 2*M/(np.pi*Dd**2*15*theta_s**2*q) # extra scale factor of q, based on numerical experiments TODO: check this analytically
         return new gravitationallens.EllipticHernquistLensParams(sigma_s, theta_s, q)
 
     def __init__(self, Dd, params):
@@ -3734,6 +3757,9 @@ cdef class EllipticHernquistLens(GravitationalLens):
              circular profile.
         """
         super(EllipticHernquistLens, self).__init__(_gravLensRndId)
+        if params is not None:
+            params = copy.deepcopy(params)
+            params["Dd"] = Dd
         self._lensInit(Dd, params)
 
     def getLensParameters(self):
