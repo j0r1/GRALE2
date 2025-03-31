@@ -3646,10 +3646,32 @@ cdef class HernquistLens(GravitationalLens):
     cdef gravitationallens.GravitationalLensParams* _allocParams(self, params) except NULL:
         cdef double sigma_s, theta_s
 
-        GravitationalLens._checkParams(params, ["sigma_s", "theta_s"])
-        sigma_s = params["sigma_s"]
-        theta_s = params["theta_s"]
+        haveDens = False
+        try:
+            GravitationalLens._checkParams(params, ["sigma_s", "theta_s", "Dd"])
+            haveDens = True
+        except Exception as e:
+            pass
 
+        if haveDens:
+            sigma_s = params["sigma_s"]
+            theta_s = params["theta_s"]
+            return new gravitationallens.HernquistLensParams(sigma_s, theta_s)
+
+        haveMass = False
+        try:
+            GravitationalLens._checkParams(params, ["mass", "theta_s", "Dd"])
+            haveMass = True
+        except Exception as e:
+            pass
+
+        if not haveMass:
+            raise LensException("Need either 'sigma_s' and 'theta_s' parameters, or 'mass' and 'theta_s'")
+
+        theta_s = params["theta_s"]
+        M = params["mass"]
+        Dd = params["Dd"]
+        sigma_s = 2*M/(np.pi*Dd**2*15*theta_s**2)
         return new gravitationallens.HernquistLensParams(sigma_s, theta_s)
 
     def __init__(self, Dd, params):
@@ -3664,6 +3686,10 @@ cdef class HernquistLens(GravitationalLens):
 
         """
         super(HernquistLens, self).__init__(_gravLensRndId)
+        if params is not None:
+            params = copy.deepcopy(params)
+            params["Dd"] = Dd
+
         self._lensInit(Dd, params)
 
     def getLensParameters(self):
