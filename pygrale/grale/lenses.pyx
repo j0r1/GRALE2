@@ -2302,7 +2302,6 @@ cdef class DeflectionGridLens(GravitationalLens):
         cdef int w, h, x, y
         cdef np.ndarray[double,ndim=3] deflectionAngles
         
-        self._check()
         pParams = dynamic_cast[gravitationallens.DeflectionGridLensParamsPtrConst](GravitationalLens._getLens(self).getLensParameters())
         if pParams == NULL:
             raise LensException("Unexpected: parameters are not those of a DeflectionGridLens")
@@ -2328,6 +2327,7 @@ cdef class DeflectionGridLens(GravitationalLens):
         }
 
     def getLensParameters(self):
+        self._check()
         return DeflectionGridLens.static_getLensParameters(self)
 
 
@@ -3510,6 +3510,7 @@ cdef class CubicDeflectionGridLens(GravitationalLens):
 
     # Reuse the parameters of a regular DeflectionGridLens
     def getLensParameters(self):
+        self._check()
         return DeflectionGridLens.static_getLensParameters(self)
 
 cdef class LTPIEMDLens(GravitationalLens):
