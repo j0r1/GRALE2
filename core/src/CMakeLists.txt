@@ -48,6 +48,7 @@ set(HEADERS
 	lens/cubicdeflectiongridlens.h
 	lens/hernquistlens.h
 	lens/elliptichernquistlens.h
+	lens/externalshearlens.h
 	math/mathfunctions.h
 	math/real1dfunction.h
 	math/real1dfunctionintegrator.h
@@ -167,6 +168,7 @@ set(SOURCES
 	lens/cubicdeflectiongridlens.cpp
 	lens/hernquistlens.cpp
 	lens/elliptichernquistlens.cpp
+	lens/externalshearlens.cpp
 	image/imagesdata.cpp
 	image/imagesdataextended.cpp
 	image/lensplane.cpp

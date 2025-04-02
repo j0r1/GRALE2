@@ -1021,6 +1021,8 @@ cdef class GravitationalLens:
             l = HernquistLens(None, None)
         elif t == gravitationallens.EllipticHernquist:
             l = EllipticHernquistLens(None, None)
+        elif t == gravitationallens.ExternalShear:
+            l = ExternalShearLens(None, None)
         else: # Unknown, can still use the interface
             l = GravitationalLens(_gravLensRndId)
 
@@ -3775,6 +3777,46 @@ cdef class EllipticHernquistLens(GravitationalLens):
             "theta_s": pParams.getAngularRadiusScale(),
             "sigma_s": pParams.getDensityScale(),
             "q": pParams.getEllipticity(),
+        }
+
+cdef class ExternalShearLens(GravitationalLens):
+    """TODO"""
+
+    cdef gravitationallens.GravitationalLens* _allocLens(self) except NULL:
+        return new gravitationallens.ExternalShearLens()
+
+    cdef gravitationallens.GravitationalLensParams* _allocParams(self, params) except NULL:
+        cdef double shearSize, shearAngleDeg
+
+        GravitationalLens._checkParams(params, ["shearsize", "shearangle" ])
+        shearSize = params["shearsize"]
+        shearAngleDeg = params["shearangle"]
+        return new gravitationallens.ExternalShearLensParams(shearSize, shearAngleDeg)
+
+    def __init__(self, Dd, params):
+        r"""__init__(Dd, params)
+
+        Parameters:
+         - Dd is the angular diameter distance to the lens.
+         - params: a dictionary containing the following entries:
+
+           * 'shearsize': size of the shear (for Dds/Ds = 1)
+           * 'shearangle': orientation of the shear, in degrees
+        """
+        super(ExternalShearLens, self).__init__(_gravLensRndId)
+        self._lensInit(Dd, params)
+
+    def getLensParameters(self):
+        cdef gravitationallens.ExternalShearLensParamsPtrConst pParams
+
+        self._check()
+        pParams = dynamic_cast[gravitationallens.ExternalShearLensParamsPtrConst](GravitationalLens._getLens(self).getLensParameters())
+        if pParams == NULL:
+            raise LensException("Unexpected: parameters are not those of an ExternalShearLens")
+
+        return {
+            "shearsize": pParams.getShearSize(),
+            "shearangle": pParams.getShearAngleDegrees(),
         }
 
 from .privlenses import createLensFromLenstoolFile, createEquivalentPotentialGridLens

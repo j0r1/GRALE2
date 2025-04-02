@@ -107,6 +107,7 @@ public:
 		LTPIMD, /** PIMD, but using lenstool parametrization */
 		Hernquist, /** A symmetric Hernquist profile. */
 		EllipticHernquist, /** An elliptical generalization of the symmetric Hernquist profile. */
+		ExternalShear, /** External shear. */
 		MaxLensType
 	};
 protected:
