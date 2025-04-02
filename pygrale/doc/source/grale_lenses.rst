@@ -266,6 +266,12 @@ CubicDeflectionGridLens
 
    .. automethod:: __init__
 
+ExternalShearLens
+-----------------
+.. autoclass:: grale.lenses.ExternalShearLens
+
+   .. automethod:: __init__
+
 Pseudo-lens class: PotentialGridLensBase
 ----------------------------------------
 .. autoclass:: grale.lenses.PotentialGridLensBase
