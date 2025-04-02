@@ -1262,6 +1262,11 @@ def getSupportedLensTypes():
 
 def _refineValue(v1, v2, fraction, lensType, paramName):
     
+    # For a deflection grid lens, everything is fixed, just return copy
+    # (this avoids a problem in the v1min > v1max test)
+    if lensType == "DeflectionGridLens":
+        return v1.copy()
+
     v1min, v1max = None, None
     try:
         v1min, v1max = v2*(1-fraction), v2*(1+fraction)
@@ -1290,7 +1295,7 @@ def _refineValue(v1, v2, fraction, lensType, paramName):
     v1["initmax"] = v1max
     return v1
 
-def refineParametricDescription(initialParamDesc, lens, fraction):
+def refineParametricDescription(initialParamDesc, lens, fraction, createParamDescArgs={}):
     """This is a helper function to adjust an earlier parametric lens description
     based on an estimate of the solution. The envisioned usage is to first do a
     general parametric lens inversion based on `initialParamDesc`, which leads
@@ -1313,10 +1318,19 @@ def refineParametricDescription(initialParamDesc, lens, fraction):
        this can also be a callback function that should return the new initial value
        range. It is called with three arguments, the value itself, the type of the lens
        and the name of the parameter.
+     - `createParamDescArgs`: dictionary for arguments that will be passed on to the
+       call to :func:`createParametricDescription`.
     """
 
+    objStore = { }
+    objStoreName = "objStore"
+
     paramDesc = initialParamDesc.copy()
-    refineDesc = lens if type(lens) == dict else eval(createParametricDescription(lens)) # TODO: other parameters?
+    if type(lens) == dict:
+        refineDesc = lens
+    else:
+        pdStr = createParametricDescription(lens, objectStore=objStore, objectStoreName=objStoreName, **createParamDescArgs)
+        refineDesc = eval(pdStr)
     
     t1, t2 = paramDesc["type"], refineDesc["type"]
     if t1 != t2:
