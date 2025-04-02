@@ -258,6 +258,16 @@ def _processLTPIMDLens(lensParams, Dd, getParamValue, saveCLCode):
 
     return newParams, positionNames, fixedPositionNames
 
+def _processExternalShearLens(lensParams, Dd, getParamValue, saveCLCode):
+    positionNames, fixedPositionNames = [ ], [ ]
+    lensParams, newParams = _checkParameterValues(lensParams, [ ("shearsize", "shearsize"),
+                                                                ("shearangle", "shearangle")],
+                                                  getParamValue, positionNames, fixedPositionNames)
+    if lensParams:
+        raise ParametricDescriptionException("Excess parameters for ExternalShearLens")
+    
+    return newParams, positionNames, fixedPositionNames
+
 def _createTemplateLens_helper(parametricLensDescription, Dd, getParamValue, saveCLCode = None):
     lensType = parametricLensDescription["type"]
     lensParams = parametricLensDescription["params"]
@@ -1137,6 +1147,18 @@ def _analyzeLTPIMDLens(lens, massUnitString, angularUnitString, convertValueFunc
         '}'
     ]
 
+def _analyzeExternalShearLens(lens, massUnitString, angularUnitString, convertValueFunction, objectStore, objectStoreName):
+    params = lens.getLensParameters()
+    
+    sizeStr = _convertedValueToString(convertValueFunction(params["shearsize"], ["ExternalShearLens"], "shearsize", "shearsize", params), _getUnitlessValue)
+    angleStr = _convertedValueToString(convertValueFunction(params["shearangle"], ["ExternalShearLens"], "shearangle", "shearangle", params), _getUnitlessValue)
+    return [
+        '{',
+        f'    "shearsize": {sizeStr},',
+        f'    "shearangle": {angleStr},',
+        '}'
+    ]
+
 # TODO: convert prior parameters to units
 def createParametricDescription(lens, massUnitString = "MASS_SUN", angularUnitString = "ANGLE_ARCSEC",
                                 asString = True, convertValueFunction = None,
@@ -1229,6 +1251,7 @@ _supportedLensTypes = {
     "PIEMDLens" : { "handler": _processPIEMDLens, "lens": lenses.PIEMDLens, "analysis": _analyzePIEMDLens },
     "LTPIMDLens" : { "handler": _processLTPIMDLens, "lens": lenses.LTPIMDLens, "analysis": _analyzeLTPIMDLens },
     "LTPIEMDLens" : { "handler": _processLTPIEMDLens, "lens": lenses.LTPIEMDLens, "analysis": _analyzeLTPIEMDLens },
+    "ExternalShearLens": { "handler": _processExternalShearLens, "lens": lenses.ExternalShearLens, "analysis": _analyzeExternalShearLens },
 }
 
 _supportedLensTypesByClass = { _supportedLensTypes[name]["lens"]: { "name": name, **_supportedLensTypes[name] } for name in _supportedLensTypes }
