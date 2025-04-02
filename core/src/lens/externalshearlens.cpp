@@ -109,7 +109,36 @@ bool ExternalShearLens::getCLParameters(double deflectionScale, double potential
 
 std::string ExternalShearLens::getCLProgram(double deflectionScale, double potentialScale, std::string &subRoutineName, bool derivatives, bool potential) const
 {
-	return "TODO";
+	string program;
+	subRoutineName = "clExternalShearProgram";
+
+	program += R"XYZ(
+LensQuantities clExternalShearProgram(float2 coord, __global const int *pIntParams, __global const float *pFloatParams)
+{
+	float shearSize = pFloatParams[0];
+	float shearAngle = pFloatParams[1];
+	float gamma1 = shearSize*cos(2.0*shearAngle);
+	float gamma2 = shearSize*sin(2.0*shearAngle);
+
+	LensQuantities r;
+	r.alphaX = gamma1*coord.x + gamma2*coord.y;
+	r.alphaY = gamma2*coord.x - gamma1*coord.y;
+)XYZ";
+	if (potential)
+		program += R"XYZ(
+	r.potential = 0.5*gamma1*(coord.x*coord.x - coord.y*coord.y) + gamma2*coord.x*coord.y;
+)XYZ";
+	if (derivatives)
+		program += R"XYZ(
+	r.axx = gamma1;
+	r.ayy = -gamma1;
+	r.axy = gamma2;
+)XYZ";
+	program += R"XYZ(
+	return r;
+}
+)XYZ";
+	return program;
 }
 
 std::vector<CLFloatParamInfo> ExternalShearLens::getCLAdjustableFloatingPointParameterInfo(double deflectionScale, double potentialScale) const
