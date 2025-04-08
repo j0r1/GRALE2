@@ -923,7 +923,7 @@ def _createOpenClCode(allClCodeInfo, varNameOffsets, paramRanges):
         totalCode += "\n"
 
     totalCode += """
-float calculateTotalNegLogProbContributions(const float *pFloatParams)
+float calculateTotalNegLogProbContributions(__global const float *pFloatParams)
 {
     float value = 0;
 """
