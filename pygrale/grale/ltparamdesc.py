@@ -68,22 +68,26 @@ import pickle
 # "x", "y", "angle", "velocitydispersion", "coreradius", "scaleradius", "ellipticity" entries
 def _addBlock(outputLines, block, factor=1):
 
-    lensName = "LTPIEMDLens"
-    try:
-        ellStr = block["ellipticity"].strip()
-        if ellStr[-1] == ",":
-            ellStr = ellStr[:-1]
-        ellipt = float(ellStr)
-        if ellipt == 0:
-            lensName = "LTPIMDLens"
-    except Exception as e:
-        #print(e, file=sys.stderr)
-        pass
-
     comment = ""
     if block['comment']:
         comment = "# " + block['comment'] + "\n        "
-    o = f"""    {{
+
+    profId = block["lenstool_profile"]
+    if profId == 81:
+
+        lensName = "LTPIEMDLens"
+        try:
+            ellStr = block["ellipticity"].strip()
+            if ellStr[-1] == ",":
+                ellStr = ellStr[:-1]
+            ellipt = float(ellStr)
+            if ellipt == 0:
+                lensName = "LTPIMDLens"
+        except Exception as e:
+            #print(e, file=sys.stderr)
+            pass
+
+        o = f"""    {{
         {comment}"x": {block['x']}
         "y": {block['y']}
         "angle": {block['angle']}
@@ -95,12 +99,29 @@ def _addBlock(outputLines, block, factor=1):
                 "coreradius": {block['coreradius']}
                 "scaleradius": {block['scaleradius']}
 """
-    if lensName == "LTPIEMDLens":
-        o += f"""                "ellipticity": {block['ellipticity']}
+        if lensName == "LTPIEMDLens":
+            o += f"""                "ellipticity": {block['ellipticity']}
 """
-    o += """            }
+        o += """            }
         }
     },"""
+
+    elif profId == 14:
+
+        o = f"""    {{
+        {comment}"x": 0, "y": 0, "angle": 0, "factor": 1,
+        "lens": {{
+            "type": "ExternalShearLens",
+            "params": {{
+                "shearsize": {block['shearsize']}
+                "shearangle": {block['shearangle']}
+            }}
+        }}
+    }},"""
+
+    else:
+        raise Exception(f"Internal error: unexpected profile ID {profId} when processing block")
+
     for l in o.splitlines():
         outputLines.append(l)
 
@@ -178,6 +199,7 @@ def _processPotfileFile(fileName, mag0, slope, vdSlope, coreStr, bsSigma, bsCut,
         cutStr += f"factor comes from 10**(0.4*({mag0} - {mag})*2/{slope})"
 
         _addBlock(outputLines, {
+            "lenstool_profile": 81,
             "x": f"{x} * {arcsecString},",
             "y": f"{y} * {arcsecString},",
             "angle": f"{theta}," if not useRADirection else f"(180-{theta}), # Use angle supplement for RA based orientation",
@@ -391,21 +413,16 @@ def createParametricDescriptionFromLenstoolInput(fileName,
 
     cosm = cosmology.Cosmology(h, Wm, 0, Wv, w)
 
-    # Check for 'grille'
-    _checkUnique("grille")
-    print("Warning: not using 'grille' settings", file=sys.stderr)
+    requiredUnused = [ "grille", "champ" ]
+    optionalUnused = [ "cline", "source", "grande", "cosmolimit" ]
 
-    # Check for 'cline'
-    if _checkUnique("cline", True):
-        print("Warning: not using 'cline' settings", file=sys.stderr)
-
-    # Check for 'champ'
-    _checkUnique("champ")
-    print("Warning: not using 'champ' settings", file=sys.stderr)
-
-    # Check for 'cosmolimit'
-    if _checkUnique("cosmolimit", True):
-        print("Warning: not using 'cosmolimit' settings", file=sys.stderr)
+    for s in requiredUnused:
+        _checkUnique(s)
+        print(f"Warning: not using '{s}' settings", file=sys.stderr)
+    
+    for s in optionalUnused:
+        if _checkUnique(s, True):
+            print(f"Warning: not using '{s}' settings", file=sys.stderr)
 
     knownZ = None
     #pprint.pprint(allBlocks, stream=sys.stderr)
@@ -434,33 +451,42 @@ def createParametricDescriptionFromLenstoolInput(fileName,
                 _addBlock(outputLines, lastBlock)
                 lastBlock = None
 
-            prof = int(bs["profil"][0])
-            if prof != 81:
-                raise Exception(f"Can't handle profile {prof}")
-
             zd = float(bs["z_lens"][0])
             if knownZ is None:
                 knownZ = zd
             if knownZ != zd:
                 raise Exception(f"Encountered redshift {zd}, but was expecting {knownZ}")
 
+            prof = int(bs["profil"][0])
             lastBlock = {
-                "x": xString(bs["x_centre"][0]) + "," + xStringComment,
-                "y": bs["y_centre"][0] + f" * {arcsecString},",
-                "angle": angString(bs["angle_pos"][0]) + "," + angStringComment,
-                "coreradius": bs["core_radius"][0] + f" * {arcsecString}," if "core_radius" in bs else bs["core_radius_kpc"][0] + f" * {kpcString}/{lensDistanceString},",
-                "scaleradius": bs["cut_radius"][0] + f" * {arcsecString}," if "cut_radius" in bs else bs["cut_radius_kpc"][0] + f" * {kpcString}/{lensDistanceString},",
-                "velocitydispersion": bs["v_disp"][0] + " * 1000,",
-                "ellipticity": bs["ellipticite"][0] + ",",
+                "lenstool_profile": prof,
                 "comment": (" ".join(ba)).strip()
             }
+
+            if prof == 81:
+                lastBlock.update({
+                    "x": xString(bs["x_centre"][0]) + "," + xStringComment,
+                    "y": bs["y_centre"][0] + f" * {arcsecString},",
+                    "angle": angString(bs["angle_pos"][0]) + "," + angStringComment,
+                    "coreradius": bs["core_radius"][0] + f" * {arcsecString}," if "core_radius" in bs else bs["core_radius_kpc"][0] + f" * {kpcString}/{lensDistanceString},",
+                    "scaleradius": bs["cut_radius"][0] + f" * {arcsecString}," if "cut_radius" in bs else bs["cut_radius_kpc"][0] + f" * {kpcString}/{lensDistanceString},",
+                    "velocitydispersion": bs["v_disp"][0] + " * 1000,",
+                    "ellipticity": bs["ellipticite"][0] + ",",
+                })
+            elif prof == 14:
+                kappa = float(bs["kappa"][0])
+                if kappa != 0:
+                    raise Exception(f"Currently only kappa=0 is supported in external shear, but is {kappa}")
+                lastBlock.update({
+                    "shearangle": angString(bs["angle_pos"][0]) + "," + angStringComment,
+                    "shearsize": bs["gamma"][0] + ",",
+                })
+            else:
+                raise Exception(f"Can't handle profile {prof}")
 
         elif b["blockname"] == "limit":
             if not lastBlock:
                 raise Exception("No previous lens info to specify optimization parameters for")
-
-            if "ellipticite" in bs and "ellipticity" in bs:
-                raise Exception("Both 'ellipticity' and 'ellipticite' present in limit block")
         
             # It seems that if 0 is the setting in the limit block, then the value
             # from the previous 'potentiel' block should be used
@@ -469,32 +495,55 @@ def createParametricDescriptionFromLenstoolInput(fileName,
                     return True
                 return False
 
-            if _checkPresentAndVariable("v_disp"):
-                lastBlock["velocitydispersion"] = _getLimitsAndPrior(bs["v_disp"], lambda s: s + " * 1000") + ","
-            if _checkPresentAndVariable("angle_pos"):
-                lastBlock["angle"] = _getLimitsAndPrior(bs["angle_pos"], angString, useRADirection) + "," + angStringComment
-            if _checkPresentAndVariable("ellipticity"):
-                lastBlock["ellipticity"] = _getLimitsAndPrior(bs["ellipticity"]) + ","
-            if _checkPresentAndVariable("ellipticite"):
-                lastBlock["ellipticity"] = _getLimitsAndPrior(bs["ellipticite"]) + ","
-            if _checkPresentAndVariable("x_centre"):
-                lastBlock["x"] = _getLimitsAndPrior(bs["x_centre"], xString, useRADirection) + "," + xStringComment
-            if _checkPresentAndVariable("y_centre"):
-                lastBlock["y"] = _getLimitsAndPrior(bs["y_centre"], lambda s: s + f" * {arcsecString}") + ","
-            if _checkPresentAndVariable("core_radius"):
-                lastBlock["coreradius"] = _getLimitsAndPrior(bs["core_radius"], lambda s: s + f" * {arcsecString}") + ","
-            if _checkPresentAndVariable("core_radius_kpc"):
-                lastBlock["coreradius"] = _getLimitsAndPrior(bs["core_radius_kpc"], lambda s: s + f" * {kpcString}/{lensDistanceString}") + ","
-            if _checkPresentAndVariable("cut_radius"):
-                lastBlock["scaleradius"] = _getLimitsAndPrior(bs["cut_radius"], lambda s: s + f" * {arcsecString}") + ","
-            if _checkPresentAndVariable("cut_radius_kpc"):
-                lastBlock["scaleradius"] = _getLimitsAndPrior(bs["cut_radius_kpc"], lambda s: s + f" * {kpcString}/{lensDistanceString}") + ","
+            lastProf = lastBlock["lenstool_profile"]
+            if lastProf == 81:
+                if "ellipticite" in bs and "ellipticity" in bs:
+                    raise Exception("Both 'ellipticity' and 'ellipticite' present in limit block")
+
+                if _checkPresentAndVariable("v_disp"):
+                    lastBlock["velocitydispersion"] = _getLimitsAndPrior(bs["v_disp"], lambda s: s + " * 1000") + ","
+                if _checkPresentAndVariable("angle_pos"):
+                    lastBlock["angle"] = _getLimitsAndPrior(bs["angle_pos"], angString, useRADirection) + "," + angStringComment
+                if _checkPresentAndVariable("ellipticity"):
+                    lastBlock["ellipticity"] = _getLimitsAndPrior(bs["ellipticity"]) + ","
+                if _checkPresentAndVariable("ellipticite"):
+                    lastBlock["ellipticity"] = _getLimitsAndPrior(bs["ellipticite"]) + ","
+                if _checkPresentAndVariable("x_centre"):
+                    lastBlock["x"] = _getLimitsAndPrior(bs["x_centre"], xString, useRADirection) + "," + xStringComment
+                if _checkPresentAndVariable("y_centre"):
+                    lastBlock["y"] = _getLimitsAndPrior(bs["y_centre"], lambda s: s + f" * {arcsecString}") + ","
+                if _checkPresentAndVariable("core_radius"):
+                    lastBlock["coreradius"] = _getLimitsAndPrior(bs["core_radius"], lambda s: s + f" * {arcsecString}") + ","
+                if _checkPresentAndVariable("core_radius_kpc"):
+                    lastBlock["coreradius"] = _getLimitsAndPrior(bs["core_radius_kpc"], lambda s: s + f" * {kpcString}/{lensDistanceString}") + ","
+                if _checkPresentAndVariable("cut_radius"):
+                    lastBlock["scaleradius"] = _getLimitsAndPrior(bs["cut_radius"], lambda s: s + f" * {arcsecString}") + ","
+                if _checkPresentAndVariable("cut_radius_kpc"):
+                    lastBlock["scaleradius"] = _getLimitsAndPrior(bs["cut_radius_kpc"], lambda s: s + f" * {kpcString}/{lensDistanceString}") + ","
+
+            elif lastProf == 14:
+
+                if _checkPresentAndVariable("gamma"):
+                    lastBlock["shearsize"] = _getLimitsAndPrior(bs["gamma"]) + ","
+                if _checkPresentAndVariable("angle_pos"):
+                    lastBlock["shearangle"] = _getLimitsAndPrior(bs["angle_pos"], angString, useRADirection) + "," + angStringComment
+
+            else:
+                raise Exception("Internal error: unexpected profile {lastProf} in last block")
 
             # Finalize this, don't accept any other modifications
             _addBlock(outputLines, lastBlock)
             lastBlock = None
 
-        elif b["blockname"] == "potfile":
+        elif b["blockname"].startswith("potfile"): # could have a number after this
+
+            potFileIdent = "potfile"
+            if len(b["blockname"]) > len(potFileIdent):
+                try:
+                    nrStr = b["blockname"][len(potFileIdent):]
+                    int(nrStr)
+                except Exception as e:
+                    raise Exception(f"'potfile' identifier '{nrStr}' cannot be interpreted as number") from e
 
             potfileIndex += 1 # We'll use this to create some variable names
             
@@ -539,6 +588,7 @@ def createParametricDescriptionFromLenstoolInput(fileName,
             # Add a component that has no direct effect, but is used to optimize
             # parameters
             _addBlock(outputLines, {
+                    "lenstool_profile": 81,
                     "x": "0,",
                     "y": "0,",
                     "angle": "0,",
