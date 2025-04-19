@@ -276,13 +276,24 @@ def createLensFromLenstoolFile(inputData, useRADirection, cosmology = None):
         s = info["cut_radius"]*ANGLE_ARCSEC if "cut_radius" in info else info["cut_radius_kpc"]/(Dd/DIST_KPC)
         sigma = info["v_disp"]*1000
 
+        x, y, angle = info["x_centre"]*ANGLE_ARCSEC, info["y_centre"]*ANGLE_ARCSEC, info["angle_pos"]
         if epsHat == 0: # Can't use PIEMDLens for this
-            return lenses.LTPIMDLens(Dd, { "velocitydispersion": sigma, "coreradius": a, "scaleradius": s })
+            return lenses.LTPIMDLens(Dd, { "velocitydispersion": sigma, "coreradius": a, "scaleradius": s }), x, y, angle
 
         return lenses.LTPIEMDLens(Dd, { "velocitydispersion": sigma, "coreradius": a, "scaleradius": s,
-                                        "ellipticity": epsHat })
+                                        "ellipticity": epsHat }), x, y, angle
 
-    _lenstoolPotentialHandlers = { 81: _ltPIEMDHandler }
+    def _ltShearHandler(info, Dd):
+        angle = info["angle_pos"]
+        shearSize = info["gamma"]
+        kappa = info["kappa"]
+
+        if kappa != 0:
+            raise LensException("Only kappa=0 is currently supported for external shear")
+
+        return lenses.ExternalShearLens(Dd, { "shearangle": angle, "shearsize": shearSize }), 0, 0, 0
+
+    _lenstoolPotentialHandlers = { 81: _ltPIEMDHandler, 14: _ltShearHandler }
 
     subLenses = [ ]
     zd = None
@@ -295,12 +306,8 @@ def createLensFromLenstoolFile(inputData, useRADirection, cosmology = None):
         zd = p["z_lens"]
 
         Dd = cosm.getAngularDiameterDistance(zd)
-        lens = handler(p, Dd)
+        lens, x, y, angle = handler(p, Dd)
 
-        x = p["x_centre"]*ANGLE_ARCSEC
-        y = p["y_centre"]*ANGLE_ARCSEC
-        angle = p["angle_pos"] # TODO: check!
-        
         if useRADirection:
             x = -x
             angle = 180-angle
