@@ -436,7 +436,7 @@ def createParametricDescriptionFromLenstoolInput(fileName,
 
             prof = int(bs["profil"][0])
             if prof != 81:
-                Exception(f"Can't handle profile {prof}")
+                raise Exception(f"Can't handle profile {prof}")
 
             zd = float(bs["z_lens"][0])
             if knownZ is None:
@@ -504,7 +504,7 @@ def createParametricDescriptionFromLenstoolInput(fileName,
 
             prof = int(bs["type"][0]) if "type" in bs else 81 # Defaults to 81 I think
             if prof != 81:
-                Exception(f"Can't handle profile type {prof}")
+                raise Exception(f"Can't handle profile type {prof}")
 
             coreStr = (bs["core"][0] + f" * {arcsecString}") if "core" in bs else (bs["corekpc"][0] + f" * {kpcString}/{lensDistanceString}")
 

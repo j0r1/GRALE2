@@ -1761,7 +1761,7 @@ class InversionWorkSpace(object):
     def calculateParametricFitness(self, lens, parametricLensDescription = None):
         """TODO"""
         if not lens:
-            return InversionException("A lens must be specified")
+            raise InversionException("A lens must be specified")
 
         if parametricLensDescription is None:
             from .constants import ANGLE_ARCSEC, MASS_SUN

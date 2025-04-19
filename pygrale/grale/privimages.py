@@ -1048,7 +1048,7 @@ def addPositionUncertainty(imgDatOrList, amount):
     elif type(imgDatOrList) == dict:
         d = imgDatOrList
         if not "imgdata" in d:
-            return ImagesDataException("Key 'imgdata' expected to be present in dictionary")
+            raise ImagesDataException("Key 'imgdata' expected to be present in dictionary")
         newDict = d.copy()
         newDict["imgdata"] = addPositionUncertainty(d["imgdata"], amount)
         return newDict
