@@ -114,11 +114,17 @@ def _getLenstoolPotFileModelsFromLines(lines, zd, Dd, baseDir, useRADirection):
         mag0 = float(pf["mag0"][0])
         del pf["mag0"]
 
-        slope = float(pf["slope"][1])
-        del pf["slope"]
+        if "slope" in pf:
+            slope = float(pf["slope"][1])
+            del pf["slope"]
+        else:
+            slope = 4.0
 
-        vdslope = float(pf["vdslope"][1])
-        del pf["vdslope"]
+        if "vdslope" in pf:
+            vdslope = float(pf["vdslope"][1])
+            del pf["vdslope"]
+        else:
+            vdslope = 4.0
                 
         pfType = int(pf["filein"][0])
         if pfType not in [ 1, 3 ]:
