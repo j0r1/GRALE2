@@ -160,10 +160,33 @@ def readLenstoolInputImagesFile(fileName, centerOn, useRADirection, strict=True)
 
     firstLine = open(fileName, "rt").readline()
     parts = firstLine.strip().split()
-    if len(parts) != 2 or parts[0] != "#REFERENCE" or parts[1] != "0":
+    centerFromFile = None
+
+    if len(parts) < 2 or parts[0] != "#REFERENCE" or parts[1] != "0":
         if strict:
             raise Exception("Expecting file to start with '#REFERENCE 0'")
         print(f"WARNING: {fileName} does not start with '#REFERENCE 0', continuing anyway since 'strict' was not set")
+
+    else:
+
+        if len(parts) == 2:
+            pass # Will need center later
+        elif len(parts) == 4:
+            ra, dec = map(float, parts[2:])
+            centerFromFile = [ra*ANGLE_DEGREE, dec*ANGLE_DEGREE]
+        else:
+            if strict:
+                raise Exception("File starts with #REFERENCE 0, but can't interpret the rest as RA/Dec coordinates")
+            print(f"WARNING: {fileName} starts with '#REFERENCE 0', but cannot interpret additional arguments as RA/Dec coordinates. Continuing anyway since 'strict' was not set")
+
+    if centerOn is None:
+        centerOn = centerFromFile
+    else:
+        if centerFromFile is not None:
+            diff = [ centerOn[0]-centerFromFile[0], centerOn[1]-centerFromFile[1]]
+            diffSize = (diff[0]**2 + diff[1]**2)**0.5
+            if diffSize > 1e-8: # TODO: what tolerance here?
+                raise Exception("Coordinate center is set in both the function argument and in the file, but they do not match")
 
     def la(line):
         parts = line.split()
