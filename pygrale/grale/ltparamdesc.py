@@ -127,7 +127,7 @@ def _addBlock(outputLines, block, factor=1):
 
 def _processPotfileFile(fileName, mag0, slope, vdSlope, coreStr, bsSigma, bsCut, isCutArcsec, vdVarName, cutVarName,
                         useRADirection, lensDistanceString, arcsecString, degreeString, kpcString,
-                        useRelativeRaDec):
+                        useRelativeRaDec, mainCenterPos):
 
     outputLines = []
 
@@ -138,16 +138,22 @@ def _processPotfileFile(fileName, mag0, slope, vdSlope, coreStr, bsSigma, bsCut,
         del lines[0]
 
         parts = firstLine.strip().split()
+        if len(parts) < 2:
+            raise Exception(f"Expecting galaxy file '{fileName}' to start with at least '#REFERENCE 0'")
+
         if parts[0] != "#REFERENCE":
             raise Exception(f"Expecting galaxy file '{fileName}' to start with '#REFERENCE'")
 
         if int(parts[1]) != 0:
             raise Exception(f"Expecting first number on first line of '{fileName}' to be 0, but is {parts[1]}")
 
-        ra, dec = map(float, parts[2:4])
-        ra *= ANGLE_DEGREE
-        dec *= ANGLE_DEGREE
-        centerPos = (ra, dec)
+        if len(parts) == 2:
+            centerPos = mainCenterPos
+        elif len(parts) == 4:
+            ra, dec = map(float, parts[2:4])
+            centerPos = (ra*ANGLE_DEGREE, dec*ANGLE_DEGREE)
+        else:
+            raise Exception("Cannot handle the number of arguments on the '#REFERENCE 0' line")
 
     for l in lines:
         if not l.strip() or l.strip().startswith("#"):
@@ -610,7 +616,7 @@ def createParametricDescriptionFromLenstoolInput(fileName,
             outputLines += _processPotfileFile(galFileName, mag0, slope, vdSlope, coreStr, bs["sigma"], bs["cut"] if "cut" in bs else bs["cutkpc"],
                                                "cut" in bs, vd0Name, cut0Name,
                                                useRADirection, lensDistanceString, arcsecString, degreeString, kpcString,
-                                               useRelativeRaDec)
+                                               useRelativeRaDec, center)
         else:
             raise Exception(f"Unknown block type {b['blockname']}")
 
