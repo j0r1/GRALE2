@@ -72,7 +72,7 @@ def _getLenstoolPotentialInfoFromLines(lines):
         potentialInfo.append(curInfo)
     return potentialInfo
 
-def _getLenstoolPotFileModelsFromLines(lines, zd, Dd, baseDir, useRADirection):
+def _getLenstoolPotFileModelsFromLines(lines, zd, Dd, baseDir, useRADirection, mainRefCenter):
     from . import lenses
     from . import images
     from .constants import ANGLE_ARCSEC, ANGLE_DEGREE, DIST_KPC
@@ -159,8 +159,21 @@ def _getLenstoolPotFileModelsFromLines(lines, zd, Dd, baseDir, useRADirection):
             if not useRelativeRaDec:
                 if l.startswith("#REFERENCE"):
                     parts = l.split()
-                    ra, dec = map(float, parts[2:4])
-                    refCtr = [ra*ANGLE_DEGREE, dec*ANGLE_DEGREE]
+                    if len(parts) < 2:
+                        raise LensException(f"First line in {fileName} starts with #REFERENCE but has too few arguments")
+
+                    if len(parts) == 2:
+                        if int(parts[1]) != 0:
+                            raise LensException(f"Expecting first line of {fileName} to start with #REFERENCE 0")
+
+                        # Use the center from the main config file if nothing specific is mentioned in this file
+                        refCtr = mainRefCenter
+                    elif len(parts) == 4:
+                        ra, dec = map(float, parts[2:4])
+                        refCtr = [ra*ANGLE_DEGREE, dec*ANGLE_DEGREE]
+                    else:
+                        raise LensException(f"First line in {fileName} starts with #REFERENCE but has unsupported number of arguments")
+
                     continue
             
             if l.startswith("#"):
@@ -211,6 +224,40 @@ def _getLenstoolPotFileModelsFromLines(lines, zd, Dd, baseDir, useRADirection):
                 "lens": subLens
             })
     return newLensParams
+
+def _getLenstoolCenterFromLines(lines):
+    from .lenses import LensException
+    from .constants import ANGLE_DEGREE
+
+    idx = None
+    for i in range(len(lines)):
+        if lines[i].startswith("runmode"):
+            idx = i
+            break
+    else:
+        raise LensException("No reference center settings found in file, no 'runmode' section found")
+
+    ctr = None
+    while True:
+        idx += 1
+        l = lines[idx]
+        if not (l.startswith(" ") or l.startswith("\t")):
+            break
+        parts = l.strip().split()
+        if parts[0] == "end":
+            break
+
+        if parts[0] == "reference":
+            refMode = int(parts[1])
+            if refMode != 3:
+                raise LensException(f"Expecting 'reference' mode 3, but got {refMode}")
+            if len(parts) != 4:
+                raise LensException("Expecting three arguments to the 'reference' setting")
+
+            ra, dec = map(float, parts[2:4])
+            return [ra*ANGLE_DEGREE, dec*ANGLE_DEGREE]
+
+    raise LensException("No reference center settings found in file")
 
 def _getLenstoolCosmologyFromLines(lines):
     from .lenses import LensException
@@ -266,6 +313,7 @@ def createLensFromLenstoolFile(inputData, useRADirection, cosmology = None):
     lines, isFileName = _getLinesFromInputData(inputData)
     potentialInfo = _getLenstoolPotentialInfoFromLines(lines)
     cosm = _getLenstoolCosmologyFromLines(lines) if not cosmology else cosmology
+    refCenter = _getLenstoolCenterFromLines(lines) # May not be needed
     if not potentialInfo:
         return (None, None, cosm)
 
@@ -325,7 +373,7 @@ def createLensFromLenstoolFile(inputData, useRADirection, cosmology = None):
         if d["lens"].getLensDistance() != Dd_first:
             raise LensException("Not all lens components have same lens distance")
 
-    subLenses += _getLenstoolPotFileModelsFromLines(lines, zd, Dd_first, baseDir, useRADirection)
+    subLenses += _getLenstoolPotFileModelsFromLines(lines, zd, Dd_first, baseDir, useRADirection, refCenter)
 
     return (lenses.CompositeLens(Dd_first, subLenses), zd, cosm)
 
