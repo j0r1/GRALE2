@@ -288,7 +288,20 @@ def _getLenstoolCosmologyFromLines(lines):
                                settings["omegaX"],
                                settings["wX"])
 
+def _filterComments(lines):
+    newLines = []
+    for l in lines:
+        if l.strip().startswith("#"):
+            continue
 
+        if not "#" in l:
+            newLines.append(l)
+            continue
+
+        idx = l.find("#")
+        newLines.append(l[:idx])
+
+    return newLines
 
 def createLensFromLenstoolFile(inputData, useRADirection, cosmology = None):
     """Based on a `Lenstool <https://projets.lam.fr/projects/lenstool/wiki>`_ model,
@@ -311,6 +324,7 @@ def createLensFromLenstoolFile(inputData, useRADirection, cosmology = None):
        and this one will be used.
     """
     lines, isFileName = _getLinesFromInputData(inputData)
+    lines = _filterComments(lines)
     potentialInfo = _getLenstoolPotentialInfoFromLines(lines)
     cosm = _getLenstoolCosmologyFromLines(lines) if not cosmology else cosmology
     refCenter = _getLenstoolCenterFromLines(lines) # May not be needed
