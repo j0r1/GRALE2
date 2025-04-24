@@ -1758,7 +1758,7 @@ class InversionWorkSpace(object):
             lens = invertMultiPlane(self.imgDataList, bfAndZs, populationSize, **newKwargs)
         return lens
 
-    def calculateParametricFitness(self, lens, parametricLensDescription = None):
+    def calculateParametricFitness(self, lens, parametricLensDescription = None, returnLens = False):
         """TODO"""
         if not lens:
             raise InversionException("A lens must be specified")
@@ -1772,7 +1772,9 @@ class InversionWorkSpace(object):
 
             parametricLensDescription = eval(paramdesc.createParametricDescription(lens, convertValueFunction=cvf))
 
-        _, fitness, names, _, _ = self.invertParametric(parametricLensDescription, 1, eaType="CALCULATE", maximumGenerations=0, internalRecalcLens=lens, allowEmptyInitialValueRange=True, inverter="threads:1")
+        lens, fitness, names, _, _ = self.invertParametric(parametricLensDescription, 1, eaType="CALCULATE", maximumGenerations=0, internalRecalcLens=lens, allowEmptyInitialValueRange=True, inverter="threads:1")
+        if returnLens:
+            return lens, fitness, names
         return fitness, names
 
     def calculateFitness(self, lensOrBackProjectedImages):
