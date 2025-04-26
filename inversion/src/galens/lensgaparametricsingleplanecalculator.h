@@ -24,6 +24,7 @@ public:
 	const LensFitnessObject &getFitnessObject() const { return *m_fitObj; }
 
 	errut::bool_t init(const LensInversionParametersBase &params) override;
+	errut::bool_t getFullFloatParamsFromOptimizableParameters(const std::vector<float> &optParams, std::vector<float> &fullParams) const;
 	errut::bool_t createLens(const eatk::Genome &genome, std::unique_ptr<GravitationalLens> &lens) const override;
 	size_t getNumberOfObjectives() const override { assert(m_fitObj.get()); return m_fitObj->getNumberOfFitnessComponents(); }
 	bool isRandomizingInputPositions() const { return m_randomizingInputPositions; }

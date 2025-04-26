@@ -477,22 +477,13 @@ std::shared_ptr<eatk::FitnessComparison> LensGAParametricSinglePlaneCalculator::
 	return make_shared<eatk::VectorFitnessComparison<float>>();
 }
 
-bool_t LensGAParametricSinglePlaneCalculator::createLens(const eatk::Genome &genome0, std::unique_ptr<GravitationalLens> &resultLens) const
+bool_t LensGAParametricSinglePlaneCalculator::getFullFloatParamsFromOptimizableParameters(const std::vector<float> &optParams, std::vector<float> &fullFloatParams) const
 {
-	if (!m_init)
-		return "Not initialized";
-
-	unique_ptr<GravitationalLens> lens;
-
-	assert(dynamic_cast<const eatk::FloatVectorGenome *>(&genome0));
-	auto genome = static_cast<const eatk::FloatVectorGenome&>(genome0);
-	vector<float> &values = genome.getValues();
-
-	//cerr << "Creating lens from best genome" << genome0.toString() << endl;
-
 	// Bounds have same dimension as parameters
-	assert(values.size() == m_initMin.size());
-	vector<float> fullFloatParams = m_floatParams;
+	if (optParams.size() != m_initMin.size())
+		return "Expecting " + to_string(m_initMin.size()) + " values, but got " + to_string(optParams.size());
+
+	fullFloatParams = m_floatParams;
 
 	auto fillChangedParamsInFull = [this,&fullFloatParams](const vector<float> &values)
 	{
@@ -509,19 +500,41 @@ bool_t LensGAParametricSinglePlaneCalculator::createLens(const eatk::Genome &gen
 	if (m_numOriginParams == 0)
 	{
 		// Fill in the solution from the changed parameters
-		fillChangedParamsInFull(values);
+		fillChangedParamsInFull(optParams);
 	}
 	else // transform the genome values to the actual parameters
 	{
 		vector<float> changeableParams;
 
 		auto &cl = OpenCLSinglePlaneDeflectionInstance::instance();
-		bool_t r = cl.getChangeableParametersFromOriginParameters(values, changeableParams);
+		bool_t r = cl.getChangeableParametersFromOriginParameters(optParams, changeableParams);
 		if (!r)
 			return "Can't convert origin parameters to actual ones: " + r.getErrorString();
 
 		fillChangedParamsInFull(changeableParams);
 	}
+
+	return true;
+}
+
+bool_t LensGAParametricSinglePlaneCalculator::createLens(const eatk::Genome &genome0, std::unique_ptr<GravitationalLens> &resultLens) const
+{
+	if (!m_init)
+		return "Not initialized";
+
+	unique_ptr<GravitationalLens> lens;
+	bool_t r;
+
+	assert(dynamic_cast<const eatk::FloatVectorGenome *>(&genome0));
+	auto genome = static_cast<const eatk::FloatVectorGenome&>(genome0);
+	vector<float> &values = genome.getValues();
+
+	//cerr << "Creating lens from best genome" << genome0.toString() << endl;
+
+	vector<float> fullFloatParams;
+	if (!(r = getFullFloatParamsFromOptimizableParameters(values, fullFloatParams)))
+		return r;
+
 
 	//cerr << "Creating lens from Float params:" << endl;
 	//for (auto f : fullFloatParams)
