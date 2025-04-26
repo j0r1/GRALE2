@@ -35,7 +35,8 @@ public:
 		size_t numRetraceSteps,
 		double sourcePlaneDistThreshold, // threshold to accept retrace convergence
 		const std::string &clPriorCode,
-		bool allowEqualInitRange
+		bool allowEqualInitRange,
+		const std::vector<std::vector<float>> &genomesToCalculateFitnessFor
 		);
 	~LensInversionParametersParametricSinglePlane();
 
@@ -63,6 +64,7 @@ public:
 	double getSourcePlaneDistanceThreshold() const { return m_sourcePlaneDistThreshold; }
 	std::string getOpenCLPriorCode() const { return m_clPriorCode; }
 	bool allowEqualValuesInInitialRange() const { return m_allowEqualInitRange; }
+	const std::vector<std::vector<float>> &getGenomesToCalculateFitness() const { return m_genomesToCalculate; }
 
 	bool write(serut::SerializationInterface &si) const override;
 	bool read(serut::SerializationInterface &si) override;
@@ -86,6 +88,11 @@ private:
 	double m_sourcePlaneDistThreshold = 0;
 	std::string m_clPriorCode;
 	bool m_allowEqualInitRange = false;
+
+	// Perhaps a better name should be chosen than genome?
+	// It's multiple sets of parameters, for which the probability/fitness
+	// should be calculated
+	std::vector<std::vector<float>> m_genomesToCalculate;
 };
 
 } // end namespace

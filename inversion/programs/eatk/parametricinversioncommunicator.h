@@ -17,14 +17,17 @@
 #include <eatk/simplesortedpopulation.h>
 #include <eatk/singlebestelitism.h>
 #include <eatk/remainingtargetpopulationsizeiteration.h>
+#include <list>
 
 class DummyEvolver : public eatk::PopulationEvolver
 {
 public:
+	DummyEvolver(size_t expectedPopSize) : m_expectedPopSize(expectedPopSize) { }
+
 	errut::bool_t check(const std::shared_ptr<eatk::Population> &population)
 	{
-		if (population->size() != 1)
-			return "Expecting a population size of 1";
+		if (population->size() != m_expectedPopSize)
+			return "Expecting a population size of " + std::to_string(m_expectedPopSize);
 		return true;
 	}
 
@@ -32,18 +35,25 @@ public:
 	{
 		if (generation != 0)
 			return "Expecting only a single generation";
-		if (population->size() != 1)
-			return "Expecting a population size of one";
-		if (targetPopulationSize != 1)
-			return "Expecting a target population size of one";
+		if (population->size() != m_expectedPopSize)
+			return "Expecting a population size of " + std::to_string(m_expectedPopSize);
+		if (targetPopulationSize != m_expectedPopSize)
+			return "Expecting a target population size of " + std::to_string(m_expectedPopSize);
 
 		m_best.clear();
-		m_best.push_back(population->individual(0)->createCopy());
 
-		// For now, an assertion is triggered if the OpenCL code doesn't
-		// need to perform any calculations. This currently makes sure
-		// that a recalculation is needed
-		population->individual(0)->fitness()->setCalculated(false);
+		// We'll store all members in the best individuals. This is actually
+		// meant for the non-dominated set, but we can abuse this to return the
+		// fitness values for a whole set of genomes
+		for (auto &i : population->individuals())
+		{
+			m_best.push_back(i->createCopy());
+
+			// For now, an assertion is triggered if the OpenCL code doesn't
+			// need to perform any calculations. This currently makes sure
+			// that a recalculation is needed
+			i->fitness()->setCalculated(false);
+		}
 
 		return true;
 	}
@@ -51,6 +61,51 @@ public:
 	const std::vector<std::shared_ptr<eatk::Individual>> &getBestIndividuals() const { return m_best; }
 private:
 	std::vector<std::shared_ptr<eatk::Individual>> m_best;
+	size_t m_expectedPopSize;
+};
+
+class PredefinedIndividualCreation : public eatk::IndividualCreation
+{
+public:
+	PredefinedIndividualCreation(const std::vector<std::vector<float>> &genomes, size_t genomeSize, size_t fitnessSize)
+	 : m_genomeSize(genomeSize), m_fitnessSize(fitnessSize)
+	{
+		for (auto &g : genomes)
+			m_genomes.push_back(g);
+	}
+
+	std::shared_ptr<eatk::Genome> createInitializedGenome() override
+	{
+		if (m_genomes.empty())
+			return nullptr;
+
+		std::vector<float> values = m_genomes.front();
+		m_genomes.pop_front();
+
+		auto g = std::make_shared<eatk::FloatVectorGenome>(m_genomeSize);
+		std::vector<float> &genomeValues = g->getValues();
+
+		if (values.size() != genomeValues.size())
+			return nullptr;
+
+		for (size_t i = 0 ; i < values.size() ; i++)
+			genomeValues[i] = values[i];
+
+		return g;
+	}
+
+	std::shared_ptr<eatk::Genome> createUnInitializedGenome() override
+	{
+		return std::make_shared<eatk::FloatVectorGenome>(m_genomeSize);
+	}
+
+	std::shared_ptr<eatk::Fitness> createEmptyFitness() override
+	{
+		return std::make_shared<eatk::FloatVectorFitness>(m_fitnessSize);
+	}
+private:
+	size_t m_genomeSize, m_fitnessSize;
+	std::list<std::vector<float>> m_genomes;
 };
 
 class ParametricCreation : public eatk::VectorDifferentialEvolutionIndividualCreation<float,float>
@@ -384,6 +439,15 @@ protected:
 									factoryParamBytes, *creation, calc)))
 			return "Can't get calculator: " + r.getErrorString();
 
+		if (allEATypes.size() == 1 && allEATypes[0] == "CALCULATE")
+		{
+			if (!(r = runCalculate(popSize, genomeCalculator, calc, creation)))
+				return r;
+			return true;
+		}
+
+		if (genomeCalculator->getGenomesToCalculateFitness().size() > 0)
+			return "Genomes to calculate fitness for is not allowed to be used for EA types other than 'CALCULATE'";
 		// TODO: Check type name and parameters beforehand?
 
 		for (size_t i = 0 ; i < allEATypes.size() ; i++)
@@ -420,11 +484,6 @@ protected:
 					if (!(r = runGA(eaType, numObjectives, rng, comparison, popSize, genomeCalculator, calc, creation, eaParams, stop)))
 						return r;
 				}
-				else if (eaType == "CALCULATE")
-				{
-					if (!(r = runCalculate(popSize, genomeCalculator, calc, creation)))
-						return r;
-				}
 				else
 					return "Unexpected EA type '" + eaType + "'";
 			}
@@ -437,16 +496,47 @@ protected:
 						const std::shared_ptr<eatk::PopulationFitnessCalculation> &calc,
 						std::shared_ptr<eatk::IndividualCreation> &creation)
 	{
-		DummyEvolver evolver; // Just to calculate fitness values
-
 		eatk::FixedGenerationsStopCriterion stop(0);
 		MyGA ea;
-		bool_t r = ea.run(*creation, evolver, *calc, stop, popSize, popSize, popSize);
-		if (!r)
-			return r;
+		size_t numGenomesToCalculate = genomeCalculator->getGenomesToCalculateFitness().size();
 
-		m_best = evolver.getBestIndividuals();
-		creation = std::make_shared<eatk::PopulationReuseCreation>(ea.getPopulations());
+		if (numGenomesToCalculate == 0)
+		{
+			// In this case, the lens model limits are set in such a way
+			// that only one specific lens can be generated
+
+			DummyEvolver evolver(1); // Just to calculate fitness values
+			bool_t r = ea.run(*creation, evolver, *calc, stop, popSize, popSize, popSize);
+			if (!r)
+				return r;
+
+			m_best = evolver.getBestIndividuals();
+		}
+		else
+		{
+			std::shared_ptr<eatk::Genome> refGenome = creation->createUnInitializedGenome();
+			std::shared_ptr<eatk::Fitness> refFitness = creation->createEmptyFitness();
+			eatk::FloatVectorGenome *pRefFloatGenome = dynamic_cast<eatk::FloatVectorGenome*>(refGenome.get());
+			eatk::FloatVectorFitness *pRefFloatFitness = dynamic_cast<eatk::FloatVectorFitness*>(refFitness.get());
+			if (pRefFloatGenome == nullptr)
+				return "Error in fitness calculation check: reference genome is not of type FloatVectorGenome";
+			if (pRefFloatFitness == nullptr)
+				return "Error in fitness calculation check: reference fitness is not of type FloatVectorFitness";
+
+			size_t genomeSize = pRefFloatGenome->getValues().size();
+			size_t fitnessSize = pRefFloatFitness->getValues().size();
+
+			DummyEvolver evolver(numGenomesToCalculate);
+			PredefinedIndividualCreation predefCreation(genomeCalculator->getGenomesToCalculateFitness(),
+														genomeSize, fitnessSize);
+
+			bool_t r = ea.run(predefCreation, evolver, *calc, stop, popSize, popSize, popSize);
+			if (!r)
+				return r;
+
+			m_best = evolver.getBestIndividuals();
+		}
+
 		return true;
 	}
 

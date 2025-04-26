@@ -35,6 +35,10 @@ public:
 	const std::vector<float> getInitMax() const { return m_initMax; }
 	const std::vector<float> getHardMin() const { return m_hardMin; }
 	const std::vector<float> getHardMax() const { return m_hardMax; }
+
+	// Bit of a hack, but this can be used to calculate the fitness for specific
+	// parameters, meant to be used outside of an optimization
+	const std::vector<std::vector<float>> &getGenomesToCalculateFitness() const { return m_genomesToCalculateFitnessFor; }
 private:
 	errut::bool_t onNewCalculationStart(size_t iteration, size_t genomesForThisCalculator, size_t genomesForPopulationCalculator) override;
 	errut::bool_t startNewCalculation(const eatk::Genome &genome0) override;
@@ -140,6 +144,8 @@ private:
 
 	std::unique_ptr<BetaSizeStats> m_stats;
 	float m_betaThresHold = 0;
+
+	std::vector<std::vector<float>> m_genomesToCalculateFitnessFor;
 };
 
 } // end namespace

@@ -464,6 +464,13 @@ bool_t LensGAParametricSinglePlaneCalculator::init(const LensInversionParameters
 		cerr << "INFO: Detected prior information on parameters, but there's no fitness component to add this to - continuing because 'allowUnusedPriors' is set" << endl;
 	}
  
+	m_genomesToCalculateFitnessFor = params.getGenomesToCalculateFitness();
+	for (auto &v : m_genomesToCalculateFitnessFor)
+	{
+		if (v.size() != m_initMin.size())
+			return "Expecting " + to_string(m_initMin.size()) + " parameters in genomes to calculate, but found " + to_string(v.size());
+	}
+
 	m_infOnBoundsViolation = params.infinityOnBoundsViolation();
 	m_init = true;
 

@@ -31,7 +31,8 @@ LensInversionParametersParametricSinglePlane::LensInversionParametersParametricS
 		size_t numRetraceSteps,
 		double sourcePlaneDistThreshold,
 		const std::string &clPriorCode,
-		bool allowEqualInitRange
+		bool allowEqualInitRange,
+		const std::vector<std::vector<float>> &genomesToCalculate
 		)
 {
 	m_images = images;
@@ -58,6 +59,7 @@ LensInversionParametersParametricSinglePlane::LensInversionParametersParametricS
 	m_sourcePlaneDistThreshold = sourcePlaneDistThreshold;
 	m_clPriorCode = clPriorCode;
 	m_allowEqualInitRange = allowEqualInitRange;
+	m_genomesToCalculate = genomesToCalculate;
 }
 
 LensInversionParametersParametricSinglePlane::~LensInversionParametersParametricSinglePlane()
@@ -197,6 +199,30 @@ bool LensInversionParametersParametricSinglePlane::write(serut::SerializationInt
 	{
 		setErrorString(si.getErrorString());
 		return false;
+	}
+
+	int32_t numToCalculate = (int32_t)m_genomesToCalculate.size();
+	if (!si.writeInt32(numToCalculate))
+	{
+		setErrorString(si.getErrorString());
+		return false;
+	}
+
+	if (m_genomesToCalculate.size() > 0)
+	{
+		for (auto &v: m_genomesToCalculate)
+		{
+			if (v.size() != m_initMin.size())
+			{
+				setErrorString("Expecting " + to_string(m_initMin.size()) + " parameters, but got " + to_string(v.size()) );
+				return false;
+			}
+			if (!si.writeFloats(v))
+			{
+				setErrorString(si.getErrorString());
+				return false;
+			}
+		}
 	}
 	
 	return true;
@@ -381,6 +407,25 @@ bool LensInversionParametersParametricSinglePlane::read(serut::SerializationInte
 	{
 		setErrorString(si.getErrorString());
 		return false;
+	}
+
+	int32_t numToCalculate;
+	if (!si.readInt32(&numToCalculate))
+	{
+		setErrorString(si.getErrorString());
+		return false;
+	}
+
+	m_genomesToCalculate.clear();
+	for (int32_t i = 0 ; i < numToCalculate ; i++)
+	{
+		vector<float> v(m_initMin.size());
+		if (!si.readFloats(v))
+		{
+			setErrorString(si.getErrorString());
+			return false;
+		}
+		m_genomesToCalculate.push_back(v);
 	}
 
 	return true;

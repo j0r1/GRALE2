@@ -38,7 +38,8 @@ cdef extern from "grale/lensinversionparametersparametricsingleplane.h" namespac
                 size_t numRetraceSteps,
                 double sourcePlaneDistThreshold,
                 string clPriorCode,
-                bool allowEqualInitRange
+                bool allowEqualInitRange,
+                const vector[vector[float]] &genomesToCalculateFitnessFor
                 )
 
         bool read(serut.SerializationInterface &si)

@@ -1084,7 +1084,8 @@ cdef class LensInversionParametersParametricSinglePlane(object):
                   numRetraceSteps = 5,
                   sourcePlaneDistanceThreshold = -1,
                   clPriorCode = None,
-                  allowEqualInitRange = False
+                  allowEqualInitRange = False,
+                  genomesToCalculateFitnessFor = None
                  ):
 
         cdef vector[shared_ptr[imagesdataextended.ImagesDataExtended]] imgVector = _createImageVectorFromSinglePlaneImageList(inputImages)
@@ -1113,6 +1114,10 @@ cdef class LensInversionParametersParametricSinglePlane(object):
         cdef double cSourceConvThreshold = sourcePlaneDistanceThreshold
         cdef string cClPriorCode
         cdef cbool cAllowEqualInitRange = allowEqualInitRange
+        cdef vector[vector[float]] cGenomesToCalcFitness
+        cdef vector[float] tmpFloatVec
+        cdef np.ndarray[float,ndim=2] npGenomesToCalc
+        cdef int i, j
 
         if inputImages is None:
             return
@@ -1141,13 +1146,21 @@ cdef class LensInversionParametersParametricSinglePlane(object):
         if clPriorCode is not None:
             cClPriorCode = B(clPriorCode)
 
+        if genomesToCalculateFitnessFor is not None:
+            npGenomesToCalc = genomesToCalculateFitnessFor
+            for i in range(npGenomesToCalc.shape[0]):
+                tmpFloatVec.clear()
+                for j in range(npGenomesToCalc.shape[1]):
+                    tmpFloatVec.push_back(npGenomesToCalc[i,j])
+                cGenomesToCalcFitness.push_back(tmpFloatVec)
+
         self.m_pParams = unique_ptr[lensinversionparametersparametricsingleplane.LensInversionParametersParametricSinglePlane](
             new lensinversionparametersparametricsingleplane.LensInversionParametersParametricSinglePlane(
                 imgVector, cDd, cZd, deref(cTemplateLens), cDeflScale, cPotScale,
                 cOffsets, cInitMin, cInitMax, cHardMin, cHardMax, cInfOnBoundsViolation, deref(pFitnessObjectParameters),
                 devIdx, cRandomizeInputPos, cInitialUncertSeed, cOriginParamMapping, cNumOriginParams,
                 cAllowUnusedPriors, cRetraceImages, cNumRetraceSteps, cSourceConvThreshold,
-                cClPriorCode, cAllowEqualInitRange
+                cClPriorCode, cAllowEqualInitRange, cGenomesToCalcFitness
             )
         )
 
