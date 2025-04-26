@@ -761,24 +761,25 @@ cdef class NSGA2DELikeCrossoverParameters(EAParameters):
 
 cdef class MCMCParameters(EAParameters):
     """TODO"""
-    def __init__(self, a = 2.0, samplesfilename = "", samplegenerations = 0, burningenerations = 0,
+    def __init__(self, a = 2.0, samplesfilename = "", logprobfilename = "", samplegenerations = 0, burningenerations = 0,
                  annealgenerationsscale = 0, alpha0 = 0.1, alphamax = 1.0):
         """__init()__"
 
         TODO
         """
         cdef double cA, cAlpha0, cAlphaMax
-        cdef string cFileName
+        cdef string cFileName, cLogProbFn
         cdef size_t cGen, cAnnealGen, cBurnGen
         
         cA = a
         cAlpha0 = alpha0
         cAlphaMax = alphamax
         cFileName = B(samplesfilename)
+        cLogProbFn = B(logprobfilename)
         cGen = samplegenerations
         cBurnGen = burningenerations
         cAnnealGen = annealgenerationsscale
-        self.m_pParams = unique_ptr[eaparameters.EAParameters](new eaparameters.MCMCParameters(cA, cFileName, cGen, cBurnGen, cAnnealGen, cAlpha0, cAlphaMax))
+        self.m_pParams = unique_ptr[eaparameters.EAParameters](new eaparameters.MCMCParameters(cA, cFileName, cLogProbFn, cGen, cBurnGen, cAnnealGen, cAlpha0, cAlphaMax))
 
     def _fillInSettings(self, r):
         cdef eaparameters.MCMCParametersPtrConst pParams = dynamic_cast[eaparameters.MCMCParametersPtrConst](self.m_pParams.get())
@@ -787,6 +788,7 @@ cdef class MCMCParameters(EAParameters):
 
         r["a"] = deref(pParams).getGoodmanWeare_a()
         r["samplesfilename"] = S(deref(pParams).getSamplesFilename())
+        r["logprobfilename"] = S(deref(pParams).getLogProbFilename())
         r["samplegenerations"] = deref(pParams).getSampleGenerations()
         r["burningenerations"] = deref(pParams).getBurnInGenerations()
         r["annealgenerationsscale"] = deref(pParams).getAnnealGenerationsTimeScale()
@@ -795,7 +797,7 @@ cdef class MCMCParameters(EAParameters):
 
 cdef class MetropolisHastingsMCMCParameters(EAParameters):
     """TODO"""
-    def __init__(self, stepscales = [], samplesfilename = "", samplegenerations = 0, burningenerations = 0,
+    def __init__(self, stepscales = [], samplesfilename = "", logprobfilename = "", samplegenerations = 0, burningenerations = 0,
                  annealgenerationsscale = 0, alpha0 = 0.1, alphamax = 1.0):
         """__init()__"
 
@@ -803,7 +805,7 @@ cdef class MetropolisHastingsMCMCParameters(EAParameters):
         """
         cdef vector[double] cStepScales
         cdef double cAlpha0, cAlphaMax
-        cdef string cFileName
+        cdef string cFileName, cLogProbFn
         cdef size_t cGen, cAnnealGen, cBurnGen
         
         for x in stepscales:
@@ -812,10 +814,11 @@ cdef class MetropolisHastingsMCMCParameters(EAParameters):
         cAlpha0 = alpha0
         cAlphaMax = alphamax
         cFileName = B(samplesfilename)
+        cLogProbFn = B(logprobfilename)
         cGen = samplegenerations
         cBurnGen = burningenerations
         cAnnealGen = annealgenerationsscale
-        self.m_pParams = unique_ptr[eaparameters.EAParameters](new eaparameters.MetropolisHastingsMCMCParameters(cStepScales, cFileName, cGen, cBurnGen, cAnnealGen, cAlpha0, cAlphaMax))
+        self.m_pParams = unique_ptr[eaparameters.EAParameters](new eaparameters.MetropolisHastingsMCMCParameters(cStepScales, cFileName, cLogProbFn, cGen, cBurnGen, cAnnealGen, cAlpha0, cAlphaMax))
 
     def _fillInSettings(self, r):
         cdef eaparameters.MetropolisHastingsMCMCParametersPtrConst pParams = dynamic_cast[eaparameters.MetropolisHastingsMCMCParametersPtrConst](self.m_pParams.get())
@@ -828,6 +831,7 @@ cdef class MetropolisHastingsMCMCParameters(EAParameters):
 
         r["stepscales"] = stepScales
         r["samplesfilename"] = S(deref(pParams).getSamplesFilename())
+        r["logprobfilename"] = S(deref(pParams).getLogProbFilename())
         r["samplegenerations"] = deref(pParams).getSampleGenerations()
         r["burningenerations"] = deref(pParams).getBurnInGenerations()
         r["annealgenerationsscale"] = deref(pParams).getAnnealGenerationsTimeScale()

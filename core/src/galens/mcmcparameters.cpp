@@ -9,10 +9,12 @@ namespace grale
 {
 
 GeneralMCMCParameters::GeneralMCMCParameters(ParameterType t, const std::string &samplesFileName,
+				   const std::string &logProbFn,
 	               size_t sampleGenerations, size_t burnInGenerations,
 	               size_t annealGenerationsScale, double alpha0, double alphaMax)
 	: EAParameters(t),
 	  m_fileName(samplesFileName),
+	  m_logProbFn(logProbFn),
 	  m_sampleGenerations(sampleGenerations),
 	  m_burnInGenerations(burnInGenerations),
 	  m_annealGenerations(annealGenerationsScale),
@@ -31,7 +33,7 @@ bool_t GeneralMCMCParameters::readInternal(SerializationInterface &si)
 	array<int32_t,3> gens;
 	if (!si.readInt32s(gens.data(), gens.size()) ||
 	    !si.readDoubles(reals.data(), reals.size()) ||
-		!si.readString(m_fileName))
+		!si.readString(m_fileName) || !si.readString(m_logProbFn) )
 		return si.getErrorString();
 
 	m_alpha0 = reals[0];
@@ -49,15 +51,16 @@ bool_t GeneralMCMCParameters::writeInternal(SerializationInterface &si) const
 
 	if (!si.writeInt32s(gens.data(), gens.size()) ||
 	    !si.writeDoubles(reals.data(), reals.size()) ||
-		!si.writeString(m_fileName))
+		!si.writeString(m_fileName) || !si.writeString(m_logProbFn) )
 		return si.getErrorString();
 	return true;
 }
 
 MCMCParameters::MCMCParameters(double a, const std::string &samplesFileName,
+				   const std::string &logProbFn,
 	               size_t sampleGenerations, size_t burnInGenerations,
 	               size_t annealGenerationsScale, double alpha0, double alphaMax)
-	: GeneralMCMCParameters(EAParameters::MCMC, samplesFileName, sampleGenerations, burnInGenerations, annealGenerationsScale, alpha0, alphaMax),
+	: GeneralMCMCParameters(EAParameters::MCMC, samplesFileName, logProbFn, sampleGenerations, burnInGenerations, annealGenerationsScale, alpha0, alphaMax),
 	  m_a(a)
 {
 }
@@ -92,11 +95,11 @@ bool_t MCMCParameters::writeInternal(SerializationInterface &si) const
 
 
 MetropolisHastingsMCMCParameters::MetropolisHastingsMCMCParameters(const std::vector<double> &stepScales,
-			   const std::string &samplesFileName,
+			   const std::string &samplesFileName, const std::string &logProbFn,
 			   size_t sampleGenerations,
 			   size_t burninGenerations,
 			   size_t annealGenerationsScale, double alpha0, double alphaMax)
-	: GeneralMCMCParameters(EAParameters::MetropolisHastingsMCMC, samplesFileName, sampleGenerations, burninGenerations, annealGenerationsScale, alpha0, alphaMax),
+	: GeneralMCMCParameters(EAParameters::MetropolisHastingsMCMC, samplesFileName, logProbFn, sampleGenerations, burninGenerations, annealGenerationsScale, alpha0, alphaMax),
 	  m_stepScales(stepScales)
 {
 }

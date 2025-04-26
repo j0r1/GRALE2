@@ -86,15 +86,24 @@ public:
 		WriteLineStdout(ss.str());
 	}
 
-	errut::bool_t init(const std::string &samplesFileName, size_t burninGenerations, size_t annealScale,
+	errut::bool_t init(const std::string &samplesFileName, 
+			    const std::string &logProbFn,
+			    size_t burninGenerations, size_t annealScale,
 			    double alpha0, double alphaMax)
 	{
 		m_filename = samplesFileName;
+		m_logProbFn = logProbFn;
 		if (!m_filename.empty())
 		{
 			m_sampleFile.open(m_filename, std::ios::out | std::ios::binary);
 			if (!m_sampleFile.is_open())
-				return "Unable to open file '" + m_filename + "'";
+				return "Unable to open samples file '" + m_filename + "'";
+		}
+		if (!m_logProbFn.empty())
+		{
+			m_logProbFile.open(m_logProbFn, std::ios::out | std::ios::binary);
+			if (!m_logProbFile.is_open())
+				return "Unable to open log prob file '" + m_logProbFn + "'";
 		}
 
 		m_burnInGenerations = burninGenerations;
@@ -127,6 +136,12 @@ public:
 		std::stringstream ss;
 		ss << "Generation " << m_generationCount << ": best = ";
 
+		// Note: when sampling it is possible that this best performing genome
+		//       is not part of recorded samples. It may be that the best one
+		//       was encountered during the burn-in phase. Also, if the
+		//       Goodman-Weare sampler is used the best genome is not necessarily
+		//       accepted into the chain. It's still saved as the best though.
+
 		const auto &best = BaseClass::getBestIndividuals();
 		if (best.size() == 0)
 			ss << "(no best yet)";
@@ -154,21 +169,39 @@ public:
 
 		WriteLineStdout("GAMESSAGESTR:" + ss.str());
 
-		if (m_generationCount >= m_burnInGenerations && m_sampleFile.is_open())
+		if (m_generationCount >= m_burnInGenerations && (m_sampleFile.is_open() || m_logProbFile.is_open()))
 		{
 			// TODO If origin parameters are used, transform these to actual parameters?
 			m_numWalkers = samples.size();
-			for (auto &i : samples)
-			{
-				assert(dynamic_cast<const eatk::FloatVectorGenome *>(i->genomePtr()));
-				const eatk::FloatVectorGenome &genome = static_cast<const eatk::FloatVectorGenome&>(i->genomeRef());
-				const std::vector<float> &values = genome.getValues();
 
-				m_sampleFile.write(reinterpret_cast<const char*>(values.data()), values.size() * sizeof(float));
-				m_floatsPerSample = values.size();
-				m_samplesWritten++;
+			if (m_sampleFile.is_open())
+			{
+				for (auto &i : samples)
+				{
+					assert(dynamic_cast<const eatk::FloatVectorGenome *>(i->genomePtr()));
+					const eatk::FloatVectorGenome &genome = static_cast<const eatk::FloatVectorGenome&>(i->genomeRef());
+					const std::vector<float> &values = genome.getValues();
+
+					m_sampleFile.write(reinterpret_cast<const char*>(values.data()), values.size() * sizeof(float));
+					m_floatsPerSample = values.size();
+
+					m_samplesWritten++;
+				}
+				m_generationsWritten++;
 			}
-			m_generationsWritten++;
+
+			if (m_logProbFile.is_open())
+			{
+				m_logProbBuffer.clear();
+
+				for (auto &i : samples)
+				{
+					double v = i->fitness()->getRealValue(0); // TODO: other objective?
+					m_logProbBuffer.push_back(-(float)v); // Write actual log probs, fitness is the negative
+				}
+
+				m_logProbFile.write(reinterpret_cast<const char*>(m_logProbBuffer.data()), m_logProbBuffer.size() * sizeof(float));
+			}
 		}
 
 		m_generationCount++;
@@ -181,8 +214,8 @@ public:
 	}
 private:
 	size_t m_generationCount = 0;
-	std::string m_filename;
-	std::ofstream m_sampleFile;
+	std::string m_filename, m_logProbFn;
+	std::ofstream m_sampleFile, m_logProbFile;
 	size_t m_burnInGenerations = 0;
 	size_t m_annealScaleGenerations = 0;
 	double m_alpha0 = 1.0;
@@ -192,6 +225,8 @@ private:
 	size_t m_samplesWritten = 0;
 	size_t m_generationsWritten = 0;
 	size_t m_numWalkers = 0;
+
+	std::vector<float> m_logProbBuffer;
 };
 
 class MyGW : public CommonSamplingCode<eatk::GoodmanWeareEvolver>
@@ -258,6 +293,7 @@ protected:
 		double alpha0 = mcmcParams.getAnnealAlpha0();
 		double alphaMax = mcmcParams.getAnnealAlphaMax();
 		std::string samplesFileName = mcmcParams.getSamplesFilename();
+		std::string logProbFn = mcmcParams.getLogProbFilename();
 
 		if (maxEAGenerations == 0)
 			return "No number of generations to sample has been set";
@@ -279,7 +315,7 @@ protected:
 			double a = mcmcParams.getGoodmanWeare_a();	
 
 			std::shared_ptr<MyGW> gw = std::make_shared<MyGW>(rng, eatk::SamplingEvolver::NegativeLog, a);
-			if (!(r = gw->init(samplesFileName, burninGenerations, annealScale, alpha0, alphaMax)))
+			if (!(r = gw->init(samplesFileName, logProbFn, burninGenerations, annealScale, alpha0, alphaMax)))
 				return r;
 
 			evolver = gw;
@@ -295,7 +331,7 @@ protected:
 			const std::vector<double> stepScales = mcmcParams.getStepScales();
 
 			std::shared_ptr<MyMH> mh = std::make_shared<MyMH>(rng, stepScales, eatk::SamplingEvolver::NegativeLog);
-			if (!(r = mh->init(samplesFileName, burninGenerations, annealScale, alpha0, alphaMax)))
+			if (!(r = mh->init(samplesFileName, logProbFn, burninGenerations, annealScale, alpha0, alphaMax)))
 				return r;
 
 			evolver = mh;

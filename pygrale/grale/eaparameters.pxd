@@ -76,6 +76,7 @@ ctypedef const RNDParameters* RNDParametersPtrConst
 cdef extern from "grale/mcmcparameters.h" namespace "grale":
     cdef cppclass GeneralMCMCParameters(EAParameters):
         const string getSamplesFilename()
+        const string getLogProbFilename()
         size_t getSampleGenerations() const
         size_t getBurnInGenerations() const
         size_t getAnnealGenerationsTimeScale()
@@ -84,7 +85,8 @@ cdef extern from "grale/mcmcparameters.h" namespace "grale":
 
 cdef extern from "grale/mcmcparameters.h" namespace "grale":
     cdef cppclass MCMCParameters(GeneralMCMCParameters):
-        MCMCParameters(double a, const string &sampleFileName, size_t sampleGenerations,
+        MCMCParameters(double a, const string &sampleFileName, const string &logProbFn,
+                       size_t sampleGenerations,
                        size_t burnInGenerations,
                        size_t annealGenerationsScale, double alpha0, double alphaMax)
 
@@ -94,7 +96,8 @@ ctypedef const MCMCParameters* MCMCParametersPtrConst
 
 cdef extern from "grale/mcmcparameters.h" namespace "grale":
     cdef cppclass MetropolisHastingsMCMCParameters(GeneralMCMCParameters):
-        MetropolisHastingsMCMCParameters(vector[double] &stepScales, const string &sampleFileName, size_t sampleGenerations,
+        MetropolisHastingsMCMCParameters(vector[double] &stepScales, const string &sampleFileName,
+                       const string &logProbFn, size_t sampleGenerations,
                        size_t burnInGenerations,
                        size_t annealGenerationsScale, double alpha0, double alphaMax)
 
