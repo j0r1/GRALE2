@@ -728,7 +728,7 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
            cosmology = None, maximumGenerations = None, eaType = "JADE", deviceIndex = "rotate",
            useImagePositionRandomization = False, allowUnusedPriors = False, numberOfRetraceSteps = 5,
            retraceSourcePlaneThreshold = "auto", allowEmptyInitialValueRange = False,
-           internalRecalcLens = None):
+           internalRecalcLens = None, internalCalcFitnessParams = None):
     """This is a low-level function, used by the similarly named function
     in :class:`InversionWorkSpace`.
 
@@ -805,6 +805,10 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
      - `retraceSourcePlaneThreshold`: TODO, either "auto" or a number
 
      - `allowEmptyInitialValueRange`: TODO
+
+     - `internalRecalcLens`: For internal use
+
+     - `internalCalcFitnessParams`: For internal use
     """
 
     desc = paramdesc.analyzeParametricLensDescription(parametricLensDescription, Dd, defaultInitialParameterFraction, clampToHardLimits, allowEmptyInitialValueRange)
@@ -832,6 +836,8 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
     hardMax = [ x["hardlimits"][1] for x in varParams ]
 
     if internalRecalcLens is not None:
+        if internalCalcFitnessParams is not None:
+            raise InversionException("Internal error: both internalCalcFitnessParams and internalRecalcLens are set")
         _checkInternalRecalcLensConsistency(internalRecalcLens, parametricLensDescription)
 
         _, floatParams = internalRecalcLens.getCLParameters(deflScale, potScale)
@@ -930,7 +936,7 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
                   useImagePositionRandomization, initialUncertSeed,
                   originParametersMap, numOriginParams, allowUnusedPriors,
                   retraceImages, numberOfRetraceSteps, retraceSourcePlaneThreshold,
-                  clProbCode, allowEmptyInitialValueRange)
+                  clProbCode, allowEmptyInitialValueRange, internalCalcFitnessParams)
 
     results = _invertCommon(inverter, feedbackObject, moduleName, "parametricsingleplane", fitnessObjectParameters,
                   None, [Dd, zd], inputImages, getParamsFunction, popSize,
@@ -1758,24 +1764,54 @@ class InversionWorkSpace(object):
             lens = invertMultiPlane(self.imgDataList, bfAndZs, populationSize, **newKwargs)
         return lens
 
-    def calculateParametricFitness(self, lens, parametricLensDescription = None, returnLens = False):
+    def calculateParametricFitness(self, lensOrParameters, parametricLensDescription = None, returnLens = False):
         """TODO"""
-        if not lens:
-            raise InversionException("A lens must be specified")
+        # TODO: add warning that if raw parameters are specified, the parametric description
+        #       needs to be exactly the same as when the parameters were created. Otherwise
+        #       other deflection/potential scales could be used, causing the raw genome values
+        #       to no longer correspond to the same situation
 
-        if parametricLensDescription is None:
-            from .constants import ANGLE_ARCSEC, MASS_SUN
-            def cvf(value, lensName, paramName, uniqueParamName, fullParams):
-                # Consider every parameter as a variable one, but set an empty range
-                # from which this parameter can be chosen
-                return { "initmin": value, "initmax": value }
+        if isinstance(lensOrParameters, lenses.GravitationalLens):
+            lens = lensOrParameters
+            if parametricLensDescription is None:
+                from .constants import ANGLE_ARCSEC, MASS_SUN
+                def cvf(value, lensName, paramName, uniqueParamName, fullParams):
+                    # Consider every parameter as a variable one, but set an empty range
+                    # from which this parameter can be chosen
+                    return { "initmin": value, "initmax": value }
 
-            parametricLensDescription = eval(paramdesc.createParametricDescription(lens, convertValueFunction=cvf))
+                parametricLensDescription = eval(paramdesc.createParametricDescription(lens, convertValueFunction=cvf))
 
-        lens, fitness, names, _, _ = self.invertParametric(parametricLensDescription, 1, eaType="CALCULATE", maximumGenerations=0, internalRecalcLens=lens, allowEmptyInitialValueRange=True, inverter="threads:1")
-        if returnLens:
-            return lens, fitness, names
-        return fitness, names
+            lens, fitness, names, _, _ = self.invertParametric(parametricLensDescription, 1, eaType="CALCULATE", maximumGenerations=0, internalRecalcLens=lens, allowEmptyInitialValueRange=True, inverter="threads:1")
+            if returnLens:
+                return lens, fitness, names
+            return fitness, names
+
+        elif isinstance(lensOrParameters, np.ndarray):
+            params = lensOrParameters
+            if len(params.shape) == 1:
+                params = params.reshape((1,-1))
+                needFinalReshape = True
+            elif len(params.shape) == 2:
+                needFinalReshape = False
+            else:
+                raise InversionException("The numpy array in 'lensOrParameters' should be either 1 or 2 dimensional")
+
+            calculatedLensesAndFitnesses, names, _, _ = self.invertParametric(parametricLensDescription, params.shape[0], eaType="CALCULATE", maximumGenerations=0, internalCalcFitnessParams=params, returnNds=True)
+
+            fitnesses = [ x[1] for x in calculatedLensesAndFitnesses ]
+            if needFinalReshape:
+                fitnesses = fitnesses[0]
+
+            if returnLens:
+                calcLenses = [ x[0] for x in calculatedLensesAndFitnesses ]
+                if needFinalReshape:
+                    calcLenses = calcLenses[0]
+                return calcLenses, fitnesses, names
+
+            return fitnesses, names
+        else:
+            raise InversionException("The 'lensOrParameters' argument must be either a GravitationalLens instanse, or a numpy array")
 
     def calculateFitness(self, lensOrBackProjectedImages):
         """For the current grid, the current images data sets, calculate the fitness values
