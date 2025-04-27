@@ -32,7 +32,7 @@ bool_t OpenCLSinglePlaneDeflection::init(const std::vector<Vector2Df> &thetas, /
 					   const std::vector<float> &thetaUncert, // may be empty, otherwise in correct units and same length as thetas 
 					   const std::vector<int> &templateIntParameters, // these cannot change
 					   const std::vector<float> &templateFloatParameters, // only floating point params can change
-					   const std::vector<size_t> changeableParameterIndices,
+					   const std::vector<size_t> &changeableParameterIndices,
 					   const std::string &deflectionKernelCode, const std::string &lensRoutineName,
 					   const std::string &extraClPriorCode,
 					   int devIdx,
