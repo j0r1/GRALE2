@@ -2,9 +2,50 @@
 #include "xoshiro128plus.h"
 #include "opencl_xoshiro128plus.h"
 #include <map>
+#include <sstream>
+
+using namespace errut;
+
+namespace std
+{
+	inline string to_string(grale::Vector2Df v)
+	{
+		stringstream ss;
+		ss << "[ " << v.getX() << ", " << v.getY() << "]";
+		return ss.str();
+	}
+
+	template <class A, class B>
+	inline string to_string(const pair<A, B> &v)
+	{
+		stringstream ss;
+		ss << "( " << v.first << ", " << v.second << ")";
+		return ss.str();
+	}
+
+	inline string to_string(const string &s)
+	{
+		return s;
+	}
+}
 
 using namespace std;
-using namespace errut;
+
+template <class T>
+void dump(const string &s, const vector<T> &v)
+{
+	cerr << s << endl;
+	cerr << "  length: " << v.size() << endl;
+	for (auto x : v)
+		std::cerr << "    " << to_string(x) << endl;
+}
+
+template <class T>
+void dump(const string &s, T x)
+{
+	cerr << s << ": " << to_string(x) << endl;
+}
+
 
 namespace grale
 {
@@ -45,6 +86,20 @@ bool_t OpenCLSinglePlaneDeflection::init(const std::vector<Vector2Df> &thetas, /
 {
 	if (m_init)
 		return "Already initialized";
+
+	// dump("thetas", thetas);
+	// dump("thetaUncert", thetaUncert);
+	// dump("templateIntParameters", templateIntParameters);
+	// dump("templateFloatParameters", templateFloatParameters);
+	// dump("changeableParameterIndices", changeableParameterIndices);
+	// dump("deflectionKernelCode", deflectionKernelCode);
+	// dump("lensRoutineName", lensRoutineName);
+	// dump("extraClPriorCode", extraClPriorCode);
+	// dump("initialUncertSeed", initialUncertSeed);
+	// dump("originParameters", originParameters);
+	// dump("numOriginParameters", numOriginParameters);
+	// dump("recalcThetaInfo", recalcThetaInfo);
+	// dump("numRetraceIterations", numRetraceIterations);
 	
 	auto cl = make_unique<OpenCLMultiKernel<NumKernels>>();
 
