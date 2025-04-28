@@ -348,7 +348,7 @@ def _createParamOffsetInfo(l, paramNames, couplingNames, tagNames, varNames, pri
 
     return sorted(paramOffsetInfo, key=lambda x: x["offset"]), sorted(fixedOffsetInfo, key=lambda x: x["offset"])
 
-def _createTemplateLens(parametricLensDescription, Dd):
+def _createTemplateLens(parametricLensDescription, Dd, forceScales):
 
     couplingNames = []
     tagNames = []
@@ -423,7 +423,13 @@ def _createTemplateLens(parametricLensDescription, Dd):
 
     l, paramNames, fixedParamNames = _createTemplateLens_helper(parametricLensDescription, Dd, recordParamCouplingNamesWrapper, saveCLCode)
 
-    scales = l.getSuggestedScales()
+    if forceScales is None:
+        scales = l.getSuggestedScales()
+    else:
+        if not ("deflectionscale" in forceScales and "potentialscale" in forceScales):
+            raise ParametricDescriptionException("User specified scales must be a dictionary containing 'deflectionscale' and 'potentialscale' entries")
+        scales = copy.copy(forceScales)
+
     intParam, floatParams = l.getCLParameters(**scales)
     varParamOffsetInfo, fixedParamOffsetInfo = _createParamOffsetInfo(l, paramNames, couplingNames, tagNames, varNames, priors,
                                                                       fixedParamNames, fixedVarNames, **scales)
@@ -612,7 +618,8 @@ def _createHardMinMaxParameters(templateLensDesciption):
 
     return hardMinParams, hardMaxParams
 
-def analyzeParametricLensDescription(parametricLens, Dd, defaultFraction, clampToHardLimits = False, allowSameInitialMinMax = False):
+def analyzeParametricLensDescription(parametricLens, Dd, defaultFraction, clampToHardLimits = False, allowSameInitialMinMax = False,
+                                     forceScales = None):
     """Analyze the parametric lens description in `parametricLens`, which
     should be a dictionary, for a lens at angular diameter distance `Dd`.
     In case a parameter is set to change with some fraction about a value,
@@ -700,7 +707,7 @@ def analyzeParametricLensDescription(parametricLens, Dd, defaultFraction, clampT
     # TODO: "varname"
     # TODO: { "fixed": 123 } for fixed value also possible, allows use of "varname"
 
-    inf = _createTemplateLens(parametricLens, Dd)
+    inf = _createTemplateLens(parametricLens, Dd, forceScales)
 
     def getNameForOffset(off):
         for x in inf["paramoffsets"]:

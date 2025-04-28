@@ -728,7 +728,9 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
            cosmology = None, maximumGenerations = None, eaType = "JADE", deviceIndex = "rotate",
            useImagePositionRandomization = False, allowUnusedPriors = False, numberOfRetraceSteps = 5,
            retraceSourcePlaneThreshold = "auto", allowEmptyInitialValueRange = False,
-           internalRecalcLens = None, internalCalcFitnessParams = None):
+           forceScales = None, returnScales = False,
+           internalRecalcLens = None, internalCalcFitnessParams = None,
+           ):
     """This is a low-level function, used by the similarly named function
     in :class:`InversionWorkSpace`.
 
@@ -806,12 +808,17 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
 
      - `allowEmptyInitialValueRange`: TODO
 
+     - `forceScales`: TODO
+
+     - `returnScales`: TODO
+
      - `internalRecalcLens`: For internal use
 
      - `internalCalcFitnessParams`: For internal use
     """
 
-    desc = paramdesc.analyzeParametricLensDescription(parametricLensDescription, Dd, defaultInitialParameterFraction, clampToHardLimits, allowEmptyInitialValueRange)
+    desc = paramdesc.analyzeParametricLensDescription(parametricLensDescription, Dd, defaultInitialParameterFraction, clampToHardLimits, allowEmptyInitialValueRange,
+                                                      forceScales=forceScales)
     clProbCode = desc["neglogprobcode"]
     
     templateLens = desc["templatelens"]
@@ -947,7 +954,10 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
     # the bayesian samples, the second contains information about all parameters that
     # are changed, can be useful to refine a lens description for example
     # so that info about cname is available too
-    results = results + (varParams, origVarParams, )
+    results = results + (varParams, origVarParams)
+
+    if returnScales:
+        results += (desc["scales"],)
     return results
 
 def defaultLensModelFunction(operation, operationInfo, parameters):
@@ -1764,7 +1774,8 @@ class InversionWorkSpace(object):
             lens = invertMultiPlane(self.imgDataList, bfAndZs, populationSize, **newKwargs)
         return lens
 
-    def calculateParametricFitness(self, lensOrParameters, parametricLensDescription = None, returnLens = False):
+    def calculateParametricFitness(self, lensOrParameters, parametricLensDescription = None, returnLens = False,
+                                   forceScales = None):
         """TODO"""
         # TODO: add warning that if raw parameters are specified, the parametric description
         #       needs to be exactly the same as when the parameters were created. Otherwise
@@ -1782,7 +1793,8 @@ class InversionWorkSpace(object):
 
                 parametricLensDescription = eval(paramdesc.createParametricDescription(lens, convertValueFunction=cvf))
 
-            lens, fitness, names, _, _ = self.invertParametric(parametricLensDescription, 1, eaType="CALCULATE", maximumGenerations=0, internalRecalcLens=lens, allowEmptyInitialValueRange=True, inverter="threads:1")
+            lens, fitness, names, _, _ = self.invertParametric(parametricLensDescription, 1, eaType="CALCULATE", maximumGenerations=0, internalRecalcLens=lens, allowEmptyInitialValueRange=True, inverter="threads:1",
+                                                               forceScales=forceScales)
             if returnLens:
                 return lens, fitness, names
             return fitness, names
@@ -1797,7 +1809,8 @@ class InversionWorkSpace(object):
             else:
                 raise InversionException("The numpy array in 'lensOrParameters' should be either 1 or 2 dimensional")
 
-            calculatedLensesAndFitnesses, names, _, _ = self.invertParametric(parametricLensDescription, params.shape[0], eaType="CALCULATE", maximumGenerations=0, internalCalcFitnessParams=params, returnNds=True)
+            calculatedLensesAndFitnesses, names, _, _ = self.invertParametric(parametricLensDescription, params.shape[0], eaType="CALCULATE", maximumGenerations=0, internalCalcFitnessParams=params, returnNds=True,
+                                                                              forceScales=forceScales)
 
             fitnesses = [ x[1] for x in calculatedLensesAndFitnesses ]
             if needFinalReshape:
