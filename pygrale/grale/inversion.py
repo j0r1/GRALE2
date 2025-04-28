@@ -728,7 +728,7 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
            cosmology = None, maximumGenerations = None, eaType = "JADE", deviceIndex = "rotate",
            useImagePositionRandomization = False, allowUnusedPriors = False, numberOfRetraceSteps = 5,
            retraceSourcePlaneThreshold = "auto", allowEmptyInitialValueRange = False,
-           forceScales = None, returnScales = False,
+           forceScales = None, 
            internalRecalcLens = None, internalCalcFitnessParams = None,
            ):
     """This is a low-level function, used by the similarly named function
@@ -809,8 +809,6 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
      - `allowEmptyInitialValueRange`: TODO
 
      - `forceScales`: TODO
-
-     - `returnScales`: TODO
 
      - `internalRecalcLens`: For internal use
 
@@ -954,11 +952,24 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
     # the bayesian samples, the second contains information about all parameters that
     # are changed, can be useful to refine a lens description for example
     # so that info about cname is available too
-    results = results + (varParams, origVarParams)
+    if len(results) == 2: # NDS returned
+        allLenses, allFitnesses = [], []
+        for x in results[0]:
+            allLenses.append(x[0])
+            allFitnesses.append(x[1])
+        obj = { "lenses": allLenses, "fitnesses": allFitnesses,
+                "fitnessorder": results[1] }
+    elif len(results) == 3: # Single lens is returned
+        obj = { "lens": results[0], "fitness": results[1],
+                "fitnessorder": results[2] }
+    else:
+        raise InversionException("Internal error: unexpected number of results")
 
-    if returnScales:
-        results += (desc["scales"],)
-    return results
+    obj["optparams"] = varParams
+    obj["allvarparams"] = origVarParams
+    obj["scales"] = desc["scales"]
+
+    return obj
 
 def defaultLensModelFunction(operation, operationInfo, parameters):
     """This is the default `lensModelFunction` that's used in 
@@ -1793,11 +1804,11 @@ class InversionWorkSpace(object):
 
                 parametricLensDescription = eval(paramdesc.createParametricDescription(lens, convertValueFunction=cvf))
 
-            lens, fitness, names, _, _ = self.invertParametric(parametricLensDescription, 1, eaType="CALCULATE", maximumGenerations=0, internalRecalcLens=lens, allowEmptyInitialValueRange=True, inverter="threads:1",
-                                                               forceScales=forceScales)
+            obj = self.invertParametric(parametricLensDescription, 1, eaType="CALCULATE", maximumGenerations=0, internalRecalcLens=lens, allowEmptyInitialValueRange=True, inverter="threads:1",
+                                        forceScales=forceScales)
             if returnLens:
-                return lens, fitness, names
-            return fitness, names
+                return obj["lens"], obj["fitness"], obj["fitnessorder"]
+            return obj["fitness"], obj["fitnessorder"]
 
         elif isinstance(lensOrParameters, np.ndarray):
             params = lensOrParameters
@@ -1809,20 +1820,20 @@ class InversionWorkSpace(object):
             else:
                 raise InversionException("The numpy array in 'lensOrParameters' should be either 1 or 2 dimensional")
 
-            calculatedLensesAndFitnesses, names, _, _ = self.invertParametric(parametricLensDescription, params.shape[0], eaType="CALCULATE", maximumGenerations=0, internalCalcFitnessParams=params, returnNds=True,
+            obj = self.invertParametric(parametricLensDescription, params.shape[0], eaType="CALCULATE", maximumGenerations=0, internalCalcFitnessParams=params, returnNds=True,
                                                                               forceScales=forceScales)
 
-            fitnesses = [ x[1] for x in calculatedLensesAndFitnesses ]
+            fitnesses = obj["fitnesses"]
             if needFinalReshape:
                 fitnesses = fitnesses[0]
 
             if returnLens:
-                calcLenses = [ x[0] for x in calculatedLensesAndFitnesses ]
+                calcLenses = [ x[0] for x in obj["lenses"] ]
                 if needFinalReshape:
                     calcLenses = calcLenses[0]
-                return calcLenses, fitnesses, names
+                return calcLenses, fitnesses, obj["fitnessorder"]
 
-            return fitnesses, names
+            return fitnesses, obj["fitnessorder"]
         else:
             raise InversionException("The 'lensOrParameters' argument must be either a GravitationalLens instanse, or a numpy array")
 

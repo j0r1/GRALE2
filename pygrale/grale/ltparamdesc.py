@@ -807,11 +807,12 @@ def initialInversion(zd, imgList, paramDesc, positionalUncertainty):
         iws.addImageDataToList(i["imgdata"], i["z"], "bayesstronglensing")
 
     # Invert!
-    startLens, _, _, _, _ = iws.invertParametric(paramDesc, {popSize}, eaType = "JADE",
-                                                 fitnessObjectParameters = {{ "fitness_bayesweaklensing_stronglenssigma": positionalUncertainty }},
-                                                 useImagePositionRandomization=True, # Needs to be set for the addPositionUncertainty to have effect
-                                                 )
+    r = iws.invertParametric(paramDesc, {popSize}, eaType = "JADE",
+                             fitnessObjectParameters = {{ "fitness_bayesweaklensing_stronglenssigma": positionalUncertainty }},
+                             useImagePositionRandomization=True, # Needs to be set for the addPositionUncertainty to have effect
+                             )
 
+    startLens = r["lens"]
     startLens.save("startInv{outFnSuffix}.lensdata")
 
     # This routine will create a modified parametric description, where
@@ -819,12 +820,16 @@ def initialInversion(zd, imgList, paramDesc, positionalUncertainty):
     # solution that was found. This can then be used in an MCMC run to
     # explore parameter uncertainties
     refinedModel = paramdesc.refineParametricDescription(paramDesc, startLens, {refineFactor})
-    return refinedModel
+    
+    # We'll also return the deflection and potential scales used, so that these
+    # can be used again in the MCMC part. This makes raw parameter values in the
+    # samples file easier to compare between different inversion.
+    return refinedModel, r["scales"]
 
 # This is the second helper function, that will be called with the refined
 # parametric description. It uses the Goodman-Weare algorithm (same as 'emcee')
 # to explore the parameter space
-def mcmcInversion(zd, imgList, paramDesc, positionalUncertainty):
+def mcmcInversion(zd, imgList, paramDesc, positionalUncertainty, scales):
 
     iws = inversion.InversionWorkSpace(zd, 100*ANGLE_ARCSEC)
     for i in imgList:
@@ -846,24 +851,25 @@ def mcmcInversion(zd, imgList, paramDesc, positionalUncertainty):
     fitParams = {{ "fitness_bayesweaklensing_stronglenssigma": positionalUncertainty }}
 
     # Run the MCMC algorithm! It will move several 'walkers' around, for several generations.
-    lens, _, _, reducedParamInfo, _ = iws.invertParametric(paramDesc, {popSize}, maximumGenerations = totalGenerations, eaType = "MCMC", 
-                                                 geneticAlgorithmParameters=mcmcParams, fitnessObjectParameters=fitParams,
-                                                 clampToHardLimits=True)
+    r = iws.invertParametric(paramDesc, {popSize}, maximumGenerations = totalGenerations, eaType = "MCMC", 
+                             geneticAlgorithmParameters=mcmcParams, fitnessObjectParameters=fitParams,
+                             clampToHardLimits=True, forceScales = scales)
 
+    lens = r["lens"]
     lens.save("mcmcInv{outFnSuffix}.lensdata")
 
     # To interpret the samples that are written to file, we also write out the
     # information about the parameters that are being varied. These parameters
     # typically use some find of scale factor, to allow for 32-bit floating point
     # calculations, and it's those scaled values that are written to the file.
-    # The 'paramInfo' list contains the scale factors to convert the values from
-    # file to the real values.
-    pickle.dump(reducedParamInfo, open("paraminfo{outFnSuffix}.dat", "wb"))
+    # The specified 'optparams' entry is a list that contains these scale factors 
+    # to convert the values from the samples file to the real values.
+    pickle.dump(r["optparams"], open("paraminfo{outFnSuffix}.dat", "wb"))
 
 # Run the initial inversion to get a good starting point for the MCMC part
-newParamDesc = initialInversion(zd, imgList, initialParamDesc, positionalUncertainty)
+newParamDesc, scales = initialInversion(zd, imgList, initialParamDesc, positionalUncertainty)
 # Do the actual MCMC inversion
-mcmcInversion(zd, imgList, newParamDesc, positionalUncertainty)
+mcmcInversion(zd, imgList, newParamDesc, positionalUncertainty, scales)
 
 """, file=stringOutput)
 
