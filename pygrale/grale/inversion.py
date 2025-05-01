@@ -1828,7 +1828,7 @@ class InversionWorkSpace(object):
                 fitnesses = fitnesses[0]
 
             if returnLens:
-                calcLenses = [ x[0] for x in obj["lenses"] ]
+                calcLenses = [ x for x in obj["lenses"] ]
                 if needFinalReshape:
                     calcLenses = calcLenses[0]
                 return calcLenses, fitnesses, obj["fitnessorder"]
