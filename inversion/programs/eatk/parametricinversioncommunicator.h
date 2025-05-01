@@ -17,6 +17,7 @@
 #include <eatk/simplesortedpopulation.h>
 #include <eatk/singlebestelitism.h>
 #include <eatk/remainingtargetpopulationsizeiteration.h>
+#include <iomanip>
 #include <list>
 
 class DummyEvolver : public eatk::PopulationEvolver
@@ -64,6 +65,38 @@ private:
 	size_t m_expectedPopSize;
 };
 
+class CustomFloatVectorFitness : public eatk::FloatVectorFitness
+{
+public:
+	CustomFloatVectorFitness(size_t n = 0) : eatk::FloatVectorFitness(n) { }
+
+	// Just so that higher precision is used when reporting fitness.
+	// When it is parsed from the string, the difference with the actual
+	// value will be smaller.
+	std::string toString() const override
+	{
+		if (!Fitness::isCalculated())
+			return "?";
+
+		std::stringstream ss;
+
+		ss << "[";
+		for (auto x : m_values)
+			ss << " " << std::setprecision(15) << x;
+		ss << " ]";
+
+		return ss.str();
+	}
+
+	std::shared_ptr<Fitness> createCopy(bool copyContents = true) const override
+	{
+		auto g = ValueVector<Fitness, float>::template createCopy<CustomFloatVectorFitness>(copyContents);
+		if (copyContents && Fitness::isCalculated())
+			g->setCalculated();
+		return g;
+	}
+};
+
 class PredefinedIndividualCreation : public eatk::IndividualCreation
 {
 public:
@@ -101,7 +134,7 @@ public:
 
 	std::shared_ptr<eatk::Fitness> createEmptyFitness() override
 	{
-		return std::make_shared<eatk::FloatVectorFitness>(m_fitnessSize);
+		return std::make_shared<CustomFloatVectorFitness>(m_fitnessSize);
 	}
 private:
 	size_t m_genomeSize, m_fitnessSize;
@@ -121,7 +154,7 @@ public:
 	
 	std::shared_ptr<eatk::Fitness> createEmptyFitness() override
 	{
-		return std::make_shared<eatk::FloatVectorFitness>(m_numObj);
+		return std::make_shared<CustomFloatVectorFitness>(m_numObj);
 	}
 
 	size_t m_numObj;
@@ -313,7 +346,7 @@ public:
 
 	static std::shared_ptr<eatk::Fitness> getReferenceFitnessForMPI()
 	{
-		return std::make_shared<eatk::FloatVectorFitness>();
+		return std::make_shared<CustomFloatVectorFitness>();
 	}
 
 
