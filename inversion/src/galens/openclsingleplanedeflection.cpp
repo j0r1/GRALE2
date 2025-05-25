@@ -723,9 +723,15 @@ __kernel void averageSourcePositions(int numSources, int numBpPoints, int numPar
 		string reprojectKernel = deflectionKernelCode;
 		reprojectKernel += R"XYZ(
 float2 retraceKernelStep(float2 theta, float dfrac, float2 betaTarget,
-                         __global const int *pIntParams, __global const float *pFloatParams)
+                         __global const int *pIntParams, __global const float *pFloatParams,
+						 LensQuantities *r0, bool alreadyHaveLensQuant)
 {
-	LensQuantities r = )XYZ" + lensRoutineName + R"XYZ((theta, pIntParams, pFloatParams);
+	LensQuantities r;
+
+	if (alreadyHaveLensQuant)
+		r = *r0;
+	else
+		r = )XYZ" + lensRoutineName + R"XYZ((theta, pIntParams, pFloatParams);
 
 	float2 betaCur = theta - dfrac*(float2)(r.alphaX, r.alphaY);
 	float2 betaDiff = betaTarget - betaCur;
@@ -770,21 +776,38 @@ __kernel void retraceKernel(int numBpPoints, int numParamSets, int numFloatParam
 
 	// Do the refinement step for a number of iterations
 	const int numIterations = )XYZ" + to_string(numRetraceIterations) + R"XYZ(;
-	for (int i = 0 ; i < numIterations ; i++)
-		theta = retraceKernelStep(theta, dfrac, betaTarget, pIntParams, pFloatParams);
+	float bestBetaDiffSize = INFINITY;
+	float2 bestRetraceTheta;
 
-	// And calculate the resulting difference in the source plane
-	LensQuantities r = )XYZ" + lensRoutineName + R"XYZ((theta, pIntParams, pFloatParams);
-	float2 betaCur = theta - dfrac*(float2)(r.alphaX, r.alphaY);
-	float2 betaDiff = betaTarget - betaCur;
-	float betaDiffSize = sqrt(betaDiff.x*betaDiff.x + betaDiff.y*betaDiff.y);
+	bool useRCache = false;
+	LensQuantities rCache;
+
+	for (int i = 0 ; i < numIterations ; i++)
+	{
+		theta = retraceKernelStep(theta, dfrac, betaTarget, pIntParams, pFloatParams, &rCache, useRCache);
+
+		// And calculate the resulting difference in the source plane
+		LensQuantities r = )XYZ" + lensRoutineName + R"XYZ((theta, pIntParams, pFloatParams);
+		rCache = r;
+		useRCache = true;
+
+		float2 betaCur = theta - dfrac*(float2)(r.alphaX, r.alphaY);
+		float2 betaDiff = betaTarget - betaCur;
+		float betaDiffSize = sqrt(betaDiff.x*betaDiff.x + betaDiff.y*betaDiff.y);
+
+		if (betaDiffSize < bestBetaDiffSize)
+		{
+			bestBetaDiffSize = betaDiffSize;
+			bestRetraceTheta = theta;
+		}
+	}
 
 	__global float *pTracedThetas = pAllTracedThetas + 2*numBpPoints*paramSet;
 	__global float *pSourcePlaneDists = pAllSourcePlaneDists + numBpPoints*paramSet;
 
-	pTracedThetas[resultOffset+0] = theta.x;
-	pTracedThetas[resultOffset+1] = theta.y;
-	pSourcePlaneDists[ptIdx] = betaDiffSize;
+	pTracedThetas[resultOffset+0] = bestRetraceTheta.x;
+	pTracedThetas[resultOffset+1] = bestRetraceTheta.y;
+	pSourcePlaneDists[ptIdx] = bestBetaDiffSize;
 }
 )XYZ";
 		string faillog;
