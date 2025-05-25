@@ -98,16 +98,41 @@ def _align(pred, obs, maxPermSize):
     bestDist, bestPerm = _findBestPermutation(obs, pred)
     return bestPerm
 
-def _findRealTheta(imgPlane, beta, theta):
+_useOldFindRealTheta = False
+
+def _findRealTheta(imgPlane, beta0, theta):
     from .constants import ANGLE_ARCSEC
     import scipy.optimize as opt
 
     #startDiff = (imgPlane.traceTheta(theta) - beta)/ANGLE_ARCSEC
 
-    def f(x):
-        return (imgPlane.traceTheta(x) - beta)/ANGLE_ARCSEC
+    cachedValues = [ None, None, None ]
+    def getBetaAndDerivs(x):
+        if cachedValues[0] is not None and x[0] == cachedValues[0][0] and x[1] == cachedValues[0][1]:
+            beta, derivs = cachedValues[1:]
+        else:
+            beta, derivs = imgPlane.getBetaAndDerivatives(x)
+            cachedValues[0] = x.copy()
+            cachedValues[1] = beta.copy()
+            cachedValues[2] = derivs.copy()
+        return beta, derivs
 
-    r = opt.fsolve(f, x0=theta)
+    def f(x):
+        beta, derivs = getBetaAndDerivs(x)
+        return (beta - beta0)/ANGLE_ARCSEC
+
+    def fprime(x):
+        beta, derivs = getBetaAndDerivs(x)
+        return derivs
+
+    def f_old(x):
+        return (imgPlane.traceTheta(x) - beta0)/ANGLE_ARCSEC
+
+    if _useOldFindRealTheta:
+        r = opt.fsolve(f, x0=theta)
+    else:
+        r = opt.fsolve(f, fprime=fprime, x0=theta)
+
     #endDiff = (imgPlane.traceTheta(r) - beta)/ANGLE_ARCSEC
     #print("start diff", sum(startDiff**2)**0.5, "arcsec")
     #print("end diff", sum(endDiff**2)**0.5, "arcsec")
