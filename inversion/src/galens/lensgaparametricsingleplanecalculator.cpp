@@ -10,6 +10,7 @@
 #include <cassert>
 #include <sstream>
 #include <mutex>
+#include <fstream>
 
 using namespace errut;
 using namespace std;
@@ -812,7 +813,33 @@ errut::bool_t LensGAParametricSinglePlaneCalculator::pollCalculate(const eatk::G
 	}
 
 	fitness.setCalculated();
-	
+
+#if 0
+	ofstream f("/tmp/bpinfo.dat");
+	if (f.is_open())
+	{
+		f << std::setprecision(17);
+		f << "#scale " << m_oclBp->getAngularScale() << endl;
+		f << "#sources " << m_oclBp->getNumberOfSources() << endl;
+		for (int s = 0 ; s < m_oclBp->getNumberOfSources() ; s++)
+		{
+			f << "#images " << m_oclBp->getNumberOfImages(s) << endl;
+			f << "#" << ((m_oclBp->hasRetracedThetas(s))?"retraced":"not_retraced") << endl;
+			for (int i = 0 ; i < m_oclBp->getNumberOfImages(s) ; i++)
+			{
+				f << "#points " << m_oclBp->getNumberOfImagePoints(s, i) << endl;
+				for (int p = 0 ; p < m_oclBp->getNumberOfImagePoints(s, i) ; p++)
+				{
+					f << m_oclBp->getBetas(s, i)[p].getX() << " " << m_oclBp->getBetas(s, i)[p].getY();
+					f << " " << m_oclBp->getThetas(s, i)[p].getX() << " " << m_oclBp->getThetas(s, i)[p].getY();
+					if (m_oclBp->hasRetracedThetas(s))
+						f << " " << m_oclBp->getRetracedThetas(s, i)[p].getX() << " " << m_oclBp->getRetracedThetas(s, i)[p].getY();
+					f << endl;
+				}
+			}
+		}
+	}
+#endif
 	return true;
 }
 
