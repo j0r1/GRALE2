@@ -746,7 +746,61 @@ float2 retraceKernelStep(float2 theta, float dfrac, float2 betaTarget,
 	return theta + (float2)(txDiff, tyDiff);
 }
 
-float2 findRetraceTheta(const int numIterations, const float2 thetaStart, const float2 betaTarget, const float dfrac, float *pBestBetaDiffSize,
+float getBetaDiffSize(const float2 theta, const float2 betaTarget, const float dfrac,
+	                  __global const int *pIntParams, __global const float *pFloatParams,
+					  LensQuantities *pR)
+{
+	LensQuantities r = )XYZ" + lensRoutineName + R"XYZ((theta, pIntParams, pFloatParams);
+	float2 betaCur = theta - dfrac*(float2)(r.alphaX, r.alphaY);
+	float2 betaDiff = betaTarget - betaCur;
+	*pR = r;
+	return sqrt(betaDiff.x*betaDiff.x + betaDiff.y*betaDiff.y);
+}
+
+float2 findRetraceTheta(int numIterations, const float2 thetaStart, const float2 betaTarget, const float dfrac, float *pBestBetaDiffSize,
+						__global const int *pIntParams, __global const float *pFloatParams)
+{
+	LensQuantities r;
+	float2 theta = thetaStart;
+	float bestBetaDiffSize = getBetaDiffSize(theta, betaTarget, dfrac, pIntParams, pFloatParams, &r);
+	float2 bestRetraceTheta = theta;
+
+	while (numIterations > 0)
+	{
+		float2 betaCur = theta - dfrac*(float2)(r.alphaX, r.alphaY);
+		float2 betaDiff = betaTarget - betaCur;
+		float mxx = 1.0-dfrac*r.axx;
+		float myy = 1.0-dfrac*r.ayy;
+		float mxy = -dfrac*r.axy;
+
+		// Get inverse magnification matrix and multiply with betaDiff
+		float denom = mxx*myy - mxy*mxy;
+		float txDiff = ( myy*betaDiff.x - mxy*betaDiff.y)/denom;
+		float tyDiff = (-mxy*betaDiff.x + mxx*betaDiff.y)/denom;
+		float2 thetaDiff = (float2)(txDiff, tyDiff);
+
+		bool found = false;
+		while (numIterations > 0 && !found)
+		{
+			numIterations--;
+			float betaDiff = getBetaDiffSize(theta + thetaDiff, betaTarget, dfrac, pIntParams, pFloatParams, &r);
+			if (betaDiff < bestBetaDiffSize)
+			{
+				found = true;
+				bestBetaDiffSize = betaDiff;
+				bestRetraceTheta = theta + thetaDiff;
+				theta = theta + thetaDiff;
+			}
+			else
+				thetaDiff *= (float2)(0.5, 0.5);
+		}
+	}
+
+	*pBestBetaDiffSize = bestBetaDiffSize;
+	return bestRetraceTheta;
+}
+
+float2 findRetraceTheta_old(const int numIterations, const float2 thetaStart, const float2 betaTarget, const float dfrac, float *pBestBetaDiffSize,
 						__global const int *pIntParams, __global const float *pFloatParams)
 {
 	float bestBetaDiffSize = INFINITY;
@@ -802,7 +856,7 @@ __kernel void retraceKernel(int numBpPoints, int numParamSets, int numFloatParam
 	float dfrac = pDistFrac[ptIdx];
 
 	__global const float *pFloatParams = pFloatParamsBase + paramSet*numFloatParams;
-	__global float *pAverageBetas = pAllAverageBetas + 2*numBpPoints*paramSet;
+	__global const float *pAverageBetas = pAllAverageBetas + 2*numBpPoints*paramSet;
 
 	const int resultOffset = 2*ptIdx;
 	float2 betaTarget = (float2)(pAverageBetas[resultOffset + 0], pAverageBetas[resultOffset + 1]);
