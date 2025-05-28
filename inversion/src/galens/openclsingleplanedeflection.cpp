@@ -746,6 +746,39 @@ float2 retraceKernelStep(float2 theta, float dfrac, float2 betaTarget,
 	return theta + (float2)(txDiff, tyDiff);
 }
 
+float2 findRetraceTheta(const int numIterations, const float2 thetaStart, const float2 betaTarget, const float dfrac, float *pBestBetaDiffSize,
+						__global const int *pIntParams, __global const float *pFloatParams)
+{
+	float bestBetaDiffSize = INFINITY;
+	float2 bestRetraceTheta = (float2)(INFINITY, INFINITY);
+	float2 theta = thetaStart;
+	bool useRCache = false;
+	LensQuantities rCache;
+
+	for (int i = 0 ; i < numIterations ; i++)
+	{
+		theta = retraceKernelStep(theta, dfrac, betaTarget, pIntParams, pFloatParams, &rCache, useRCache);
+
+		// And calculate the resulting difference in the source plane
+		LensQuantities r = )XYZ" + lensRoutineName + R"XYZ((theta, pIntParams, pFloatParams);
+		rCache = r;
+		useRCache = true;
+
+		float2 betaCur = theta - dfrac*(float2)(r.alphaX, r.alphaY);
+		float2 betaDiff = betaTarget - betaCur;
+		float betaDiffSize = sqrt(betaDiff.x*betaDiff.x + betaDiff.y*betaDiff.y);
+
+		if (betaDiffSize < bestBetaDiffSize)
+		{
+			bestBetaDiffSize = betaDiffSize;
+			bestRetraceTheta = theta;
+		}
+	}
+
+	*pBestBetaDiffSize = bestBetaDiffSize;
+	return bestRetraceTheta;
+}
+
 __kernel void retraceKernel(int numBpPoints, int numParamSets, int numFloatParams,
 								__global const float *pFullThetas, // Can be either with or without randomization
 								__global const int *pBpThetaIndices,
@@ -776,31 +809,9 @@ __kernel void retraceKernel(int numBpPoints, int numParamSets, int numFloatParam
 
 	// Do the refinement step for a number of iterations
 	const int numIterations = )XYZ" + to_string(numRetraceIterations) + R"XYZ(;
+
 	float bestBetaDiffSize = INFINITY;
-	float2 bestRetraceTheta;
-
-	bool useRCache = false;
-	LensQuantities rCache;
-
-	for (int i = 0 ; i < numIterations ; i++)
-	{
-		theta = retraceKernelStep(theta, dfrac, betaTarget, pIntParams, pFloatParams, &rCache, useRCache);
-
-		// And calculate the resulting difference in the source plane
-		LensQuantities r = )XYZ" + lensRoutineName + R"XYZ((theta, pIntParams, pFloatParams);
-		rCache = r;
-		useRCache = true;
-
-		float2 betaCur = theta - dfrac*(float2)(r.alphaX, r.alphaY);
-		float2 betaDiff = betaTarget - betaCur;
-		float betaDiffSize = sqrt(betaDiff.x*betaDiff.x + betaDiff.y*betaDiff.y);
-
-		if (betaDiffSize < bestBetaDiffSize)
-		{
-			bestBetaDiffSize = betaDiffSize;
-			bestRetraceTheta = theta;
-		}
-	}
+	float2 bestRetraceTheta = findRetraceTheta(numIterations, theta, betaTarget, dfrac, &bestBetaDiffSize, pIntParams, pFloatParams);
 
 	__global float *pTracedThetas = pAllTracedThetas + 2*numBpPoints*paramSet;
 	__global float *pSourcePlaneDists = pAllSourcePlaneDists + numBpPoints*paramSet;
