@@ -722,53 +722,19 @@ __kernel void averageSourcePositions(int numSources, int numBpPoints, int numPar
 	{
 		string reprojectKernel = deflectionKernelCode;
 		reprojectKernel += R"XYZ(
-float2 retraceKernelStep(float2 theta, float dfrac, float2 betaTarget,
-                         __global const int *pIntParams, __global const float *pFloatParams,
-						 LensQuantities *r0, bool alreadyHaveLensQuant)
-{
-	LensQuantities r;
-
-	if (alreadyHaveLensQuant)
-		r = *r0;
-	else
-		r = )XYZ" + lensRoutineName + R"XYZ((theta, pIntParams, pFloatParams);
-
-	float2 betaCur = theta - dfrac*(float2)(r.alphaX, r.alphaY);
-	float2 betaDiff = betaTarget - betaCur;
-	float mxx = 1.0-dfrac*r.axx;
-	float myy = 1.0-dfrac*r.ayy;
-	float mxy = -dfrac*r.axy;
-
-	// Get inverse magnification matrix and multiply with betaDiff
-	float denom = mxx*myy - mxy*mxy;
-	float txDiff = ( myy*betaDiff.x - mxy*betaDiff.y)/denom;
-	float tyDiff = (-mxy*betaDiff.x + mxx*betaDiff.y)/denom;
-	return theta + (float2)(txDiff, tyDiff);
-}
-
-float getBetaDiffSize(const float2 theta, const float2 betaTarget, const float dfrac,
-	                  __global const int *pIntParams, __global const float *pFloatParams,
-					  LensQuantities *pR)
-{
-	LensQuantities r = )XYZ" + lensRoutineName + R"XYZ((theta, pIntParams, pFloatParams);
-	float2 betaCur = theta - dfrac*(float2)(r.alphaX, r.alphaY);
-	float2 betaDiff = betaTarget - betaCur;
-	*pR = r;
-	return sqrt(betaDiff.x*betaDiff.x + betaDiff.y*betaDiff.y);
-}
 
 float2 findRetraceTheta(int numIterations, const float2 thetaStart, const float2 betaTarget, const float dfrac, float *pBestBetaDiffSize,
 						__global const int *pIntParams, __global const float *pFloatParams)
 {
-	LensQuantities r;
 	float2 theta = thetaStart;
-	float bestBetaDiffSize = getBetaDiffSize(theta, betaTarget, dfrac, pIntParams, pFloatParams, &r);
+	LensQuantities r = )XYZ" + lensRoutineName + R"XYZ((theta, pIntParams, pFloatParams);
+	float2 betaCur = theta - dfrac*(float2)(r.alphaX, r.alphaY);
+	float2 betaDiff = betaTarget - betaCur;
+	float bestBetaDiffSize = sqrt(betaDiff.x*betaDiff.x + betaDiff.y*betaDiff.y);
 	float2 bestRetraceTheta = theta;
 
 	while (numIterations > 0)
 	{
-		float2 betaCur = theta - dfrac*(float2)(r.alphaX, r.alphaY);
-		float2 betaDiff = betaTarget - betaCur;
 		float mxx = 1.0-dfrac*r.axx;
 		float myy = 1.0-dfrac*r.ayy;
 		float mxy = -dfrac*r.axy;
@@ -779,53 +745,24 @@ float2 findRetraceTheta(int numIterations, const float2 thetaStart, const float2
 		float tyDiff = (-mxy*betaDiff.x + mxx*betaDiff.y)/denom;
 		float2 thetaDiff = (float2)(txDiff, tyDiff);
 
-		bool found = false;
-		while (numIterations > 0 && !found)
+		while (numIterations > 0)
 		{
 			numIterations--;
-			float betaDiff = getBetaDiffSize(theta + thetaDiff, betaTarget, dfrac, pIntParams, pFloatParams, &r);
-			if (betaDiff < bestBetaDiffSize)
+
+			r = )XYZ" + lensRoutineName + R"XYZ((theta+thetaDiff, pIntParams, pFloatParams);
+			betaCur = (theta+thetaDiff) - dfrac*(float2)(r.alphaX, r.alphaY);
+			betaDiff = betaTarget - betaCur;
+
+			float betaDiffSize = sqrt(betaDiff.x*betaDiff.x + betaDiff.y*betaDiff.y);
+			if (betaDiffSize < bestBetaDiffSize)
 			{
-				found = true;
-				bestBetaDiffSize = betaDiff;
-				bestRetraceTheta = theta + thetaDiff;
 				theta = theta + thetaDiff;
+				bestBetaDiffSize = betaDiffSize;
+				bestRetraceTheta = theta;
+				break;
 			}
 			else
 				thetaDiff *= (float2)(0.5, 0.5);
-		}
-	}
-
-	*pBestBetaDiffSize = bestBetaDiffSize;
-	return bestRetraceTheta;
-}
-
-float2 findRetraceTheta_old(const int numIterations, const float2 thetaStart, const float2 betaTarget, const float dfrac, float *pBestBetaDiffSize,
-						__global const int *pIntParams, __global const float *pFloatParams)
-{
-	float bestBetaDiffSize = INFINITY;
-	float2 bestRetraceTheta = (float2)(INFINITY, INFINITY);
-	float2 theta = thetaStart;
-	bool useRCache = false;
-	LensQuantities rCache;
-
-	for (int i = 0 ; i < numIterations ; i++)
-	{
-		theta = retraceKernelStep(theta, dfrac, betaTarget, pIntParams, pFloatParams, &rCache, useRCache);
-
-		// And calculate the resulting difference in the source plane
-		LensQuantities r = )XYZ" + lensRoutineName + R"XYZ((theta, pIntParams, pFloatParams);
-		rCache = r;
-		useRCache = true;
-
-		float2 betaCur = theta - dfrac*(float2)(r.alphaX, r.alphaY);
-		float2 betaDiff = betaTarget - betaCur;
-		float betaDiffSize = sqrt(betaDiff.x*betaDiff.x + betaDiff.y*betaDiff.y);
-
-		if (betaDiffSize < bestBetaDiffSize)
-		{
-			bestBetaDiffSize = betaDiffSize;
-			bestRetraceTheta = theta;
 		}
 	}
 
