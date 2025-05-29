@@ -726,7 +726,7 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
            defaultInitialParameterFraction = 0.1, clampToHardLimits = False, fitnessObjectParameters = None, convergenceParameters = { },
            geneticAlgorithmParameters = { }, returnNds = False, inverter = "default", feedbackObject = "default",
            cosmology = None, maximumGenerations = None, eaType = "JADE", deviceIndex = "rotate",
-           useImagePositionRandomization = False, allowUnusedPriors = False, numberOfRetraceSteps = 5,
+           useImagePositionRandomization = False, allowUnusedPriors = False, numberOfRetraceSteps = 8,
            retraceSourcePlaneThreshold = "auto", allowEmptyInitialValueRange = False,
            forceScales = None, 
            internalRecalcLens = None, internalCalcFitnessParams = None,
