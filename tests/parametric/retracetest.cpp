@@ -123,9 +123,11 @@ int main(int argc, char *argv[])
 		inKernelThetaUncert.push_back( (float)(inKernelThetaUncertSize/deflScale) );
 
 	bool_t r;
+	MultiStepNewtonTraceParams retraceParams(numRetraceSteps);
+
 	if (!(r = clDef.init(thetas, inKernelThetaUncert, intParams, floatParams, changeableParamIdx, 
 	                     prog, subRoutName, "", 0, 12345, originParams, numOriginParams,
-						 recalcThetaInfo, numRetraceSteps
+						 recalcThetaInfo, retraceParams
 						 )))
 		throw runtime_error("Can't init OpenCL calculation code: " + r.getErrorString());
 

@@ -1,4 +1,5 @@
 #include "lensinversionparametersparametricsingleplane.h"
+#include <errut/booltype.h>
 #include <iostream>
 #include <array>
 
@@ -28,7 +29,7 @@ LensInversionParametersParametricSinglePlane::LensInversionParametersParametricS
 		size_t numOriginParameters,
 		bool allowUnusedPriors,
 		const std::vector<bool> &retraceImages,
-		size_t numRetraceSteps,
+		const std::shared_ptr<TraceParameters> &retraceParameters,
 		double sourcePlaneDistThreshold,
 		const std::string &clPriorCode,
 		bool allowEqualInitRange,
@@ -55,7 +56,7 @@ LensInversionParametersParametricSinglePlane::LensInversionParametersParametricS
 	m_numOriginParams = numOriginParameters;
 	m_allowUnusedPriors = allowUnusedPriors;
 	m_retraceImages = retraceImages;
-	m_numRetraceSteps = numRetraceSteps;
+	m_retraceParams = retraceParameters;
 	m_sourcePlaneDistThreshold = sourcePlaneDistThreshold;
 	m_clPriorCode = clPriorCode;
 	m_allowEqualInitRange = allowEqualInitRange;
@@ -182,10 +183,16 @@ bool LensInversionParametersParametricSinglePlane::write(serut::SerializationInt
 		return false;
 	}
 
-	int32_t numRetr = (int32_t)m_numRetraceSteps;
-	if (!si.writeInt32(numRetr))
+	if (!m_retraceParams)
 	{
-		setErrorString(si.getErrorString());
+		setErrorString("Retrace parameter instance is not set");
+		return false;
+	}
+
+	errut::bool_t r = m_retraceParams->write(si);
+	if (!r)
+	{
+		setErrorString(r.getErrorString());
 		return false;
 	}
 
@@ -383,19 +390,17 @@ bool LensInversionParametersParametricSinglePlane::read(serut::SerializationInte
 	for (auto v : flags)
 		m_retraceImages.push_back((v == 0)?false:true);
 
-	int32_t numRetr;
-	if (!si.readInt32(&numRetr))
+	unique_ptr<TraceParameters> retrParams;
+	errut::bool_t r = TraceParameters::read(si, retrParams);
+
+	if (!r)
 	{
-		setErrorString(si.getErrorString());
+		setErrorString(r.getErrorString());
 		return false;
 	}
 
-	if (numRetr < 0)
-	{
-		setErrorString("Negative number of retrace steps");
-		return false;
-	}
-	m_numRetraceSteps = (size_t)numRetr;
+	assert(retrParams.get());
+	m_retraceParams = std::move(retrParams);
 
 	if (!si.readDouble(&m_sourcePlaneDistThreshold))
 	{

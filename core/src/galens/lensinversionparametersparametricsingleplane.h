@@ -5,6 +5,7 @@
 #include "gravitationallens.h"
 #include "imagesdataextended.h"
 #include "configurationparameters.h"
+#include "retraceparameters.h"
 #include <vector>
 #include <cassert>
 
@@ -32,7 +33,7 @@ public:
 		size_t numOriginParameters,
 		bool allowUnusedPriors,
 		const std::vector<bool> &retraceImages,
-		size_t numRetraceSteps,
+		const std::shared_ptr<TraceParameters> &traceParameters,
 		double sourcePlaneDistThreshold, // threshold to accept retrace convergence
 		const std::string &clPriorCode,
 		bool allowEqualInitRange,
@@ -60,7 +61,7 @@ public:
 	size_t getNumberOfOriginParameters() const { return m_numOriginParams; }
 	bool shouldAllowUnusedPriors() const { return m_allowUnusedPriors; }
 	const std::vector<bool> &shouldRetraceImages() const { return m_retraceImages; }
-	size_t getNumberOfRetraceSteps() const { return m_numRetraceSteps; }
+	const TraceParameters &getRetraceParameters() const { return *m_retraceParams; }
 	double getSourcePlaneDistanceThreshold() const { return m_sourcePlaneDistThreshold; }
 	std::string getOpenCLPriorCode() const { return m_clPriorCode; }
 	bool allowEqualValuesInInitialRange() const { return m_allowEqualInitRange; }
@@ -84,7 +85,7 @@ private:
 	size_t m_numOriginParams = 0;
 	bool m_allowUnusedPriors = false;
 	std::vector<bool> m_retraceImages;
-	size_t m_numRetraceSteps = 0;
+	std::shared_ptr<TraceParameters> m_retraceParams;
 	double m_sourcePlaneDistThreshold = 0;
 	std::string m_clPriorCode;
 	bool m_allowEqualInitRange = false;

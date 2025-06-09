@@ -4,6 +4,7 @@
 #include "vector2d.h"
 #include "openclmultikernel.h"
 #include "oclutils.h"
+#include "retraceparameters.h"
 #include <eatk/vectorgenomefitness.h>
 #include <errut/booltype.h>
 #include <vector>
@@ -56,7 +57,7 @@ public:
 					   // also store the last difference in the source plane to check how well it
 					   // succeeded
 					   const std::vector<std::pair<int, float>> &recalcThetaInfo,
-					   size_t numRetraceIterations
+					   const TraceParameters &retraceParams
 					   );
 
 	void destroy();
@@ -125,7 +126,7 @@ protected:
 
 	errut::bool_t initRecalc(size_t numTotalPoints, const std::vector<std::pair<int, float>> &recalcThetaInfo,
 			                 OpenCLMultiKernel<NumKernels> &cl, const std::string &deflectionKernelCode,
-							 const std::string &lensRoutineName, size_t numRetraceIterations);
+							 const std::string &lensRoutineName, const TraceParameters &retraceParams);
 
 	bool m_recalcThetas = false;
 	cl_int m_clNumSources = 0;
@@ -162,7 +163,7 @@ public:
 					   const std::vector<std::pair<size_t, std::string>> &originParameters,
 					   size_t numOriginParameters, // 0 is disable
 					   const std::vector<std::pair<int, float>> &recalcThetaInfo,
-					   size_t numRetraceIterations
+					   const TraceParameters &retraceParams
 					   );
 
 	static void releaseInstance(uint64_t userId);

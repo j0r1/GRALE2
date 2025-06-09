@@ -1,4 +1,5 @@
 #include "retraceparameters.h"
+#include "constants.h"
 
 using namespace std;
 using namespace errut;
@@ -24,6 +25,9 @@ errut::bool_t TraceParameters::read(serut::SerializationInterface &si, std::uniq
 	unique_ptr<TraceParameters> params;
 	switch((ParameterType)typeInt)
 	{
+	case NoTrace:
+		params = make_unique<NoTraceParameters>();
+		break;
 	case SingleStepNewton:
 		params = make_unique<SingleStepNewtonTraceParams>();
 		break;
@@ -106,6 +110,14 @@ errut::bool_t ExpandedMultiStepNewtonTraceParams::writeInternal(serut::Serializa
 	if (!si.writeInt32s(intParams) || !si.writeDoubles(dblParams))
 		return "Error writing integer or double parameters: " + si.getErrorString();
 	return true;
+}
+
+std::string ExpandedMultiStepNewtonTraceParams::getRetraceDescription() const
+{
+	return "ExpandedMultiStepNewton, numEvalsPerStartPos = " + to_string(m_numEvalsPerStartPos)
+		   + ", numMaxGridSteps = " + to_string(m_numMaxGridSteps)
+		   + ", acceptThreshold = " + to_string(m_acceptThreshold/ANGLE_ARCSEC)
+		   + " arcsec, gridSpacing = " + to_string(m_gridSpacing/ANGLE_ARCSEC) + " arcsec";
 }
 
 } // end namespace

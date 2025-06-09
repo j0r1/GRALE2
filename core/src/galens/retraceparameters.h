@@ -11,12 +11,14 @@ namespace grale
 class TraceParameters
 {
 public:
-	enum ParameterType { SingleStepNewton, MultiStepNewton, ExpandedMultiStepNewton };
+	enum ParameterType { NoTrace, SingleStepNewton, MultiStepNewton, ExpandedMultiStepNewton };
 
 	virtual ~TraceParameters();
 
 	static errut::bool_t read(serut::SerializationInterface &si, std::unique_ptr<TraceParameters> &parameters);
 	errut::bool_t write(serut::SerializationInterface &si) const;
+
+	virtual std::string getRetraceDescription() const = 0;
 protected:
 	TraceParameters(ParameterType t);
 
@@ -26,11 +28,25 @@ private:
 	ParameterType m_type;
 };
 
+class NoTraceParameters : public TraceParameters
+{
+public:
+	NoTraceParameters() : TraceParameters(NoTrace) { }
+	~NoTraceParameters() { }
+
+	std::string getRetraceDescription() const override { return "NoTrace"; }
+private:
+	errut::bool_t readInternal(serut::SerializationInterface &si) override { return true; }
+	errut::bool_t writeInternal(serut::SerializationInterface &si) const override { return true; }
+};
+
 class SingleStepNewtonTraceParams : public TraceParameters
 {
 public:
 	SingleStepNewtonTraceParams() : TraceParameters(SingleStepNewton) { }
 	~SingleStepNewtonTraceParams() { }
+
+	std::string getRetraceDescription() const override { return "SingleStepNewton"; }
 private:
 	errut::bool_t readInternal(serut::SerializationInterface &si) override { return true; }
 	errut::bool_t writeInternal(serut::SerializationInterface &si) const override { return true; }
@@ -42,6 +58,7 @@ public:
 	MultiStepNewtonTraceParams(size_t numEvaluations = 0) : TraceParameters(MultiStepNewton), m_numEvals(numEvaluations) { }
 	~MultiStepNewtonTraceParams() { }
 
+	std::string getRetraceDescription() const override { return "MultiStepNewton, numEvals = " + std::to_string(m_numEvals); }
 	size_t getNumberOfEvaluations() const { return m_numEvals; }
 private:
 	errut::bool_t readInternal(serut::SerializationInterface &si) override;
@@ -60,6 +77,7 @@ public:
 	      m_acceptThreshold(acceptThreshold), m_gridSpacing(gridSpacing) { }
 	~ExpandedMultiStepNewtonTraceParams() { }
 
+	std::string getRetraceDescription() const override;
 	size_t getNumberOfEvaluationsPerStartPosition() const { return m_numEvalsPerStartPos; }
 	size_t getMaximumNumberOfGridSteps() const { return m_numMaxGridSteps; }
 	double getAcceptanceThreshold() const { return m_acceptThreshold; }

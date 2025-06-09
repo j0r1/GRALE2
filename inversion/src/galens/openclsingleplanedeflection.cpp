@@ -81,7 +81,7 @@ bool_t OpenCLSinglePlaneDeflection::init(const std::vector<Vector2Df> &thetas, /
 					   const std::vector<std::pair<size_t, std::string>> &originParameters,
 					   size_t numOriginParameters,
 					   const std::vector<std::pair<int, float>> &recalcThetaInfo,
-					   size_t numRetraceIterations
+					   const TraceParameters &retraceParams
 					   )
 {
 	if (m_init)
@@ -500,7 +500,7 @@ __kernel void calculateTotalNegLogProbContributionsKernel(int numParamSets, int 
 		if (recalcThetaInfo.size() != thetas.size())
 			return cleanup("Recalculate thetas vector should be of equal length as the thetas vector (" + to_string(recalcThetaInfo.size())
 					       + " != " + to_string(thetas.size()) + ")");
-		if (!(r = initRecalc(thetas.size(), recalcThetaInfo, *cl, deflectionKernelCode, lensRoutineName, numRetraceIterations)))
+		if (!(r = initRecalc(thetas.size(), recalcThetaInfo, *cl, deflectionKernelCode, lensRoutineName, retraceParams)))
 			return cleanup(r.getErrorString());
 
 		m_recalcThetas = true;
@@ -525,7 +525,7 @@ __kernel void calculateTotalNegLogProbContributionsKernel(int numParamSets, int 
 
 errut::bool_t OpenCLSinglePlaneDeflection::initRecalc(size_t numTotalPoints, const std::vector<std::pair<int, float>> &recalcThetaInfo,
 													  OpenCLMultiKernel<NumKernels> &cl, const std::string &deflectionKernelCode,
-													  const std::string &lensRoutineName, size_t numRetraceIterations)
+													  const std::string &lensRoutineName, const TraceParameters &retraceParams)
 {
 	// Build maps for distance fractions and points for sources
 
@@ -799,7 +799,7 @@ __kernel void retraceKernel(int numBpPoints, int numParamSets, int numFloatParam
 	float2 betaTarget = (float2)(pAverageBetas[resultOffset + 0], pAverageBetas[resultOffset + 1]);
 
 	// Do the refinement step for a number of iterations
-	const int numIterations = )XYZ" + to_string(numRetraceIterations) + R"XYZ(;
+	const int numIterations = )XYZ" + to_string(8) /* TODO, just to get it to compile */ + R"XYZ(;
 
 	float bestBetaDiffSize = INFINITY;
 	float2 bestRetraceTheta = findRetraceTheta(numIterations, theta, betaTarget, dfrac, &bestBetaDiffSize, pIntParams, pFloatParams);
@@ -1390,7 +1390,7 @@ errut::bool_t OpenCLSinglePlaneDeflectionInstance::initInstance(uint64_t userId,
 					   const std::vector<std::pair<size_t, std::string>> &originParameters,
 					   size_t numOriginParameters,
 					   const std::vector<std::pair<int, float>> &recalcThetaInfo,
-					   size_t numRetraceIterations
+					   const TraceParameters &retraceParams
 					   )
 
 {
@@ -1419,7 +1419,7 @@ errut::bool_t OpenCLSinglePlaneDeflectionInstance::initInstance(uint64_t userId,
 	unique_ptr<OpenCLSinglePlaneDeflectionInstance> oclCalc = make_unique<OpenCLSinglePlaneDeflectionInstance>();
 	bool_t r = oclCalc->init(thetas, thetaUncert, templateIntParameters, templateFloatParameters, changeableParameterIndices,
 							 deflectionKernelCode, lensRoutineName, extraClPriorCode, devIdx, initialUncertSeed,
-							 originParameters, numOriginParameters, recalcThetaInfo, numRetraceIterations);
+							 originParameters, numOriginParameters, recalcThetaInfo, retraceParams);
 	oclCalc->m_requestedDevIdx = devIdx; // TODO: store this in a better way?
 
 	if (!r)

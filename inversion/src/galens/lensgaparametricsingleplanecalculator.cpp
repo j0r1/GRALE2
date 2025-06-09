@@ -347,6 +347,7 @@ bool_t LensGAParametricSinglePlaneCalculator::init(const LensInversionParameters
 
 	m_extraClPriorCode = params.getOpenCLPriorCode();
 
+	const TraceParameters &retraceParams = params.getRetraceParameters();
 	if (!(r = OpenCLSinglePlaneDeflectionInstance::initInstance((uint64_t)this, 
 																	m_thetas, posUncertainties, m_intParams,
 																	m_floatParams, m_changeableParamIdx,
@@ -357,12 +358,12 @@ bool_t LensGAParametricSinglePlaneCalculator::init(const LensInversionParameters
 																	originParameterMapping,
 																	m_numOriginParams,
 																	recalcThetaInfo,
-																	params.getNumberOfRetraceSteps()
+																	retraceParams
 																	)))
 		return "Couldn't init OpenCLSinglePlaneDeflectionInstance: " + r.getErrorString();
 
 	if (anyRetrace)
-		cerr << "INFO: using " << params.getNumberOfRetraceSteps() << " retrace steps" << endl;
+		cerr << "INFO: retrace info: " << retraceParams.getRetraceDescription() << endl;
 
 	list<ImagesDataExtended *> empty;
 

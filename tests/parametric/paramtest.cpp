@@ -64,8 +64,9 @@ int main(void)
 	OpenCLSinglePlaneDeflection clDef;
 
 	bool_t r;
+	NoTraceParameters notraceParams;
 	if (!(r = clDef.init(thetas, {}, intParams, floatParams, changeableParamIdx, 
-	                     prog, subRoutName, "", 0, 0, originParams, numOriginParams, {}, 0)))
+	                     prog, subRoutName, "", 0, 0, originParams, numOriginParams, {}, notraceParams)))
 		throw runtime_error("Can't init OpenCL calculation code: " + r.getErrorString());
 
 	vector<Vector2Df> allAlphas;
