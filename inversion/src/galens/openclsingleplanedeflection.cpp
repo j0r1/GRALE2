@@ -721,55 +721,14 @@ __kernel void averageSourcePositions(int numSources, int numBpPoints, int numPar
 	// Retrace kernel
 	{
 		string reprojectKernel = deflectionKernelCode;
+		string sub;
+
+		if (!(r = getReprojectSubroutineCode(lensRoutineName, retraceParams, sub)))
+			return cleanup(r.getErrorString());
+
+		reprojectKernel += sub;
+
 		reprojectKernel += R"XYZ(
-
-float2 findRetraceTheta(int numIterations, const float2 thetaStart, const float2 betaTarget, const float dfrac, float *pBestBetaDiffSize,
-						__global const int *pIntParams, __global const float *pFloatParams)
-{
-	float2 theta = thetaStart;
-	LensQuantities r = )XYZ" + lensRoutineName + R"XYZ((theta, pIntParams, pFloatParams);
-	float2 betaCur = theta - dfrac*(float2)(r.alphaX, r.alphaY);
-	float2 betaDiff = betaTarget - betaCur;
-	float bestBetaDiffSize = sqrt(betaDiff.x*betaDiff.x + betaDiff.y*betaDiff.y);
-	float2 bestRetraceTheta = theta;
-
-	while (numIterations > 0)
-	{
-		float mxx = 1.0-dfrac*r.axx;
-		float myy = 1.0-dfrac*r.ayy;
-		float mxy = -dfrac*r.axy;
-
-		// Get inverse magnification matrix and multiply with betaDiff
-		float denom = mxx*myy - mxy*mxy;
-		float txDiff = ( myy*betaDiff.x - mxy*betaDiff.y)/denom;
-		float tyDiff = (-mxy*betaDiff.x + mxx*betaDiff.y)/denom;
-		float2 thetaDiff = (float2)(txDiff, tyDiff);
-
-		while (numIterations > 0)
-		{
-			numIterations--;
-
-			r = )XYZ" + lensRoutineName + R"XYZ((theta+thetaDiff, pIntParams, pFloatParams);
-			betaCur = (theta+thetaDiff) - dfrac*(float2)(r.alphaX, r.alphaY);
-			betaDiff = betaTarget - betaCur;
-
-			float betaDiffSize = sqrt(betaDiff.x*betaDiff.x + betaDiff.y*betaDiff.y);
-			if (betaDiffSize < bestBetaDiffSize)
-			{
-				theta = theta + thetaDiff;
-				bestBetaDiffSize = betaDiffSize;
-				bestRetraceTheta = theta;
-				break;
-			}
-			else
-				thetaDiff *= (float2)(0.5, 0.5);
-		}
-	}
-
-	*pBestBetaDiffSize = bestBetaDiffSize;
-	return bestRetraceTheta;
-}
-
 __kernel void retraceKernel(int numBpPoints, int numParamSets, int numFloatParams,
 								__global const float *pFullThetas, // Can be either with or without randomization
 								__global const int *pBpThetaIndices,
@@ -798,11 +757,8 @@ __kernel void retraceKernel(int numBpPoints, int numParamSets, int numFloatParam
 	const int resultOffset = 2*ptIdx;
 	float2 betaTarget = (float2)(pAverageBetas[resultOffset + 0], pAverageBetas[resultOffset + 1]);
 
-	// Do the refinement step for a number of iterations
-	const int numIterations = )XYZ" + to_string(8) /* TODO, just to get it to compile */ + R"XYZ(;
-
 	float bestBetaDiffSize = INFINITY;
-	float2 bestRetraceTheta = findRetraceTheta(numIterations, theta, betaTarget, dfrac, &bestBetaDiffSize, pIntParams, pFloatParams);
+	float2 bestRetraceTheta = findRetraceTheta(theta, betaTarget, dfrac, &bestBetaDiffSize, pIntParams, pFloatParams);
 
 	__global float *pTracedThetas = pAllTracedThetas + 2*numBpPoints*paramSet;
 	__global float *pSourcePlaneDists = pAllSourcePlaneDists + numBpPoints*paramSet;

@@ -76,6 +76,7 @@ set(SOURCES
 	galens/populationdump.cpp
 	galens/lensnsga2evolver.cpp
 	galens/openclsingleplanedeflection.cpp
+	galens/openclsingleplanedeflection_retracecode.cpp
 	galens/lensgaparametricsingleplanecalculator.cpp
 	prob/randomnumbergenerator.cpp
 	fitness/numericgradientcalculator.cpp

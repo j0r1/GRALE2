@@ -127,6 +127,7 @@ protected:
 	errut::bool_t initRecalc(size_t numTotalPoints, const std::vector<std::pair<int, float>> &recalcThetaInfo,
 			                 OpenCLMultiKernel<NumKernels> &cl, const std::string &deflectionKernelCode,
 							 const std::string &lensRoutineName, const TraceParameters &retraceParams);
+	errut::bool_t getReprojectSubroutineCode(const std::string &lensRoutineName, const TraceParameters &retraceParams, std::string &subCode);
 
 	bool m_recalcThetas = false;
 	cl_int m_clNumSources = 0;

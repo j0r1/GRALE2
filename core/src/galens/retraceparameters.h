@@ -19,6 +19,7 @@ public:
 	errut::bool_t write(serut::SerializationInterface &si) const;
 
 	virtual std::string getRetraceDescription() const = 0;
+	virtual std::unique_ptr<TraceParameters> createScaledCopy(double angScale, double potScale) const = 0;
 protected:
 	TraceParameters(ParameterType t);
 
@@ -35,6 +36,7 @@ public:
 	~NoTraceParameters() { }
 
 	std::string getRetraceDescription() const override { return "NoTrace"; }
+	std::unique_ptr<TraceParameters> createScaledCopy(double angScale, double potScale) const override { return std::make_unique<NoTraceParameters>(); }
 private:
 	errut::bool_t readInternal(serut::SerializationInterface &si) override { return true; }
 	errut::bool_t writeInternal(serut::SerializationInterface &si) const override { return true; }
@@ -47,6 +49,7 @@ public:
 	~SingleStepNewtonTraceParams() { }
 
 	std::string getRetraceDescription() const override { return "SingleStepNewton"; }
+	std::unique_ptr<TraceParameters> createScaledCopy(double angScale, double potScale) const override { return std::make_unique<SingleStepNewtonTraceParams>(); }
 private:
 	errut::bool_t readInternal(serut::SerializationInterface &si) override { return true; }
 	errut::bool_t writeInternal(serut::SerializationInterface &si) const override { return true; }
@@ -60,6 +63,7 @@ public:
 
 	std::string getRetraceDescription() const override { return "MultiStepNewton, numEvals = " + std::to_string(m_numEvals); }
 	size_t getNumberOfEvaluations() const { return m_numEvals; }
+	std::unique_ptr<TraceParameters> createScaledCopy(double angScale, double potScale) const override { return std::make_unique<MultiStepNewtonTraceParams>(m_numEvals); }
 private:
 	errut::bool_t readInternal(serut::SerializationInterface &si) override;
 	errut::bool_t writeInternal(serut::SerializationInterface &si) const override;
@@ -82,6 +86,11 @@ public:
 	size_t getMaximumNumberOfGridSteps() const { return m_numMaxGridSteps; }
 	double getAcceptanceThreshold() const { return m_acceptThreshold; }
 	double getGridSpacing() const { return m_gridSpacing; }
+
+	std::unique_ptr<TraceParameters> createScaledCopy(double angScale, double potScale) const override
+	{
+		return std::make_unique<ExpandedMultiStepNewtonTraceParams>(m_numEvalsPerStartPos, m_numMaxGridSteps, m_acceptThreshold/angScale, m_gridSpacing/angScale); 
+	}
 private:
 	errut::bool_t readInternal(serut::SerializationInterface &si) override;
 	errut::bool_t writeInternal(serut::SerializationInterface &si) const override;
