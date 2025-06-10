@@ -126,7 +126,7 @@ int main(int argc, char *argv[])
 	//NoTraceParameters retraceParams;
 	//SingleStepNewtonTraceParams retraceParams;
 	//MultiStepNewtonTraceParams retraceParams(numRetraceSteps);
-	ExpandedMultiStepNewtonTraceParams retraceParams(numRetraceSteps, 2, 0.001*ANGLE_ARCSEC, 1*ANGLE_ARCSEC);
+	ExpandedMultiStepNewtonTraceParams retraceParams(numRetraceSteps, 2, 0.001*ANGLE_ARCSEC/deflScale, 1*ANGLE_ARCSEC/deflScale);
 
 	if (!(r = clDef.init(thetas, inKernelThetaUncert, intParams, floatParams, changeableParamIdx, 
 	                     prog, subRoutName, "", 0, 12345, originParams, numOriginParams,
