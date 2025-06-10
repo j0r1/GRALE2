@@ -14,7 +14,7 @@ string getMultiStepCode(const string &functionName, const size_t numIterations, 
 float2 )XYZ" + functionName + R"XYZ((const float2 thetaStart, const float2 betaTarget, const float dfrac, float *pBestBetaDiffSize,
 						__global const int *pIntParams, __global const float *pFloatParams)
 {
-	const int numIterations = )XYZ" + to_string(numIterations) + R"XYZ(;
+	int numIterations = )XYZ" + to_string(numIterations) + R"XYZ(;
 	float2 theta = thetaStart;
 	LensQuantities r = )XYZ" + lensRoutineName + R"XYZ((theta, pIntParams, pFloatParams);
 	float2 betaCur = theta - dfrac*(float2)(r.alphaX, r.alphaY);

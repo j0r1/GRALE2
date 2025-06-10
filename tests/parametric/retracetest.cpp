@@ -123,7 +123,10 @@ int main(int argc, char *argv[])
 		inKernelThetaUncert.push_back( (float)(inKernelThetaUncertSize/deflScale) );
 
 	bool_t r;
-	MultiStepNewtonTraceParams retraceParams(numRetraceSteps);
+	//NoTraceParameters retraceParams;
+	//SingleStepNewtonTraceParams retraceParams;
+	//MultiStepNewtonTraceParams retraceParams(numRetraceSteps);
+	ExpandedMultiStepNewtonTraceParams retraceParams(numRetraceSteps, 2, 0.001*ANGLE_ARCSEC, 1*ANGLE_ARCSEC);
 
 	if (!(r = clDef.init(thetas, inKernelThetaUncert, intParams, floatParams, changeableParamIdx, 
 	                     prog, subRoutName, "", 0, 12345, originParams, numOriginParams,
