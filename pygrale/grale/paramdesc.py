@@ -620,23 +620,43 @@ def _createHardMinMaxParameters(templateLensDesciption):
 
 def analyzeParametricLensDescription(parametricLens, Dd, defaultFraction, clampToHardLimits = False, allowSameInitialMinMax = False,
                                      forceScales = None):
-    """Analyze the parametric lens description in `parametricLens`, which
-    should be a dictionary, for a lens at angular diameter distance `Dd`.
-    In case a parameter is set to change with some fraction about a value,
-    `defaultFraction` is used if no specific fraction is specified. By
-    default, an error will be generated if some initial value bounds exceed the
-    hard bounds, but if `clampToHardLimits` is set to ``True``, the hard
-    limit will be used as bound for the initial value.
+    """Analyze the parametric lens description:
+
+    Arguments:
+     - `parametricLens`: this is the actual description of the lens model,
+       which should be a dictionary. This specifies which parameters are
+       fixed, and which are allowed to vary during a parametric optimization.
+       Some examples are given below.
+     - `Dd`: the angular diameter distance to the lens.
+     - `defaultFraction`: in case a parameter is set to change with some
+       fraction about a value, this specifies the default to be used if no
+       specific fraction is specified.
+     - `clampToHardLimits`: by default, an error will be generated if some
+       initial value bounds exceed the hard bounds, but if this is set to
+       ``True``, the hard limit will be used as bound for the initial value.
+     - `allowSameInitialMinMax`: in principle it is not allowed to have an
+       empty range for the initial values of a parameter. Using this flag this
+       error can be suppressed. This is mainly for internal purposes, as
+       overriding this here can still cause errors during an actual inversion.
+     - `forceScales`: the parametric lens description will cause some template
+       lens model (based on average initial values) to be generated, and this
+       model will be queried for deflection/potential scales to use in the OpenCL
+       code. By setting this parameter specific scales can be used instead,
+       which can help keeping raw parameter values (in MCMC samples for example)
+       to be comparable between inversions.
     
-    Returns a dictionary with the following entries:
+    The function returns a dictionary with the following entries:
 
      - ``templatelens``: a lens model constructed from the description
      - ``floatparams``: the floating point parameters for the model, some of
        which can be changed.
      - ``scales``: itself a dictionary with entries for the angular and potential
-       scales that are used.
+       scales that are used. Will be the same as `forceScales` if that was specified.
      - ``variablefloatparams``: describes which of the floating point parameters
        can be changed, and within which boundaries.
+     - ``neglogprobcode``: contains additional OpenCL code to add contributions
+       to the (negative) logarithmic probabilities, for example from prior settings
+       on parameters.
 
     An example `parametricLens` object:
     
