@@ -347,7 +347,8 @@ bool_t LensGAParametricSinglePlaneCalculator::init(const LensInversionParameters
 
 	m_extraClPriorCode = params.getOpenCLPriorCode();
 
-	unique_ptr<TraceParameters> retraceParams = params.getRetraceParameters().createScaledCopy(m_angularScale, m_potScale);
+	const TraceParameters &origTraceParams = params.getRetraceParameters();
+	unique_ptr<TraceParameters> retraceParams = origTraceParams.createScaledCopy(m_angularScale, m_potScale);
 
 	if (!(r = OpenCLSinglePlaneDeflectionInstance::initInstance((uint64_t)this, 
 																	m_thetas, posUncertainties, m_intParams,
@@ -364,7 +365,10 @@ bool_t LensGAParametricSinglePlaneCalculator::init(const LensInversionParameters
 		return "Couldn't init OpenCLSinglePlaneDeflectionInstance: " + r.getErrorString();
 
 	if (anyRetrace)
-		cerr << "INFO: retrace info: " << retraceParams->getRetraceDescription() << endl;
+	{
+		cerr << "INFO: retrace info: " << origTraceParams.getRetraceDescription() << endl;
+		cerr << "INFO: scaled retrace info: " << retraceParams->getRetraceDescription() << endl;
+	}
 
 	list<ImagesDataExtended *> empty;
 

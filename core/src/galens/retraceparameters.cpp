@@ -114,6 +114,12 @@ errut::bool_t ExpandedMultiStepNewtonTraceParams::writeInternal(serut::Serializa
 
 std::string ExpandedMultiStepNewtonTraceParams::getRetraceDescription() const
 {
+	if (m_rescaled)
+		return "ExpandedMultiStepNewton, numEvalsPerStartPos = " + to_string(m_numEvalsPerStartPos)
+		   + ", numMaxGridSteps = " + to_string(m_numMaxGridSteps)
+		   + ", acceptThreshold = " + to_string(m_acceptThreshold)
+		   + ", gridSpacing = " + to_string(m_gridSpacing);
+
 	return "ExpandedMultiStepNewton, numEvalsPerStartPos = " + to_string(m_numEvalsPerStartPos)
 		   + ", numMaxGridSteps = " + to_string(m_numMaxGridSteps)
 		   + ", acceptThreshold = " + to_string(m_acceptThreshold/ANGLE_ARCSEC)

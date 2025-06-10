@@ -78,7 +78,7 @@ public:
 									   double gridSpacing = 0)
 		: TraceParameters(ExpandedMultiStepNewton),
 		  m_numEvalsPerStartPos(numEvalsPerStartPosition), m_numMaxGridSteps(numMaxGridSteps),
-	      m_acceptThreshold(acceptThreshold), m_gridSpacing(gridSpacing) { }
+	      m_acceptThreshold(acceptThreshold), m_gridSpacing(gridSpacing), m_rescaled(false) { }
 	~ExpandedMultiStepNewtonTraceParams() { }
 
 	std::string getRetraceDescription() const override;
@@ -89,7 +89,9 @@ public:
 
 	std::unique_ptr<TraceParameters> createScaledCopy(double angScale, double potScale) const override
 	{
-		return std::make_unique<ExpandedMultiStepNewtonTraceParams>(m_numEvalsPerStartPos, m_numMaxGridSteps, m_acceptThreshold/angScale, m_gridSpacing/angScale); 
+		auto copy = std::make_unique<ExpandedMultiStepNewtonTraceParams>(m_numEvalsPerStartPos, m_numMaxGridSteps, m_acceptThreshold/angScale, m_gridSpacing/angScale); 
+		copy->m_rescaled = true;
+		return copy;
 	}
 private:
 	errut::bool_t readInternal(serut::SerializationInterface &si) override;
@@ -97,6 +99,7 @@ private:
 
 	size_t m_numEvalsPerStartPos, m_numMaxGridSteps;
 	double m_acceptThreshold, m_gridSpacing;
+	bool m_rescaled;
 };
 
 } // end namespace

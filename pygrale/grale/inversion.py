@@ -722,11 +722,55 @@ def _checkInternalRecalcLensConsistency(internalRecalcLens, parametricLensDescri
             if not k in p2:
                 raise InversionException(f"Missing property {k} in lens description")
 
+def getDefaultsForRetraceType(typeName):
+    """TODO"""
+
+    supportedTypes = [ "NoTrace", "SingleStepNewton", "MultiStepNewton", "ExpandedMultiStepNewton" ]
+    if not typeName in supportedTypes:
+        raise InversionParametersException(f"Unsupported retrace type '{typeName}', valid names are: " + ",".join(supportedTypes))
+
+    defaults = { "type": typeName }
+    if typeName == "NoTrace":
+        pass # No other parameters
+
+    elif typeName == "SingleStepNewton":
+        pass # No other parameters
+
+    elif typeName == "MultiStepNewton":
+        defaults["evaluations"] = 8
+
+    elif typeName == "ExpandedMultiStepNewton":
+        defaults["evalsperpoint"] = 8
+        defaults["maxgridsteps"] = 3
+        defaults["acceptthreshold"] = "auto"
+        defaults["gridspacing"] = "auto"
+
+    return defaults
+
+def _getScaleFromBayesStrongLensingImages(inputImages):
+    allPts = []
+    for img in inputImages:
+        if img["params"]["type"] != "bayesstronglensing":
+            continue
+
+        imgDat = img["images"]
+        for image in imgDat.getAllImagePoints():
+            for x in image:
+                allPts.append(x["position"])
+
+    pts = np.array(allPts)
+    maxVec = np.max(pts, axis=0)
+    minVec = np.min(pts, axis=0)
+    diff = maxVec-minVec
+    scale = np.sum(diff**2)**0.5
+    return scale
+
 def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, moduleName = "general",
            defaultInitialParameterFraction = 0.1, clampToHardLimits = False, fitnessObjectParameters = None, convergenceParameters = { },
            geneticAlgorithmParameters = { }, returnNds = False, inverter = "default", feedbackObject = "default",
            cosmology = None, maximumGenerations = None, eaType = "JADE", deviceIndex = "rotate",
-           useImagePositionRandomization = False, allowUnusedPriors = False, numberOfRetraceSteps = 8,
+           useImagePositionRandomization = False, allowUnusedPriors = False,
+           retraceParams = { "type": "MultiStepNewton", "evaluations": 8 },
            retraceSourcePlaneThreshold = "auto", allowEmptyInitialValueRange = False,
            forceScales = None, 
            internalRecalcLens = None, internalCalcFitnessParams = None,
@@ -801,7 +845,7 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
        but the fitness measure cannot incorporate this, an error will be generated. To
        ignore this error, the flag can be set to ``True``.
 
-     - `numberOfRetraceSteps`: TODO, either a number or "disable", for the bayesian strong
+     - `retraceParams`: TODO, either a dict or "disable", for the bayesian strong
        lensing
 
      - `retraceSourcePlaneThreshold`: TODO, either "auto" or a number
@@ -896,12 +940,11 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
         if retraceImages[-1]:
             anyRetrace = True
 
-    #print("DEBUG: numberOfRetraceSteps = ", numberOfRetraceSteps)
     #print("DEBUG: anyRetrace =", anyRetrace)
     #print("DEBUG: retraceImages =", retraceImages)
 
-    if numberOfRetraceSteps == "disable":
-        numberOfRetraceSteps = 5 # Just make sure it's a number
+    if retraceParams == "disable":
+        retraceParams = { "type": "NoTrace" }
         if anyRetrace:
             print(f"WARNING: disabling OpenCL based retrace code")
         for i in range(len(retraceImages)):
@@ -911,26 +954,20 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
         if not anyRetrace:
             retraceSourcePlaneThreshold = -1 # Shouldn't matter, will trigger an error if something is wrong in the code
         else:
-            allPts = []
-            for img in inputImages:
-                if img["params"]["type"] != "bayesstronglensing":
-                    continue
-                
-                imgDat = img["images"]
-                for image in imgDat.getAllImagePoints():
-                    for x in image:
-                        allPts.append(x["position"])
-                
-            pts = np.array(allPts)
-            maxVec = np.max(pts, axis=0)
-            minVec = np.min(pts, axis=0)
-            diff = maxVec-minVec
-            scale = np.sum(diff**2)**0.5
+            retraceSourcePlaneThreshold = _getScaleFromBayesStrongLensingImages(inputImages)/10000 # TODO: make this configurable?
 
-            retraceSourcePlaneThreshold = scale/10000 # TODO: make this configurable?
-    
     if anyRetrace:
         print(f"DEBUG: using retraceSourcePlaneThreshold {retraceSourcePlaneThreshold/CT.ANGLE_ARCSEC} arcsec")
+
+    mergedRetraceParams = getDefaultsForRetraceType(retraceParams["type"])
+    for x in retraceParams:
+        mergedRetraceParams[x] = retraceParams[x]
+    
+    if mergedRetraceParams["type"] == "ExpandedMultiStepNewton":
+        if mergedRetraceParams["acceptthreshold"] == "auto":
+            mergedRetraceParams["acceptthreshold"] = _getScaleFromBayesStrongLensingImages(inputImages)/10000 # TODO: make this configurable
+        if mergedRetraceParams["gridspacing"] == "auto":
+            mergedRetraceParams["gridspacing"] = _getScaleFromBayesStrongLensingImages(inputImages)/100 # TODO: some factor less, make this configurable?
 
     def getParamsFunction(fullFitnessObjParams, massScale):
         assert massScale is None, f"Internal error: expecting massScale to be None, but is {massScale}"
@@ -940,7 +977,7 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
                   fullFitnessObjParams, deviceIndex,
                   useImagePositionRandomization, initialUncertSeed,
                   originParametersMap, numOriginParams, allowUnusedPriors,
-                  retraceImages, numberOfRetraceSteps, retraceSourcePlaneThreshold,
+                  retraceImages, mergedRetraceParams, retraceSourcePlaneThreshold,
                   clProbCode, allowEmptyInitialValueRange, internalCalcFitnessParams)
 
     results = _invertCommon(inverter, feedbackObject, moduleName, "parametricsingleplane", fitnessObjectParameters,
