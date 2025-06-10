@@ -38,6 +38,7 @@ cimport grale.scalesearchparameters as scalesearchparameters
 cimport grale.cppcosmology as cppcosmology
 cimport grale.lensgaconverenceparameters as lensgaconverenceparameters
 cimport grale.lensgamultipopulationparameters as lensgamultipopulationparameters
+cimport grale.retraceparameters as retraceparameters
 cimport grale.errut as errut
 
 include "stringwrappers.pyx"
@@ -1069,6 +1070,28 @@ cdef vector[float] _createFloatVectorFromList(l):
         result.push_back(cValue)
     return result
 
+cdef shared_ptr[retraceparameters.TraceParameters] getRetraceParamsFromObject(retraceParams):
+    cdef shared_ptr[retraceparameters.TraceParameters] cEmptyRetraceParams
+
+    if retraceParams["type"] == "NoTrace":
+        return shared_ptr[retraceparameters.TraceParameters](new retraceparameters.NoTraceParameters())
+
+    if retraceParams["type"] == "SingleStepNewton":
+        return shared_ptr[retraceparameters.TraceParameters](new retraceparameters.SingleStepNewtonTraceParams())
+
+    if retraceParams["type"] == "MultiStepNewton":
+        numEvals = retraceParams["evaluations"]
+        return shared_ptr[retraceparameters.TraceParameters](new retraceparameters.MultiStepNewtonTraceParams(numEvals))
+
+    if retraceParams["type"] == "ExpandedMultiStepNewton":
+        numEvalsPerPoint = retraceParams["evalsperpoint"]
+        maxGridSteps = retraceParams["maxgridsteps"]
+        acceptThres = retraceParams["acceptthreshold"]
+        gridSpacing = retraceParams["gridspacing"]
+        return shared_ptr[retraceparameters.TraceParameters](new retraceparameters.ExpandedMultiStepNewtonTraceParams(numEvalsPerPoint, maxGridSteps, acceptThres, gridSpacing))
+
+    return cEmptyRetraceParams
+
 cdef class LensInversionParametersParametricSinglePlane(object):
 
     cdef unique_ptr[lensinversionparametersparametricsingleplane.LensInversionParametersParametricSinglePlane] m_pParams
@@ -1081,7 +1104,7 @@ cdef class LensInversionParametersParametricSinglePlane(object):
                   originParametersMap = [], numOriginParams = 0,
                   allowUnusedPriors = False,
                   retraceImages = [],
-                  numRetraceSteps = 5,
+                  retraceParams = None,
                   sourcePlaneDistanceThreshold = -1,
                   clPriorCode = None,
                   allowEqualInitRange = False,
@@ -1110,7 +1133,6 @@ cdef class LensInversionParametersParametricSinglePlane(object):
         cdef string tmpStr
         cdef cbool cAllowUnusedPriors = allowUnusedPriors
         cdef vector[cbool] cRetraceImages
-        cdef size_t cNumRetraceSteps = numRetraceSteps
         cdef double cSourceConvThreshold = sourcePlaneDistanceThreshold
         cdef string cClPriorCode
         cdef cbool cAllowEqualInitRange = allowEqualInitRange
@@ -1118,6 +1140,7 @@ cdef class LensInversionParametersParametricSinglePlane(object):
         cdef vector[float] tmpFloatVec
         cdef np.ndarray[float,ndim=2] npGenomesToCalc
         cdef int i, j
+        cdef shared_ptr[retraceparameters.TraceParameters] cRetraceParams = getRetraceParamsFromObject(retraceParams)
 
         if inputImages is None:
             return
@@ -1154,12 +1177,15 @@ cdef class LensInversionParametersParametricSinglePlane(object):
                     tmpFloatVec.push_back(npGenomesToCalc[i,j])
                 cGenomesToCalcFitness.push_back(tmpFloatVec)
 
+        if not cRetraceParams.get():
+            raise InversionParametersException("No retrace parameters were specified")
+
         self.m_pParams = unique_ptr[lensinversionparametersparametricsingleplane.LensInversionParametersParametricSinglePlane](
             new lensinversionparametersparametricsingleplane.LensInversionParametersParametricSinglePlane(
                 imgVector, cDd, cZd, deref(cTemplateLens), cDeflScale, cPotScale,
                 cOffsets, cInitMin, cInitMax, cHardMin, cHardMax, cInfOnBoundsViolation, deref(pFitnessObjectParameters),
                 devIdx, cRandomizeInputPos, cInitialUncertSeed, cOriginParamMapping, cNumOriginParams,
-                cAllowUnusedPriors, cRetraceImages, cNumRetraceSteps, cSourceConvThreshold,
+                cAllowUnusedPriors, cRetraceImages, cRetraceParams, cSourceConvThreshold,
                 cClPriorCode, cAllowEqualInitRange, cGenomesToCalcFitness
             )
         )
