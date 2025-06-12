@@ -108,6 +108,7 @@ bool_t getReprojectSubroutineCode(const string &lensRoutineName, const MultiStep
 
 bool_t getReprojectSubroutineCode(const string &lensRoutineName, const ExpandedMultiStepNewtonTraceParams &retraceParams, string &subCode)
 {
+	ExpandedMultiStepNewtonTraceParams::Layout layout = retraceParams.getLayout();
 	size_t numEvalsPerStartPosition = retraceParams.getNumberOfEvaluationsPerStartPosition();
 	size_t maxGridSteps = retraceParams.getMaximumNumberOfGridSteps();
 	double gridSpacing = retraceParams.getGridSpacing(); // Note: these are already converted to the angular units
@@ -126,6 +127,11 @@ float2 findRetraceTheta_level(int level, const float dxy,
 	float totalBestBetaDiff = INFINITY;
 	float2 totalBestRetraceTheta = (float2)(INFINITY, INFINITY);
 
+)XYZ";
+
+	if (layout == ExpandedMultiStepNewtonTraceParams::FullGrid)
+	{
+		subCode += R"XYZ(
 	for (int X = -(level-1) ; X <= (level-1) ; X++)
 	{
 		float2 theta = thetaStart + dxy * (float2)(X, -(level-1));
@@ -173,7 +179,56 @@ float2 findRetraceTheta_level(int level, const float dxy,
 			totalBestRetraceTheta = curBestRetraceTheta;
 		}
 	}
+)XYZ";
+	}
+	else
+	{
+		if (layout == ExpandedMultiStepNewtonTraceParams::Square)
+		{
+			subCode += R"XYZ(
+	const int dxs[] = { -1, -1, +1, +1 };
+	const int dys[] = { -1, +1, -1, +1 };
+	const int numPos = 4;
+)XYZ";
+		}
+		else if (layout == ExpandedMultiStepNewtonTraceParams::Diamond)
+		{
+			subCode += R"XYZ(
+	const int dxs[] = { 0, 0, -1, +1 };
+	const int dys[] = { -1, +1, 0, 0 };
+	const int numPos = 4;
+)XYZ";
+		}
+		else if (layout == ExpandedMultiStepNewtonTraceParams::EightNeighbours)
+		{
+			subCode += R"XYZ(
+	const int dxs[] = { -1, -1, +1, +1, 0, 0, -1, +1 };
+	const int dys[] = { -1, +1, -1, +1, -1, +1, 0, 0 };
+	const int numPos = 8;
+)XYZ";
+		}
+		else
+			return "Invalid layout type " + to_string((int)layout);
 
+		subCode += R"XYZ(
+
+	// Level is 1 for central point
+	float diffScale = dxy*(float)(level-1);
+	for (int i = 0 ; i < numPos ; i++)
+	{
+		float2 theta = thetaStart + diffScale * (float2)(dxs[i], dys[i]);
+		float curBestBetaDiff = INFINITY;
+		float2 curBestRetraceTheta = findRetraceTheta_singlepoint(theta, betaTarget, dfrac, &curBestBetaDiff, pIntParams, pFloatParams);
+		if (curBestBetaDiff < totalBestBetaDiff)
+		{
+			totalBestBetaDiff = curBestBetaDiff;
+			totalBestRetraceTheta = curBestRetraceTheta;
+		}
+	}
+)XYZ";
+	}
+
+	subCode += R"XYZ(
 	*pBestBetaDiffSize = totalBestBetaDiff;
 	return totalBestRetraceTheta;
 }

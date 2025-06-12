@@ -727,7 +727,7 @@ def getDefaultsForRetraceType(typeName):
 
     supportedTypes = [ "NoTrace", "SingleStepNewton", "MultiStepNewton", "ExpandedMultiStepNewton" ]
     if not typeName in supportedTypes:
-        raise InversionParametersException(f"Unsupported retrace type '{typeName}', valid names are: " + ",".join(supportedTypes))
+        raise InversionException(f"Unsupported retrace type '{typeName}', valid names are: " + ",".join(supportedTypes))
 
     defaults = { "type": typeName }
     if typeName == "NoTrace":
@@ -744,6 +744,7 @@ def getDefaultsForRetraceType(typeName):
         defaults["maxgridsteps"] = 3
         defaults["acceptthreshold"] = "auto"
         defaults["gridspacing"] = "auto"
+        defaults["layout"] = "FullGrid"
 
     return defaults
 

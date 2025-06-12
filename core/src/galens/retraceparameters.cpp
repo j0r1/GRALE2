@@ -80,7 +80,7 @@ errut::bool_t MultiStepNewtonTraceParams::writeInternal(serut::SerializationInte
 
 errut::bool_t ExpandedMultiStepNewtonTraceParams::readInternal(serut::SerializationInterface &si)
 {
-	vector<int32_t> intParams(2);
+	vector<int32_t> intParams(3);
 	vector<double> dblParams(2);
 
 	if (!si.readInt32s(intParams) || !si.readDoubles(dblParams))
@@ -90,8 +90,9 @@ errut::bool_t ExpandedMultiStepNewtonTraceParams::readInternal(serut::Serializat
 		if (x <= 0)
 			return "Each integer parameter should be at least one, but detected " + to_string(x);
 	
-	m_numEvalsPerStartPos = (size_t)intParams[0];
-	m_numMaxGridSteps = (size_t)intParams[1];
+	m_layout = (Layout)intParams[0];
+	m_numEvalsPerStartPos = (size_t)intParams[1];
+	m_numMaxGridSteps = (size_t)intParams[2];
 
 	for (double x : dblParams)
 		if (x <= 0)
@@ -104,12 +105,25 @@ errut::bool_t ExpandedMultiStepNewtonTraceParams::readInternal(serut::Serializat
 
 errut::bool_t ExpandedMultiStepNewtonTraceParams::writeInternal(serut::SerializationInterface &si) const
 {
-	vector<int32_t> intParams { (int32_t)m_numEvalsPerStartPos, (int32_t)m_numMaxGridSteps };
+	vector<int32_t> intParams { (int32_t)m_layout, (int32_t)m_numEvalsPerStartPos, (int32_t)m_numMaxGridSteps };
 	vector<double> dblParams { m_acceptThreshold, m_gridSpacing };
 
 	if (!si.writeInt32s(intParams) || !si.writeDoubles(dblParams))
 		return "Error writing integer or double parameters: " + si.getErrorString();
 	return true;
+}
+
+inline string getLayoutName(ExpandedMultiStepNewtonTraceParams::Layout l)
+{
+	if (l == ExpandedMultiStepNewtonTraceParams::FullGrid)
+		return "FullGrid";
+	if (l == ExpandedMultiStepNewtonTraceParams::Square)
+		return "Square";
+	if (l == ExpandedMultiStepNewtonTraceParams::Diamond)
+		return "Diamond";
+	if (l == ExpandedMultiStepNewtonTraceParams::EightNeighbours)
+		return "EightNeighbours";
+	return "Unknown";
 }
 
 std::string ExpandedMultiStepNewtonTraceParams::getRetraceDescription() const
@@ -118,12 +132,14 @@ std::string ExpandedMultiStepNewtonTraceParams::getRetraceDescription() const
 		return "ExpandedMultiStepNewton, numEvalsPerStartPos = " + to_string(m_numEvalsPerStartPos)
 		   + ", numMaxGridSteps = " + to_string(m_numMaxGridSteps)
 		   + ", acceptThreshold = " + to_string(m_acceptThreshold)
-		   + ", gridSpacing = " + to_string(m_gridSpacing);
+		   + ", gridSpacing = " + to_string(m_gridSpacing)
+		   + ", layout = " + getLayoutName(m_layout);
 
 	return "ExpandedMultiStepNewton, numEvalsPerStartPos = " + to_string(m_numEvalsPerStartPos)
 		   + ", numMaxGridSteps = " + to_string(m_numMaxGridSteps)
 		   + ", acceptThreshold = " + to_string(m_acceptThreshold/ANGLE_ARCSEC)
-		   + " arcsec, gridSpacing = " + to_string(m_gridSpacing/ANGLE_ARCSEC) + " arcsec";
+		   + " arcsec, gridSpacing = " + to_string(m_gridSpacing/ANGLE_ARCSEC) + " arcsec"
+		   + ", layout = " + getLayoutName(m_layout);
 }
 
 } // end namespace

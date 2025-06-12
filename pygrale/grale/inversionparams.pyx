@@ -1070,8 +1070,9 @@ cdef vector[float] _createFloatVectorFromList(l):
         result.push_back(cValue)
     return result
 
-cdef shared_ptr[retraceparameters.TraceParameters] getRetraceParamsFromObject(retraceParams):
+cdef shared_ptr[retraceparameters.TraceParameters] getRetraceParamsFromObject(retraceParams, string *pErrStr):
     cdef shared_ptr[retraceparameters.TraceParameters] cEmptyRetraceParams
+    cdef retraceparameters.Layout cLayout
 
     if retraceParams["type"] == "NoTrace":
         return shared_ptr[retraceparameters.TraceParameters](new retraceparameters.NoTraceParameters())
@@ -1088,8 +1089,23 @@ cdef shared_ptr[retraceparameters.TraceParameters] getRetraceParamsFromObject(re
         maxGridSteps = retraceParams["maxgridsteps"]
         acceptThres = retraceParams["acceptthreshold"]
         gridSpacing = retraceParams["gridspacing"]
-        return shared_ptr[retraceparameters.TraceParameters](new retraceparameters.ExpandedMultiStepNewtonTraceParams(numEvalsPerPoint, maxGridSteps, acceptThres, gridSpacing))
 
+        layout = retraceParams["layout"]
+        if layout == "Diamond":
+            cLayout = retraceparameters.Diamond
+        elif layout == "Square":
+            cLayout = retraceparameters.Square
+        elif layout == "FullGrid":
+            cLayout = retraceparameters.FullGrid
+        elif layout == "EightNeighbours":
+            cLayout = retraceparameters.EightNeighbours
+        else:
+            pErrStr[0] = B("Invalid layout option, should be one of Diamond, Square, FullGrid, EightNeighbours")
+            return cEmptyRetraceParams
+
+        return shared_ptr[retraceparameters.TraceParameters](new retraceparameters.ExpandedMultiStepNewtonTraceParams(cLayout, numEvalsPerPoint, maxGridSteps, acceptThres, gridSpacing))
+
+    pErrStr[0] = B("Invalid retrace type, expecting either NoTrace, SingleStepNewton, MultiStepNewton or ExpandedMultiStepNewton")
     return cEmptyRetraceParams
 
 cdef class LensInversionParametersParametricSinglePlane(object):
@@ -1140,7 +1156,8 @@ cdef class LensInversionParametersParametricSinglePlane(object):
         cdef vector[float] tmpFloatVec
         cdef np.ndarray[float,ndim=2] npGenomesToCalc
         cdef int i, j
-        cdef shared_ptr[retraceparameters.TraceParameters] cRetraceParams = getRetraceParamsFromObject(retraceParams)
+        cdef string errStr
+        cdef shared_ptr[retraceparameters.TraceParameters] cRetraceParams = getRetraceParamsFromObject(retraceParams, &errStr)
 
         if inputImages is None:
             return
@@ -1178,7 +1195,10 @@ cdef class LensInversionParametersParametricSinglePlane(object):
                 cGenomesToCalcFitness.push_back(tmpFloatVec)
 
         if not cRetraceParams.get():
-            raise InversionParametersException("No retrace parameters were specified")
+            err = S(errStr)
+            if err:
+                raise InversionParametersException(err)
+            raise InversionParametersException("No retrace parameters were specified, unknown specific error")
 
         self.m_pParams = unique_ptr[lensinversionparametersparametricsingleplane.LensInversionParametersParametricSinglePlane](
             new lensinversionparametersparametricsingleplane.LensInversionParametersParametricSinglePlane(

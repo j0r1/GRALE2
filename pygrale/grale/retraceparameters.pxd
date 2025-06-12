@@ -19,22 +19,20 @@ cdef extern from "grale/retraceparameters.h" namespace "grale":
     cdef cppclass SingleStepNewtonTraceParams(TraceParameters):
         SingleStepNewtonTraceParams()
 
-ctypedef const SingleStepNewtonTraceParams* SingleStepNewtonTraceParamsPtrConst
-
 cdef extern from "grale/retraceparameters.h" namespace "grale":
     cdef cppclass MultiStepNewtonTraceParams(TraceParameters):
         MultiStepNewtonTraceParams(size_t numEvaluations)
         size_t getNumberOfEvaluations() const
 
-ctypedef const MultiStepNewtonTraceParams* MultiStepNewtonTraceParamsPtrConst
+cdef extern from "grale/retraceparameters.h" namespace "grale::ExpandedMultiStepNewtonTraceParams":
+    cdef enum Layout:
+        Invalid, FullGrid, Square, Diamond, EightNeighbours
 
 cdef extern from "grale/retraceparameters.h" namespace "grale":
     cdef cppclass ExpandedMultiStepNewtonTraceParams(TraceParameters):
-        ExpandedMultiStepNewtonTraceParams(size_t numEvalsPerStartPosition, size_t numMaxGridSteps, double acceptThreshold, double gridSpacing)
+        ExpandedMultiStepNewtonTraceParams(Layout l, size_t numEvalsPerStartPosition, size_t numMaxGridSteps, double acceptThreshold, double gridSpacing)
         size_t getNumberOfEvaluationsPerStartPosition() const
         size_t getMaximumNumberOfGridSteps() const
         double getAcceptanceThreshold() const
         double getGridSpacing() const
-
-ctypedef const ExpandedMultiStepNewtonTraceParams* ExpandedMultiStepNewtonTraceParamsPtrConst
 
