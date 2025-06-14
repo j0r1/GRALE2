@@ -117,6 +117,8 @@ bool_t getReprojectSubroutineCode(const string &lensRoutineName, const ExpandedM
 	subCode += getMultiStepCode("findRetraceTheta_singlepoint", numEvalsPerStartPosition, lensRoutineName);	
 	subCode += R"XYZ(
 
+const float betaDiffThreshold = )XYZ" + float_to_string(acceptThreshold) + R"XYZ(;
+
 float2 findRetraceTheta_level(int level, const float dxy,
 		                const float2 thetaStart, const float2 betaTarget, const float dfrac, float *pBestBetaDiffSize,
 						__global const int *pIntParams, __global const float *pFloatParams)
@@ -127,58 +129,65 @@ float2 findRetraceTheta_level(int level, const float dxy,
 	float totalBestBetaDiff = INFINITY;
 	float2 totalBestRetraceTheta = (float2)(INFINITY, INFINITY);
 
+	float closestAcceptableThetaDiff2 = INFINITY;
+	float closestAcceptableBetaDiff = INFINITY;
+	float2 closestBestRetraceTheta = (float2)(INFINITY, INFINITY);
 )XYZ";
+
+	const string commonCode = R"XYZ(
+		float2 theta = thetaStart + dt;
+
+		float curBestBetaDiff = INFINITY;
+		float2 curBestRetraceTheta = findRetraceTheta_singlepoint(theta, betaTarget, dfrac, &curBestBetaDiff, pIntParams, pFloatParams);
+		if (curBestBetaDiff < totalBestBetaDiff)
+		{
+			totalBestBetaDiff = curBestBetaDiff;
+			totalBestRetraceTheta = curBestRetraceTheta;
+		}
+
+		if (curBestBetaDiff <= betaDiffThreshold)
+		{
+			float2 retrDiff = curBestRetraceTheta - thetaStart;
+			float thetaDiff2 = retrDiff.x*retrDiff.x + retrDiff.y*retrDiff.y;
+
+			if (thetaDiff2 < closestAcceptableThetaDiff2)
+			{
+				closestAcceptableBetaDiff = curBestBetaDiff;
+				closestAcceptableThetaDiff2 = thetaDiff2;
+				closestBestRetraceTheta = curBestRetraceTheta;
+			}
+		}
+)XYZ";
+
 
 	if (layout == ExpandedMultiStepNewtonTraceParams::FullGrid)
 	{
 		subCode += R"XYZ(
+
 	for (int X = -(level-1) ; X <= (level-1) ; X++)
 	{
-		float2 theta = thetaStart + dxy * (float2)(X, -(level-1));
-		float curBestBetaDiff = INFINITY;
-		float2 curBestRetraceTheta = findRetraceTheta_singlepoint(theta, betaTarget, dfrac, &curBestBetaDiff, pIntParams, pFloatParams);
-		if (curBestBetaDiff < totalBestBetaDiff)
-		{
-			totalBestBetaDiff = curBestBetaDiff;
-			totalBestRetraceTheta = curBestRetraceTheta;
-		}
+		float2 dt = dxy * (float2)(X, -(level-1));
+)XYZ" + commonCode + R"XYZ(
 	}
 
 	for (int X = -(level-1) ; X <= (level-1) ; X++)
 	{
-		float2 theta = thetaStart + dxy * (float2)(X, +(level-1));
-		float curBestBetaDiff = INFINITY;
-		float2 curBestRetraceTheta = findRetraceTheta_singlepoint(theta, betaTarget, dfrac, &curBestBetaDiff, pIntParams, pFloatParams);
-		if (curBestBetaDiff < totalBestBetaDiff)
-		{
-			totalBestBetaDiff = curBestBetaDiff;
-			totalBestRetraceTheta = curBestRetraceTheta;
-		}
+		float2 dt = dxy * (float2)(X, +(level-1));
+)XYZ" + commonCode + R"XYZ(
 	}
 
 	for (int Y = -(level-1)+1 ; Y <= (level-1)-1 ; Y++)
 	{
-		float2 theta = thetaStart + dxy * (float2)(-(level-1), Y);
-		float curBestBetaDiff = INFINITY;
-		float2 curBestRetraceTheta = findRetraceTheta_singlepoint(theta, betaTarget, dfrac, &curBestBetaDiff, pIntParams, pFloatParams);
-		if (curBestBetaDiff < totalBestBetaDiff)
-		{
-			totalBestBetaDiff = curBestBetaDiff;
-			totalBestRetraceTheta = curBestRetraceTheta;
-		}
+		float2 dt = dxy * (float2)(-(level-1), Y);
+)XYZ" + commonCode + R"XYZ(
 	}
 
 	for (int Y = -(level-1)+1 ; Y <= (level-1)-1 ; Y++)
 	{
-		float2 theta = thetaStart + dxy * (float2)(+(level-1), Y);
-		float curBestBetaDiff = INFINITY;
-		float2 curBestRetraceTheta = findRetraceTheta_singlepoint(theta, betaTarget, dfrac, &curBestBetaDiff, pIntParams, pFloatParams);
-		if (curBestBetaDiff < totalBestBetaDiff)
-		{
-			totalBestBetaDiff = curBestBetaDiff;
-			totalBestRetraceTheta = curBestRetraceTheta;
-		}
+		float2 dt = dxy * (float2)(+(level-1), Y);
+)XYZ" + commonCode + R"XYZ(
 	}
+
 )XYZ";
 	}
 	else
@@ -216,19 +225,19 @@ float2 findRetraceTheta_level(int level, const float dxy,
 	float diffScale = dxy*(float)(level-1);
 	for (int i = 0 ; i < numPos ; i++)
 	{
-		float2 theta = thetaStart + diffScale * (float2)(dxs[i], dys[i]);
-		float curBestBetaDiff = INFINITY;
-		float2 curBestRetraceTheta = findRetraceTheta_singlepoint(theta, betaTarget, dfrac, &curBestBetaDiff, pIntParams, pFloatParams);
-		if (curBestBetaDiff < totalBestBetaDiff)
-		{
-			totalBestBetaDiff = curBestBetaDiff;
-			totalBestRetraceTheta = curBestRetraceTheta;
-		}
+		float2 dt = diffScale * (float2)(dxs[i], dys[i]);
+)XYZ" + commonCode + R"XYZ(
 	}
 )XYZ";
 	}
 
 	subCode += R"XYZ(
+	if (closestAcceptableThetaDiff2 < INFINITY)
+	{
+		*pBestBetaDiffSize = closestAcceptableBetaDiff;
+		return closestBestRetraceTheta;
+	}
+
 	*pBestBetaDiffSize = totalBestBetaDiff;
 	return totalBestRetraceTheta;
 }
@@ -236,9 +245,8 @@ float2 findRetraceTheta_level(int level, const float dxy,
 float2 findRetraceTheta(const float2 thetaStart, const float2 betaTarget, const float dfrac, float *pBestBetaDiffSize,
 						__global const int *pIntParams, __global const float *pFloatParams)
 {
-	const float dxy = )XYZ" + to_string(gridSpacing) + R"XYZ(;
+	const float dxy = )XYZ" + float_to_string(gridSpacing) + R"XYZ(;
 	const int maxLevel = )XYZ" + to_string(maxGridSteps) + R"XYZ(;
-	const float betaDiffThreshold = )XYZ" + to_string(acceptThreshold) + R"XYZ(;
 
 	float totalBestBetaDiff = INFINITY;
 	float2 totalBestRetraceTheta = (float2)(INFINITY, INFINITY);
