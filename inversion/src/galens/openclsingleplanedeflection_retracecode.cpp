@@ -1,5 +1,6 @@
 #include "openclsingleplanedeflection.h"
 #include "retraceparameters.h"
+#include <sstream>
 
 using namespace std;
 using namespace errut;
@@ -315,9 +316,81 @@ bool_t OpenCLSinglePlaneDeflection::getReprojectSubroutineCode(const string &len
 		return true;
 
 	return "Internal error: unknown parameter type of trace parameters";
-
-
-
 }
+
+string getGridLevelsConstants(const ExpandedMultiStepNewtonTraceParams &traceParams)
+{
+	bool_t r;
+	size_t maxSteps = traceParams.getMaximumNumberOfGridSteps();
+	vector<vector<pair<int,int>>> allLevels;
+
+	for (size_t l = 2 ; l <= maxSteps ; l++)
+	{
+		vector<pair<int, int>> levels;
+		if (!(r = traceParams.getCoordinatesForGridStep(l, levels)))
+			return "Error: " + r.getErrorString();
+		allLevels.push_back(levels);
+	}
+
+	stringstream ss;
+	size_t maxNumCoords = 0;
+	
+	ss << "const int numGridLevels = " << maxSteps << ";" << endl;
+	ss << "const int numCoordsForGridLevel[" << (maxSteps-1) << "] = { ";
+	for (auto &levels : allLevels)
+	{
+		ss << levels.size();
+		if (&levels != &allLevels.back())
+			ss << ", ";
+
+		if (levels.size() > maxNumCoords)
+			maxNumCoords = levels.size();
+	}
+	ss << " };" << endl;
+
+	// Make all coord lists have equal length
+	for (auto &levels : allLevels)
+	{
+		while (levels.size() != maxNumCoords)
+			levels.push_back({-7, -9});
+	}
+
+	ss << "const int coordDxForGridLevel[" << (maxSteps-1) <<  "][" << maxNumCoords << "] = {" << endl;
+	for (auto &levels : allLevels)
+	{
+		ss << "    { ";
+		for (auto &dxy : levels)
+		{
+			ss << dxy.first;
+			if (&dxy != &levels.back())
+				ss << ", ";
+		}
+		ss << " }";
+		if (&levels != &allLevels.back())
+			ss << ",";
+		ss << endl;
+	}
+	ss << "};" << endl;
+
+	ss << "const int coordDyForGridLevel[" << (maxSteps-1) <<  "][" << maxNumCoords << "] = {" << endl;
+	for (auto &levels : allLevels)
+	{
+		ss << "    { ";
+		for (auto &dxy : levels)
+		{
+			ss << dxy.second;
+			if (&dxy != &levels.back())
+				ss << ", ";
+		}
+		ss << " }";
+		if (&levels != &allLevels.back())
+			ss << ",";
+		ss << endl;
+	}
+	ss << "};" << endl;
+
+	return ss.str();
+}
+
 
 }

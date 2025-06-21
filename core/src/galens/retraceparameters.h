@@ -96,6 +96,9 @@ public:
 		copy->m_rescaled = true;
 		return copy;
 	}
+
+	// Levels start at 1, level 1 is just (0,0), then onwards till maxGridSteps (included)
+	errut::bool_t getCoordinatesForGridStep(size_t level, std::vector<std::pair<int,int>> &levels) const;
 private:
 	errut::bool_t readInternal(serut::SerializationInterface &si) override;
 	errut::bool_t writeInternal(serut::SerializationInterface &si) const override;

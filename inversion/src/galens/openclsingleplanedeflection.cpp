@@ -66,6 +66,7 @@ using namespace oclutils;
 #define KERNELNUMBER_REPROJ_BETAS_MULTILVL_STEP		10
 
 string getMultiStepCode(const string &functionName, const size_t numIterations, const string &lensRoutineName);
+string getGridLevelsConstants(const ExpandedMultiStepNewtonTraceParams &traceParams);
 
 OpenCLSinglePlaneDeflection::OpenCLSinglePlaneDeflection()
 {
@@ -861,12 +862,34 @@ __kernel void retraceKernel_multiLevel(int numBpPoints, int numParamSets, int nu
 			return cleanup(cl.getErrorString());
 		}
 
-		// TODO: step kernel
-		//
-		string stepKernel;
+		string stepKernel = deflectionKernelCode;
+		stepKernel += perPointTraceCode;
+		stepKernel += getGridLevelsConstants(expTraceParams);
+		stepKernel += thresholdCode;
 
-		// TODO: add code for retrace based on base point and grid index/level
+		stepKernel += R"XYZ(
+float2 findRetraceTheta_forlevel(float2 baseTheta, int stepInLevel, int level, float2 betaTarget, float dfrac, 
+                                 float *pBestBetaDiffSize, __global const int *pIntParams, __global const float *pFloatParams)
+{
+	// TODO: remove these checks again
+	if (level < 2)
+		return (float2)(-1337, -1);
 
+	if (level > numGridLevels)
+		return (float2)(-1337, -2);
+
+	level -= 2; // Start at zero for the length and offset arrays;
+	if (stepInLevel >= numCoordsForGridLevel[level])
+		return (float2)(-1337, -3);
+
+	float2 theta = baseTheta + (float2)(coordDxForGridLevel[level][stepInLevel],
+	                                    coordDyForGridLevel[level][stepInLevel]) * retraceGridDxy;
+
+	return findRetraceTheta_perpoint(theta, betaTarget, dfrac, pBestBetaDiffSize, pIntParams, pFloatParams);
+}
+
+)XYZ";
+		// Code for retrace based on base point and grid index/level
 		stepKernel += R"XYZ(
 __kernel void retraceKernel_step(int numBpPoints, int numPointsToProcess, int numStepsInLevel, int level,
 								__global const int *pBasePointAndParamSetIndices, // So two indices per point
@@ -877,7 +900,8 @@ __kernel void retraceKernel_step(int numBpPoints, int numPointsToProcess, int nu
 								__global const float *pAllAverageBetas,
 								__global const int *pIntParams,
 								__global const float *pFloatParamsBase,
-								__global float *pOutputRetraceInfo
+								__global float *pOutputRetraceInfo,
+								__global int *pNextNumberOfPointsToProcess // Just to let one thread clear this again
 )
 {
 	const int idx = get_global_id(0);
@@ -888,12 +912,15 @@ __kernel void retraceKernel_step(int numBpPoints, int numPointsToProcess, int nu
 	if (stepInLevel >= numStepsInLevel)
 		return;
 
+	if (idx == 0 && stepInLevel == 0)
+		pNextNumberOfPointsToProcess[0] = 0; // Just clear this here so we don't need a memset call in the host code
+
 	const int basePointIdx = pBasePointAndParamSetIndices[idx*2+0];
 	const int paramSet = pBasePointAndParamSetIndices[idx*2+1];
 
 	int thetaIdx = pBpThetaIndices[basePointIdx] * 2; // *2 for two float components
 	float2 baseTheta = (float2)(pFullThetas[thetaIdx+0], pFullThetas[thetaIdx+1]);
-	float dfrac = pDistFrac[ptIdx];
+	float dfrac = pDistFrac[basePointIdx];
 
 	__global const float *pFloatParams = pFloatParamsBase + paramSet*numFloatParams;
 	__global const float *pAverageBetas = pAllAverageBetas + 2*numBpPoints*paramSet;
@@ -903,10 +930,9 @@ __kernel void retraceKernel_step(int numBpPoints, int numPointsToProcess, int nu
 
 	float bestBetaDiffSize = INFINITY;
 
-	// TODO: call per thread routine
-	// float2 bestRetraceTheta = findRetraceTheta(baseTheta, stepInLevel, level, betaTarget, dfrac, &bestBetaDiffSize, pIntParams, pFloatParams);
+	float2 bestRetraceTheta = findRetraceTheta_forlevel(baseTheta, stepInLevel, level, betaTarget, dfrac, &bestBetaDiffSize, pIntParams, pFloatParams);
 
-	// TODO: store results in array, let next kernel reduce this per level
+	// Store results in array, let next kernel reduce this per level
 
 	int outIdxBase = (idx*numStepsInLevel + stepInLevel)*3;
 	pOutputRetraceInfo[outIdxBase+0] = bestRetraceTheta.x;
@@ -914,6 +940,13 @@ __kernel void retraceKernel_step(int numBpPoints, int numPointsToProcess, int nu
 	pOutputRetraceInfo[outIdxBase+2] = bestBetaDiffSize;
 }
 )XYZ";
+		if (!cl.loadKernel(stepKernel, "retraceKernel_step", faillog, KERNELNUMBER_REPROJ_BETAS_MULTILVL_STEP))
+		{
+			cerr << faillog << endl;
+			cerr << stepKernel << endl;
+			return cleanup(cl.getErrorString());
+		}
+
 		// TODO: reduction kernel
 		string reductionKernel = thresholdCode + R"XYZ(
 

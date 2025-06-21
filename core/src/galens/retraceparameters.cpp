@@ -142,4 +142,56 @@ std::string ExpandedMultiStepNewtonTraceParams::getRetraceDescription() const
 		   + ", layout = " + getLayoutName(m_layout);
 }
 
+errut::bool_t ExpandedMultiStepNewtonTraceParams::getCoordinatesForGridStep(size_t level, std::vector<std::pair<int,int>> &levels) const
+{
+	if (level < 1)
+		return "Level parameter should start at 1";
+
+	if (level > m_numMaxGridSteps)
+		return "Invalid level " + to_string(level) + ", maximum is " + to_string(m_numMaxGridSteps);
+
+	if (level == 1)
+	{
+		levels = { { 0, 0 } };
+		return true;
+	}
+
+	int d = ((int)level) - 1;
+	if (m_layout == Square)
+	{
+		levels = { { -d, -d }, { -d, d} , { d, d }, { d, -d } }; 
+		return true;
+	}
+
+	if (m_layout == Diamond)
+	{
+		levels = { { 0, d }, { 0, -d }, { -d, 0 }, { d, 0 } };
+		return true;
+	}
+
+	if (m_layout == EightNeighbours)
+	{
+		levels = { { -d, -d }, { -d, d } , { d, d }, { d, -d }, { 0, d }, { 0, -d }, { -d, 0 }, { d, 0 } };
+		return true;
+	}
+
+	if (m_layout == FullGrid)
+	{
+		levels.clear();
+		for (int X = -d ; X <= d ; X++)
+		{
+			levels.push_back({ X, -d });
+			levels.push_back({ X, d });
+		}
+		for (int Y = -d + 1 ; Y <= d - 1 ; Y++)
+		{
+			levels.push_back({ -d, Y });
+			levels.push_back({ d, Y });
+		}
+		return true;
+	}
+
+	return "Unrecognized layout: " + to_string((int)m_layout);
+}
+
 } // end namespace
