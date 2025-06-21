@@ -61,6 +61,12 @@ using namespace oclutils;
 #define KERNELNUMBER_REPROJECT_BETAS				6
 #define KERNELNUMBER_NEGLOGPRIORS					7
 
+#define KERNELNUMBER_REPROJ_BETAS_MULTILVL_START	8
+#define KERNELNUMBER_REPROJ_BETAS_MULTILVL_REDUCE	9
+#define KERNELNUMBER_REPROJ_BETAS_MULTILVL_STEP		10
+
+string getMultiStepCode(const string &functionName, const size_t numIterations, const string &lensRoutineName);
+
 OpenCLSinglePlaneDeflection::OpenCLSinglePlaneDeflection()
 {
 }
@@ -775,6 +781,231 @@ __kernel void retraceKernel(int numBpPoints, int numParamSets, int numFloatParam
 			cerr << reprojectKernel << endl;
 			return cleanup(cl.getErrorString());
 		}
+	}
+
+	// Retrace kernels - multi level
+	if (dynamic_cast<const ExpandedMultiStepNewtonTraceParams*>(&retraceParams))
+	{
+		const ExpandedMultiStepNewtonTraceParams &expTraceParams = static_cast<const ExpandedMultiStepNewtonTraceParams&>(retraceParams);
+
+		string thresholdCode = R"XYZ(
+const float retraceBetaDiffThreshold = )XYZ" + float_to_string(expTraceParams.getAcceptanceThreshold()) + R"XYZ(;
+const float retraceGridDxy = )XYZ" + float_to_string(expTraceParams.getGridSpacing()) + R"XYZ(;
+)XYZ";
+		string reprojectKernel = deflectionKernelCode;
+		string perPointTraceCode = getMultiStepCode("findRetraceTheta_perpoint", expTraceParams.getNumberOfEvaluationsPerStartPosition(), lensRoutineName);
+
+		reprojectKernel += perPointTraceCode;
+		reprojectKernel += thresholdCode;
+		reprojectKernel += R"XYZ(
+__kernel void retraceKernel_multiLevel(int numBpPoints, int numParamSets, int numFloatParams,
+								__global const float *pFullThetas, // Can be either with or without randomization
+								__global const int *pBpThetaIndices,
+								__global const float *pDistFrac,
+								__global const float *pAllAverageBetas,
+								__global const int *pIntParams,
+								__global const float *pFloatParamsBase,
+								__global float *pAllTracedThetas,
+								__global float *pAllSourcePlaneDists,
+								__global int *pNextNumberOfPointsToProcess,
+								__global int *pBasePointAndParamSetIndices // For next calculation
+)
+{
+	const int ptIdx = get_global_id(0);
+	if (ptIdx >= numBpPoints)
+		return;
+	const int paramSet = get_global_id(1);
+	if (paramSet >= numParamSets)
+		return;
+
+	int thetaIdx = pBpThetaIndices[ptIdx] * 2; // *2 for two float components
+	float2 theta = (float2)(pFullThetas[thetaIdx+0], pFullThetas[thetaIdx+1]);
+	float dfrac = pDistFrac[ptIdx];
+
+	__global const float *pFloatParams = pFloatParamsBase + paramSet*numFloatParams;
+	__global const float *pAverageBetas = pAllAverageBetas + 2*numBpPoints*paramSet;
+
+	const int resultOffset = 2*ptIdx;
+	float2 betaTarget = (float2)(pAverageBetas[resultOffset + 0], pAverageBetas[resultOffset + 1]);
+
+	float bestBetaDiffSize = INFINITY;
+	float2 bestRetraceTheta = findRetraceTheta_perpoint(theta, betaTarget, dfrac, &bestBetaDiffSize, pIntParams, pFloatParams);
+
+	__global float *pTracedThetas = pAllTracedThetas + 2*numBpPoints*paramSet;
+	__global float *pSourcePlaneDists = pAllSourcePlaneDists + numBpPoints*paramSet;
+
+	// Store best results in any case
+	pTracedThetas[resultOffset+0] = bestRetraceTheta.x;
+	pTracedThetas[resultOffset+1] = bestRetraceTheta.y;
+	pSourcePlaneDists[ptIdx] = bestBetaDiffSize;
+
+	// If best result is not below threshold, schedule new calculation
+	if (bestBetaDiffSize > retraceBetaDiffThreshold)
+	{
+		int curVal = atomic_inc(pNextNumberOfPointsToProcess);
+		pBasePointAndParamSetIndices[curVal*2+0] = ptIdx;
+		pBasePointAndParamSetIndices[curVal*2+1] = paramSet;
+
+		// This way, when the kernel is done, pNextNumberOfPointsToProcess contains the number of
+		// points that need to be reconsidered, and the point index and paramset index values are
+		// stored in pBasePointAndParamSetIndices
+	}
+}
+)XYZ";
+
+		string faillog;
+		if (!cl.loadKernel(reprojectKernel, "retraceKernel_multiLevel", faillog, KERNELNUMBER_REPROJ_BETAS_MULTILVL_START))
+		{
+			cerr << faillog << endl;
+			cerr << reprojectKernel << endl;
+			return cleanup(cl.getErrorString());
+		}
+
+		// TODO: step kernel
+		//
+		string stepKernel;
+
+		// TODO: add code for retrace based on base point and grid index/level
+
+		stepKernel += R"XYZ(
+__kernel void retraceKernel_step(int numBpPoints, int numPointsToProcess, int numStepsInLevel, int level,
+								__global const int *pBasePointAndParamSetIndices, // So two indices per point
+								int numFloatParams,
+								__global const float *pFullThetas, // Can be either with or without randomization
+								__global const int *pBpThetaIndices,
+								__global const float *pDistFrac,
+								__global const float *pAllAverageBetas,
+								__global const int *pIntParams,
+								__global const float *pFloatParamsBase,
+								__global float *pOutputRetraceInfo
+)
+{
+	const int idx = get_global_id(0);
+	if (idx >= numPointsToProcess)
+		return;
+
+	const int stepInLevel = get_global_id(1);
+	if (stepInLevel >= numStepsInLevel)
+		return;
+
+	const int basePointIdx = pBasePointAndParamSetIndices[idx*2+0];
+	const int paramSet = pBasePointAndParamSetIndices[idx*2+1];
+
+	int thetaIdx = pBpThetaIndices[basePointIdx] * 2; // *2 for two float components
+	float2 baseTheta = (float2)(pFullThetas[thetaIdx+0], pFullThetas[thetaIdx+1]);
+	float dfrac = pDistFrac[ptIdx];
+
+	__global const float *pFloatParams = pFloatParamsBase + paramSet*numFloatParams;
+	__global const float *pAverageBetas = pAllAverageBetas + 2*numBpPoints*paramSet;
+
+	const int resultOffset = 2*basePointIdx;
+	float2 betaTarget = (float2)(pAverageBetas[resultOffset + 0], pAverageBetas[resultOffset + 1]);
+
+	float bestBetaDiffSize = INFINITY;
+
+	// TODO: call per thread routine
+	// float2 bestRetraceTheta = findRetraceTheta(baseTheta, stepInLevel, level, betaTarget, dfrac, &bestBetaDiffSize, pIntParams, pFloatParams);
+
+	// TODO: store results in array, let next kernel reduce this per level
+
+	int outIdxBase = (idx*numStepsInLevel + stepInLevel)*3;
+	pOutputRetraceInfo[outIdxBase+0] = bestRetraceTheta.x;
+	pOutputRetraceInfo[outIdxBase+1] = bestRetraceTheta.y;
+	pOutputRetraceInfo[outIdxBase+2] = bestBetaDiffSize;
+}
+)XYZ";
+		// TODO: reduction kernel
+		string reductionKernel = thresholdCode + R"XYZ(
+
+__kernel void retraceKernel_reduction(int numBpPoints, int numPointsToProcess, int numStepsInLevel, int level,
+								__global const int *pPrevBasePointAndParamSetIndices, // So two indices per point
+								__global const float *pOutputRetraceInfo, // output from previous step
+								__global const float *pFullThetas, // Can be either with or without randomization
+								__global const int *pBpThetaIndices,
+								__global float *pAllTracedThetas,
+								__global float *pAllSourcePlaneDists,
+								__global int *pNextNumberOfPointsToProcess,
+								__global int *pNextBasePointAndParamSetIndices // For next calculation
+)
+{
+	const int idx = get_global_id(0);
+	if (idx >= numPointsToProcess)
+		return;
+
+	const int basePointIdx = pPrevBasePointAndParamSetIndices[idx*2+0];
+	const int paramSet = pPrevBasePointAndParamSetIndices[idx*2+1];
+
+	int thetaIdx = pBpThetaIndices[basePointIdx] * 2; // *2 for two float components
+	float2 baseTheta = (float2)(pFullThetas[thetaIdx+0], pFullThetas[thetaIdx+1]);
+
+	__global float *pTracedThetas = pAllTracedThetas + 2*numBpPoints*paramSet;
+	__global float *pSourcePlaneDists = pAllSourcePlaneDists + numBpPoints*paramSet;
+	const int resultOffset = 2*basePointIdx;
+
+	// These are the best ones in case the difference in the source plane
+	// is not below the specified threshold
+	float curBestBetaDiff = pSourcePlaneDists[basePointIdx];
+	float2 curBestTheta = (float2)(pTracedThetas[resultOffset+0], pTracedThetas[resultOffset+1]);
+	
+	// These are the best ones if the difference in the source plane is
+	// acceptable. In this case, we'll use the one that's closest in the
+	// image plane.
+	float acceptBestThetaDiff2 = INFINITY;
+	float2 acceptBestTheta = (float2)(INFINITY, INFINITY);
+	float acceptBestBetaSize = INFINITY;
+
+	for (int outIdx = idx*numStepsInLevel*3, i = 0 ; i < numStepsInLevel ; i++, outIdx += 3)
+	{
+		float2 traceCandidate = (float2)(pOutputRetraceInfo[outIdx+0], pOutputRetraceInfo[outIdx+1]);
+		float betaDiffCandidate = pOutputRetraceInfo[outIdx+2];
+		if (betaDiffCandidate <= retraceBetaDiffThreshold) // Ok, acceptable retrace, see if it's closest
+		{
+			float2 traceDiff = baseTheta - traceCandidate;
+			float traceDiffSize2 = traceDiff.x * traceDiff.x + traceDiff.y * traceDiff.y;
+
+			if (traceDiffSize2 < acceptBestThetaDiff2)
+			{
+				acceptBestThetaDiff2 = traceDiffSize2;
+				acceptBestTheta = traceCandidate;
+				acceptBestBetaSize = betaDiffCandidate;
+			}
+		}
+		
+		// Just keep best as well
+		if (betaDiffCandidate < curBestBetaDiff)
+		{
+			curBestTheta = traceCandidate;
+			curBestBetaDiff = betaDiffCandidate;
+		}
+	}
+
+	// Did the reduction, check if we have a result to store, or need an additional round
+	if (acceptBestThetaDiff2 < INFINITY)
+	{
+		// Ok, found something, store this in the result array, don't schedule a new calculation
+		pSourcePlaneDists[basePointIdx] = acceptBestBetaSize;
+		pTracedThetas[resultOffset+0] = acceptBestTheta.x;
+		pTracedThetas[resultOffset+1] = acceptBestTheta.y;
+	}
+	else // Nothing to accept yet, schedule new calculation for this point (same as in other kernel)
+	{
+		int curVal = atomic_inc(pNextNumberOfPointsToProcess);
+		pNextBasePointAndParamSetIndices[curVal*2+0] = basePointIdx;
+		pNextBasePointAndParamSetIndices[curVal*2+1] = paramSet;
+
+		// This way, when the kernel is done, pNextNumberOfPointsToProcess contains the number of
+		// points that need to be reconsidered, and the point index and paramset index values are
+		// stored in pBasePointAndParamSetIndices
+	}
+}
+)XYZ";
+		if (!cl.loadKernel(reductionKernel, "retraceKernel_reduction", faillog, KERNELNUMBER_REPROJ_BETAS_MULTILVL_REDUCE))
+		{
+			cerr << faillog << endl;
+			cerr << reductionKernel << endl;
+			return cleanup(cl.getErrorString());
+		}
+
 	}
 
 	if (sizeof(Vector2Df) != sizeof(float)*2)

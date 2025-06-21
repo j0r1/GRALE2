@@ -96,7 +96,7 @@ public:
 
 	errut::bool_t randomizeInputPositions();
 protected:
-	static constexpr size_t NumKernels = 8;
+	static constexpr size_t NumKernels = 11;
 
 	errut::bool_t getNumParamSets(const std::vector<float> &parameters, size_t &numParamSets);
 
