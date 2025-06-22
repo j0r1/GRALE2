@@ -614,7 +614,13 @@ errut::bool_t OpenCLSinglePlaneDeflection::initRecalc(size_t numTotalPoints, con
 		m_clSourceStarts.dealloc(cl);
 		m_clSourceNumImages.dealloc(cl);
 		m_clAllTracedThetas.dealloc(cl);
+		m_clAllTracedThetas_tmp.dealloc(cl);
 		m_clAllBetaDiffs.dealloc(cl);
+		m_clAllBetaDiffs_tmp.dealloc(cl);
+		m_clNextNumberOfPointsToProcess.dealloc(cl);
+		m_clPrevBasePointAndParamSetIndices.dealloc(cl);
+		m_clNextNumberOfPointsToProcess.dealloc(cl);
+		m_clSubRetraceInfo.dealloc(cl);
 		return r;
 	};
 
@@ -788,6 +794,11 @@ __kernel void retraceKernel(int numBpPoints, int numParamSets, int numFloatParam
 	if (dynamic_cast<const ExpandedMultiStepNewtonTraceParams*>(&retraceParams))
 	{
 		const ExpandedMultiStepNewtonTraceParams &expTraceParams = static_cast<const ExpandedMultiStepNewtonTraceParams&>(retraceParams);
+		m_multiLevelRetrace = true;
+		m_gridLevelsToProcess = expTraceParams.getMaximumNumberOfGridSteps();
+
+		if (!(r = m_clNextNumberOfPointsToProcess.realloc(cl, ctx, sizeof(cl_int))))
+			return cleanup(r.getErrorString());
 
 		string thresholdCode = R"XYZ(
 const float retraceBetaDiffThreshold = )XYZ" + float_to_string(expTraceParams.getAcceptanceThreshold()) + R"XYZ(;
@@ -891,7 +902,7 @@ float2 findRetraceTheta_forlevel(float2 baseTheta, int stepInLevel, int level, f
 )XYZ";
 		// Code for retrace based on base point and grid index/level
 		stepKernel += R"XYZ(
-__kernel void retraceKernel_step(int numBpPoints, int numPointsToProcess, int numStepsInLevel, int level,
+__kernel void retraceKernel_step(int numBpPoints, int numPointsToProcess, int level,
 								__global const int *pBasePointAndParamSetIndices, // So two indices per point
 								int numFloatParams,
 								__global const float *pFullThetas, // Can be either with or without randomization
@@ -905,10 +916,23 @@ __kernel void retraceKernel_step(int numBpPoints, int numPointsToProcess, int nu
 )
 {
 	const int idx = get_global_id(0);
+	const int stepInLevel = get_global_id(1);
+
+	// TODO: remove this again
+	if (level < 2 || level > numGridLevels)
+	{
+		if (idx == 0 && stepInLevel == 0)
+			printf("ERROR! level = %d\n", level);
+		return;
+	}
+
 	if (idx >= numPointsToProcess)
 		return;
 
-	const int stepInLevel = get_global_id(1);
+	int numStepsInLevel = numCoordsForGridLevel[level-2]; // array starts at an offset
+	if (idx == 0 && stepInLevel == 0)
+		printf("numStepsInLevel = %d\n", numStepsInLevel);
+
 	if (stepInLevel >= numStepsInLevel)
 		return;
 
@@ -1039,6 +1063,21 @@ __kernel void retraceKernel_reduction(int numBpPoints, int numPointsToProcess, i
 			return cleanup(cl.getErrorString());
 		}
 
+		m_maxCoordsForGridLevels = 0;
+		m_coordStepsInLevel = { 0, 1 };
+
+		for (size_t l = 2 ; l <= expTraceParams.getMaximumNumberOfGridSteps() ; l++)
+		{
+			vector<pair<int, int>> coords;
+			if (!(r = expTraceParams.getCoordinatesForGridStep(l, coords)))
+				return cleanup("Error: " + r.getErrorString());
+			if (coords.size() > m_maxCoordsForGridLevels)
+				m_maxCoordsForGridLevels = coords.size();
+
+			m_coordStepsInLevel.push_back((cl_int)coords.size());
+		}
+
+		cerr << "DEBUG: m_maxCoordsForGridLevels = " << m_maxCoordsForGridLevels << endl;
 	}
 
 	if (sizeof(Vector2Df) != sizeof(float)*2)
@@ -1079,7 +1118,14 @@ void OpenCLSinglePlaneDeflection::destroy()
 	m_clSourceStarts.dealloc(*m_cl);
 	m_clSourceNumImages.dealloc(*m_cl);
 	m_clAllTracedThetas.dealloc(*m_cl);
+	m_clAllTracedThetas_tmp.dealloc(*m_cl);
 	m_clAllBetaDiffs.dealloc(*m_cl);
+	m_clAllBetaDiffs_tmp.dealloc(*m_cl);
+
+	m_clNextNumberOfPointsToProcess.dealloc(*m_cl);
+	m_clPrevBasePointAndParamSetIndices.dealloc(*m_cl);
+	m_clNextNumberOfPointsToProcess.dealloc(*m_cl);
+	m_clSubRetraceInfo.dealloc(*m_cl);
 
 	m_cl = nullptr;
 	m_init = false;
@@ -1444,6 +1490,12 @@ errut::bool_t OpenCLSinglePlaneDeflection::calculateDeflectionAndRetrace(const s
 	if (!(r = m_clAllBetaDiffs.realloc(*m_cl, ctx, sizeof(cl_float)*m_clNumBpImages*numParamSets)))
 		return "Can't allocate source plane difference buffer on GPU: " + r.getErrorString();
 
+	// TODO: remove this after validating
+	if (!(r = m_clAllBetaDiffs_tmp.realloc(*m_cl, ctx, sizeof(cl_float)*m_clNumBpImages*numParamSets)))
+		return "Can't allocate source plane difference buffer on GPU: " + r.getErrorString();
+	if (!(r = m_clAllTracedThetas_tmp.realloc(*m_cl, ctx, sizeof(cl_float)*2*m_clNumBpImages*numParamSets)))
+		return "Can't alocate traced theta buffer on GPU: " + r.getErrorString();
+
 	tracedThetas.resize(m_clNumBpImages*numParamSets);
 	tracedBetaDiffs.resize(m_clNumBpImages*numParamSets);
 
@@ -1554,6 +1606,120 @@ errut::bool_t OpenCLSinglePlaneDeflection::calculateDeflectionAndRetrace(const s
 		if (!(r = m_clAllBetaDiffs.enqueueReadBuffer(*m_cl, queue, tracedBetaDiffs, nullptr, nullptr, true)))
 			return "Can't read source plane differences: " + r.getErrorString();
 	}
+
+	if (m_multiLevelRetrace)
+	{
+		size_t reqMemForRetraceLevels = sizeof(cl_int)*m_numPoints*numParamSets * 2; // times two since we'll need both a point index
+		if (!(r = m_clPrevBasePointAndParamSetIndices.realloc(*m_cl, ctx, reqMemForRetraceLevels)))
+			return "Can't allocate buffer to store next points to calculate in multi-level retrace";
+		if (!(r = m_clNextBasePointAndParamSetIndices.realloc(*m_cl, ctx, reqMemForRetraceLevels)))
+			return "Can't allocate another buffer to store next points to calculate in multi-level retrace";
+
+		size_t reqMemForTraceInfo = sizeof(float)*m_numPoints*numParamSets * m_maxCoordsForGridLevels * 3; // theta (float2) and source plane dist(float)
+		cerr << "DEBUG: requesting " << reqMemForTraceInfo << " bytes for output trace info" << endl;
+		if (!(r = m_clSubRetraceInfo.realloc(*m_cl, ctx, reqMemForTraceInfo)))
+			return "Can't allocate memory for intermediate trace output: " + r.getErrorString();
+
+		cl_int retraceCount = 0;
+		if (!(r = m_clNextNumberOfPointsToProcess.enqueueWriteBuffer(*m_cl, queue, &retraceCount, sizeof(cl_int), true)))
+			return "Can't reset retrace point count: " + r.getErrorString();
+
+		cl_int err = 0;
+		cl_int clNumParamSets = (cl_int)numParamSets;
+		cl_int clNumFloatParams = (cl_int)m_numFloatParams;
+
+		// Depending on the case, either use the real thetas or the ones to which random numbers have been added
+		void *pThetas = (m_clThetaWithAdditions.m_pMem)?m_clThetaWithAdditions.m_pMem:m_clThetas.m_pMem;
+
+		{
+			auto kernel = m_cl->getKernel(KERNELNUMBER_REPROJ_BETAS_MULTILVL_START);
+			auto setKernArg = [this, &err, &kernel](cl_uint idx, size_t size, const void *ptr)
+			{
+				err |= m_cl->clSetKernelArg(kernel, idx, size, ptr);
+			};
+
+			setKernArg(0, sizeof(cl_int), (void*)&m_clNumBpImages);
+			setKernArg(1, sizeof(cl_int), (void*)&clNumParamSets);
+			setKernArg(2, sizeof(cl_int), (void*)&clNumFloatParams);
+			setKernArg(3, sizeof(cl_mem), (void*)&pThetas);
+			setKernArg(4, sizeof(cl_mem), (void*)&m_clBpThetaIndices.m_pMem);
+			setKernArg(5, sizeof(cl_mem), (void*)&m_clBpDistFracs.m_pMem);
+			setKernArg(6, sizeof(cl_mem), (void*)&m_clAllBetas.m_pMem);
+			setKernArg(7, sizeof(cl_mem), (void*)&m_clIntParams.m_pMem);
+			setKernArg(8, sizeof(cl_mem), (void*)&m_clFloatParams.m_pMem);
+			setKernArg(9, sizeof(cl_mem), (void*)&m_clAllTracedThetas_tmp.m_pMem);
+			setKernArg(10, sizeof(cl_mem), (void*)&m_clAllBetaDiffs_tmp.m_pMem);
+			setKernArg(11, sizeof(cl_mem), (void*)&m_clNextNumberOfPointsToProcess);
+			setKernArg(12, sizeof(cl_mem), (void*)&m_clPrevBasePointAndParamSetIndices);
+
+			if (err != CL_SUCCESS)
+				return "Error setting kernel arguments for fetch origin parameters kernel";
+
+			size_t workSize[2] = { (size_t)m_clNumBpImages, numParamSets };
+			err = m_cl->clEnqueueNDRangeKernel(queue, kernel, 2, nullptr, workSize, nullptr, 0, nullptr, nullptr);
+			if (err != CL_SUCCESS)
+				return "Error enqueing retrace start kernel: " + to_string(err);
+		}
+		
+		if (!(r = m_clNextNumberOfPointsToProcess.enqueueReadBuffer(*m_cl, queue, &retraceCount, sizeof(cl_int), nullptr, nullptr, true)))
+			return "Can't read next retrace point count: " + r.getErrorString();
+		
+		cerr << "DEBUG: need to retrace " << retraceCount << " points" << endl;
+
+		cl_int nextLevel = 2; // Points themselves are level 1
+		while (retraceCount > 0 && (size_t)nextLevel <= m_gridLevelsToProcess)
+		{
+			// Next step kernel, this also resets the count
+			{
+				auto kernel = m_cl->getKernel(KERNELNUMBER_REPROJ_BETAS_MULTILVL_STEP);
+				auto setKernArg = [this, &err, &kernel](cl_uint idx, size_t size, const void *ptr)
+				{
+					err |= m_cl->clSetKernelArg(kernel, idx, size, ptr);
+				};
+
+				setKernArg(0, sizeof(cl_int), (void*)&m_clNumBpImages);
+				setKernArg(1, sizeof(cl_int), (void*)&retraceCount);
+				setKernArg(2, sizeof(cl_int), (void*)&nextLevel);
+				setKernArg(3, sizeof(cl_mem), (void*)&m_clPrevBasePointAndParamSetIndices);
+				setKernArg(4, sizeof(cl_int), (void*)&clNumFloatParams);
+				setKernArg(5, sizeof(cl_mem), (void*)&pThetas);
+				setKernArg(6, sizeof(cl_mem), (void*)&m_clBpThetaIndices.m_pMem);
+				setKernArg(7, sizeof(cl_mem), (void*)&m_clBpDistFracs.m_pMem);
+				setKernArg(8, sizeof(cl_mem), (void*)&m_clAllBetas.m_pMem);
+				setKernArg(9, sizeof(cl_mem), (void*)&m_clIntParams.m_pMem);
+				setKernArg(10, sizeof(cl_mem), (void*)&m_clFloatParams.m_pMem);
+				setKernArg(11, sizeof(cl_mem), (void*)&m_clSubRetraceInfo.m_pMem);
+				setKernArg(12, sizeof(cl_mem), (void*)&m_clNextNumberOfPointsToProcess.m_pMem);
+
+				if (err != CL_SUCCESS)
+					return "Error setting kernel arguments for fetch origin parameters kernel";
+
+				size_t workSize[2] = { (size_t)retraceCount, m_coordStepsInLevel[nextLevel] };
+				cerr << "DEBUG: launching trace step kernel of " << workSize[0] << "x" << workSize[1] << endl;
+				err = m_cl->clEnqueueNDRangeKernel(queue, kernel, 2, nullptr, workSize, nullptr, 0, nullptr, nullptr);
+				if (err != CL_SUCCESS)
+					return "Error enqueing retrace step kernel: " + to_string(err);
+			}
+
+			// TODO: disable this again
+			if (!(r = m_clNextNumberOfPointsToProcess.enqueueReadBuffer(*m_cl, queue, &retraceCount, sizeof(cl_int), nullptr, nullptr, true)))
+				return "Can't read next retrace point count (2): " + r.getErrorString();
+			assert(retraceCount == 0);
+
+
+			break; // TODO: for testing
+			
+			// Reduce kernel, also calculates next amount of points to process
+			{
+			}
+
+			if (!(r = m_clNextNumberOfPointsToProcess.enqueueReadBuffer(*m_cl, queue, &retraceCount, sizeof(cl_int), nullptr, nullptr, true)))
+				return "Can't read next retrace point count (2): " + r.getErrorString();
+
+			nextLevel++;
+		}
+	}
+
 
 	return true;
 }

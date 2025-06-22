@@ -86,6 +86,18 @@ public:
 		return enqueueReadBuffer(cl, queue, data.data(), data.size()*sizeof(T), pDepEvt, pEvt, sync);
 	}
 
+	void swap(CLMem &m)
+	{
+		cl_mem pTmp = m_pMem;
+		size_t tmpSize = m_size;
+
+		m_pMem = m.m_pMem;
+		m_size = m.m_size;
+
+		m.m_pMem = pTmp;
+		m.m_size = tmpSize;
+	}
+
 	cl_mem m_pMem = nullptr;
 	size_t m_size = 0;
 };

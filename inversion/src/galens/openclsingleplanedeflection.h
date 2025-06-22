@@ -137,8 +137,17 @@ protected:
 	oclutils::CLMem m_clAllBetas;
 	oclutils::CLMem m_clSourceStarts;
 	oclutils::CLMem m_clSourceNumImages;
-	oclutils::CLMem m_clAllTracedThetas;
-	oclutils::CLMem m_clAllBetaDiffs;
+	oclutils::CLMem m_clAllTracedThetas, m_clAllTracedThetas_tmp; // TODO: remove tmp again after verification!
+	oclutils::CLMem m_clAllBetaDiffs, m_clAllBetaDiffs_tmp;
+
+	oclutils::CLMem m_clNextNumberOfPointsToProcess;
+	oclutils::CLMem m_clPrevBasePointAndParamSetIndices;
+	oclutils::CLMem m_clNextBasePointAndParamSetIndices;
+	oclutils::CLMem m_clSubRetraceInfo;
+	bool m_multiLevelRetrace = false;
+	size_t m_gridLevelsToProcess = 0;
+	size_t m_maxCoordsForGridLevels = 0;
+	std::vector<size_t> m_coordStepsInLevel;
 
 	bool m_haveClPriors = false;
 	oclutils::CLMem m_clPriorResults;

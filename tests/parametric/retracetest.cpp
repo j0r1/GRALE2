@@ -127,7 +127,9 @@ int main(int argc, char *argv[])
 	//SingleStepNewtonTraceParams retraceParams;
 	//MultiStepNewtonTraceParams retraceParams(numRetraceSteps);
 	ExpandedMultiStepNewtonTraceParams retraceParams(ExpandedMultiStepNewtonTraceParams::FullGrid,
-			numRetraceSteps, 3, 0.001*ANGLE_ARCSEC/deflScale, 1*ANGLE_ARCSEC/deflScale);
+			numRetraceSteps, 3,
+			0, //0.001*ANGLE_ARCSEC/deflScale,
+			1*ANGLE_ARCSEC/deflScale);
 
 	if (!(r = clDef.init(thetas, inKernelThetaUncert, intParams, floatParams, changeableParamIdx, 
 	                     prog, subRoutName, "", 0, 12345, originParams, numOriginParams,
