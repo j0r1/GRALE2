@@ -140,6 +140,8 @@ float2 findRetraceTheta_level(int level, const float dxy,
 
 		float curBestBetaDiff = INFINITY;
 		float2 curBestRetraceTheta = findRetraceTheta_singlepoint(theta, betaTarget, dfrac, &curBestBetaDiff, pIntParams, pFloatParams);
+		//if (get_global_id(0) == 0)
+		//	printf("level = %d theta = (%.15g,%.15g) -> (%.15g,%.15g) diff %.15g\n", level, theta.x, theta.y, curBestRetraceTheta.x, curBestRetraceTheta.y, curBestBetaDiff);
 		if (curBestBetaDiff < totalBestBetaDiff)
 		{
 			totalBestBetaDiff = curBestBetaDiff;

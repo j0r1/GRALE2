@@ -896,7 +896,10 @@ float2 findRetraceTheta_forlevel(float2 baseTheta, int stepInLevel, int level, f
 	float2 theta = baseTheta + (float2)(coordDxForGridLevel[level][stepInLevel],
 	                                    coordDyForGridLevel[level][stepInLevel]) * retraceGridDxy;
 
-	return findRetraceTheta_perpoint(theta, betaTarget, dfrac, pBestBetaDiffSize, pIntParams, pFloatParams);
+	float2 result = findRetraceTheta_perpoint(theta, betaTarget, dfrac, pBestBetaDiffSize, pIntParams, pFloatParams);
+	//if (get_global_id(0) == 0)
+	//	printf("level = %d theta = (%.15g,%.15g) -> (%.15g,%.15g) diff %.15g\n", level, theta.x, theta.y, result.x, result.y, *pBestBetaDiffSize);
+	return result;
 }
 
 )XYZ";
@@ -963,9 +966,9 @@ __kernel void retraceKernel_step(int numBpPoints, int numPointsToProcess, int le
 	pOutputRetraceInfo[outIdxBase+1] = bestRetraceTheta.y;
 	pOutputRetraceInfo[outIdxBase+2] = bestBetaDiffSize;
 
-	//printf("pOutputRetraceInfo[%d] (x) = %g\n", outIdxBase+0, bestRetraceTheta.x);
-	//printf("pOutputRetraceInfo[%d] (y) = %g\n", outIdxBase+1, bestRetraceTheta.y);
-	//printf("pOutputRetraceInfo[%d] (s) = %g\n", outIdxBase+2, bestBetaDiffSize);
+	//printf("pOutputRetraceInfo[%d] (x) = %.15g\n", outIdxBase+0, bestRetraceTheta.x);
+	//printf("pOutputRetraceInfo[%d] (y) = %.15g\n", outIdxBase+1, bestRetraceTheta.y);
+	//printf("pOutputRetraceInfo[%d] (s) = %.15g\n", outIdxBase+2, bestBetaDiffSize);
 }
 )XYZ";
 		if (!cl.loadKernel(stepKernel, "retraceKernel_step", faillog, KERNELNUMBER_REPROJ_BETAS_MULTILVL_STEP))
@@ -1033,7 +1036,8 @@ __kernel void retraceKernel_reduction(int numBpPoints, int numPointsToProcess, i
 	{
 		float2 traceCandidate = (float2)(pOutputRetraceInfo[outIdx+0], pOutputRetraceInfo[outIdx+1]);
 		float betaDiffCandidate = pOutputRetraceInfo[outIdx+2];
-		//printf("Checking %g,%g diff %g from %d\n", traceCandidate.x, traceCandidate.y, betaDiffCandidate, idx);
+		//if (get_global_id(0) == 0)
+		//	printf("Checking (%.15g,%.15g) diff %.15g from %d\n", traceCandidate.x, traceCandidate.y, betaDiffCandidate, idx);
 
 		if (betaDiffCandidate <= retraceBetaDiffThreshold) // Ok, acceptable retrace, see if it's closest
 		{
@@ -1073,6 +1077,11 @@ __kernel void retraceKernel_reduction(int numBpPoints, int numPointsToProcess, i
 		// This way, when the kernel is done, pNextNumberOfPointsToProcess contains the number of
 		// points that need to be reconsidered, and the point index and paramset index values are
 		// stored in pBasePointAndParamSetIndices
+
+		// Also store the current best estimates, to have something to fall back on
+		pSourcePlaneDists[basePointIdx] = curBestBetaDiff;
+		pTracedThetas[resultOffset+0] = curBestTheta.x;
+		pTracedThetas[resultOffset+1] = curBestTheta.y;
 	}
 }
 )XYZ";
