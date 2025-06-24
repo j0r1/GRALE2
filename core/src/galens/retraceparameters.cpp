@@ -159,19 +159,19 @@ errut::bool_t ExpandedMultiStepNewtonTraceParams::getCoordinatesForGridStep(size
 	int d = ((int)level) - 1;
 	if (m_layout == Square)
 	{
-		levels = { { -d, -d }, { -d, d} , { d, d }, { d, -d } }; 
+		levels = { { -d, -d }, { -d, d} , { d, -d }, { d, d } }; 
 		return true;
 	}
 
 	if (m_layout == Diamond)
 	{
-		levels = { { 0, d }, { 0, -d }, { -d, 0 }, { d, 0 } };
+		levels = { { 0, -d }, { 0, d }, { -d, 0 }, { d, 0 } };
 		return true;
 	}
 
 	if (m_layout == EightNeighbours)
 	{
-		levels = { { -d, -d }, { -d, d } , { d, d }, { d, -d }, { 0, d }, { 0, -d }, { -d, 0 }, { d, 0 } };
+		levels = { { -d, -d }, { -d, d } , { d, -d }, { d, d }, { 0, -d }, { 0, d }, { -d, 0 }, { d, 0 } };
 		return true;
 	}
 
