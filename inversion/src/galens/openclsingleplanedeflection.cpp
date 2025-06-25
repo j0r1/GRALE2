@@ -897,7 +897,7 @@ float2 findRetraceTheta_forlevel(float2 baseTheta, int stepInLevel, int level, f
 	                                    coordDyForGridLevel[level][stepInLevel]) * retraceGridDxy;
 
 	float2 result = findRetraceTheta_perpoint(theta, betaTarget, dfrac, pBestBetaDiffSize, pIntParams, pFloatParams);
-	//if (get_global_id(0) == 0)
+	//if (get_global_id(0) == 2)
 	//	printf("level = %d theta = (%.15g,%.15g) -> (%.15g,%.15g) diff %.15g\n", level, theta.x, theta.y, result.x, result.y, *pBestBetaDiffSize);
 	return result;
 }
@@ -1036,7 +1036,7 @@ __kernel void retraceKernel_reduction(int numBpPoints, int numPointsToProcess, i
 	{
 		float2 traceCandidate = (float2)(pOutputRetraceInfo[outIdx+0], pOutputRetraceInfo[outIdx+1]);
 		float betaDiffCandidate = pOutputRetraceInfo[outIdx+2];
-		//if (get_global_id(0) == 0)
+		//if (get_global_id(0) == 2)
 		//	printf("Checking (%.15g,%.15g) diff %.15g from %d\n", traceCandidate.x, traceCandidate.y, betaDiffCandidate, idx);
 
 		if (betaDiffCandidate <= retraceBetaDiffThreshold) // Ok, acceptable retrace, see if it's closest
@@ -1083,6 +1083,12 @@ __kernel void retraceKernel_reduction(int numBpPoints, int numPointsToProcess, i
 		pTracedThetas[resultOffset+0] = curBestTheta.x;
 		pTracedThetas[resultOffset+1] = curBestTheta.y;
 	}
+
+	//if (get_global_id(0) == 2)
+	//{
+	//	printf("pTracedThetas[%d] = (%.15g, %.15g), pSourcePlaneDists[%d] = %.15g\n", resultOffset, pTracedThetas[resultOffset+0] ,
+	//			pTracedThetas[resultOffset+1], basePointIdx, pSourcePlaneDists[basePointIdx]);
+	//}
 }
 )XYZ";
 		if (!cl.loadKernel(reductionKernel, "retraceKernel_reduction", faillog, KERNELNUMBER_REPROJ_BETAS_MULTILVL_REDUCE))
@@ -1790,12 +1796,12 @@ errut::bool_t OpenCLSinglePlaneDeflection::calculateDeflectionAndRetrace(const s
 		m_clAllBetaDiffs.enqueueReadBuffer(*m_cl, queue, bd1, nullptr, nullptr, true);
 		m_clAllBetaDiffs_tmp.enqueueReadBuffer(*m_cl, queue, bd2, nullptr, nullptr, true);
 
-		cerr << "DEBUG DIFF" << endl;
-		for (int i = 0, j = 0 ; i < trace1.size() ; i += 2, j++)
-			cerr << trace1[i] << " vs " << trace2[i] << " for x, and " << trace1[i+1] << " vs " << trace2[i+1] << " for y, "
-				 << bd1[j] << " vs " << bd2[j] << " for sp diff" << endl;
-
-		cerr << endl;
+		//cerr << "DEBUG DIFF" << endl;
+		//for (int i = 0, j = 0 ; i < trace1.size() ; i += 2, j++)
+		//	cerr << trace1[i] << " vs " << trace2[i] << " for x, and " << trace1[i+1] << " vs " << trace2[i+1] << " for y, "
+		//		 << bd1[j] << " vs " << bd2[j] << " for sp diff" << endl;
+		//
+		//cerr << endl;
 		cerr << "DEBUG DIFF DIFF" << endl;
 		for (int i = 0, j = 0 ; i < trace1.size() ; i += 2, j++)
 			cerr << std::abs(trace1[i]-trace2[i]) << " for x, and " << std::abs(trace1[i+1]-trace2[i+1]) << " for y, "

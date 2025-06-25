@@ -179,15 +179,13 @@ errut::bool_t ExpandedMultiStepNewtonTraceParams::getCoordinatesForGridStep(size
 	{
 		levels.clear();
 		for (int X = -d ; X <= d ; X++)
-		{
 			levels.push_back({ X, -d });
+		for (int X = -d ; X <= d ; X++)
 			levels.push_back({ X, d });
-		}
 		for (int Y = -d + 1 ; Y <= d - 1 ; Y++)
-		{
 			levels.push_back({ -d, Y });
+		for (int Y = -d + 1 ; Y <= d - 1 ; Y++)
 			levels.push_back({ d, Y });
-		}
 		return true;
 	}
 
