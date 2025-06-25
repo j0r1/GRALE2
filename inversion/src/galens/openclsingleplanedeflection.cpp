@@ -933,8 +933,8 @@ __kernel void retraceKernel_step(int numBpPoints, int numPointsToProcess, int le
 		return;
 
 	int numStepsInLevel = numCoordsForGridLevel[level-2]; // array starts at an offset
-	if (idx == 0 && stepInLevel == 0)
-		printf("numStepsInLevel = %d\n", numStepsInLevel);
+	//if (idx == 0 && stepInLevel == 0)
+	//	printf("numStepsInLevel = %d\n", numStepsInLevel);
 
 	if (stepInLevel >= numStepsInLevel)
 		return;
@@ -1007,8 +1007,8 @@ __kernel void retraceKernel_reduction(int numBpPoints, int numPointsToProcess, i
 	}
 
 	int numStepsInLevel = numCoordsForGridLevel[level-2]; // array starts at an offset
-	if (idx == 0)
-		printf("numStepsInLevel = %d\n", numStepsInLevel);
+	//if (idx == 0)
+	//	printf("numStepsInLevel = %d\n", numStepsInLevel);
 
 	const int basePointIdx = pPrevBasePointAndParamSetIndices[idx*2+0];
 	const int paramSet = pPrevBasePointAndParamSetIndices[idx*2+1];
@@ -1112,7 +1112,7 @@ __kernel void retraceKernel_reduction(int numBpPoints, int numPointsToProcess, i
 			m_coordStepsInLevel.push_back((cl_int)coords.size());
 		}
 
-		cerr << "DEBUG: m_maxCoordsForGridLevels = " << m_maxCoordsForGridLevels << endl;
+		//cerr << "DEBUG: m_maxCoordsForGridLevels = " << m_maxCoordsForGridLevels << endl;
 	}
 
 	if (sizeof(Vector2Df) != sizeof(float)*2)
@@ -1651,7 +1651,7 @@ errut::bool_t OpenCLSinglePlaneDeflection::calculateDeflectionAndRetrace(const s
 			return "Can't allocate another buffer to store next points to calculate in multi-level retrace";
 
 		size_t reqMemForTraceInfo = sizeof(float)*m_numPoints*numParamSets * m_maxCoordsForGridLevels * 3; // theta (float2) and source plane dist(float)
-		cerr << "DEBUG: requesting " << reqMemForTraceInfo << " bytes for output trace info" << endl;
+		//cerr << "DEBUG: requesting " << reqMemForTraceInfo << " bytes for output trace info" << endl;
 		if (!(r = m_clSubRetraceInfo.realloc(*m_cl, ctx, reqMemForTraceInfo)))
 			return "Can't allocate memory for intermediate trace output: " + r.getErrorString();
 
@@ -1699,7 +1699,7 @@ errut::bool_t OpenCLSinglePlaneDeflection::calculateDeflectionAndRetrace(const s
 		if (!(r = m_clNextNumberOfPointsToProcess.enqueueReadBuffer(*m_cl, queue, &retraceCount, sizeof(cl_int), nullptr, nullptr, true)))
 			return "Can't read next retrace point count: " + r.getErrorString();
 		
-		cerr << "DEBUG: need to retrace " << retraceCount << " points" << endl;
+		//cerr << "DEBUG: need to retrace " << retraceCount << " points" << endl;
 
 		cl_int nextLevel = 2; // Points themselves are level 1
 		while (retraceCount > 0 && (size_t)nextLevel <= m_gridLevelsToProcess)
@@ -1730,7 +1730,7 @@ errut::bool_t OpenCLSinglePlaneDeflection::calculateDeflectionAndRetrace(const s
 					return "Error setting kernel arguments for fetch origin parameters kernel";
 
 				size_t workSize[2] = { (size_t)retraceCount, m_coordStepsInLevel[nextLevel] };
-				cerr << "DEBUG: launching trace step kernel of " << workSize[0] << "x" << workSize[1] << endl;
+				//cerr << "DEBUG: launching trace step kernel of " << workSize[0] << "x" << workSize[1] << endl;
 				err = m_cl->clEnqueueNDRangeKernel(queue, kernel, 2, nullptr, workSize, nullptr, 0, nullptr, nullptr);
 				if (err != CL_SUCCESS)
 					return "Error enqueing retrace step kernel: " + to_string(err);
@@ -1760,7 +1760,7 @@ errut::bool_t OpenCLSinglePlaneDeflection::calculateDeflectionAndRetrace(const s
 					return "Error setting kernel arguments for fetch origin parameters kernel";
 
 				size_t workSize[1] = { (size_t)retraceCount };
-				cerr << "DEBUG: launching reduce kernel of " << workSize[0] << endl;
+				//cerr << "DEBUG: launching reduce kernel of " << workSize[0] << endl;
 				err = m_cl->clEnqueueNDRangeKernel(queue, kernel, 1, nullptr, workSize, nullptr, 0, nullptr, nullptr);
 				if (err != CL_SUCCESS)
 					return "Error enqueing retrace step kernel: " + to_string(err);
@@ -1769,7 +1769,7 @@ errut::bool_t OpenCLSinglePlaneDeflection::calculateDeflectionAndRetrace(const s
 			if (!(r = m_clNextNumberOfPointsToProcess.enqueueReadBuffer(*m_cl, queue, &retraceCount, sizeof(cl_int), nullptr, nullptr, true)))
 				return "Can't read next retrace point count (2): " + r.getErrorString();
 
-			cerr << "DEBUG: new number of points to trace is " << retraceCount << endl;
+			//cerr << "DEBUG: new number of points to trace is " << retraceCount << endl;
 
 			// Swap buffers!
 			m_clNextBasePointAndParamSetIndices.swap(m_clPrevBasePointAndParamSetIndices);
@@ -1777,7 +1777,7 @@ errut::bool_t OpenCLSinglePlaneDeflection::calculateDeflectionAndRetrace(const s
 			nextLevel++;
 		}
 
-		// TODO: remove this again!
+		// TODO: remove this again! Just to check compatibility with old code
 		vector<float> trace1, trace2, bd1, bd2;
 		assert(m_clAllTracedThetas.m_size == m_clAllTracedThetas_tmp.m_size);
 		assert(m_clAllTracedThetas.m_size % sizeof(float) == 0);
@@ -1796,17 +1796,25 @@ errut::bool_t OpenCLSinglePlaneDeflection::calculateDeflectionAndRetrace(const s
 		m_clAllBetaDiffs.enqueueReadBuffer(*m_cl, queue, bd1, nullptr, nullptr, true);
 		m_clAllBetaDiffs_tmp.enqueueReadBuffer(*m_cl, queue, bd2, nullptr, nullptr, true);
 
+		for (size_t i = 0 ; i < trace1.size() ; i++)
+			if (trace1[i] != trace2[i])
+				return "DEBUG error: mismatch between old and new retrace code";
+
+		for (size_t i = 0 ; i < bd1.size() ; i++)
+			if (bd1[i] != bd2[i])
+				return "DEBUG error: mismatch between old and new retrace code II";
+
 		//cerr << "DEBUG DIFF" << endl;
 		//for (int i = 0, j = 0 ; i < trace1.size() ; i += 2, j++)
 		//	cerr << trace1[i] << " vs " << trace2[i] << " for x, and " << trace1[i+1] << " vs " << trace2[i+1] << " for y, "
 		//		 << bd1[j] << " vs " << bd2[j] << " for sp diff" << endl;
 		//
 		//cerr << endl;
-		cerr << "DEBUG DIFF DIFF" << endl;
-		for (int i = 0, j = 0 ; i < trace1.size() ; i += 2, j++)
-			cerr << std::abs(trace1[i]-trace2[i]) << " for x, and " << std::abs(trace1[i+1]-trace2[i+1]) << " for y, "
-				 << std::abs(bd1[j]-bd2[j]) << " for sp diff" << endl;
-		cerr << endl;
+		//cerr << "DEBUG DIFF DIFF" << endl;
+		//for (int i = 0, j = 0 ; i < trace1.size() ; i += 2, j++)
+		//	cerr << std::abs(trace1[i]-trace2[i]) << " for x, and " << std::abs(trace1[i+1]-trace2[i+1]) << " for y, "
+		//		 << std::abs(bd1[j]-bd2[j]) << " for sp diff" << endl;
+		//cerr << endl;
 	}
 
 
