@@ -4,6 +4,11 @@
 #include "opencllibrary.h"
 #include <errut/booltype.h>
 
+#ifdef GRALE_DEBUG_OPENCLSENTINEL
+#include <iostream>
+#include <stdexcept>
+#endif // GRALE_DEBUG_OPENCLSENTINEL
+
 namespace grale
 {
 
@@ -14,12 +19,36 @@ namespace oclutils
 // destroying context etc
 class CLMem
 {
+#ifdef GRALE_DEBUG_OPENCLSENTINEL
+	constexpr static uint8_t sentinelBytes[] = { 0xde, 0xad, 0xbe, 0xef };
+	constexpr static size_t numSentinel = sizeof(sentinelBytes);
+#endif // GRALE_DEBUG_OPENCLSENTINEL
 public:
 	void dealloc(OpenCLLibrary &cl)
 	{
 		if (!m_pMem)
 			return;
 		
+#ifdef GRALE_DEBUG_OPENCLSENTINEL
+		auto queue = cl.getSavedQueue();
+		uint8_t buf[numSentinel];
+		if (cl.clEnqueueReadBuffer(queue, m_pMem, true, m_size, numSentinel, buf, 0, nullptr, nullptr) != CL_SUCCESS)
+		{
+			std::cerr << "ERROR! Error reading bytes for sentinel check" << std::endl;
+			throw std::runtime_error("ERROR! Error reading bytes for sentinel check");
+		}
+
+		for (size_t i = 0 ; i < numSentinel ; i++)
+		{
+			if (buf[i] != sentinelBytes[i])
+			{
+				std::cerr << "ERROR! Error checking sentinel" << std::endl;
+				throw std::runtime_error("ERROR! Error checking sentinel");
+			}
+		}
+		std::cerr << "DEBUG: CLMem::dealloc sentinel OK" << std::endl;
+#endif // GRALE_DEBUG_OPENCLSENTINEL
+
 		cl.clReleaseMemObject(m_pMem);
 
 		m_pMem = nullptr;
@@ -34,8 +63,14 @@ public:
 		if (s <= m_size)
 			return true;
 
+#ifdef GRALE_DEBUG_OPENCLSENTINEL
+		size_t extraSize = numSentinel;
+#else
+		size_t extraSize = 0;
+#endif // GRALE_DEBUG_OPENCLSENTINEL
+
 		cl_int err = 0;
-		cl_mem pBuf = cl.clCreateBuffer(ctx, CL_MEM_READ_WRITE, s, nullptr, &err);
+		cl_mem pBuf = cl.clCreateBuffer(ctx, CL_MEM_READ_WRITE, s + extraSize, nullptr, &err);
 		if (pBuf == nullptr || err != CL_SUCCESS)
 			return "Can't create buffer of size " + std::to_string(s) + " on GPU: code " + std::to_string(err);
 
@@ -43,6 +78,17 @@ public:
 
 		m_pMem = pBuf;
 		m_size = s;
+
+#ifdef GRALE_DEBUG_OPENCLSENTINEL
+		auto queue = cl.getSavedQueue();
+		auto ret = cl.clEnqueueWriteBuffer(queue, m_pMem, true, m_size, numSentinel, sentinelBytes, 0, nullptr, nullptr);
+		if (ret != CL_SUCCESS)
+		{
+			std::cerr << "ERROR! Error writing sentinel bytes: " << ret << std::endl;
+			throw std::runtime_error("ERROR! Error writing sentinel bytes");
+		}
+#endif // GRALE_DEBUG_OPENCLSENTINEL
+
 		return true;
 	}
 

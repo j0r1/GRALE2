@@ -5,6 +5,8 @@
 #include <memory>
 #include <stdint.h>
 
+#define GRALE_DEBUG_OPENCLSENTINEL
+
 typedef void* cl_command_queue;
 typedef uint64_t cl_command_queue_properties;
 typedef void* cl_context;
@@ -58,6 +60,13 @@ public:
 	bool loadLibrary(const std::string &libraryName);
 	bool isOpen() const { return (m_pModule)?true:false; }
 	int getDeviceCount() const;
+
+#ifdef GRALE_DEBUG_OPENCLSENTINEL
+	void setSavedQueue(cl_command_queue queue) { m_savedQueue = queue; }
+	cl_command_queue getSavedQueue() const { return m_savedQueue; }
+
+	cl_command_queue m_savedQueue = nullptr;
+#endif // GRALE_DEBUG_OPENCLSENTINEL
 
 	cl_int (*clBuildProgram)(cl_program program, cl_uint num_devices, const cl_device_id *device_list, const char *options, void (*pfn_notify)(cl_program, void *user_data), void *user_data);
 	cl_command_queue (*clCreateCommandQueue)(cl_context context, cl_device_id device, cl_command_queue_properties properties, cl_int *errcode_ret);

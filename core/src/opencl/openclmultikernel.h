@@ -122,6 +122,10 @@ bool OpenCLMultiKernel<NumKernels>::init(int devIdx)
 		return false;
 	}
 
+#ifdef GRALE_DEBUG_OPENCLSENTINEL
+	setSavedQueue(m_queue);
+#endif // GRALE_DEBUG_OPENCLSENTINEL
+
 	m_init = true;
 
 	return true;
@@ -247,6 +251,10 @@ void OpenCLMultiKernel<NumKernels>::releaseAll()
 		clReleaseCommandQueue(m_queue);
 	if (m_context)
 		clReleaseContext(m_context);
+
+#ifdef GRALE_DEBUG_OPENCLSENTINEL
+	setSavedQueue(nullptr);
+#endif // GRALE_DEBUG_OPENCLSENTINEL
 
 	m_context = 0;
 	m_queue = 0;
