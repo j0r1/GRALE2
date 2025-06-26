@@ -615,9 +615,7 @@ errut::bool_t OpenCLSinglePlaneDeflection::initRecalc(size_t numTotalPoints, con
 		m_clSourceStarts.dealloc(cl);
 		m_clSourceNumImages.dealloc(cl);
 		m_clAllTracedThetas.dealloc(cl);
-		m_clAllTracedThetas_tmp.dealloc(cl);
 		m_clAllBetaDiffs.dealloc(cl);
-		m_clAllBetaDiffs_tmp.dealloc(cl);
 		m_clNextNumberOfPointsToProcess.dealloc(cl);
 		m_clPrevBasePointAndParamSetIndices.dealloc(cl);
 		m_clNextNumberOfPointsToProcess.dealloc(cl);
@@ -884,11 +882,11 @@ float2 findRetraceTheta_forlevel(float2 baseTheta, int stepInLevel, int level, f
                                  float *pBestBetaDiffSize, __global const int *pIntParams, __global const float *pFloatParams)
 {
 	// TODO: remove these checks again
-	if (level < 2)
-		return (float2)(-1337, -1);
-
-	if (level > numGridLevels)
-		return (float2)(-1337, -2);
+	//if (level < 2)
+	//	return (float2)(-1337, -1);
+	//
+	//if (level > numGridLevels)
+	//	return (float2)(-1337, -2);
 
 	level -= 2; // Start at zero for the length and offset arrays;
 	if (stepInLevel >= numCoordsForGridLevel[level])
@@ -923,12 +921,12 @@ __kernel void retraceKernel_step(int numBpPoints, int numPointsToProcess, int le
 	const int stepInLevel = get_global_id(1);
 
 	// TODO: remove this again
-	if (level < 2 || level > numGridLevels)
-	{
-		if (idx == 0 && stepInLevel == 0)
-			printf("ERROR! level = %d\n", level);
-		return;
-	}
+	//if (level < 2 || level > numGridLevels)
+	//{
+	//	if (idx == 0 && stepInLevel == 0)
+	//		printf("ERROR! level = %d\n", level);
+	//	return;
+	//}
 
 	if (idx >= numPointsToProcess)
 		return;
@@ -979,7 +977,7 @@ __kernel void retraceKernel_step(int numBpPoints, int numPointsToProcess, int le
 			return cleanup(cl.getErrorString());
 		}
 
-		// TODO: reduction kernel
+		// Reduction kernel
 		string reductionKernel = thresholdCode;
 		reductionKernel += getGridLevelsConstants(expTraceParams);
 		reductionKernel += R"XYZ(
@@ -1000,12 +998,12 @@ __kernel void retraceKernel_reduction(int numBpPoints, int numPointsToProcess, i
 		return;
 
 	// TODO: remove this again
-	if (level < 2 || level > numGridLevels)
-	{
-		if (idx == 0)
-			printf("ERROR! level = %d\n", level);
-		return;
-	}
+	//if (level < 2 || level > numGridLevels)
+	//{
+	//	if (idx == 0)
+	//		printf("ERROR! level = %d\n", level);
+	//	return;
+	//}
 
 	int numStepsInLevel = numCoordsForGridLevel[level-2]; // array starts at an offset
 	//if (idx == 0)
@@ -1155,9 +1153,7 @@ void OpenCLSinglePlaneDeflection::destroy()
 	m_clSourceStarts.dealloc(*m_cl);
 	m_clSourceNumImages.dealloc(*m_cl);
 	m_clAllTracedThetas.dealloc(*m_cl);
-	m_clAllTracedThetas_tmp.dealloc(*m_cl);
 	m_clAllBetaDiffs.dealloc(*m_cl);
-	m_clAllBetaDiffs_tmp.dealloc(*m_cl);
 
 	m_clNextNumberOfPointsToProcess.dealloc(*m_cl);
 	m_clPrevBasePointAndParamSetIndices.dealloc(*m_cl);
@@ -1528,12 +1524,6 @@ errut::bool_t OpenCLSinglePlaneDeflection::calculateDeflectionAndRetrace(const s
 	if (!(r = m_clAllBetaDiffs.realloc(*m_cl, ctx, sizeof(cl_float)*m_clNumBpImages*numParamSets)))
 		return "Can't allocate source plane difference buffer on GPU: " + r.getErrorString();
 
-	// TODO: remove this after validating
-	if (!(r = m_clAllBetaDiffs_tmp.realloc(*m_cl, ctx, sizeof(cl_float)*m_clNumBpImages*numParamSets)))
-		return "Can't allocate source plane difference buffer on GPU: " + r.getErrorString();
-	if (!(r = m_clAllTracedThetas_tmp.realloc(*m_cl, ctx, sizeof(cl_float)*2*m_clNumBpImages*numParamSets)))
-		return "Can't alocate traced theta buffer on GPU: " + r.getErrorString();
-
 	tracedThetas.resize(m_clNumBpImages*numParamSets);
 	tracedBetaDiffs.resize(m_clNumBpImages*numParamSets);
 
@@ -1606,6 +1596,7 @@ errut::bool_t OpenCLSinglePlaneDeflection::calculateDeflectionAndRetrace(const s
 	}
 
 	// Retrace the averaged beta positions
+	if (!m_multiLevelRetrace)
 	{
 		cl_int err = 0;
 		auto kernel = m_cl->getKernel(KERNELNUMBER_REPROJECT_BETAS);
@@ -1638,14 +1629,8 @@ errut::bool_t OpenCLSinglePlaneDeflection::calculateDeflectionAndRetrace(const s
 		err = m_cl->clEnqueueNDRangeKernel(queue, kernel, 2, nullptr, workSize, nullptr, 0, nullptr, nullptr);
 		if (err != CL_SUCCESS)
 			return "Error enqueing retrace kernel: " + to_string(err);
-		
-		if (!(r = m_clAllTracedThetas.enqueueReadBuffer(*m_cl, queue, tracedThetas.data(), tracedThetas.size()*sizeof(float)*2, nullptr, nullptr, true)))
-			return "Can't read betas: " + r.getErrorString();
-		if (!(r = m_clAllBetaDiffs.enqueueReadBuffer(*m_cl, queue, tracedBetaDiffs, nullptr, nullptr, true)))
-			return "Can't read source plane differences: " + r.getErrorString();
 	}
-
-	if (m_multiLevelRetrace)
+	else // m_multiLevelRetrace
 	{
 		size_t reqMemForRetraceLevels = sizeof(cl_int)*m_numPoints*numParamSets * 2; // times two since we'll need both a point index
 		if (!(r = m_clPrevBasePointAndParamSetIndices.realloc(*m_cl, ctx, reqMemForRetraceLevels)))
@@ -1685,8 +1670,8 @@ errut::bool_t OpenCLSinglePlaneDeflection::calculateDeflectionAndRetrace(const s
 			setKernArg(6, sizeof(cl_mem), (void*)&m_clAllBetas.m_pMem);
 			setKernArg(7, sizeof(cl_mem), (void*)&m_clIntParams.m_pMem);
 			setKernArg(8, sizeof(cl_mem), (void*)&m_clFloatParams.m_pMem);
-			setKernArg(9, sizeof(cl_mem), (void*)&m_clAllTracedThetas_tmp.m_pMem);
-			setKernArg(10, sizeof(cl_mem), (void*)&m_clAllBetaDiffs_tmp.m_pMem);
+			setKernArg(9, sizeof(cl_mem), (void*)&m_clAllTracedThetas.m_pMem);
+			setKernArg(10, sizeof(cl_mem), (void*)&m_clAllBetaDiffs.m_pMem);
 			setKernArg(11, sizeof(cl_mem), (void*)&m_clNextNumberOfPointsToProcess.m_pMem);
 			setKernArg(12, sizeof(cl_mem), (void*)&m_clPrevBasePointAndParamSetIndices.m_pMem);
 
@@ -1754,8 +1739,8 @@ errut::bool_t OpenCLSinglePlaneDeflection::calculateDeflectionAndRetrace(const s
 				setKernArg(4, sizeof(cl_mem), (void*)&m_clSubRetraceInfo.m_pMem);
 				setKernArg(5, sizeof(cl_mem), (void*)&pThetas);
 				setKernArg(6, sizeof(cl_mem), (void*)&m_clBpThetaIndices.m_pMem);
-				setKernArg(7, sizeof(cl_mem), (void*)&m_clAllTracedThetas_tmp.m_pMem);
-				setKernArg(8, sizeof(cl_mem), (void*)&m_clAllBetaDiffs_tmp.m_pMem);
+				setKernArg(7, sizeof(cl_mem), (void*)&m_clAllTracedThetas.m_pMem);
+				setKernArg(8, sizeof(cl_mem), (void*)&m_clAllBetaDiffs.m_pMem);
 				setKernArg(9, sizeof(cl_mem), (void*)&m_clNextNumberOfPointsToProcess.m_pMem);
 				setKernArg(10, sizeof(cl_mem), (void*)&m_clNextBasePointAndParamSetIndices.m_pMem);
 
@@ -1779,47 +1764,11 @@ errut::bool_t OpenCLSinglePlaneDeflection::calculateDeflectionAndRetrace(const s
 
 			nextLevel++;
 		}
-
-		// TODO: remove this again! Just to check compatibility with old code
-		vector<float> trace1, trace2, bd1, bd2;
-		assert(m_clAllTracedThetas.m_size == m_clAllTracedThetas_tmp.m_size);
-		assert(m_clAllTracedThetas.m_size % sizeof(float) == 0);
-		trace1.resize(m_clAllTracedThetas.m_size/sizeof(float));
-		trace2.resize(trace1.size());
-
-		assert(m_clAllBetaDiffs.m_size == m_clAllBetaDiffs_tmp.m_size);
-		assert(m_clAllBetaDiffs.m_size % sizeof(float) == 0);
-		bd1.resize(m_clAllBetaDiffs.m_size/sizeof(float));
-		bd2.resize(bd1.size());
-
-		assert(bd1.size()*2 == trace1.size());
-
-		m_clAllTracedThetas.enqueueReadBuffer(*m_cl, queue, trace1, nullptr, nullptr, true);
-		m_clAllTracedThetas_tmp.enqueueReadBuffer(*m_cl, queue, trace2, nullptr, nullptr, true);
-		m_clAllBetaDiffs.enqueueReadBuffer(*m_cl, queue, bd1, nullptr, nullptr, true);
-		m_clAllBetaDiffs_tmp.enqueueReadBuffer(*m_cl, queue, bd2, nullptr, nullptr, true);
-
-		for (size_t i = 0 ; i < trace1.size() ; i++)
-			if (trace1[i] != trace2[i])
-				return "DEBUG error: mismatch between old and new retrace code";
-
-		for (size_t i = 0 ; i < bd1.size() ; i++)
-			if (bd1[i] != bd2[i])
-				return "DEBUG error: mismatch between old and new retrace code II";
-
-		//cerr << "DEBUG DIFF" << endl;
-		//for (int i = 0, j = 0 ; i < trace1.size() ; i += 2, j++)
-		//	cerr << trace1[i] << " vs " << trace2[i] << " for x, and " << trace1[i+1] << " vs " << trace2[i+1] << " for y, "
-		//		 << bd1[j] << " vs " << bd2[j] << " for sp diff" << endl;
-		//
-		//cerr << endl;
-		//cerr << "DEBUG DIFF DIFF" << endl;
-		//for (int i = 0, j = 0 ; i < trace1.size() ; i += 2, j++)
-		//	cerr << std::abs(trace1[i]-trace2[i]) << " for x, and " << std::abs(trace1[i+1]-trace2[i+1]) << " for y, "
-		//		 << std::abs(bd1[j]-bd2[j]) << " for sp diff" << endl;
-		//cerr << endl;
 	}
-
+	if (!(r = m_clAllTracedThetas.enqueueReadBuffer(*m_cl, queue, tracedThetas.data(), tracedThetas.size()*sizeof(float)*2, nullptr, nullptr, true)))
+		return "Can't read betas: " + r.getErrorString();
+	if (!(r = m_clAllBetaDiffs.enqueueReadBuffer(*m_cl, queue, tracedBetaDiffs, nullptr, nullptr, true)))
+		return "Can't read source plane differences: " + r.getErrorString();
 
 	return true;
 }
