@@ -70,6 +70,8 @@ string getGridLevelsConstants(const ExpandedMultiStepNewtonTraceParams &tracePar
 
 OpenCLSinglePlaneDeflection::OpenCLSinglePlaneDeflection()
 {
+	if (std::getenv("GRALE_OPENCL_OLDMULTILEVELRETRACE"))
+		m_forceOldMultiLevelRetrace = true;
 }
 
 OpenCLSinglePlaneDeflection::~OpenCLSinglePlaneDeflection()
@@ -1114,6 +1116,14 @@ __kernel void retraceKernel_reduction(int numBpPoints, int numPointsToProcess, i
 		//cerr << "DEBUG: m_maxCoordsForGridLevels = " << m_maxCoordsForGridLevels << endl;
 	}
 
+	if (m_multiLevelRetrace)
+	{
+		if (m_forceOldMultiLevelRetrace)
+			cerr << "INFO: using OLD multi-level retrace code (forced)" << endl;
+		else
+			cerr << "INFO: using new multi-level retrace code" << endl;
+	}
+
 	if (sizeof(Vector2Df) != sizeof(float)*2)
 		return "Sanity check failed: 2D float vector is not of expected size";
 
@@ -1134,7 +1144,6 @@ void OpenCLSinglePlaneDeflection::destroy()
 	if (!m_init)
 		return;
 
-	cerr << "DEBUG: cleaning up in OpenCLSinglePlaneDeflection::destroy" << endl;
 	m_clThetas.dealloc(*m_cl);
 	m_clIntParams.dealloc(*m_cl);
 	m_clFloatParams.dealloc(*m_cl);
@@ -1159,7 +1168,6 @@ void OpenCLSinglePlaneDeflection::destroy()
 	m_clPrevBasePointAndParamSetIndices.dealloc(*m_cl);
 	m_clNextNumberOfPointsToProcess.dealloc(*m_cl);
 	m_clSubRetraceInfo.dealloc(*m_cl);
-	cerr << "DEBUG: done deallocating memory" << endl;
 
 	m_cl = nullptr;
 	m_init = false;
@@ -1596,7 +1604,7 @@ errut::bool_t OpenCLSinglePlaneDeflection::calculateDeflectionAndRetrace(const s
 	}
 
 	// Retrace the averaged beta positions
-	if (!m_multiLevelRetrace)
+	if (!m_multiLevelRetrace || m_forceOldMultiLevelRetrace)
 	{
 		cl_int err = 0;
 		auto kernel = m_cl->getKernel(KERNELNUMBER_REPROJECT_BETAS);
