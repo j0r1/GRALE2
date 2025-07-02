@@ -100,7 +100,7 @@ def _align(pred, obs, maxPermSize):
 
 _useOldFindRealTheta = False
 
-def _findRealTheta(imgPlane, beta0, theta):
+def _findRealTheta_fsolve(imgPlane, beta0, theta, unusedOptions):
     from .constants import ANGLE_ARCSEC
     import scipy.optimize as opt
 
@@ -222,14 +222,8 @@ def _commonInitFindOptRetrace(imgList, lensModel, cosmology, reduceImages):
         imgPos = [ ]
         for imgNum in range(imgDat.getNumberOfImages()):
             theta = getImagePoint(imgDat, imgNum)
-
-            if useTrace:
-                beta = imgPlane.traceTheta(theta)
-                imgPos.append({ "theta": theta, "beta": beta, "z": z })
-            else:
-                beta, betaDerivs = imgPlane.getBetaAndDerivatives(theta)
-                imgPos.append({ "theta": theta, "beta": beta, "z": z,
-                                "betaderivs": betaDerivs, "invbetaderivs": inv(betaDerivs)})
+            beta = imgPlane.traceTheta(theta)
+            imgPos.append({ "theta": theta, "beta": beta, "z": z })
 
         allPoints.append((imgPos, z))
 
@@ -438,7 +432,10 @@ def calculateImagePredictions(imgList, lensModel, cosmology=None,
                      reduceImages="average",
                      useAverageBeta=True,
                      maxPermSize=7,
-                     useFSolve=True):
+                     localTraceFunction = "fsolve",
+                     localTraceFunctionOptions = None,
+                     useFSolve = None # deprecated
+                    ):
     r"""For a set of images and a lens model, the predicted images for
     each observed image are calculated. The results can subsequently
     be used in the :func:`calculateRMS` function to obtain the RMS.
@@ -496,16 +493,38 @@ def calculateImagePredictions(imgList, lensModel, cosmology=None,
        Since this can become quite slow, an error is generated if more elements than
        this would need to be permutated.
 
-     - `useFSolve`: if only a lens model is used, this cause SciPy's `fsolve <https://docs.scipy.org/doc/scipy-0.14.0/reference/generated/scipy.optimize.fsolve.html>`_
-       to be used to zoom in on the real image plane vectors. Otherwise, a one-step
-       approach is used based on the deflection angle derivatives.
+     - `localTraceFunction`: TODO
+
+     - `localTraceFunctionOptions`: TODO
+
     """
+    # - `useFSolve`: deprecated now
+    # if only a lens model is used, this cause SciPy's `fsolve <https://docs.scipy.org/doc/scipy-0.14.0/reference/generated/scipy.optimize.fsolve.html>`_
+    #   to be used to zoom in on the real image plane vectors. Otherwise, a one-step
+    #   approach is used based on the deflection angle derivatives.
+
+    # localTraceFunction first called with allPoints, localTraceFunctionOptions
+    # then with (lensObj, traceTheta, getBetaAndDerivatives, returnedOptions)
+    # and should return optimized theta
 
     if type(useAverageBeta) != bool:
         if len(useAverageBeta) != len(imgList):
             raise Exception("For predefined source plane positions, the number of source position should match the imgList length")
 
     cosmology, lensPlane, origLensModel, useTrace, createImgPlaneFn, allPoints = _commonInitFindOptRetrace(imgList, lensModel, cosmology, reduceImages)
+
+    if not useTrace: # Not using a rasterized image plane, use local function
+        if useFSolve is not None:
+            raise Exception("'useFSolve' parameter is deprecated, use 'localTraceFunction'")
+        if localTraceFunction == "fsolve":
+            if localTraceFunctionOptions is not None:
+                raise Exception("'localTraceFunctionOptions' should be None for 'fsolve'")
+            localTraceFunction = _findRealTheta_fsolve
+
+        # TODO: other default solvers, similar to code in parametric inversion
+
+        else:
+            localTraceFunctionOptions = localTraceFunction(allPoints, localTraceFunction)
 
     sources = []
     for srcIdx, (imgPos, z) in enumerate(allPoints):
@@ -539,22 +558,15 @@ def calculateImagePredictions(imgList, lensModel, cosmology=None,
         else:
             for x in imgPos:
 
-                #if useFSolve:
                 imgPlane = createImgPlaneFn(lensPlane, x["z"]) # Always need this to call imgPlane.traceTheta below
 
                 thetaPred = [ ]
                 betaFromThetaPred = []
-                theta0, beta0, invderiv0 = x["theta"], x["beta"], x["invbetaderivs"]
+                theta0, beta0 = x["theta"], x["beta"]
                 for beta1 in betas:
-                    if useFSolve:
-                        # We're looking for the images of beta1, starting from the
-                        # estimate at observed theta0
-                        th = _findRealTheta(imgPlane, beta1, theta0)
-                    else:
-                        dbeta = beta1-beta0
-                        dtheta = invderiv0.dot(dbeta)
-                        th = theta0 + dtheta
-
+                    # We're looking for the images of beta1, starting from the
+                    # estimate at observed theta0
+                    th = localTraceFunction(imgPlane, beta1, theta0, localTraceFunctionOptions)
                     thetaPred.append(th)
                     betaFromThetaPred.append(imgPlane.traceTheta(th))
 
