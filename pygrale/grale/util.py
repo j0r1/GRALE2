@@ -524,7 +524,7 @@ def calculateImagePredictions(imgList, lensModel, cosmology=None,
         # TODO: other default solvers, similar to code in parametric inversion
 
         else:
-            localTraceFunctionOptions = localTraceFunction(allPoints, localTraceFunction)
+            localTraceFunctionOptions = localTraceFunction(allPoints, localTraceFunctionOptions)
 
     sources = []
     for srcIdx, (imgPos, z) in enumerate(allPoints):
