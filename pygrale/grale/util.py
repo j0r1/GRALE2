@@ -102,7 +102,13 @@ def _align(pred, obs, maxPermSize):
 
 _useOldFindRealTheta = False
 
-def _findRealTheta_fsolve(imgPlane, beta0, theta, unusedOptions):
+def localretrace_fsolve(*args):
+
+    if len(args) == 2:
+        return None
+
+    imgPlane, beta0, theta, unusedOptions = args
+
     from .constants import ANGLE_ARCSEC
     import scipy.optimize as opt
 
@@ -521,7 +527,7 @@ def calculateImagePredictions(imgList, lensModel, cosmology=None,
         if localTraceFunction == "fsolve":
             if localTraceFunctionOptions is not None:
                 raise Exception("'localTraceFunctionOptions' should be None for 'fsolve'")
-            localTraceFunction = _findRealTheta_fsolve
+            localTraceFunction = localretrace_fsolve
 
         # TODO: other default solvers, similar to code in parametric inversion
 
