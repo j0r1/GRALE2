@@ -1108,6 +1108,40 @@ cdef shared_ptr[retraceparameters.TraceParameters] getRetraceParamsFromObject(re
     pErrStr[0] = B("Invalid retrace type, expecting either NoTrace, SingleStepNewton, MultiStepNewton or ExpandedMultiStepNewton")
     return cEmptyRetraceParams
 
+def getCoordinatesForExpandedMultiStepNewtonGridSteps(params):
+    cdef shared_ptr[retraceparameters.TraceParameters] cRetraceParams
+    cdef retraceparameters.ExpandedMultiStepNewtonTraceParams *cExpParams
+    cdef string errStr
+    cdef size_t level, numLevels, i
+    cdef vector[pair[int,int]] levels
+    cdef errut.bool_t r
+
+    if params["type"] != "ExpandedMultiStepNewton":
+        raise InversionParametersException("Parameters should be of type 'ExpandedMultiStepNewton'")
+
+    cRetraceParams = getRetraceParamsFromObject(params, &errStr)
+    if not cRetraceParams.get():
+        err = S(errStr)
+        if err:
+            raise InversionParametersException(err)
+        raise InversionParametersException("No retrace parameters were specified, unknown specific error")
+
+    cExpParams = dynamic_cast[retraceparameters.ExpandedMultiStepNewtonTraceParamsPtr](cRetraceParams.get())
+    if not cExpParams:
+        raise InversionParametersException("Unexpected: trace parameters are not of ExpandedMultiStepNewton type")
+
+    allLevels = []
+    numLevels = cExpParams.getMaximumNumberOfGridSteps()
+    for level in range(1, numLevels+1):
+        r = cExpParams.getCoordinatesForGridStep(level, levels)
+        pyLevels = []
+        for i in range(0, levels.size()):
+            pyLevels.append( (levels[i].first, levels[i].second) )
+
+        allLevels.append(pyLevels)
+
+    return allLevels
+
 cdef class LensInversionParametersParametricSinglePlane(object):
 
     cdef unique_ptr[lensinversionparametersparametricsingleplane.LensInversionParametersParametricSinglePlane] m_pParams

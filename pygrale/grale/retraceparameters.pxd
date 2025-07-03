@@ -2,6 +2,7 @@ from libcpp.string cimport string
 from libcpp.vector cimport vector
 from libcpp cimport bool as cbool
 from libcpp.memory cimport unique_ptr
+from libcpp.pair cimport pair
 
 cimport grale.serut as serut
 cimport grale.errut as errut
@@ -35,4 +36,6 @@ cdef extern from "grale/retraceparameters.h" namespace "grale":
         size_t getMaximumNumberOfGridSteps() const
         double getAcceptanceThreshold() const
         double getGridSpacing() const
+        errut.bool_t getCoordinatesForGridStep(size_t level, vector[pair[int,int]] &levels) const
 
+ctypedef ExpandedMultiStepNewtonTraceParams* ExpandedMultiStepNewtonTraceParamsPtr
