@@ -766,6 +766,14 @@ def _getScaleFromBayesStrongLensingImages(inputImages):
     scale = np.sum(diff**2)**0.5
     return scale
 
+def _getAcceptThresholdFromBayesStrongLensingImages(inputImages):
+    # TODO: make this configurable?
+    return _getScaleFromBayesStrongLensingImages(inputImages)/10000
+
+def _getGridSpacingFromBayesStrongLensingImages(inputImages):
+    # TODO: make this configurable?
+    return _getScaleFromBayesStrongLensingImages(inputImages)/100
+
 def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, moduleName = "general",
            defaultInitialParameterFraction = 0.1, clampToHardLimits = False, fitnessObjectParameters = None, convergenceParameters = { },
            geneticAlgorithmParameters = { }, returnNds = False, inverter = "default", feedbackObject = "default",
@@ -966,9 +974,9 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
     
     if mergedRetraceParams["type"] == "ExpandedMultiStepNewton":
         if mergedRetraceParams["acceptthreshold"] == "auto":
-            mergedRetraceParams["acceptthreshold"] = _getScaleFromBayesStrongLensingImages(inputImages)/10000 # TODO: make this configurable
+            mergedRetraceParams["acceptthreshold"] = _getAcceptThresholdFromBayesStrongLensingImages(inputImages)
         if mergedRetraceParams["gridspacing"] == "auto":
-            mergedRetraceParams["gridspacing"] = _getScaleFromBayesStrongLensingImages(inputImages)/100 # TODO: some factor less, make this configurable?
+            mergedRetraceParams["gridspacing"] = _getGridSpacingFromBayesStrongLensingImages(inputImages)
 
     def getParamsFunction(fullFitnessObjParams, massScale):
         assert massScale is None, f"Internal error: expecting massScale to be None, but is {massScale}"

@@ -1,7 +1,9 @@
 """Module meant for various utilities."""
 
 import numpy as np
+from numpy.linalg import inv
 from .inverters import _getNumHelpers
+from .images import ImagesData
 from multiprocessing import Pool
 import copy
 
@@ -1125,3 +1127,160 @@ def adjustShearMeasurements(pixelFrameCoords, pixelFrameGamma1, pixelFrameGamma2
     if mirror:
         rotGamma[:,1] = -rotGamma[:,1]
     return rotGamma[:,0].reshape(origShape1), rotGamma[:,1].reshape(origShape2), angle
+
+def pgraleretrace_noTrace(*args):
+    if len(args) == 2:
+        return
+    ipObj, betaTgt, thetaStart, opts = args
+    return thetaStart
+
+def pgraleretrace_singleStepNewton(*args):
+    if len(args) == 2:
+        return
+
+    ipObj, betaTgt, thetaStart, opts = args
+    beta, derivs = ipObj.getBetaAndDerivatives(thetaStart)
+    invderivs = inv(derivs)
+    dbeta = betaTgt - beta
+    dtheta = invderivs@dbeta
+    return thetaStart + dtheta
+
+def pgraleretrace_multiStepNewton(*args):
+
+    if len(args) == 2:
+        _, opts = args
+        if opts is None:
+            from .inversion import getDefaultsForRetraceType
+            return getDefaultsForRetraceType("MultiStepNewton")
+        return opts # object containing number of steps
+
+    ipObj, betaTgt, thetaStart, opts = args
+    numSteps = opts["evaluations"]
+
+    return _multiStepNewton_singlerun(ipObj, thetaStart, betaTgt, numSteps)[0]
+
+def _multiStepNewton_singlerun(ipObj, thetaStart, betaTarget, numIterations):
+
+    theta = thetaStart
+    betaCur, betaDerivs = ipObj.getBetaAndDerivatives(theta)
+    betaDiff = betaTarget - betaCur
+
+    bestBetaDiffSize = (betaDiff[0]**2 + betaDiff[1]**2)**0.5
+    bestRetraceTheta = theta
+
+    while numIterations > 0:
+        thetaDiff = inv(betaDerivs)@betaDiff
+        #print("thetaDiff =", thetaDiff/ANGLE_ARCSEC)
+
+        while numIterations > 0:
+            numIterations -= 1
+
+            betaCur, betaDerivs = ipObj.getBetaAndDerivatives(theta + thetaDiff)
+            betaDiff = betaTarget - betaCur
+
+            betaDiffSize = (betaDiff[0]**2 + betaDiff[1]**2)**0.5
+            if betaDiffSize < bestBetaDiffSize:
+                theta = theta + thetaDiff
+                bestBetaDiffSize = betaDiffSize
+                bestRetraceTheta = theta
+                break
+
+            else:
+                thetaDiff *= 0.5
+
+    return bestRetraceTheta, bestBetaDiffSize
+
+def _findRetraceTheta_level(ipObj, levelCoords, dxy, thetaStart, betaTarget, acceptThreshold, numIterations):
+
+    totalBestBetaDiff = np.inf
+    totalBestRetraceTheta = np.array([np.inf, np.inf], dtype=np.float64)
+
+    closestAcceptableThetaDiff2 = np.inf
+    closestAcceptableBetaDiff = np.inf
+    closestBestRetraceTheta = np.array([np.inf, np.inf], dtype=np.float64)
+
+    for DX, DY in levelCoords:
+        dt = np.array([DX, DY], dtype=np.float64)*dxy
+        theta = thetaStart + dt
+
+        curBestRetraceTheta, curBestBetaDiff = _multiStepNewton_singlerun(ipObj, theta, betaTarget, numIterations)
+        if curBestBetaDiff < totalBestBetaDiff:
+            totalBestBetaDiff = curBestBetaDiff
+            totalBestRetraceTheta = curBestRetraceTheta
+
+        if curBestBetaDiff <= acceptThreshold:
+            retrDiff = curBestRetraceTheta - thetaStart
+            thetaDiff2 = retrDiff[0]**2 + retrDiff[1]**2
+            if thetaDiff2 < closestAcceptableThetaDiff2:
+                closestAcceptableBetaDiff = curBestBetaDiff
+                closestAcceptableThetaDiff2 = thetaDiff2
+                closestBestRetraceTheta = curBestRetraceTheta
+
+    if closestAcceptableThetaDiff2 < np.inf:
+        return closestBestRetraceTheta, closestAcceptableBetaDiff
+
+    return totalBestRetraceTheta, totalBestBetaDiff
+
+def pgraleretrace_expandedMultiStepNewton(*args):
+    if len(args) == 2:
+        allImages, opts = args
+
+        from .inversion import getDefaultsForRetraceType
+        defaultOpts = getDefaultsForRetraceType("ExpandedMultiStepNewton")
+        if opts is None:
+            opts = defaultOpts
+        else:
+            # Merge options
+            opts = opts.copy()
+            for k in defaultOpts:
+                if not k in opts:
+                    opts[k] = defaultOpts[k]
+
+        imgList = []
+        for imgPoints, z in allImages:
+            imgDat = ImagesData(len(imgPoints))
+            for idx, x in enumerate(imgPoints):
+                imgDat.addPoint(idx, x["theta"])
+
+            imgList.append({
+                "images": imgDat,
+                "params": { "type": "bayesstronglensing" } # Needed to use another internal function
+            })
+
+        from .inversion import _getAcceptThresholdFromBayesStrongLensingImages, _getGridSpacingFromBayesStrongLensingImages
+        if opts["acceptthreshold"] == "auto":
+            opts["acceptthreshold"] = _getAcceptThresholdFromBayesStrongLensingImages(imgList)
+
+        if opts["gridspacing"] == "auto":
+            opts["gridspacing"] = _getGridSpacingFromBayesStrongLensingImages(imgList)
+
+        return opts
+
+    ipObj, betaTgt, thetaStart, opts = args
+
+    from .inversionparams import getCoordinatesForExpandedMultiStepNewtonGridSteps
+    stepInfo = getCoordinatesForExpandedMultiStepNewtonGridSteps(opts)
+
+    assert opts["maxgridsteps"] == len(stepInfo)
+    evalsPerPoint = opts["evalsperpoint"]
+    acceptThreshold = opts["acceptthreshold"]
+    dxy = opts["gridspacing"]
+
+    totalBestBetaDiff = np.inf
+    totalBestRetraceTheta = np.array([np.inf, np.inf], dtype=np.float64)
+
+    for idx, levelCoords in enumerate(stepInfo):
+        #print("processing level", idx)
+        curBestRetraceTheta, curBestBetaDiffSize = _findRetraceTheta_level(ipObj, levelCoords, dxy, thetaStart,
+                                                                          betaTgt, acceptThreshold, evalsPerPoint)
+
+        if curBestBetaDiffSize <= acceptThreshold:
+            #print("Found at level", idx, curBestBetaDiffSize/ANGLE_ARCSEC)
+            return curBestRetraceTheta
+
+        if curBestBetaDiffSize < totalBestBetaDiff:
+            totalBestBetaDiff = curBestBetaDiffSize
+            totalBestRetraceTheta = curBestRetraceTheta
+
+    #print("Not found, best is", totalBestBetaDiff/ANGLE_ARCSEC)
+    return totalBestRetraceTheta
