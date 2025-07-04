@@ -779,7 +779,7 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
            geneticAlgorithmParameters = { }, returnNds = False, inverter = "default", feedbackObject = "default",
            cosmology = None, maximumGenerations = None, eaType = "JADE", deviceIndex = "rotate",
            useImagePositionRandomization = False, allowUnusedPriors = False,
-           retraceParams = { "type": "MultiStepNewton", "evaluations": 8 },
+           retraceParams = { "type": "ExpandedMultiStepNewton" },
            retraceSourcePlaneThreshold = "auto", allowEmptyInitialValueRange = False,
            forceScales = None, 
            internalRecalcLens = None, internalCalcFitnessParams = None,
