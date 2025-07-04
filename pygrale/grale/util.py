@@ -515,6 +515,9 @@ def calculateImagePredictions(imgList, lensModel, cosmology=None,
     # then with (lensObj, traceTheta, getBetaAndDerivatives, returnedOptions)
     # and should return optimized theta
 
+    if useFSolve is not None:
+        raise Exception("'useFSolve' parameter is deprecated, use 'localTraceFunction'")
+
     if type(useAverageBeta) != bool:
         if len(useAverageBeta) != len(imgList):
             raise Exception("For predefined source plane positions, the number of source position should match the imgList length")
@@ -522,16 +525,20 @@ def calculateImagePredictions(imgList, lensModel, cosmology=None,
     cosmology, lensPlane, origLensModel, useTrace, createImgPlaneFn, allPoints = _commonInitFindOptRetrace(imgList, lensModel, cosmology, reduceImages)
 
     if not useTrace: # Not using a rasterized image plane, use local function
-        if useFSolve is not None:
-            raise Exception("'useFSolve' parameter is deprecated, use 'localTraceFunction'")
+
         if localTraceFunction == "fsolve":
             if localTraceFunctionOptions is not None:
                 raise Exception("'localTraceFunctionOptions' should be None for 'fsolve'")
             localTraceFunction = localretrace_fsolve
 
-        # TODO: other default solvers, similar to code in parametric inversion
+        elif type(localTraceFunction) == str and (localTraceFunction == "pgraleretrace" or localTraceFunction.startswith("pgraleretrace,")):
+            # First get the correct functions, then call them
+            localTraceFunction, localTraceFunctionOptions = _processPGraleRetraceType(localTraceFunction, localTraceFunctionOptions)
+            localTraceFunctionOptions = localTraceFunction(allPoints, localTraceFunctionOptions)
 
-        else:
+        # TODO: other default solvers?
+
+        else: # Assume it's a function
             localTraceFunctionOptions = localTraceFunction(allPoints, localTraceFunctionOptions)
 
     sources = []
@@ -1136,15 +1143,24 @@ def adjustShearMeasurements(pixelFrameCoords, pixelFrameGamma1, pixelFrameGamma2
 
 def pgraleretrace_noTrace(*args):
     if len(args) == 2:
-        return
+        return args[1]
+
     ipObj, betaTgt, thetaStart, opts = args
+
+    if opts:
+        _checkKeys(opts, ["type"], "Unexpected option for 'NoTrace'")
+
     return thetaStart
 
 def pgraleretrace_singleStepNewton(*args):
     if len(args) == 2:
-        return
+        return args[1]
 
     ipObj, betaTgt, thetaStart, opts = args
+
+    if opts:
+        _checkKeys(opts, ["type"], "Unexpected option for 'SingleStepNewton'")
+
     beta, derivs = ipObj.getBetaAndDerivatives(thetaStart)
     invderivs = inv(derivs)
     dbeta = betaTgt - beta
@@ -1155,12 +1171,21 @@ def pgraleretrace_multiStepNewton(*args):
 
     if len(args) == 2:
         _, opts = args
-        if opts is None:
-            from .inversion import getDefaultsForRetraceType
-            return getDefaultsForRetraceType("MultiStepNewton")
+        if not opts:
+            opts = { }
+
+        from .inversion import getDefaultsForRetraceType
+        defaults = getDefaultsForRetraceType("MultiStepNewton")
+        for k in defaults:
+            if not k in opts:
+                opts[k] = defaults[k]
         return opts # object containing number of steps
 
     ipObj, betaTgt, thetaStart, opts = args
+
+    _checkKeys(opts, [ "type", "evaluations"],
+               "Unexpected key for 'MultiStepNewton' options")
+
     numSteps = opts["evaluations"]
 
     return _multiStepNewton_singlerun(ipObj, thetaStart, betaTgt, numSteps)[0]
@@ -1264,6 +1289,9 @@ def pgraleretrace_expandedMultiStepNewton(*args):
 
     ipObj, betaTgt, thetaStart, opts = args
 
+    _checkKeys(opts, ["type", "maxgridsteps", "evalsperpoint", "acceptthreshold", "gridspacing", "layout"],
+               "Unexpected key in ExpandedMultiStepNewton options")
+
     from .inversionparams import getCoordinatesForExpandedMultiStepNewtonGridSteps
     stepInfo = getCoordinatesForExpandedMultiStepNewtonGridSteps(opts)
 
@@ -1290,3 +1318,41 @@ def pgraleretrace_expandedMultiStepNewton(*args):
 
     #print("Not found, best is", totalBestBetaDiff/ANGLE_ARCSEC)
     return totalBestRetraceTheta
+
+def _processPGraleRetraceType(name, localTraceFunctionOptions):
+    nameParts = name.split(",")
+    name = nameParts[0]
+    if name != "pgraleretrace":
+        raise Exception("Unexpected: algorithl name should be 'pgraleretrace'")
+
+    if len(nameParts) == 1:
+        opts = { "type": "ExpandedMultiStepNewton" } # Same default as in inversion
+    else:
+        algType = ",".join(nameParts[1:])
+        opts = { "type": algType }
+        if localTraceFunctionOptions and "type" in localTraceFunctionOptions:
+            if localTraceFunctionOptions["type"] != algType:
+                raise Exception(f"Type '{algType}' from short algorithm name does not match the one in 'localTraceFunctionOptions'")
+
+    if localTraceFunctionOptions:
+        for k in localTraceFunctionOptions:
+            opts[k] = localTraceFunctionOptions[k]
+
+    optsType = opts["type"]
+    if optsType == "NoTrace":
+        alg = pgraleretrace_noTrace
+    elif optsType == "SingleStepNewton":
+        alg = pgraleretrace_singleStepNewton
+    elif optsType == "MultiStepNewton":
+        alg = pgraleretrace_multiStepNewton
+    elif optsType == "ExpandedMultiStepNewton":
+        alg = pgraleretrace_expandedMultiStepNewton
+    else:
+        raise Exception(f"Unknown algorithm name '{optsType}' for 'pgraleretrace'")
+
+    return alg, opts
+
+def _checkKeys(obj, keyNames, errMsg):
+    for k in obj:
+        if not k in keyNames:
+            raise Exception(errMsg + ": " + k)
