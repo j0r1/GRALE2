@@ -436,13 +436,35 @@ def parallelFindOptimizedSourcePositions(imgList, lensModel, cosmology=None, red
 
     return sources
 
+def _processBetas_noreduction(imgPlane, srcIdx, imgPos):
+    return [ d["beta"] for d in imgPos ]
+
+def _processBetas_average_unweighted(imgPlane, srcIdx, imgPos):
+    return [ np.average([d["beta"] for d in imgPos], 0) ]
+
+def _processBetas_average_weighted_mu(imgPlane, srcIdx, imgPos):
+    totMag = 0
+    avgBeta = np.array([0.0, 0.0])
+    
+    for x in imgPos:
+        beta, derivs = imgObj.getBetaAndDerivatives(x["theta"])
+        assert np.sum((beta - x["beta"])**2) == 0 # Sanity check
+
+        mag = 1.0/abs(derivs[0,0]*derivs[1,1] - derivs[1,0]*derivs[0,1])
+        totMag += mag
+        avgBeta += beta*mag
+
+    avgBeta /= totMag
+    return [ avgBeta ]
+
 def calculateImagePredictions(imgList, lensModel, cosmology=None,
                      reduceImages="average",
-                     useAverageBeta=True,
+                     reduceSources="average", # or "average_weighted_mu", or function
                      maxPermSize=7,
                      localTraceFunction = "fsolve",
                      localTraceFunctionOptions = None,
-                     useFSolve = None # deprecated
+                     useFSolve = None, # deprecated
+                     useAverageBeta=None, # deprecated
                     ):
     r"""For a set of images and a lens model, the predicted images for
     each observed image are calculated. The results can subsequently
@@ -479,17 +501,13 @@ def calculateImagePredictions(imgList, lensModel, cosmology=None,
        was set if a (list of) lens models was specified. If e.g. a MultiLensPlane was
        used, the internally stored cosmological model will be used instead.
 
-     - `reduceimages`: each image in an images data set will be converted to a single
+     - `reduceImages`: each image in an images data set will be converted to a single
        point. By default, this is done by averaging the image point positions. If something
        else needs to be done, you can specify a function here, which will be called with
        two arguments: the :class:`ImagesData <grale.images.ImagesData>` instance and the
        image index corresponding to the particular image.
 
-     - `useAverageBeta`: This can be either a boolean or a list. If ``True``, then the back-projected image points are averaged
-       to estimate a single source position. If ``False``, then each back-projected image
-       is used as an estimate of the source position. If this is a list, the number of
-       entries should match `imgList`, and each entry is used as the source position for
-       that `imgList` entry.
+     - `reduceSources`: TODO "average", "average_weighted_mu", list, or function
 
      - `maxPermSize`: when a source plane position is used to estimate the corresponding
        image plane positions, these predicted positions are grouped with the observed
@@ -510,6 +528,12 @@ def calculateImagePredictions(imgList, lensModel, cosmology=None,
     # if only a lens model is used, this cause SciPy's `fsolve <https://docs.scipy.org/doc/scipy-0.14.0/reference/generated/scipy.optimize.fsolve.html>`_
     #   to be used to zoom in on the real image plane vectors. Otherwise, a one-step
     #   approach is used based on the deflection angle derivatives.
+    #- `useAverageBeta`: TODO: deprecated
+    #   This can be either a boolean or a list. If ``True``, then the back-projected image points are averaged
+    #   to estimate a single source position. If ``False``, then each back-projected image
+    #   is used as an estimate of the source position. If this is a list, the number of
+    #   entries should match `imgList`, and each entry is used as the source position for
+    #   that `imgList` entry.
 
     # localTraceFunction first called with allPoints, localTraceFunctionOptions
     # then with (lensObj, traceTheta, getBetaAndDerivatives, returnedOptions)
@@ -517,10 +541,30 @@ def calculateImagePredictions(imgList, lensModel, cosmology=None,
 
     if useFSolve is not None:
         raise Exception("'useFSolve' parameter is deprecated, use 'localTraceFunction'")
+    if useAverageBeta is not None:
+        raise Exception("'useAverageBeta' parameter is deprecated, use 'reduceSources'")
 
-    if type(useAverageBeta) != bool:
-        if len(useAverageBeta) != len(imgList):
-            raise Exception("For predefined source plane positions, the number of source position should match the imgList length")
+    # TODO: use each beta as a possible source
+    reduceSourcesFunction = None
+    if type(reduceSources) == str:
+        if reduceSources == "noreduction":
+            reduceSourcesFunction = _processBetas_noreduction
+        elif reduceSources == "average":
+            reduceSourcesFunction = _processBetas_average_unweighted
+        elif reduceSources == "average_weighted_mu":
+            reduceSourcesFunction = _processBetas_average_weighted_mu
+        else:
+            raise Exception(f"Unknown value '{reduceSources}' for 'reduceSources' parameter")
+
+    elif type(reduceSources) == list:
+        reduceSourcesFunction = lambda imgPlane,srcIdx,imgPos: reduceSources[srcIdx] # Just return part of the list
+
+    else:
+        reduceSourcesFunction = reduceSources # This parameter specifies the function to use
+
+    #if type(useAverageBeta) != bool:
+    #    if len(useAverageBeta) != len(imgList):
+    #        raise Exception("For predefined source plane positions, the number of source position should match the imgList length")
 
     cosmology, lensPlane, origLensModel, useTrace, createImgPlaneFn, allPoints = _commonInitFindOptRetrace(imgList, lensModel, cosmology, reduceImages)
 
@@ -544,14 +588,14 @@ def calculateImagePredictions(imgList, lensModel, cosmology=None,
     sources = []
     for srcIdx, (imgPos, z) in enumerate(allPoints):
 
+        imgPlane = createImgPlaneFn(lensPlane, z)
+
         sourceInfo = [ ]
-        if type(useAverageBeta) != bool:
-            betas = [ useAverageBeta[srcIdx] ]
-        else:
-            betas = [ np.average([d["beta"] for d in imgPos], 0) ] if useAverageBeta else [ d["beta"] for d in imgPos ]
+
+        betas = reduceSourcesFunction(imgPlane, srcIdx, imgPos)
+        assert len(betas) == 1 or len(betas) == len(imgPos)
 
         if useTrace:
-            imgPlane = createImgPlaneFn(lensPlane, z)
 
             observedThetas = [ x["theta"] for x in imgPos ]
             predictedThetas = [ [] for i in range(len(observedThetas)) ]
@@ -572,8 +616,6 @@ def calculateImagePredictions(imgList, lensModel, cosmology=None,
                                     "beta_est": betas})
         else:
             for x in imgPos:
-
-                imgPlane = createImgPlaneFn(lensPlane, x["z"]) # Always need this to call imgPlane.traceTheta below
 
                 thetaPred = [ ]
                 betaFromThetaPred = []
