@@ -968,15 +968,18 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
     if anyRetrace:
         print(f"DEBUG: using retraceSourcePlaneThreshold {retraceSourcePlaneThreshold/CT.ANGLE_ARCSEC} arcsec")
 
-    mergedRetraceParams = getDefaultsForRetraceType(retraceParams["type"])
-    for x in retraceParams:
-        mergedRetraceParams[x] = retraceParams[x]
-    
-    if mergedRetraceParams["type"] == "ExpandedMultiStepNewton":
-        if mergedRetraceParams["acceptthreshold"] == "auto":
-            mergedRetraceParams["acceptthreshold"] = _getAcceptThresholdFromBayesStrongLensingImages(inputImages)
-        if mergedRetraceParams["gridspacing"] == "auto":
-            mergedRetraceParams["gridspacing"] = _getGridSpacingFromBayesStrongLensingImages(inputImages)
+        mergedRetraceParams = getDefaultsForRetraceType(retraceParams["type"])
+        for x in retraceParams:
+            mergedRetraceParams[x] = retraceParams[x]
+
+        if mergedRetraceParams["type"] == "ExpandedMultiStepNewton":
+            if mergedRetraceParams["acceptthreshold"] == "auto":
+                mergedRetraceParams["acceptthreshold"] = _getAcceptThresholdFromBayesStrongLensingImages(inputImages)
+            if mergedRetraceParams["gridspacing"] == "auto":
+                mergedRetraceParams["gridspacing"] = _getGridSpacingFromBayesStrongLensingImages(inputImages)
+
+    else:
+        mergedRetraceParams = getDefaultsForRetraceType("NoTrace")
 
     def getParamsFunction(fullFitnessObjParams, massScale):
         assert massScale is None, f"Internal error: expecting massScale to be None, but is {massScale}"
