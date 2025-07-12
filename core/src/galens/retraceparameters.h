@@ -12,8 +12,12 @@ class TraceParameters
 {
 public:
 	enum ParameterType { NoTrace, SingleStepNewton, MultiStepNewton, ExpandedMultiStepNewton };
+	enum BetaReductionWeightType { EqualWeights, MagnificationWeights };
 
 	virtual ~TraceParameters();
+
+	void setBetaReductionWeightType(BetaReductionWeightType t) { m_redWeightType = t; }
+	BetaReductionWeightType getBetaReductionWeightType() const { return m_redWeightType; }
 
 	static errut::bool_t read(serut::SerializationInterface &si, std::unique_ptr<TraceParameters> &parameters);
 	errut::bool_t write(serut::SerializationInterface &si) const;
@@ -27,6 +31,7 @@ protected:
 	virtual errut::bool_t writeInternal(serut::SerializationInterface &si) const = 0;
 private:
 	ParameterType m_type;
+	BetaReductionWeightType m_redWeightType = EqualWeights;
 };
 
 class NoTraceParameters : public TraceParameters

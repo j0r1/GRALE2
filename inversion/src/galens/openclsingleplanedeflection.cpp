@@ -670,13 +670,26 @@ __kernel void backprojectKernel(int numBpPoints, int numParamSets, int numFloatP
 
 	pBetas[resultOffset+0] = theta.x - dfrac * r.alphaX;
 	pBetas[resultOffset+1] = theta.y - dfrac * r.alphaY;
-
-	float weight = 1.0;
+)XYZ";
 	
+		if (retraceParams.getBetaReductionWeightType() == TraceParameters::EqualWeights)
+		{
+			backprojectKernel += R"XYZ(
+	float weight = 1.0;
+)XYZ";
+		}
+		else if (retraceParams.getBetaReductionWeightType() == TraceParameters::MagnificationWeights)
+		{
+			backprojectKernel += R"XYZ(
 	float invMag = (1.0-dfrac*r.axx)*(1.0-dfrac*r.ayy) - (dfrac*r.axy*dfrac*r.axy);
 	float absMag = 1.0/fabs(invMag);
-	weight = absMag;
+	float weight = absMag;
+)XYZ";
+		}
+		else
+			return cleanup("Unknown beta reduction type " + to_string((int)retraceParams.getBetaReductionWeightType()));
 
+		backprojectKernel += R"XYZ(
 	pBetas[resultOffset+2] = weight;
 }
 )XYZ";

@@ -18,9 +18,13 @@ TraceParameters::~TraceParameters()
 errut::bool_t TraceParameters::read(serut::SerializationInterface &si, std::unique_ptr<TraceParameters> &parameters)
 {
 	int32_t typeInt = 0;
+	int32_t redWeightType = 0;
 
 	if (!si.readInt32(&typeInt))
 		return "Unable to read trace parameter type: " + si.getErrorString();
+
+	if (!si.readInt32(&redWeightType))
+		return "Unable to read beta reductio type: " + si.getErrorString();
 
 	unique_ptr<TraceParameters> params;
 	switch((ParameterType)typeInt)
@@ -41,6 +45,7 @@ errut::bool_t TraceParameters::read(serut::SerializationInterface &si, std::uniq
 		return "Unknown trace parameter type " + to_string(typeInt);
 	}
 
+	params->setBetaReductionWeightType((BetaReductionWeightType)redWeightType);
 	bool_t r = params->readInternal(si);
 	if (!r)
 		return r;
@@ -53,6 +58,8 @@ errut::bool_t TraceParameters::write(serut::SerializationInterface &si) const
 {
 	if (!si.writeInt32((int32_t)m_type))
 		return "Unable to write trace parameter type: " + si.getErrorString();
+	if (!si.writeInt32((int32_t)m_redWeightType))
+		return "Unable to write beta reduction weight type: " + si.getErrorString();
 
 	return writeInternal(si);
 }
