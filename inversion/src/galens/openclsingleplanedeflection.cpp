@@ -664,11 +664,13 @@ __kernel void backprojectKernel(int numBpPoints, int numParamSets, int numFloatP
 	__global const float *pFloatParams = pFloatParamsBase + paramSet*numFloatParams;
 	LensQuantities r = )XYZ" + lensRoutineName + R"XYZ((theta, pIntParams, pFloatParams);
 
-	__global float *pBetas = pAllBetas + 2*numBpPoints*paramSet;
-	int resultOffset = 2*ptIdx;
+	const int floatsToReduce = 3; // 2 for position, 1 for weight
+	__global float *pBetas = pAllBetas + floatsToReduce*numBpPoints*paramSet;
+	int resultOffset = floatsToReduce*ptIdx;
 
 	pBetas[resultOffset+0] = theta.x - dfrac * r.alphaX;
 	pBetas[resultOffset+1] = theta.y - dfrac * r.alphaY;
+	pBetas[resultOffset+2] = 1.0; // equal weight
 }
 )XYZ";
 		string faillog;
@@ -704,22 +706,29 @@ __kernel void averageSourcePositions(int numSources, int numBpPoints, int numPar
 	if (paramSet >= numParamSets)
 		return;
 
-	__global float *pBetas = pAllBetas + 2*numBpPoints*paramSet;
+	const int floatsToReduce = 3; // 2 for position, 1 for weight
+	__global float *pBetas = pAllBetas + floatsToReduce*numBpPoints*paramSet;
 
-	const int betaStartIdx = pSourceStarts[srcIdx] * 2;
+	const int betaStartIdx = pSourceStarts[srcIdx] * floatsToReduce; // This is the final result, uses the same array
 	const int numPointsToAverage = pSourceNumImages[srcIdx];
 	float2 srcAvg = (float2)(0.0, 0.0);
+	float weightSum = 0.0;
 
 	for (int i = 0 ; i < numPointsToAverage ; i++)
-		srcAvg += (float2)(pBetas[betaStartIdx + 2*i+0], pBetas[betaStartIdx + 2*i+1]);
+	{
+		float weight = pBetas[betaStartIdx + floatsToReduce*i+2];
+		weightSum += weight;
+		srcAvg += (float2)(pBetas[betaStartIdx + floatsToReduce*i+0], pBetas[betaStartIdx + floatsToReduce*i+1]) * weight;
+	}
 
-	srcAvg /= (float)numPointsToAverage;
+	srcAvg /= weightSum;
 
 	// Store the average position for each image point
 	for (int i = 0 ; i < numPointsToAverage ; i++)
 	{
-		pBetas[betaStartIdx + 2*i + 0] = srcAvg.x;
-		pBetas[betaStartIdx + 2*i + 1] = srcAvg.y;
+		pBetas[betaStartIdx + floatsToReduce*i + 0] = srcAvg.x;
+		pBetas[betaStartIdx + floatsToReduce*i + 1] = srcAvg.y;
+		pBetas[betaStartIdx + floatsToReduce*i + 2] = nan((uint)0); // Sentinel
 	}
 }
 )XYZ";
@@ -765,11 +774,12 @@ __kernel void retraceKernel(int numBpPoints, int numParamSets, int numFloatParam
 	float2 theta = (float2)(pFullThetas[thetaIdx+0], pFullThetas[thetaIdx+1]);
 	float dfrac = pDistFrac[ptIdx];
 
+	const int floatsToReduce = 3; // 2 for position, 1 for weight
 	__global const float *pFloatParams = pFloatParamsBase + paramSet*numFloatParams;
-	__global const float *pAverageBetas = pAllAverageBetas + 2*numBpPoints*paramSet;
+	__global const float *pAverageBetas = pAllAverageBetas + floatsToReduce*numBpPoints*paramSet;
 
-	const int resultOffset = 2*ptIdx;
-	float2 betaTarget = (float2)(pAverageBetas[resultOffset + 0], pAverageBetas[resultOffset + 1]);
+	const int betaOffset = floatsToReduce*ptIdx;
+	float2 betaTarget = (float2)(pAverageBetas[betaOffset + 0], pAverageBetas[betaOffset + 1]); // +2 is no longer used, was for weight
 
 	float bestBetaDiffSize = INFINITY;
 	float2 bestRetraceTheta = findRetraceTheta(theta, betaTarget, dfrac, &bestBetaDiffSize, pIntParams, pFloatParams);
@@ -777,6 +787,7 @@ __kernel void retraceKernel(int numBpPoints, int numParamSets, int numFloatParam
 	__global float *pTracedThetas = pAllTracedThetas + 2*numBpPoints*paramSet;
 	__global float *pSourcePlaneDists = pAllSourcePlaneDists + numBpPoints*paramSet;
 
+	const int resultOffset = 2*ptIdx;
 	pTracedThetas[resultOffset+0] = bestRetraceTheta.x;
 	pTracedThetas[resultOffset+1] = bestRetraceTheta.y;
 	pSourcePlaneDists[ptIdx] = bestBetaDiffSize;
@@ -835,11 +846,12 @@ __kernel void retraceKernel_multiLevel(int numBpPoints, int numParamSets, int nu
 	float2 theta = (float2)(pFullThetas[thetaIdx+0], pFullThetas[thetaIdx+1]);
 	float dfrac = pDistFrac[ptIdx];
 
+	const int floatsToReduce = 3; // 2 for position, 1 for weight
 	__global const float *pFloatParams = pFloatParamsBase + paramSet*numFloatParams;
-	__global const float *pAverageBetas = pAllAverageBetas + 2*numBpPoints*paramSet;
+	__global const float *pAverageBetas = pAllAverageBetas + floatsToReduce*numBpPoints*paramSet;
 
-	const int resultOffset = 2*ptIdx;
-	float2 betaTarget = (float2)(pAverageBetas[resultOffset + 0], pAverageBetas[resultOffset + 1]);
+	const int betaOffset = floatsToReduce*ptIdx;
+	float2 betaTarget = (float2)(pAverageBetas[betaOffset + 0], pAverageBetas[betaOffset + 1]); // +2 is no longer used, was for weight
 
 	float bestBetaDiffSize = INFINITY;
 	float2 bestRetraceTheta = findRetraceTheta_perpoint(theta, betaTarget, dfrac, &bestBetaDiffSize, pIntParams, pFloatParams);
@@ -848,6 +860,7 @@ __kernel void retraceKernel_multiLevel(int numBpPoints, int numParamSets, int nu
 	__global float *pSourcePlaneDists = pAllSourcePlaneDists + numBpPoints*paramSet;
 
 	// Store best results in any case
+	const int resultOffset = 2*ptIdx;
 	pTracedThetas[resultOffset+0] = bestRetraceTheta.x;
 	pTracedThetas[resultOffset+1] = bestRetraceTheta.y;
 	pSourcePlaneDists[ptIdx] = bestBetaDiffSize;
@@ -950,11 +963,12 @@ __kernel void retraceKernel_step(int numBpPoints, int numPointsToProcess, int le
 	float2 baseTheta = (float2)(pFullThetas[thetaIdx+0], pFullThetas[thetaIdx+1]);
 	float dfrac = pDistFrac[basePointIdx];
 
+	const int floatsToReduce = 3; // 2 for position, 1 for weight
 	__global const float *pFloatParams = pFloatParamsBase + paramSet*numFloatParams;
-	__global const float *pAverageBetas = pAllAverageBetas + 2*numBpPoints*paramSet;
+	__global const float *pAverageBetas = pAllAverageBetas + floatsToReduce*numBpPoints*paramSet;
 
-	const int resultOffset = 2*basePointIdx;
-	float2 betaTarget = (float2)(pAverageBetas[resultOffset + 0], pAverageBetas[resultOffset + 1]);
+	const int betaOffset = floatsToReduce*basePointIdx;
+	float2 betaTarget = (float2)(pAverageBetas[betaOffset + 0], pAverageBetas[betaOffset + 1]); // +2 is no longer used, was for weight
 
 	float bestBetaDiffSize = INFINITY;
 
@@ -1525,7 +1539,8 @@ errut::bool_t OpenCLSinglePlaneDeflection::calculateDeflectionAndRetrace(const s
 	//cerr << "DEBUG: numParamSets = " << numParamSets << endl;
 
 	// Allocate room to store (intermediate) betas
-	if (!(r = m_clAllBetas.realloc(*m_cl, ctx, sizeof(cl_float)*2*m_clNumBpImages*numParamSets)))
+	const size_t floatsToReduce = 3; // 2 for beta pos, 1 for weight
+	if (!(r = m_clAllBetas.realloc(*m_cl, ctx, sizeof(cl_float)*floatsToReduce*m_clNumBpImages*numParamSets)))
 		return "Can't allocate beta byffer: " + r.getErrorString();
 	if (!(r = m_clAllTracedThetas.realloc(*m_cl, ctx, sizeof(cl_float)*2*m_clNumBpImages*numParamSets)))
 		return "Can't alocate traced theta buffer on GPU: " + r.getErrorString();
