@@ -1080,12 +1080,12 @@ cdef shared_ptr[retraceparameters.TraceParameters] setRetraceSourcePosAverageTyp
         pErrStr[0] = B("Retrace parameters do not contain a 'sourcepos' entry")
         return cEmptyRetraceParams
 
-    if "sourcepos" == "mean":
-        traceParams.setBetaReductionWeightType(retraceParams.EqualWeights)
+    if retraceParams["sourcepos"] == "mean":
+        deref(traceParams).setBetaReductionWeightType(retraceparameters.EqualWeights)
         return traceParams
 
-    if "sourcepos" == "magweighted":
-        traceParams.setBetaReductionWeightType(retraceParams.MagnificationWeights)
+    if retraceParams["sourcepos"] == "magweighted":
+        deref(traceParams).setBetaReductionWeightType(retraceparameters.MagnificationWeights)
         return traceParams
 
     pErrStr[0] = B("Unknown 'sourcepos' value in retrace parameters, expecting 'mean' or 'magweighted'")
