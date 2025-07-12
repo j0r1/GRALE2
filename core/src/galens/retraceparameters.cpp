@@ -15,6 +15,15 @@ TraceParameters::~TraceParameters()
 {
 }
 
+string TraceParameters::getBasePropertiesString() const
+{
+	if (m_redWeightType == EqualWeights)
+		return "srcpos = simple mean";
+	if (m_redWeightType == MagnificationWeights)
+		return "srcpos = magnification weighted mean";
+	return "srcpos = UNKNOWN";
+}
+
 errut::bool_t TraceParameters::read(serut::SerializationInterface &si, std::unique_ptr<TraceParameters> &parameters)
 {
 	int32_t typeInt = 0;
@@ -136,13 +145,13 @@ inline string getLayoutName(ExpandedMultiStepNewtonTraceParams::Layout l)
 std::string ExpandedMultiStepNewtonTraceParams::getRetraceDescription() const
 {
 	if (m_rescaled)
-		return "ExpandedMultiStepNewton, numEvalsPerStartPos = " + to_string(m_numEvalsPerStartPos)
+		return getBasePropertiesString() + ", ExpandedMultiStepNewton, numEvalsPerStartPos = " + to_string(m_numEvalsPerStartPos)
 		   + ", numMaxGridSteps = " + to_string(m_numMaxGridSteps)
 		   + ", acceptThreshold = " + to_string(m_acceptThreshold)
 		   + ", gridSpacing = " + to_string(m_gridSpacing)
 		   + ", layout = " + getLayoutName(m_layout);
 
-	return "ExpandedMultiStepNewton, numEvalsPerStartPos = " + to_string(m_numEvalsPerStartPos)
+	return getBasePropertiesString() + ", ExpandedMultiStepNewton, numEvalsPerStartPos = " + to_string(m_numEvalsPerStartPos)
 		   + ", numMaxGridSteps = " + to_string(m_numMaxGridSteps)
 		   + ", acceptThreshold = " + to_string(m_acceptThreshold/ANGLE_ARCSEC)
 		   + " arcsec, gridSpacing = " + to_string(m_gridSpacing/ANGLE_ARCSEC) + " arcsec"

@@ -29,6 +29,7 @@ protected:
 
 	virtual errut::bool_t readInternal(serut::SerializationInterface &si) = 0;
 	virtual errut::bool_t writeInternal(serut::SerializationInterface &si) const = 0;
+	std::string getBasePropertiesString() const;
 private:
 	ParameterType m_type;
 	BetaReductionWeightType m_redWeightType = EqualWeights;
@@ -40,7 +41,7 @@ public:
 	NoTraceParameters() : TraceParameters(NoTrace) { }
 	~NoTraceParameters() { }
 
-	std::string getRetraceDescription() const override { return "NoTrace"; }
+	std::string getRetraceDescription() const override { return getBasePropertiesString() + ", NoTrace"; }
 	std::unique_ptr<TraceParameters> createScaledCopy(double angScale, double potScale) const override { return std::make_unique<NoTraceParameters>(); }
 private:
 	errut::bool_t readInternal(serut::SerializationInterface &si) override { return true; }
@@ -53,7 +54,7 @@ public:
 	SingleStepNewtonTraceParams() : TraceParameters(SingleStepNewton) { }
 	~SingleStepNewtonTraceParams() { }
 
-	std::string getRetraceDescription() const override { return "SingleStepNewton"; }
+	std::string getRetraceDescription() const override { return getBasePropertiesString() + ", SingleStepNewton"; }
 	std::unique_ptr<TraceParameters> createScaledCopy(double angScale, double potScale) const override { return std::make_unique<SingleStepNewtonTraceParams>(); }
 private:
 	errut::bool_t readInternal(serut::SerializationInterface &si) override { return true; }
@@ -66,7 +67,7 @@ public:
 	MultiStepNewtonTraceParams(size_t numEvaluations = 0) : TraceParameters(MultiStepNewton), m_numEvals(numEvaluations) { }
 	~MultiStepNewtonTraceParams() { }
 
-	std::string getRetraceDescription() const override { return "MultiStepNewton, numEvals = " + std::to_string(m_numEvals); }
+	std::string getRetraceDescription() const override { return getBasePropertiesString() + ", MultiStepNewton, numEvals = " + std::to_string(m_numEvals); }
 	size_t getNumberOfEvaluations() const { return m_numEvals; }
 	std::unique_ptr<TraceParameters> createScaledCopy(double angScale, double potScale) const override { return std::make_unique<MultiStepNewtonTraceParams>(m_numEvals); }
 private:

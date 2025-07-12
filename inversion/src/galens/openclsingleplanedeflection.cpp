@@ -674,12 +674,14 @@ __kernel void backprojectKernel(int numBpPoints, int numParamSets, int numFloatP
 	
 		if (retraceParams.getBetaReductionWeightType() == TraceParameters::EqualWeights)
 		{
+			cerr << "DEBUG: Retrace source pos type: simple mean" << endl;
 			backprojectKernel += R"XYZ(
 	float weight = 1.0;
 )XYZ";
 		}
 		else if (retraceParams.getBetaReductionWeightType() == TraceParameters::MagnificationWeights)
 		{
+			cerr << "DEBUG: Retrace source pos type: magnification weighted mean" << endl;
 			backprojectKernel += R"XYZ(
 	float invMag = (1.0-dfrac*r.axx)*(1.0-dfrac*r.ayy) - (dfrac*r.axy*dfrac*r.axy);
 	float absMag = 1.0/fabs(invMag);
