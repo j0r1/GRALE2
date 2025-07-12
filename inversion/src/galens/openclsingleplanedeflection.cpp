@@ -670,7 +670,14 @@ __kernel void backprojectKernel(int numBpPoints, int numParamSets, int numFloatP
 
 	pBetas[resultOffset+0] = theta.x - dfrac * r.alphaX;
 	pBetas[resultOffset+1] = theta.y - dfrac * r.alphaY;
-	pBetas[resultOffset+2] = 1.0; // equal weight
+
+	float weight = 1.0;
+	
+	float invMag = (1.0-dfrac*r.axx)*(1.0-dfrac*r.ayy) - (dfrac*r.axy*dfrac*r.axy);
+	float absMag = 1.0/fabs(invMag);
+	weight = absMag;
+
+	pBetas[resultOffset+2] = weight;
 }
 )XYZ";
 		string faillog;
