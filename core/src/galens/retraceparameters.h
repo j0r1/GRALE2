@@ -42,7 +42,12 @@ public:
 	~NoTraceParameters() { }
 
 	std::string getRetraceDescription() const override { return getBasePropertiesString() + ", NoTrace"; }
-	std::unique_ptr<TraceParameters> createScaledCopy(double angScale, double potScale) const override { return std::make_unique<NoTraceParameters>(); }
+	std::unique_ptr<TraceParameters> createScaledCopy(double angScale, double potScale) const override
+	{
+		std::unique_ptr<TraceParameters> r = std::make_unique<NoTraceParameters>();
+		r->setBetaReductionWeightType(getBetaReductionWeightType());
+		return r;
+	}
 private:
 	errut::bool_t readInternal(serut::SerializationInterface &si) override { return true; }
 	errut::bool_t writeInternal(serut::SerializationInterface &si) const override { return true; }
@@ -55,7 +60,12 @@ public:
 	~SingleStepNewtonTraceParams() { }
 
 	std::string getRetraceDescription() const override { return getBasePropertiesString() + ", SingleStepNewton"; }
-	std::unique_ptr<TraceParameters> createScaledCopy(double angScale, double potScale) const override { return std::make_unique<SingleStepNewtonTraceParams>(); }
+	std::unique_ptr<TraceParameters> createScaledCopy(double angScale, double potScale) const override
+	{
+		std::unique_ptr<TraceParameters> r = std::make_unique<SingleStepNewtonTraceParams>();
+		r->setBetaReductionWeightType(getBetaReductionWeightType());
+		return r;
+	}
 private:
 	errut::bool_t readInternal(serut::SerializationInterface &si) override { return true; }
 	errut::bool_t writeInternal(serut::SerializationInterface &si) const override { return true; }
@@ -69,7 +79,12 @@ public:
 
 	std::string getRetraceDescription() const override { return getBasePropertiesString() + ", MultiStepNewton, numEvals = " + std::to_string(m_numEvals); }
 	size_t getNumberOfEvaluations() const { return m_numEvals; }
-	std::unique_ptr<TraceParameters> createScaledCopy(double angScale, double potScale) const override { return std::make_unique<MultiStepNewtonTraceParams>(m_numEvals); }
+	std::unique_ptr<TraceParameters> createScaledCopy(double angScale, double potScale) const override
+	{
+		std::unique_ptr<TraceParameters> r = std::make_unique<MultiStepNewtonTraceParams>(m_numEvals);
+		r->setBetaReductionWeightType(getBetaReductionWeightType());
+		return r;
+	}
 private:
 	errut::bool_t readInternal(serut::SerializationInterface &si) override;
 	errut::bool_t writeInternal(serut::SerializationInterface &si) const override;
@@ -100,6 +115,7 @@ public:
 	{
 		auto copy = std::make_unique<ExpandedMultiStepNewtonTraceParams>(m_layout, m_numEvalsPerStartPos, m_numMaxGridSteps, m_acceptThreshold/angScale, m_gridSpacing/angScale); 
 		copy->m_rescaled = true;
+		copy->setBetaReductionWeightType(getBetaReductionWeightType());
 		return copy;
 	}
 
