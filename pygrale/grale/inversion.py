@@ -729,7 +729,11 @@ def getDefaultsForRetraceType(typeName):
     if not typeName in supportedTypes:
         raise InversionException(f"Unsupported retrace type '{typeName}', valid names are: " + ",".join(supportedTypes))
 
-    defaults = { "type": typeName }
+    defaults = {
+        "type": typeName,
+        "sourcepos": "mean",
+    }
+
     if typeName == "NoTrace":
         pass # No other parameters
 

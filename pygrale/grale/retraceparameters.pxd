@@ -7,10 +7,17 @@ from libcpp.pair cimport pair
 cimport grale.serut as serut
 cimport grale.errut as errut
 
+cdef extern from "grale/retraceparameters.h" namespace "grale::TraceParameters":
+    cdef enum BetaReductionWeightType:
+        EqualWeights, MagnificationWeights
+
 cdef extern from "grale/retraceparameters.h" namespace "grale":
     cdef cppclass TraceParameters:
         errut.bool_t read(serut.SerializationInterface &si, unique_ptr[TraceParameters] &params)
         errut.bool_t write(serut.SerializationInterface &si)
+
+        void setBetaReductionWeightType(BetaReductionWeightType t)
+        BetaReductionWeightType getBetaReductionWeightType() const
 
 cdef extern from "grale/retraceparameters.h" namespace "grale":
     cdef cppclass NoTraceParameters(TraceParameters):

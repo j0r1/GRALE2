@@ -1070,19 +1070,40 @@ cdef vector[float] _createFloatVectorFromList(l):
         result.push_back(cValue)
     return result
 
+cdef shared_ptr[retraceparameters.TraceParameters] setRetraceSourcePosAverageType(
+        retraceParams,
+        shared_ptr[retraceparameters.TraceParameters] traceParams,
+        string *pErrStr):
+
+    cdef shared_ptr[retraceparameters.TraceParameters] cEmptyRetraceParams
+    if not "sourcepos" in retraceParams:
+        pErrStr[0] = B("Retrace parameters do not contain a 'sourcepos' entry")
+        return cEmptyRetraceParams
+
+    if "sourcepos" == "mean":
+        traceParams.setBetaReductionWeightType(retraceParams.EqualWeights)
+        return traceParams
+
+    if "sourcepos" == "magweighted":
+        traceParams.setBetaReductionWeightType(retraceParams.MagnificationWeights)
+        return traceParams
+
+    pErrStr[0] = B("Unknown 'sourcepos' value in retrace parameters, expecting 'mean' or 'magweighted'")
+    return cEmptyRetraceParams
+
 cdef shared_ptr[retraceparameters.TraceParameters] getRetraceParamsFromObject(retraceParams, string *pErrStr):
     cdef shared_ptr[retraceparameters.TraceParameters] cEmptyRetraceParams
     cdef retraceparameters.Layout cLayout
 
     if retraceParams["type"] == "NoTrace":
-        return shared_ptr[retraceparameters.TraceParameters](new retraceparameters.NoTraceParameters())
+        return setRetraceSourcePosAverageType(retraceParams, shared_ptr[retraceparameters.TraceParameters](new retraceparameters.NoTraceParameters()), pErrStr)
 
     if retraceParams["type"] == "SingleStepNewton":
-        return shared_ptr[retraceparameters.TraceParameters](new retraceparameters.SingleStepNewtonTraceParams())
+        return setRetraceSourcePosAverageType(retraceParams, shared_ptr[retraceparameters.TraceParameters](new retraceparameters.SingleStepNewtonTraceParams()), pErrStr)
 
     if retraceParams["type"] == "MultiStepNewton":
         numEvals = retraceParams["evaluations"]
-        return shared_ptr[retraceparameters.TraceParameters](new retraceparameters.MultiStepNewtonTraceParams(numEvals))
+        return setRetraceSourcePosAverageType(retraceParams, shared_ptr[retraceparameters.TraceParameters](new retraceparameters.MultiStepNewtonTraceParams(numEvals)), pErrStr)
 
     if retraceParams["type"] == "ExpandedMultiStepNewton":
         numEvalsPerPoint = retraceParams["evalsperpoint"]
@@ -1103,7 +1124,7 @@ cdef shared_ptr[retraceparameters.TraceParameters] getRetraceParamsFromObject(re
             pErrStr[0] = B("Invalid layout option, should be one of Diamond, Square, FullGrid, EightNeighbours")
             return cEmptyRetraceParams
 
-        return shared_ptr[retraceparameters.TraceParameters](new retraceparameters.ExpandedMultiStepNewtonTraceParams(cLayout, numEvalsPerPoint, maxGridSteps, acceptThres, gridSpacing))
+        return setRetraceSourcePosAverageType(retraceParams, shared_ptr[retraceparameters.TraceParameters](new retraceparameters.ExpandedMultiStepNewtonTraceParams(cLayout, numEvalsPerPoint, maxGridSteps, acceptThres, gridSpacing)), pErrStr)
 
     pErrStr[0] = B("Invalid retrace type, expecting either NoTrace, SingleStepNewton, MultiStepNewton or ExpandedMultiStepNewton")
     return cEmptyRetraceParams
