@@ -447,7 +447,7 @@ def _processBetas_average_weighted_mu(imgPlane, srcIdx, imgPos):
     avgBeta = np.array([0.0, 0.0])
     
     for x in imgPos:
-        beta, derivs = imgObj.getBetaAndDerivatives(x["theta"])
+        beta, derivs = imgPlane.getBetaAndDerivatives(x["theta"])
         assert np.sum((beta - x["beta"])**2) == 0 # Sanity check
 
         mag = 1.0/abs(derivs[0,0]*derivs[1,1] - derivs[1,0]*derivs[0,1])
@@ -459,7 +459,7 @@ def _processBetas_average_weighted_mu(imgPlane, srcIdx, imgPos):
 
 def calculateImagePredictions(imgList, lensModel, cosmology=None,
                      reduceImages="average",
-                     reduceSources="average", # or "average_weighted_mu", or function
+                     reduceSources="average", # or "magweighted", or "noreduction", or list, or function
                      maxPermSize=7,
                      localTraceFunction = "fsolve",
                      localTraceFunctionOptions = None,
@@ -507,7 +507,7 @@ def calculateImagePredictions(imgList, lensModel, cosmology=None,
        two arguments: the :class:`ImagesData <grale.images.ImagesData>` instance and the
        image index corresponding to the particular image.
 
-     - `reduceSources`: TODO "average", "average_weighted_mu", list, or function
+     - `reduceSources`: TODO "average", "magweighted", "noreduction", list, or function
 
      - `maxPermSize`: when a source plane position is used to estimate the corresponding
        image plane positions, these predicted positions are grouped with the observed
@@ -551,10 +551,10 @@ def calculateImagePredictions(imgList, lensModel, cosmology=None,
             reduceSourcesFunction = _processBetas_noreduction
         elif reduceSources == "average":
             reduceSourcesFunction = _processBetas_average_unweighted
-        elif reduceSources == "average_weighted_mu":
+        elif reduceSources == "magweighted":
             reduceSourcesFunction = _processBetas_average_weighted_mu
         else:
-            raise Exception(f"Unknown value '{reduceSources}' for 'reduceSources' parameter")
+            raise Exception(f"Unknown value '{reduceSources}' for 'reduceSources' parameter, expecting 'noreduction', 'average' or 'magweighted'")
 
     elif type(reduceSources) == list:
         reduceSourcesFunction = lambda imgPlane,srcIdx,imgPos: reduceSources[srcIdx] # Just return part of the list

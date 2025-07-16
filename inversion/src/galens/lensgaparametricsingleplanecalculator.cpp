@@ -349,6 +349,7 @@ bool_t LensGAParametricSinglePlaneCalculator::init(const LensInversionParameters
 
 	const TraceParameters &origTraceParams = params.getRetraceParameters();
 	unique_ptr<TraceParameters> retraceParams = origTraceParams.createScaledCopy(m_angularScale, m_potScale);
+	BetaReductionWeightType betaRedWt = params.getBetaReductionWeightType();
 
 	if (!(r = OpenCLSinglePlaneDeflectionInstance::initInstance((uint64_t)this, 
 																	m_thetas, posUncertainties, m_intParams,
@@ -360,7 +361,8 @@ bool_t LensGAParametricSinglePlaneCalculator::init(const LensInversionParameters
 																	originParameterMapping,
 																	m_numOriginParams,
 																	recalcThetaInfo,
-																	*retraceParams
+																	*retraceParams,
+																	betaRedWt
 																	)))
 		return "Couldn't init OpenCLSinglePlaneDeflectionInstance: " + r.getErrorString();
 

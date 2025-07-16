@@ -33,7 +33,8 @@ LensInversionParametersParametricSinglePlane::LensInversionParametersParametricS
 		double sourcePlaneDistThreshold,
 		const std::string &clPriorCode,
 		bool allowEqualInitRange,
-		const std::vector<std::vector<float>> &genomesToCalculate
+		const std::vector<std::vector<float>> &genomesToCalculate,
+		BetaReductionWeightType betaRedWt
 		)
 {
 	m_images = images;
@@ -61,6 +62,7 @@ LensInversionParametersParametricSinglePlane::LensInversionParametersParametricS
 	m_clPriorCode = clPriorCode;
 	m_allowEqualInitRange = allowEqualInitRange;
 	m_genomesToCalculate = genomesToCalculate;
+	m_betaRedWeigthType = betaRedWt;
 }
 
 LensInversionParametersParametricSinglePlane::~LensInversionParametersParametricSinglePlane()
@@ -230,6 +232,13 @@ bool LensInversionParametersParametricSinglePlane::write(serut::SerializationInt
 				return false;
 			}
 		}
+	}
+
+	int32_t iBetaRed = (int32_t)m_betaRedWeigthType;
+	if (!si.writeInt32(iBetaRed))
+	{
+		setErrorString("Can't write beta reduction weight type: " + si.getErrorString());
+		return false;
 	}
 	
 	return true;
@@ -432,6 +441,21 @@ bool LensInversionParametersParametricSinglePlane::read(serut::SerializationInte
 		}
 		m_genomesToCalculate.push_back(v);
 	}
+
+	int32_t iBetaRed;
+	if (!si.readInt32(&iBetaRed))
+	{
+		setErrorString("Can't read beta reduction weight type: " + si.getErrorString());
+		return false;
+	}
+
+	if (iBetaRed < 0 || iBetaRed >= MaxBetaReductionWeightType)
+	{
+		setErrorString("Read invalid value for beta reduction weight type: " + to_string(iBetaRed));
+		return false;
+	}
+
+	m_betaRedWeigthType = (BetaReductionWeightType)iBetaRed;
 
 	return true;
 }

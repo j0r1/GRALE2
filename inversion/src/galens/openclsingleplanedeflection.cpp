@@ -91,7 +91,8 @@ bool_t OpenCLSinglePlaneDeflection::init(const std::vector<Vector2Df> &thetas, /
 					   const std::vector<std::pair<size_t, std::string>> &originParameters,
 					   size_t numOriginParameters,
 					   const std::vector<std::pair<int, float>> &recalcThetaInfo,
-					   const TraceParameters &retraceParams
+					   const TraceParameters &retraceParams,
+					   BetaReductionWeightType betaRedWt
 					   )
 {
 	if (m_init)
@@ -510,7 +511,7 @@ __kernel void calculateTotalNegLogProbContributionsKernel(int numParamSets, int 
 		if (recalcThetaInfo.size() != thetas.size())
 			return cleanup("Recalculate thetas vector should be of equal length as the thetas vector (" + to_string(recalcThetaInfo.size())
 					       + " != " + to_string(thetas.size()) + ")");
-		if (!(r = initRecalc(thetas.size(), recalcThetaInfo, *cl, deflectionKernelCode, lensRoutineName, retraceParams)))
+		if (!(r = initRecalc(thetas.size(), recalcThetaInfo, *cl, deflectionKernelCode, lensRoutineName, retraceParams, betaRedWt)))
 			return cleanup(r.getErrorString());
 
 		m_recalcThetas = true;
@@ -535,7 +536,8 @@ __kernel void calculateTotalNegLogProbContributionsKernel(int numParamSets, int 
 
 errut::bool_t OpenCLSinglePlaneDeflection::initRecalc(size_t numTotalPoints, const std::vector<std::pair<int, float>> &recalcThetaInfo,
 													  OpenCLMultiKernel<NumKernels> &cl, const std::string &deflectionKernelCode,
-													  const std::string &lensRoutineName, const TraceParameters &retraceParams)
+													  const std::string &lensRoutineName, const TraceParameters &retraceParams,
+													  BetaReductionWeightType betaRedWt)
 {
 	// Build maps for distance fractions and points for sources
 
@@ -672,14 +674,14 @@ __kernel void backprojectKernel(int numBpPoints, int numParamSets, int numFloatP
 	pBetas[resultOffset+1] = theta.y - dfrac * r.alphaY;
 )XYZ";
 	
-		if (retraceParams.getBetaReductionWeightType() == TraceParameters::EqualWeights)
+		if (betaRedWt == grale::EqualWeights)
 		{
 			cerr << "DEBUG: Retrace source pos type: simple mean" << endl;
 			backprojectKernel += R"XYZ(
 	float weight = 1.0;
 )XYZ";
 		}
-		else if (retraceParams.getBetaReductionWeightType() == TraceParameters::MagnificationWeights)
+		else if (betaRedWt == grale::MagnificationWeights)
 		{
 			cerr << "DEBUG: Retrace source pos type: magnification weighted mean" << endl;
 			backprojectKernel += R"XYZ(
@@ -689,7 +691,7 @@ __kernel void backprojectKernel(int numBpPoints, int numParamSets, int numFloatP
 )XYZ";
 		}
 		else
-			return cleanup("Unknown beta reduction type " + to_string((int)retraceParams.getBetaReductionWeightType()));
+			return cleanup("Unknown beta reduction type " + to_string((int)betaRedWt));
 
 		backprojectKernel += R"XYZ(
 	pBetas[resultOffset+2] = weight;
@@ -1870,7 +1872,8 @@ errut::bool_t OpenCLSinglePlaneDeflectionInstance::initInstance(uint64_t userId,
 					   const std::vector<std::pair<size_t, std::string>> &originParameters,
 					   size_t numOriginParameters,
 					   const std::vector<std::pair<int, float>> &recalcThetaInfo,
-					   const TraceParameters &retraceParams
+					   const TraceParameters &retraceParams,
+					   BetaReductionWeightType betaRedWt
 					   )
 
 {
@@ -1899,7 +1902,7 @@ errut::bool_t OpenCLSinglePlaneDeflectionInstance::initInstance(uint64_t userId,
 	unique_ptr<OpenCLSinglePlaneDeflectionInstance> oclCalc = make_unique<OpenCLSinglePlaneDeflectionInstance>();
 	bool_t r = oclCalc->init(thetas, thetaUncert, templateIntParameters, templateFloatParameters, changeableParameterIndices,
 							 deflectionKernelCode, lensRoutineName, extraClPriorCode, devIdx, initialUncertSeed,
-							 originParameters, numOriginParameters, recalcThetaInfo, retraceParams);
+							 originParameters, numOriginParameters, recalcThetaInfo, retraceParams, betaRedWt);
 	oclCalc->m_requestedDevIdx = devIdx; // TODO: store this in a better way?
 
 	if (!r)

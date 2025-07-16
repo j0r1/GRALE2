@@ -37,7 +37,8 @@ public:
 		double sourcePlaneDistThreshold, // threshold to accept retrace convergence
 		const std::string &clPriorCode,
 		bool allowEqualInitRange,
-		const std::vector<std::vector<float>> &genomesToCalculateFitnessFor
+		const std::vector<std::vector<float>> &genomesToCalculateFitnessFor,
+		BetaReductionWeightType betaRedWt
 		);
 	~LensInversionParametersParametricSinglePlane();
 
@@ -66,6 +67,7 @@ public:
 	std::string getOpenCLPriorCode() const { return m_clPriorCode; }
 	bool allowEqualValuesInInitialRange() const { return m_allowEqualInitRange; }
 	const std::vector<std::vector<float>> &getGenomesToCalculateFitness() const { return m_genomesToCalculate; }
+	BetaReductionWeightType getBetaReductionWeightType() const { return m_betaRedWeigthType; }
 
 	bool write(serut::SerializationInterface &si) const override;
 	bool read(serut::SerializationInterface &si) override;
@@ -89,6 +91,7 @@ private:
 	double m_sourcePlaneDistThreshold = 0;
 	std::string m_clPriorCode;
 	bool m_allowEqualInitRange = false;
+	BetaReductionWeightType m_betaRedWeigthType = EqualWeights;
 
 	// Perhaps a better name should be chosen than genome?
 	// It's multiple sets of parameters, for which the probability/fitness

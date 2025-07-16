@@ -40,7 +40,8 @@ cdef extern from "grale/lensinversionparametersparametricsingleplane.h" namespac
                 double sourcePlaneDistThreshold,
                 string clPriorCode,
                 bool allowEqualInitRange,
-                const vector[vector[float]] &genomesToCalculateFitnessFor
+                const vector[vector[float]] &genomesToCalculateFitnessFor,
+                retraceparameters.BetaReductionWeightType betaRedWt
                 )
 
         bool read(serut.SerializationInterface &si)

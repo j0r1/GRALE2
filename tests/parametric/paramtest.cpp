@@ -66,7 +66,8 @@ int main(void)
 	bool_t r;
 	NoTraceParameters notraceParams;
 	if (!(r = clDef.init(thetas, {}, intParams, floatParams, changeableParamIdx, 
-	                     prog, subRoutName, "", 0, 0, originParams, numOriginParams, {}, notraceParams)))
+	                     prog, subRoutName, "", 0, 0, originParams, numOriginParams, {}, notraceParams,
+						 grale::EqualWeights)))
 		throw runtime_error("Can't init OpenCL calculation code: " + r.getErrorString());
 
 	vector<Vector2Df> allAlphas;

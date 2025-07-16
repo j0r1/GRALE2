@@ -57,7 +57,8 @@ public:
 					   // also store the last difference in the source plane to check how well it
 					   // succeeded
 					   const std::vector<std::pair<int, float>> &recalcThetaInfo,
-					   const TraceParameters &retraceParams
+					   const TraceParameters &retraceParams,
+					   BetaReductionWeightType betaRedWt
 					   );
 
 	void destroy();
@@ -126,7 +127,8 @@ protected:
 
 	errut::bool_t initRecalc(size_t numTotalPoints, const std::vector<std::pair<int, float>> &recalcThetaInfo,
 			                 OpenCLMultiKernel<NumKernels> &cl, const std::string &deflectionKernelCode,
-							 const std::string &lensRoutineName, const TraceParameters &retraceParams);
+							 const std::string &lensRoutineName, const TraceParameters &retraceParams,
+							 BetaReductionWeightType betaRedWt);
 	errut::bool_t getReprojectSubroutineCode(const std::string &lensRoutineName, const TraceParameters &retraceParams, std::string &subCode);
 
 	bool m_recalcThetas = false;
@@ -174,7 +176,8 @@ public:
 					   const std::vector<std::pair<size_t, std::string>> &originParameters,
 					   size_t numOriginParameters, // 0 is disable
 					   const std::vector<std::pair<int, float>> &recalcThetaInfo,
-					   const TraceParameters &retraceParams
+					   const TraceParameters &retraceParams,
+					   BetaReductionWeightType betaRedWt
 					   );
 
 	static void releaseInstance(uint64_t userId);

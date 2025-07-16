@@ -729,11 +729,7 @@ def getDefaultsForRetraceType(typeName):
     if not typeName in supportedTypes:
         raise InversionException(f"Unsupported retrace type '{typeName}', valid names are: " + ",".join(supportedTypes))
 
-    defaults = {
-        "type": typeName,
-        "sourcepos": "mean",
-    }
-
+    defaults = { "type": typeName }
     if typeName == "NoTrace":
         pass # No other parameters
 
@@ -784,7 +780,8 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
            cosmology = None, maximumGenerations = None, eaType = "JADE", deviceIndex = "rotate",
            useImagePositionRandomization = False, allowUnusedPriors = False,
            retraceParams = { "type": "ExpandedMultiStepNewton" },
-           retraceSourcePlaneThreshold = "auto", allowEmptyInitialValueRange = False,
+           retraceSourcePlaneThreshold = "auto", sourcePositionEstimate = "average",
+           allowEmptyInitialValueRange = False,
            forceScales = None, 
            internalRecalcLens = None, internalCalcFitnessParams = None,
            ):
@@ -860,6 +857,8 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
 
      - `retraceParams`: TODO, either a dict or "disable", for the bayesian strong
        lensing
+
+     - `sourcePositionEstimate`: TODO, "mean" or "magweighted"
 
      - `retraceSourcePlaneThreshold`: TODO, either "auto" or a number
 
@@ -994,7 +993,8 @@ def invertParametric(inputImages, parametricLensDescription, zd, Dd, popSize, mo
                   useImagePositionRandomization, initialUncertSeed,
                   originParametersMap, numOriginParams, allowUnusedPriors,
                   retraceImages, mergedRetraceParams, retraceSourcePlaneThreshold,
-                  clProbCode, allowEmptyInitialValueRange, internalCalcFitnessParams)
+                  clProbCode, allowEmptyInitialValueRange, internalCalcFitnessParams,
+                  sourcePositionEstimate)
 
     results = _invertCommon(inverter, feedbackObject, moduleName, "parametricsingleplane", fitnessObjectParameters,
                   None, [Dd, zd], inputImages, getParamsFunction, popSize,

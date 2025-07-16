@@ -131,11 +131,11 @@ int main(int argc, char *argv[])
 			0.000001*ANGLE_ARCSEC/deflScale,
 			1*ANGLE_ARCSEC/deflScale);
 
-	retraceParams.setBetaReductionWeightType(TraceParameters::MagnificationWeights);
-
 	if (!(r = clDef.init(thetas, inKernelThetaUncert, intParams, floatParams, changeableParamIdx, 
 	                     prog, subRoutName, "", 0, 12345, originParams, numOriginParams,
-						 recalcThetaInfo, retraceParams
+						 recalcThetaInfo, retraceParams,
+						 grale::MagnificationWeights
+						 //grale::EqualWeights
 						 )))
 		throw runtime_error("Can't init OpenCL calculation code: " + r.getErrorString());
 
