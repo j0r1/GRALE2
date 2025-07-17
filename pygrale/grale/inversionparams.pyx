@@ -1072,19 +1072,23 @@ cdef vector[float] _createFloatVectorFromList(l):
 
 cdef shared_ptr[retraceparameters.TraceParameters] getRetraceParamsFromObject(retraceParams, string *pErrStr):
     cdef shared_ptr[retraceparameters.TraceParameters] cEmptyRetraceParams
+    cdef shared_ptr[retraceparameters.TraceParameters] cReturnRetraceParams
     cdef retraceparameters.Layout cLayout
 
+    retraceParams = retraceParams.copy() # Take a copy so we can check if something is left
+
     if retraceParams["type"] == "NoTrace":
-        return shared_ptr[retraceparameters.TraceParameters](new retraceparameters.NoTraceParameters())
+        cReturnRetraceParams = shared_ptr[retraceparameters.TraceParameters](new retraceparameters.NoTraceParameters())
 
-    if retraceParams["type"] == "SingleStepNewton":
-        return shared_ptr[retraceparameters.TraceParameters](new retraceparameters.SingleStepNewtonTraceParams())
+    elif retraceParams["type"] == "SingleStepNewton":
+        cReturnRetraceParams = shared_ptr[retraceparameters.TraceParameters](new retraceparameters.SingleStepNewtonTraceParams())
 
-    if retraceParams["type"] == "MultiStepNewton":
+    elif retraceParams["type"] == "MultiStepNewton":
         numEvals = retraceParams["evaluations"]
-        return shared_ptr[retraceparameters.TraceParameters](new retraceparameters.MultiStepNewtonTraceParams(numEvals))
+        del retraceParams["evaluations"]
+        cReturnRetraceParams = shared_ptr[retraceparameters.TraceParameters](new retraceparameters.MultiStepNewtonTraceParams(numEvals))
 
-    if retraceParams["type"] == "ExpandedMultiStepNewton":
+    elif retraceParams["type"] == "ExpandedMultiStepNewton":
         numEvalsPerPoint = retraceParams["evalsperpoint"]
         maxGridSteps = retraceParams["maxgridsteps"]
         acceptThres = retraceParams["acceptthreshold"]
@@ -1103,10 +1107,25 @@ cdef shared_ptr[retraceparameters.TraceParameters] getRetraceParamsFromObject(re
             pErrStr[0] = B("Invalid layout option, should be one of Diamond, Square, FullGrid, EightNeighbours")
             return cEmptyRetraceParams
 
-        return shared_ptr[retraceparameters.TraceParameters](new retraceparameters.ExpandedMultiStepNewtonTraceParams(cLayout, numEvalsPerPoint, maxGridSteps, acceptThres, gridSpacing))
+        cReturnRetraceParams = shared_ptr[retraceparameters.TraceParameters](new retraceparameters.ExpandedMultiStepNewtonTraceParams(cLayout, numEvalsPerPoint, maxGridSteps, acceptThres, gridSpacing))
 
-    pErrStr[0] = B("Invalid retrace type, expecting either NoTrace, SingleStepNewton, MultiStepNewton or ExpandedMultiStepNewton")
-    return cEmptyRetraceParams
+        del retraceParams["evalsperpoint"]
+        del retraceParams["maxgridsteps"]
+        del retraceParams["acceptthreshold"]
+        del retraceParams["gridspacing"]
+        del retraceParams["layout"]
+
+    else:
+        pErrStr[0] = B("Invalid retrace type, expecting either NoTrace, SingleStepNewton, MultiStepNewton or ExpandedMultiStepNewton")
+        return cEmptyRetraceParams
+
+    del retraceParams["type"]
+    if retraceParams:
+        keys = ", ".join(sorted([ k for k in retraceParams ]))
+        pErrStr[0] = B(f"Unexpected keys in retrace parameters: {keys}")
+        return cEmptyRetraceParams
+
+    return cReturnRetraceParams
 
 def getCoordinatesForExpandedMultiStepNewtonGridSteps(params):
     cdef shared_ptr[retraceparameters.TraceParameters] cRetraceParams
