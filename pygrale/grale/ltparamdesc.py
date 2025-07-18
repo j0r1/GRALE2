@@ -8,7 +8,8 @@ Usage::
     python -m grale.ltparamdesc -in mod.par (-out inv.py | -exec)\\
           [-outparam desc.py] [-noRAdir] [-force] [-fromimgfile] \\
           [-popsize 512] [-mcmcgen 5000] [-outfnsuffix suff] \\
-          [-refinefactor 0.0001] [-debug] [-nostricimages]
+          [-refinefactor 0.0001] [-debug] [-nostricimages] \\
+          [-restarts 1] [-inverter 'threads:1']
 
 Arguments:
 
@@ -53,6 +54,12 @@ Arguments:
  - `-debug`: if present, more debug output will be shown.
  - `-nostrictimages`: if set, the input images file is not required to
    start with '#REFERENCE 0'
+ - `-restarts`: performs the initial search for a start lens (to sample
+   around) a number of times. May be useful for difficult optimization
+   landscapes.
+ - `-inverter`: allows you to specify which kind of inverter is used,
+   defaults to a single threaded one (usually best as most calculations
+   occur on GPU).
 """
 from .constants import *
 from . import cosmology
@@ -374,8 +381,16 @@ def createParametricDescriptionFromLenstoolInput(fileName,
 
     b = _checkUnique("image")
     bs = b["settings"]
-    if not "forme" in bs or int(bs["forme"][0]) != -1:
-        raise Exception("Expecting a 'forme' entry in 'image' with value -1")
+    if not "forme" in bs:
+        raise Exception("Expecting a 'forme' entry in 'image'")
+
+    optTypeNr = int(bs["forme"][0])
+    if optTypeNr == -1:
+        sourcePositionEstimate = "average"
+    elif optTypeNr == -2:
+        sourcePositionEstimate = "magweighted"
+    else:
+        raise Exception("Expecting a 'forme' entry in 'image' with value -1 or -2")
 
     if int(bs["multfile"][0]) != 1:
         raise Exception("Expecting 'multfile' of type 1")
@@ -637,10 +652,11 @@ def createParametricDescriptionFromLenstoolInput(fileName,
              "positionalUncertainty": positionSigmaForMCMC,
              "zd": knownZ,
              "center": center,
-             "description": "\n".join(outputLines)
+             "description": "\n".join(outputLines),
+             "sourcepositionestimate": sourcePositionEstimate,
            }
 
-def _startFromImgFileName(f, r, useRADirection, outParamFn, debugCode, strictImages):
+def _startFromImgFileName(f, r, useRADirection, outParamFn, debugCode, strictImages, inverterType):
     cosm = r["cosmology"]
     zd = r["zd"]
     Dd = cosm.getAngularDiameterDistance(zd)
@@ -648,10 +664,13 @@ def _startFromImgFileName(f, r, useRADirection, outParamFn, debugCode, strictIma
     centerPos = r["center"]
     imgFn = r["imagesFileName"]
     mcmcUncert = r["positionalUncertainty"]
+    sourcePositionEstimate = r["sourcepositionestimate"]
 
     print(f"""from grale.all import *
 import pickle
 {debugCode}
+inverters.setDefaultInverter("{inverterType}")
+
 zd = {zd}
 
 cosmParams = {cosmParams}
@@ -663,6 +682,7 @@ center = V({centerPos[0]/ANGLE_DEGREE},{centerPos[1]/ANGLE_DEGREE}) * ANGLE_DEGR
 imgList = images.readLenstoolInputImagesFile("{imgFn}", center, {useRADirection}, strict={strictImages})
 
 positionalUncertainty = {mcmcUncert/ANGLE_ARCSEC}*ANGLE_ARCSEC
+sourcePositionEstimate = "{sourcePositionEstimate}" # Can be "average" or "magweighted"
 """, file=f)
     if outParamFn:
         print(f'initialParamDesc = eval(open("{outParamFn}","rt").read()) # Process file as if commands were at this point in the file', file=f)
@@ -670,10 +690,12 @@ positionalUncertainty = {mcmcUncert/ANGLE_ARCSEC}*ANGLE_ARCSEC
         print("initialParamDesc = " + r["description"], file=f)
     print(file=f)
 
-def _startFromLtConfig(f, ltCfgFn, useRADirection, debugCode, strictImages):
+def _startFromLtConfig(f, ltCfgFn, useRADirection, debugCode, strictImages, inverterType):
     print(f"""from grale.all import *
 import pickle
 {debugCode}
+inverters.setDefaultInverter("{inverterType}")
+
 r = ltparamdesc.createParametricDescriptionFromLenstoolInput("{ltCfgFn}", useRADirection={useRADirection}, strictImages={strictImages})
 
 cosm = r["cosmology"]
@@ -684,6 +706,7 @@ Dd = cosm.getAngularDiameterDistance(zd)
 
 imgList = r["images"]
 positionalUncertainty = r["positionalUncertainty"]
+sourcePositionEstimate = r["sourcepositionestimate"] # Will be "average" or "magweighted"
 
 initialParamDesc = eval(r["description"]) # 'description' holds a string, we must interpret it
 """, file=f)
@@ -693,7 +716,7 @@ def usage():
 Usage:
     python -m grale.ltparamdesc -in mod.par (-out inv.py | -exec) [-outparam desc.py] [-noRAdir] [-force] [-fromimgfile] \\
                                 [-mcmcgen 5000] [-popsize 512] [-outfnsuffix] [-refinefactor 0.0001] [-debug] \\
-                                [-nostrictimages]
+                                [-nostrictimages] [-restarts 1] [-inverter 'threads:1']
 """, file=sys.stderr)
     sys.exit(-1)
 
@@ -712,6 +735,8 @@ def main():
     refineFactor = 0.0001
     strictImages = True
     debug = False
+    numRestarts = 1
+    inverterType = "threads:1"
 
     try:
         while idx < len(sys.argv):
@@ -749,6 +774,12 @@ def main():
                 debug = True
             elif opt == "-nostrictimages":
                 strictImages = False
+            elif opt == "-restarts":
+                numRestarts = int(sys.argv[idx+1])
+                idx += 1
+            elif opt == "-inverter":
+                inverterType = sys.argv[idx+1]
+                idx += 1
             else:
                 raise Exception(f"Unknown option '{opt}'")
 
@@ -782,16 +813,16 @@ inverters.debugDirectStderr = True
 
         stringOutput = StringIO()
         if fromImgFileName:
-            _startFromImgFileName(stringOutput, r, useRADir, outParamFn, debugCode, strictImages)
+            _startFromImgFileName(stringOutput, r, useRADir, outParamFn, debugCode, strictImages, inverterType)
         else:
-            _startFromLtConfig(stringOutput, ltCfgFn, useRADir, debugCode, strictImages)
+            _startFromLtConfig(stringOutput, ltCfgFn, useRADir, debugCode, strictImages, inverterType)
             if outParamFn:
                 print(f"Warning: parameter file name '{outParamFn}' will not be used in this inversion mode", file=sys.stderr)
 
         print(f"""# This is a helper function that will be called later. It performs the first
 # inversion, not using MCMC but using the genetic algorithm to find a single
 # best solution for this parametric description
-def initialInversion(zd, imgList, paramDesc, positionalUncertainty):
+def initialInversion(zd, imgList, paramDesc, positionalUncertainty, sourcePositionEstimate):
 
     # This configures the inversion code to continuously add some random noise
     # to the input positions, to prevent overfitting
@@ -806,13 +837,28 @@ def initialInversion(zd, imgList, paramDesc, positionalUncertainty):
         # as well, mainly in case prior terms are used (not used by 'pointimages')
         iws.addImageDataToList(i["imgdata"], i["z"], "bayesstronglensing")
 
-    # Invert!
-    r = iws.invertParametric(paramDesc, {popSize}, eaType = "JADE",
+    startLens, startFitness = None, None
+    numRestarts = {numRestarts} # For difficult optimization landscapes, start from the best one from several attempts
+
+    for _ in range(numRestarts):
+        # Invert!
+        r = iws.invertParametric(paramDesc, {popSize}, eaType = "JADE",
                              fitnessObjectParameters = {{ "fitness_bayesweaklensing_stronglenssigma": positionalUncertainty }},
                              useImagePositionRandomization=True, # Needs to be set for the addPositionUncertainty to have effect
+                             sourcePositionEstimate=sourcePositionEstimate,
+                             returnNds=True
                              )
 
-    startLens = r["lens"]
+        if startLens is None:
+            startLens = r["lenses"][0]
+            startFitness = r["fitnesses"][0]
+
+        for l,f in zip(r["lenses"], r["fitnesses"]):
+            if f[1] < startFitness[1]: # This compares the bayesian fitness value
+                startFitness = f
+                startLens = l
+
+    print("Using start lens with fitness", startFitness)
     startLens.save("startInv{outFnSuffix}.lensdata")
 
     # This routine will create a modified parametric description, where
@@ -829,7 +875,7 @@ def initialInversion(zd, imgList, paramDesc, positionalUncertainty):
 # This is the second helper function, that will be called with the refined
 # parametric description. It uses the Goodman-Weare algorithm (same as 'emcee')
 # to explore the parameter space
-def mcmcInversion(zd, imgList, paramDesc, positionalUncertainty, scales):
+def mcmcInversion(zd, imgList, paramDesc, positionalUncertainty, sourcePositionEstimate, scales):
 
     iws = inversion.InversionWorkSpace(zd, 100*ANGLE_ARCSEC)
     for i in imgList:
@@ -853,6 +899,7 @@ def mcmcInversion(zd, imgList, paramDesc, positionalUncertainty, scales):
     # Run the MCMC algorithm! It will move several 'walkers' around, for several generations.
     r = iws.invertParametric(paramDesc, {popSize}, maximumGenerations = totalGenerations, eaType = "MCMC", 
                              geneticAlgorithmParameters=mcmcParams, fitnessObjectParameters=fitParams,
+                             sourcePositionEstimate=sourcePositionEstimate,
                              clampToHardLimits=True, forceScales = scales)
 
     lens = r["lens"]
@@ -867,9 +914,9 @@ def mcmcInversion(zd, imgList, paramDesc, positionalUncertainty, scales):
     pickle.dump(r["optparams"], open("paraminfo{outFnSuffix}.dat", "wb"))
 
 # Run the initial inversion to get a good starting point for the MCMC part
-newParamDesc, scales = initialInversion(zd, imgList, initialParamDesc, positionalUncertainty)
+newParamDesc, scales = initialInversion(zd, imgList, initialParamDesc, positionalUncertainty, sourcePositionEstimate)
 # Do the actual MCMC inversion
-mcmcInversion(zd, imgList, newParamDesc, positionalUncertainty, scales)
+mcmcInversion(zd, imgList, newParamDesc, positionalUncertainty, sourcePositionEstimate, scales)
 
 """, file=stringOutput)
 
