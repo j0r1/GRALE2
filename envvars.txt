@@ -1,0 +1,42 @@
+GRALE_NUMTHREADS: in grale_massdens_threads.cpp, set number of threads to use,
+                  also in threadcommunicatortemplate.h
+GRALE_DEBUG_PRINTSINGLEPLANEBASISLENSES: in lensinversionparameterssingleplanecpu.cpp, if
+                                         set this causes the information about the plummer
+					 basis functions to be written to stderr when the
+					 LensInversionParametersSinglePlaneCPU instance
+					 is created.
+GRALE_OPENCL_PLATFORM: in opencllibrary.cpp, forces a platform to use, needed if more than
+                       one is available
+GRALE_OPENCL_DEVICETYPE: in opencllibrary.cpp, can force either GPU or CPU this way
+GRALELOG_LOGNAME: in log.cpp, specifies the file to log to (no logging if not set), 
+                  can be "stdout", "stderr", "auto", or a specific file name
+GRALELOG_LEVEL: in log.cpp, specifies level to log, "error", "warn", "info", "debug"
+                Note: logging only seems to be used in the inversion executable
+GRALE_OPENCL_IMAGEPADDING: in openclmultiplanecalculator.cpp, to add a number of
+                           fake images for alignment purposes, see commit
+			   55b207fadbeeb22ee2b61e1467b649b9a3ab5e4b
+GRALE_DUMPPOP_GENERATION: in populationdump.cpp, on a specific generation, write the
+                          entire population to a file.
+GRALE_DUMPPOP_FILENAME: in populationdump.cpp, the name of the file to write the
+                        population to
+GRALE_LOADPOP_GENERATION: in populationdump.cpp, on a specific generation, load the
+                          entire population from a file that was previously written
+			  to.
+GRALE_LOADPOP_FILENAME: in populationdump.cpp, the name of the file to read the
+                        population from
+GRALE_OPENCL_OLDMULTILEVELRETRACE: in openclsingleplanedeflection.cpp, use a much
+                                   simpler version of the multi-level retrace code,
+				   also much less balanced and slower
+GRALESHELL_DEBUG: in editor/debug.py , 'log' function doesn't seem to be used however
+GRALE_DEBUG_TRIANGLE: in privimages.py, write out various results from running the
+                      'triangle' executable. This is used to cut out regions from
+		      a null space grid for example
+GRALE_DEBUG_TRIANGLE_KEEPFILES: in privimages.py, do not delete the files that were
+                                created by the 'triangle' executable.
+
+Mentioned in docs:
+GRALE_OPENCL_AUTODEVICEFILE: in openclmultikernel.h, in openclmultiplanecalculator.cpp
+GRALE_OPENCLLIB: in opencllibrary.cpp
+GRALE_DEBUG_SEED: in randomnumbergenerator.cpp
+
+
