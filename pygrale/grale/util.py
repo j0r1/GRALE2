@@ -4,6 +4,7 @@ import numpy as np
 from numpy.linalg import inv
 from .inverters import _getNumHelpers
 from .images import ImagesData
+from .constants import ANGLE_ARCSEC, MASS_SUN
 from multiprocessing import Pool
 import copy
 
@@ -1413,8 +1414,91 @@ def readLenstoolBayesDat(fn, columnsToRemove = [ "Nsample", "ln(Lhood)", "Chi2" 
         del df[n]
     return df
 
-def readParametricSamples(parametersFileName, samplesFileName, renameColumnsFunction = None, renameColumnsFunctionParams = None):
+_defaultRenameParams = {
+    "angle": (1.0, "degree"),
+    "angdist": (ANGLE_ARCSEC, "arcsec"),
+    "mass": (MASS_SUN, "msun"),
+    "density": (1.0, "kgm2"),
+    "veldisp": (1000.0, "kms"),
+}
+
+def _defaultRenameColumnsFunction(colName, params):
+    origColName = colName
+    
+    lensNr = None
+    lensPrefix = "lens_"
+    anglePrefix = "angle_"
+    factorPrefix = "factor_"
+    
+    def _processType(colName, typeName):
+        scale, suffix = params[typeName]
+        newColName = colName if suffix is None else colName + "_" + suffix
+        return newColName, scale
+        
+    if colName.startswith(anglePrefix):
+        nr = int(colName[len(anglePrefix):]) # Just a check to see if it parses, not really needed here
+        return _processType(colName, "angle")
+    
+    if colName.startswith(factorPrefix):
+        nr = int(colName[len(factorPrefix):]) # Again, just to see if it parses
+        return colName, 1.0
+    
+    # This piece of code determines a lens number, and then updates the column name
+    # to what's after the comma
+    if colName.startswith(lensPrefix):
+        idx = colName.find(",")
+        assert idx > len(lensPrefix), f"Couldn't find ',' in column name that starts with 'lens_': {colName}"
+        lensNr = int(colName[len(lensPrefix):idx])
+        colName = colName[idx+1:]
+
+    # Remove the '_scaled' suffix if present
+    scaledSuffix = "_scaled"
+    if colName.endswith(scaledSuffix):
+        colName = colName[:-len(scaledSuffix)]
+    
+    # It's possible that this is just some property of a composite lens, or of a multiple
+    # plummer lens
+    if colName.startswith("x_") or colName.startswith("y_"):
+        nr = int(colName[2:])
+        return _processType(colName if lensNr is None else colName[:2] + f"{lensNr}-{nr}", "angdist")
+    
+    if colName.startswith("mass_"): # Component of multiple plummer lens
+        nr = int(colName[5:])
+        return _processType(colName if lensNr is None else colName[:5] + f"{lensNr}-{nr}", "mass")
+    
+    if colName.startswith("width_"): # Component of multiple plummer lens
+        nr = int(colName[6:])
+        return _processType(colName if lensNr is None else colName[:6] + f"{lensNr}-{nr}", "angdist")
+    
+    singleProperties = {
+        "centraldensity": "density",
+        "core": "angdist",
+        "coreradius": "angdist",
+        "density": "density",
+        "ellipticity": None,
+        "epsilon": None,
+        "mass": "mass",
+        "scaleradius": "angdist",
+        "shearangle": None,
+        "shearsize": None,
+        "sigma": "veldisp",
+        "velocitydispersion": "veldisp",
+        "width": "angdist"
+    }
+    
+    for n in singleProperties:
+        if n == colName:
+            colName = colName if lensNr is None else colName + f"_{lensNr}"
+            unit = singleProperties[n]
+            if unit is None:
+                return colName, 1.0
+            return _processType(colName, unit)
+            
+    raise Exception(f"Unexpected: unhandled column name {colName} (from {origColName})")
+
+def readParametricSamples(parametersFileName, samplesFileName, renameColumnsFunction = _defaultRenameColumnsFunction, renameColumnsFunctionParams = _defaultRenameParams):
     """TODO"""
+
     # Read the information about the parameters that were being optimized. This was written
     # in the inversion script, and it contains a name for each parameter in the samples file
     # as well as a scale factor. This scale factor is needed to convert the values from the
@@ -1447,17 +1531,5 @@ def readParametricSamples(parametersFileName, samplesFileName, renameColumnsFunc
         newName, scale = r
         df[newName] = df[oldName]/scale
         del df[oldName]
-
-    # TODO: add some general renaming/rescaling?
-    #for n in list(df.columns):
-    #
-    #    replaceCols(df, n, [
-    #            [ ("x_", "_scaled"), ("x_{}_arcsec"), ANGLE_ARCSEC],
-    #            [ ("y_", "_scaled"), ("y_{}_arcsec"), ANGLE_ARCSEC],
-    #            [ ("lens_", ",ellipticity"), ("ellipticity_{}"), 1],
-    #            [ ("lens_", ",velocitydispersion_scaled"), ("velocitydispersion_{}"), 1000],
-    #            [ ("lens_", ",coreradius_scaled"), ("coreradius_{}_arcsec"), ANGLE_ARCSEC],
-    #            [ ("lens_", ",scaleradius_scaled"), ("scaleradius_{}_arcsec"), ANGLE_ARCSEC],
-    #    ])
 
     return df
