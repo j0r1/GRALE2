@@ -1398,3 +1398,66 @@ def _checkKeys(obj, keyNames, errMsg):
     for k in obj:
         if not k in keyNames:
             raise Exception(errMsg + ": " + k)
+
+def readLenstoolBayesDat(fn, columnsToRemove = [ "Nsample", "ln(Lhood)", "Chi2" ]):
+    """TODO"""
+    colNames = []
+    for l in open(fn, "rt"):
+        if not l.startswith("#"):
+            break
+        colNames.append(l[1:].strip())
+
+    import pandas as pd
+    df = pd.read_csv(fn, comment='#', sep=r'\s+', header=None, names = colNames)
+    for n in columnsToRemove:
+        del df[n]
+    return df
+
+def readParametricSamples(parametersFileName, samplesFileName, renameColumnsFunction = None, renameColumnsFunctionParams = None):
+    """TODO"""
+    # Read the information about the parameters that were being optimized. This was written
+    # in the inversion script, and it contains a name for each parameter in the samples file
+    # as well as a scale factor. This scale factor is needed to convert the values from the
+    # samples file to regular units, as they use some arbitratry units to keep the calculated
+    # values in a sensible range
+    import pickle
+    import pandas as pd
+
+    paramInfo = pickle.load(open(parametersFileName, "rb"))
+    names = [ x["name"] for x in paramInfo ]
+    scales = np.array([ x["scalefactor"] for x in paramInfo ]).reshape((1,-1))
+
+    # Read the samples file, reshape it so that it has some amount of rows, each containing the
+    # values for the parameters in the sample. The amount of values per sample is ultimately
+    # obtained from the "paraminfo.dat" file
+    samples = np.fromfile(samplesFileName, dtype=np.float32).reshape((-1,len(names))).astype(np.float64)
+    # Rescale the values to get the correct units
+    scaledSamples = samples*scales
+
+    df = pd.DataFrame(scaledSamples, columns=names).copy()
+    if renameColumnsFunction is None:
+        return df
+
+    for n in names:
+        r = renameColumnsFunction(n, renameColumnsFunctionParams)
+        if r is None:
+            continue
+
+        oldName = n
+        newName, scale = r
+        df[newName] = df[oldName]/scale
+        del df[oldName]
+
+    # TODO: add some general renaming/rescaling?
+    #for n in list(df.columns):
+    #
+    #    replaceCols(df, n, [
+    #            [ ("x_", "_scaled"), ("x_{}_arcsec"), ANGLE_ARCSEC],
+    #            [ ("y_", "_scaled"), ("y_{}_arcsec"), ANGLE_ARCSEC],
+    #            [ ("lens_", ",ellipticity"), ("ellipticity_{}"), 1],
+    #            [ ("lens_", ",velocitydispersion_scaled"), ("velocitydispersion_{}"), 1000],
+    #            [ ("lens_", ",coreradius_scaled"), ("coreradius_{}_arcsec"), ANGLE_ARCSEC],
+    #            [ ("lens_", ",scaleradius_scaled"), ("scaleradius_{}_arcsec"), ANGLE_ARCSEC],
+    #    ])
+
+    return df
