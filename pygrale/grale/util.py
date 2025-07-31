@@ -1566,3 +1566,129 @@ def periodicWrapAround(x, a, b):
     
     return (xs*smaller) + (xl*larger) + (x*inbetween)
     
+def _checkEllipseShapes(A, c):
+    if len(A.shape) != 2:
+        raise Exception("The 'A' matrix of the ellipsoid needs to be 2D")
+    if A.shape[0] != A.shape[1]:
+        raise Exception("The 'A' matrix of the ellipsoid needs to be square")
+    if len(c.shape) != 2:
+        raise Exception("The 'c' matrix of the ellipsoid needs to be 2D")
+    if c.shape[1] != 1:
+        raise Exception("The 'c' matrix needs to be a column vector")
+    if A.shape[1] != c.shape[0]:
+        raise Exception("Mismatch in dimensions of 'A' matrix and 'c' column vector")
+
+def _checkEllipseOverlap_helper(A1, c1, A2, c2):
+    from scipy.optimize import minimize, NonlinearConstraint
+
+    # Recenter on c1
+    c2 = c2 - c1
+    
+    # Note: Keep c1 as is, is not used to calculate overlap, but is used later to
+    #       retransform found point to original coordinates
+    #c1 = np.zeros(c1.shape, dtype=c1.dtype)
+        
+    eigs = np.linalg.eigh(A1)
+    evals = eigs.eigenvalues
+    evects = eigs.eigenvectors
+
+    # Change orientation so that first ellipsoid is aligned with coordinate axes
+    A1 = evects.T@A1@evects
+    
+    c2 = evects.T@c2
+    A2 = evects.T@A2@evects
+    
+    # Rescale axes so that first ellipsoid becomes an N-D unit sphere
+    S = np.diag(evals**0.5)
+    Si = np.diag((1/evals)**0.5)
+    
+    A1 = Si@A1@Si
+    c2 = S@c2
+    A2 = Si@A2@Si
+
+    # Starting from the center of the second ellipsoid, we'll look for the point
+    # that's still inside that ellipsoid and closest to the origin.
+    
+    def f(x): # Objective, minimize distance (squared) to origin
+        return np.sum(x**2)
+    
+    def g(x): # Constraint, will check if this is less or equal than one (inside ellipsoid)
+        x = x.reshape((-1,1)) # make this a column vector, like c
+        val = (x-c2).T@A2@(x-c2)
+        return (val[0,0], )
+    
+    r = minimize(f, c2.reshape((-1,)), method="SLSQP",
+                 constraints=NonlinearConstraint(g, 0, 1))
+    
+    if not r.success:
+        print(r)
+        raise Exception("Error running SLSQP")
+
+    # If the distance to the found point (inside second ellipse) is less than
+    # unity, it lies withing the unit N-D sphere and the two shapes overlap
+    pt = r.x       
+    if np.sum(pt**2) <= 1:
+        return evects@(Si@pt.reshape((-1,1))) + c1
+    
+    return None
+
+# The idea is to use this to check if the ND-sigma ellipsoids of probability
+# distributions overlap for some sigma, to be able to check if different sets
+# of samples are probably samples of the same mode in a complex probability
+# distribution, or are samples of different modes.
+def checkEllipseOverlap(A1, c1, A2, c2):
+    """Checks if two N dimensional ellipsoids, where the A matrices describe
+    the ellipse parameters and 'c' matrices define the center, overlap. If not,
+    'None' is returned, if so, a point in the overlapping region is returned.
+    
+    The routine works by recentering the coordinates on the first ellipsoid,
+    re-orienting the axes to align with the first ellipsiod's axes, and then
+    rescaling the axes so that the first ellipsoid is transformed into a unit
+    sphere. An optimization routine then looks for the point inside the second
+    ellipsoid that's closest to the origin. If the distance to that point is
+    less than unity, the ellipses overlap and the point is transformed to the
+    original coordinates. The routine is repeated from the second ellipsoid's
+    point of view, and the average of the two points is what's returned.
+    """
+    _checkEllipseShapes(A1, c1)
+    _checkEllipseShapes(A2, c2)
+
+    pt1 = _checkEllipseOverlap_helper(A1, c1, A2, c2)
+    pt2 = _checkEllipseOverlap_helper(A2, c2, A1, c1)
+    
+    if pt1 is None:
+        if pt2 is not None:
+            raise Exception("Inconsistency in checking overlap")
+        return None
+    
+    # pt1 is not None
+    if pt2 is None:
+        raise Exception("Inconsistency (2) in checking overlap")
+        
+    return 0.5*(pt1+pt2)
+
+# Just leaving this testfuction here, to illustrate how the parameters
+# of the function above are interpreted in 2D
+def drawEllipse2D(A, c):
+    import matplotlib.pyplot as plt
+
+    eigs = np.linalg.eigh(A)
+    evals = eigs.eigenvalues
+    evects = eigs.eigenvectors
+    v1 = evects[0,:] / evals[0]**0.5
+    v2 = evects[1,:] / evals[1]**0.5
+    plt.plot([c[0,0], c[0,0] + v1[0]], [c[1,0], c[1,0] + v1[1]], '-')
+    plt.plot([c[0,0], c[0,0] + v2[0]], [c[1,0], c[1,0] + v2[1]], '-')
+    
+    #print(evects)
+    
+    a = 1/evals[0]**0.5
+    b = 1/evals[1]**0.5
+    phi = np.atan2(evects[0,1], evects[0,0])
+    
+    angles = np.linspace(0,2*np.pi)
+    x = a*np.cos(angles)
+    y = b*np.sin(angles)
+    xr = x*np.cos(phi) - y*np.sin(phi) + c[0,0]
+    yr = x*np.sin(phi) + y*np.cos(phi) + c[1,0]
+    plt.plot(xr, yr)
