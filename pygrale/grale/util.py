@@ -1533,3 +1533,36 @@ def readParametricSamples(parametersFileName, samplesFileName, renameColumnsFunc
         del df[oldName]
 
     return df
+
+def periodicWrapAround(x, a, b):
+    """Function that does something modulus-like for real numbers, makes
+    sure that x is adjusted to lie between a and b. Idea was that using
+    goodman-weare no real periodic wrap-around could be used for angles
+    (I think this would no longer satisty the detailed balance), and
+    perhaps boundaries could be avoided entirely. This function could
+    then be used to postprocess samples to lie within the boundaries.
+
+    Some testing indicated that having no boundaries could cause the angles
+    to grow to very large values, causing the sampling to be not as good
+    anymore.
+    """
+    if type(x) != np.ndarray:
+        return periodicWrapAround(np.array(x, dtype=np.float64), a, b)
+
+    a, b = float(a), float(b)
+    if a > b:
+        a, b = b, a
+    
+    sz = (b-a)*1.0
+    
+    smaller = x < a
+    larger = x >= b
+    inbetween = (~smaller)&(~larger)
+    
+    # smaller
+    xs = b - np.fmod(-(x-b), sz)
+    # larger
+    xl = a + np.fmod(x-a, sz)
+    
+    return (xs*smaller) + (xl*larger) + (x*inbetween)
+    
