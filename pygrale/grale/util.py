@@ -558,7 +558,7 @@ def calculateImagePredictions(imgList, lensModel, cosmology=None,
             raise Exception(f"Unknown value '{reduceSources}' for 'reduceSources' parameter, expecting 'noreduction', 'average' or 'magweighted'")
 
     elif type(reduceSources) == list:
-        reduceSourcesFunction = lambda imgPlane,srcIdx,imgPos: reduceSources[srcIdx] # Just return part of the list
+        reduceSourcesFunction = lambda imgPlane,srcIdx,imgPos: [ reduceSources[srcIdx] ] # Just return part of the list
 
     else:
         reduceSourcesFunction = reduceSources # This parameter specifies the function to use
