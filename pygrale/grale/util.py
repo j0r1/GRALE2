@@ -1692,3 +1692,63 @@ def drawEllipse2D(A, c):
     xr = x*np.cos(phi) - y*np.sin(phi) + c[0,0]
     yr = x*np.sin(phi) + y*np.cos(phi) + c[1,0]
     plt.plot(xr, yr)
+
+# Use infinity to get min/max
+# quartile or direct mean/stddev
+def getDataMuSigma(data, useQuartileEstimator=True):
+    """TODO"""
+    if useQuartileEstimator:
+        q25, q75 = np.percentile(data, [25, 75])
+        mu = (q25 + q75)/2
+        sigma = (q75 - q25)/(2 * 0.6745)
+    else:
+        mu = np.mean(data)
+        sigma = np.std(data)
+
+    return mu, sigma
+
+def getDataRangeForHistogram(data, numSigma=5, useQuartileEstimator=True):
+    """TODO"""
+
+    if numSigma == np.inf:
+        return [ np.min(data), np.max(data) ], None, None
+    
+    mu, sigma = getDataMuSigma(data, useQuartileEstimator)
+    
+    return [mu-numSigma*sigma,mu+numSigma*sigma], mu, sigma
+
+def getAllDataRangesForHistogram(df, colNames, rangeNumSigma=5, useQuartileEstimator=True):
+    """TODO"""
+    
+    ranges = { }
+
+    for n in colNames:
+        if n in ranges:
+            raise Exception(f"Specified column name {n} more than once")    
+
+        ranges[n] = getDataRangeForHistogram(df[n], numSigma=rangeNumSigma, useQuartileEstimator=useQuartileEstimator)[0]
+
+    return ranges
+
+def mergeDataRanges(r1, r2):
+    """TODO"""
+
+    rMin = np.min([np.min(r1), np.min(r2)])
+    rMax = np.max([np.max(r1), np.max(r2)])
+    return np.array([rMin, rMax])
+
+def mergeAllDataRanges(r1s, r2s):
+    """TODO"""
+    
+    newRanges = { }
+    for n in r1s:
+        if not n in r2s:
+            raise Exception(f"Range name {n} is present in r1s, but but r2s")
+
+        newRanges[n] = mergeDataRanges(r1s[n], r2s[n])
+        
+    for n in r2s:
+        if not n in r1s:
+            raise Exception(f"Range name {n} is present in r2s, but but r1s")
+
+    return newRanges

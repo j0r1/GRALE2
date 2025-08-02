@@ -2514,6 +2514,148 @@ def plotShearComponents(thetas, gamma1, gamma2, lengthMultiplier, angularUnit="d
 
     plt.plot(xCoords, yCoords, '-', **kwargs)
 
+def plotHistogram1D(data, range=None, numBins=100, rangeNumSigma=5, useQuartileEstimator=True,
+                    plotBars = False, plotGaussianApprox = False, showMuSigma = False,
+                    title=None, histKwArgDict = {}, approxKwArgDict = {}, histLs = '-'):
+    """TODO"""
+
+    import matplotlib.pyplot as plt
+
+    usedColor = None
+    if range is not None:
+        rnge = range
+        mu, sigma = None, None
+    else:
+        rnge, mu, sigma = util.getDataRangeForHistogram(data, rangeNumSigma, useQuartileEstimator)
+    
+    if plotBars:
+        counts, bins, patches = plt.hist(data, bins=numBins, density=True, range=rnge, **histKwArgDict)
+        usedColor = patches[0].get_facecolor()
+    else:
+        from scipy.interpolate import interp1d
+
+        counts, bins = np.histogram(data, bins=numBins, range=rnge, density=True)
+        bin_centers = (bins[:-1] + bins[1:])/2
+    
+        f = interp1d(bin_centers, counts, kind='cubic')
+        xnew = np.linspace(bin_centers.min(), bin_centers.max(), 1000)
+        ynew = f(xnew)
+    
+        lines = plt.plot(bin_centers, counts, histLs, **histKwArgDict)
+        usedColor = lines[0].get_color()
+    
+    if plotGaussianApprox:
+        if mu is None or sigma is None:
+            mu, sigma = util.getDataMuSigma(data, useQuartileEstimator)
+
+        x = np.linspace(*rnge, 1000)
+        y = 1/((2*np.pi)**0.5*sigma)*np.exp(-(x-mu)**2/(2*sigma**2))
+        plt.plot(x, y, **approxKwArgDict)
+        
+    if showMuSigma:
+        if mu is None or sigma is None:
+            mu, sigma = util.getDataMuSigma(data, useQuartileEstimator)
+
+        muSigmaStr = f"{mu:.5g} ± {sigma:.5g}"
+        if not title:
+            title = muSigmaStr
+        else:
+            title += " | " + muSigmaStr
+
+    plt.gca().set_xlim(rnge)
+    if title:
+        plt.title(f"{title}")
+    
+    return rnge, np.max(counts), usedColor
+
+def plotHistogram2DSmoothed(xData, yData, numBins=30, smoothSigma=1, numLevels=10, ranges=None, histKwArgDict={}):
+    """TODO"""
+
+    from scipy.ndimage import gaussian_filter
+    import matplotlib.pyplot as plt
+
+    hist, xedges, yedges = np.histogram2d(xData, yData, bins=numBins, range=ranges)
+    histSmoothed = gaussian_filter(hist, sigma=smoothSigma)
+
+    xcenters = (xedges[:-1] + xedges[1:]) / 2
+    ycenters = (yedges[:-1] + yedges[1:]) / 2
+
+    plt.contour(xcenters, ycenters, histSmoothed.T, levels=numLevels, **histKwArgDict)
+    
+    if ranges is not None:
+        plt.gca().set_xlim(ranges[0])
+        plt.gca().set_ylim(ranges[1])
+
+def createCornerPlot(df, colNames=None, tileWidth=4, rangeNumSigma=4,
+                    numBins1D=100, useQuartileEstimator=True,
+                    plotBars1D = False, plotGaussianApprox1D = False, showMuSigma1D = False,
+                    histKwArgDict1D = {}, approxKwArgDict1D = {}, histLs1D = '-',
+                    numBins2D=30, smoothSigma2D=1, numLevels=10, histKwArgDict2D={},
+                    ranges=None):
+    """TODO"""
+    import matplotlib.pyplot as plt
+
+    # Make a copy of the dictionaries, so we can change them
+    histKwArgDict1D = histKwArgDict1D.copy()
+    histKwArgDict2D = histKwArgDict2D.copy()
+    approxKwArgDict1D = approxKwArgDict1D.copy()
+    
+    if colNames == None:
+        colNames = list(df.columns)
+    
+    N = len(colNames)
+    
+    if tileWidth is not None:
+        plt.figure(figsize=(N*tileWidth,N*tileWidth))
+    
+    if ranges is None:
+        ranges = util.getAllDataRangesForHistogram(df, colNames, rangeNumSigma=rangeNumSigma, useQuartileEstimator=useQuartileEstimator)
+    
+    firstUsedColor = None
+    
+    for nIdx, n in enumerate(colNames):
+    
+        if firstUsedColor is not None:
+            if not "color" in histKwArgDict1D:
+                histKwArgDict1D["color"] = firstUsedColor
+    
+        plt.subplot(N, N, nIdx*N+nIdx+1)
+        _,_, usedColor = plotHistogram1D(df[n], title=n, range=ranges[n], rangeNumSigma=rangeNumSigma, numBins=numBins1D, useQuartileEstimator=useQuartileEstimator,
+                                  plotBars=plotBars1D, plotGaussianApprox=plotGaussianApprox1D, showMuSigma=showMuSigma1D,
+                                  histKwArgDict=histKwArgDict1D, approxKwArgDict=approxKwArgDict1D, histLs=histLs1D)
+        
+        if firstUsedColor is None:
+            firstUsedColor = usedColor
+    
+        if nIdx != len(colNames)-1:
+            plt.gca().set_xticklabels([])
+        #plt.gca().set_yticklabels([])
+        
+    
+    if not "colors" in histKwArgDict2D:
+        histKwArgDict2D["colors"] = firstUsedColor
+    
+    for nIdx,n in enumerate(colNames):
+        for mIdx,m in enumerate(colNames):
+            if mIdx >= nIdx:
+                continue
+
+            plt.subplot(N, N, nIdx*N+mIdx+1)
+            plotHistogram2DSmoothed(df[m], df[n], ranges=(ranges[m], ranges[n]), numBins=numBins2D, smoothSigma=smoothSigma2D,
+                                    numLevels=numLevels, histKwArgDict=histKwArgDict2D)
+            
+            if mIdx==0: # plot Y labels
+                plt.ylabel(n)
+            else:
+                plt.gca().set_yticklabels([])
+                
+            if nIdx==N-1: # plot X labels
+                plt.xlabel(m)
+            else:
+                plt.gca().set_xticklabels([])
+
+    return ranges
+
 def _getAngularUnit(u):
     if u == "default":
         return getDefaultAngularUnit()
