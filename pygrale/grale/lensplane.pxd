@@ -5,6 +5,7 @@ from libcpp.memory cimport unique_ptr
 
 cimport grale.vector2d as vector2d
 cimport grale.serut as serut
+cimport grale.imageplane as imageplane
 ctypedef vector2d.Vector2Dd Vector2Dd
 
 cdef extern from "grale/lensplane.h" namespace "grale":
@@ -44,5 +45,7 @@ cdef extern from "pylensplane.h":
         bool createDeflectionGridLens(LensPlane *lp, vector[unsigned char] &b, string &errStr)
         @staticmethod
         bool getLensBytes(LensPlane *lp, vector[unsigned char] &b, string &errStr)
+        @staticmethod
+        bool getLensBytesIP(imageplane.ImagePlane *lp, vector[unsigned char] &b, string &errStr)
 
 

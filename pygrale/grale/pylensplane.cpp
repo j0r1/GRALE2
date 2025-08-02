@@ -55,11 +55,12 @@ bool PyLensPlane::createDeflectionGridLens(const LensPlane *lp, std::vector<uint
 	return true;
 }
 
-bool PyLensPlane::getLensBytes(const LensPlane *lp, std::vector<uint8_t> &data, std::string &errStr)
+template <class Plane>
+bool getLensBytesTemplate(const Plane *lp, std::vector<uint8_t> &data, std::string &errStr)
 {
 	if (!lp)
 	{
-		errStr = "No lensplane specified";
+		errStr = "No lensplane or image plane specified";
 		return false;
 	}
 
@@ -79,5 +80,15 @@ bool PyLensPlane::getLensBytes(const LensPlane *lp, std::vector<uint8_t> &data, 
 
 	data = vs.getBuffer();
 	return true;
+}
+
+bool PyLensPlane::getLensBytes(const LensPlane *lp, std::vector<uint8_t> &data, std::string &errStr)
+{
+	return getLensBytesTemplate<LensPlane>(lp, data, errStr);
+}
+
+bool PyLensPlane::getLensBytesIP(const ImagePlane *lp, std::vector<uint8_t> &data, std::string &errStr)
+{
+	return getLensBytesTemplate<ImagePlane>(lp, data, errStr);
 }
 

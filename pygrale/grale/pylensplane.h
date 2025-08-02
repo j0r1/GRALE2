@@ -4,6 +4,7 @@
 
 #include <Python.h>
 #include <grale/lensplane.h>
+#include <grale/imageplane.h>
 #include <vector>
 
 class PyLensPlane : public grale::LensPlane
@@ -14,6 +15,10 @@ public:
 
 	static bool createDeflectionGridLens(const LensPlane *lp, std::vector<uint8_t> &data, std::string &errStr);
 	static bool getLensBytes(const LensPlane *lp, std::vector<uint8_t> &data, std::string &errStr);
+
+	// Similar function as the one above, but for an image plane
+	// TODO: move this somewhere else?
+	static bool getLensBytesIP(const grale::ImagePlane *lp, std::vector<uint8_t> &data, std::string &errStr);
 protected:
 	void setFeedbackStatus(const std::string &msg);
 	void setFeedbackPercentage(int pct);

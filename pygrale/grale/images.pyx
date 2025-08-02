@@ -1288,6 +1288,20 @@ cdef class ImagePlane:
         self.m_Ds = Ds
         self.m_Dds = Dds
 
+    def getLens(self):
+        """getLens()
+
+        This returns a copy of the :class:`grale.lenses.GravitationalLens` instance that was
+        used to create the deflections.
+        """
+        cdef vector[unsigned char] buf
+        cdef string errStr
+
+        if not lensplane.PyLensPlane.getLensBytesIP(self._imgPlane(), buf, errStr):
+            raise ImagePlaneException(S(errStr))
+
+        return lenses.GravitationalLens.fromBytes(<bytes>(&buf[0])[:len(buf)])
+
     def getDs(self):
         """getDs()
 
