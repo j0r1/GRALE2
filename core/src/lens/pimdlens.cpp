@@ -391,9 +391,9 @@ vector<CLFloatParamInfo> PIMDLens::getCLAdjustableFloatingPointParameterInfo(dou
 	double densScale = SPEED_C*SPEED_C/(4.0*CONST_PI*CONST_G*getLensDistance());
 
 	return {
-		{ .name = "centraldensity_scaled", .offset = 0, .scaleFactor = densScale, .hardMin = 0 },
-		{ .name = "coreradius_scaled", .offset = 1, .scaleFactor = deflectionScale, .hardMin = 0 },
-		{ .name = "scaleradius_scaled", .offset = 2, .scaleFactor = deflectionScale, .hardMin = 0 },
+		CLFloatParamInfo("centraldensity_scaled", 0, densScale, 0),
+		CLFloatParamInfo("coreradius_scaled", 1, deflectionScale, 0),
+		CLFloatParamInfo("scaleradius_scaled", 2, deflectionScale, 0)
 	};
 }
 
@@ -469,9 +469,9 @@ unique_ptr<GravitationalLensParams> LTPIMDLens::createLensParamFromCLFloatParams
 vector<CLFloatParamInfo> LTPIMDLens::getCLAdjustableFloatingPointParameterInfo(double deflectionScale, double potentialScale) const
 {
 	return {
-		{ .name = "velocitydispersion_scaled", .offset = 0, .scaleFactor = velScale, .hardMin = 0 },
-		{ .name = "coreradius_scaled", .offset = 1, .scaleFactor = deflectionScale, .hardMin = 0 },
-		{ .name = "scaleradius_scaled", .offset = 2, .scaleFactor = deflectionScale, .hardMin = 0 },
+		CLFloatParamInfo("velocitydispersion_scaled", 0, velScale, 0),
+		CLFloatParamInfo("coreradius_scaled", 1, deflectionScale, 0),
+		CLFloatParamInfo("scaleradius_scaled", 2, deflectionScale, 0)
 	};
 }
 

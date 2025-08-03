@@ -6,6 +6,7 @@
 #include <memory>
 #include <iostream>
 #include <cmath>
+#include <array>
 
 using namespace errut;
 using namespace std;

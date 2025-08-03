@@ -288,10 +288,11 @@ std::vector<CLFloatParamInfo> MultiplePlummerLens::getCLAdjustableFloatingPointP
 	size_t offset = 0;
 	for (int i = 0 ; i < numlenses ; i++)
 	{
-		info.push_back({ .name = "mass_" + std::to_string(i) + "_scaled", .offset = offset++, .scaleFactor = (SPEED_C*SPEED_C*getLensDistance()*deflectionScale*deflectionScale)/(4.0*CONST_G), .hardMin = 0 });
-		info.push_back({ .name = "width_" + std::to_string(i) + "_scaled", .offset = offset++, .scaleFactor = deflectionScale, .hardMin = 0 });
-		info.push_back({ .name = "x_" + std::to_string(i) + "_scaled", .offset = offset++, .scaleFactor = deflectionScale });
-		info.push_back({ .name = "y_" + std::to_string(i) + "_scaled", .offset = offset++, .scaleFactor = deflectionScale });
+		info.push_back(CLFloatParamInfo("mass_" + std::to_string(i) + "_scaled",  offset++, (SPEED_C*SPEED_C*getLensDistance()*deflectionScale*deflectionScale)/(4.0*CONST_G), 0));
+
+		info.push_back(CLFloatParamInfo("width_" + std::to_string(i) + "_scaled", offset++, deflectionScale, 0));
+		info.push_back(CLFloatParamInfo("x_" + std::to_string(i) + "_scaled", offset++, deflectionScale));
+		info.push_back(CLFloatParamInfo("y_" + std::to_string(i) + "_scaled", offset++, deflectionScale));
 	}
 
 	return info;

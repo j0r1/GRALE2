@@ -144,8 +144,8 @@ LensQuantities clExternalShearProgram(float2 coord, __global const int *pIntPara
 std::vector<CLFloatParamInfo> ExternalShearLens::getCLAdjustableFloatingPointParameterInfo(double deflectionScale, double potentialScale) const
 {
 	return {
-		{ .name = "shearsize", .offset = 0, .scaleFactor = 1.0, .hardMin = 0 },
-		{ .name = "shearangle", .offset = 1, .scaleFactor = 180.0/CONST_PI },
+		CLFloatParamInfo("shearsize", 0, 1.0, 0),
+		CLFloatParamInfo("shearangle", 1, 180.0/CONST_PI)
 	};
 }
 

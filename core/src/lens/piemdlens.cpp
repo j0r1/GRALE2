@@ -632,10 +632,10 @@ vector<CLFloatParamInfo> PIEMDLens::getCLAdjustableFloatingPointParameterInfo(do
 	double densScale = SPEED_C*SPEED_C/(4.0*CONST_PI*CONST_G*getLensDistance());
 
 	return {
-		{ .name = "centraldensity_scaled", .offset = 0, .scaleFactor = densScale, .hardMin = 0 },
-		{ .name = "coreradius_scaled", .offset = 1, .scaleFactor = deflectionScale, .hardMin = 0 },
-		{ .name = "scaleradius_scaled", .offset = 2, .scaleFactor = deflectionScale, .hardMin = 0 },
-		{ .name = "epsilon", .offset = 3, .scaleFactor = 1.0, .hardMin = 0.01, .hardMax = 0.99 }, // TODO 0 and 1 are not allowed, what are good bounds?
+		CLFloatParamInfo("centraldensity_scaled", 0, densScale, 0),
+		CLFloatParamInfo("coreradius_scaled", 1, deflectionScale, 0),
+		CLFloatParamInfo("scaleradius_scaled", 2, deflectionScale, 0),
+		CLFloatParamInfo("epsilon", 3, 1.0, 0.01, 0.99), // TODO 0 and 1 are not allowed, what are good bounds?
 	};
 }
 
@@ -773,10 +773,10 @@ unique_ptr<GravitationalLensParams> LTPIEMDLens::createLensParamFromCLFloatParam
 vector<CLFloatParamInfo> LTPIEMDLens::getCLAdjustableFloatingPointParameterInfo(double deflectionScale, double potentialScale) const
 {
 	return {
-		{ .name = "velocitydispersion_scaled", .offset = 0, .scaleFactor = velScale, .hardMin = 0 },
-		{ .name = "coreradius_scaled", .offset = 1, .scaleFactor = deflectionScale, .hardMin = 0 },
-		{ .name = "scaleradius_scaled", .offset = 2, .scaleFactor = deflectionScale, .hardMin = 0 },
-		{ .name = "ellipticity", .offset = 3, .scaleFactor = 1.0, .hardMin = 0.01, .hardMax = 0.99 }, // TODO 0 and 1 are not allowed, what are good bounds?
+		CLFloatParamInfo("velocitydispersion_scaled", 0, velScale, 0),
+		CLFloatParamInfo("coreradius_scaled", 1, deflectionScale, 0),
+		CLFloatParamInfo("scaleradius_scaled", 2, deflectionScale, 0),
+		CLFloatParamInfo("ellipticity", 3, 1.0, 0.01, 0.99), // TODO 0 and 1 are not allowed, what are good bounds?
 	};
 }
 

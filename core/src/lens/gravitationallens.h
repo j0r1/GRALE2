@@ -59,6 +59,16 @@ public:
 
 struct CLFloatParamInfo
 {
+	CLFloatParamInfo()
+		: offset(0), scaleFactor(1.0), 
+		  hardMin(-std::numeric_limits<float>::infinity()),
+		  hardMax(std::numeric_limits<float>::infinity()) { }
+
+	CLFloatParamInfo(const std::string &n, size_t off, double scale = 1.0,
+			float hrdMin = -std::numeric_limits<float>::infinity(),
+			float hrdMax = std::numeric_limits<float>::infinity())
+		: name(n), offset(off), scaleFactor(scale), hardMin(hrdMin), hardMax(hrdMax) { }
+
 	std::string name;
 	size_t offset;
 	double scaleFactor = 1.0; // apply this to get the true value
