@@ -837,8 +837,8 @@ __kernel void retraceKernel(int numBpPoints, int numParamSets, int numFloatParam
 			return cleanup(r.getErrorString());
 
 		string thresholdCode = R"XYZ(
-const float retraceBetaDiffThreshold = )XYZ" + float_to_string(expTraceParams.getAcceptanceThreshold()) + R"XYZ(;
-const float retraceGridDxy = )XYZ" + float_to_string(expTraceParams.getGridSpacing()) + R"XYZ(;
+__constant float retraceBetaDiffThreshold = )XYZ" + float_to_string(expTraceParams.getAcceptanceThreshold()) + R"XYZ(;
+__constant float retraceGridDxy = )XYZ" + float_to_string(expTraceParams.getGridSpacing()) + R"XYZ(;
 )XYZ";
 		string reprojectKernel = deflectionKernelCode;
 		string perPointTraceCode = getMultiStepCode("findRetraceTheta_perpoint", expTraceParams.getNumberOfEvaluationsPerStartPosition(), lensRoutineName);

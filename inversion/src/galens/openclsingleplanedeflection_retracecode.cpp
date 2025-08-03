@@ -118,7 +118,7 @@ bool_t getReprojectSubroutineCode(const string &lensRoutineName, const ExpandedM
 	subCode += getMultiStepCode("findRetraceTheta_singlepoint", numEvalsPerStartPosition, lensRoutineName);	
 	subCode += R"XYZ(
 
-const float betaDiffThreshold = )XYZ" + float_to_string(acceptThreshold) + R"XYZ(;
+__constant float betaDiffThreshold = )XYZ" + float_to_string(acceptThreshold) + R"XYZ(;
 
 float2 findRetraceTheta_level(int level, const float dxy,
 		                const float2 thetaStart, const float2 betaTarget, const float dfrac, float *pBestBetaDiffSize,
@@ -340,8 +340,8 @@ string getGridLevelsConstants(const ExpandedMultiStepNewtonTraceParams &tracePar
 	stringstream ss;
 	size_t maxNumCoords = 0;
 	
-	ss << "const int numGridLevels = " << maxSteps << ";" << endl;
-	ss << "const int numCoordsForGridLevel[" << (maxSteps-1) << "] = { ";
+	ss << "__constant int numGridLevels = " << maxSteps << ";" << endl;
+	ss << "__constant int numCoordsForGridLevel[" << (maxSteps-1) << "] = { ";
 	for (auto &levels : allLevels)
 	{
 		ss << levels.size();
@@ -360,7 +360,7 @@ string getGridLevelsConstants(const ExpandedMultiStepNewtonTraceParams &tracePar
 			levels.push_back({-7, -9});
 	}
 
-	ss << "const int coordDxForGridLevel[" << (maxSteps-1) <<  "][" << maxNumCoords << "] = {" << endl;
+	ss << "__constant int coordDxForGridLevel[" << (maxSteps-1) <<  "][" << maxNumCoords << "] = {" << endl;
 	for (auto &levels : allLevels)
 	{
 		ss << "    { ";
@@ -377,7 +377,7 @@ string getGridLevelsConstants(const ExpandedMultiStepNewtonTraceParams &tracePar
 	}
 	ss << "};" << endl;
 
-	ss << "const int coordDyForGridLevel[" << (maxSteps-1) <<  "][" << maxNumCoords << "] = {" << endl;
+	ss << "__constant int coordDyForGridLevel[" << (maxSteps-1) <<  "][" << maxNumCoords << "] = {" << endl;
 	for (auto &levels : allLevels)
 	{
 		ss << "    { ";
